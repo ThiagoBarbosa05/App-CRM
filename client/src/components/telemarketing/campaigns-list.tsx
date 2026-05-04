@@ -31,19 +31,22 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 import {
   Plus,
   Edit,
   Trash2,
-  Users,
   Zap,
   Monitor,
   Bot,
-  User,
   Radio,
   CheckCircle2,
   XCircle,
   Loader2,
+  Play,
+  Pause,
+  Link2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { CampaignClientsDialog } from "./campaign-clients-dialog";
 import { CampaignDispatchDialog } from "./campaign-dispatch-dialog";
@@ -95,6 +98,13 @@ const STATUS_COLORS: Record<Campaign["status"], string> = {
     "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500",
 };
 
+const STATUS_ACCENT: Record<Campaign["status"], string> = {
+  ativa: "border-t-[3px] border-t-emerald-500",
+  pausada: "border-t-[3px] border-t-yellow-400",
+  rascunho: "border-t-[3px] border-t-slate-300 dark:border-t-slate-600",
+  encerrada: "border-t-[3px] border-t-slate-200 dark:border-t-slate-700",
+};
+
 // Sub-component: busca stats da campanha e renderiza progresso no card
 function CampaignProgress({
   campaign,
@@ -122,43 +132,58 @@ function CampaignProgress({
   const nao = stats?.nao ?? 0;
   const pct = total > 0 ? Math.round((contacted / total) * 100) : 0;
 
-  if (total === 0) return null;
-
   return (
-    <div className="mt-3 space-y-2">
-      {/* Contadores */}
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-3 text-slate-500">
-          <span className="font-medium text-slate-700 dark:text-slate-300">
-            {contacted}
-            <span className="font-normal text-slate-400">/{total}</span>
+    <div className="space-y-3">
+      {/* Progresso */}
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <span className="font-medium">Progresso</span>
+            {sim > 0 && (
+              <span className="flex items-center gap-0.5 text-emerald-500 font-semibold">
+                <CheckCircle2 className="size-3" />
+                {sim}
+              </span>
+            )}
+            {nao > 0 && (
+              <span className="flex items-center gap-0.5 text-red-400 font-semibold">
+                <XCircle className="size-3" />
+                {nao}
+              </span>
+            )}
+          </div>
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+            {pct}%
           </span>
-          <span>contactados</span>
         </div>
-        <div className="flex items-center gap-2">
-          {sim > 0 && (
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-              <CheckCircle2 className="size-3" />
-              {sim}
-            </span>
-          )}
-          {nao > 0 && (
-            <span className="flex items-center gap-1 text-red-500 dark:text-red-400 font-medium">
-              <XCircle className="size-3" />
-              {nao}
-            </span>
-          )}
+        <Progress value={pct} className="h-1.5" />
+      </div>
+
+      {/* Estatísticas */}
+      <div className="grid grid-cols-2 gap-3 pt-0.5">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            Total Clientes
+          </p>
+          <p className="mt-0.5 text-xl font-bold leading-none text-slate-800 dark:text-slate-100">
+            {total}
+          </p>
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            Contactados
+          </p>
+          <p className="mt-0.5 text-xl font-bold leading-none text-emerald-500">
+            {contacted}
+          </p>
         </div>
       </div>
 
-      {/* Barra de progresso */}
-      <Progress value={pct} className="h-1.5" />
-
-      {/* Botão andamento */}
+      {/* Link de andamento */}
       {contacted > 0 && (
         <button
           onClick={onMonitor}
-          className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5"
+          className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
         >
           <Monitor className="size-3" />
           Ver andamento por cliente
@@ -272,31 +297,66 @@ export function CampaignsList() {
       toast({ title: "Erro ao excluir campanha", variant: "destructive" }),
   });
 
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: Campaign["status"];
+    }) => {
+      const res = await fetch(`/api/campaigns/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Erro ao atualizar status");
+      return res.json();
+    },
+    onMutate: async ({ id, status }) => {
+      // Atualiza otimisticamente o cache sem disparar refetch
+      const prev = queryClient.getQueryData<Campaign[]>(["/api/campaigns"]);
+      queryClient.setQueryData<Campaign[]>(
+        ["/api/campaigns"],
+        (old) => old?.map((c) => (c.id === id ? { ...c, status } : c)) ?? [],
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      // Reverte em caso de falha
+      if (ctx?.prev) {
+        queryClient.setQueryData(["/api/campaigns"], ctx.prev);
+      }
+      toast({ title: "Erro ao atualizar status", variant: "destructive" });
+    },
+  });
+
   const type = watch("type");
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Cabeçalho */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
             Campanhas
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
-            {campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""}{" "}
-            cadastrada
-            {campaigns.length !== 1 ? "s" : ""}
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            Gerencie suas filas de discagem
           </p>
         </div>
-        <Button size="sm" className="gap-2 rounded-2xl" onClick={openCreate}>
+        <Button className="shrink-0 gap-2 rounded-2xl" onClick={openCreate}>
           <Plus className="size-4" />
-          Nova campanha
+          Nova Campanha
         </Button>
       </div>
 
+      {/* Lista */}
       <div className="relative min-h-[220px]">
         {isFetching && (
-          <div className="absolute inset-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-3xl">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 px-6 py-4 flex items-center gap-3">
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-white/80 backdrop-blur-sm dark:bg-slate-950/80">
+            <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-lg dark:border-slate-700 dark:bg-slate-900">
               <Loader2 className="size-5 animate-spin text-blue-500" />
               <span className="text-sm text-slate-600 dark:text-slate-400">
                 Carregando campanhas…
@@ -304,15 +364,16 @@ export function CampaignsList() {
             </div>
           </div>
         )}
+
         {!isLoading && campaigns.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <div className="size-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+            <div className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-800">
               <Radio className="size-7 opacity-40" />
             </div>
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               Nenhuma campanha criada ainda
             </p>
-            <p className="text-xs mt-1 mb-4">
+            <p className="mt-1 mb-4 text-xs">
               Configure campanhas de discagem manual ou com IA
             </p>
             <Button
@@ -330,103 +391,157 @@ export function CampaignsList() {
             {campaigns.map((campaign) => (
               <Card
                 key={campaign.id}
-                className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden hover:shadow-md transition-shadow"
+                className={cn(
+                  "flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900",
+                  STATUS_ACCENT[campaign.status],
+                )}
               >
                 <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className={`size-8 rounded-xl flex items-center justify-center shrink-0 ${
-                          campaign.type === "ia"
-                            ? "bg-violet-100 dark:bg-violet-900/30"
-                            : "bg-blue-100 dark:bg-blue-900/30"
-                        }`}
-                      >
-                        {campaign.type === "ia" ? (
-                          <Bot className="size-4 text-violet-600 dark:text-violet-400" />
-                        ) : (
-                          <User className="size-4 text-blue-600 dark:text-blue-400" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <CardTitle className="text-sm font-semibold truncate leading-tight">
+                  {/* Ícone + nome + badges */}
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={cn(
+                        "flex size-10 shrink-0 items-center justify-center rounded-2xl",
+                        campaign.type === "ia"
+                          ? "bg-violet-100 dark:bg-violet-900/30"
+                          : "bg-teal-100 dark:bg-teal-900/30",
+                      )}
+                    >
+                      {campaign.type === "ia" ? (
+                        <Bot className="size-5 text-violet-600 dark:text-violet-400" />
+                      ) : (
+                        <Radio className="size-5 text-teal-600 dark:text-teal-400" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-1">
+                        <CardTitle className="truncate text-sm font-bold leading-tight text-slate-900 dark:text-white">
                           {campaign.name}
                         </CardTitle>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {campaign.type === "ia"
-                            ? "IA (ElevenLabs)"
-                            : "Discagem humana"}
-                        </p>
+                        <button
+                          type="button"
+                          className="-mr-1 -mt-0.5 shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                          onClick={() => openEdit(campaign)}
+                          title="Editar campanha"
+                        >
+                          <Edit className="size-3" />
+                        </button>
+                      </div>
+
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs font-medium",
+                            STATUS_COLORS[campaign.status],
+                          )}
+                        >
+                          {STATUS_LABELS[campaign.status]}
+                        </span>
+                        {campaign.type === "ia" && (
+                          <span className="flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                            <Bot className="size-2.5" />
+                            IA
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLORS[campaign.status]}`}
-                    >
-                      {STATUS_LABELS[campaign.status]}
-                    </span>
                   </div>
 
+                  {/* Descrição */}
                   {campaign.description && (
-                    <CardDescription className="text-xs line-clamp-2 mt-1">
+                    <CardDescription className="mt-2 line-clamp-2 text-xs">
                       {campaign.description}
                     </CardDescription>
                   )}
+                </CardHeader>
 
-                  {/* Progresso + métricas */}
+                <CardContent className="flex flex-1 flex-col pt-0">
+                  {/* Agent ID (IA) */}
+                  {campaign.type === "ia" && campaign.elevenLabsAgentId && (
+                    <div className="mb-3 flex items-center gap-1.5 truncate text-xs text-slate-400 dark:text-slate-500">
+                      <Link2 className="size-3 shrink-0 text-violet-400" />
+                      <span className="truncate font-mono">
+                        {campaign.elevenLabsAgentId}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Progresso + stats */}
                   <CampaignProgress
                     campaign={campaign}
                     onMonitor={() => setMonitorCampaign(campaign)}
                   />
-                </CardHeader>
 
-                <CardContent className="pt-0">
-                  <div className="h-px bg-slate-100 dark:bg-slate-800 mb-3" />
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 h-8 gap-1.5 text-xs rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                      onClick={() => setDispatchDialog(campaign)}
-                    >
-                      <Zap className="size-3.5" />
-                      Disparar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 gap-1.5 text-xs rounded-xl"
-                      onClick={() => setClientsDialog(campaign)}
-                    >
-                      <Users className="size-3.5" />
-                      Clientes
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0 rounded-xl"
-                      title="Andamento"
-                      onClick={() => setMonitorCampaign(campaign)}
-                    >
-                      <Monitor className="size-3.5" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0 rounded-xl"
-                      onClick={() => openEdit(campaign)}
-                      title="Editar"
-                    >
-                      <Edit className="size-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                      onClick={() => deleteMutation.mutate(campaign.id)}
-                      disabled={deleteMutation.isPending}
-                      title="Excluir"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                  {/* Ações */}
+                  <div className="mt-auto pt-4">
+                    <div className="mb-3 h-px bg-slate-100 dark:bg-slate-800" />
+                    <div className="flex items-center gap-2">
+                      {/* Botão principal: Pausar / Ativar */}
+                      <Button
+                        size="sm"
+                        className={cn(
+                          "h-9 flex-1 gap-1.5 rounded-xl text-xs font-semibold",
+                          campaign.status === "ativa"
+                            ? "border border-slate-200 bg-slate-100 text-slate-700 shadow-none hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            : "bg-emerald-500 text-white shadow-sm hover:bg-emerald-600",
+                        )}
+                        onClick={() =>
+                          toggleStatusMutation.mutate({
+                            id: campaign.id,
+                            status:
+                              campaign.status === "ativa" ? "pausada" : "ativa",
+                          })
+                        }
+                        disabled={toggleStatusMutation.isPending}
+                      >
+                        {campaign.status === "ativa" ? (
+                          <>
+                            <Pause className="size-3.5" />
+                            Pausar
+                          </>
+                        ) : (
+                          <>
+                            <Play className="size-3.5" />
+                            Ativar
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Disparar */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 shrink-0 rounded-xl p-0"
+                        title="Disparar campanha"
+                        onClick={() => setDispatchDialog(campaign)}
+                      >
+                        <Zap className="size-3.5" />
+                      </Button>
+
+                      {/* Clientes */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 shrink-0 rounded-xl p-0"
+                        title="Gerenciar clientes"
+                        onClick={() => setClientsDialog(campaign)}
+                      >
+                        <SlidersHorizontal className="size-3.5" />
+                      </Button>
+
+                      {/* Excluir */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 shrink-0 rounded-xl p-0 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                        title="Excluir campanha"
+                        onClick={() => deleteMutation.mutate(campaign.id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

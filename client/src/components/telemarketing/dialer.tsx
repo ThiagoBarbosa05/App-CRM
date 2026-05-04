@@ -37,6 +37,8 @@ import {
   X,
   CheckCircle2,
   User,
+  RefreshCw,
+  PhoneCall,
 } from "lucide-react";
 
 type Channel = { label: string; number: string };
@@ -53,6 +55,9 @@ const noteSchema = z.object({
     "convertido",
     "reagendado",
   ]),
+  status: z
+    .enum(["encerrada", "nao_atendeu", "ocupado", "falhou", "caixa_postal"])
+    .optional(),
 });
 type NoteForm = z.infer<typeof noteSchema>;
 
@@ -99,6 +104,51 @@ const OUTCOME_OPTIONS = [
   { value: "reagendado", label: "Reagendado" },
   { value: "numero_invalido", label: "Número inválido" },
 ] as const;
+
+const CALL_STATUS_OPTIONS = [
+  { value: "encerrada", label: "Encerrada" },
+  { value: "nao_atendeu", label: "Não atendeu" },
+  { value: "ocupado", label: "Ocupado" },
+  { value: "falhou", label: "Falhou" },
+  { value: "caixa_postal", label: "Caixa postal" },
+] as const;
+
+const TWILIO_STATUS_LABELS: Record<string, string> = {
+  iniciando: "Iniciando",
+  em_andamento: "Em andamento",
+  encerrada: "Encerrada",
+  nao_atendeu: "Não atendeu",
+  ocupado: "Ocupado",
+  falhou: "Falhou",
+  caixa_postal: "Caixa postal",
+};
+
+const TWILIO_STATUS_COLORS: Record<string, string> = {
+  encerrada:
+    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  nao_atendeu:
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  ocupado:
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  falhou: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  caixa_postal:
+    "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  em_andamento:
+    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  iniciando:
+    "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+};
+
+function mapStatusToOutcome(status: string): NoteForm["outcome"] {
+  const map: Partial<Record<string, NoteForm["outcome"]>> = {
+    encerrada: "atendeu",
+    nao_atendeu: "nao_atendeu",
+    ocupado: "ocupado",
+    falhou: "numero_invalido",
+    caixa_postal: "caixa_postal",
+  };
+  return map[status] ?? "atendeu";
+}
 
 // ─── Helpers de formatação de telefone ──────────────────────────────────────
 
@@ -213,6 +263,9 @@ function NoteForm({
   saveNoteMutation,
   activeCallId,
   onSkip,
+  twilioStatus,
+  twilioStatusLoading,
+  onRefreshStatus,
 }: {
   watch: ReturnType<typeof useForm<NoteForm>>["watch"];
   register: ReturnType<typeof useForm<NoteForm>>["register"];
@@ -224,6 +277,9 @@ function NoteForm({
   };
   activeCallId: string | null;
   onSkip: () => void;
+  twilioStatus: string | null;
+  twilioStatusLoading: boolean;
+  onRefreshStatus: () => void;
 }) {
   return (
     <form
@@ -232,6 +288,67 @@ function NoteForm({
       })}
       className="space-y-4"
     >
+      {/* Badge de status retornado pelo Twilio */}
+      <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3.5 py-2.5 dark:border-slate-800 dark:bg-slate-900/60">
+        <div className="flex items-center gap-2">
+          <PhoneCall className="size-3.5 shrink-0 text-slate-400" />
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Status Twilio
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {twilioStatusLoading ? (
+            <LoaderCircle className="size-3.5 animate-spin text-slate-400" />
+          ) : twilioStatus ? (
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                TWILIO_STATUS_COLORS[twilioStatus] ??
+                  "bg-slate-100 text-slate-600",
+              )}
+            >
+              {TWILIO_STATUS_LABELS[twilioStatus] ?? twilioStatus}
+            </span>
+          ) : (
+            <span className="text-xs italic text-slate-400">—</span>
+          )}
+          <button
+            type="button"
+            onClick={onRefreshStatus}
+            disabled={twilioStatusLoading}
+            className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300 disabled:opacity-40"
+            title="Atualizar status"
+          >
+            <RefreshCw className="size-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* Status manual (permite corrigir caso o Twilio não tenha atualizado) */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+          Status da chamada
+        </Label>
+        <Select
+          value={watch("status") ?? "encerrada"}
+          onValueChange={(v) =>
+            setValue("status", v as NonNullable<NoteForm["status"]>)
+          }
+        >
+          <SelectTrigger className="rounded-xl">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CALL_STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Resultado (perspectiva comercial) */}
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
           Resultado
@@ -252,6 +369,7 @@ function NoteForm({
           </SelectContent>
         </Select>
       </div>
+
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
           Anotação
@@ -314,14 +432,29 @@ export function Dialer() {
   );
   const [manualClientName, setManualClientName] = useState("");
   const [showNote, setShowNote] = useState(false);
+  const [twilioStatus, setTwilioStatus] = useState<string | null>(null);
+  const [twilioStatusLoading, setTwilioStatusLoading] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   // Em desktop (xl) a coluna de clientes fica sempre visível; em mobile começa fechada
   const [showClients, setShowClients] = useState(
     () => typeof window !== "undefined" && window.innerWidth >= 1280,
   );
+  // Rastreia o breakpoint xl (≥1280px) de forma reativa para evitar
+  // que o backdrop do Sheet apareça em telas grandes
+  const [isXl, setIsXl] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1280,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1280px)");
+    const handler = (e: MediaQueryListEvent) => setIsXl(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const callButtonRef = useRef<HTMLButtonElement>(null);
+  const noteFormRef = useRef<HTMLDivElement>(null);
+  const prevCallStatusRef = useRef(callStatus);
 
   // Timer durante chamada ativa
   useEffect(() => {
@@ -336,6 +469,32 @@ export function Dialer() {
     }, 1000);
     return () => clearInterval(id);
   }, [callStatus, connectedAt]);
+
+  // Detecta encerramento remoto da chamada (a outra parte desliga)
+  // e garante que o modal de resultado sempre seja exibido
+  useEffect(() => {
+    const prev = prevCallStatusRef.current;
+    prevCallStatusRef.current = callStatus;
+
+    const wasInCall =
+      prev === "in-progress" || prev === "ringing" || prev === "connecting";
+
+    if (callStatus === "disconnected" && wasInCall) {
+      setShowNote(true);
+    }
+  }, [callStatus]);
+
+  // Rola até o formulário assim que ele aparece
+  useEffect(() => {
+    if (!showNote) return;
+    const frame = requestAnimationFrame(() => {
+      noteFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [showNote]);
 
   const { data: channels = [] } = useQuery<Channel[]>({
     queryKey: ["/api/twilio/channels"],
@@ -392,8 +551,43 @@ export function Dialer() {
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<NoteForm>({
     resolver: zodResolver(noteSchema),
-    defaultValues: { notes: "", outcome: "atendeu" },
+    defaultValues: { notes: "", outcome: "atendeu", status: "encerrada" },
   });
+
+  const fetchTwilioStatus = useCallback(async () => {
+    if (!activeCallId) return;
+    setTwilioStatusLoading(true);
+    try {
+      const res = await fetch(`/api/calls/${activeCallId}`, {
+        credentials: "include",
+      });
+      if (!res.ok) return;
+      const call = (await res.json()) as { status: string; outcome?: string };
+      setTwilioStatus(call.status);
+      // Auto-preenche os selects com base no status retornado pelo Twilio
+      const mappedOutcome = mapStatusToOutcome(call.status);
+      setValue("outcome", mappedOutcome);
+      const mappedStatus = CALL_STATUS_OPTIONS.find(
+        (o) => o.value === call.status,
+      );
+      if (mappedStatus)
+        setValue(
+          "status",
+          mappedStatus.value as NonNullable<NoteForm["status"]>,
+        );
+    } catch (e) {
+      console.warn("[dialer] Falha ao buscar status Twilio:", e);
+    } finally {
+      setTwilioStatusLoading(false);
+    }
+  }, [activeCallId, setValue]);
+
+  // Busca o status Twilio após 1.5s (tempo para o webhook processar)
+  useEffect(() => {
+    if (!showNote || !activeCallId) return;
+    const timer = setTimeout(fetchTwilioStatus, 1500);
+    return () => clearTimeout(timer);
+  }, [showNote, activeCallId, fetchTwilioStatus]);
 
   const saveNoteMutation = useMutation({
     mutationFn: async (data: NoteForm & { callId: string | null }) => {
@@ -416,7 +610,7 @@ export function Dialer() {
         body: JSON.stringify({
           notes: data.notes,
           outcome: data.outcome,
-          status: "encerrada",
+          status: data.status ?? "encerrada",
         }),
       });
       if (!res.ok) throw new Error("Erro ao salvar anotação");
@@ -426,6 +620,7 @@ export function Dialer() {
       toast({ title: "Anotação salva" });
       queryClient.invalidateQueries({ queryKey: ["/api/calls"], exact: false });
       setShowNote(false);
+      setTwilioStatus(null);
       setActiveCallId(null);
       setSelectedClientId(null);
       setSelectedClientName(null);
@@ -444,6 +639,7 @@ export function Dialer() {
   const handleSkipNote = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["/api/calls"], exact: false });
     setShowNote(false);
+    setTwilioStatus(null);
     setActiveCallId(null);
     setSelectedClientId(null);
     setSelectedClientName(null);
@@ -503,16 +699,20 @@ export function Dialer() {
     await connect(number, from, callRecordId ? { callRecordId } : undefined);
   }, [number, callerId, channels, selectedClientId, manualClientName, connect]);
 
-  const handleCallClient = useCallback((client: Client) => {
-    if (!client.phone) return;
-    setNumber(client.phone);
-    setSelectedClientId(client.id);
-    setSelectedClientName(client.name);
-    setManualClientName("");
-    setShowClients(false);
-    // Foca no botão de ligar para facilitar o fluxo com Enter
-    setTimeout(() => callButtonRef.current?.focus(), 50);
-  }, []);
+  const handleCallClient = useCallback(
+    (client: Client) => {
+      if (!client.phone) return;
+      setNumber(client.phone);
+      setSelectedClientId(client.id);
+      setSelectedClientName(client.name);
+      setManualClientName("");
+      // Em mobile fecha o painel; em desktop mantém aberto
+      if (!isXl) setShowClients(false);
+      // Foca no botão de ligar para facilitar o fluxo com Enter
+      setTimeout(() => callButtonRef.current?.focus(), 50);
+    },
+    [isXl],
+  );
 
   const handleHangup = useCallback(async () => {
     disconnect();
@@ -619,6 +819,9 @@ export function Dialer() {
     saveNoteMutation,
     activeCallId,
     onSkip: handleSkipNote,
+    twilioStatus,
+    twilioStatusLoading,
+    onRefreshStatus: fetchTwilioStatus,
   };
 
   return (
@@ -827,7 +1030,10 @@ export function Dialer() {
         {showNote && (
           <>
             {/* Desktop: inline abaixo do discador */}
-            <Card className="hidden xl:block animate-in slide-in-from-bottom-2 duration-200 border border-slate-200 dark:border-slate-800 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] bg-white dark:bg-slate-900 rounded-3xl">
+            <Card
+              ref={noteFormRef}
+              className="hidden xl:block animate-in slide-in-from-bottom-2 duration-200 border border-slate-200 dark:border-slate-800 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] bg-white dark:bg-slate-900 rounded-3xl"
+            >
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-100">
                   <CheckCircle2 className="size-4 text-emerald-500" />
@@ -839,26 +1045,25 @@ export function Dialer() {
               </CardContent>
             </Card>
 
-            {/* Mobile: bottom sheet */}
-            <Sheet
-              open={showNote}
-              onOpenChange={(open) => {
-                if (!open) handleSkipNote();
-              }}
-            >
-              <SheetContent
-                side="bottom"
-                className="xl:hidden rounded-t-3xl pb-8 px-5"
+            {/* Mobile: bottom sheet — só monta em telas < xl para o backdrop não cobrir a tela */}
+            {!isXl && (
+              <Sheet
+                open={showNote}
+                onOpenChange={(open) => {
+                  if (!open) handleSkipNote();
+                }}
               >
-                <SheetHeader className="mb-4 text-left">
-                  <SheetTitle className="flex items-center gap-2 text-sm font-semibold">
-                    <CheckCircle2 className="size-4 text-emerald-500" />
-                    Resultado da chamada
-                  </SheetTitle>
-                </SheetHeader>
-                <NoteForm {...noteFormProps} />
-              </SheetContent>
-            </Sheet>
+                <SheetContent side="bottom" className="rounded-t-3xl pb-8 px-5">
+                  <SheetHeader className="mb-4 text-left">
+                    <SheetTitle className="flex items-center gap-2 text-sm font-semibold">
+                      <CheckCircle2 className="size-4 text-emerald-500" />
+                      Resultado da chamada
+                    </SheetTitle>
+                  </SheetHeader>
+                  <NoteForm {...noteFormProps} />
+                </SheetContent>
+              </Sheet>
+            )}
           </>
         )}
       </div>
@@ -869,7 +1074,9 @@ export function Dialer() {
           <button
             type="button"
             className="flex items-center justify-between w-full text-left xl:cursor-default"
-            onClick={() => setShowClients((v) => !v)}
+            onClick={() => {
+              if (!isXl) setShowClients((v) => !v);
+            }}
           >
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-800 dark:text-slate-100">
@@ -902,7 +1109,7 @@ export function Dialer() {
             </div>
 
             <div className="flex min-h-0 flex-1 rounded-2xl border border-slate-100 bg-slate-50/70 p-2 dark:border-slate-800 dark:bg-slate-950/50">
-              <div className="flex-1 space-y-2 overflow-y-auto pr-2 -mr-2 custom-scrollbar">
+              <div className="flex-1 space-y-2 overflow-y-auto max-h-[420px] xl:max-h-[560px] pr-2 -mr-2 custom-scrollbar">
                 {!hasClientSearch ? (
                   <div className="rounded-2xl border border-dashed border-slate-200 py-10 text-center text-slate-400 dark:border-slate-800">
                     <Search className="mx-auto mb-3 size-8 opacity-30" />
