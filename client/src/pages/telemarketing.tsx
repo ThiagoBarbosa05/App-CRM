@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Redirect } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { BarChart2, History, Phone, Radio } from "lucide-react";
@@ -7,6 +8,7 @@ import { DashboardTabContent } from "@/components/telemarketing/tabs/dashboard-t
 import { DialerTabContent } from "@/components/telemarketing/tabs/dialer-tab";
 import { CampaignsTabContent } from "@/components/telemarketing/tabs/campaigns-tab";
 import { HistoryTabContent } from "@/components/telemarketing/tabs/history-tab";
+import { useAuth } from "@/hooks/useAuth";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -64,8 +66,18 @@ function TabPanel({ children }: { children: React.ReactNode }) {
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function TelemarketingPage() {
+  const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] =
     useState<TelemarketingTabValue>("dashboard");
+
+  if (isLoading) return null;
+
+  const hasAccess =
+    user?.role === "admin" ||
+    user?.role === "administrador" ||
+    user?.role === "gerente";
+
+  if (!hasAccess) return <Redirect to="/" />;
 
   return (
     <TwilioDeviceProvider>

@@ -11,12 +11,12 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -483,6 +483,12 @@ export function CampaignsList() {
                             IA
                           </span>
                         )}
+                        {campaign.umblerEnabled && (
+                          <span className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                            <MessageSquare className="size-2.5" />
+                            Umbler
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -589,17 +595,17 @@ export function CampaignsList() {
         )}
       </div>
 
-      {/* Form Dialog */}
-      <Dialog open={formOpen} onOpenChange={(v) => !v && setFormOpen(false)}>
-        <DialogContent className="max-w-md rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-base">
+      {/* Form Sheet */}
+      <Sheet open={formOpen} onOpenChange={(v) => !v && setFormOpen(false)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-base">
               {editing ? "Editar campanha" : "Nova campanha"}
-            </DialogTitle>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           <form
             onSubmit={handleSubmit((d) => saveMutation.mutate(d))}
-            className="space-y-4"
+            className="space-y-4 mt-6"
           >
             <div className="space-y-1.5">
               <Label className="text-sm">Nome *</Label>
@@ -811,7 +817,7 @@ export function CampaignsList() {
               )}
             </div>
 
-            <DialogFooter className="pt-2">
+            <SheetFooter className="pt-2">
               <Button
                 variant="outline"
                 type="button"
@@ -825,10 +831,10 @@ export function CampaignsList() {
               >
                 {editing ? "Salvar" : "Criar"}
               </Button>
-            </DialogFooter>
+            </SheetFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Dialogs externos */}
       {clientsDialog && (

@@ -8,7 +8,7 @@ import {
   clients,
   campaigns,
 } from "@shared/schema";
-import { eq, and, desc, inArray, isNull, gt, gte, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, isNull, gt, gte, sql, ilike, or } from "drizzle-orm";
 import {
   getElevenLabsKey,
   getTwilioConfig,
@@ -635,6 +635,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
       campaignId,
       clientId,
       status,
+      search,
       page = "1",
       pageSize = "20",
     } = req.query as Record<string, string>;
@@ -644,6 +645,17 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     const conditions = [];
     if (campaignId) conditions.push(eq(calls.campaignId, campaignId));
     if (clientId) conditions.push(eq(calls.clientId, clientId));
+    if (search) {
+      const pattern = `%${search}%`;
+      conditions.push(
+        or(
+          ilike(clients.name, pattern),
+          ilike(clients.phone, pattern),
+          ilike(calls.contactName, pattern),
+          ilike(calls.toPhone, pattern),
+        ),
+      );
+    }
     if (status)
       conditions.push(
         eq(
@@ -705,6 +717,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(calls)
+        .leftJoin(clients, eq(calls.clientId, clients.id))
         .where(whereClause),
     ]);
 

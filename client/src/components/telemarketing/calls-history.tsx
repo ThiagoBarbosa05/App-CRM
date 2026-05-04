@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
@@ -30,7 +30,10 @@ import {
   Loader2,
   Bot,
   MessageSquare,
+  Search,
+  X,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 type Call = {
   id: string;
@@ -227,8 +230,20 @@ export function CallsHistory() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedCall, setSelectedCall] = useState<Call | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Rastreia IDs já auto-sincronizados para não repetir na mesma sessão
   const autoSyncedRef = useRef<Set<string>>(new Set());
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearch(value);
+      setPage(1);
+    }, 400);
+  }, []);
 
   const { data, isLoading, isFetching } = useQuery<{
     data: Call[];
@@ -237,13 +252,14 @@ export function CallsHistory() {
     total: number;
     hasMore: boolean;
   }>({
-    queryKey: ["/api/calls", statusFilter, page],
+    queryKey: ["/api/calls", statusFilter, search, page],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: "20",
       });
       if (statusFilter !== "all") params.set("status", statusFilter);
+      if (search.trim()) params.set("search", search.trim());
       const res = await fetch(`/api/calls?${params}`, {
         credentials: "include",
       });
@@ -350,38 +366,59 @@ export function CallsHistory() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            Histórico de chamadas
-          </h2>
-          {data?.total != null && (
-            <p className="text-xs text-slate-400 mt-0.5">
-              {data.total} chamada{data.total !== 1 ? "s" : ""} registrada
-              {data.total !== 1 ? "s" : ""}
-            </p>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Histórico de chamadas
+            </h2>
+            {data?.total != null && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                {data.total} chamada{data.total !== 1 ? "s" : ""} registrada
+                {data.total !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => {
+              setStatusFilter(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-52 rounded-2xl">
+              <SelectValue placeholder="Filtrar por status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="encerrada">Encerrada</SelectItem>
+              <SelectItem value="em_andamento">Em andamento</SelectItem>
+              <SelectItem value="nao_atendeu">Não atendeu</SelectItem>
+              <SelectItem value="ocupado">Ocupado</SelectItem>
+              <SelectItem value="caixa_postal">Caixa postal</SelectItem>
+              <SelectItem value="falhou">Falhou</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+          <Input
+            value={searchInput}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder="Buscar por nome ou telefone..."
+            className="pl-9 pr-9 rounded-2xl"
+          />
+          {searchInput && (
+            <button
+              type="button"
+              onClick={() => handleSearchChange("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="size-4" />
+            </button>
           )}
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => {
-            setStatusFilter(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-full sm:w-52 rounded-2xl">
-            <SelectValue placeholder="Filtrar por status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            <SelectItem value="encerrada">Encerrada</SelectItem>
-            <SelectItem value="em_andamento">Em andamento</SelectItem>
-            <SelectItem value="nao_atendeu">Não atendeu</SelectItem>
-            <SelectItem value="ocupado">Ocupado</SelectItem>
-            <SelectItem value="caixa_postal">Caixa postal</SelectItem>
-            <SelectItem value="falhou">Falhou</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="relative min-h-[200px]">
@@ -403,12 +440,15 @@ export function CallsHistory() {
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               Nenhuma chamada encontrada
             </p>
-            {statusFilter !== "all" && (
+            {(statusFilter !== "all" || search) && (
               <button
                 className="text-xs text-blue-500 hover:underline mt-1"
-                onClick={() => setStatusFilter("all")}
+                onClick={() => {
+                  setStatusFilter("all");
+                  handleSearchChange("");
+                }}
               >
-                Limpar filtro
+                Limpar filtros
               </button>
             )}
           </div>
