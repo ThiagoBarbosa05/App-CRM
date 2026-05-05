@@ -111,6 +111,12 @@ eventsRouter.post("/", async (req, res) => {
     if (eventData.registrationDeadline && typeof eventData.registrationDeadline === "string") {
       eventData.registrationDeadline = new Date(eventData.registrationDeadline + ":00-03:00");
     }
+    if (eventData.wineRevenue === "" || eventData.wineRevenue === undefined) {
+      eventData.wineRevenue = null;
+    }
+    if (eventData.maxCapacity === "" || eventData.maxCapacity === undefined) {
+      eventData.maxCapacity = null;
+    }
 
     const { attachments, ...eventDataOnly } = eventData;
     const validatedData = insertEventSchema.parse(eventDataOnly);
@@ -151,6 +157,12 @@ eventsRouter.put("/:id", async (req, res) => {
     }
     if (eventData.registrationDeadline && typeof eventData.registrationDeadline === "string") {
       eventData.registrationDeadline = new Date(eventData.registrationDeadline + ":00-03:00");
+    }
+    if (eventData.wineRevenue === "" || eventData.wineRevenue === undefined) {
+      eventData.wineRevenue = null;
+    }
+    if (eventData.maxCapacity === "" || eventData.maxCapacity === undefined) {
+      eventData.maxCapacity = null;
     }
     const { attachments, ...eventDataOnly } = eventData;
     const validatedData = insertEventSchema.partial().parse(eventDataOnly);
