@@ -236,6 +236,7 @@ export default function EventsManagement() {
       const response = await fetch("/api/events/upload-image", {
         method: "POST",
         body: uploadFormData,
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -282,6 +283,7 @@ export default function EventsManagement() {
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -356,6 +358,7 @@ export default function EventsManagement() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ fileUrl }),
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -380,8 +383,7 @@ export default function EventsManagement() {
           `/api/events/${editingEvent.id}/attachments/${attachment.id}`,
           {
             method: "DELETE",
-            headers: {
-            },
+            credentials: "include",
           }
         );
 
@@ -459,6 +461,7 @@ export default function EventsManagement() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(eventData),
+          credentials: "include",
         });
 
         if (!response.ok) {
@@ -511,10 +514,11 @@ export default function EventsManagement() {
           ...data,
           pricePerPerson: data.pricePerPerson,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
-          eventDate: data.eventDate, // Enviar como string datetime-local
+          eventDate: data.eventDate,
           registrationDeadline: data.registrationDeadline || null,
-          attachments: data.attachments, // Incluir attachments
+          attachments: data.attachments,
         }),
+        credentials: "include",
       });
 
       if (!response.ok) {
@@ -546,8 +550,7 @@ export default function EventsManagement() {
     mutationFn: async (eventId: string) => {
       const response = await fetch(`/api/events/${eventId}`, {
         method: "DELETE",
-        headers: {
-        },
+        credentials: "include",
       });
 
       if (!response.ok) {
