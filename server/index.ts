@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
@@ -9,14 +10,17 @@ import "./jobs/bling-token-refresh-scheduler";
 import { db } from "./db";
 import { users } from "@shared/schema";
 import bcrypt from "bcrypt";
+import { storage } from "./storage";
 // import "./jobs/umbler-sync-scheduler";
 
 const app = express();
 
-app.use(cors({
-  origin: process.env.CLIENT_URL || true,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || true,
+    credentials: true,
+  }),
+);
 app.use(cookieParser());
 app.use(
   express.json({
@@ -67,6 +71,51 @@ app.use((req, res, next) => {
 
     res.status(status).json({ message });
     throw err;
+  });
+
+  // Rota pública de landing pages de eventos — registrada ANTES do Vite
+  // para que /lp/:slug não seja capturada pelo catch-all do SPA
+  const r2Client = new S3Client({
+    region: "auto",
+    endpoint: process.env.CLOUDFLARE_URL,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
+    },
+  });
+
+  app.get("/lp/:slug", async (req: Request, res: Response) => {
+    try {
+      const { slug } = req.params;
+      const event = await storage.getEventBySlug(slug);
+
+      if (!event || !event.landingPageHtmlKey) {
+        return res.status(404).send("<h1>Página não encontrada</h1>");
+      }
+
+      const command = new GetObjectCommand({
+        Bucket: "crm-test",
+        Key: event.landingPageHtmlKey,
+      });
+      const r2Response = await r2Client.send(command);
+
+      if (!r2Response.Body) {
+        return res.status(404).send("<h1>Página não encontrada</h1>");
+      }
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of r2Response.Body as AsyncIterable<Uint8Array>) {
+        chunks.push(Buffer.from(chunk));
+      }
+      const html = Buffer.concat(chunks);
+
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=300");
+      return res.send(html);
+    } catch (error) {
+      console.error("Error serving landing page:", error);
+      return res.status(500).send("<h1>Erro ao carregar a página</h1>");
+    }
   });
 
   // importantly only setup vite in development and after

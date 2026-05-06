@@ -3,10 +3,18 @@ import multer from "multer";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
-import { insertEventSchema, insertEventParticipantSchema } from "@shared/schema";
+import {
+  insertEventSchema,
+  insertEventParticipantSchema,
+} from "@shared/schema";
 import { storage } from "../storage";
+import { generateSlug } from "../lib/slug";
 
 const upload = multer({ limits: { fileSize: 15 * 1024 * 1024 } });
 
@@ -28,7 +36,9 @@ eventsRouter.get("/client/:clientId", async (req, res) => {
     return res.json(clientEvents);
   } catch (error) {
     console.error("Error fetching client events:", error);
-    return res.status(500).json({ message: "Erro ao buscar eventos do cliente" });
+    return res
+      .status(500)
+      .json({ message: "Erro ao buscar eventos do cliente" });
   }
 });
 
@@ -101,15 +111,25 @@ eventsRouter.post("/", async (req, res) => {
     if (!eventData.location || !eventData.location.trim()) {
       return res.status(400).json({ message: "Local do evento é obrigatório" });
     }
-    if (!eventData.pricePerPerson || isNaN(parseFloat(eventData.pricePerPerson))) {
-      return res.status(400).json({ message: "Valor por pessoa deve ser um número válido" });
+    if (
+      !eventData.pricePerPerson ||
+      isNaN(parseFloat(eventData.pricePerPerson))
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Valor por pessoa deve ser um número válido" });
     }
 
     if (typeof eventData.eventDate === "string") {
       eventData.eventDate = new Date(eventData.eventDate + ":00-03:00");
     }
-    if (eventData.registrationDeadline && typeof eventData.registrationDeadline === "string") {
-      eventData.registrationDeadline = new Date(eventData.registrationDeadline + ":00-03:00");
+    if (
+      eventData.registrationDeadline &&
+      typeof eventData.registrationDeadline === "string"
+    ) {
+      eventData.registrationDeadline = new Date(
+        eventData.registrationDeadline + ":00-03:00",
+      );
     }
     if (eventData.wineRevenue === "" || eventData.wineRevenue === undefined) {
       eventData.wineRevenue = null;
@@ -155,8 +175,13 @@ eventsRouter.put("/:id", async (req, res) => {
     if (eventData.eventDate && typeof eventData.eventDate === "string") {
       eventData.eventDate = new Date(eventData.eventDate + ":00-03:00");
     }
-    if (eventData.registrationDeadline && typeof eventData.registrationDeadline === "string") {
-      eventData.registrationDeadline = new Date(eventData.registrationDeadline + ":00-03:00");
+    if (
+      eventData.registrationDeadline &&
+      typeof eventData.registrationDeadline === "string"
+    ) {
+      eventData.registrationDeadline = new Date(
+        eventData.registrationDeadline + ":00-03:00",
+      );
     }
     if (eventData.wineRevenue === "" || eventData.wineRevenue === undefined) {
       eventData.wineRevenue = null;
@@ -215,7 +240,9 @@ eventsRouter.get("/:id/participants", async (req, res) => {
     return res.json(participants);
   } catch (error) {
     console.error("Error fetching event participants:", error);
-    return res.status(500).json({ message: "Erro ao buscar participantes do evento" });
+    return res
+      .status(500)
+      .json({ message: "Erro ao buscar participantes do evento" });
   }
 });
 
@@ -246,8 +273,13 @@ eventsRouter.post("/:id/participants", async (req, res) => {
 eventsRouter.put("/:eventId/participants/:participantId", async (req, res) => {
   try {
     const { participantId } = req.params;
-    const validatedData = insertEventParticipantSchema.partial().parse(req.body);
-    const participant = await storage.updateEventParticipant(participantId, validatedData);
+    const validatedData = insertEventParticipantSchema
+      .partial()
+      .parse(req.body);
+    const participant = await storage.updateEventParticipant(
+      participantId,
+      validatedData,
+    );
     return res.json(participant);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -259,36 +291,44 @@ eventsRouter.put("/:eventId/participants/:participantId", async (req, res) => {
   }
 });
 
-eventsRouter.patch("/:eventId/participants/:participantId/attendance", async (req, res) => {
-  try {
-    const { participantId } = req.params;
-    const schema = z.object({ attended: z.boolean().nullable() });
-    const { attended } = schema.parse(req.body);
-    const participant = await storage.updateEventParticipant(participantId, { attended });
-    return res.json(participant);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      const validationError = fromZodError(error);
-      return res.status(400).json({ message: validationError.toString() });
+eventsRouter.patch(
+  "/:eventId/participants/:participantId/attendance",
+  async (req, res) => {
+    try {
+      const { participantId } = req.params;
+      const schema = z.object({ attended: z.boolean().nullable() });
+      const { attended } = schema.parse(req.body);
+      const participant = await storage.updateEventParticipant(participantId, {
+        attended,
+      });
+      return res.json(participant);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ message: validationError.toString() });
+      }
+      console.error("Error updating attendance:", error);
+      return res.status(500).json({ message: "Erro ao atualizar presença" });
     }
-    console.error("Error updating attendance:", error);
-    return res.status(500).json({ message: "Erro ao atualizar presença" });
-  }
-});
+  },
+);
 
-eventsRouter.delete("/:eventId/participants/:participantId", async (req, res) => {
-  try {
-    const { participantId } = req.params;
-    const success = await storage.removeEventParticipant(participantId);
-    if (!success) {
-      return res.status(404).json({ message: "Participante não encontrado" });
+eventsRouter.delete(
+  "/:eventId/participants/:participantId",
+  async (req, res) => {
+    try {
+      const { participantId } = req.params;
+      const success = await storage.removeEventParticipant(participantId);
+      if (!success) {
+        return res.status(404).json({ message: "Participante não encontrado" });
+      }
+      return res.json({ message: "Participante removido com sucesso" });
+    } catch (error) {
+      console.error("Error removing event participant:", error);
+      return res.status(500).json({ message: "Erro ao remover participante" });
     }
-    return res.json({ message: "Participante removido com sucesso" });
-  } catch (error) {
-    console.error("Error removing event participant:", error);
-    return res.status(500).json({ message: "Erro ao remover participante" });
-  }
-});
+  },
+);
 
 eventsRouter.get("/:id/attachments", async (req, res) => {
   try {
@@ -307,14 +347,22 @@ eventsRouter.post("/:id/attachments", async (req, res) => {
     const { fileName, fileUrl } = req.body;
 
     if (!fileName || !fileUrl) {
-      return res.status(400).json({ message: "Nome do arquivo e URL são obrigatórios" });
+      return res
+        .status(400)
+        .json({ message: "Nome do arquivo e URL são obrigatórios" });
     }
 
-    const attachment = await storage.addEventAttachment({ eventId: id, fileName, fileUrl });
+    const attachment = await storage.addEventAttachment({
+      eventId: id,
+      fileName,
+      fileUrl,
+    });
     return res.status(201).json(attachment);
   } catch (error) {
     console.error("Error adding event attachment:", error);
-    return res.status(500).json({ message: "Erro ao adicionar anexo do evento" });
+    return res
+      .status(500)
+      .json({ message: "Erro ao adicionar anexo do evento" });
   }
 });
 
@@ -339,9 +387,10 @@ eventsRouter.get("/analytics", async (req, res) => {
   try {
     const { db } = storage as any;
 
-    const [revenueRows, topClientsRows, statusRows, occupancyRows] = await Promise.all([
-      // 1. Receita mês a mês
-      db.execute(`
+    const [revenueRows, topClientsRows, statusRows, occupancyRows] =
+      await Promise.all([
+        // 1. Receita mês a mês
+        db.execute(`
         SELECT
           TO_CHAR(DATE_TRUNC('month', ev.event_date), 'YYYY-MM') as month,
           TO_CHAR(DATE_TRUNC('month', ev.event_date), 'MM/YYYY') as label,
@@ -363,8 +412,8 @@ eventsRouter.get("/analytics", async (req, res) => {
         ORDER BY DATE_TRUNC('month', ev.event_date)
       `),
 
-      // 2. Clientes mais assíduos
-      db.execute(`
+        // 2. Clientes mais assíduos
+        db.execute(`
         SELECT c.id as client_id, c.name, COUNT(DISTINCT ep.event_id)::int as event_count, SUM(ep.number_of_participants)::int as total_people
         FROM event_participants ep
         JOIN clients c ON c.id = ep.client_id
@@ -374,8 +423,8 @@ eventsRouter.get("/analytics", async (req, res) => {
         LIMIT 10
       `),
 
-      // 3. Distribuição de status
-      db.execute(`
+        // 3. Distribuição de status
+        db.execute(`
         SELECT status, SUM(number_of_participants)::int as total
         FROM event_participants
         WHERE status != 'cancelado'
@@ -383,8 +432,8 @@ eventsRouter.get("/analytics", async (req, res) => {
         ORDER BY total DESC
       `),
 
-      // 4. Ocupação dos eventos (só eventos com capacidade máxima definida)
-      db.execute(`
+        // 4. Ocupação dos eventos (só eventos com capacidade máxima definida)
+        db.execute(`
         SELECT
           e.name,
           TO_CHAR(e.event_date, 'DD/MM/YY') as date,
@@ -400,8 +449,8 @@ eventsRouter.get("/analytics", async (req, res) => {
         GROUP BY e.id, e.name, e.event_date, e.max_capacity
         ORDER BY e.event_date DESC
         LIMIT 15
-      `)
-    ]);
+      `),
+      ]);
 
     const statusLabels: Record<string, string> = {
       pago: "Pago",
@@ -416,7 +465,9 @@ eventsRouter.get("/analytics", async (req, res) => {
         label: r.label,
         eventRevenue: parseFloat(r.event_revenue) || 0,
         wineRevenue: parseFloat(r.wine_revenue) || 0,
-        total: (parseFloat(r.event_revenue) || 0) + (parseFloat(r.wine_revenue) || 0),
+        total:
+          (parseFloat(r.event_revenue) || 0) +
+          (parseFloat(r.wine_revenue) || 0),
       })),
       topClients: topClientsRows.rows.map((r: any) => ({
         clientId: r.client_id,
@@ -441,7 +492,136 @@ eventsRouter.get("/analytics", async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching event analytics:", error);
-    return res.status(500).json({ message: "Erro ao buscar análises de eventos" });
+    return res
+      .status(500)
+      .json({ message: "Erro ao buscar análises de eventos" });
+  }
+});
+
+// POST /api/events/:id/landing-page — Upload do HTML da landing page
+eventsRouter.post(
+  "/:id/landing-page",
+  upload.single("html"),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const slugInput = req.body.slug as string | undefined;
+
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({ message: "Nenhum arquivo HTML foi enviado" });
+      }
+      if (
+        req.file.mimetype !== "text/html" &&
+        !req.file.originalname.endsWith(".html")
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Apenas arquivos .html são aceitos" });
+      }
+
+      if (!slugInput || !slugInput.trim()) {
+        return res.status(400).json({ message: "Slug é obrigatório" });
+      }
+
+      const slug = generateSlug(slugInput.trim());
+      if (!slug) {
+        return res
+          .status(400)
+          .json({
+            message: "Slug inválido. Use apenas letras, números e hífens",
+          });
+      }
+
+      // Verifica unicidade do slug (excluindo o próprio evento)
+      const existing = await storage.getEventBySlug(slug);
+      if (existing && existing.id !== id) {
+        return res
+          .status(409)
+          .json({ message: "Este slug já está em uso por outro evento" });
+      }
+
+      // Recupera o arquivo antigo para deletar do R2 após salvar o novo
+      const currentEvent = await storage.getEventById(id);
+      if (!currentEvent) {
+        return res.status(404).json({ message: "Evento não encontrado" });
+      }
+
+      const htmlKey = `landing-pages/${id}-${nanoid()}.html`;
+
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: "crm-test",
+          Body: req.file.buffer,
+          Key: htmlKey,
+          ContentType: "text/html; charset=utf-8",
+        }),
+      );
+
+      const updatedEvent = await storage.updateEvent(id, {
+        slug,
+        landingPageHtmlKey: htmlKey,
+      });
+
+      // Remove arquivo antigo do R2 se existia outro
+      if (currentEvent.landingPageHtmlKey) {
+        try {
+          await s3.send(
+            new DeleteObjectCommand({
+              Bucket: "crm-test",
+              Key: currentEvent.landingPageHtmlKey,
+            }),
+          );
+        } catch {
+          // ignora erro ao deletar arquivo antigo
+        }
+      }
+
+      return res.json({
+        slug: updatedEvent.slug,
+        landingPageHtmlKey: updatedEvent.landingPageHtmlKey,
+      });
+    } catch (error) {
+      console.error("Error uploading landing page:", error);
+      return res
+        .status(500)
+        .json({ message: "Erro ao fazer upload da landing page" });
+    }
+  },
+);
+
+// DELETE /api/events/:id/landing-page — Remove a landing page do evento
+eventsRouter.delete("/:id/landing-page", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const event = await storage.getEventById(id);
+    if (!event) {
+      return res.status(404).json({ message: "Evento não encontrado" });
+    }
+    if (!event.landingPageHtmlKey) {
+      return res
+        .status(404)
+        .json({ message: "Nenhuma landing page associada a este evento" });
+    }
+
+    try {
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: "crm-test",
+          Key: event.landingPageHtmlKey,
+        }),
+      );
+    } catch {
+      // ignora erro de deleção no R2 para não bloquear a limpeza no banco
+    }
+
+    await storage.updateEvent(id, { slug: null, landingPageHtmlKey: null });
+
+    return res.json({ message: "Landing page removida com sucesso" });
+  } catch (error) {
+    console.error("Error deleting landing page:", error);
+    return res.status(500).json({ message: "Erro ao remover landing page" });
   }
 });
 

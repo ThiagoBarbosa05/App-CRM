@@ -546,7 +546,10 @@ export interface IStorage {
   // Product Categories Methods
   getProductCategories(): Promise<ProductCategory[]>;
   createProductCategory(data: InsertProductCategory): Promise<ProductCategory>;
-  updateProductCategory(id: string, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined>;
+  updateProductCategory(
+    id: string,
+    data: Partial<InsertProductCategory>,
+  ): Promise<ProductCategory | undefined>;
   deleteProductCategory(id: string): Promise<boolean>;
 
   // Products Methods
@@ -576,26 +579,30 @@ export interface IStorage {
 
   // Events methods
   getEvents(userId?: string, userRole?: string): Promise<Event[]>;
+  getEventById(eventId: string): Promise<Event | null>;
+  getEventBySlug(slug: string): Promise<Event | null>;
   createEvent(eventData: InsertEvent): Promise<Event>;
   updateEvent(eventId: string, eventData: Partial<InsertEvent>): Promise<Event>;
   deleteEvent(eventId: string): Promise<boolean>;
   updateExpiredEvents(): Promise<number>;
   getEventParticipants(eventId: string): Promise<EventParticipant[]>;
-  getClientEvents(clientId: string): Promise<Array<{
-    participantId: string;
-    status: string;
-    registrationDate: Date | null;
-    numberOfParticipants: number;
-    notes: string | null;
-    event: {
-      id: string;
-      name: string;
-      eventDate: Date;
-      location: string;
-      category: string;
-      pricePerPerson: string;
-    };
-  }>>;
+  getClientEvents(clientId: string): Promise<
+    Array<{
+      participantId: string;
+      status: string;
+      registrationDate: Date | null;
+      numberOfParticipants: number;
+      notes: string | null;
+      event: {
+        id: string;
+        name: string;
+        eventDate: Date;
+        location: string;
+        category: string;
+        pricePerPerson: string;
+      };
+    }>
+  >;
   addEventParticipant(
     participantData: InsertEventParticipant,
   ): Promise<EventParticipant>;
@@ -615,13 +622,31 @@ export interface IStorage {
 
   // Task File Folders
   getTaskFileFolders(): Promise<(TaskFileFolder & { fileCount: number })[]>;
-  createTaskFileFolder(data: { name: string; color: string; createdById: string }): Promise<TaskFileFolder>;
-  updateTaskFileFolder(id: string, data: { name: string }): Promise<TaskFileFolder | null>;
+  createTaskFileFolder(data: {
+    name: string;
+    color: string;
+    createdById: string;
+  }): Promise<TaskFileFolder>;
+  updateTaskFileFolder(
+    id: string,
+    data: { name: string },
+  ): Promise<TaskFileFolder | null>;
   deleteTaskFileFolder(id: string): Promise<boolean>;
 
   // Task Files
-  getTaskFiles(folderId: string): Promise<(TaskFile & { uploadedBy: { id: string; name: string } | null })[]>;
-  createTaskFile(data: { name: string; url: string; size: number; mimeType: string; folderId: string; uploadedById: string }): Promise<TaskFile>;
+  getTaskFiles(
+    folderId: string,
+  ): Promise<
+    (TaskFile & { uploadedBy: { id: string; name: string } | null })[]
+  >;
+  createTaskFile(data: {
+    name: string;
+    url: string;
+    size: number;
+    mimeType: string;
+    folderId: string;
+    uploadedById: string;
+  }): Promise<TaskFile>;
   deleteTaskFile(id: string): Promise<TaskFile | null>;
 }
 
@@ -776,7 +801,7 @@ export class DatabaseStorage implements IStorage {
         sql`EXISTS (
           SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'uvas_favoritas') uva
           WHERE uva ILIKE ${"%" + filters.wineGrape + "%"}
-        )`
+        )`,
       );
     }
     if (filters.wineRegion) {
@@ -784,7 +809,7 @@ export class DatabaseStorage implements IStorage {
         sql`EXISTS (
           SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'regioes_favoritas') regiao
           WHERE regiao ILIKE ${"%" + filters.wineRegion + "%"}
-        )`
+        )`,
       );
     }
     if (filters.wineType) {
@@ -792,7 +817,7 @@ export class DatabaseStorage implements IStorage {
         sql`EXISTS (
           SELECT 1 FROM jsonb_array_elements_text(${clients.wineProfile}->'tipos_preferidos') tipo
           WHERE tipo ILIKE ${"%" + filters.wineType + "%"}
-        )`
+        )`,
       );
     }
     if (filters.hasWineProfile) {
@@ -3561,7 +3586,8 @@ export class DatabaseStorage implements IStorage {
           userName: registration.userName,
           userEmail: registration.userEmail,
           totalRegistrations: registration.completeCount,
-          incompleteRegistrations: registration.totalCount - registration.completeCount,
+          incompleteRegistrations:
+            registration.totalCount - registration.completeCount,
         };
       }
     });
@@ -4740,7 +4766,9 @@ export class DatabaseStorage implements IStorage {
           products,
           eq(blingOrderItems.productId, products.blingProductId),
         )
-        .where(and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO")))
+        .where(
+          and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO")),
+        )
         .groupBy(
           products.id,
           products.name,
@@ -4800,7 +4828,10 @@ export class DatabaseStorage implements IStorage {
         })
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
-        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .innerJoin(
+          products,
+          eq(blingOrderItems.productId, products.blingProductId),
+        )
         .where(quantityByProductConditions)
         .groupBy(products.id, products.name, products.type)
         .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric) DESC`);
@@ -4860,8 +4891,19 @@ export class DatabaseStorage implements IStorage {
           buyerCount: sql<number>`COUNT(DISTINCT ${blingOrders.companyId})::int`,
         })
         .from(products)
-        .leftJoin(blingOrderItems, eq(blingOrderItems.productId, products.blingProductId))
-        .leftJoin(blingOrders, and(eq(blingOrderItems.orderId, blingOrders.id), isNull(blingOrders.deletedAt), sql`${blingOrders.saleDate} >= ${twelveMonthsAgo}`, sql`${blingOrders.saleDate} <= ${today}`))
+        .leftJoin(
+          blingOrderItems,
+          eq(blingOrderItems.productId, products.blingProductId),
+        )
+        .leftJoin(
+          blingOrders,
+          and(
+            eq(blingOrderItems.orderId, blingOrders.id),
+            isNull(blingOrders.deletedAt),
+            sql`${blingOrders.saleDate} >= ${twelveMonthsAgo}`,
+            sql`${blingOrders.saleDate} <= ${today}`,
+          ),
+        )
         .where(eq(products.id, productId));
 
       // Month-by-month history
@@ -4874,17 +4916,26 @@ export class DatabaseStorage implements IStorage {
         })
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
-        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .innerJoin(
+          products,
+          eq(blingOrderItems.productId, products.blingProductId),
+        )
         .where(baseConditions)
-        .groupBy(sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM')`)
-        .orderBy(sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM') ASC`);
+        .groupBy(
+          sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM')`,
+        )
+        .orderBy(
+          sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM') ASC`,
+        );
 
       // Buyers
       const buyers = await this.db
         .select({
           companyId: blingOrders.contactId,
           companyName: blingOrders.contactName,
-          celular: sql<string | null>`MAX(COALESCE(${blingOrders.contactCellphone}, ${clients.phone}))`,
+          celular: sql<
+            string | null
+          >`MAX(COALESCE(${blingOrders.contactCellphone}, ${clients.phone}))`,
           email: sql<string | null>`MAX(${clients.email})`,
           totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
           totalQuantity: sql<string>`SUM(${blingOrderItems.quantity}::numeric)`,
@@ -4893,11 +4944,16 @@ export class DatabaseStorage implements IStorage {
         })
         .from(blingOrderItems)
         .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
-        .innerJoin(products, eq(blingOrderItems.productId, products.blingProductId))
+        .innerJoin(
+          products,
+          eq(blingOrderItems.productId, products.blingProductId),
+        )
         .leftJoin(clients, eq(blingOrders.appClientId, clients.id))
         .where(baseConditions)
         .groupBy(blingOrders.contactId, blingOrders.contactName)
-        .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`);
+        .orderBy(
+          sql`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric) DESC`,
+        );
 
       const totalRev = parseFloat(summary?.totalRevenue ?? "0");
       const totalQty = parseFloat(summary?.totalQuantity ?? "0");
@@ -5028,7 +5084,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(productCategories.name));
   }
 
-  async createProductCategory(data: InsertProductCategory): Promise<ProductCategory> {
+  async createProductCategory(
+    data: InsertProductCategory,
+  ): Promise<ProductCategory> {
     const [category] = await this.db
       .insert(productCategories)
       .values(data)
@@ -5036,7 +5094,10 @@ export class DatabaseStorage implements IStorage {
     return category;
   }
 
-  async updateProductCategory(id: string, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
+  async updateProductCategory(
+    id: string,
+    data: Partial<InsertProductCategory>,
+  ): Promise<ProductCategory | undefined> {
     const [category] = await this.db
       .update(productCategories)
       .set({ ...data, updatedAt: new Date() })
@@ -5097,6 +5158,8 @@ export class DatabaseStorage implements IStorage {
           status: events.status,
           notes: events.notes,
           wineRevenue: events.wineRevenue,
+          slug: events.slug,
+          landingPageHtmlKey: events.landingPageHtmlKey,
           createdBy: events.createdBy,
           createdAt: events.createdAt,
           updatedAt: events.updatedAt,
@@ -5187,6 +5250,34 @@ export class DatabaseStorage implements IStorage {
       return eventsWithAttachments;
     } catch (error) {
       console.error("Error fetching events:", error);
+      throw error;
+    }
+  }
+
+  async getEventBySlug(slug: string): Promise<Event | null> {
+    try {
+      const [event] = await this.db
+        .select()
+        .from(events)
+        .where(eq(events.slug, slug))
+        .limit(1);
+      return event ?? null;
+    } catch (error) {
+      console.error("Error fetching event by slug:", error);
+      throw error;
+    }
+  }
+
+  async getEventById(eventId: string): Promise<Event | null> {
+    try {
+      const [event] = await this.db
+        .select()
+        .from(events)
+        .where(eq(events.id, eventId))
+        .limit(1);
+      return event ?? null;
+    } catch (error) {
+      console.error("Error fetching event by id:", error);
       throw error;
     }
   }

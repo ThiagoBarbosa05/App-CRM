@@ -2059,6 +2059,8 @@ export const events = pgTable("events", {
   notes: text("notes"),
   imageUrl: text("image_url"),
   wineRevenue: decimal("wine_revenue", { precision: 10, scale: 2 }),
+  slug: text("slug").unique(),
+  landingPageHtmlKey: text("landing_page_html_key"),
   createdBy: varchar("created_by")
     .references(() => users.id)
     .notNull(),
@@ -2179,11 +2181,23 @@ export const eventGuestsRelations = relations(eventGuests, ({ one }) => ({
 }));
 
 // Schemas de inserção para eventos
-export const insertEventSchema = createInsertSchema(events).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertEventSchema = createInsertSchema(events)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    name: z.string().default("Novo Evento"),
+    location: z.string().default("A definir"),
+    eventDate: z.coerce.date().default(() => new Date()),
+    pricePerPerson: z.string().default("0"),
+    category: z.string().default("Geral"),
+    status: z
+      .enum(["planejado", "ativo", "finalizado", "cancelado"])
+      .default("planejado"),
+    wineRevenue: z.string().nullable().optional().default(null),
+  });
 
 export const insertEventAttachmentSchema = createInsertSchema(
   eventAttachments,
