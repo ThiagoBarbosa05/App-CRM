@@ -50,9 +50,12 @@ import {
   Settings2,
   Webhook,
   Sparkles,
+  Mic,
 } from "lucide-react";
 import { AgentConfigModal } from "@/components/telemarketing/agent-config-modal";
 import { AgentToolsModal } from "@/components/telemarketing/agent-tools-modal";
+import { VoiceSelector } from "@/components/voice-selector";
+import { VoiceCloneDialog } from "@/components/voice-clone-dialog";
 
 // ─── Schema e form de criação de agente ──────────────────────────────────────
 
@@ -170,8 +173,12 @@ function CreateAgentDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm">Voice ID (opcional)</Label>
-              <Input {...register("voiceId")} placeholder="Voz padrão do ElevenLabs" />
+              <Label className="text-sm">Voz (opcional)</Label>
+              <VoiceSelector
+                value={watch("voiceId")}
+                onChange={(id) => setValue("voiceId", id)}
+                placeholder="Voz padrão do ElevenLabs"
+              />
             </div>
 
             <div className="space-y-1.5 sm:col-span-2">
@@ -381,6 +388,7 @@ export function TelephonyAISettings() {
   const [agentConfigOpen, setAgentConfigOpen] = useState(false);
   const [agentToolsOpen, setAgentToolsOpen] = useState(false);
   const [createAgentOpen, setCreateAgentOpen] = useState(false);
+  const [cloneVoiceOpen, setCloneVoiceOpen] = useState(false);
 
   useEffect(() => {
     if (!settings?.twilio_from_numbers) return;
@@ -721,15 +729,39 @@ export function TelephonyAISettings() {
               </div>
             </FieldGroup>
 
-            <FieldGroup
-              label="Voice ID (Voz Clonada — Padrão Global)"
-              hint="Encontrado em elevenlabs.io/app/voice-lab. Pode ser sobrescrito por campanha."
-            >
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Voice ID (Voz Clonada — Padrão Global)
+              </Label>
               <Input
                 {...register("elevenlabs_voice_id")}
                 placeholder="Ex: 21m00Tcm4TlvDq8ikWAM"
               />
-            </FieldGroup>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Encontrado em elevenlabs.io/app/voice-lab. Pode ser sobrescrito por campanha.
+              </p>
+            </div>
+
+            <div className="flex items-end sm:col-span-2">
+              <div className="w-full rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 px-4 py-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Clonar minha voz</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Grave ou envie amostras de áudio para criar uma voz personalizada no ElevenLabs
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!status?.elevenlabs}
+                  onClick={() => setCloneVoiceOpen(true)}
+                  className="gap-2 shrink-0 rounded-xl bg-violet-600 hover:bg-violet-700 text-white"
+                >
+                  <Mic className="size-3.5" />
+                  Clonar voz
+                </Button>
+              </div>
+            </div>
 
           </CardContent>
         </Card>
@@ -1047,6 +1079,14 @@ export function TelephonyAISettings() {
         open={createAgentOpen}
         onClose={() => setCreateAgentOpen(false)}
         onCreated={(id) => setAgentIdInput(id)}
+      />
+
+      <VoiceCloneDialog
+        open={cloneVoiceOpen}
+        onClose={() => setCloneVoiceOpen(false)}
+        onCreated={(_voiceId, _voiceName) => {
+          setCloneVoiceOpen(false);
+        }}
       />
     </form>
   );

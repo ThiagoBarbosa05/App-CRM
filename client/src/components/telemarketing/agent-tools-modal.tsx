@@ -1,7 +1,4 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Sheet,
@@ -42,6 +39,15 @@ import {
   Library,
   Search,
   Check,
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+  Zap,
+  BrainCircuit,
+  Hash,
+  FlaskConical,
+  Copy,
+  Info,
 } from "lucide-react";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -50,6 +56,24 @@ type SystemTool = {
   type: "system";
   name: string;
   description: string;
+};
+
+type BodyProperty = {
+  _id: string;
+  identifier: string;
+  dataType: "string" | "number" | "boolean";
+  required: boolean;
+  valueType: "dynamic_variable" | "llm_prompt";
+  // dynamic_variable
+  variableName: string;
+  // llm_prompt
+  description: string;
+  enumValues: string; // comma-separated
+};
+
+type ResponseMock = {
+  _id: string;          // somente no frontend, não enviado à API
+  response_body: string;
 };
 
 type WebhookTool = {
@@ -65,19 +89,17 @@ type WebhookTool = {
   };
   expects_response?: boolean;
   response_timeout_secs?: number;
+  mocks?: Array<{ response_body: string }>;
 };
 
 type AgentTool = SystemTool | WebhookTool;
-
-type AgentConfig = {
-  tools: AgentTool[];
-};
+type AgentConfig = { tools: AgentTool[] };
 
 function isWebhookTool(t: AgentTool): t is WebhookTool {
   return t.type === "webhook";
 }
 
-// ─── Definição de todas as ferramentas de sistema disponíveis ─────────────────
+// ─── Ferramentas de sistema ───────────────────────────────────────────────────
 
 const ALL_SYSTEM_TOOLS: { name: string; label: string; description: string; alpha?: boolean }[] = [
   { name: "end_call", label: "Encerrar conversa", description: "Permite que o agente encerre a chamada" },
@@ -86,53 +108,411 @@ const ALL_SYSTEM_TOOLS: { name: string; label: string; description: string; alph
   { name: "update_state", label: "Atualizar estado", description: "Atualiza o estado da conversa", alpha: true },
   { name: "transfer_to_agent", label: "Transferir para agente", description: "Transfere a conversa para outro agente" },
   { name: "transfer_to_number", label: "Transferir para número", description: "Transfere a chamada para um número de telefone" },
-  { name: "play_keypad_touch_tone", label: "Reproduzir tom de toque do teclado", description: "Reproduz tons DTMF durante a chamada" },
-  { name: "voicemail_detection", label: "Detecção de correio de voz", description: "Detecta quando a chamada cai em caixa postal" },
+  { name: "play_keypad_touch_tone", label: "Reproduzir tom de toque", description: "Reproduz tons DTMF durante a chamada" },
+  { name: "voicemail_detection", label: "Detecção de caixa postal", description: "Detecta quando a chamada cai em caixa postal" },
 ];
-
-// ─── Tipo de ferramenta da workspace ElevenLabs ───────────────────────────────
 
 type WorkspaceTool = {
   tool_id: string;
   name: string;
   description?: string;
   type?: string;
-  api_schema?: {
-    url?: string;
-    method?: string;
-    request_body_schema?: unknown;
-  };
+  api_schema?: { url?: string; method?: string; request_body_schema?: unknown };
 };
 
-// ─── Schema do formulário de webhook ─────────────────────────────────────────
+// ─── Variáveis dinâmicas disponíveis no contexto da chamada ──────────────────
 
-const toolSchema = z
-  .object({
-    name: z.string().min(1, "Nome é obrigatório"),
-    description: z.string().optional(),
-    url: z.string().optional(),
-    method: z.enum(["POST", "GET"]).optional(),
-    requestBody: z.string().optional(),
-    expectsResponse: z.boolean().optional(),
-  })
-  .superRefine((v, ctx) => {
-    if (!/^[a-z][a-z0-9_]*$/.test(v.name)) {
-      ctx.addIssue({ code: "custom", path: ["name"], message: "Use apenas letras minúsculas, números e _" });
-    }
-    if (!v.description?.trim()) {
-      ctx.addIssue({ code: "custom", path: ["description"], message: "Descrição é obrigatória" });
-    }
-    if (!v.url?.trim()) {
-      ctx.addIssue({ code: "custom", path: ["url"], message: "URL é obrigatória" });
+const DYNAMIC_VARIABLES = [
+  { value: "callSid", label: "callSid — SID da chamada Twilio" },
+  { value: "conversation_id", label: "conversation_id — ID da conversa ElevenLabs" },
+];
+
+// ─── Conversão entre BodyProperty[] e request_body_schema ────────────────────
+
+function propertiesToSchema(
+  bodyDescription: string,
+  props: BodyProperty[],
+): Record<string, unknown> | undefined {
+  if (props.length === 0) return undefined;
+
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+
+  for (const p of props) {
+    if (!p.identifier.trim()) continue;
+
+    const base: Record<string, unknown> = { type: p.dataType };
+
+    if (p.valueType === "dynamic_variable") {
+      base.dynamic_variable = p.variableName || p.identifier;
     } else {
-      try { new URL(v.url); } catch {
-        ctx.addIssue({ code: "custom", path: ["url"], message: "URL inválida" });
+      if (p.description.trim()) base.description = p.description.trim();
+      const enums = p.enumValues
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (enums.length > 0) base.enum = enums;
+    }
+
+    properties[p.identifier.trim()] = base;
+    if (p.required) required.push(p.identifier.trim());
+  }
+
+  return {
+    type: "object",
+    ...(bodyDescription.trim() ? { description: bodyDescription.trim() } : {}),
+    properties,
+    ...(required.length > 0 ? { required } : {}),
+  };
+}
+
+function schemaToProperties(schema: unknown): { bodyDesc: string; props: BodyProperty[] } {
+  if (!schema || typeof schema !== "object") return { bodyDesc: "", props: [] };
+  const s = schema as Record<string, unknown>;
+  const bodyDesc = typeof s.description === "string" ? s.description : "";
+  const rawProps = (s.properties ?? {}) as Record<string, Record<string, unknown>>;
+  const requiredSet = new Set<string>(Array.isArray(s.required) ? (s.required as string[]) : []);
+
+  const props: BodyProperty[] = Object.entries(rawProps).map(([key, val]) => {
+    const isDynamic = "dynamic_variable" in val;
+    const enumRaw = Array.isArray(val.enum) ? (val.enum as string[]).join(", ") : "";
+    return {
+      _id: crypto.randomUUID(),
+      identifier: key,
+      dataType: (val.type as "string" | "number" | "boolean") ?? "string",
+      required: requiredSet.has(key),
+      valueType: isDynamic ? "dynamic_variable" : "llm_prompt",
+      variableName: typeof val.dynamic_variable === "string" ? val.dynamic_variable : key,
+      description: typeof val.description === "string" ? val.description : "",
+      enumValues: enumRaw,
+    };
+  });
+
+  return { bodyDesc, props };
+}
+
+// ─── Editor de parâmetro do corpo ─────────────────────────────────────────────
+
+function PropertyRow({
+  prop,
+  onChange,
+  onRemove,
+}: {
+  prop: BodyProperty;
+  onChange: (p: BodyProperty) => void;
+  onRemove: () => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      {/* Header da propriedade */}
+      <div
+        className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 dark:bg-slate-800/60 cursor-pointer"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <GripVertical className="size-3.5 text-slate-300 shrink-0" />
+        {expanded ? (
+          <ChevronDown className="size-3.5 text-slate-400 shrink-0" />
+        ) : (
+          <ChevronRight className="size-3.5 text-slate-400 shrink-0" />
+        )}
+
+        <div className="flex-1 flex items-center gap-2 min-w-0">
+          <span className="font-mono text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+            {prop.identifier || <span className="text-slate-400 font-normal">sem nome</span>}
+          </span>
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-[10px] shrink-0 gap-1",
+              prop.valueType === "dynamic_variable"
+                ? "border-violet-200 bg-violet-50 text-violet-600 dark:border-violet-800 dark:bg-violet-900/20 dark:text-violet-400"
+                : "border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-400",
+            )}
+          >
+            {prop.valueType === "dynamic_variable" ? (
+              <><Zap className="size-2.5" />Variável dinâmica</>
+            ) : (
+              <><BrainCircuit className="size-2.5" />Prompt LLM</>
+            )}
+          </Badge>
+          {prop.required && (
+            <Badge variant="outline" className="text-[10px] shrink-0 border-red-200 text-red-500">
+              obrigatório
+            </Badge>
+          )}
+        </div>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-6 rounded-lg shrink-0 text-slate-400 hover:text-red-500 hover:bg-red-50"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        >
+          <Trash2 className="size-3" />
+        </Button>
+      </div>
+
+      {/* Corpo expandido */}
+      {expanded && (
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Tipo de dado</Label>
+              <Select
+                value={prop.dataType}
+                onValueChange={(v) => onChange({ ...prop, dataType: v as BodyProperty["dataType"] })}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="string">String</SelectItem>
+                  <SelectItem value="number">Number</SelectItem>
+                  <SelectItem value="boolean">Boolean</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Identificador</Label>
+              <Input
+                value={prop.identifier}
+                onChange={(e) => onChange({ ...prop, identifier: e.target.value })}
+                placeholder="campo_nome"
+                className="h-8 text-sm font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={prop.required}
+              onCheckedChange={(v) => onChange({ ...prop, required: v })}
+              className="scale-90"
+            />
+            <Label className="text-sm font-normal cursor-pointer">Obrigatório</Label>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-500">Tipo de valor</Label>
+            <Select
+              value={prop.valueType}
+              onValueChange={(v) => onChange({ ...prop, valueType: v as BodyProperty["valueType"] })}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dynamic_variable">
+                  <span className="flex items-center gap-2">
+                    <Zap className="size-3.5 text-violet-500" />
+                    Variável Dinâmica
+                  </span>
+                </SelectItem>
+                <SelectItem value="llm_prompt">
+                  <span className="flex items-center gap-2">
+                    <BrainCircuit className="size-3.5 text-blue-500" />
+                    Prompt LLM
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {prop.valueType === "dynamic_variable" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Nome da Variável</Label>
+              <Select
+                value={prop.variableName}
+                onValueChange={(v) => onChange({ ...prop, variableName: v })}
+              >
+                <SelectTrigger className="h-8 text-sm font-mono">
+                  <SelectValue placeholder="Selecionar variável..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {DYNAMIC_VARIABLES.map((dv) => (
+                    <SelectItem key={dv.value} value={dv.value} className="font-mono text-sm">
+                      {dv.value}
+                      <span className="ml-2 text-xs text-slate-400 font-sans">{dv.label.split("—")[1]}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-400">
+                Variáveis injetadas automaticamente no início de cada conversa via Twilio.
+              </p>
+            </div>
+          )}
+
+          {prop.valueType === "llm_prompt" && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-500">Descrição *</Label>
+                <Textarea
+                  value={prop.description}
+                  onChange={(e) => onChange({ ...prop, description: e.target.value })}
+                  placeholder="Descreva o que o agente deve extrair da conversa..."
+                  rows={2}
+                  className="text-sm"
+                />
+                <p className="text-xs text-slate-400">
+                  Instruções para o LLM sobre como extrair este valor da conversa.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <Hash className="size-3" />
+                    Enum Values (opcional)
+                  </span>
+                </Label>
+                <Input
+                  value={prop.enumValues}
+                  onChange={(e) => onChange({ ...prop, enumValues: e.target.value })}
+                  placeholder="sim, nao, talvez"
+                  className="text-sm font-mono"
+                />
+                <p className="text-xs text-slate-400">
+                  Valores permitidos separados por vírgula. Ex: <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded">sim, nao</code>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Mock de resposta ─────────────────────────────────────────────────────────
+
+function MockRow({
+  mock,
+  index,
+  bodyProps,
+  onChange,
+  onRemove,
+}: {
+  mock: ResponseMock;
+  index: number;
+  bodyProps: BodyProperty[];
+  onChange: (m: ResponseMock) => void;
+  onRemove: () => void;
+}) {
+  const [jsonError, setJsonError] = useState<string | null>(null);
+
+  function validate(value: string) {
+    if (!value.trim()) { setJsonError(null); return; }
+    try { JSON.parse(value); setJsonError(null); } catch { setJsonError("JSON inválido"); }
+  }
+
+  // Gera um JSON de exemplo baseado nas propriedades do corpo configuradas
+  function generateExample() {
+    if (bodyProps.length === 0) return;
+    const example: Record<string, unknown> = {};
+    for (const p of bodyProps) {
+      if (!p.identifier.trim()) continue;
+      if (p.valueType === "dynamic_variable") {
+        example[p.identifier] = `{{${p.variableName || p.identifier}}}`;
+      } else {
+        const enums = p.enumValues.split(",").map((s) => s.trim()).filter(Boolean);
+        if (enums.length > 0) example[p.identifier] = enums[0];
+        else if (p.dataType === "number") example[p.identifier] = 0;
+        else if (p.dataType === "boolean") example[p.identifier] = true;
+        else example[p.identifier] = "";
       }
     }
-  });
-type ToolForm = z.infer<typeof toolSchema>;
+    const json = JSON.stringify(example, null, 2);
+    onChange({ ...mock, response_body: json });
+    setJsonError(null);
+  }
 
-// ─── Formulário de nova/editar webhook ───────────────────────────────────────
+  function copyToClipboard() {
+    if (!mock.response_body.trim()) return;
+    navigator.clipboard.writeText(mock.response_body);
+    toast({ title: "Copiado!" });
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 dark:bg-slate-800/60">
+        <FlaskConical className="size-3.5 text-violet-500 shrink-0" />
+        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex-1">
+          Mock {index + 1}
+        </span>
+
+        {bodyProps.length > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs gap-1.5 text-slate-500 hover:text-violet-600 rounded-lg px-2"
+            onClick={generateExample}
+            title="Gerar exemplo baseado nas propriedades do corpo"
+          >
+            <Zap className="size-3" />
+            Gerar exemplo
+          </Button>
+        )}
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7 rounded-lg text-slate-400 hover:text-slate-600"
+          onClick={copyToClipboard}
+          title="Copiar JSON"
+        >
+          <Copy className="size-3.5" />
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"
+          onClick={onRemove}
+        >
+          <Trash2 className="size-3" />
+        </Button>
+      </div>
+
+      {/* Corpo */}
+      <div className="p-3 space-y-1.5">
+        <Textarea
+          value={mock.response_body}
+          onChange={(e) => {
+            onChange({ ...mock, response_body: e.target.value });
+            validate(e.target.value);
+          }}
+          placeholder={'{\n  "decisao": "sim",\n  "callSid": "{{callSid}}"\n}'}
+          rows={6}
+          className={cn(
+            "font-mono text-xs resize-y",
+            jsonError ? "border-red-400 focus-visible:ring-red-400" : "",
+          )}
+          spellCheck={false}
+        />
+        {jsonError && (
+          <p className="text-xs text-red-500 flex items-center gap-1">
+            <AlertCircle className="size-3 shrink-0" />
+            {jsonError}
+          </p>
+        )}
+        <p className="text-xs text-slate-400">
+          Use <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded">{"{{variavel}}"}</code> para referenciar variáveis dinâmicas. Ex: <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded">{"{{callSid}}"}</code>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Formulário de webhook ────────────────────────────────────────────────────
 
 function WebhookForm({
   initial,
@@ -143,129 +523,395 @@ function WebhookForm({
   onSave: (tool: WebhookTool) => void;
   onCancel: () => void;
 }) {
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<ToolForm>({
-    resolver: zodResolver(toolSchema),
-    defaultValues: initial
-      ? {
-          name: initial.name,
-          description: initial.description,
-          url: initial.api_schema?.url ?? "",
-          method: (initial.api_schema?.method as "POST" | "GET") ?? "POST",
-          requestBody: initial.api_schema?.request_body_schema
-            ? JSON.stringify(initial.api_schema.request_body_schema, null, 2)
-            : "",
-          expectsResponse: initial.expects_response ?? false,
-        }
-      : { method: "POST", expectsResponse: false },
-  });
+  // Seções do formulário
+  const [section, setSection] = useState<"basic" | "body" | "advanced" | "mocks">("basic");
 
-  const onSubmit = (data: ToolForm) => {
-    let parsedSchema: unknown = undefined;
-    if (data.requestBody?.trim()) {
-      try { parsedSchema = JSON.parse(data.requestBody.trim()); } catch { /* ignora JSON inválido */ }
+  // Campos básicos
+  const [name, setName] = useState(initial?.name ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [url, setUrl] = useState(initial?.api_schema?.url ?? "");
+  const [method, setMethod] = useState<"POST" | "GET">(
+    (initial?.api_schema?.method as "POST" | "GET") ?? "POST",
+  );
+
+  // Parâmetros do corpo
+  const parsed = schemaToProperties(initial?.api_schema?.request_body_schema);
+  const [bodyDescription, setBodyDescription] = useState(parsed.bodyDesc);
+  const [bodyProps, setBodyProps] = useState<BodyProperty[]>(parsed.props);
+
+  // Cabeçalhos
+  const initHeaders = Object.entries(initial?.api_schema?.request_headers ?? {}).map(
+    ([k, v]) => ({ id: crypto.randomUUID(), key: k, value: v }),
+  );
+  const [headers, setHeaders] = useState(initHeaders);
+
+  // Avançado
+  const [expectsResponse, setExpectsResponse] = useState(initial?.expects_response ?? false);
+  const [timeout, setTimeout_] = useState(initial?.response_timeout_secs ?? 20);
+
+  // Mocks de resposta
+  const [mocks, setMocks] = useState<ResponseMock[]>(
+    (initial?.mocks ?? []).map((m) => ({ _id: crypto.randomUUID(), response_body: m.response_body })),
+  );
+
+  // Validação básica
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function addProperty() {
+    setBodyProps((prev) => [
+      ...prev,
+      {
+        _id: crypto.randomUUID(),
+        identifier: "",
+        dataType: "string",
+        required: true,
+        valueType: "llm_prompt",
+        variableName: "callSid",
+        description: "",
+        enumValues: "",
+      },
+    ]);
+  }
+
+  function addHeader() {
+    setHeaders((prev) => [...prev, { id: crypto.randomUUID(), key: "", value: "" }]);
+  }
+
+  function validate() {
+    const e: Record<string, string> = {};
+    if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+      e.name = "Use apenas letras minúsculas, números e _ (sem espaços)";
     }
+    if (!description.trim()) e.description = "Descrição é obrigatória";
+    if (!url.trim()) {
+      e.url = "URL é obrigatória";
+    } else {
+      try { new URL(url); } catch { e.url = "URL inválida"; }
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  function handleSave() {
+    if (!validate()) { setSection("basic"); return; }
+
+    const schema = propertiesToSchema(bodyDescription, bodyProps);
+    const hdrs = Object.fromEntries(
+      headers.filter((h) => h.key.trim()).map((h) => [h.key.trim(), h.value]),
+    );
+
+    const validMocks = mocks
+      .filter((m) => m.response_body.trim())
+      .map(({ response_body }) => ({ response_body }));
+
     onSave({
       type: "webhook",
-      name: data.name,
-      description: data.description ?? "",
+      name,
+      description,
       api_schema: {
-        url: data.url ?? "",
-        method: data.method ?? "POST",
+        url,
+        method,
         content_type: "application/json",
-        ...(parsedSchema ? { request_body_schema: parsedSchema } : {}),
+        ...(schema ? { request_body_schema: schema } : {}),
+        ...(Object.keys(hdrs).length > 0 ? { request_headers: hdrs } : {}),
       },
-      expects_response: data.expectsResponse ?? false,
+      expects_response: expectsResponse,
+      response_timeout_secs: timeout,
+      ...(validMocks.length > 0 ? { mocks: validMocks } : {}),
     });
-  };
+  }
+
+  const sectionTab = (id: typeof section, label: string, hasError?: boolean) => (
+    <button
+      type="button"
+      onClick={() => setSection(id)}
+      className={cn(
+        "flex-1 py-2 text-sm font-medium rounded-lg transition-colors relative",
+        section === id
+          ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm"
+          : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
+      )}
+    >
+      {label}
+      {hasError && (
+        <span className="absolute top-1 right-1 size-1.5 rounded-full bg-red-500" />
+      )}
+    </button>
+  );
+
+  const hasBasicErrors = !!(errors.name || errors.description || errors.url);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label className="text-sm">Nome *</Label>
-        <Input
-          {...register("name")}
-          placeholder="confirmar_interesse"
-          disabled={!!initial}
-        />
-        <p className="text-xs text-slate-400">
-          Letras minúsculas, números e _ (sem espaços)
-        </p>
-        {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+    <div className="space-y-4">
+      {/* Abas de seção */}
+      <div className="flex rounded-xl border border-slate-200 dark:border-slate-700 p-1 gap-1 bg-slate-50 dark:bg-slate-800/50">
+        {sectionTab("basic", "Básico", hasBasicErrors)}
+        {sectionTab("body", `Corpo (${bodyProps.length})`)}
+        {sectionTab("advanced", "Avançado")}
+        {sectionTab("mocks", `Mocks${mocks.length > 0 ? ` (${mocks.length})` : ""}`)}
       </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-sm">Descrição *</Label>
-        <Textarea
-          {...register("description")}
-          placeholder="Quando o agente deve chamar esta ferramenta..."
-          rows={2}
-        />
-        {errors.description && (
-          <p className="text-xs text-red-500">{errors.description.message}</p>
-        )}
-      </div>
+      {/* ── Básico ── */}
+      {section === "basic" && (
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm">Nome *</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="confirmar_interesse"
+              disabled={!!initial}
+              className="font-mono"
+            />
+            <p className="text-xs text-slate-400">
+              Letras minúsculas, números e _ (sem espaços). Ex: <code className="bg-slate-100 dark:bg-slate-800 px-1 rounded">confirmar_interesse</code>
+            </p>
+            {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
+          </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2 space-y-1.5">
-          <Label className="text-sm">URL *</Label>
-          <Input {...register("url")} placeholder="https://seuapp.com/api/…" />
-          {errors.url && <p className="text-xs text-red-500">{errors.url.message as string}</p>}
+          <div className="space-y-1.5">
+            <Label className="text-sm">Descrição *</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Quando o agente deve chamar esta ferramenta — seja específico para que o LLM saiba quando acioná-la."
+              rows={3}
+            />
+            {errors.description && <p className="text-xs text-red-500">{errors.description}</p>}
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-sm">URL *</Label>
+              <Input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://seuapp.com/api/…"
+              />
+              {errors.url && <p className="text-xs text-red-500">{errors.url}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Método</Label>
+              <Select value={method} onValueChange={(v) => setMethod(v as "POST" | "GET")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="POST">POST</SelectItem>
+                  <SelectItem value="GET">GET</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm">Método</Label>
-          <Select
-            value={watch("method") ?? "POST"}
-            onValueChange={(v) => setValue("method", v as "POST" | "GET")}
+      )}
+
+      {/* ── Corpo ── */}
+      {section === "body" && (
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm">Descrição do corpo</Label>
+            <Textarea
+              value={bodyDescription}
+              onChange={(e) => setBodyDescription(e.target.value)}
+              placeholder="Dados enviados para a API. Inclui os campos necessários para processar a resposta do cliente."
+              rows={2}
+            />
+            <p className="text-xs text-slate-400">
+              Contexto global do corpo da requisição — ajuda o LLM a entender o propósito dos campos.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Propriedades</Label>
+              <span className="text-xs text-slate-400">{bodyProps.length} campo{bodyProps.length !== 1 ? "s" : ""}</span>
+            </div>
+
+            {bodyProps.length === 0 && (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-8 text-center">
+                <p className="text-sm text-slate-400">Nenhum parâmetro definido</p>
+                <p className="text-xs text-slate-400 mt-1">Adicione propriedades abaixo para estruturar o corpo da requisição</p>
+              </div>
+            )}
+
+            {bodyProps.map((prop, idx) => (
+              <PropertyRow
+                key={prop._id}
+                prop={prop}
+                onChange={(p) => setBodyProps((prev) => prev.map((x, i) => (i === idx ? p : x)))}
+                onRemove={() => setBodyProps((prev) => prev.filter((_, i) => i !== idx))}
+              />
+            ))}
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2 rounded-xl border-dashed"
+              onClick={addProperty}
+            >
+              <Plus className="size-4" />
+              Adicionar propriedade
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Avançado ── */}
+      {section === "advanced" && (
+        <div className="space-y-5">
+          {/* Cabeçalhos */}
+          <div className="space-y-3">
+            <Label className="text-sm">Cabeçalhos</Label>
+
+            {headers.map((h, idx) => (
+              <div key={h.id} className="flex gap-2 items-center">
+                <Input
+                  value={h.key}
+                  onChange={(e) =>
+                    setHeaders((prev) => prev.map((x, i) => i === idx ? { ...x, key: e.target.value } : x))
+                  }
+                  placeholder="Authorization"
+                  className="flex-1 text-sm font-mono"
+                />
+                <Input
+                  value={h.value}
+                  onChange={(e) =>
+                    setHeaders((prev) => prev.map((x, i) => i === idx ? { ...x, value: e.target.value } : x))
+                  }
+                  placeholder="Bearer token..."
+                  className="flex-1 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-slate-400 hover:text-red-500"
+                  onClick={() => setHeaders((prev) => prev.filter((_, i) => i !== idx))}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            ))}
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 rounded-xl"
+              onClick={addHeader}
+            >
+              <Plus className="size-3.5" />
+              Adicionar cabeçalho
+            </Button>
+          </div>
+
+          {/* Timeout */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Tempo limite de resposta</Label>
+              <span className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-200">
+                {timeout}s
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={60}
+              value={timeout}
+              onChange={(e) => setTimeout_(Number(e.target.value))}
+              className="w-full accent-violet-600"
+            />
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>1s</span>
+              <span>30s</span>
+              <span>60s</span>
+            </div>
+          </div>
+
+          {/* Aguardar resposta */}
+          <div className="flex items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3">
+            <Switch
+              id="expectsResponse"
+              checked={expectsResponse}
+              onCheckedChange={setExpectsResponse}
+            />
+            <div>
+              <Label htmlFor="expectsResponse" className="text-sm cursor-pointer">
+                Aguardar resposta
+              </Label>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                O agente pausará e aguardará o retorno da URL antes de continuar a conversa.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Mocks de resposta ── */}
+      {section === "mocks" && (
+        <div className="space-y-4">
+          {/* Explicação */}
+          <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20 px-3.5 py-3">
+            <Info className="size-4 text-blue-500 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-300">O que são mocks de resposta?</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 leading-relaxed">
+                Durante testes do agente no ElevenLabs, em vez de chamar a URL real o sistema retorna um destes mocks aleatoriamente.
+                Isso evita side-effects e permite testar o comportamento do agente com respostas pré-definidas.
+              </p>
+            </div>
+          </div>
+
+          {/* Lista de mocks */}
+          {mocks.length === 0 && (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 py-10 text-center">
+              <FlaskConical className="size-7 text-slate-300 dark:text-slate-600 mb-2" />
+              <p className="text-sm text-slate-500">Nenhum mock configurado</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Adicione respostas simuladas para usar durante os testes do agente
+              </p>
+            </div>
+          )}
+
+          {mocks.map((mock, idx) => (
+            <MockRow
+              key={mock._id}
+              mock={mock}
+              index={idx}
+              bodyProps={bodyProps}
+              onChange={(m) => setMocks((prev) => prev.map((x, i) => (i === idx ? m : x)))}
+              onRemove={() => setMocks((prev) => prev.filter((_, i) => i !== idx))}
+            />
+          ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2 rounded-xl border-dashed"
+            onClick={() =>
+              setMocks((prev) => [
+                ...prev,
+                { _id: crypto.randomUUID(), response_body: "" },
+              ])
+            }
           >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="POST">POST</SelectItem>
-              <SelectItem value="GET">GET</SelectItem>
-            </SelectContent>
-          </Select>
+            <Plus className="size-4" />
+            Adicionar mock
+          </Button>
         </div>
-      </div>
+      )}
 
-      <div className="space-y-1.5">
-        <Label className="text-sm">Corpo da requisição (JSON, opcional)</Label>
-        <Textarea
-          {...register("requestBody")}
-          placeholder={'{"callSid": "{{callSid}}", "decision": "sim"}'}
-          rows={4}
-          className="font-mono text-xs"
-        />
-        <p className="text-xs text-slate-400">
-          Use <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">{"{{variavel}}"}</code> para variáveis dinâmicas do agente
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="expectsResponse"
-          {...register("expectsResponse")}
-          className="h-4 w-4 rounded border-slate-300"
-        />
-        <Label htmlFor="expectsResponse" className="cursor-pointer text-sm font-normal">
-          Aguardar resposta da URL (expects_response)
-        </Label>
-      </div>
-
-      <DialogFooter className="pt-2">
+      <DialogFooter className="pt-2 border-t border-slate-100 dark:border-slate-800">
         <Button variant="outline" type="button" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit">Salvar ferramenta</Button>
+        <Button type="button" onClick={handleSave} className="gap-2">
+          <Check className="size-4" />
+          Salvar ferramenta
+        </Button>
       </DialogFooter>
-    </form>
+    </div>
   );
 }
 
@@ -278,12 +924,7 @@ interface AgentToolsModalProps {
   campaignName: string;
 }
 
-export function AgentToolsModal({
-  open,
-  onClose,
-  agentId,
-  campaignName,
-}: AgentToolsModalProps) {
+export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentToolsModalProps) {
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [addTab, setAddTab] = useState<"library" | "new">("library");
@@ -295,9 +936,7 @@ export function AgentToolsModal({
   const { data: config, isLoading } = useQuery<AgentConfig>({
     queryKey: ["/api/elevenlabs/agents", agentId],
     queryFn: async () => {
-      const res = await fetch(`/api/elevenlabs/agents/${agentId}`, {
-        credentials: "include",
-      });
+      const res = await fetch(`/api/elevenlabs/agents/${agentId}`, { credentials: "include" });
       if (!res.ok) throw new Error("Erro ao buscar agente");
       return res.json();
     },
@@ -308,7 +947,7 @@ export function AgentToolsModal({
     queryKey: ["/api/elevenlabs/tools"],
     queryFn: async () => {
       const res = await fetch("/api/elevenlabs/tools", { credentials: "include" });
-      if (!res.ok) throw new Error("Erro ao buscar ferramentas");
+      if (!res.ok) throw new Error();
       return res.json();
     },
     enabled: open,
@@ -317,7 +956,6 @@ export function AgentToolsModal({
   const tools: AgentTool[] = (config?.tools as AgentTool[] | undefined) ?? [];
   const systemTools = tools.filter((t) => t.type === "system") as SystemTool[];
   const webhookTools = tools.filter(isWebhookTool);
-
   const activeSystemNames = new Set(systemTools.map((t) => t.name));
 
   const saveMutation = useMutation({
@@ -350,24 +988,14 @@ export function AgentToolsModal({
       newSystemTools = systemTools.filter((t) => t.name !== name);
     }
     saveMutation.mutate([...newSystemTools, ...webhookTools], {
-      onSuccess: () =>
-        toast({ title: enabled ? "Ferramenta ativada" : "Ferramenta desativada" }),
+      onSuccess: () => toast({ title: enabled ? "Ferramenta ativada" : "Ferramenta desativada" }),
       onSettled: () => setPendingSystemTool(null),
     });
   };
 
-  const openAddDialog = () => {
-    setAddTab("library");
-    setLibrarySearch("");
-    setAddOpen(true);
-  };
-
   const handleAddWebhook = (tool: WebhookTool) => {
     saveMutation.mutate([...systemTools, ...webhookTools, tool], {
-      onSuccess: () => {
-        toast({ title: "Ferramenta adicionada" });
-        setAddOpen(false);
-      },
+      onSuccess: () => { toast({ title: "Ferramenta adicionada" }); setAddOpen(false); },
     });
   };
 
@@ -382,9 +1010,7 @@ export function AgentToolsModal({
             url: wt.api_schema.url ?? "",
             method: wt.api_schema.method ?? "POST",
             content_type: "application/json",
-            ...(wt.api_schema.request_body_schema
-              ? { request_body_schema: wt.api_schema.request_body_schema }
-              : {}),
+            ...(wt.api_schema.request_body_schema ? { request_body_schema: wt.api_schema.request_body_schema } : {}),
           }
         : undefined,
     };
@@ -401,16 +1027,12 @@ export function AgentToolsModal({
   const handleEditWebhook = (tool: WebhookTool) => {
     const updated = webhookTools.map((t) => (t.name === tool.name ? tool : t));
     saveMutation.mutate([...systemTools, ...updated], {
-      onSuccess: () => {
-        toast({ title: "Ferramenta atualizada" });
-        setEditingTool(null);
-      },
+      onSuccess: () => { toast({ title: "Ferramenta atualizada" }); setEditingTool(null); },
     });
   };
 
   const handleDeleteWebhook = (name: string) => {
-    const updated = webhookTools.filter((t) => t.name !== name);
-    saveMutation.mutate([...systemTools, ...updated], {
+    saveMutation.mutate([...systemTools, ...webhookTools.filter((t) => t.name !== name)], {
       onSuccess: () => toast({ title: "Ferramenta removida" }),
     });
   };
@@ -420,12 +1042,8 @@ export function AgentToolsModal({
       <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
         <SheetContent className="w-full sm:max-w-lg md:max-w-2xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-base">
-              Ferramentas do Agente — {campaignName}
-            </SheetTitle>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate">
-              {agentId}
-            </p>
+            <SheetTitle className="text-base">Ferramentas do Agente — {campaignName}</SheetTitle>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-mono truncate">{agentId}</p>
           </SheetHeader>
 
           {isLoading ? (
@@ -435,52 +1053,31 @@ export function AgentToolsModal({
           ) : (
             <div className="mt-6 space-y-6">
 
-              {/* ── Ferramentas do Sistema ── */}
+              {/* Ferramentas do sistema */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Wrench className="size-4 text-slate-500" />
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Ferramentas do sistema
-                  </h3>
-                  <Badge variant="outline" className="rounded-full text-xs">
-                    {activeSystemNames.size} ativas
-                  </Badge>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Ferramentas do sistema</h3>
+                  <Badge variant="outline" className="rounded-full text-xs">{activeSystemNames.size} ativas</Badge>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                  Permite que o agente execute ações integradas.
-                </p>
-
                 <div className="rounded-2xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
                   {ALL_SYSTEM_TOOLS.map((tool) => {
                     const isActive = activeSystemNames.has(tool.name);
                     return (
-                      <div
-                        key={tool.name}
-                        className="flex items-center justify-between px-4 py-3"
-                      >
+                      <div key={tool.name} className="flex items-center justify-between px-4 py-3">
                         <div className="flex-1 min-w-0 pr-4">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                              {tool.label}
-                            </span>
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{tool.label}</span>
                             {tool.alpha && (
-                              <Badge
-                                variant="outline"
-                                className="rounded-full text-[10px] px-1.5 py-0 border-amber-400 text-amber-600 dark:text-amber-400"
-                              >
-                                Alpha
-                              </Badge>
+                              <Badge variant="outline" className="rounded-full text-[10px] px-1.5 py-0 border-amber-400 text-amber-600">Alpha</Badge>
                             )}
                           </div>
+                          <p className="text-xs text-slate-400 mt-0.5">{tool.description}</p>
                         </div>
                         {pendingSystemTool === tool.name ? (
                           <Loader2 className="size-4 animate-spin text-slate-400 shrink-0" />
                         ) : (
-                          <Switch
-                            checked={isActive}
-                            disabled={saveMutation.isPending}
-                            onCheckedChange={(v) => toggleSystemTool(tool.name, v)}
-                          />
+                          <Switch checked={isActive} disabled={saveMutation.isPending} onCheckedChange={(v) => toggleSystemTool(tool.name, v)} />
                         )}
                       </div>
                     );
@@ -488,89 +1085,81 @@ export function AgentToolsModal({
                 </div>
               </div>
 
-              {/* ── Ferramentas Webhook ── */}
+              {/* Webhooks */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Webhook className="size-4 text-violet-500" />
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Webhooks
-                  </h3>
-                  <Badge
-                    variant="outline"
-                    className="rounded-full text-xs border-violet-200 text-violet-600 dark:border-violet-700 dark:text-violet-400"
-                  >
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Webhooks</h3>
+                  <Badge variant="outline" className="rounded-full text-xs border-violet-200 text-violet-600 dark:border-violet-700 dark:text-violet-400">
                     {webhookTools.length}
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
-                  Chamadas a URLs externas que o agente pode fazer durante a conversa.
-                </p>
 
                 {webhookTools.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700">
+                  <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700 mb-3">
                     <AlertCircle className="mb-2 size-6 text-slate-300 dark:text-slate-600" />
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      Nenhum webhook configurado
-                    </p>
+                    <p className="text-sm text-slate-500">Nenhum webhook configurado</p>
                   </div>
                 ) : (
                   <div className="space-y-2 mb-3">
-                    {webhookTools.map((tool) => (
-                      <div
-                        key={tool.name}
-                        className={cn(
-                          "flex items-start gap-3 rounded-2xl border p-4",
-                          "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50",
-                        )}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <span className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-100">
-                            {tool.name}
-                          </span>
-                          {tool.description && (
-                            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
-                              {tool.description}
-                            </p>
-                          )}
-                          {(tool.api_schema?.url || tool.api_schema?.method) && (
-                            <p className="mt-1 truncate font-mono text-[11px] text-slate-400 dark:text-slate-500">
-                              {tool.api_schema?.method} {tool.api_schema?.url}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                            onClick={() => setEditingTool(tool)}
-                          >
-                            <Edit className="size-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 rounded-xl p-0 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                            onClick={() => handleDeleteWebhook(tool.name)}
-                            disabled={saveMutation.isPending}
-                          >
-                            {saveMutation.isPending ? (
-                              <Loader2 className="size-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="size-3.5" />
+                    {webhookTools.map((tool) => {
+                      const propCount = (() => {
+                        const s = tool.api_schema?.request_body_schema as Record<string, unknown> | undefined;
+                        return s?.properties ? Object.keys(s.properties as object).length : 0;
+                      })();
+
+                      return (
+                        <div
+                          key={tool.name}
+                          className="flex items-start gap-3 rounded-2xl border p-4 border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                {tool.name}
+                              </span>
+                              {tool.response_timeout_secs && (
+                                <Badge variant="outline" className="text-[10px] text-slate-400">{tool.response_timeout_secs}s timeout</Badge>
+                              )}
+                              {propCount > 0 && (
+                                <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-500">
+                                  {propCount} parâmetro{propCount > 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                            </div>
+                            {tool.description && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{tool.description}</p>
                             )}
-                          </Button>
+                            {(tool.api_schema?.url || tool.api_schema?.method) && (
+                              <p className="mt-1 truncate font-mono text-[11px] text-slate-400">
+                                {tool.api_schema?.method} {tool.api_schema?.url}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <Button
+                              variant="ghost" size="sm"
+                              className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:text-slate-600"
+                              onClick={() => setEditingTool(tool)}
+                            >
+                              <Edit className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost" size="sm"
+                              className="h-8 w-8 rounded-xl p-0 text-red-400 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => handleDeleteWebhook(tool.name)}
+                              disabled={saveMutation.isPending}
+                            >
+                              {saveMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
 
-                <Button
-                  className="w-full gap-2 rounded-2xl"
-                  variant="outline"
-                  onClick={openAddDialog}
-                >
+                <Button className="w-full gap-2 rounded-2xl" variant="outline" onClick={() => { setAddTab("library"); setAddOpen(true); }}>
                   <Plus className="size-4" />
                   Adicionar webhook
                 </Button>
@@ -580,82 +1169,62 @@ export function AgentToolsModal({
         </SheetContent>
       </Sheet>
 
-      {/* Dialog: adicionar ferramenta */}
+      {/* Dialog: adicionar */}
       <Dialog open={addOpen} onOpenChange={(v) => !v && setAddOpen(false)}>
         <DialogContent className="flex flex-col gap-0 p-0 w-full max-w-[95vw] sm:max-w-xl md:max-w-2xl max-h-[90vh] rounded-2xl overflow-hidden">
           <DialogHeader className="px-6 pt-5 pb-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
             <DialogTitle className="text-base">Adicionar ferramenta</DialogTitle>
           </DialogHeader>
 
-          {/* Abas */}
           <div className="px-6 pt-4 shrink-0">
             <div className="flex rounded-xl border border-slate-200 dark:border-slate-700 p-1 gap-1 bg-slate-50 dark:bg-slate-800/50">
-              <button
-                type="button"
-                onClick={() => setAddTab("library")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
-                  addTab === "library"
-                    ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
-                )}
-              >
-                <Library className="size-3.5" />
-                Biblioteca
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddTab("new")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
-                  addTab === "new"
-                    ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
-                )}
-              >
-                <Plus className="size-3.5" />
-                Nova ferramenta
-              </button>
+              {(["library", "new"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setAddTab(tab)}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-colors",
+                    addTab === tab
+                      ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
+                  )}
+                >
+                  {tab === "library" ? <><Library className="size-3.5" />Biblioteca</> : <><Plus className="size-3.5" />Nova ferramenta</>}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Conteúdo com scroll próprio */}
           <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
             {addTab === "library" ? (
               <div className="space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
-                  <Input
-                    value={librarySearch}
-                    onChange={(e) => setLibrarySearch(e.target.value)}
-                    placeholder="Pesquisar ferramentas..."
-                    className="pl-9"
-                  />
+                  <Input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Pesquisar ferramentas..." className="pl-9" />
                 </div>
 
                 {workspaceLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="size-5 animate-spin text-slate-400" />
-                  </div>
-                ) : (workspaceData?.tools ?? []).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Library className="mb-3 size-8 text-slate-300 dark:text-slate-600" />
-                    <p className="text-sm font-medium text-slate-500">Nenhuma ferramenta na biblioteca</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Crie ferramentas no ElevenLabs ou use a aba "Nova ferramenta"
-                    </p>
-                  </div>
+                  <div className="flex justify-center py-12"><Loader2 className="size-5 animate-spin text-slate-400" /></div>
                 ) : (() => {
                   const alreadyAdded = new Set(webhookTools.map((t) => t.name));
-                  const search = librarySearch.toLowerCase();
                   const filtered = (workspaceData?.tools ?? []).filter(
                     (t) =>
-                      t.name.toLowerCase().includes(search) ||
-                      (t.description ?? "").toLowerCase().includes(search),
+                      t.name.toLowerCase().includes(librarySearch.toLowerCase()) ||
+                      (t.description ?? "").toLowerCase().includes(librarySearch.toLowerCase()),
                   );
-                  return filtered.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-slate-400">Nenhum resultado para "{librarySearch}"</p>
-                  ) : (
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <Library className="mb-3 size-8 text-slate-300 dark:text-slate-600" />
+                        <p className="text-sm font-medium text-slate-500">
+                          {librarySearch ? `Nenhum resultado para "${librarySearch}"` : "Nenhuma ferramenta na biblioteca"}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">Use a aba "Nova ferramenta" para criar</p>
+                      </div>
+                    );
+                  }
+                  return (
                     <div className="space-y-2">
                       {filtered.map((wt) => {
                         const added = alreadyAdded.has(wt.name);
@@ -667,28 +1236,19 @@ export function AgentToolsModal({
                               "flex items-start gap-3 rounded-xl border px-4 py-3 transition-colors",
                               added
                                 ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800/50 dark:bg-emerald-900/10"
-                                : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-600",
+                                : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40 hover:border-slate-300",
                             )}
                           >
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-100">
-                                  {wt.name}
-                                </p>
+                                <p className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-100">{wt.name}</p>
                                 {wt.type && (
-                                  <Badge
-                                    variant="outline"
-                                    className="rounded-full text-[10px] px-1.5 py-0 shrink-0"
-                                  >
+                                  <Badge variant="outline" className="rounded-full text-[10px] px-1.5 py-0 shrink-0">
                                     {wt.type === "api_integration_webhook" ? "integração" : wt.type}
                                   </Badge>
                                 )}
                               </div>
-                              {wt.description && (
-                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
-                                  {wt.description}
-                                </p>
-                              )}
+                              {wt.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{wt.description}</p>}
                               {wt.api_schema?.url && (
                                 <p className="font-mono text-[10px] text-slate-400 truncate mt-1">
                                   {wt.api_schema.method ?? "GET"} {wt.api_schema.url}
@@ -698,20 +1258,11 @@ export function AgentToolsModal({
                             <Button
                               size="sm"
                               variant={added ? "outline" : "default"}
-                              className={cn(
-                                "shrink-0 rounded-xl gap-1.5 min-w-[90px]",
-                                added && "border-emerald-300 text-emerald-700 dark:border-emerald-700 dark:text-emerald-400",
-                              )}
+                              className={cn("shrink-0 rounded-xl gap-1.5 min-w-[90px]", added && "border-emerald-300 text-emerald-700")}
                               disabled={added || isPending || saveMutation.isPending}
                               onClick={() => !added && handleAddFromLibrary(wt)}
                             >
-                              {isPending ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : added ? (
-                                <><Check className="size-3.5" />Adicionada</>
-                              ) : (
-                                <><Plus className="size-3.5" />Adicionar</>
-                              )}
+                              {isPending ? <Loader2 className="size-3.5 animate-spin" /> : added ? <><Check className="size-3.5" />Adicionada</> : <><Plus className="size-3.5" />Adicionar</>}
                             </Button>
                           </div>
                         );
@@ -721,20 +1272,19 @@ export function AgentToolsModal({
                 })()}
               </div>
             ) : (
-              <WebhookForm
-                onSave={handleAddWebhook}
-                onCancel={() => setAddOpen(false)}
-              />
+              <WebhookForm onSave={handleAddWebhook} onCancel={() => setAddOpen(false)} />
             )}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: editar webhook */}
+      {/* Dialog: editar */}
       <Dialog open={!!editingTool} onOpenChange={(v) => !v && setEditingTool(null)}>
         <DialogContent className="flex flex-col gap-0 p-0 w-full max-w-[95vw] sm:max-w-xl md:max-w-2xl max-h-[90vh] rounded-2xl overflow-hidden">
           <DialogHeader className="px-6 pt-5 pb-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-            <DialogTitle className="text-base">Editar webhook</DialogTitle>
+            <DialogTitle className="text-base">
+              Editar webhook — <span className="font-mono text-violet-600">{editingTool?.name}</span>
+            </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
             {editingTool && (

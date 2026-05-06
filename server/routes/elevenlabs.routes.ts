@@ -5,8 +5,18 @@ import { eq, and } from "drizzle-orm";
 import { getElevenLabsKey } from "../lib/twilio-config";
 import { requireAuth } from "../middleware/validation";
 import { sendPostCallMessage } from "../services/umbler-post-call.service";
+import multer from "multer";
 
 const router = Router();
+
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 10 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/wave", "audio/x-wav", "audio/ogg", "audio/opus", "audio/webm", "audio/mp4", "audio/x-m4a"];
+    cb(null, allowed.includes(file.mimetype) || file.mimetype.startsWith("audio/"));
+  },
+});
 
 // ─── Webhook: decisão do agente IA ────────────────────────────────────────────
 // Chamado pelas tools "confirmar_interesse" / "recusar_convite" do agente ElevenLabs
@@ -431,6 +441,62 @@ router.get("/tools", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// ─── Listar vozes disponíveis ─────────────────────────────────────────────────
+
+router.get("/voices", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+
+    const url = new URL("https://api.elevenlabs.io/v1/voices");
+    if (search) url.searchParams.set("search", search);
+
+    const response = await fetch(url.toString(), {
+      headers: { "xi-api-key": apiKey },
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      return res.status(response.status).json({ message: body });
+    }
+
+    const data = (await response.json()) as {
+      voices: Array<{
+        voice_id: string;
+        name: string;
+        category?: string;
+        labels?: Record<string, string>;
+        preview_url?: string;
+      }>;
+    };
+
+    let voices = (data.voices ?? []).map((v) => ({
+      voice_id: v.voice_id,
+      name: v.name,
+      category: v.category ?? "",
+      labels: v.labels ?? {},
+      preview_url: v.preview_url ?? "",
+    }));
+
+    // Filtro server-side como fallback (caso a API do ElevenLabs não suporte ?search)
+    if (search) {
+      const lower = search.toLowerCase();
+      voices = voices.filter(
+        (v) =>
+          v.name.toLowerCase().includes(lower) ||
+          v.category.toLowerCase().includes(lower),
+      );
+    }
+
+    res.json({ voices });
+  } catch (e) {
+    console.error("[elevenlabs] list-voices error:", e);
+    res.status(500).json({ message: "Erro ao listar vozes" });
+  }
+});
+
 // ─── Criar novo agente ───────────────────────────────────────────────────────
 
 router.post("/agents", requireAuth, async (req: Request, res: Response) => {
@@ -551,6 +617,81 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
   } catch (e) {
     console.error("[elevenlabs] update-agent error:", e);
     res.status(500).json({ message: "Erro ao atualizar agente" });
+  }
+});
+
+// ─── Clonar / criar voz ──────────────────────────────────────────────────────
+
+router.post(
+  "/voices",
+  requireAuth,
+  audioUpload.array("files", 10),
+  async (req: Request, res: Response) => {
+    try {
+      const apiKey = await getElevenLabsKey();
+      if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+      const files = req.files as Express.Multer.File[] | undefined;
+      if (!files || files.length === 0) {
+        return res.status(400).json({ message: "Envie ao menos um arquivo de áudio" });
+      }
+
+      const name = (req.body.name as string | undefined)?.trim();
+      if (!name || name.length < 3) {
+        return res.status(400).json({ message: "Nome da voz deve ter ao menos 3 caracteres" });
+      }
+
+      const form = new FormData();
+      form.append("name", name);
+      if (req.body.description) form.append("description", req.body.description as string);
+      if (req.body.labels) form.append("labels", req.body.labels as string);
+
+      for (const file of files) {
+        const blob = new Blob([file.buffer], { type: file.mimetype });
+        form.append("files", blob, file.originalname || `sample_${Date.now()}.webm`);
+      }
+
+      const response = await fetch("https://api.elevenlabs.io/v1/voices/add", {
+        method: "POST",
+        headers: { "xi-api-key": apiKey },
+        body: form,
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        return res.status(response.status).json({ message: text });
+      }
+
+      const data = (await response.json()) as { voice_id: string };
+      res.status(201).json({ voiceId: data.voice_id });
+    } catch (e) {
+      console.error("[elevenlabs] clone-voice error:", e);
+      res.status(500).json({ message: "Erro ao clonar voz" });
+    }
+  },
+);
+
+// ─── Deletar voz clonada ──────────────────────────────────────────────────────
+
+router.delete("/voices/:voiceId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/voices/${encodeURIComponent(req.params.voiceId)}`,
+      { method: "DELETE", headers: { "xi-api-key": apiKey } },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("[elevenlabs] delete-voice error:", e);
+    res.status(500).json({ message: "Erro ao deletar voz" });
   }
 });
 

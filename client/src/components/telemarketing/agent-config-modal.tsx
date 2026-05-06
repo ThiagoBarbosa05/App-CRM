@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { VoiceSelector } from "@/components/voice-selector";
 
 const agentSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -195,10 +196,11 @@ export function AgentConfigModal({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm">Voice ID (opcional)</Label>
-              <Input
-                {...register("voiceId")}
-                placeholder="Deixe em branco para usar a voz padrão do agente"
+              <Label className="text-sm">Voz (opcional)</Label>
+              <VoiceSelector
+                value={watch("voiceId")}
+                onChange={(id) => setValue("voiceId", id)}
+                placeholder="Usar voz padrão do agente"
               />
             </div>
 
