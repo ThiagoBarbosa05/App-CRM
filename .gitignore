@@ -12,3 +12,5 @@ server/index.ts
 .claude/
 *.png
 *.csv
+
+

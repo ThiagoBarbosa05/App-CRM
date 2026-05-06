@@ -10,9 +10,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -32,7 +47,173 @@ import {
   Trash2,
   Plus,
   Info,
+  Settings2,
+  Webhook,
+  Sparkles,
 } from "lucide-react";
+import { AgentConfigModal } from "@/components/telemarketing/agent-config-modal";
+import { AgentToolsModal } from "@/components/telemarketing/agent-tools-modal";
+
+// ─── Schema e form de criação de agente ──────────────────────────────────────
+
+const createAgentSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório"),
+  prompt: z.string().optional(),
+  firstMessage: z.string().optional(),
+  language: z.string().min(1),
+  voiceId: z.string().optional(),
+  llm: z.string().min(1),
+});
+type CreateAgentForm = z.infer<typeof createAgentSchema>;
+
+const LANGUAGES = [
+  { value: "pt-br", label: "Português (Brasil)" },
+  { value: "pt", label: "Português (Portugal)" },
+  { value: "en", label: "English" },
+  { value: "es", label: "Español" },
+  { value: "fr", label: "Français" },
+  { value: "de", label: "Deutsch" },
+  { value: "it", label: "Italiano" },
+];
+
+const LLM_MODELS = [
+  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (multilíngue, recomendado)" },
+  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (multilíngue, rápido)" },
+  { value: "claude-sonnet-4", label: "Claude Sonnet 4 (multilíngue)" },
+  { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 (multilíngue, rápido)" },
+  { value: "gpt-4.1", label: "GPT-4.1 (inglês)" },
+  { value: "gpt-4o", label: "GPT-4o (inglês)" },
+  { value: "gpt-4o-mini", label: "GPT-4o Mini (inglês)" },
+];
+
+function CreateAgentDialog({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (agentId: string) => void;
+}) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<CreateAgentForm>({
+    resolver: zodResolver(createAgentSchema),
+    defaultValues: { language: "pt-br", llm: "gemini-2.5-flash" },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateAgentForm) => {
+      const res = await fetch("/api/elevenlabs/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao criar agente");
+      }
+      return res.json() as Promise<{ agentId: string }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Agente criado com sucesso", description: `ID: ${data.agentId}` });
+      reset();
+      onCreated(data.agentId);
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao criar agente", description: err.message, variant: "destructive" }),
+  });
+
+  const language = watch("language");
+  const llm = watch("llm");
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-lg md:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="size-4 text-violet-500" />
+            Criar novo agente ElevenLabs
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4 mt-2">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-sm">Nome do agente *</Label>
+              <Input {...register("name")} placeholder="Ex: Agente de Vendas" />
+              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Primeira mensagem</Label>
+              <Input {...register("firstMessage")} placeholder="Olá, posso te ajudar?" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Idioma</Label>
+              <Select value={language} onValueChange={(v) => setValue("language", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm">Voice ID (opcional)</Label>
+              <Input {...register("voiceId")} placeholder="Voz padrão do ElevenLabs" />
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-sm">Modelo LLM</Label>
+              <Select value={llm} onValueChange={(v) => setValue("llm", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LLM_MODELS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Para Português e outros idiomas não-ingleses use <strong>Gemini</strong> ou <strong>Claude</strong>. GPT-4o só suporta inglês.
+              </p>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-sm">System Prompt</Label>
+              <Textarea
+                {...register("prompt")}
+                placeholder="Você é um assistente de vendas..."
+                rows={8}
+                className="font-mono text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={createMutation.isPending} className="gap-2">
+              {createMutation.isPending
+                ? <Loader2 className="size-4 animate-spin" />
+                : <Sparkles className="size-4" />}
+              Criar agente
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const telephonySchema = z.object({
   twilio_account_sid: z.string().optional().default(""),
@@ -194,6 +375,12 @@ export function TelephonyAISettings() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [newChannelLabel, setNewChannelLabel] = useState("");
   const [newChannelNumber, setNewChannelNumber] = useState("");
+
+  // Agent management state
+  const [agentIdInput, setAgentIdInput] = useState("");
+  const [agentConfigOpen, setAgentConfigOpen] = useState(false);
+  const [agentToolsOpen, setAgentToolsOpen] = useState(false);
+  const [createAgentOpen, setCreateAgentOpen] = useState(false);
 
   useEffect(() => {
     if (!settings?.twilio_from_numbers) return;
@@ -481,7 +668,7 @@ export function TelephonyAISettings() {
           <CardContent className="grid gap-5 sm:grid-cols-2">
             <FieldGroup
               label="Intelligence Service SID"
-              hint="Console Twilio → Voice Intelligence → Services. Começa com GA. Configure o idioma como pt-BR."
+              hint="Console Twilio → Voice Intelligence → Services. Começa com GA. Configure o idioma como pt-br."
             >
               <Input
                 {...register("twilio_intelligence_service_sid")}
@@ -544,13 +731,86 @@ export function TelephonyAISettings() {
               />
             </FieldGroup>
 
-            <div className="sm:col-span-2 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 flex gap-2">
-              <Info className="size-4 text-blue-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-600 dark:text-blue-400">
-                O Agent ID é configurado por campanha. Esta chave é necessária
-                para autenticar o webhook de pós-chamada e receber transcrições.
+          </CardContent>
+        </Card>
+
+        {/* Gerenciamento de Agente ElevenLabs */}
+        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+              <Bot className="size-4 text-violet-500" />
+              Configurar Agente ElevenLabs
+            </CardTitle>
+            <CardDescription>
+              Gerencie o prompt, voz, primeira mensagem e ferramentas de qualquer agente sem sair do sistema.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Criar novo agente */}
+            <div className="flex items-center justify-between rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Novo agente</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Crie um agente diretamente pelo sistema</p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white"
+                disabled={!status?.elevenlabs}
+                onClick={() => setCreateAgentOpen(true)}
+              >
+                <Plus className="size-3.5" />
+                Criar agente
+              </Button>
+            </div>
+
+            {/* Gerenciar agente existente */}
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Ou gerencie um agente existente
+              </Label>
+              <Input
+                value={agentIdInput}
+                onChange={(e) => setAgentIdInput(e.target.value.trim())}
+                placeholder="agent_xxxxxxxxxxxxxxxx"
+                className="font-mono"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Cole o Agent ID para configurar o prompt, voz e ferramentas.
               </p>
             </div>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 gap-2 rounded-2xl border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-900/20"
+                disabled={!agentIdInput || !status?.elevenlabs}
+                onClick={() => setAgentConfigOpen(true)}
+              >
+                <Settings2 className="size-4" />
+                Configurar agente
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 gap-2 rounded-2xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                disabled={!agentIdInput || !status?.elevenlabs}
+                onClick={() => setAgentToolsOpen(true)}
+              >
+                <Webhook className="size-4" />
+                Ferramentas
+              </Button>
+            </div>
+
+            {!status?.elevenlabs && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
+                <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Configure e salve a API Key do ElevenLabs acima para habilitar o gerenciamento de agentes.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -764,6 +1024,30 @@ export function TelephonyAISettings() {
           </Button>
         </div>
       </div>
+
+      {agentConfigOpen && agentIdInput && (
+        <AgentConfigModal
+          open={agentConfigOpen}
+          onClose={() => setAgentConfigOpen(false)}
+          agentId={agentIdInput}
+          campaignName="Configurações"
+        />
+      )}
+
+      {agentToolsOpen && agentIdInput && (
+        <AgentToolsModal
+          open={agentToolsOpen}
+          onClose={() => setAgentToolsOpen(false)}
+          agentId={agentIdInput}
+          campaignName="Configurações"
+        />
+      )}
+
+      <CreateAgentDialog
+        open={createAgentOpen}
+        onClose={() => setCreateAgentOpen(false)}
+        onCreated={(id) => setAgentIdInput(id)}
+      />
     </form>
   );
 }

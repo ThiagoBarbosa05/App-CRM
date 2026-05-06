@@ -51,10 +51,14 @@ import {
   MessageSquare,
   ChevronDown,
   ChevronUp,
+  Settings2,
+  Webhook,
 } from "lucide-react";
 import { CampaignClientsDialog } from "./campaign-clients-dialog";
 import { CampaignDispatchDialog } from "./campaign-dispatch-dialog";
 import { CampaignMonitorDialog } from "./campaign-monitor-dialog";
+import { AgentConfigModal } from "./agent-config-modal";
+import { AgentToolsModal } from "./agent-tools-modal";
 import { useUmblerChannels } from "@/hooks/use-umbler-channels";
 import { useUmblerBots } from "@/hooks/use-umbler-bots";
 
@@ -217,6 +221,8 @@ export function CampaignsList() {
   const [clientsDialog, setClientsDialog] = useState<Campaign | null>(null);
   const [dispatchDialog, setDispatchDialog] = useState<Campaign | null>(null);
   const [monitorCampaign, setMonitorCampaign] = useState<Campaign | null>(null);
+  const [agentConfigCampaign, setAgentConfigCampaign] = useState<Campaign | null>(null);
+  const [agentToolsCampaign, setAgentToolsCampaign] = useState<Campaign | null>(null);
 
   const {
     data: campaigns = [],
@@ -575,6 +581,32 @@ export function CampaignsList() {
                         <SlidersHorizontal className="size-3.5" />
                       </Button>
 
+                      {/* Configurar Agente IA */}
+                      {campaign.type === "ia" && campaign.elevenLabsAgentId && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 shrink-0 rounded-xl p-0 text-violet-600 border-violet-200 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-900/20"
+                          title="Configurar agente IA"
+                          onClick={() => setAgentConfigCampaign(campaign)}
+                        >
+                          <Settings2 className="size-3.5" />
+                        </Button>
+                      )}
+
+                      {/* Ferramentas do Agente IA */}
+                      {campaign.type === "ia" && campaign.elevenLabsAgentId && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 shrink-0 rounded-xl p-0 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                          title="Gerenciar ferramentas do agente"
+                          onClick={() => setAgentToolsCampaign(campaign)}
+                        >
+                          <Webhook className="size-3.5" />
+                        </Button>
+                      )}
+
                       {/* Excluir */}
                       <Button
                         variant="ghost"
@@ -867,6 +899,24 @@ export function CampaignsList() {
           onClose={() => setMonitorCampaign(null)}
           campaignId={monitorCampaign.id}
           campaignName={monitorCampaign.name}
+        />
+      )}
+
+      {agentConfigCampaign?.elevenLabsAgentId && (
+        <AgentConfigModal
+          open={!!agentConfigCampaign}
+          onClose={() => setAgentConfigCampaign(null)}
+          agentId={agentConfigCampaign.elevenLabsAgentId}
+          campaignName={agentConfigCampaign.name}
+        />
+      )}
+
+      {agentToolsCampaign?.elevenLabsAgentId && (
+        <AgentToolsModal
+          open={!!agentToolsCampaign}
+          onClose={() => setAgentToolsCampaign(null)}
+          agentId={agentToolsCampaign.elevenLabsAgentId}
+          campaignName={agentToolsCampaign.name}
         />
       )}
     </div>

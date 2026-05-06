@@ -339,4 +339,219 @@ router.get("/audio/:callId", requireAuth, async (req: Request, res: Response) =>
   }
 });
 
+// ─── Buscar configuração do agente ───────────────────────────────────────────
+
+router.get("/agents/:agentId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(req.params.agentId)}`,
+      { headers: { "xi-api-key": apiKey } },
+    );
+
+    if (!response.ok) {
+      const body = await response.text();
+      return res.status(response.status).json({ message: body });
+    }
+
+    const data = (await response.json()) as {
+      agent_id: string;
+      name: string;
+      conversation_config?: {
+        tts?: { voice_id?: string };
+        agent?: {
+          prompt?: { prompt?: string; llm?: string; tools?: unknown[] };
+          first_message?: string;
+          language?: string;
+        };
+      };
+    };
+
+    const rawTools = data.conversation_config?.agent?.prompt?.tools ?? [];
+
+    res.json({
+      agentId: data.agent_id,
+      name: data.name,
+      prompt: data.conversation_config?.agent?.prompt?.prompt ?? "",
+      firstMessage: data.conversation_config?.agent?.first_message ?? "",
+      language: data.conversation_config?.agent?.language ?? "pt",
+      voiceId: data.conversation_config?.tts?.voice_id ?? "",
+      llm: data.conversation_config?.agent?.prompt?.llm ?? "gemini-2.5-flash",
+      tools: rawTools,
+    });
+  } catch (e) {
+    console.error("[elevenlabs] get-agent error:", e);
+    res.status(500).json({ message: "Erro ao buscar agente" });
+  }
+});
+
+// ─── Listar ferramentas da workspace ─────────────────────────────────────────
+
+router.get("/tools", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const response = await fetch("https://api.elevenlabs.io/v1/convai/tools", {
+      headers: { "xi-api-key": apiKey },
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      return res.status(response.status).json({ message: body });
+    }
+
+    const data = (await response.json()) as {
+      tools: Array<{
+        id: string;
+        tool_config?: {
+          type?: string;
+          name?: string;
+          description?: string;
+          api_schema?: { url?: string; method?: string; request_body_schema?: unknown };
+          base_api_schema?: { url?: string; method?: string; request_body_schema?: unknown };
+        };
+      }>;
+    };
+
+    const normalized = (data.tools ?? []).map((t) => ({
+      tool_id: t.id,
+      name: t.tool_config?.name ?? "",
+      description: t.tool_config?.description ?? "",
+      type: t.tool_config?.type,
+      api_schema: t.tool_config?.api_schema ?? t.tool_config?.base_api_schema,
+    }));
+
+    res.json({ tools: normalized });
+  } catch (e) {
+    console.error("[elevenlabs] list-tools error:", e);
+    res.status(500).json({ message: "Erro ao listar ferramentas" });
+  }
+});
+
+// ─── Criar novo agente ───────────────────────────────────────────────────────
+
+router.post("/agents", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const { name, prompt, firstMessage, language, voiceId, llm } = req.body as {
+      name: string;
+      prompt?: string;
+      firstMessage?: string;
+      language?: string;
+      voiceId?: string;
+      llm?: string;
+    };
+
+    if (!name?.trim()) {
+      return res.status(400).json({ message: "Nome do agente é obrigatório" });
+    }
+
+    const selectedLang = language ?? "pt-br";
+    const isEnglish = selectedLang === "en";
+    // LLM: Gemini/Claude for multilingual, GPT for English-only
+    const selectedLlm = llm ?? (isEnglish ? "gpt-4o-mini" : "gemini-2.5-flash");
+    // TTS model: eleven_turbo_v2_5 supports all languages; default only supports English
+    const ttsModelId = isEnglish ? "eleven_monolingual_v1" : "eleven_turbo_v2_5";
+
+    const body: Record<string, unknown> = {
+      name,
+      conversation_config: {
+        tts: {
+          model_id: ttsModelId,
+          ...(voiceId ? { voice_id: voiceId } : {}),
+        },
+        agent: {
+          prompt: {
+            prompt: prompt ?? "",
+            llm: selectedLlm,
+          },
+          first_message: firstMessage ?? "",
+          language: selectedLang,
+        },
+      },
+    };
+
+    const response = await fetch("https://api.elevenlabs.io/v1/convai/agents/create", {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text });
+    }
+
+    const data = (await response.json()) as { agent_id: string };
+    res.status(201).json({ agentId: data.agent_id });
+  } catch (e) {
+    console.error("[elevenlabs] create-agent error:", e);
+    res.status(500).json({ message: "Erro ao criar agente" });
+  }
+});
+
+// ─── Atualizar configuração do agente ─────────────────────────────────────────
+
+router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const { name, prompt, firstMessage, language, voiceId, llm, tools } = req.body as {
+      name?: string;
+      prompt?: string;
+      firstMessage?: string;
+      language?: string;
+      voiceId?: string;
+      llm?: string;
+      tools?: unknown[];
+    };
+
+    const body: Record<string, unknown> = {};
+    if (name) body.name = name;
+
+    const conversationConfig: Record<string, unknown> = {};
+    const agentConfig: Record<string, unknown> = {};
+
+    // Build prompt sub-object accumulating all prompt-level fields
+    if (prompt !== undefined || llm !== undefined || tools !== undefined) {
+      const promptObj: Record<string, unknown> = {};
+      if (prompt !== undefined) promptObj.prompt = prompt;
+      if (llm !== undefined) promptObj.llm = llm;
+      if (tools !== undefined) promptObj.tools = tools;
+      agentConfig.prompt = promptObj;
+    }
+    if (firstMessage !== undefined) agentConfig.first_message = firstMessage;
+    if (language !== undefined) agentConfig.language = language;
+    if (Object.keys(agentConfig).length > 0) conversationConfig.agent = agentConfig;
+
+    if (voiceId !== undefined) conversationConfig.tts = { voice_id: voiceId };
+    if (Object.keys(conversationConfig).length > 0) body.conversation_config = conversationConfig;
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(req.params.agentId)}`,
+      {
+        method: "PATCH",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("[elevenlabs] update-agent error:", e);
+    res.status(500).json({ message: "Erro ao atualizar agente" });
+  }
+});
+
 export default router;
