@@ -349,6 +349,35 @@ router.get("/audio/:callId", requireAuth, async (req: Request, res: Response) =>
   }
 });
 
+// ─── Listar agentes da workspace ─────────────────────────────────────────────
+
+router.get("/agents", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const response = await fetch("https://api.elevenlabs.io/v1/convai/agents", {
+      headers: { "xi-api-key": apiKey },
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      return res.status(response.status).json({ message: body });
+    }
+
+    const data = (await response.json()) as {
+      agents: Array<{ agent_id: string; name: string }>;
+    };
+
+    res.json({
+      agents: (data.agents ?? []).map((a) => ({ agentId: a.agent_id, name: a.name })),
+    });
+  } catch (e) {
+    console.error("[elevenlabs] list-agents error:", e);
+    res.status(500).json({ message: "Erro ao listar agentes" });
+  }
+});
+
 // ─── Buscar configuração do agente ───────────────────────────────────────────
 
 router.get("/agents/:agentId", requireAuth, async (req: Request, res: Response) => {
@@ -371,25 +400,36 @@ router.get("/agents/:agentId", requireAuth, async (req: Request, res: Response) 
       name: string;
       conversation_config?: {
         tts?: { voice_id?: string };
+        turn?: { interruption_threshold?: number };
         agent?: {
-          prompt?: { prompt?: string; llm?: string; tools?: unknown[] };
+          prompt?: {
+            prompt?: string;
+            llm?: string;
+            tools?: unknown[];
+            built_in_tools?: Record<string, unknown>;
+          };
           first_message?: string;
           language?: string;
         };
       };
     };
 
-    const rawTools = data.conversation_config?.agent?.prompt?.tools ?? [];
+    const rawPrompt = data.conversation_config?.agent?.prompt;
+    const rawTools = rawPrompt?.tools ?? [];
+    const rawBuiltInTools = rawPrompt?.built_in_tools ?? {};
+    const interruptionThreshold = data.conversation_config?.turn?.interruption_threshold;
 
     res.json({
       agentId: data.agent_id,
       name: data.name,
-      prompt: data.conversation_config?.agent?.prompt?.prompt ?? "",
+      prompt: rawPrompt?.prompt ?? "",
       firstMessage: data.conversation_config?.agent?.first_message ?? "",
       language: data.conversation_config?.agent?.language ?? "pt",
       voiceId: data.conversation_config?.tts?.voice_id ?? "",
-      llm: data.conversation_config?.agent?.prompt?.llm ?? "gemini-2.5-flash",
+      llm: rawPrompt?.llm ?? "gemini-2.5-flash",
       tools: rawTools,
+      builtInTools: rawBuiltInTools,
+      interruptible: interruptionThreshold === undefined ? true : interruptionThreshold > 0,
     });
   } catch (e) {
     console.error("[elevenlabs] get-agent error:", e);
@@ -504,13 +544,14 @@ router.post("/agents", requireAuth, async (req: Request, res: Response) => {
     const apiKey = await getElevenLabsKey();
     if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
 
-    const { name, prompt, firstMessage, language, voiceId, llm } = req.body as {
+    const { name, prompt, firstMessage, language, voiceId, llm, interruptible } = req.body as {
       name: string;
       prompt?: string;
       firstMessage?: string;
       language?: string;
       voiceId?: string;
       llm?: string;
+      interruptible?: boolean;
     };
 
     if (!name?.trim()) {
@@ -530,6 +571,9 @@ router.post("/agents", requireAuth, async (req: Request, res: Response) => {
         tts: {
           model_id: ttsModelId,
           ...(voiceId ? { voice_id: voiceId } : {}),
+        },
+        turn: {
+          interruption_threshold: interruptible === false ? 0 : 100,
         },
         agent: {
           prompt: {
@@ -568,7 +612,7 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
     const apiKey = await getElevenLabsKey();
     if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
 
-    const { name, prompt, firstMessage, language, voiceId, llm, tools } = req.body as {
+    const { name, prompt, firstMessage, language, voiceId, llm, tools, builtInTools, interruptible } = req.body as {
       name?: string;
       prompt?: string;
       firstMessage?: string;
@@ -576,6 +620,8 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
       voiceId?: string;
       llm?: string;
       tools?: unknown[];
+      builtInTools?: Record<string, unknown>;
+      interruptible?: boolean;
     };
 
     const body: Record<string, unknown> = {};
@@ -584,12 +630,15 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
     const conversationConfig: Record<string, unknown> = {};
     const agentConfig: Record<string, unknown> = {};
 
-    // Build prompt sub-object accumulating all prompt-level fields
-    if (prompt !== undefined || llm !== undefined || tools !== undefined) {
+    // Build prompt sub-object accumulating all prompt-level fields.
+    // System tools go to built_in_tools (new ElevenLabs API format).
+    // Webhook tools go to tools (deprecated but still functional for inline webhooks).
+    if (prompt !== undefined || llm !== undefined || tools !== undefined || builtInTools !== undefined) {
       const promptObj: Record<string, unknown> = {};
       if (prompt !== undefined) promptObj.prompt = prompt;
       if (llm !== undefined) promptObj.llm = llm;
       if (tools !== undefined) promptObj.tools = tools;
+      if (builtInTools !== undefined) promptObj.built_in_tools = builtInTools;
       agentConfig.prompt = promptObj;
     }
     if (firstMessage !== undefined) agentConfig.first_message = firstMessage;
@@ -597,6 +646,7 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
     if (Object.keys(agentConfig).length > 0) conversationConfig.agent = agentConfig;
 
     if (voiceId !== undefined) conversationConfig.tts = { voice_id: voiceId };
+    if (interruptible !== undefined) conversationConfig.turn = { interruption_threshold: interruptible ? 100 : 0 };
     if (Object.keys(conversationConfig).length > 0) body.conversation_config = conversationConfig;
 
     const response = await fetch(

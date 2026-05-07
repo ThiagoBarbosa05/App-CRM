@@ -93,7 +93,20 @@ type WebhookTool = {
 };
 
 type AgentTool = SystemTool | WebhookTool;
-type AgentConfig = { tools: AgentTool[] };
+
+// ElevenLabs new format: built_in_tools is a map of tool name → config (active) or null (disabled).
+// Replaces the deprecated prompt.tools approach for system tools.
+type BuiltInToolEntry = {
+  name: string;
+  description: string;
+  type: string;
+  params?: { system_tool_type: string };
+} | null;
+
+type AgentConfig = {
+  tools: AgentTool[];
+  builtInTools?: Record<string, BuiltInToolEntry>;
+};
 
 function isWebhookTool(t: AgentTool): t is WebhookTool {
   return t.type === "webhook";
@@ -954,17 +967,89 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
   });
 
   const tools: AgentTool[] = (config?.tools as AgentTool[] | undefined) ?? [];
-  const systemTools = tools.filter((t) => t.type === "system") as SystemTool[];
-  const webhookTools = tools.filter(isWebhookTool);
-  const activeSystemNames = new Set(systemTools.map((t) => t.name));
 
+  // Only include webhook tools that have an inline definition (name set).
+  // Pure library references { type:"webhook", tool_id:"..." } without name are silently dropped
+  // because sending them back in PATCH causes "document_not_found" errors on ElevenLabs.
+  const webhookTools = tools.filter(
+    (t): t is WebhookTool => t.type === "webhook" && !!(t as WebhookTool & Record<string, unknown>).name,
+  );
+
+  // Active system tools come from built_in_tools (new API format: non-null entry = active).
+  // Fall back to the deprecated tools array for agents not yet migrated.
+  const builtInToolsMap: Record<string, BuiltInToolEntry> = (config?.builtInTools ?? {}) as Record<string, BuiltInToolEntry>;
+  const activeSystemNames: Set<string> = (() => {
+    const fromNew = new Set(
+      Object.entries(builtInToolsMap)
+        .filter(([, v]) => v !== null)
+        .map(([k]) => k),
+    );
+    if (Object.keys(builtInToolsMap).length > 0) return fromNew;
+    // Fallback: old format had system tools inside prompt.tools
+    const systemFromOld = tools.filter((t) => t.type === "system") as SystemTool[];
+    return new Set(systemFromOld.map((t) => t.name));
+  })();
+
+  // Sanitize tools before sending to ElevenLabs PATCH.
+  // Two problems with the raw GET response:
+  //   1. Library tools added via ElevenLabs UI come back as { type:"webhook", tool_id:"tool_xxx" }
+  //      (just a reference, no inline definition). Sending tool_id → "document_not_found" error.
+  //      Sending without tool_id but with no name → ElevenLabs creates invalid "unknown tool".
+  //      Fix: skip any webhook tool that has no `name` (pure library reference).
+  //   2. Inline tools may have an extra `tool_id` field from the API. Strip it.
+  function sanitizeTools(rawTools: AgentTool[]): AgentTool[] {
+    const result: AgentTool[] = [];
+    for (const t of rawTools) {
+      if (t.type !== "webhook") {
+        result.push(t);
+        continue;
+      }
+      const wt = t as WebhookTool & Record<string, unknown>;
+      // Skip pure library references that have no inline definition
+      if (!wt.name) continue;
+      result.push({
+        type: "webhook",
+        name: wt.name,
+        description: wt.description ?? "",
+        ...(wt.api_schema ? { api_schema: wt.api_schema } : {}),
+        ...(wt.expects_response !== undefined ? { expects_response: wt.expects_response } : {}),
+        ...(wt.response_timeout_secs !== undefined ? { response_timeout_secs: wt.response_timeout_secs } : {}),
+        ...(wt.mocks?.length ? { mocks: wt.mocks } : {}),
+      });
+    }
+    return result;
+  }
+
+  // Mutation for webhook tools (uses deprecated prompt.tools — still functional for inline webhooks).
   const saveMutation = useMutation({
-    mutationFn: async (newTools: AgentTool[]) => {
+    mutationFn: async (newWebhookTools: WebhookTool[]) => {
       const res = await fetch(`/api/elevenlabs/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ tools: newTools }),
+        body: JSON.stringify({ tools: sanitizeTools(newWebhookTools) }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao salvar");
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/elevenlabs/agents", agentId] });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" }),
+  });
+
+  // Mutation for system tools — uses the new built_in_tools format.
+  // ElevenLabs deprecated prompt.tools for system tools; they must now go to prompt.built_in_tools.
+  const systemToolMutation = useMutation({
+    mutationFn: async (newBuiltInTools: Record<string, BuiltInToolEntry>) => {
+      const res = await fetch(`/api/elevenlabs/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ builtInTools: newBuiltInTools }),
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { message?: string };
@@ -980,21 +1065,29 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
 
   const toggleSystemTool = (name: string, enabled: boolean) => {
     setPendingSystemTool(name);
-    let newSystemTools: SystemTool[];
+
+    // Build a new built_in_tools map: active tools get their config, disabled get null.
+    const newBuiltInTools: Record<string, BuiltInToolEntry> = { ...builtInToolsMap };
     if (enabled) {
       const def = ALL_SYSTEM_TOOLS.find((t) => t.name === name)!;
-      newSystemTools = [...systemTools, { type: "system", name, description: def.description }];
+      newBuiltInTools[name] = {
+        name,
+        description: def.description,
+        type: "system",
+        params: { system_tool_type: name },
+      };
     } else {
-      newSystemTools = systemTools.filter((t) => t.name !== name);
+      newBuiltInTools[name] = null;
     }
-    saveMutation.mutate([...newSystemTools, ...webhookTools], {
+
+    systemToolMutation.mutate(newBuiltInTools, {
       onSuccess: () => toast({ title: enabled ? "Ferramenta ativada" : "Ferramenta desativada" }),
       onSettled: () => setPendingSystemTool(null),
     });
   };
 
   const handleAddWebhook = (tool: WebhookTool) => {
-    saveMutation.mutate([...systemTools, ...webhookTools, tool], {
+    saveMutation.mutate([...webhookTools, tool], {
       onSuccess: () => { toast({ title: "Ferramenta adicionada" }); setAddOpen(false); },
     });
   };
@@ -1014,7 +1107,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
           }
         : undefined,
     };
-    saveMutation.mutate([...systemTools, ...webhookTools, tool], {
+    saveMutation.mutate([...webhookTools, tool], {
       onSuccess: () => {
         toast({ title: "Ferramenta adicionada da biblioteca" });
         setAddingLibraryTool(null);
@@ -1026,13 +1119,13 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
 
   const handleEditWebhook = (tool: WebhookTool) => {
     const updated = webhookTools.map((t) => (t.name === tool.name ? tool : t));
-    saveMutation.mutate([...systemTools, ...updated], {
+    saveMutation.mutate(updated, {
       onSuccess: () => { toast({ title: "Ferramenta atualizada" }); setEditingTool(null); },
     });
   };
 
   const handleDeleteWebhook = (name: string) => {
-    saveMutation.mutate([...systemTools, ...webhookTools.filter((t) => t.name !== name)], {
+    saveMutation.mutate(webhookTools.filter((t) => t.name !== name), {
       onSuccess: () => toast({ title: "Ferramenta removida" }),
     });
   };
@@ -1077,7 +1170,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                         {pendingSystemTool === tool.name ? (
                           <Loader2 className="size-4 animate-spin text-slate-400 shrink-0" />
                         ) : (
-                          <Switch checked={isActive} disabled={saveMutation.isPending} onCheckedChange={(v) => toggleSystemTool(tool.name, v)} />
+                          <Switch checked={isActive} disabled={systemToolMutation.isPending} onCheckedChange={(v) => toggleSystemTool(tool.name, v)} />
                         )}
                       </div>
                     );

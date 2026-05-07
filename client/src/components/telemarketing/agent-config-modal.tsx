@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { VoiceSelector } from "@/components/voice-selector";
@@ -32,6 +33,7 @@ const agentSchema = z.object({
   language: z.string().min(1),
   voiceId: z.string().optional(),
   llm: z.string().min(1),
+  interruptible: z.boolean().optional().default(true),
 });
 type AgentForm = z.infer<typeof agentSchema>;
 
@@ -43,6 +45,7 @@ type AgentConfig = {
   language: string;
   voiceId: string;
   llm: string;
+  interruptible: boolean;
 };
 
 const LANGUAGES = [
@@ -108,6 +111,7 @@ export function AgentConfigModal({
         language: config.language || "pt-br",
         voiceId: config.voiceId ?? "",
         llm: config.llm || "gemini-2.5-flash",
+        interruptible: config.interruptible ?? true,
       });
     }
   }, [config, reset]);
@@ -135,6 +139,7 @@ export function AgentConfigModal({
 
   const language = watch("language");
   const llm = watch("llm");
+  const interruptible = watch("interruptible");
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -174,6 +179,16 @@ export function AgentConfigModal({
               {errors.firstMessage && (
                 <p className="text-xs text-red-500">{errors.firstMessage.message}</p>
               )}
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Interrompível</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Permite que o usuário interrompa a fala do agente</p>
+                </div>
+                <Switch
+                  checked={interruptible ?? true}
+                  onCheckedChange={(v) => setValue("interruptible", v)}
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">

@@ -475,6 +475,194 @@ router.delete("/calls/:callSid", requireAuth, async (req: Request, res: Response
   }
 });
 
+// ─── TwiML Applications ──────────────────────────────────────────────────────
+
+router.get("/applications", requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const client = twilio(config.accountSid, config.authToken);
+    const apps = await client.applications.list({ limit: 50 });
+    return res.json(
+      apps.map((a) => ({
+        sid: a.sid,
+        friendlyName: a.friendlyName,
+        voiceUrl: a.voiceUrl,
+        voiceMethod: a.voiceMethod,
+        statusCallback: a.statusCallback,
+        dateUpdated: a.dateUpdated,
+      }))
+    );
+  } catch (e: unknown) {
+    console.error("[twilio] list applications error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao listar apps";
+    return res.status(500).json({ message });
+  }
+});
+
+router.post("/applications", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const baseUrl = await getServerBaseUrl();
+    const {
+      friendlyName = "CRM Voice App",
+      voiceUrl,
+      voiceMethod = "POST",
+      voiceFallbackUrl,
+      voiceFallbackMethod = "POST",
+      statusCallback,
+      statusCallbackMethod = "POST",
+      voiceCallerIdLookup = false,
+      publicApplicationConnectEnabled = false,
+    } = req.body as {
+      friendlyName?: string;
+      voiceUrl?: string;
+      voiceMethod?: string;
+      voiceFallbackUrl?: string;
+      voiceFallbackMethod?: string;
+      statusCallback?: string;
+      statusCallbackMethod?: string;
+      voiceCallerIdLookup?: boolean;
+      publicApplicationConnectEnabled?: boolean;
+    };
+
+    const client = twilio(config.accountSid, config.authToken);
+    const app = await client.applications.create({
+      friendlyName,
+      voiceUrl: voiceUrl || `${baseUrl}/api/twilio/voice`,
+      voiceMethod,
+      ...(voiceFallbackUrl ? { voiceFallbackUrl, voiceFallbackMethod } : {}),
+      statusCallback: statusCallback || `${baseUrl}/api/calls/twilio-status`,
+      statusCallbackMethod,
+      voiceCallerIdLookup,
+      publicApplicationConnectEnabled,
+    });
+    return res.json({
+      sid: app.sid,
+      friendlyName: app.friendlyName,
+      voiceUrl: app.voiceUrl,
+    });
+  } catch (e: unknown) {
+    console.error("[twilio] create application error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao criar app";
+    return res.status(500).json({ message });
+  }
+});
+
+router.post("/applications/:sid/select", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { sid } = req.params;
+    await db
+      .insert(systemSettings)
+      .values({ key: "twilio_twiml_app_sid", value: sid })
+      .onConflictDoUpdate({ target: systemSettings.key, set: { value: sid } });
+    return res.json({ ok: true, sid });
+  } catch (e: unknown) {
+    console.error("[twilio] select application error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao selecionar app";
+    return res.status(500).json({ message });
+  }
+});
+
+router.post("/applications/:sid/sync", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { sid } = req.params;
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const baseUrl = (req.body as { baseUrl?: string }).baseUrl?.trim() || await getServerBaseUrl();
+    const client = twilio(config.accountSid, config.authToken);
+    const app = await client.applications(sid).update({
+      voiceUrl: `${baseUrl}/api/twilio/voice`,
+      voiceMethod: "POST",
+      statusCallback: `${baseUrl}/api/calls/twilio-status`,
+      statusCallbackMethod: "POST",
+    });
+    return res.json({ ok: true, voiceUrl: app.voiceUrl });
+  } catch (e: unknown) {
+    console.error("[twilio] sync application error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao sincronizar app";
+    return res.status(500).json({ message });
+  }
+});
+
+// ─── Verified Caller IDs ──────────────────────────────────────────────────────
+
+router.get("/caller-ids", requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const client = twilio(config.accountSid, config.authToken);
+    const ids = await client.outgoingCallerIds.list({ limit: 50 });
+    return res.json(
+      ids.map((id) => ({
+        sid: id.sid,
+        friendlyName: id.friendlyName,
+        phoneNumber: id.phoneNumber,
+        dateCreated: id.dateCreated,
+      }))
+    );
+  } catch (e: unknown) {
+    console.error("[twilio] list caller-ids error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao listar caller IDs";
+    return res.status(500).json({ message });
+  }
+});
+
+router.post("/caller-ids/validate", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { phoneNumber, friendlyName } = req.body as {
+      phoneNumber: string;
+      friendlyName?: string;
+    };
+    if (!phoneNumber) {
+      return res.status(400).json({ message: "phoneNumber é obrigatório" });
+    }
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const client = twilio(config.accountSid, config.authToken);
+    const validation = await client.validationRequests.create({
+      phoneNumber: toE164Brazil(phoneNumber),
+      ...(friendlyName ? { friendlyName } : {}),
+    });
+    return res.json({
+      validationCode: validation.validationCode,
+      phoneNumber: validation.phoneNumber,
+      friendlyName: validation.friendlyName,
+    });
+  } catch (e: unknown) {
+    console.error("[twilio] validate caller-id error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao iniciar validação";
+    return res.status(500).json({ message });
+  }
+});
+
+router.delete("/caller-ids/:sid", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const client = twilio(config.accountSid, config.authToken);
+    await client.outgoingCallerIds(req.params.sid).remove();
+    return res.json({ ok: true });
+  } catch (e: unknown) {
+    console.error("[twilio] delete caller-id error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao remover caller ID";
+    return res.status(500).json({ message });
+  }
+});
+
 // ─── Proxy de gravação ────────────────────────────────────────────────────────
 
 router.get("/recording/:callId", async (req: Request, res: Response) => {
@@ -508,6 +696,103 @@ router.get("/recording/:callId", async (req: Request, res: Response) => {
     res.send(Buffer.from(buffer));
   } catch (e) {
     res.status(500).json({ message: "Erro ao buscar gravação" });
+  }
+});
+
+// ─── Voice Intelligence Services ─────────────────────────────────────────────
+
+router.get("/intelligence-services", requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const client = twilio(config.accountSid, config.authToken);
+    const services = await client.intelligence.v2.services.list({ limit: 50 });
+    return res.json(
+      services.map((s) => ({
+        sid: s.sid,
+        uniqueName: s.uniqueName,
+        friendlyName: s.friendlyName,
+        languageCode: s.languageCode,
+        autoTranscribe: s.autoTranscribe,
+        autoRedaction: s.autoRedaction,
+        webhookUrl: s.webhookUrl,
+        dateUpdated: s.dateUpdated,
+      }))
+    );
+  } catch (e: unknown) {
+    console.error("[twilio] list intelligence-services error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao listar serviços";
+    return res.status(500).json({ message });
+  }
+});
+
+router.post("/intelligence-services", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const {
+      uniqueName,
+      friendlyName,
+      languageCode = "pt-BR",
+      autoTranscribe = true,
+      autoRedaction = false,
+      webhookUrl,
+      webhookHttpMethod = "POST",
+    } = req.body as {
+      uniqueName: string;
+      friendlyName?: string;
+      languageCode?: string;
+      autoTranscribe?: boolean;
+      autoRedaction?: boolean;
+      webhookUrl?: string;
+      webhookHttpMethod?: string;
+    };
+
+    if (!uniqueName) {
+      return res.status(400).json({ message: "uniqueName é obrigatório" });
+    }
+
+    const baseUrl = await getServerBaseUrl();
+    const client = twilio(config.accountSid, config.authToken);
+    const service = await client.intelligence.v2.services.create({
+      uniqueName,
+      ...(friendlyName ? { friendlyName } : {}),
+      languageCode,
+      autoTranscribe,
+      autoRedaction,
+      webhookUrl: webhookUrl || `${baseUrl}/api/elevenlabs/webhook`,
+      webhookHttpMethod: (webhookHttpMethod || "POST") as "GET" | "POST" | "NULL",
+    });
+    return res.json({
+      sid: service.sid,
+      uniqueName: service.uniqueName,
+      friendlyName: service.friendlyName,
+      languageCode: service.languageCode,
+      webhookUrl: service.webhookUrl,
+    });
+  } catch (e: unknown) {
+    console.error("[twilio] create intelligence-service error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao criar serviço";
+    return res.status(500).json({ message });
+  }
+});
+
+router.post("/intelligence-services/:sid/select", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { sid } = req.params;
+    await db
+      .insert(systemSettings)
+      .values({ key: "twilio_intelligence_service_sid", value: sid })
+      .onConflictDoUpdate({ target: systemSettings.key, set: { value: sid } });
+    return res.json({ ok: true, sid });
+  } catch (e: unknown) {
+    console.error("[twilio] select intelligence-service error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao selecionar serviço";
+    return res.status(500).json({ message });
   }
 });
 

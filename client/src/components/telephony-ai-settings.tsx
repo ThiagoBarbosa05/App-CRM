@@ -17,6 +17,20 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,11 +65,414 @@ import {
   Webhook,
   Sparkles,
   Mic,
+  ChevronsUpDown,
+  Check,
+  RefreshCw,
 } from "lucide-react";
 import { AgentConfigModal } from "@/components/telemarketing/agent-config-modal";
 import { AgentToolsModal } from "@/components/telemarketing/agent-tools-modal";
 import { VoiceSelector } from "@/components/voice-selector";
 import { VoiceCloneDialog } from "@/components/voice-clone-dialog";
+
+// ─── Dialog de criação de Voice Intelligence Service ─────────────────────────
+
+const INTELLIGENCE_LANGUAGES = [
+  { value: "pt-BR", label: "Português (Brasil)" },
+  { value: "pt-PT", label: "Português (Portugal)" },
+  { value: "en-US", label: "English (US)" },
+  { value: "es-ES", label: "Español (España)" },
+  { value: "es-MX", label: "Español (México)" },
+  { value: "fr-FR", label: "Français" },
+  { value: "de-DE", label: "Deutsch" },
+  { value: "it-IT", label: "Italiano" },
+];
+
+const createIntelligenceSchema = z.object({
+  uniqueName: z.string().min(1, "Nome único é obrigatório").regex(/^[a-z0-9_-]+$/, "Apenas letras minúsculas, números, _ e -"),
+  friendlyName: z.string().optional().default(""),
+  languageCode: z.string().min(1),
+  autoTranscribe: z.boolean().default(true),
+  autoRedaction: z.boolean().default(false),
+  webhookUrl: z.string().optional().default(""),
+});
+type CreateIntelligenceForm = z.infer<typeof createIntelligenceSchema>;
+
+function CreateIntelligenceDialog({
+  open,
+  onClose,
+  onCreated,
+  defaultWebhookUrl,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  defaultWebhookUrl: string;
+}) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<CreateIntelligenceForm>({
+    resolver: zodResolver(createIntelligenceSchema),
+    defaultValues: {
+      uniqueName: "",
+      friendlyName: "",
+      languageCode: "pt-BR",
+      autoTranscribe: true,
+      autoRedaction: false,
+      webhookUrl: defaultWebhookUrl,
+    },
+  });
+
+  useEffect(() => {
+    if (open) {
+      reset({
+        uniqueName: "",
+        friendlyName: "",
+        languageCode: "pt-BR",
+        autoTranscribe: true,
+        autoRedaction: false,
+        webhookUrl: defaultWebhookUrl,
+      });
+    }
+  }, [open, defaultWebhookUrl, reset]);
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateIntelligenceForm) => {
+      const res = await fetch("/api/twilio/intelligence-services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao criar serviço");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Serviço criado com sucesso" });
+      onCreated();
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao criar serviço", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Radio className="size-4 text-emerald-500" />
+            Criar serviço de Voice Intelligence
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4 mt-2">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Nome único *</Label>
+            <Input {...register("uniqueName")} placeholder="crm-transcricao-ptbr" />
+            <p className="text-xs text-slate-500 dark:text-slate-400">Apenas letras minúsculas, números, _ e -. Não pode ser alterado depois.</p>
+            {errors.uniqueName && <p className="text-xs text-red-500">{errors.uniqueName.message}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Nome de exibição</Label>
+            <Input {...register("friendlyName")} placeholder="CRM Transcrição PT-BR" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Idioma *</Label>
+            <Select value={watch("languageCode")} onValueChange={(v) => setValue("languageCode", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {INTELLIGENCE_LANGUAGES.map((l) => (
+                  <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Idioma das transcrições. Não pode ser alterado após a criação.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">URL do Webhook</Label>
+            <Input {...register("webhookUrl")} placeholder="https://..." />
+            <p className="text-xs text-slate-500 dark:text-slate-400">Pré-preenchido com a URL de transcrição do sistema.</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Opções</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-700 dark:text-slate-300">Transcrição automática</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Transcreve todas as gravações automaticamente</p>
+              </div>
+              <Switch
+                checked={watch("autoTranscribe")}
+                onCheckedChange={(v) => setValue("autoTranscribe", v)}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-700 dark:text-slate-300">Redação de dados pessoais (PII)</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Oculta CPF, cartões e telefones nas transcrições</p>
+              </div>
+              <Switch
+                checked={watch("autoRedaction")}
+                onCheckedChange={(v) => setValue("autoRedaction", v)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={createMutation.isPending} className="gap-2">
+              {createMutation.isPending
+                ? <Loader2 className="size-4 animate-spin" />
+                : <Plus className="size-4" />}
+              Criar serviço
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Dialog de criação de TwiML App ──────────────────────────────────────────
+
+const createTwimlAppSchema = z.object({
+  friendlyName: z.string().min(1, "Nome é obrigatório"),
+  voiceUrl: z.string().optional().default(""),
+  voiceMethod: z.enum(["POST", "GET"]).default("POST"),
+  voiceFallbackUrl: z.string().optional().default(""),
+  voiceFallbackMethod: z.enum(["POST", "GET"]).default("POST"),
+  statusCallback: z.string().optional().default(""),
+  statusCallbackMethod: z.enum(["POST", "GET"]).default("POST"),
+  voiceCallerIdLookup: z.boolean().default(false),
+  publicApplicationConnectEnabled: z.boolean().default(false),
+});
+type CreateTwimlAppForm = z.infer<typeof createTwimlAppSchema>;
+
+function CreateTwimlAppDialog({
+  open,
+  onClose,
+  onCreated,
+  defaultVoiceUrl,
+  defaultStatusCallback,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (app: { sid: string; friendlyName: string; voiceUrl: string }) => void;
+  defaultVoiceUrl: string;
+  defaultStatusCallback: string;
+}) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<CreateTwimlAppForm>({
+    resolver: zodResolver(createTwimlAppSchema),
+    defaultValues: {
+      friendlyName: "CRM Voice App",
+      voiceUrl: defaultVoiceUrl,
+      voiceMethod: "POST",
+      voiceFallbackUrl: "",
+      voiceFallbackMethod: "POST",
+      statusCallback: defaultStatusCallback,
+      statusCallbackMethod: "POST",
+      voiceCallerIdLookup: false,
+      publicApplicationConnectEnabled: false,
+    },
+  });
+
+  useEffect(() => {
+    if (open) {
+      reset({
+        friendlyName: "CRM Voice App",
+        voiceUrl: defaultVoiceUrl,
+        voiceMethod: "POST",
+        voiceFallbackUrl: "",
+        voiceFallbackMethod: "POST",
+        statusCallback: defaultStatusCallback,
+        statusCallbackMethod: "POST",
+        voiceCallerIdLookup: false,
+        publicApplicationConnectEnabled: false,
+      });
+    }
+  }, [open, defaultVoiceUrl, defaultStatusCallback, reset]);
+
+  const [showOptional, setShowOptional] = useState(false);
+
+  const createMutation = useMutation({
+    mutationFn: async (data: CreateTwimlAppForm) => {
+      const res = await fetch("/api/twilio/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao criar app");
+      }
+      return res.json() as Promise<{ sid: string; friendlyName: string; voiceUrl: string }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: "TwiML App criado", description: `SID: ${data.sid}` });
+      onCreated(data);
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao criar app", description: err.message, variant: "destructive" }),
+  });
+
+  const voiceCallerIdLookup = watch("voiceCallerIdLookup");
+  const publicApplicationConnectEnabled = watch("publicApplicationConnectEnabled");
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Radio className="size-4 text-blue-500" />
+            Criar novo TwiML App
+          </DialogTitle>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-5 mt-2">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Nome *</Label>
+            <Input {...register("friendlyName")} placeholder="CRM Voice App" />
+            {errors.friendlyName && (
+              <p className="text-xs text-red-500">{errors.friendlyName.message}</p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-4">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Configuração de Voz</p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-3 items-end">
+              <div className="space-y-1.5">
+                <Label className="text-sm">URL da Requisição</Label>
+                <Input {...register("voiceUrl")} placeholder="https://..." />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Método</Label>
+                <Select
+                  value={watch("voiceMethod")}
+                  onValueChange={(v) => setValue("voiceMethod", v as "POST" | "GET")}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="POST">HTTP POST</SelectItem>
+                    <SelectItem value="GET">HTTP GET</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+              onClick={() => setShowOptional((v) => !v)}
+            >
+              <ChevronsUpDown className="size-3.5" />
+              {showOptional ? "Ocultar" : "Mostrar"} configurações opcionais
+            </button>
+
+            {showOptional && (
+              <div className="space-y-4 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">URL de Fallback</Label>
+                    <Input {...register("voiceFallbackUrl")} placeholder="https://..." />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Method</Label>
+                    <Select
+                      value={watch("voiceFallbackMethod")}
+                      onValueChange={(v) => setValue("voiceFallbackMethod", v as "POST" | "GET")}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="POST">HTTP POST</SelectItem>
+                        <SelectItem value="GET">HTTP GET</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">URL de Status Callback</Label>
+                    <Input {...register("statusCallback")} placeholder="https://..." />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">Method</Label>
+                    <Select
+                      value={watch("statusCallbackMethod")}
+                      onValueChange={(v) => setValue("statusCallbackMethod", v as "POST" | "GET")}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="POST">HTTP POST</SelectItem>
+                        <SelectItem value="GET">HTTP GET</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Consulta de Nome do Caller</Label>
+                    <Switch
+                      checked={voiceCallerIdLookup}
+                      onCheckedChange={(v) => setValue("voiceCallerIdLookup", v)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm">Permitir discagem de outras contas Twilio</Label>
+                    </div>
+                    <Switch
+                      checked={publicApplicationConnectEnabled}
+                      onCheckedChange={(v) => setValue("publicApplicationConnectEnabled", v)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={createMutation.isPending} className="gap-2">
+              {createMutation.isPending
+                ? <Loader2 className="size-4 animate-spin" />
+                : <Plus className="size-4" />}
+              Criar app
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 // ─── Schema e form de criação de agente ──────────────────────────────────────
 
@@ -66,6 +483,7 @@ const createAgentSchema = z.object({
   language: z.string().min(1),
   voiceId: z.string().optional(),
   llm: z.string().min(1),
+  interruptible: z.boolean().optional().default(true),
 });
 type CreateAgentForm = z.infer<typeof createAgentSchema>;
 
@@ -136,6 +554,7 @@ function CreateAgentDialog({
 
   const language = watch("language");
   const llm = watch("llm");
+  const interruptible = watch("interruptible");
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -158,6 +577,16 @@ function CreateAgentDialog({
             <div className="space-y-1.5">
               <Label className="text-sm">Primeira mensagem</Label>
               <Input {...register("firstMessage")} placeholder="Olá, posso te ajudar?" />
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Interrompível</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Permite que o usuário interrompa a fala do agente</p>
+                </div>
+                <Switch
+                  checked={interruptible ?? true}
+                  onCheckedChange={(v) => setValue("interruptible", v)}
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -349,6 +778,19 @@ export function TelephonyAISettings() {
       },
     });
 
+  const { data: agentsList, isLoading: agentsLoading, refetch: refetchAgents } = useQuery<{
+    agents: Array<{ agentId: string; name: string }>;
+  }>({
+    queryKey: ["/api/elevenlabs/agents"],
+    queryFn: async () => {
+      const res = await fetch("/api/elevenlabs/agents", { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao listar agentes");
+      return res.json();
+    },
+    enabled: !!status?.elevenlabs,
+    staleTime: 30_000,
+  });
+
   const {
     register,
     handleSubmit,
@@ -389,6 +831,15 @@ export function TelephonyAISettings() {
   const [agentToolsOpen, setAgentToolsOpen] = useState(false);
   const [createAgentOpen, setCreateAgentOpen] = useState(false);
   const [cloneVoiceOpen, setCloneVoiceOpen] = useState(false);
+  const [agentSelectorOpen, setAgentSelectorOpen] = useState(false);
+
+  const [createTwimlAppOpen, setCreateTwimlAppOpen] = useState(false);
+
+  // Caller ID state
+  const [callerIdsOpen, setCallerIdsOpen] = useState(false);
+  const [newCallerNumber, setNewCallerNumber] = useState("");
+  const [newCallerFriendlyName, setNewCallerFriendlyName] = useState("");
+  const [pendingValidationCode, setPendingValidationCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (!settings?.twilio_from_numbers) return;
@@ -467,40 +918,176 @@ export function TelephonyAISettings() {
     },
   });
 
-  const configureVoiceUrlMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/telephony-settings/configure-voice-url", {
+  // ── TwiML Apps queries/mutations ─────────────────────────────────────────────
+
+  const { data: twimlApps, isLoading: twimlAppsLoading, refetch: refetchApps } = useQuery<
+    Array<{ sid: string; friendlyName: string; voiceUrl: string; voiceMethod: string; statusCallback: string; dateUpdated: string }>
+  >({
+    queryKey: ["/api/twilio/applications"],
+    queryFn: async () => {
+      const res = await fetch("/api/twilio/applications", { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao listar apps");
+      return res.json();
+    },
+    enabled: !!status?.twilio,
+    staleTime: 30_000,
+  });
+
+
+  const selectAppMutation = useMutation({
+    mutationFn: async (sid: string) => {
+      const res = await fetch(`/api/twilio/applications/${sid}/select`, {
         method: "POST",
         credentials: "include",
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? "Erro ao configurar Voice URL");
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao selecionar app");
       }
-      return res.json() as Promise<{ success: boolean; voiceUrl: string }>;
+      return res.json() as Promise<{ ok: boolean; sid: string }>;
     },
     onSuccess: (data) => {
+      toast({ title: "TwiML App selecionado", description: `SID salvo: ${data.sid}` });
+      queryClient.invalidateQueries({ queryKey: ["/api/telephony-settings"] });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const syncAppMutation = useMutation({
+    mutationFn: async ({ sid, baseUrl }: { sid: string; baseUrl?: string }) => {
+      const res = await fetch(`/api/twilio/applications/${sid}/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ baseUrl }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao sincronizar");
+      }
+      return res.json() as Promise<{ ok: boolean; voiceUrl: string }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: "URLs sincronizadas", description: `Voice URL: ${data.voiceUrl}` });
+      void refetchApps();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao sincronizar", description: err.message, variant: "destructive" }),
+  });
+
+  // ── Caller IDs queries/mutations ──────────────────────────────────────────────
+
+  const { data: callerIds, isLoading: callerIdsLoading, refetch: refetchCallerIds } = useQuery<
+    Array<{ sid: string; friendlyName: string; phoneNumber: string; dateCreated: string }>
+  >({
+    queryKey: ["/api/twilio/caller-ids"],
+    queryFn: async () => {
+      const res = await fetch("/api/twilio/caller-ids", { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao listar caller IDs");
+      return res.json();
+    },
+    enabled: callerIdsOpen && !!status?.twilio,
+    staleTime: 30_000,
+  });
+
+  const validateCallerMutation = useMutation({
+    mutationFn: async (data: { phoneNumber: string; friendlyName?: string }) => {
+      const res = await fetch("/api/twilio/caller-ids/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao iniciar validação");
+      }
+      return res.json() as Promise<{ validationCode: string; phoneNumber: string; friendlyName: string }>;
+    },
+    onSuccess: (data) => {
+      setPendingValidationCode(data.validationCode);
+      setNewCallerNumber("");
+      setNewCallerFriendlyName("");
       toast({
-        title: "Voice URL configurada",
-        description: `TwiML App atualizado com: ${data.voiceUrl}`,
+        title: "Ligação de verificação iniciada",
+        description: `Atenda e informe o código: ${data.validationCode}`,
       });
     },
-    onError: (err: Error) => {
-      toast({
-        title: "Erro ao configurar Voice URL",
-        description: err.message,
-        variant: "destructive",
+    onError: (err: Error) =>
+      toast({ title: "Erro na verificação", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteCallerMutation = useMutation({
+    mutationFn: async (sid: string) => {
+      const res = await fetch(`/api/twilio/caller-ids/${sid}`, {
+        method: "DELETE",
+        credentials: "include",
       });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao remover");
+      }
+      return res.json();
     },
+    onSuccess: () => {
+      toast({ title: "Caller ID removido" });
+      void refetchCallerIds();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao remover", description: err.message, variant: "destructive" }),
+  });
+
+  // ── Voice Intelligence queries/mutations ──────────────────────────────────────
+
+  const [createIntelligenceOpen, setCreateIntelligenceOpen] = useState(false);
+
+  const { data: intelligenceServices, isLoading: intelligenceLoading, refetch: refetchIntelligence } = useQuery<
+    Array<{ sid: string; uniqueName: string; friendlyName: string; languageCode: string; autoTranscribe: boolean; autoRedaction: boolean; webhookUrl: string; dateUpdated: string }>
+  >({
+    queryKey: ["/api/twilio/intelligence-services"],
+    queryFn: async () => {
+      const res = await fetch("/api/twilio/intelligence-services", { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao listar serviços");
+      return res.json();
+    },
+    enabled: !!status?.twilio,
+    staleTime: 30_000,
+  });
+
+  const selectIntelligenceMutation = useMutation({
+    mutationFn: async (sid: string) => {
+      const res = await fetch(`/api/twilio/intelligence-services/${sid}/select`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao selecionar serviço");
+      }
+      return res.json() as Promise<{ ok: boolean; sid: string }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Serviço selecionado", description: `SID: ${data.sid}` });
+      queryClient.invalidateQueries({ queryKey: ["/api/telephony-settings"] });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
   const isLoading = settingsLoading || statusLoading;
   const recordCalls = watch("twilio_record_calls");
   const serverBaseUrl = watch("server_base_url") ?? "";
-  const voiceUrl = serverBaseUrl ? `${serverBaseUrl}/api/twilio/voice` : "";
+  const twimlAppSid = watch("twilio_twiml_app_sid") ?? "";
+  const intelligenceSid = watch("twilio_intelligence_service_sid") ?? "";
   const transcriptionWebhookUrl = serverBaseUrl
     ? `${serverBaseUrl}/api/elevenlabs/webhook`
     : "";
+
+  function handleServerBaseUrlBlur(url: string) {
+    if (!url.trim() || !twimlAppSid.trim() || !status?.twilio) return;
+    syncAppMutation.mutate({ sid: twimlAppSid, baseUrl: url.trim() });
+  }
 
   if (isLoading) {
     return (
@@ -514,548 +1101,994 @@ export function TelephonyAISettings() {
 
   return (
     <form onSubmit={handleSubmit((data) => saveMutation.mutate(data))}>
-      <div className="space-y-6">
-        {/* Status das integrações */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <Server className="size-4 text-slate-500" />
-              Status das Integrações
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <StatusBadge
-                active={status?.twilio ?? false}
-                label="Twilio (core)"
-              />
-              <StatusBadge
-                active={status?.voiceSdk ?? false}
-                label="Twilio Voice SDK"
-              />
-              <StatusBadge
-                active={status?.elevenlabs ?? false}
-                label="ElevenLabs"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Servidor */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <Server className="size-4 text-slate-500" />
-              Servidor
-            </CardTitle>
-            <CardDescription>
-              URL pública do backend acessível pela internet (sem barra final).
-              Usada pelos webhooks do Twilio e ElevenLabs.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <FieldGroup
-              label="Server Base URL"
-              hint="Ex: https://meucrm.com.br"
+      {/* ── Status Overview Banner ─────────────────────────────────── */}
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          {
+            label: "Twilio",
+            description: "Telefonia & Voice SDK",
+            active: status?.twilio ?? false,
+            icon: <Phone className="size-4" />,
+            color: "blue",
+          },
+          {
+            label: "ElevenLabs",
+            description: "IA Conversacional",
+            active: status?.elevenlabs ?? false,
+            icon: <Bot className="size-4" />,
+            color: "violet",
+          },
+          {
+            label: "Voice SDK",
+            description: "Browser WebRTC",
+            active: status?.voiceSdk ?? false,
+            icon: <Radio className="size-4" />,
+            color: "emerald",
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
+              item.active
+                ? item.color === "blue"
+                  ? "border-blue-200 bg-blue-50/60 dark:border-blue-800/60 dark:bg-blue-900/10"
+                  : item.color === "violet"
+                  ? "border-violet-200 bg-violet-50/60 dark:border-violet-800/60 dark:bg-violet-900/10"
+                  : "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-900/10"
+                : "border-slate-200 bg-slate-50/60 dark:border-slate-700/60 dark:bg-slate-800/30"
+            }`}
+          >
+            <div
+              className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${
+                item.active
+                  ? item.color === "blue"
+                    ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
+                    : item.color === "violet"
+                    ? "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400"
+                    : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400"
+                  : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
+              }`}
             >
-              <Input
-                {...register("server_base_url")}
-                placeholder="https://meucrm.com.br"
-              />
-            </FieldGroup>
-          </CardContent>
-        </Card>
-
-        {/* Voice SDK */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <Radio className="size-4 text-slate-500" />
-                Voice SDK (Áudio no Navegador)
-              </CardTitle>
-              <StatusBadge
-                active={status?.voiceSdk ?? false}
-                label={status?.voiceSdk ? "Configurado" : "Não configurado"}
-              />
+              {item.icon}
             </div>
-            <CardDescription>
-              Credenciais para o SDK de voz do Twilio no browser.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <FieldGroup
-              label="API Key SID"
-              hint="Criada em console.twilio.com > Account > API keys & tokens"
-            >
-              <Input
-                {...register("twilio_api_key")}
-                placeholder="SKxxxxxxxxxxxxxxxx"
-              />
-            </FieldGroup>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.label}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{item.description}</p>
+            </div>
+            <div className={`shrink-0 w-2 h-2 rounded-full ${item.active ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`} />
+          </div>
+        ))}
+      </div>
 
-            <FieldGroup label="API Secret">
-              <div className="relative">
-                <Input
-                  {...register("twilio_api_secret")}
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                />
-                <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+      <Tabs defaultValue="twilio" className="space-y-6">
+        {/* ── Tab Selector ──────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+          <TabsList className="contents">
+            <TabsTrigger
+              value="twilio"
+              className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all duration-200
+                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
+                data-[state=active]:shadow-md data-[state=active]:shadow-blue-500/10
+                data-[state=active]:border data-[state=active]:border-blue-200/60 dark:data-[state=active]:border-blue-800/40
+                text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
+                group h-auto"
+            >
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-500/10 group-data-[state=active]:bg-blue-500/15 transition-colors shrink-0">
+                <Phone className="size-3.5 text-blue-600 dark:text-blue-400" />
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Exibido apenas uma vez ao criar a API Key
-              </p>
-            </FieldGroup>
+              <div className="text-left hidden sm:block">
+                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">Twilio</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">Telefonia & Voice SDK</p>
+              </div>
+              <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">Twilio</span>
+              <div className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.twilio ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`} />
+            </TabsTrigger>
 
-            <FieldGroup
-              label="TwiML App SID"
-              hint="Criado em console.twilio.com > Voice > TwiML Apps"
+            <TabsTrigger
+              value="elevenlabs"
+              className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all duration-200
+                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
+                data-[state=active]:shadow-md data-[state=active]:shadow-violet-500/10
+                data-[state=active]:border data-[state=active]:border-violet-200/60 dark:data-[state=active]:border-violet-800/40
+                text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
+                group h-auto"
             >
-              <Input
-                {...register("twilio_twiml_app_sid")}
-                placeholder="APxxxxxxxxxxxxxxxx"
-              />
-            </FieldGroup>
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-violet-500/10 group-data-[state=active]:bg-violet-500/15 transition-colors shrink-0">
+                <Bot className="size-3.5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div className="text-left hidden sm:block">
+                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">ElevenLabs</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">IA Conversacional</p>
+              </div>
+              <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">ElevenLabs</span>
+              <div className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.elevenlabs ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`} />
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                URL Pública do Servidor
-              </Label>
-              <Input
-                readOnly
-                value={voiceUrl}
-                placeholder="Preencha o Server Base URL acima"
-                className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 truncate"
-              />
-              {voiceUrl && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Voice URL: {voiceUrl}
-                </p>
-              )}
-            </div>
-
-            <div className="sm:col-span-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full gap-2 rounded-2xl"
-                disabled={
-                  configureVoiceUrlMutation.isPending || !status?.voiceSdk
-                }
-                onClick={() => configureVoiceUrlMutation.mutate()}
+        {/* ── ABA TWILIO ─────────────────────────────────────────────── */}
+        <TabsContent value="twilio" className="space-y-6 mt-0">
+          {/* Servidor */}
+          <Card className="border border-slate-200/70 dark:border-slate-700/60 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-300 dark:from-slate-600 dark:via-slate-500 dark:to-slate-600" />
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800">
+                  <Server className="size-3.5 text-slate-600 dark:text-slate-400" />
+                </div>
+                Servidor
+              </CardTitle>
+              <CardDescription>
+                URL pública do backend acessível pela internet (sem barra final).
+                Usada pelos webhooks do Twilio e ElevenLabs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-5 sm:grid-cols-2">
+              <FieldGroup
+                label="Server Base URL"
+                hint="Ex: https://meucrm.com.br — ao sair do campo, sincroniza automaticamente com o TwiML App configurado."
               >
-                {configureVoiceUrlMutation.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Radio className="size-4" />
-                )}
-                Configurar Voice URL no Twilio
-              </Button>
-              {!status?.voiceSdk && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 text-center">
-                  Salve as credenciais do Voice SDK antes de configurar.
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="relative">
+                  <Input
+                    {...register("server_base_url")}
+                    placeholder="https://meucrm.com.br"
+                    onBlur={(e) => handleServerBaseUrlBlur(e.target.value)}
+                  />
+                  {syncAppMutation.isPending && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 animate-spin text-slate-400" />
+                  )}
+                </div>
+              </FieldGroup>
+            </CardContent>
+          </Card>
 
-        {/* Voice Intelligence */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <Radio className="size-4 text-slate-500" />
-              Voice Intelligence (Transcrição Nativa)
-            </CardTitle>
-            <CardDescription>
-              Serviço do Twilio para transcrição de chamadas humanas.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <FieldGroup
-              label="Intelligence Service SID"
-              hint="Console Twilio → Voice Intelligence → Services. Começa com GA. Configure o idioma como pt-br."
-            >
-              <Input
-                {...register("twilio_intelligence_service_sid")}
-                placeholder="GAxxxxxxxxxxxxxxxx"
-              />
-            </FieldGroup>
-
-            <ReadOnlyWithCopy
-              label="URL do Webhook de Transcrição"
-              value={transcriptionWebhookUrl}
-            />
-            {transcriptionWebhookUrl && (
-              <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2 -mt-3">
-                Cole esta URL no campo webhook URL do seu Intelligence Service no Console Twilio.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ElevenLabs */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <Bot className="size-4 text-slate-500" />
-                ElevenLabs
-              </CardTitle>
-              <StatusBadge
-                active={status?.elevenlabs ?? false}
-                label={status?.elevenlabs ? "Configurado" : "Não configurado"}
-              />
-            </div>
-            <CardDescription>
-              Agente de IA para discagem automática.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <FieldGroup
-              label="API Key"
-              hint="Gerada em elevenlabs.io/app/account"
-            >
-              <div className="relative">
-                <Input
-                  {...register("elevenlabs_api_key")}
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
+          {/* Twilio Core */}
+          <Card className="border border-blue-200/60 dark:border-blue-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-100 dark:bg-blue-900/40">
+                    <Phone className="size-3.5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  Twilio
+                </CardTitle>
+                <StatusBadge
+                  active={status?.twilio ?? false}
+                  label={status?.twilio ? "Configurado" : "Não configurado"}
                 />
-                <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
               </div>
-            </FieldGroup>
+              <CardDescription>Credenciais principais de acesso à API do Twilio.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-5 sm:grid-cols-2">
+              <FieldGroup label="Account SID" hint="Encontrado em console.twilio.com">
+                <Input {...register("twilio_account_sid")} placeholder="ACxxxxxxxxxxxxxxxx" />
+              </FieldGroup>
 
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Voice ID (Voz Clonada — Padrão Global)
-              </Label>
-              <Input
-                {...register("elevenlabs_voice_id")}
-                placeholder="Ex: 21m00Tcm4TlvDq8ikWAM"
-              />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Encontrado em elevenlabs.io/app/voice-lab. Pode ser sobrescrito por campanha.
-              </p>
-            </div>
+              <FieldGroup label="Auth Token">
+                <div className="relative">
+                  <Input
+                    {...register("twilio_auth_token")}
+                    type="password"
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                  />
+                  <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+                </div>
+              </FieldGroup>
 
-            <div className="flex items-end sm:col-span-2">
-              <div className="w-full rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 px-4 py-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Clonar minha voz</p>
+              <FieldGroup label="From Number" hint="Número comprado no Twilio (E.164)">
+                <Input {...register("twilio_from_number")} placeholder="+5511999999999" />
+              </FieldGroup>
+
+              <FieldGroup label="Status Callback URL" hint="Para receber eventos de chamada">
+                <Input
+                  {...register("twilio_status_callback_url")}
+                  placeholder="https://meucrm.com.br/api/calls/twilio-status"
+                />
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          {/* Voice SDK + TwiML App */}
+          <Card className="border border-blue-200/60 dark:border-blue-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-blue-300 via-indigo-500 to-blue-300" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
+                    <Radio className="size-3.5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  Voice SDK (Áudio no Navegador)
+                </CardTitle>
+                <StatusBadge
+                  active={status?.voiceSdk ?? false}
+                  label={status?.voiceSdk ? "Configurado" : "Não configurado"}
+                />
+              </div>
+              <CardDescription>Credenciais para o SDK de voz do Twilio no browser.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <FieldGroup
+                  label="API Key SID"
+                  hint="Criada em console.twilio.com > Account > API keys & tokens"
+                >
+                  <Input {...register("twilio_api_key")} placeholder="SKxxxxxxxxxxxxxxxx" />
+                </FieldGroup>
+
+                <FieldGroup label="API Secret">
+                  <div className="relative">
+                    <Input
+                      {...register("twilio_api_secret")}
+                      type="password"
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                    />
+                    <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Grave ou envie amostras de áudio para criar uma voz personalizada no ElevenLabs
+                    Exibido apenas uma vez ao criar a API Key
                   </p>
+                </FieldGroup>
+              </div>
+
+              {/* TwiML App inline */}
+              <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">TwiML App</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      App responsável por receber e rotear as chamadas de voz.
+                    </p>
+                  </div>
+                  {twimlAppSid && (
+                    <Badge variant="outline" className="gap-1.5 border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+                      <CheckCircle2 className="size-3.5" />
+                      App ativo
+                    </Badge>
+                  )}
+                </div>
+
+                {!status?.twilio && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
+                    <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Configure e salve as credenciais Twilio acima para gerenciar apps.
+                    </p>
+                  </div>
+                )}
+
+                {status?.twilio && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 rounded-xl w-full"
+                      onClick={() => setCreateTwimlAppOpen(true)}
+                    >
+                      <Plus className="size-4" />
+                      Criar novo TwiML App
+                    </Button>
+
+                    {twimlAppsLoading && (
+                      <div className="flex items-center gap-2 text-sm text-slate-500 py-1">
+                        <Loader2 className="size-4 animate-spin" /> Carregando apps...
+                      </div>
+                    )}
+
+                    {(twimlApps ?? []).map((app) => {
+                      const isActive = twimlAppSid === app.sid;
+                      return (
+                        <div
+                          key={app.sid}
+                          className={`rounded-xl border px-4 py-3 space-y-2 transition-colors ${
+                            isActive
+                              ? "border-blue-500/40 bg-blue-500/5 dark:bg-blue-500/10"
+                              : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                                  {app.friendlyName}
+                                </p>
+                                {isActive && (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                    ativo
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
+                                {app.sid}
+                              </p>
+                              {app.voiceUrl && (
+                                <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                                  {app.voiceUrl}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            {!isActive && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 gap-1.5 rounded-lg text-xs"
+                                disabled={selectAppMutation.isPending}
+                                onClick={() => selectAppMutation.mutate(app.sid)}
+                              >
+                                <Check className="size-3.5" />
+                                Usar este app
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={isActive ? "outline" : "ghost"}
+                              className="flex-1 gap-1.5 rounded-lg text-xs"
+                              disabled={syncAppMutation.isPending}
+                              onClick={() => syncAppMutation.mutate({ sid: app.sid, baseUrl: serverBaseUrl || undefined })}
+                            >
+                              <RefreshCw className="size-3.5" />
+                              Sincronizar URLs
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {!twimlAppsLoading && (twimlApps ?? []).length === 0 && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-1">
+                        Nenhum TwiML App encontrado na conta. Crie um acima.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Voice Intelligence */}
+          <Card className="border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-400" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                    <Radio className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  Voice Intelligence (Transcrição Nativa)
+                </CardTitle>
+                {intelligenceSid && (
+                  <Badge variant="outline" className="gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <CheckCircle2 className="size-3.5" />
+                    Configurado
+                  </Badge>
+                )}
+              </div>
+              <CardDescription>
+                Serviço do Twilio para transcrição automática de chamadas humanas.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {transcriptionWebhookUrl && (
+                <ReadOnlyWithCopy
+                  label="URL do Webhook de Transcrição"
+                  value={transcriptionWebhookUrl}
+                />
+              )}
+
+              {!status?.twilio && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
+                  <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Configure e salve as credenciais Twilio antes de gerenciar serviços de inteligência.
+                  </p>
+                </div>
+              )}
+
+              {status?.twilio && (
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-xl w-full"
+                    onClick={() => setCreateIntelligenceOpen(true)}
+                  >
+                    <Plus className="size-4" />
+                    Criar novo serviço de inteligência
+                  </Button>
+
+                  {intelligenceLoading && (
+                    <div className="flex items-center gap-2 text-sm text-slate-500 py-1">
+                      <Loader2 className="size-4 animate-spin" /> Carregando serviços...
+                    </div>
+                  )}
+
+                  {(intelligenceServices ?? []).map((svc) => {
+                    const isActive = intelligenceSid === svc.sid;
+                    return (
+                      <div
+                        key={svc.sid}
+                        className={`rounded-xl border px-4 py-3 space-y-2 transition-colors ${
+                          isActive
+                            ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/10"
+                            : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                              {svc.friendlyName || svc.uniqueName}
+                            </p>
+                            {isActive && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                ativo
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+                              {svc.languageCode}
+                            </Badge>
+                          </div>
+                          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            {svc.sid}
+                          </p>
+                          <div className="flex gap-3 mt-1">
+                            {svc.autoTranscribe && (
+                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                <CheckCircle2 className="size-3 text-emerald-500" /> Transcrição automática
+                              </span>
+                            )}
+                            {svc.autoRedaction && (
+                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                <CheckCircle2 className="size-3 text-emerald-500" /> Redação de PII
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {!isActive && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="w-full gap-1.5 rounded-lg text-xs"
+                            disabled={selectIntelligenceMutation.isPending}
+                            onClick={() => selectIntelligenceMutation.mutate(svc.sid)}
+                          >
+                            <Check className="size-3.5" />
+                            Usar este serviço
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {!intelligenceLoading && (intelligenceServices ?? []).length === 0 && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-1">
+                      Nenhum serviço de inteligência encontrado na conta. Crie um acima.
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Gravação de Chamadas */}
+          <Card className="border border-amber-200/60 dark:border-amber-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                    <Phone className="size-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  Gravação de Chamadas
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className={
+                    recordCalls
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1.5"
+                      : "border-slate-300/60 bg-slate-100/60 text-slate-500 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 gap-1.5"
+                  }
+                >
+                  {recordCalls ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
+                  {recordCalls ? "Ativo" : "Inativo"}
+                </Badge>
+              </div>
+              <CardDescription>Gravar automaticamente as ligações via Twilio.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="twilio_record_calls"
+                  checked={recordCalls ?? false}
+                  onCheckedChange={(v) => setValue("twilio_record_calls", v)}
+                />
+                <div>
+                  <Label
+                    htmlFor="twilio_record_calls"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
+                  >
+                    Gravar chamadas automaticamente
+                  </Label>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Quando ativado, todas as chamadas feitas via Twilio serão gravadas.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Aviso legal</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  A gravação de chamadas pode estar sujeita a regulamentações locais. Em muitas
+                  jurisdições brasileiras, é necessário informar ao interlocutor que a ligação está
+                  sendo gravada. Certifique-se de estar em conformidade com a LGPD e demais
+                  legislações aplicáveis.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Canais de Saída */}
+          <Card className="border border-slate-200/70 dark:border-slate-700/60 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-slate-300 via-blue-300 to-slate-300 dark:from-slate-600 dark:via-blue-700 dark:to-slate-600" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800">
+                    <Phone className="size-3.5 text-slate-600 dark:text-slate-400" />
+                  </div>
+                  Canais de Saída
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className="border-slate-300/60 bg-slate-100/60 text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-300 gap-1"
+                >
+                  {channels.length} canal{channels.length !== 1 ? "is" : ""}
+                </Badge>
+              </div>
+              <CardDescription>Números disponíveis para o operador escolher no discador.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {channels.map((ch, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{ch.label}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{ch.number}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-slate-400 hover:text-red-500"
+                    onClick={() => removeChannel(i)}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              ))}
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <Input
+                  placeholder="Nome (ex: Vendas)"
+                  value={newChannelLabel}
+                  onChange={(e) => setNewChannelLabel(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  placeholder="+5511999999999"
+                  value={newChannelNumber}
+                  onChange={(e) => setNewChannelNumber(e.target.value)}
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" className="shrink-0 gap-1.5" onClick={addChannel}>
+                  <Plus className="size-4" />
+                  Adicionar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Verified Caller IDs */}
+          <Card className="border border-slate-200/70 dark:border-slate-700/60 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-300 dark:from-slate-600 dark:via-slate-500 dark:to-slate-600" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800">
+                    <Phone className="size-3.5 text-slate-600 dark:text-slate-400" />
+                  </div>
+                  Verified Caller IDs
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-slate-500"
+                  onClick={() => {
+                    setCallerIdsOpen((v) => !v);
+                    if (!callerIdsOpen) void refetchCallerIds();
+                  }}
+                  disabled={!status?.twilio}
+                >
+                  {callerIdsOpen ? "Fechar" : "Gerenciar"}
+                </Button>
+              </div>
+              <CardDescription>
+                Números externos verificados para uso como Caller ID em chamadas de saída.
+              </CardDescription>
+            </CardHeader>
+
+            {callerIdsOpen && (
+              <CardContent className="space-y-3 pt-0">
+                {!status?.twilio && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
+                    <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Configure e salve as credenciais Twilio antes de gerenciar caller IDs.
+                    </p>
+                  </div>
+                )}
+
+                {pendingValidationCode && (
+                  <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 space-y-1">
+                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                      Aguardando verificação — atenda a ligação do Twilio e informe o código:
+                    </p>
+                    <p className="text-2xl font-bold font-mono text-blue-700 dark:text-blue-300 tracking-widest">
+                      {pendingValidationCode}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs text-blue-500 p-0 h-auto hover:bg-transparent"
+                      onClick={() => {
+                        setPendingValidationCode(null);
+                        void refetchCallerIds();
+                      }}
+                    >
+                      Já verifiquei — atualizar lista
+                    </Button>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    placeholder="Nome (ex: Vendas)"
+                    value={newCallerFriendlyName}
+                    onChange={(e) => setNewCallerFriendlyName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="+5511999999999"
+                    value={newCallerNumber}
+                    onChange={(e) => setNewCallerNumber(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5 rounded-xl"
+                    disabled={!newCallerNumber.trim() || validateCallerMutation.isPending || !status?.twilio}
+                    onClick={() =>
+                      validateCallerMutation.mutate({
+                        phoneNumber: newCallerNumber.trim(),
+                        friendlyName: newCallerFriendlyName.trim() || undefined,
+                      })
+                    }
+                  >
+                    {validateCallerMutation.isPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Phone className="size-4" />
+                    )}
+                    Verificar
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  O Twilio ligará para o número e você deverá informar o código exibido.
+                </p>
+
+                {callerIdsLoading && (
+                  <div className="flex items-center gap-2 text-sm text-slate-500 py-2">
+                    <Loader2 className="size-4 animate-spin" /> Carregando...
+                  </div>
+                )}
+
+                {(callerIds ?? []).map((id) => (
+                  <div
+                    key={id.sid}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        {id.friendlyName || id.phoneNumber}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{id.phoneNumber}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-slate-400 hover:text-red-500"
+                      disabled={deleteCallerMutation.isPending}
+                      onClick={() => deleteCallerMutation.mutate(id.sid)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                {!callerIdsLoading && (callerIds ?? []).length === 0 && status?.twilio && !pendingValidationCode && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">
+                    Nenhum número verificado ainda.
+                  </p>
+                )}
+              </CardContent>
+            )}
+          </Card>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <p className="text-xs text-slate-400 dark:text-slate-500 text-center sm:text-left">
+              As configurações se aplicam globalmente ao sistema de telefonia.
+            </p>
+            <Button
+              type="submit"
+              disabled={saveMutation.isPending || isSubmitting}
+              className="gap-2 rounded-2xl px-8 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/20 w-full sm:w-auto"
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              Salvar configurações
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* ── ABA ELEVENLABS ─────────────────────────────────────────── */}
+        <TabsContent value="elevenlabs" className="space-y-6 mt-0">
+          {/* ElevenLabs credentials */}
+          <Card className="border border-violet-200/60 dark:border-violet-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-violet-400 via-purple-500 to-violet-400" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/40">
+                    <Bot className="size-3.5 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  ElevenLabs
+                </CardTitle>
+                <StatusBadge
+                  active={status?.elevenlabs ?? false}
+                  label={status?.elevenlabs ? "Configurado" : "Não configurado"}
+                />
+              </div>
+              <CardDescription>Agente de IA para discagem automática.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-5 sm:grid-cols-2">
+              <FieldGroup label="API Key" hint="Gerada em elevenlabs.io/app/account">
+                <div className="relative">
+                  <Input
+                    {...register("elevenlabs_api_key")}
+                    type="password"
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                  />
+                  <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+                </div>
+              </FieldGroup>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Voice ID (Voz Clonada — Padrão Global)
+                </Label>
+                <Input
+                  {...register("elevenlabs_voice_id")}
+                  placeholder="Ex: 21m00Tcm4TlvDq8ikWAM"
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Encontrado em elevenlabs.io/app/voice-lab. Pode ser sobrescrito por campanha.
+                </p>
+              </div>
+
+              <div className="flex items-end sm:col-span-2">
+                <div className="w-full rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 px-4 py-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Clonar minha voz</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Grave ou envie amostras de áudio para criar uma voz personalizada no ElevenLabs
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!status?.elevenlabs}
+                    onClick={() => setCloneVoiceOpen(true)}
+                    className="gap-2 shrink-0 rounded-xl bg-violet-600 hover:bg-violet-700 text-white"
+                  >
+                    <Mic className="size-3.5" />
+                    Clonar voz
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Gerenciamento de Agente */}
+          <Card className="border border-violet-200/60 dark:border-violet-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-indigo-400 via-violet-500 to-indigo-400" />
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/40">
+                  <Bot className="size-3.5 text-violet-600 dark:text-violet-400" />
+                </div>
+                Configurar Agente ElevenLabs
+              </CardTitle>
+              <CardDescription>
+                Gerencie o prompt, voz, primeira mensagem e ferramentas de qualquer agente sem sair do sistema.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Novo agente</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Crie um agente diretamente pelo sistema</p>
                 </div>
                 <Button
                   type="button"
                   size="sm"
+                  className="gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white"
                   disabled={!status?.elevenlabs}
-                  onClick={() => setCloneVoiceOpen(true)}
-                  className="gap-2 shrink-0 rounded-xl bg-violet-600 hover:bg-violet-700 text-white"
+                  onClick={() => setCreateAgentOpen(true)}
                 >
-                  <Mic className="size-3.5" />
-                  Clonar voz
+                  <Plus className="size-3.5" />
+                  Criar agente
                 </Button>
               </div>
-            </div>
 
-          </CardContent>
-        </Card>
-
-        {/* Gerenciamento de Agente ElevenLabs */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <Bot className="size-4 text-violet-500" />
-              Configurar Agente ElevenLabs
-            </CardTitle>
-            <CardDescription>
-              Gerencie o prompt, voz, primeira mensagem e ferramentas de qualquer agente sem sair do sistema.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Criar novo agente */}
-            <div className="flex items-center justify-between rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Novo agente</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Crie um agente diretamente pelo sistema</p>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                className="gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white"
-                disabled={!status?.elevenlabs}
-                onClick={() => setCreateAgentOpen(true)}
-              >
-                <Plus className="size-3.5" />
-                Criar agente
-              </Button>
-            </div>
-
-            {/* Gerenciar agente existente */}
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                Ou gerencie um agente existente
-              </Label>
-              <Input
-                value={agentIdInput}
-                onChange={(e) => setAgentIdInput(e.target.value.trim())}
-                placeholder="agent_xxxxxxxxxxxxxxxx"
-                className="font-mono"
-              />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Cole o Agent ID para configurar o prompt, voz e ferramentas.
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 gap-2 rounded-2xl border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-900/20"
-                disabled={!agentIdInput || !status?.elevenlabs}
-                onClick={() => setAgentConfigOpen(true)}
-              >
-                <Settings2 className="size-4" />
-                Configurar agente
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 gap-2 rounded-2xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
-                disabled={!agentIdInput || !status?.elevenlabs}
-                onClick={() => setAgentToolsOpen(true)}
-              >
-                <Webhook className="size-4" />
-                Ferramentas
-              </Button>
-            </div>
-
-            {!status?.elevenlabs && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
-                <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Configure e salve a API Key do ElevenLabs acima para habilitar o gerenciamento de agentes.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Gravação de Chamadas */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <Phone className="size-4 text-slate-500" />
-                Gravação de Chamadas
-              </CardTitle>
-              <Badge
-                variant="outline"
-                className={
-                  recordCalls
-                    ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1.5"
-                    : "border-slate-300/60 bg-slate-100/60 text-slate-500 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 gap-1.5"
-                }
-              >
-                {recordCalls ? (
-                  <CheckCircle2 className="size-3.5" />
-                ) : (
-                  <XCircle className="size-3.5" />
-                )}
-                {recordCalls ? "Ativo" : "Inativo"}
-              </Badge>
-            </div>
-            <CardDescription>
-              Gravar automaticamente as ligações via Twilio.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Switch
-                id="twilio_record_calls"
-                checked={recordCalls ?? false}
-                onCheckedChange={(v) => setValue("twilio_record_calls", v)}
-              />
-              <div>
-                <Label
-                  htmlFor="twilio_record_calls"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
-                >
-                  Gravar chamadas automaticamente
-                </Label>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Quando ativado, todas as chamadas feitas via Twilio serão gravadas.
-                </p>
-              </div>
-            </div>
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3">
-              <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                Aviso legal
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                A gravação de chamadas pode estar sujeita a regulamentações locais. Em muitas
-                jurisdições brasileiras, é necessário informar ao interlocutor que a ligação está
-                sendo gravada. Certifique-se de estar em conformidade com a LGPD e demais
-                legislações aplicáveis.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Canais de Saída */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <Phone className="size-4 text-slate-500" />
-                Canais de Saída
-              </CardTitle>
-              <Badge
-                variant="outline"
-                className="border-slate-300/60 bg-slate-100/60 text-slate-600 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-300 gap-1"
-              >
-                {channels.length} canal{channels.length !== 1 ? "is" : ""}
-              </Badge>
-            </div>
-            <CardDescription>
-              Números disponíveis para o operador escolher no discador.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {channels.map((ch, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                    {ch.label}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {ch.number}
-                  </p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Ou gerencie um agente existente
+                  </Label>
+                  {status?.elevenlabs && (
+                    <button
+                      type="button"
+                      onClick={() => refetchAgents()}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      title="Recarregar lista de agentes"
+                    >
+                      <RefreshCw className={`size-3.5 ${agentsLoading ? "animate-spin" : ""}`} />
+                    </button>
+                  )}
                 </div>
+
+                {status?.elevenlabs ? (
+                  <Popover open={agentSelectorOpen} onOpenChange={setAgentSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                      >
+                        <span className={agentIdInput ? "text-foreground" : "text-muted-foreground"}>
+                          {agentIdInput
+                            ? (agentsList?.agents.find((a) => a.agentId === agentIdInput)?.name ?? agentIdInput)
+                            : "Selecionar agente..."}
+                        </span>
+                        <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar agente..." />
+                        <CommandList>
+                          <CommandEmpty>
+                            {agentsLoading ? "Carregando..." : "Nenhum agente encontrado."}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {(agentsList?.agents ?? []).map((agent) => (
+                              <CommandItem
+                                key={agent.agentId}
+                                value={`${agent.name} ${agent.agentId}`}
+                                onSelect={() => {
+                                  setAgentIdInput(agent.agentId);
+                                  setAgentSelectorOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={`mr-2 size-4 ${agentIdInput === agent.agentId ? "opacity-100" : "opacity-0"}`}
+                                />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-medium truncate">{agent.name}</span>
+                                  <span className="text-xs text-muted-foreground font-mono truncate">{agent.agentId}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <Input
+                    value={agentIdInput}
+                    onChange={(e) => setAgentIdInput(e.target.value.trim())}
+                    placeholder="agent_xxxxxxxxxxxxxxxx"
+                    className="font-mono"
+                    disabled
+                  />
+                )}
+
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Selecione um agente para configurar o prompt, voz e ferramentas.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-slate-400 hover:text-red-500"
-                  onClick={() => removeChannel(i)}
+                  variant="outline"
+                  className="flex-1 gap-2 rounded-2xl border-violet-200 text-violet-700 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-900/20"
+                  disabled={!agentIdInput || !status?.elevenlabs}
+                  onClick={() => setAgentConfigOpen(true)}
                 >
-                  <Trash2 className="size-4" />
+                  <Settings2 className="size-4" />
+                  Configurar agente
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 gap-2 rounded-2xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                  disabled={!agentIdInput || !status?.elevenlabs}
+                  onClick={() => setAgentToolsOpen(true)}
+                >
+                  <Webhook className="size-4" />
+                  Ferramentas
                 </Button>
               </div>
-            ))}
 
-            <div className="flex gap-2 pt-1">
-              <Input
-                placeholder="Nome (ex: Vendas)"
-                value={newChannelLabel}
-                onChange={(e) => setNewChannelLabel(e.target.value)}
-                className="flex-1"
-              />
-              <Input
-                placeholder="+5511999999999"
-                value={newChannelNumber}
-                onChange={(e) => setNewChannelNumber(e.target.value)}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                className="shrink-0 gap-1.5"
-                onClick={addChannel}
-              >
-                <Plus className="size-4" />
-                Adicionar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              {!status?.elevenlabs && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
+                  <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Configure e salve a API Key do ElevenLabs acima para habilitar o gerenciamento de agentes.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Twilio Core */}
-        <Card className="border-0 shadow-sm bg-white dark:bg-slate-900 rounded-3xl">
-          <CardHeader className="pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <Phone className="size-4 text-slate-500" />
-                Twilio
-              </CardTitle>
-              <StatusBadge
-                active={status?.twilio ?? false}
-                label={status?.twilio ? "Configurado" : "Não configurado"}
-              />
-            </div>
-            <CardDescription>
-              Credenciais principais de acesso à API do Twilio.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5 sm:grid-cols-2">
-            <FieldGroup
-              label="Account SID"
-              hint="Encontrado em console.twilio.com"
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <p className="text-xs text-slate-400 dark:text-slate-500 text-center sm:text-left">
+              As configurações se aplicam globalmente ao sistema de IA conversacional.
+            </p>
+            <Button
+              type="submit"
+              disabled={saveMutation.isPending || isSubmitting}
+              className="gap-2 rounded-2xl px-8 bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-500/20 w-full sm:w-auto"
             >
-              <Input
-                {...register("twilio_account_sid")}
-                placeholder="ACxxxxxxxxxxxxxxxx"
-              />
-            </FieldGroup>
-
-            <FieldGroup label="Auth Token">
-              <div className="relative">
-                <Input
-                  {...register("twilio_auth_token")}
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                />
-                <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
-              </div>
-            </FieldGroup>
-
-            <FieldGroup
-              label="From Number"
-              hint="Número comprado no Twilio (E.164)"
-            >
-              <Input
-                {...register("twilio_from_number")}
-                placeholder="+5511999999999"
-              />
-            </FieldGroup>
-
-            <FieldGroup
-              label="Status Callback URL"
-              hint="Para receber eventos de chamada"
-            >
-              <Input
-                {...register("twilio_status_callback_url")}
-                placeholder="https://meucrm.com.br/api/calls/twilio-status"
-              />
-            </FieldGroup>
-          </CardContent>
-        </Card>
-
-        {/* Ações */}
-        <div className="flex justify-end">
-          <Button
-            type="submit"
-            disabled={saveMutation.isPending || isSubmitting}
-            className="gap-2 rounded-2xl px-6"
-          >
-            {saveMutation.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Save className="size-4" />
-            )}
-            Salvar configurações
-          </Button>
-        </div>
-      </div>
+              {saveMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              Salvar configurações
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {agentConfigOpen && agentIdInput && (
         <AgentConfigModal
@@ -1075,10 +2108,25 @@ export function TelephonyAISettings() {
         />
       )}
 
+      <CreateIntelligenceDialog
+        open={createIntelligenceOpen}
+        onClose={() => setCreateIntelligenceOpen(false)}
+        onCreated={() => void refetchIntelligence()}
+        defaultWebhookUrl={transcriptionWebhookUrl}
+      />
+
+      <CreateTwimlAppDialog
+        open={createTwimlAppOpen}
+        onClose={() => setCreateTwimlAppOpen(false)}
+        onCreated={() => void refetchApps()}
+        defaultVoiceUrl={serverBaseUrl ? `${serverBaseUrl}/api/twilio/voice` : ""}
+        defaultStatusCallback={serverBaseUrl ? `${serverBaseUrl}/api/calls/twilio-status` : ""}
+      />
+
       <CreateAgentDialog
         open={createAgentOpen}
         onClose={() => setCreateAgentOpen(false)}
-        onCreated={(id) => setAgentIdInput(id)}
+        onCreated={(id) => { setAgentIdInput(id); void refetchAgents(); }}
       />
 
       <VoiceCloneDialog
