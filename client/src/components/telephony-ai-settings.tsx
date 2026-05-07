@@ -68,6 +68,7 @@ import {
   ChevronsUpDown,
   Check,
   RefreshCw,
+  Pencil,
 } from "lucide-react";
 import { AgentConfigModal } from "@/components/telemarketing/agent-config-modal";
 import { AgentToolsModal } from "@/components/telemarketing/agent-tools-modal";
@@ -97,6 +98,145 @@ const createIntelligenceSchema = z.object({
 });
 type CreateIntelligenceForm = z.infer<typeof createIntelligenceSchema>;
 
+// ─── Painel de Language Operators ────────────────────────────────────────────
+
+type OperatorInfo = {
+  sid: string;
+  friendlyName: string;
+  description: string;
+  operatorType: string;
+  availability: string;
+  author: string;
+  attached: boolean;
+};
+
+function OperatorsPanel({ serviceSid }: { serviceSid: string }) {
+  const { data: operators, isLoading, refetch } = useQuery<OperatorInfo[]>({
+    queryKey: ["/api/twilio/intelligence-services", serviceSid, "operators"],
+    queryFn: async () => {
+      const res = await fetch(`/api/twilio/intelligence-services/${serviceSid}/operators`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Erro ao listar operadores");
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const attachMutation = useMutation({
+    mutationFn: async (operatorSid: string) => {
+      const res = await fetch(`/api/twilio/intelligence-services/${serviceSid}/operators/${operatorSid}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao adicionar operador");
+      }
+    },
+    onSuccess: () => void refetch(),
+    onError: (err: Error) =>
+      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const detachMutation = useMutation({
+    mutationFn: async (operatorSid: string) => {
+      const res = await fetch(`/api/twilio/intelligence-services/${serviceSid}/operators/${operatorSid}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao remover operador");
+      }
+    },
+    onSuccess: () => void refetch(),
+    onError: (err: Error) =>
+      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const isPending = attachMutation.isPending || detachMutation.isPending;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-slate-500 py-3">
+        <Loader2 className="size-4 animate-spin" /> Carregando operadores...
+      </div>
+    );
+  }
+
+  if (!operators?.length) {
+    return (
+      <p className="text-xs text-slate-500 dark:text-slate-400 py-2">
+        Nenhum operador pré-criado disponível na conta.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+      {operators.map((op) => (
+        <div
+          key={op.sid}
+          className={`flex items-start justify-between gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+            op.attached
+              ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/10"
+              : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
+          }`}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                {op.friendlyName}
+              </span>
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 font-normal"
+              >
+                {op.operatorType === "conversation-intelligence" ? "Classificação" : op.operatorType}
+              </Badge>
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 font-normal text-slate-400"
+              >
+                {op.author}
+              </Badge>
+            </div>
+            {op.description && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">
+                {op.description}
+              </p>
+            )}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={op.attached ? "destructive" : "outline"}
+            className="shrink-0 rounded-lg text-xs h-7 px-2.5 gap-1"
+            disabled={isPending}
+            onClick={() =>
+              op.attached
+                ? detachMutation.mutate(op.sid)
+                : attachMutation.mutate(op.sid)
+            }
+          >
+            {isPending ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : op.attached ? (
+              <Trash2 className="size-3" />
+            ) : (
+              <Plus className="size-3" />
+            )}
+            {op.attached ? "Remover" : "Adicionar"}
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Dialog de criação de Voice Intelligence Service ─────────────────────────
+
 function CreateIntelligenceDialog({
   open,
   onClose,
@@ -108,6 +248,8 @@ function CreateIntelligenceDialog({
   onCreated: () => void;
   defaultWebhookUrl: string;
 }) {
+  const [createdSid, setCreatedSid] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -129,6 +271,7 @@ function CreateIntelligenceDialog({
 
   useEffect(() => {
     if (open) {
+      setCreatedSid(null);
       reset({
         uniqueName: "",
         friendlyName: "",
@@ -152,15 +295,198 @@ function CreateIntelligenceDialog({
         const err = (await res.json().catch(() => ({}))) as { message?: string };
         throw new Error(err.message ?? "Erro ao criar serviço");
       }
-      return res.json();
+      return res.json() as Promise<{ sid: string }>;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: "Serviço criado com sucesso" });
       onCreated();
-      onClose();
+      setCreatedSid(data.sid);
     },
     onError: (err: Error) =>
       toast({ title: "Erro ao criar serviço", description: err.message, variant: "destructive" }),
+  });
+
+  function handleFinish() {
+    setCreatedSid(null);
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && (createdSid ? handleFinish() : onClose())}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Radio className="size-4 text-emerald-500" />
+            {createdSid ? "Adicionar operadores" : "Criar serviço de Voice Intelligence"}
+          </DialogTitle>
+        </DialogHeader>
+
+        {createdSid ? (
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Serviço criado. Adicione Language Operators para análise automática das transcrições, ou clique em Concluir para pular esta etapa.
+            </p>
+            <OperatorsPanel serviceSid={createdSid} />
+            <DialogFooter>
+              <Button onClick={handleFinish} className="gap-2">
+                <Check className="size-4" />
+                Concluir
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Nome único *</Label>
+              <Input {...register("uniqueName")} placeholder="crm-transcricao-ptbr" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">Apenas letras minúsculas, números, _ e -. Não pode ser alterado depois.</p>
+              {errors.uniqueName && <p className="text-xs text-red-500">{errors.uniqueName.message}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Nome de exibição</Label>
+              <Input {...register("friendlyName")} placeholder="CRM Transcrição PT-BR" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Idioma *</Label>
+              <Select value={watch("languageCode")} onValueChange={(v) => setValue("languageCode", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {INTELLIGENCE_LANGUAGES.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Idioma das transcrições. Não pode ser alterado após a criação.</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">URL do Webhook</Label>
+              <Input {...register("webhookUrl")} placeholder="https://..." />
+              <p className="text-xs text-slate-500 dark:text-slate-400">Pré-preenchido com a URL de transcrição do sistema.</p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Opções</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">Transcrição automática</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Transcreve todas as gravações automaticamente</p>
+                </div>
+                <Switch
+                  checked={watch("autoTranscribe")}
+                  onCheckedChange={(v) => setValue("autoTranscribe", v)}
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">Redação de dados pessoais (PII)</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Oculta CPF, cartões e telefones nas transcrições</p>
+                </div>
+                <Switch
+                  checked={watch("autoRedaction")}
+                  onCheckedChange={(v) => setValue("autoRedaction", v)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
+              <Button type="submit" disabled={createMutation.isPending} className="gap-2">
+                {createMutation.isPending
+                  ? <Loader2 className="size-4 animate-spin" />
+                  : <Plus className="size-4" />}
+                Criar serviço
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Dialog de edição de Voice Intelligence Service ──────────────────────────
+
+type IntelligenceService = {
+  sid: string;
+  uniqueName: string;
+  friendlyName: string;
+  languageCode: string;
+  autoTranscribe: boolean;
+  autoRedaction: boolean;
+  webhookUrl: string;
+  dateUpdated: string;
+};
+
+const editIntelligenceSchema = z.object({
+  friendlyName: z.string().optional().default(""),
+  autoTranscribe: z.boolean().default(true),
+  autoRedaction: z.boolean().default(false),
+  webhookUrl: z.string().optional().default(""),
+});
+type EditIntelligenceForm = z.infer<typeof editIntelligenceSchema>;
+
+function EditIntelligenceDialog({
+  open,
+  onClose,
+  onUpdated,
+  service,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onUpdated: () => void;
+  service: IntelligenceService | null;
+}) {
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+  } = useForm<EditIntelligenceForm>({
+    resolver: zodResolver(editIntelligenceSchema),
+    defaultValues: {
+      friendlyName: "",
+      autoTranscribe: true,
+      autoRedaction: false,
+      webhookUrl: "",
+    },
+  });
+
+  useEffect(() => {
+    if (open && service) {
+      reset({
+        friendlyName: service.friendlyName ?? "",
+        autoTranscribe: service.autoTranscribe,
+        autoRedaction: service.autoRedaction,
+        webhookUrl: service.webhookUrl ?? "",
+      });
+    }
+  }, [open, service, reset]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: EditIntelligenceForm) => {
+      const res = await fetch(`/api/twilio/intelligence-services/${service!.sid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao atualizar serviço");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Serviço atualizado com sucesso" });
+      onUpdated();
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao atualizar serviço", description: err.message, variant: "destructive" }),
   });
 
   return (
@@ -168,17 +494,22 @@ function CreateIntelligenceDialog({
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Radio className="size-4 text-emerald-500" />
-            Criar serviço de Voice Intelligence
+            <Pencil className="size-4 text-blue-500" />
+            Editar serviço de Voice Intelligence
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4 mt-2">
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Nome único *</Label>
-            <Input {...register("uniqueName")} placeholder="crm-transcricao-ptbr" />
-            <p className="text-xs text-slate-500 dark:text-slate-400">Apenas letras minúsculas, números, _ e -. Não pode ser alterado depois.</p>
-            {errors.uniqueName && <p className="text-xs text-red-500">{errors.uniqueName.message}</p>}
+        <form onSubmit={handleSubmit((d) => updateMutation.mutate(d))} className="space-y-4 mt-2">
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3 space-y-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Nome único (imutável)</p>
+            <p className="text-sm font-mono text-slate-700 dark:text-slate-200">{service?.uniqueName}</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3 space-y-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Idioma (imutável)</p>
+            <p className="text-sm text-slate-700 dark:text-slate-200">
+              {INTELLIGENCE_LANGUAGES.find((l) => l.value === service?.languageCode)?.label ?? service?.languageCode}
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -187,22 +518,8 @@ function CreateIntelligenceDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Idioma *</Label>
-            <Select value={watch("languageCode")} onValueChange={(v) => setValue("languageCode", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {INTELLIGENCE_LANGUAGES.map((l) => (
-                  <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Idioma das transcrições. Não pode ser alterado após a criação.</p>
-          </div>
-
-          <div className="space-y-1.5">
             <Label className="text-sm font-medium">URL do Webhook</Label>
             <Input {...register("webhookUrl")} placeholder="https://..." />
-            <p className="text-xs text-slate-500 dark:text-slate-400">Pré-preenchido com a URL de transcrição do sistema.</p>
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
@@ -229,13 +546,23 @@ function CreateIntelligenceDialog({
             </div>
           </div>
 
+          {service && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Language Operators</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Operadores analisam as transcrições e extraem informações estruturadas. As alterações são aplicadas imediatamente.
+              </p>
+              <OperatorsPanel serviceSid={service.sid} />
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={createMutation.isPending} className="gap-2">
-              {createMutation.isPending
+            <Button type="submit" disabled={updateMutation.isPending} className="gap-2">
+              {updateMutation.isPending
                 ? <Loader2 className="size-4 animate-spin" />
-                : <Plus className="size-4" />}
-              Criar serviço
+                : <Save className="size-4" />}
+              Salvar alterações
             </Button>
           </DialogFooter>
         </form>
@@ -1041,9 +1368,10 @@ export function TelephonyAISettings() {
   // ── Voice Intelligence queries/mutations ──────────────────────────────────────
 
   const [createIntelligenceOpen, setCreateIntelligenceOpen] = useState(false);
+  const [editingService, setEditingService] = useState<IntelligenceService | null>(null);
 
   const { data: intelligenceServices, isLoading: intelligenceLoading, refetch: refetchIntelligence } = useQuery<
-    Array<{ sid: string; uniqueName: string; friendlyName: string; languageCode: string; autoTranscribe: boolean; autoRedaction: boolean; webhookUrl: string; dateUpdated: string }>
+    Array<IntelligenceService>
   >({
     queryKey: ["/api/twilio/intelligence-services"],
     queryFn: async () => {
@@ -1551,19 +1879,31 @@ export function TelephonyAISettings() {
                             )}
                           </div>
                         </div>
-                        {!isActive && (
+                        <div className="flex gap-2">
+                          {!isActive && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 gap-1.5 rounded-lg text-xs"
+                              disabled={selectIntelligenceMutation.isPending}
+                              onClick={() => selectIntelligenceMutation.mutate(svc.sid)}
+                            >
+                              <Check className="size-3.5" />
+                              Usar este serviço
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="w-full gap-1.5 rounded-lg text-xs"
-                            disabled={selectIntelligenceMutation.isPending}
-                            onClick={() => selectIntelligenceMutation.mutate(svc.sid)}
+                            className="gap-1.5 rounded-lg text-xs"
+                            onClick={() => setEditingService(svc)}
                           >
-                            <Check className="size-3.5" />
-                            Usar este serviço
+                            <Pencil className="size-3.5" />
+                            Editar
                           </Button>
-                        )}
+                        </div>
                       </div>
                     );
                   })}
@@ -2113,6 +2453,13 @@ export function TelephonyAISettings() {
         onClose={() => setCreateIntelligenceOpen(false)}
         onCreated={() => void refetchIntelligence()}
         defaultWebhookUrl={transcriptionWebhookUrl}
+      />
+
+      <EditIntelligenceDialog
+        open={!!editingService}
+        onClose={() => setEditingService(null)}
+        onUpdated={() => void refetchIntelligence()}
+        service={editingService}
       />
 
       <CreateTwimlAppDialog

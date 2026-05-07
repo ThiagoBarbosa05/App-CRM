@@ -781,6 +781,112 @@ router.post("/intelligence-services", requireAuth, async (req: Request, res: Res
   }
 });
 
+router.patch("/intelligence-services/:sid", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const { sid } = req.params;
+    const { friendlyName, autoTranscribe, autoRedaction, webhookUrl, webhookHttpMethod } = req.body as {
+      friendlyName?: string;
+      autoTranscribe?: boolean;
+      autoRedaction?: boolean;
+      webhookUrl?: string;
+      webhookHttpMethod?: string;
+    };
+    const client = twilio(config.accountSid, config.authToken);
+    const service = await client.intelligence.v2.services(sid).update({
+      ...(friendlyName !== undefined ? { friendlyName } : {}),
+      ...(autoTranscribe !== undefined ? { autoTranscribe } : {}),
+      ...(autoRedaction !== undefined ? { autoRedaction } : {}),
+      ...(webhookUrl ? { webhookUrl } : {}),
+      ...(webhookHttpMethod ? { webhookHttpMethod: webhookHttpMethod as "GET" | "POST" | "NULL" } : {}),
+    });
+    return res.json({
+      sid: service.sid,
+      uniqueName: service.uniqueName,
+      friendlyName: service.friendlyName,
+      languageCode: service.languageCode,
+      autoTranscribe: service.autoTranscribe,
+      autoRedaction: service.autoRedaction,
+      webhookUrl: service.webhookUrl,
+    });
+  } catch (e: unknown) {
+    console.error("[twilio] update intelligence-service error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao atualizar serviço";
+    return res.status(500).json({ message });
+  }
+});
+
+router.get("/intelligence-services/:sid/operators", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const { sid } = req.params;
+    const client = twilio(config.accountSid, config.authToken);
+
+    const [prebuilt, attachments] = await Promise.all([
+      client.intelligence.v2.prebuiltOperators.list({ limit: 100 }),
+      client.intelligence.v2.operatorAttachments(sid).fetch(),
+    ]);
+
+    const attachedSet = new Set(attachments.operatorSids);
+
+    return res.json(
+      prebuilt.map((op) => ({
+        sid: op.sid,
+        friendlyName: op.friendlyName,
+        description: op.description,
+        operatorType: op.operatorType,
+        availability: op.availability,
+        author: op.author,
+        attached: attachedSet.has(op.sid),
+      }))
+    );
+  } catch (e: unknown) {
+    console.error("[twilio] list operators error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao listar operadores";
+    return res.status(500).json({ message });
+  }
+});
+
+router.post("/intelligence-services/:sid/operators/:operatorSid", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const { sid, operatorSid } = req.params;
+    const client = twilio(config.accountSid, config.authToken);
+    await client.intelligence.v2.operatorAttachment(sid, operatorSid).create();
+    return res.json({ ok: true });
+  } catch (e: unknown) {
+    console.error("[twilio] attach operator error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao adicionar operador";
+    return res.status(500).json({ message });
+  }
+});
+
+router.delete("/intelligence-services/:sid/operators/:operatorSid", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const config = await getTwilioConfig();
+    if (!config.accountSid || !config.authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+    const { sid, operatorSid } = req.params;
+    const client = twilio(config.accountSid, config.authToken);
+    await client.intelligence.v2.operatorAttachment(sid, operatorSid).remove();
+    return res.json({ ok: true });
+  } catch (e: unknown) {
+    console.error("[twilio] detach operator error:", e);
+    const message = e instanceof Error ? e.message : "Erro ao remover operador";
+    return res.status(500).json({ message });
+  }
+});
+
 router.post("/intelligence-services/:sid/select", requireAuth, async (req: Request, res: Response) => {
   try {
     const { sid } = req.params;
