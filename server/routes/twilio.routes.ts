@@ -764,7 +764,7 @@ router.post("/intelligence-services", requireAuth, async (req: Request, res: Res
       languageCode,
       autoTranscribe,
       autoRedaction,
-      webhookUrl: webhookUrl || `${baseUrl}/api/elevenlabs/webhook`,
+      webhookUrl: webhookUrl || `${baseUrl}/api/calls/twilio-transcription`,
       webhookHttpMethod: (webhookHttpMethod || "POST") as "GET" | "POST" | "NULL",
     });
     return res.json({

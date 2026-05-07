@@ -1409,7 +1409,7 @@ export function TelephonyAISettings() {
   const twimlAppSid = watch("twilio_twiml_app_sid") ?? "";
   const intelligenceSid = watch("twilio_intelligence_service_sid") ?? "";
   const transcriptionWebhookUrl = serverBaseUrl
-    ? `${serverBaseUrl}/api/elevenlabs/webhook`
+    ? `${serverBaseUrl}/api/calls/twilio-transcription`
     : "";
 
   function handleServerBaseUrlBlur(url: string) {
