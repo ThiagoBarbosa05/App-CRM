@@ -32,8 +32,10 @@ import {
   MessageSquare,
   Search,
   X,
+  RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 
 type Call = {
   id: string;
@@ -227,11 +229,13 @@ function formatDateTime(iso: string | null | undefined): string {
 }
 
 export function CallsHistory() {
+  const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedCall, setSelectedCall] = useState<Call | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [rowSyncLoading, setRowSyncLoading] = useState<Record<string, boolean>>({});
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Rastreia IDs já auto-sincronizados para não repetir na mesma sessão
   const autoSyncedRef = useRef<Set<string>>(new Set());
@@ -244,6 +248,40 @@ export function CallsHistory() {
       setPage(1);
     }, 400);
   }, []);
+
+  const handleRequestTranscript = useCallback(
+    async (call: Call, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setRowSyncLoading((prev) => ({ ...prev, [call.id]: true }));
+      try {
+        if (!call.recordingSid) {
+          await fetch(`/api/calls/${call.id}/sync-recording`, {
+            method: "POST",
+            credentials: "include",
+          });
+        }
+        await fetch(`/api/calls/${call.id}/sync-twilio-transcript`, {
+          method: "POST",
+          credentials: "include",
+        });
+        toast({
+          title: "Transcrição solicitada",
+          description:
+            "Aguarde alguns instantes e clique em Atualizar para ver a transcrição.",
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
+      } catch {
+        toast({
+          title: "Erro ao solicitar transcrição",
+          description: "Não foi possível solicitar a transcrição ao Twilio.",
+          variant: "destructive",
+        });
+      } finally {
+        setRowSyncLoading((prev) => ({ ...prev, [call.id]: false }));
+      }
+    },
+    [toast],
+  );
 
   const { data, isLoading, isFetching } = useQuery<{
     data: Call[];
@@ -379,26 +417,43 @@ export function CallsHistory() {
               </p>
             )}
           </div>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => {
-              setStatusFilter(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-52 rounded-2xl">
-              <SelectValue placeholder="Filtrar por status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="encerrada">Encerrada</SelectItem>
-              <SelectItem value="em_andamento">Em andamento</SelectItem>
-              <SelectItem value="nao_atendeu">Não atendeu</SelectItem>
-              <SelectItem value="ocupado">Ocupado</SelectItem>
-              <SelectItem value="caixa_postal">Caixa postal</SelectItem>
-              <SelectItem value="falhou">Falhou</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-1.5 shrink-0"
+              onClick={() =>
+                queryClient.invalidateQueries({ queryKey: ["/api/calls"] })
+              }
+              disabled={isFetching}
+              title="Atualizar lista de chamadas"
+            >
+              <RefreshCw
+                className={`size-3.5 ${isFetching ? "animate-spin" : ""}`}
+              />
+              <span className="hidden sm:inline">Atualizar</span>
+            </Button>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-52 rounded-2xl">
+                <SelectValue placeholder="Filtrar por status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os status</SelectItem>
+                <SelectItem value="encerrada">Encerrada</SelectItem>
+                <SelectItem value="em_andamento">Em andamento</SelectItem>
+                <SelectItem value="nao_atendeu">Não atendeu</SelectItem>
+                <SelectItem value="ocupado">Ocupado</SelectItem>
+                <SelectItem value="caixa_postal">Caixa postal</SelectItem>
+                <SelectItem value="falhou">Falhou</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="relative">
@@ -534,6 +589,21 @@ export function CallsHistory() {
                     >
                       <FileText className="size-3.5 text-emerald-500" />
                     </span>
+                  )}
+                  {call.twilioCallSid && !call.twilioTranscription && (
+                    <button
+                      type="button"
+                      title="Buscar transcrição do Twilio"
+                      className="size-6 flex items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-colors disabled:opacity-50"
+                      onClick={(e) => handleRequestTranscript(call, e)}
+                      disabled={!!rowSyncLoading[call.id]}
+                    >
+                      {rowSyncLoading[call.id] ? (
+                        <Loader2 className="size-3.5 text-orange-500 animate-spin" />
+                      ) : (
+                        <RefreshCw className="size-3.5 text-orange-500" />
+                      )}
+                    </button>
                   )}
                   <ChannelBadge call={call} size="xs" />
                   {call.aiDecision === "sim" && (
