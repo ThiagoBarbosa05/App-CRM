@@ -69,6 +69,8 @@ import {
   Check,
   RefreshCw,
   Pencil,
+  ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import { AgentConfigModal } from "@/components/telemarketing/agent-config-modal";
 import { AgentToolsModal } from "@/components/telemarketing/agent-tools-modal";
@@ -1412,6 +1414,10 @@ export function TelephonyAISettings() {
     ? `${serverBaseUrl}/api/calls/twilio-transcription`
     : "";
 
+  const debuggerWebhookUrl = serverBaseUrl
+    ? `${serverBaseUrl}/api/twilio/debugger-webhook`
+    : "";
+
   function handleServerBaseUrlBlur(url: string) {
     if (!url.trim() || !twimlAppSid.trim() || !status?.twilio) return;
     syncAppMutation.mutate({ sid: twimlAppSid, baseUrl: url.trim() });
@@ -2176,6 +2182,104 @@ export function TelephonyAISettings() {
                 )}
               </CardContent>
             )}
+          </Card>
+
+          {/* Webhook de Erros e Avisos */}
+          <Card className="border border-amber-200/60 dark:border-amber-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                    <Webhook className="size-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  Webhook de Erros e Avisos
+                </CardTitle>
+              </div>
+              <CardDescription>
+                Configure esta URL no painel do Twilio para receber erros e
+                avisos em tempo real no Monitor da aba Telemarketing.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Info banner */}
+              <div className="flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500 dark:text-amber-400" />
+                <div className="space-y-1 text-xs text-amber-700 dark:text-amber-300">
+                  <p className="font-semibold">Como configurar</p>
+                  <ol className="list-decimal list-inside space-y-0.5 text-amber-600 dark:text-amber-400">
+                    <li>Copie a URL abaixo</li>
+                    <li>
+                      Acesse{" "}
+                      <a
+                        href="https://console.twilio.com/us1/monitor/logs/debugger/webhook"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2"
+                      >
+                        Twilio Console → Monitor → Logs → Errors → Webhook
+                        <ExternalLink className="size-3" />
+                      </a>
+                    </li>
+                    <li>Cole a URL no campo "Webhook URL" e salve</li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* URL do webhook */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  URL do Webhook
+                </Label>
+                {debuggerWebhookUrl ? (
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={debuggerWebhookUrl}
+                      className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-mono text-xs truncate"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(debuggerWebhookUrl);
+                        toast({ title: "URL copiada!" });
+                      }}
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      asChild
+                    >
+                      <a
+                        href="https://console.twilio.com/us1/monitor/logs/debugger/webhook"
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Abrir painel do Twilio"
+                      >
+                        <ExternalLink className="size-4" />
+                      </a>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-xl border border-dashed border-slate-200 px-4 py-3 dark:border-slate-700">
+                    <Info className="size-4 shrink-0 text-slate-400" />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Configure a <strong>Server Base URL</strong> acima para gerar o endereço do webhook.
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  O sistema receberá erros (Error) e avisos (Warning) do Twilio neste endpoint e os exibirá na aba Monitor.
+                </p>
+              </div>
+            </CardContent>
           </Card>
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">

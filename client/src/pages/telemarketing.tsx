@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Redirect } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { BarChart2, History, Phone, Radio } from "lucide-react";
+import { Activity, BarChart2, History, Phone, Radio } from "lucide-react";
 import { TwilioDeviceProvider } from "@/contexts/twilio-device-context";
 import { DashboardTabContent } from "@/components/telemarketing/tabs/dashboard-tab";
 import { DialerTabContent } from "@/components/telemarketing/tabs/dialer-tab";
 import { CampaignsTabContent } from "@/components/telemarketing/tabs/campaigns-tab";
 import { HistoryTabContent } from "@/components/telemarketing/tabs/history-tab";
+import { MonitorTabContent } from "@/components/telemarketing/tabs/monitor-tab";
 import { useAuth } from "@/hooks/useAuth";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -48,6 +49,15 @@ const TELEMARKETING_TABS = [
       "data-[state=active]:text-emerald-700 dark:data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-200 dark:data-[state=active]:border-emerald-900/70 data-[state=active]:bg-emerald-50/70 dark:data-[state=active]:bg-emerald-950/30",
     iconAccent:
       "group-data-[state=active]:bg-emerald-100 group-data-[state=active]:text-emerald-700 dark:group-data-[state=active]:bg-emerald-950/60 dark:group-data-[state=active]:text-emerald-300",
+  },
+  {
+    value: "monitor",
+    label: "Monitor",
+    icon: Activity,
+    accent:
+      "data-[state=active]:text-rose-700 dark:data-[state=active]:text-rose-300 data-[state=active]:border-rose-200 dark:data-[state=active]:border-rose-900/70 data-[state=active]:bg-rose-50/70 dark:data-[state=active]:bg-rose-950/30",
+    iconAccent:
+      "group-data-[state=active]:bg-rose-100 group-data-[state=active]:text-rose-700 dark:group-data-[state=active]:bg-rose-950/60 dark:group-data-[state=active]:text-rose-300",
   },
 ] as const;
 
@@ -171,6 +181,12 @@ export default function TelemarketingPage() {
           <TabsContent value="history" className="m-0 outline-none">
             <TabPanel>
               <HistoryTabContent />
+            </TabPanel>
+          </TabsContent>
+
+          <TabsContent value="monitor" className="m-0 outline-none">
+            <TabPanel>
+              <MonitorTabContent />
             </TabPanel>
           </TabsContent>
         </Tabs>

@@ -656,20 +656,15 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         ),
       );
     }
-    if (status)
-      conditions.push(
-        eq(
-          calls.status,
-          status as
-            | "iniciando"
-            | "em_andamento"
-            | "encerrada"
-            | "nao_atendeu"
-            | "ocupado"
-            | "falhou"
-            | "caixa_postal",
-        ),
-      );
+    if (status) {
+      type CallStatus = "iniciando" | "em_andamento" | "encerrada" | "nao_atendeu" | "ocupado" | "falhou" | "caixa_postal";
+      const statuses = status.split(",").filter(Boolean) as CallStatus[];
+      if (statuses.length === 1) {
+        conditions.push(eq(calls.status, statuses[0]));
+      } else if (statuses.length > 1) {
+        conditions.push(inArray(calls.status, statuses));
+      }
+    }
 
     if (req.user?.role === "vendedor") {
       conditions.push(eq(calls.operatorId, req.user.userId));
@@ -845,13 +840,33 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
 
 router.post("/:id/end", requireAuth, async (req: Request, res: Response) => {
   try {
+    const [existing] = await db
+      .select({ id: calls.id, twilioCallSid: calls.twilioCallSid })
+      .from(calls)
+      .where(eq(calls.id, req.params.id));
+
+    if (!existing)
+      return res.status(404).json({ message: "Chamada não encontrada" });
+
+    // Tenta cancelar no Twilio se houver SID — ignora erros (call pode já ter encerrado)
+    if (existing.twilioCallSid) {
+      try {
+        const { accountSid, authToken } = await getTwilioConfig();
+        if (accountSid && authToken) {
+          const twilioClient = twilio(accountSid, authToken);
+          await twilioClient.calls(existing.twilioCallSid).update({ status: "completed" });
+        }
+      } catch {
+        // silencia — o importante é atualizar o DB
+      }
+    }
+
     const [call] = await db
       .update(calls)
       .set({ status: "encerrada", endedAt: new Date() })
       .where(eq(calls.id, req.params.id))
       .returning();
-    if (!call)
-      return res.status(404).json({ message: "Chamada não encontrada" });
+
     res.json(call);
   } catch (e) {
     res.status(500).json({ message: "Erro ao encerrar chamada" });

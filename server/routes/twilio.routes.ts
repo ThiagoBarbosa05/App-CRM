@@ -902,4 +902,68 @@ router.post("/intelligence-services/:sid/select", requireAuth, async (req: Reque
   }
 });
 
+// ─── Debugger Webhook — recebe erros/avisos em tempo real do Twilio ──────────
+
+router.post("/debugger-webhook", async (req: Request, res: Response) => {
+  const { Sid, Level, Timestamp, PayloadType, Payload } = req.body as {
+    Sid?: string;
+    Level?: string;
+    Timestamp?: string;
+    PayloadType?: string;
+    Payload?: string;
+  };
+
+  let parsed: unknown = null;
+  if (Payload && PayloadType === "application/json") {
+    try { parsed = JSON.parse(Payload); } catch { /* ignore */ }
+  }
+
+  console.warn("[twilio/debugger]", {
+    sid: Sid,
+    level: Level,
+    timestamp: Timestamp,
+    payload: parsed ?? Payload,
+  });
+
+  return res.status(200).send("OK");
+});
+
+// ─── Alertas / Erros do Twilio (Twilio Monitor API) ──────────────────────────
+
+router.get("/alerts", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { logLevel, startDate, endDate, pageSize = "50" } = req.query as Record<string, string>;
+    const { accountSid, authToken } = await getTwilioConfig();
+
+    if (!accountSid || !authToken) {
+      return res.status(400).json({ message: "Twilio não configurado" });
+    }
+
+    const url = new URL("https://monitor.twilio.com/v1/Alerts");
+    if (logLevel && logLevel !== "all") url.searchParams.set("LogLevel", logLevel);
+    if (startDate) url.searchParams.set("StartDate", startDate);
+    if (endDate) url.searchParams.set("EndDate", endDate);
+    url.searchParams.set("PageSize", String(Math.min(parseInt(pageSize) || 50, 100)));
+
+    const resp = await fetch(url.toString(), {
+      headers: {
+        Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+      },
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      console.error("[twilio/alerts] erro:", resp.status, body);
+      return res.status(resp.status).json({ message: "Erro ao buscar alertas do Twilio" });
+    }
+
+    const data = await resp.json();
+    return res.json(data);
+  } catch (e: unknown) {
+    console.error("[twilio/alerts] erro:", e);
+    const message = e instanceof Error ? e.message : "Erro interno";
+    return res.status(500).json({ message });
+  }
+});
+
 export default router;
