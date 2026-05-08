@@ -1140,19 +1140,19 @@ export function Dialer() {
                     <div
                       key={client.id}
                       className={cn(
-                        "flex items-center justify-between gap-3 rounded-2xl border px-3 py-3 transition-colors",
+                        "flex items-start justify-between gap-3 rounded-2xl border px-3 py-3 transition-colors",
                         selectedClientId === client.id
                           ? "border-blue-200 bg-blue-50/80 dark:border-blue-900 dark:bg-blue-950/20"
                           : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:hover:border-slate-700 dark:hover:bg-slate-800/80",
                       )}
                     >
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                           {client.name.slice(0, 1).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 break-words">
                               {client.name}
                             </p>
                             {selectedClientId === client.id && (
@@ -1173,7 +1173,7 @@ export function Dialer() {
                           selectedClientId === client.id ? "default" : "outline"
                         }
                         className={cn(
-                          "ml-2 shrink-0 rounded-xl gap-1.5",
+                          "ml-2 mt-0.5 shrink-0 rounded-xl gap-1.5",
                           selectedClientId === client.id
                             ? "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
                             : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800",
@@ -1182,7 +1182,7 @@ export function Dialer() {
                         onClick={() => handleCallClient(client)}
                       >
                         <Phone className="size-3" />
-                        Selecionar
+                        <span className="hidden sm:inline">Selecionar</span>
                       </Button>
                     </div>
                   ))

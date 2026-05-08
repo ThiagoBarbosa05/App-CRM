@@ -53,7 +53,23 @@ import {
   ChevronUp,
   Settings2,
   Webhook,
+  Check,
+  ChevronsUpDown,
+  RefreshCw,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { CampaignClientsDialog } from "./campaign-clients-dialog";
 import { CampaignDispatchDialog } from "./campaign-dispatch-dialog";
 import { CampaignMonitorDialog } from "./campaign-monitor-dialog";
@@ -376,6 +392,25 @@ export function CampaignsList() {
   const type = watch("type");
   const umblerEnabled = watch("umblerEnabled");
 
+  const [agentSelectorOpen, setAgentSelectorOpen] = useState(false);
+
+  const {
+    data: agentsList,
+    isLoading: agentsLoading,
+    refetch: refetchAgents,
+  } = useQuery<{ agents: Array<{ agentId: string; name: string }> }>({
+    queryKey: ["/api/elevenlabs/agents"],
+    queryFn: async () => {
+      const res = await fetch("/api/elevenlabs/agents", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Erro ao listar agentes");
+      return res.json();
+    },
+    enabled: type === "ia",
+    staleTime: 30_000,
+  });
+
   const { data: channels = [] } = useUmblerChannels();
   const { data: botsData } = useUmblerBots({ take: 50 });
 
@@ -675,11 +710,101 @@ export function CampaignsList() {
             {type === "ia" && (
               <>
                 <div className="space-y-1.5">
-                  <Label className="text-sm">ElevenLabs Agent ID *</Label>
-                  <Input
-                    {...register("elevenLabsAgentId")}
-                    placeholder="agent_xxxxxxxxxxxxxxxx"
-                  />
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Agente ElevenLabs *</Label>
+                    <button
+                      type="button"
+                      onClick={() => void refetchAgents()}
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      title="Recarregar lista de agentes"
+                    >
+                      <RefreshCw
+                        className={`size-3.5 ${agentsLoading ? "animate-spin" : ""}`}
+                      />
+                    </button>
+                  </div>
+
+                  {(agentsList?.agents?.length ?? 0) > 0 ? (
+                    <Popover
+                      open={agentSelectorOpen}
+                      onOpenChange={setAgentSelectorOpen}
+                    >
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-full flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm hover:bg-accent hover:text-accent-foreground font-mono"
+                        >
+                          <span
+                            className={
+                              watch("elevenLabsAgentId")
+                                ? "text-foreground"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {watch("elevenLabsAgentId")
+                              ? (agentsList?.agents.find(
+                                  (a) =>
+                                    a.agentId === watch("elevenLabsAgentId"),
+                                )?.name ?? watch("elevenLabsAgentId"))
+                              : "Selecionar agente..."}
+                          </span>
+                          <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        className="w-[--radix-popover-trigger-width] p-0"
+                        align="start"
+                      >
+                        <Command>
+                          <CommandInput placeholder="Buscar agente..." />
+                          <CommandList>
+                            <CommandEmpty>
+                              {agentsLoading
+                                ? "Carregando..."
+                                : "Nenhum agente encontrado."}
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {(agentsList?.agents ?? []).map((agent) => (
+                                <CommandItem
+                                  key={agent.agentId}
+                                  value={`${agent.name} ${agent.agentId}`}
+                                  onSelect={() => {
+                                    setValue(
+                                      "elevenLabsAgentId",
+                                      agent.agentId,
+                                    );
+                                    setAgentSelectorOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 size-4 ${watch("elevenLabsAgentId") === agent.agentId ? "opacity-100" : "opacity-0"}`}
+                                  />
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="font-medium truncate">
+                                      {agent.name}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground font-mono truncate">
+                                      {agent.agentId}
+                                    </span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    <Input
+                      {...register("elevenLabsAgentId")}
+                      placeholder={
+                        agentsLoading
+                          ? "Carregando agentes..."
+                          : "agent_xxxxxxxxxxxxxxxx"
+                      }
+                      className="font-mono"
+                    />
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-sm">Voice ID (opcional)</Label>
