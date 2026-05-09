@@ -91,7 +91,10 @@ const INTELLIGENCE_LANGUAGES = [
 ];
 
 const createIntelligenceSchema = z.object({
-  uniqueName: z.string().min(1, "Nome único é obrigatório").regex(/^[a-z0-9_-]+$/, "Apenas letras minúsculas, números, _ e -"),
+  uniqueName: z
+    .string()
+    .min(1, "Nome único é obrigatório")
+    .regex(/^[a-z0-9_-]+$/, "Apenas letras minúsculas, números, _ e -"),
   friendlyName: z.string().optional().default(""),
   languageCode: z.string().min(1),
   autoTranscribe: z.boolean().default(true),
@@ -113,12 +116,19 @@ type OperatorInfo = {
 };
 
 function OperatorsPanel({ serviceSid }: { serviceSid: string }) {
-  const { data: operators, isLoading, refetch } = useQuery<OperatorInfo[]>({
+  const {
+    data: operators,
+    isLoading,
+    refetch,
+  } = useQuery<OperatorInfo[]>({
     queryKey: ["/api/twilio/intelligence-services", serviceSid, "operators"],
     queryFn: async () => {
-      const res = await fetch(`/api/twilio/intelligence-services/${serviceSid}/operators`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/twilio/intelligence-services/${serviceSid}/operators`,
+        {
+          credentials: "include",
+        },
+      );
       if (!res.ok) throw new Error("Erro ao listar operadores");
       return res.json();
     },
@@ -127,34 +137,52 @@ function OperatorsPanel({ serviceSid }: { serviceSid: string }) {
 
   const attachMutation = useMutation({
     mutationFn: async (operatorSid: string) => {
-      const res = await fetch(`/api/twilio/intelligence-services/${serviceSid}/operators/${operatorSid}`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/twilio/intelligence-services/${serviceSid}/operators/${operatorSid}`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao adicionar operador");
       }
     },
     onSuccess: () => void refetch(),
     onError: (err: Error) =>
-      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const detachMutation = useMutation({
     mutationFn: async (operatorSid: string) => {
-      const res = await fetch(`/api/twilio/intelligence-services/${serviceSid}/operators/${operatorSid}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/twilio/intelligence-services/${serviceSid}/operators/${operatorSid}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao remover operador");
       }
     },
     onSuccess: () => void refetch(),
     onError: (err: Error) =>
-      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const isPending = attachMutation.isPending || detachMutation.isPending;
@@ -195,7 +223,9 @@ function OperatorsPanel({ serviceSid }: { serviceSid: string }) {
                 variant="outline"
                 className="text-[10px] px-1.5 py-0 font-normal"
               >
-                {op.operatorType === "conversation-intelligence" ? "Classificação" : op.operatorType}
+                {op.operatorType === "conversation-intelligence"
+                  ? "Classificação"
+                  : op.operatorType}
               </Badge>
               <Badge
                 variant="outline"
@@ -294,7 +324,9 @@ function CreateIntelligenceDialog({
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao criar serviço");
       }
       return res.json() as Promise<{ sid: string }>;
@@ -305,7 +337,11 @@ function CreateIntelligenceDialog({
       setCreatedSid(data.sid);
     },
     onError: (err: Error) =>
-      toast({ title: "Erro ao criar serviço", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro ao criar serviço",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   function handleFinish() {
@@ -314,19 +350,26 @@ function CreateIntelligenceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && (createdSid ? handleFinish() : onClose())}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => !v && (createdSid ? handleFinish() : onClose())}
+    >
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Radio className="size-4 text-emerald-500" />
-            {createdSid ? "Adicionar operadores" : "Criar serviço de Voice Intelligence"}
+            {createdSid
+              ? "Adicionar operadores"
+              : "Criar serviço de Voice Intelligence"}
           </DialogTitle>
         </DialogHeader>
 
         {createdSid ? (
           <div className="space-y-4 mt-2">
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Serviço criado. Adicione Language Operators para análise automática das transcrições, ou clique em Concluir para pular esta etapa.
+              Serviço criado. Adicione Language Operators para análise
+              automática das transcrições, ou clique em Concluir para pular esta
+              etapa.
             </p>
             <OperatorsPanel serviceSid={createdSid} />
             <DialogFooter>
@@ -337,44 +380,77 @@ function CreateIntelligenceDialog({
             </DialogFooter>
           </div>
         ) : (
-          <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4 mt-2">
+          <form
+            onSubmit={handleSubmit((d) => createMutation.mutate(d))}
+            className="space-y-4 mt-2"
+          >
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Nome único *</Label>
-              <Input {...register("uniqueName")} placeholder="crm-transcricao-ptbr" />
-              <p className="text-xs text-slate-500 dark:text-slate-400">Apenas letras minúsculas, números, _ e -. Não pode ser alterado depois.</p>
-              {errors.uniqueName && <p className="text-xs text-red-500">{errors.uniqueName.message}</p>}
+              <Input
+                {...register("uniqueName")}
+                placeholder="crm-transcricao-ptbr"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Apenas letras minúsculas, números, _ e -. Não pode ser alterado
+                depois.
+              </p>
+              {errors.uniqueName && (
+                <p className="text-xs text-red-500">
+                  {errors.uniqueName.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Nome de exibição</Label>
-              <Input {...register("friendlyName")} placeholder="CRM Transcrição PT-BR" />
+              <Input
+                {...register("friendlyName")}
+                placeholder="CRM Transcrição PT-BR"
+              />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Idioma *</Label>
-              <Select value={watch("languageCode")} onValueChange={(v) => setValue("languageCode", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={watch("languageCode")}
+                onValueChange={(v) => setValue("languageCode", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {INTELLIGENCE_LANGUAGES.map((l) => (
-                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                    <SelectItem key={l.value} value={l.value}>
+                      {l.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Idioma das transcrições. Não pode ser alterado após a criação.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Idioma das transcrições. Não pode ser alterado após a criação.
+              </p>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">URL do Webhook</Label>
               <Input {...register("webhookUrl")} placeholder="https://..." />
-              <p className="text-xs text-slate-500 dark:text-slate-400">Pré-preenchido com a URL de transcrição do sistema.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Pré-preenchido com a URL de transcrição do sistema.
+              </p>
             </div>
 
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Opções</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Opções
+              </p>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">Transcrição automática</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Transcreve todas as gravações automaticamente</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">
+                    Transcrição automática
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Transcreve todas as gravações automaticamente
+                  </p>
                 </div>
                 <Switch
                   checked={watch("autoTranscribe")}
@@ -383,8 +459,12 @@ function CreateIntelligenceDialog({
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-700 dark:text-slate-300">Redação de dados pessoais (PII)</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Oculta CPF, cartões e telefones nas transcrições</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300">
+                    Redação de dados pessoais (PII)
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Oculta CPF, cartões e telefones nas transcrições
+                  </p>
                 </div>
                 <Switch
                   checked={watch("autoRedaction")}
@@ -394,11 +474,19 @@ function CreateIntelligenceDialog({
             </div>
 
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
-              <Button type="submit" disabled={createMutation.isPending} className="gap-2">
-                {createMutation.isPending
-                  ? <Loader2 className="size-4 animate-spin" />
-                  : <Plus className="size-4" />}
+              <Button variant="outline" type="button" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={createMutation.isPending}
+                className="gap-2"
+              >
+                {createMutation.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
                 Criar serviço
               </Button>
             </DialogFooter>
@@ -441,21 +529,16 @@ function EditIntelligenceDialog({
   onUpdated: () => void;
   service: IntelligenceService | null;
 }) {
-  const {
-    register,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-  } = useForm<EditIntelligenceForm>({
-    resolver: zodResolver(editIntelligenceSchema),
-    defaultValues: {
-      friendlyName: "",
-      autoTranscribe: true,
-      autoRedaction: false,
-      webhookUrl: "",
-    },
-  });
+  const { register, handleSubmit, watch, setValue, reset } =
+    useForm<EditIntelligenceForm>({
+      resolver: zodResolver(editIntelligenceSchema),
+      defaultValues: {
+        friendlyName: "",
+        autoTranscribe: true,
+        autoRedaction: false,
+        webhookUrl: "",
+      },
+    });
 
   useEffect(() => {
     if (open && service) {
@@ -470,14 +553,19 @@ function EditIntelligenceDialog({
 
   const updateMutation = useMutation({
     mutationFn: async (data: EditIntelligenceForm) => {
-      const res = await fetch(`/api/twilio/intelligence-services/${service!.sid}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
+      const res = await fetch(
+        `/api/twilio/intelligence-services/${service!.sid}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(data),
+        },
+      );
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao atualizar serviço");
       }
       return res.json();
@@ -488,7 +576,11 @@ function EditIntelligenceDialog({
       onClose();
     },
     onError: (err: Error) =>
-      toast({ title: "Erro ao atualizar serviço", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro ao atualizar serviço",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   return (
@@ -501,22 +593,36 @@ function EditIntelligenceDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit((d) => updateMutation.mutate(d))} className="space-y-4 mt-2">
+        <form
+          onSubmit={handleSubmit((d) => updateMutation.mutate(d))}
+          className="space-y-4 mt-2"
+        >
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3 space-y-1">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Nome único (imutável)</p>
-            <p className="text-sm font-mono text-slate-700 dark:text-slate-200">{service?.uniqueName}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Nome único (imutável)
+            </p>
+            <p className="text-sm font-mono text-slate-700 dark:text-slate-200">
+              {service?.uniqueName}
+            </p>
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3 space-y-1">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Idioma (imutável)</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Idioma (imutável)
+            </p>
             <p className="text-sm text-slate-700 dark:text-slate-200">
-              {INTELLIGENCE_LANGUAGES.find((l) => l.value === service?.languageCode)?.label ?? service?.languageCode}
+              {INTELLIGENCE_LANGUAGES.find(
+                (l) => l.value === service?.languageCode,
+              )?.label ?? service?.languageCode}
             </p>
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Nome de exibição</Label>
-            <Input {...register("friendlyName")} placeholder="CRM Transcrição PT-BR" />
+            <Input
+              {...register("friendlyName")}
+              placeholder="CRM Transcrição PT-BR"
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -525,11 +631,17 @@ function EditIntelligenceDialog({
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Opções</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Opções
+            </p>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-700 dark:text-slate-300">Transcrição automática</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Transcreve todas as gravações automaticamente</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  Transcrição automática
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Transcreve todas as gravações automaticamente
+                </p>
               </div>
               <Switch
                 checked={watch("autoTranscribe")}
@@ -538,8 +650,12 @@ function EditIntelligenceDialog({
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-700 dark:text-slate-300">Redação de dados pessoais (PII)</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Oculta CPF, cartões e telefones nas transcrições</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  Redação de dados pessoais (PII)
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Oculta CPF, cartões e telefones nas transcrições
+                </p>
               </div>
               <Switch
                 checked={watch("autoRedaction")}
@@ -550,20 +666,31 @@ function EditIntelligenceDialog({
 
           {service && (
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Language Operators</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Language Operators
+              </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Operadores analisam as transcrições e extraem informações estruturadas. As alterações são aplicadas imediatamente.
+                Operadores analisam as transcrições e extraem informações
+                estruturadas. As alterações são aplicadas imediatamente.
               </p>
               <OperatorsPanel serviceSid={service.sid} />
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={updateMutation.isPending} className="gap-2">
-              {updateMutation.isPending
-                ? <Loader2 className="size-4 animate-spin" />
-                : <Save className="size-4" />}
+            <Button variant="outline" type="button" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="gap-2"
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
               Salvar alterações
             </Button>
           </DialogFooter>
@@ -597,7 +724,11 @@ function CreateTwimlAppDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  onCreated: (app: { sid: string; friendlyName: string; voiceUrl: string }) => void;
+  onCreated: (app: {
+    sid: string;
+    friendlyName: string;
+    voiceUrl: string;
+  }) => void;
   defaultVoiceUrl: string;
   defaultStatusCallback: string;
 }) {
@@ -650,10 +781,16 @@ function CreateTwimlAppDialog({
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao criar app");
       }
-      return res.json() as Promise<{ sid: string; friendlyName: string; voiceUrl: string }>;
+      return res.json() as Promise<{
+        sid: string;
+        friendlyName: string;
+        voiceUrl: string;
+      }>;
     },
     onSuccess: (data) => {
       toast({ title: "TwiML App criado", description: `SID: ${data.sid}` });
@@ -661,11 +798,17 @@ function CreateTwimlAppDialog({
       onClose();
     },
     onError: (err: Error) =>
-      toast({ title: "Erro ao criar app", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro ao criar app",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const voiceCallerIdLookup = watch("voiceCallerIdLookup");
-  const publicApplicationConnectEnabled = watch("publicApplicationConnectEnabled");
+  const publicApplicationConnectEnabled = watch(
+    "publicApplicationConnectEnabled",
+  );
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -677,17 +820,24 @@ function CreateTwimlAppDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-5 mt-2">
+        <form
+          onSubmit={handleSubmit((d) => createMutation.mutate(d))}
+          className="space-y-5 mt-2"
+        >
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Nome *</Label>
             <Input {...register("friendlyName")} placeholder="CRM Voice App" />
             {errors.friendlyName && (
-              <p className="text-xs text-red-500">{errors.friendlyName.message}</p>
+              <p className="text-xs text-red-500">
+                {errors.friendlyName.message}
+              </p>
             )}
           </div>
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-4">
-            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Configuração de Voz</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Configuração de Voz
+            </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_160px] gap-3 items-end">
               <div className="space-y-1.5">
@@ -698,7 +848,9 @@ function CreateTwimlAppDialog({
                 <Label className="text-sm">Método</Label>
                 <Select
                   value={watch("voiceMethod")}
-                  onValueChange={(v) => setValue("voiceMethod", v as "POST" | "GET")}
+                  onValueChange={(v) =>
+                    setValue("voiceMethod", v as "POST" | "GET")
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -725,13 +877,18 @@ function CreateTwimlAppDialog({
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
                   <div className="space-y-1.5">
                     <Label className="text-sm">URL de Fallback</Label>
-                    <Input {...register("voiceFallbackUrl")} placeholder="https://..." />
+                    <Input
+                      {...register("voiceFallbackUrl")}
+                      placeholder="https://..."
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Method</Label>
                     <Select
                       value={watch("voiceFallbackMethod")}
-                      onValueChange={(v) => setValue("voiceFallbackMethod", v as "POST" | "GET")}
+                      onValueChange={(v) =>
+                        setValue("voiceFallbackMethod", v as "POST" | "GET")
+                      }
                     >
                       <SelectTrigger className="w-32">
                         <SelectValue />
@@ -747,13 +904,18 @@ function CreateTwimlAppDialog({
                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
                   <div className="space-y-1.5">
                     <Label className="text-sm">URL de Status Callback</Label>
-                    <Input {...register("statusCallback")} placeholder="https://..." />
+                    <Input
+                      {...register("statusCallback")}
+                      placeholder="https://..."
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-sm">Method</Label>
                     <Select
                       value={watch("statusCallbackMethod")}
-                      onValueChange={(v) => setValue("statusCallbackMethod", v as "POST" | "GET")}
+                      onValueChange={(v) =>
+                        setValue("statusCallbackMethod", v as "POST" | "GET")
+                      }
                     >
                       <SelectTrigger className="w-32">
                         <SelectValue />
@@ -768,19 +930,27 @@ function CreateTwimlAppDialog({
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm">Consulta de Nome do Caller</Label>
+                    <Label className="text-sm">
+                      Consulta de Nome do Caller
+                    </Label>
                     <Switch
                       checked={voiceCallerIdLookup}
-                      onCheckedChange={(v) => setValue("voiceCallerIdLookup", v)}
+                      onCheckedChange={(v) =>
+                        setValue("voiceCallerIdLookup", v)
+                      }
                     />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-sm">Permitir discagem de outras contas Twilio</Label>
+                      <Label className="text-sm">
+                        Permitir discagem de outras contas Twilio
+                      </Label>
                     </div>
                     <Switch
                       checked={publicApplicationConnectEnabled}
-                      onCheckedChange={(v) => setValue("publicApplicationConnectEnabled", v)}
+                      onCheckedChange={(v) =>
+                        setValue("publicApplicationConnectEnabled", v)
+                      }
                     />
                   </div>
                 </div>
@@ -789,11 +959,19 @@ function CreateTwimlAppDialog({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={createMutation.isPending} className="gap-2">
-              {createMutation.isPending
-                ? <Loader2 className="size-4 animate-spin" />
-                : <Plus className="size-4" />}
+            <Button variant="outline" type="button" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="gap-2"
+            >
+              {createMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               Criar app
             </Button>
           </DialogFooter>
@@ -827,10 +1005,19 @@ const LANGUAGES = [
 ];
 
 const LLM_MODELS = [
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (multilíngue, recomendado)" },
-  { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (multilíngue, rápido)" },
+  {
+    value: "gemini-2.5-flash",
+    label: "Gemini 2.5 Flash (multilíngue, recomendado)",
+  },
+  {
+    value: "gemini-2.5-flash-lite",
+    label: "Gemini 2.5 Flash Lite (multilíngue, rápido)",
+  },
   { value: "claude-sonnet-4", label: "Claude Sonnet 4 (multilíngue)" },
-  { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 (multilíngue, rápido)" },
+  {
+    value: "claude-haiku-4-5",
+    label: "Claude Haiku 4.5 (multilíngue, rápido)",
+  },
   { value: "gpt-4.1", label: "GPT-4.1 (inglês)" },
   { value: "gpt-4o", label: "GPT-4o (inglês)" },
   { value: "gpt-4o-mini", label: "GPT-4o Mini (inglês)" },
@@ -866,19 +1053,28 @@ function CreateAgentDialog({
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao criar agente");
       }
       return res.json() as Promise<{ agentId: string }>;
     },
     onSuccess: (data) => {
-      toast({ title: "Agente criado com sucesso", description: `ID: ${data.agentId}` });
+      toast({
+        title: "Agente criado com sucesso",
+        description: `ID: ${data.agentId}`,
+      });
       reset();
       onCreated(data.agentId);
       onClose();
     },
     onError: (err: Error) =>
-      toast({ title: "Erro ao criar agente", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro ao criar agente",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const language = watch("language");
@@ -895,21 +1091,33 @@ function CreateAgentDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit((d) => createMutation.mutate(d))} className="space-y-4 mt-2">
+        <form
+          onSubmit={handleSubmit((d) => createMutation.mutate(d))}
+          className="space-y-4 mt-2"
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-sm">Nome do agente *</Label>
               <Input {...register("name")} placeholder="Ex: Agente de Vendas" />
-              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+              {errors.name && (
+                <p className="text-xs text-red-500">{errors.name.message}</p>
+              )}
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-sm">Primeira mensagem</Label>
-              <Input {...register("firstMessage")} placeholder="Olá, posso te ajudar?" />
+              <Input
+                {...register("firstMessage")}
+                placeholder="Olá, posso te ajudar?"
+              />
               <div className="flex items-center justify-between pt-1">
                 <div>
-                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Interrompível</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Permite que o usuário interrompa a fala do agente</p>
+                  <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Interrompível
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Permite que o usuário interrompa a fala do agente
+                  </p>
                 </div>
                 <Switch
                   checked={interruptible ?? true}
@@ -920,11 +1128,18 @@ function CreateAgentDialog({
 
             <div className="space-y-1.5">
               <Label className="text-sm">Idioma</Label>
-              <Select value={language} onValueChange={(v) => setValue("language", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={language}
+                onValueChange={(v) => setValue("language", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {LANGUAGES.map((l) => (
-                    <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                    <SelectItem key={l.value} value={l.value}>
+                      {l.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -942,15 +1157,21 @@ function CreateAgentDialog({
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-sm">Modelo LLM</Label>
               <Select value={llm} onValueChange={(v) => setValue("llm", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {LLM_MODELS.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Para Português e outros idiomas não-ingleses use <strong>Gemini</strong> ou <strong>Claude</strong>. GPT-4o só suporta inglês.
+                Para Português e outros idiomas não-ingleses use{" "}
+                <strong>Gemini</strong> ou <strong>Claude</strong>. GPT-4o só
+                suporta inglês.
               </p>
             </div>
 
@@ -966,11 +1187,19 @@ function CreateAgentDialog({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={createMutation.isPending} className="gap-2">
-              {createMutation.isPending
-                ? <Loader2 className="size-4 animate-spin" />
-                : <Sparkles className="size-4" />}
+            <Button variant="outline" type="button" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="gap-2"
+            >
+              {createMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
               Criar agente
             </Button>
           </DialogFooter>
@@ -1031,12 +1260,27 @@ function StatusBadge({ active, label }: { active: boolean; label: string }) {
 function FieldGroup({
   label,
   hint,
+  hintVariant = "default",
   children,
 }: {
   label: string;
   hint?: string;
+  hintVariant?: "default" | "info" | "warning";
   children: React.ReactNode;
 }) {
+  const hintStyles = {
+    default: "text-slate-500 dark:text-slate-400",
+    info: "text-blue-600 dark:text-blue-400",
+    warning: "text-amber-600 dark:text-amber-400",
+  };
+  const hintIcons = {
+    default: <Info className="size-3 shrink-0 mt-0.5 text-slate-400" />,
+    info: <Info className="size-3 shrink-0 mt-0.5 text-blue-500" />,
+    warning: (
+      <AlertTriangle className="size-3 shrink-0 mt-0.5 text-amber-500" />
+    ),
+  };
+
   return (
     <div className="space-y-1.5">
       <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -1044,7 +1288,12 @@ function FieldGroup({
       </Label>
       {children}
       {hint && (
-        <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>
+        <div className="flex items-start gap-1.5">
+          {hintIcons[hintVariant]}
+          <p className={`text-xs leading-relaxed ${hintStyles[hintVariant]}`}>
+            {hint}
+          </p>
+        </div>
       )}
     </div>
   );
@@ -1107,12 +1356,18 @@ export function TelephonyAISettings() {
       },
     });
 
-  const { data: agentsList, isLoading: agentsLoading, refetch: refetchAgents } = useQuery<{
+  const {
+    data: agentsList,
+    isLoading: agentsLoading,
+    refetch: refetchAgents,
+  } = useQuery<{
     agents: Array<{ agentId: string; name: string }>;
   }>({
     queryKey: ["/api/elevenlabs/agents"],
     queryFn: async () => {
-      const res = await fetch("/api/elevenlabs/agents", { credentials: "include" });
+      const res = await fetch("/api/elevenlabs/agents", {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Erro ao listar agentes");
       return res.json();
     },
@@ -1136,8 +1391,7 @@ export function TelephonyAISettings() {
           twilio_api_key: settings.twilio_api_key ?? "",
           twilio_api_secret: settings.twilio_api_secret ?? "",
           twilio_twiml_app_sid: settings.twilio_twiml_app_sid ?? "",
-          twilio_status_callback_url:
-            settings.twilio_status_callback_url ?? "",
+          twilio_status_callback_url: settings.twilio_status_callback_url ?? "",
           twilio_record_calls: settings.twilio_record_calls === "true",
           twilio_from_numbers: settings.twilio_from_numbers ?? "",
           twilio_intelligence_service_sid:
@@ -1168,7 +1422,9 @@ export function TelephonyAISettings() {
   const [callerIdsOpen, setCallerIdsOpen] = useState(false);
   const [newCallerNumber, setNewCallerNumber] = useState("");
   const [newCallerFriendlyName, setNewCallerFriendlyName] = useState("");
-  const [pendingValidationCode, setPendingValidationCode] = useState<string | null>(null);
+  const [pendingValidationCode, setPendingValidationCode] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (!settings?.twilio_from_numbers) return;
@@ -1249,19 +1505,31 @@ export function TelephonyAISettings() {
 
   // ── TwiML Apps queries/mutations ─────────────────────────────────────────────
 
-  const { data: twimlApps, isLoading: twimlAppsLoading, refetch: refetchApps } = useQuery<
-    Array<{ sid: string; friendlyName: string; voiceUrl: string; voiceMethod: string; statusCallback: string; dateUpdated: string }>
+  const {
+    data: twimlApps,
+    isLoading: twimlAppsLoading,
+    refetch: refetchApps,
+  } = useQuery<
+    Array<{
+      sid: string;
+      friendlyName: string;
+      voiceUrl: string;
+      voiceMethod: string;
+      statusCallback: string;
+      dateUpdated: string;
+    }>
   >({
     queryKey: ["/api/twilio/applications"],
     queryFn: async () => {
-      const res = await fetch("/api/twilio/applications", { credentials: "include" });
+      const res = await fetch("/api/twilio/applications", {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Erro ao listar apps");
       return res.json();
     },
     enabled: !!status?.twilio,
     staleTime: 30_000,
   });
-
 
   const selectAppMutation = useMutation({
     mutationFn: async (sid: string) => {
@@ -1270,17 +1538,26 @@ export function TelephonyAISettings() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao selecionar app");
       }
       return res.json() as Promise<{ ok: boolean; sid: string }>;
     },
     onSuccess: (data) => {
-      toast({ title: "TwiML App selecionado", description: `SID salvo: ${data.sid}` });
+      toast({
+        title: "TwiML App selecionado",
+        description: `SID salvo: ${data.sid}`,
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/telephony-settings"] });
     },
     onError: (err: Error) =>
-      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const syncAppMutation = useMutation({
@@ -1292,27 +1569,47 @@ export function TelephonyAISettings() {
         body: JSON.stringify({ baseUrl }),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao sincronizar");
       }
       return res.json() as Promise<{ ok: boolean; voiceUrl: string }>;
     },
     onSuccess: (data) => {
-      toast({ title: "URLs sincronizadas", description: `Voice URL: ${data.voiceUrl}` });
+      toast({
+        title: "URLs sincronizadas",
+        description: `Voice URL: ${data.voiceUrl}`,
+      });
       void refetchApps();
     },
     onError: (err: Error) =>
-      toast({ title: "Erro ao sincronizar", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro ao sincronizar",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   // ── Caller IDs queries/mutations ──────────────────────────────────────────────
 
-  const { data: callerIds, isLoading: callerIdsLoading, refetch: refetchCallerIds } = useQuery<
-    Array<{ sid: string; friendlyName: string; phoneNumber: string; dateCreated: string }>
+  const {
+    data: callerIds,
+    isLoading: callerIdsLoading,
+    refetch: refetchCallerIds,
+  } = useQuery<
+    Array<{
+      sid: string;
+      friendlyName: string;
+      phoneNumber: string;
+      dateCreated: string;
+    }>
   >({
     queryKey: ["/api/twilio/caller-ids"],
     queryFn: async () => {
-      const res = await fetch("/api/twilio/caller-ids", { credentials: "include" });
+      const res = await fetch("/api/twilio/caller-ids", {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Erro ao listar caller IDs");
       return res.json();
     },
@@ -1321,7 +1618,10 @@ export function TelephonyAISettings() {
   });
 
   const validateCallerMutation = useMutation({
-    mutationFn: async (data: { phoneNumber: string; friendlyName?: string }) => {
+    mutationFn: async (data: {
+      phoneNumber: string;
+      friendlyName?: string;
+    }) => {
       const res = await fetch("/api/twilio/caller-ids/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1329,10 +1629,16 @@ export function TelephonyAISettings() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao iniciar validação");
       }
-      return res.json() as Promise<{ validationCode: string; phoneNumber: string; friendlyName: string }>;
+      return res.json() as Promise<{
+        validationCode: string;
+        phoneNumber: string;
+        friendlyName: string;
+      }>;
     },
     onSuccess: (data) => {
       setPendingValidationCode(data.validationCode);
@@ -1344,7 +1650,11 @@ export function TelephonyAISettings() {
       });
     },
     onError: (err: Error) =>
-      toast({ title: "Erro na verificação", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro na verificação",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const deleteCallerMutation = useMutation({
@@ -1354,7 +1664,9 @@ export function TelephonyAISettings() {
         credentials: "include",
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao remover");
       }
       return res.json();
@@ -1364,20 +1676,29 @@ export function TelephonyAISettings() {
       void refetchCallerIds();
     },
     onError: (err: Error) =>
-      toast({ title: "Erro ao remover", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro ao remover",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   // ── Voice Intelligence queries/mutations ──────────────────────────────────────
 
   const [createIntelligenceOpen, setCreateIntelligenceOpen] = useState(false);
-  const [editingService, setEditingService] = useState<IntelligenceService | null>(null);
+  const [editingService, setEditingService] =
+    useState<IntelligenceService | null>(null);
 
-  const { data: intelligenceServices, isLoading: intelligenceLoading, refetch: refetchIntelligence } = useQuery<
-    Array<IntelligenceService>
-  >({
+  const {
+    data: intelligenceServices,
+    isLoading: intelligenceLoading,
+    refetch: refetchIntelligence,
+  } = useQuery<Array<IntelligenceService>>({
     queryKey: ["/api/twilio/intelligence-services"],
     queryFn: async () => {
-      const res = await fetch("/api/twilio/intelligence-services", { credentials: "include" });
+      const res = await fetch("/api/twilio/intelligence-services", {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Erro ao listar serviços");
       return res.json();
     },
@@ -1387,12 +1708,17 @@ export function TelephonyAISettings() {
 
   const selectIntelligenceMutation = useMutation({
     mutationFn: async (sid: string) => {
-      const res = await fetch(`/api/twilio/intelligence-services/${sid}/select`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/twilio/intelligence-services/${sid}/select`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao selecionar serviço");
       }
       return res.json() as Promise<{ ok: boolean; sid: string }>;
@@ -1402,7 +1728,11 @@ export function TelephonyAISettings() {
       queryClient.invalidateQueries({ queryKey: ["/api/telephony-settings"] });
     },
     onError: (err: Error) =>
-      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const isLoading = settingsLoading || statusLoading;
@@ -1467,8 +1797,8 @@ export function TelephonyAISettings() {
                 ? item.color === "blue"
                   ? "border-blue-200 bg-blue-50/60 dark:border-blue-800/60 dark:bg-blue-900/10"
                   : item.color === "violet"
-                  ? "border-violet-200 bg-violet-50/60 dark:border-violet-800/60 dark:bg-violet-900/10"
-                  : "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-900/10"
+                    ? "border-violet-200 bg-violet-50/60 dark:border-violet-800/60 dark:bg-violet-900/10"
+                    : "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-900/10"
                 : "border-slate-200 bg-slate-50/60 dark:border-slate-700/60 dark:bg-slate-800/30"
             }`}
           >
@@ -1478,18 +1808,24 @@ export function TelephonyAISettings() {
                   ? item.color === "blue"
                     ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
                     : item.color === "violet"
-                    ? "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400"
-                    : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400"
+                      ? "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400"
+                      : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400"
                   : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
               }`}
             >
               {item.icon}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.label}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{item.description}</p>
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                {item.label}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {item.description}
+              </p>
             </div>
-            <div className={`shrink-0 w-2 h-2 rounded-full ${item.active ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`} />
+            <div
+              className={`shrink-0 w-2 h-2 rounded-full ${item.active ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+            />
           </div>
         ))}
       </div>
@@ -1511,11 +1847,19 @@ export function TelephonyAISettings() {
                 <Phone className="size-3.5 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="text-left hidden sm:block">
-                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">Twilio</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">Telefonia & Voice SDK</p>
+                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
+                  Twilio
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">
+                  Telefonia & Voice SDK
+                </p>
               </div>
-              <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">Twilio</span>
-              <div className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.twilio ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`} />
+              <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
+                Twilio
+              </span>
+              <div
+                className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.twilio ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+              />
             </TabsTrigger>
 
             <TabsTrigger
@@ -1531,11 +1875,19 @@ export function TelephonyAISettings() {
                 <Bot className="size-3.5 text-violet-600 dark:text-violet-400" />
               </div>
               <div className="text-left hidden sm:block">
-                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">ElevenLabs</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">IA Conversacional</p>
+                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
+                  ElevenLabs
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">
+                  IA Conversacional
+                </p>
               </div>
-              <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">ElevenLabs</span>
-              <div className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.elevenlabs ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`} />
+              <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
+                ElevenLabs
+              </span>
+              <div
+                className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.elevenlabs ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+              />
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1553,14 +1905,20 @@ export function TelephonyAISettings() {
                 Servidor
               </CardTitle>
               <CardDescription>
-                URL pública do backend acessível pela internet (sem barra final).
-                Usada pelos webhooks do Twilio e ElevenLabs.
+                URL pública do servidor que o Twilio e o ElevenLabs usam para
+                enviar eventos ao sistema. Deve ser acessível pela internet —
+                não use{" "}
+                <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">
+                  localhost
+                </code>
+                .
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-5 sm:grid-cols-2">
               <FieldGroup
                 label="Server Base URL"
-                hint="Ex: https://meucrm.com.br — ao sair do campo, sincroniza automaticamente com o TwiML App configurado."
+                hint="Ex: https://meucrm.com.br — informe sem barra final. Ao sair do campo, as URLs do TwiML App ativo são atualizadas automaticamente com este endereço base."
+                hintVariant="info"
               >
                 <div className="relative">
                   <Input
@@ -1592,14 +1950,36 @@ export function TelephonyAISettings() {
                   label={status?.twilio ? "Configurado" : "Não configurado"}
                 />
               </div>
-              <CardDescription>Credenciais principais de acesso à API do Twilio.</CardDescription>
+              <CardDescription>
+                Credenciais principais da sua conta Twilio. Encontradas no
+                painel em{" "}
+                <a
+                  href="https://console.twilio.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2 font-medium text-blue-600 dark:text-blue-400"
+                >
+                  console.twilio.com
+                </a>{" "}
+                → Dashboard (canto superior direito).
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-5 sm:grid-cols-2">
-              <FieldGroup label="Account SID" hint="Encontrado em console.twilio.com">
-                <Input {...register("twilio_account_sid")} placeholder="ACxxxxxxxxxxxxxxxx" />
+              <FieldGroup
+                label="Account SID"
+                hint="Identificador único da sua conta Twilio. Sempre começa com AC (ex: ACxxxxxxxxxxxxxxxx). Visível no painel principal do Twilio Console."
+              >
+                <Input
+                  {...register("twilio_account_sid")}
+                  placeholder="ACxxxxxxxxxxxxxxxx"
+                />
               </FieldGroup>
 
-              <FieldGroup label="Auth Token">
+              <FieldGroup
+                label="Auth Token"
+                hint="Token secreto para autenticar requisições à API REST do Twilio. Nunca compartilhe publicamente. Fique ao lado do Account SID no Console — clique no ícone de olho para revelar."
+                hintVariant="warning"
+              >
                 <div className="relative">
                   <Input
                     {...register("twilio_auth_token")}
@@ -1611,11 +1991,20 @@ export function TelephonyAISettings() {
                 </div>
               </FieldGroup>
 
-              <FieldGroup label="From Number" hint="Número comprado no Twilio (E.164)">
-                <Input {...register("twilio_from_number")} placeholder="+5511999999999" />
+              <FieldGroup
+                label="From Number"
+                hint="Número de telefone principal adquirido no Twilio para realizar ligações. Deve estar no formato E.164 (ex: +5511999999999). Adquira em Console → Phone Numbers → Manage → Buy a Number."
+              >
+                <Input
+                  {...register("twilio_from_number")}
+                  placeholder="+5511999999999"
+                />
               </FieldGroup>
 
-              <FieldGroup label="Status Callback URL" hint="Para receber eventos de chamada">
+              <FieldGroup
+                label="Status Callback URL"
+                hint="Endpoint que recebe atualizações em tempo real sobre o status de cada chamada (iniciada, em andamento, encerrada, falhou etc.). Preenchida automaticamente quando a Server Base URL estiver configurada."
+              >
                 <Input
                   {...register("twilio_status_callback_url")}
                   placeholder="https://meucrm.com.br/api/calls/twilio-status"
@@ -1640,18 +2029,33 @@ export function TelephonyAISettings() {
                   label={status?.voiceSdk ? "Configurado" : "Não configurado"}
                 />
               </div>
-              <CardDescription>Credenciais para o SDK de voz do Twilio no browser.</CardDescription>
+              <CardDescription>
+                Credenciais necessárias para o Twilio Voice SDK funcionar no
+                navegador do operador (ligações via WebRTC). Criadas
+                separadamente do Auth Token em{" "}
+                <span className="font-medium text-slate-600 dark:text-slate-300">
+                  Console → Account → API Keys &amp; Tokens
+                </span>
+                .
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="grid gap-5 sm:grid-cols-2">
                 <FieldGroup
                   label="API Key SID"
-                  hint="Criada em console.twilio.com > Account > API keys & tokens"
+                  hint="Identificador da API Key usada para gerar tokens de acesso ao Voice SDK no navegador. Começa com SK (ex: SKxxxxxxxxxxxxxxxx). Crie em Console → Account → API Keys & Tokens → Create API Key."
                 >
-                  <Input {...register("twilio_api_key")} placeholder="SKxxxxxxxxxxxxxxxx" />
+                  <Input
+                    {...register("twilio_api_key")}
+                    placeholder="SKxxxxxxxxxxxxxxxx"
+                  />
                 </FieldGroup>
 
-                <FieldGroup label="API Secret">
+                <FieldGroup
+                  label="API Secret"
+                  hint="Secret correspondente à API Key acima. Exibido apenas uma vez no momento da criação — guarde imediatamente em local seguro. Se perdido, crie uma nova API Key."
+                  hintVariant="warning"
+                >
                   <div className="relative">
                     <Input
                       {...register("twilio_api_secret")}
@@ -1661,9 +2065,6 @@ export function TelephonyAISettings() {
                     />
                     <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Exibido apenas uma vez ao criar a API Key
-                  </p>
                 </FieldGroup>
               </div>
 
@@ -1671,13 +2072,20 @@ export function TelephonyAISettings() {
               <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">TwiML App</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      TwiML App
+                    </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      App responsável por receber e rotear as chamadas de voz.
+                      Aplicação configurada no Twilio que define como as
+                      chamadas de voz são roteadas. O app ativo recebe o Voice
+                      SDK do navegador e encaminha as chamadas ao backend.
                     </p>
                   </div>
                   {twimlAppSid && (
-                    <Badge variant="outline" className="gap-1.5 border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+                    <Badge
+                      variant="outline"
+                      className="gap-1.5 border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0"
+                    >
                       <CheckCircle2 className="size-3.5" />
                       App ativo
                     </Badge>
@@ -1688,7 +2096,8 @@ export function TelephonyAISettings() {
                   <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
                     <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Configure e salve as credenciais Twilio acima para gerenciar apps.
+                      Configure e salve as credenciais Twilio acima para
+                      gerenciar apps.
                     </p>
                   </div>
                 )}
@@ -1708,7 +2117,8 @@ export function TelephonyAISettings() {
 
                     {twimlAppsLoading && (
                       <div className="flex items-center gap-2 text-sm text-slate-500 py-1">
-                        <Loader2 className="size-4 animate-spin" /> Carregando apps...
+                        <Loader2 className="size-4 animate-spin" /> Carregando
+                        apps...
                       </div>
                     )}
 
@@ -1730,7 +2140,10 @@ export function TelephonyAISettings() {
                                   {app.friendlyName}
                                 </p>
                                 {isActive && (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] px-1.5 py-0 border-blue-500/40 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                  >
                                     ativo
                                   </Badge>
                                 )}
@@ -1753,7 +2166,9 @@ export function TelephonyAISettings() {
                                 variant="outline"
                                 className="flex-1 gap-1.5 rounded-lg text-xs"
                                 disabled={selectAppMutation.isPending}
-                                onClick={() => selectAppMutation.mutate(app.sid)}
+                                onClick={() =>
+                                  selectAppMutation.mutate(app.sid)
+                                }
                               >
                                 <Check className="size-3.5" />
                                 Usar este app
@@ -1765,7 +2180,12 @@ export function TelephonyAISettings() {
                               variant={isActive ? "outline" : "ghost"}
                               className="flex-1 gap-1.5 rounded-lg text-xs"
                               disabled={syncAppMutation.isPending}
-                              onClick={() => syncAppMutation.mutate({ sid: app.sid, baseUrl: serverBaseUrl || undefined })}
+                              onClick={() =>
+                                syncAppMutation.mutate({
+                                  sid: app.sid,
+                                  baseUrl: serverBaseUrl || undefined,
+                                })
+                              }
                             >
                               <RefreshCw className="size-3.5" />
                               Sincronizar URLs
@@ -1798,14 +2218,20 @@ export function TelephonyAISettings() {
                   Voice Intelligence (Transcrição Nativa)
                 </CardTitle>
                 {intelligenceSid && (
-                  <Badge variant="outline" className="gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                  <Badge
+                    variant="outline"
+                    className="gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0"
+                  >
                     <CheckCircle2 className="size-3.5" />
                     Configurado
                   </Badge>
                 )}
               </div>
               <CardDescription>
-                Serviço do Twilio para transcrição automática de chamadas humanas.
+                Serviço nativo do Twilio que transcreve chamadas de voz
+                automaticamente em texto. Permite análise de sentimento, redação
+                de dados sensíveis (PII) e extração de informações estruturadas
+                via Language Operators.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1820,7 +2246,8 @@ export function TelephonyAISettings() {
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
                   <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-600 dark:text-amber-400">
-                    Configure e salve as credenciais Twilio antes de gerenciar serviços de inteligência.
+                    Configure e salve as credenciais Twilio antes de gerenciar
+                    serviços de inteligência.
                   </p>
                 </div>
               )}
@@ -1840,7 +2267,8 @@ export function TelephonyAISettings() {
 
                   {intelligenceLoading && (
                     <div className="flex items-center gap-2 text-sm text-slate-500 py-1">
-                      <Loader2 className="size-4 animate-spin" /> Carregando serviços...
+                      <Loader2 className="size-4 animate-spin" /> Carregando
+                      serviços...
                     </div>
                   )}
 
@@ -1861,11 +2289,17 @@ export function TelephonyAISettings() {
                               {svc.friendlyName || svc.uniqueName}
                             </p>
                             {isActive && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              >
                                 ativo
                               </Badge>
                             )}
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono">
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 font-mono"
+                            >
                               {svc.languageCode}
                             </Badge>
                           </div>
@@ -1875,12 +2309,14 @@ export function TelephonyAISettings() {
                           <div className="flex gap-3 mt-1">
                             {svc.autoTranscribe && (
                               <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                <CheckCircle2 className="size-3 text-emerald-500" /> Transcrição automática
+                                <CheckCircle2 className="size-3 text-emerald-500" />{" "}
+                                Transcrição automática
                               </span>
                             )}
                             {svc.autoRedaction && (
                               <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                <CheckCircle2 className="size-3 text-emerald-500" /> Redação de PII
+                                <CheckCircle2 className="size-3 text-emerald-500" />{" "}
+                                Redação de PII
                               </span>
                             )}
                           </div>
@@ -1893,7 +2329,9 @@ export function TelephonyAISettings() {
                               variant="outline"
                               className="flex-1 gap-1.5 rounded-lg text-xs"
                               disabled={selectIntelligenceMutation.isPending}
-                              onClick={() => selectIntelligenceMutation.mutate(svc.sid)}
+                              onClick={() =>
+                                selectIntelligenceMutation.mutate(svc.sid)
+                              }
                             >
                               <Check className="size-3.5" />
                               Usar este serviço
@@ -1914,11 +2352,13 @@ export function TelephonyAISettings() {
                     );
                   })}
 
-                  {!intelligenceLoading && (intelligenceServices ?? []).length === 0 && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-1">
-                      Nenhum serviço de inteligência encontrado na conta. Crie um acima.
-                    </p>
-                  )}
+                  {!intelligenceLoading &&
+                    (intelligenceServices ?? []).length === 0 && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-1">
+                        Nenhum serviço de inteligência encontrado na conta. Crie
+                        um acima.
+                      </p>
+                    )}
                 </div>
               )}
             </CardContent>
@@ -1943,11 +2383,20 @@ export function TelephonyAISettings() {
                       : "border-slate-300/60 bg-slate-100/60 text-slate-500 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 gap-1.5"
                   }
                 >
-                  {recordCalls ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />}
+                  {recordCalls ? (
+                    <CheckCircle2 className="size-3.5" />
+                  ) : (
+                    <XCircle className="size-3.5" />
+                  )}
                   {recordCalls ? "Ativo" : "Inativo"}
                 </Badge>
               </div>
-              <CardDescription>Gravar automaticamente as ligações via Twilio.</CardDescription>
+              <CardDescription>
+                Quando habilitada, o Twilio grava todas as chamadas e
+                disponibiliza os áudios para reprodução no histórico do cliente.
+                As gravações ficam armazenadas no Twilio e podem ser acessadas
+                via API.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
@@ -1964,16 +2413,20 @@ export function TelephonyAISettings() {
                     Gravar chamadas automaticamente
                   </Label>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Quando ativado, todas as chamadas feitas via Twilio serão gravadas.
+                    Quando ativado, todas as chamadas feitas via Twilio serão
+                    gravadas.
                   </p>
                 </div>
               </div>
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3">
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Aviso legal</p>
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                  Aviso legal
+                </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  A gravação de chamadas pode estar sujeita a regulamentações locais. Em muitas
-                  jurisdições brasileiras, é necessário informar ao interlocutor que a ligação está
-                  sendo gravada. Certifique-se de estar em conformidade com a LGPD e demais
+                  A gravação de chamadas pode estar sujeita a regulamentações
+                  locais. Em muitas jurisdições brasileiras, é necessário
+                  informar ao interlocutor que a ligação está sendo gravada.
+                  Certifique-se de estar em conformidade com a LGPD e demais
                   legislações aplicáveis.
                 </p>
               </div>
@@ -1998,7 +2451,11 @@ export function TelephonyAISettings() {
                   {channels.length} canal{channels.length !== 1 ? "is" : ""}
                 </Badge>
               </div>
-              <CardDescription>Números disponíveis para o operador escolher no discador.</CardDescription>
+              <CardDescription>
+                Lista de números de saída que o operador pode selecionar ao
+                realizar uma ligação. Cada canal tem um rótulo (ex: "Vendas") e
+                o número correspondente no formato E.164.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {channels.map((ch, i) => (
@@ -2007,8 +2464,12 @@ export function TelephonyAISettings() {
                   className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 px-4 py-3"
                 >
                   <div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{ch.label}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{ch.number}</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                      {ch.label}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {ch.number}
+                    </p>
                   </div>
                   <Button
                     type="button"
@@ -2035,7 +2496,12 @@ export function TelephonyAISettings() {
                   onChange={(e) => setNewChannelNumber(e.target.value)}
                   className="flex-1"
                 />
-                <Button type="button" variant="outline" className="shrink-0 gap-1.5" onClick={addChannel}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 gap-1.5"
+                  onClick={addChannel}
+                >
                   <Plus className="size-4" />
                   Adicionar
                 </Button>
@@ -2069,7 +2535,10 @@ export function TelephonyAISettings() {
                 </Button>
               </div>
               <CardDescription>
-                Números externos verificados para uso como Caller ID em chamadas de saída.
+                Números de telefone externos (não comprados no Twilio) que podem
+                ser usados como Caller ID em chamadas de saída. O Twilio liga
+                para verificar a posse do número antes de liberá-lo — você
+                deverá informar um código de validação ao atender.
               </CardDescription>
             </CardHeader>
 
@@ -2079,7 +2548,8 @@ export function TelephonyAISettings() {
                   <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
                     <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Configure e salve as credenciais Twilio antes de gerenciar caller IDs.
+                      Configure e salve as credenciais Twilio antes de gerenciar
+                      caller IDs.
                     </p>
                   </div>
                 )}
@@ -2087,7 +2557,8 @@ export function TelephonyAISettings() {
                 {pendingValidationCode && (
                   <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 space-y-1">
                     <p className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                      Aguardando verificação — atenda a ligação do Twilio e informe o código:
+                      Aguardando verificação — atenda a ligação do Twilio e
+                      informe o código:
                     </p>
                     <p className="text-2xl font-bold font-mono text-blue-700 dark:text-blue-300 tracking-widest">
                       {pendingValidationCode}
@@ -2125,7 +2596,11 @@ export function TelephonyAISettings() {
                     variant="outline"
                     size="sm"
                     className="shrink-0 gap-1.5 rounded-xl"
-                    disabled={!newCallerNumber.trim() || validateCallerMutation.isPending || !status?.twilio}
+                    disabled={
+                      !newCallerNumber.trim() ||
+                      validateCallerMutation.isPending ||
+                      !status?.twilio
+                    }
                     onClick={() =>
                       validateCallerMutation.mutate({
                         phoneNumber: newCallerNumber.trim(),
@@ -2142,7 +2617,8 @@ export function TelephonyAISettings() {
                   </Button>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  O Twilio ligará para o número e você deverá informar o código exibido.
+                  O Twilio ligará para o número e você deverá informar o código
+                  exibido.
                 </p>
 
                 {callerIdsLoading && (
@@ -2160,7 +2636,9 @@ export function TelephonyAISettings() {
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
                         {id.friendlyName || id.phoneNumber}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{id.phoneNumber}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {id.phoneNumber}
+                      </p>
                     </div>
                     <Button
                       type="button"
@@ -2175,11 +2653,14 @@ export function TelephonyAISettings() {
                   </div>
                 ))}
 
-                {!callerIdsLoading && (callerIds ?? []).length === 0 && status?.twilio && !pendingValidationCode && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">
-                    Nenhum número verificado ainda.
-                  </p>
-                )}
+                {!callerIdsLoading &&
+                  (callerIds ?? []).length === 0 &&
+                  status?.twilio &&
+                  !pendingValidationCode && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-2">
+                      Nenhum número verificado ainda.
+                    </p>
+                  )}
               </CardContent>
             )}
           </Card>
@@ -2271,12 +2752,14 @@ export function TelephonyAISettings() {
                   <div className="flex items-center gap-2 rounded-xl border border-dashed border-slate-200 px-4 py-3 dark:border-slate-700">
                     <Info className="size-4 shrink-0 text-slate-400" />
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Configure a <strong>Server Base URL</strong> acima para gerar o endereço do webhook.
+                      Configure a <strong>Server Base URL</strong> acima para
+                      gerar o endereço do webhook.
                     </p>
                   </div>
                 )}
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  O sistema receberá erros (Error) e avisos (Warning) do Twilio neste endpoint e os exibirá na aba Monitor.
+                  O sistema receberá erros (Error) e avisos (Warning) do Twilio
+                  neste endpoint e os exibirá na aba Monitor.
                 </p>
               </div>
             </CardContent>
@@ -2319,10 +2802,28 @@ export function TelephonyAISettings() {
                   label={status?.elevenlabs ? "Configurado" : "Não configurado"}
                 />
               </div>
-              <CardDescription>Agente de IA para discagem automática.</CardDescription>
+              <CardDescription>
+                Credenciais para integrar com a plataforma ElevenLabs,
+                responsável pela síntese de voz e pelos agentes de IA
+                conversacional usados nas campanhas de discagem automática.
+                Obtenha sua chave em{" "}
+                <a
+                  href="https://elevenlabs.io/app/account"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2 font-medium text-violet-600 dark:text-violet-400"
+                >
+                  elevenlabs.io → Profile → API Keys
+                </a>
+                .
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-5 sm:grid-cols-2">
-              <FieldGroup label="API Key" hint="Gerada em elevenlabs.io/app/account">
+              <FieldGroup
+                label="API Key"
+                hint="Chave secreta de acesso à API do ElevenLabs. Necessária para criar agentes, sintetizar voz e listar vozes disponíveis. Gerada em elevenlabs.io → Profile → API Keys → Create API Key."
+                hintVariant="warning"
+              >
                 <div className="relative">
                   <Input
                     {...register("elevenlabs_api_key")}
@@ -2334,25 +2835,26 @@ export function TelephonyAISettings() {
                 </div>
               </FieldGroup>
 
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Voice ID (Voz Clonada — Padrão Global)
-                </Label>
+              <FieldGroup
+                label="Voice ID (Voz Padrão Global)"
+                hint="ID de uma voz criada ou clonada no ElevenLabs Voice Lab. Será usada como padrão em todos os agentes e campanhas que não tiverem uma voz específica configurada. Encontre o ID em elevenlabs.io → Voices → selecione a voz → copie o ID."
+              >
                 <Input
                   {...register("elevenlabs_voice_id")}
                   placeholder="Ex: 21m00Tcm4TlvDq8ikWAM"
                 />
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Encontrado em elevenlabs.io/app/voice-lab. Pode ser sobrescrito por campanha.
-                </p>
-              </div>
+              </FieldGroup>
 
               <div className="flex items-end sm:col-span-2">
                 <div className="w-full rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 px-4 py-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Clonar minha voz</p>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                      Clonar minha voz
+                    </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Grave ou envie amostras de áudio para criar uma voz personalizada no ElevenLabs
+                      Grave ou envie amostras de áudio (mín. 1 min) para criar
+                      uma voz personalizada clonada no ElevenLabs. O ID da voz
+                      criada pode ser usado como padrão global acima.
                     </p>
                   </div>
                   <Button
@@ -2381,14 +2883,23 @@ export function TelephonyAISettings() {
                 Configurar Agente ElevenLabs
               </CardTitle>
               <CardDescription>
-                Gerencie o prompt, voz, primeira mensagem e ferramentas de qualquer agente sem sair do sistema.
+                Crie e configure agentes de IA conversacional do ElevenLabs
+                diretamente neste painel. Cada agente possui prompt (instruções
+                de comportamento), voz, primeira mensagem de abertura e
+                ferramentas (funções que o agente pode executar durante a
+                conversa, como buscar dados de clientes).
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between rounded-2xl border border-dashed border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/10 px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Novo agente</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Crie um agente diretamente pelo sistema</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    Novo agente
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Crie e configure um agente de IA conversacional diretamente
+                    neste painel, sem precisar acessar o ElevenLabs
+                  </p>
                 </div>
                 <Button
                   type="button"
@@ -2414,32 +2925,50 @@ export function TelephonyAISettings() {
                       className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                       title="Recarregar lista de agentes"
                     >
-                      <RefreshCw className={`size-3.5 ${agentsLoading ? "animate-spin" : ""}`} />
+                      <RefreshCw
+                        className={`size-3.5 ${agentsLoading ? "animate-spin" : ""}`}
+                      />
                     </button>
                   )}
                 </div>
 
                 {status?.elevenlabs ? (
-                  <Popover open={agentSelectorOpen} onOpenChange={setAgentSelectorOpen}>
+                  <Popover
+                    open={agentSelectorOpen}
+                    onOpenChange={setAgentSelectorOpen}
+                  >
                     <PopoverTrigger asChild>
                       <button
                         type="button"
                         className="w-full flex items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50 font-mono"
                       >
-                        <span className={agentIdInput ? "text-foreground" : "text-muted-foreground"}>
+                        <span
+                          className={
+                            agentIdInput
+                              ? "text-foreground"
+                              : "text-muted-foreground"
+                          }
+                        >
                           {agentIdInput
-                            ? (agentsList?.agents.find((a) => a.agentId === agentIdInput)?.name ?? agentIdInput)
+                            ? (agentsList?.agents.find(
+                                (a) => a.agentId === agentIdInput,
+                              )?.name ?? agentIdInput)
                             : "Selecionar agente..."}
                         </span>
                         <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <PopoverContent
+                      className="w-[--radix-popover-trigger-width] p-0"
+                      align="start"
+                    >
                       <Command>
                         <CommandInput placeholder="Buscar agente..." />
                         <CommandList>
                           <CommandEmpty>
-                            {agentsLoading ? "Carregando..." : "Nenhum agente encontrado."}
+                            {agentsLoading
+                              ? "Carregando..."
+                              : "Nenhum agente encontrado."}
                           </CommandEmpty>
                           <CommandGroup>
                             {(agentsList?.agents ?? []).map((agent) => (
@@ -2455,8 +2984,12 @@ export function TelephonyAISettings() {
                                   className={`mr-2 size-4 ${agentIdInput === agent.agentId ? "opacity-100" : "opacity-0"}`}
                                 />
                                 <div className="flex flex-col min-w-0">
-                                  <span className="font-medium truncate">{agent.name}</span>
-                                  <span className="text-xs text-muted-foreground font-mono truncate">{agent.agentId}</span>
+                                  <span className="font-medium truncate">
+                                    {agent.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground font-mono truncate">
+                                    {agent.agentId}
+                                  </span>
                                 </div>
                               </CommandItem>
                             ))}
@@ -2475,9 +3008,15 @@ export function TelephonyAISettings() {
                   />
                 )}
 
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Selecione um agente para configurar o prompt, voz e ferramentas.
-                </p>
+                <div className="flex items-start gap-1.5">
+                  <Info className="size-3 shrink-0 mt-0.5 text-slate-400" />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Selecione um agente da lista para editar suas configurações
+                    ou gerenciar as ferramentas disponíveis. O agente
+                    selecionado aqui não afeta as campanhas — cada campanha
+                    mantém seu próprio agente configurado.
+                  </p>
+                </div>
               </div>
 
               <div className="flex gap-2">
@@ -2507,7 +3046,8 @@ export function TelephonyAISettings() {
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
                   <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-600 dark:text-amber-400">
-                    Configure e salve a API Key do ElevenLabs acima para habilitar o gerenciamento de agentes.
+                    Configure e salve a API Key do ElevenLabs acima para
+                    habilitar o gerenciamento de agentes.
                   </p>
                 </div>
               )}
@@ -2516,7 +3056,8 @@ export function TelephonyAISettings() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
             <p className="text-xs text-slate-400 dark:text-slate-500 text-center sm:text-left">
-              As configurações se aplicam globalmente ao sistema de IA conversacional.
+              As configurações se aplicam globalmente ao sistema de IA
+              conversacional.
             </p>
             <Button
               type="submit"
@@ -2570,14 +3111,21 @@ export function TelephonyAISettings() {
         open={createTwimlAppOpen}
         onClose={() => setCreateTwimlAppOpen(false)}
         onCreated={() => void refetchApps()}
-        defaultVoiceUrl={serverBaseUrl ? `${serverBaseUrl}/api/twilio/voice` : ""}
-        defaultStatusCallback={serverBaseUrl ? `${serverBaseUrl}/api/calls/twilio-status` : ""}
+        defaultVoiceUrl={
+          serverBaseUrl ? `${serverBaseUrl}/api/twilio/voice` : ""
+        }
+        defaultStatusCallback={
+          serverBaseUrl ? `${serverBaseUrl}/api/calls/twilio-status` : ""
+        }
       />
 
       <CreateAgentDialog
         open={createAgentOpen}
         onClose={() => setCreateAgentOpen(false)}
-        onCreated={(id) => { setAgentIdInput(id); void refetchAgents(); }}
+        onCreated={(id) => {
+          setAgentIdInput(id);
+          void refetchAgents();
+        }}
       />
 
       <VoiceCloneDialog
