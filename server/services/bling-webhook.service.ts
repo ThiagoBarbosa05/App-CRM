@@ -2,6 +2,8 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "../db";
 import {
   blingConnections,
+  blingSellerMappings,
+  blingProductMappings,
   pubsubProcessingLogs,
   users,
   type BlingConnection,
@@ -107,10 +109,38 @@ export function verifyBlingSignature(
 
 export async function resolveSellerName(
   blingVendedorId: number | null,
+  connectionId?: string | null,
 ): Promise<string | null> {
   if (!blingVendedorId) return null;
 
   try {
+    // Prioridade 1: blingSellerMappings (multi-conta)
+    if (connectionId) {
+      const [mapping] = await db
+        .select({ blingVendedorName: blingSellerMappings.blingVendedorName, userId: blingSellerMappings.userId })
+        .from(blingSellerMappings)
+        .where(
+          and(
+            eq(blingSellerMappings.connectionId, connectionId),
+            eq(blingSellerMappings.blingVendedorId, String(blingVendedorId)),
+          ),
+        )
+        .limit(1);
+      if (mapping) {
+        if (mapping.blingVendedorName) return mapping.blingVendedorName;
+        // Se tem userId mas não tem nome no mapping, busca nome do usuário
+        if (mapping.userId) {
+          const [user] = await db
+            .select({ name: users.name })
+            .from(users)
+            .where(eq(users.id, mapping.userId))
+            .limit(1);
+          if (user?.name) return user.name;
+        }
+      }
+    }
+
+    // Fallback legado: campo direto em users
     const [user] = await db
       .select({ blingVendedorName: users.blingVendedorName, name: users.name })
       .from(users)
@@ -527,7 +557,7 @@ async function processCreateOrUpdateEvent(
   }
 
   // 4) Resolve sellerName via banco (sem chamada à API)
-  const sellerName = await resolveSellerName(pedido.vendedor?.id ?? null);
+  const sellerName = await resolveSellerName(pedido.vendedor?.id ?? null, connection.id);
 
   // 5) Converte para o formato esperado pelo blingOrdersService
   const salesOrder = mapPedidoToSalesOrder(pedido, contato, sellerName);
@@ -540,9 +570,9 @@ async function processCreateOrUpdateEvent(
   );
 
   if (eventType === "created") {
-    await blingOrdersService.createOrder({ message });
+    await blingOrdersService.createOrder({ message, connectionId: connection.id });
   } else {
-    await blingOrdersService.updateOrder({ message });
+    await blingOrdersService.updateOrder({ message, connectionId: connection.id });
   }
 
   console.info(
@@ -575,7 +605,7 @@ async function processDeleteEvent(
     event.companyId,
   );
 
-  await blingOrdersService.deleteOrder({ message });
+  await blingOrdersService.deleteOrder({ message, connectionId: connection.id });
 
   console.info(
     `[BlingWebhookService] Evento order.deleted processado com sucesso para pedido ${orderId}.`,
@@ -685,14 +715,33 @@ async function processProductCreateOrUpdateEvent(
     blingProduct.categoria?.id,
   );
 
-  // 3) Verifica se o produto já existe no banco local
-  const [existing] = await db
-    .select({ id: products.id })
-    .from(products)
-    .where(eq(products.blingProductId, blingProductIdStr))
+  // 3) Verifica se o produto já existe via blingProductMappings (multi-conta)
+  //    com fallback para products.blingProductId (legado)
+  const [existingMapping] = await db
+    .select({ id: blingProductMappings.productId })
+    .from(blingProductMappings)
+    .where(
+      and(
+        eq(blingProductMappings.connectionId, connection.id),
+        eq(blingProductMappings.blingProductId, blingProductIdStr),
+      ),
+    )
     .limit(1);
 
-  if (existing) {
+  const existingProductId = existingMapping?.id ?? null;
+
+  // Fallback legado: busca por blingProductId diretamente no produto
+  const [legacyProduct] = existingProductId
+    ? []
+    : await db
+        .select({ id: products.id })
+        .from(products)
+        .where(eq(products.blingProductId, blingProductIdStr))
+        .limit(1);
+
+  const resolvedProductId = existingProductId ?? legacyProduct?.id ?? null;
+
+  if (resolvedProductId) {
     // UPDATE: atualiza nome, preço, imagem, tipo, país e reativa se estava soft-deleted
     await db
       .update(products)
@@ -705,14 +754,22 @@ async function processProductCreateOrUpdateEvent(
         deletedAt: null,
         updatedAt: new Date(),
       })
-      .where(eq(products.id, existing.id));
+      .where(eq(products.id, resolvedProductId));
+
+    // Garante que o mapping existe (caso tenha vindo do fallback legado)
+    if (!existingProductId) {
+      await db
+        .insert(blingProductMappings)
+        .values({ connectionId: connection.id, blingProductId: blingProductIdStr, productId: resolvedProductId })
+        .onConflictDoNothing();
+    }
 
     console.info(
       `[BlingWebhookService] Produto ${productId} atualizado no banco — tipo: ${wineType}, país: ${wineCountry} (evento: ${event.event}).`,
     );
   } else {
-    // INSERT: cria com tipo e país resolvidos via categoria do Bling
-    await db.insert(products).values({
+    // INSERT: cria produto e registra mapeamento
+    const [inserted] = await db.insert(products).values({
       name: blingProduct.nome ?? `Produto ${productId}`,
       country: wineCountry,
       volume: "750ml",
@@ -721,7 +778,14 @@ async function processProductCreateOrUpdateEvent(
       createdBy: connection.userId,
       blingProductId: blingProductIdStr,
       ...(imageUrl ? { imageUrl } : {}),
-    });
+    }).returning({ id: products.id });
+
+    if (inserted) {
+      await db
+        .insert(blingProductMappings)
+        .values({ connectionId: connection.id, blingProductId: blingProductIdStr, productId: inserted.id })
+        .onConflictDoNothing();
+    }
 
     console.info(
       `[BlingWebhookService] Produto ${productId} criado no banco — tipo: ${wineType}, país: ${wineCountry} (evento: ${event.event}).`,
@@ -740,17 +804,36 @@ async function processProductCreateOrUpdateEvent(
 async function processProductDeleteEvent(
   productId: number,
   event: BlingWebhookEvent,
-  _connection: BlingConnection,
+  connection: BlingConnection,
 ): Promise<void> {
   const blingProductIdStr = String(productId);
 
-  const [existing] = await db
-    .select({ id: products.id })
-    .from(products)
-    .where(eq(products.blingProductId, blingProductIdStr))
+  // Busca via blingProductMappings (multi-conta) com fallback legado
+  const [existingMapping] = await db
+    .select({ productId: blingProductMappings.productId })
+    .from(blingProductMappings)
+    .where(
+      and(
+        eq(blingProductMappings.connectionId, connection.id),
+        eq(blingProductMappings.blingProductId, blingProductIdStr),
+      ),
+    )
     .limit(1);
 
-  if (!existing) {
+  const resolvedProductId = existingMapping?.productId ?? null;
+
+  // Fallback legado
+  const [legacyProduct] = resolvedProductId
+    ? []
+    : await db
+        .select({ id: products.id })
+        .from(products)
+        .where(eq(products.blingProductId, blingProductIdStr))
+        .limit(1);
+
+  const finalProductId = resolvedProductId ?? legacyProduct?.id ?? null;
+
+  if (!finalProductId) {
     console.warn(
       `[BlingWebhookService] Produto ${productId} não encontrado no banco — evento ${event.event} ignorado (idempotente).`,
     );
@@ -760,7 +843,7 @@ async function processProductDeleteEvent(
   await db
     .update(products)
     .set({ deletedAt: new Date(), updatedAt: new Date() })
-    .where(eq(products.id, existing.id));
+    .where(eq(products.id, finalProductId));
 
   console.info(
     `[BlingWebhookService] Produto ${productId} marcado como deletado (soft delete) — evento ${event.event}.`,

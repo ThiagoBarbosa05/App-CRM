@@ -13,9 +13,11 @@ import {
   users,
   blingConnections,
   blingClientSync,
+  blingContactMappings,
+  blingSellerMappings,
   type BlingConnection,
 } from "../../shared/schema";
-import { asc, eq, ne, sql } from "drizzle-orm";
+import { asc, and, eq, ne, sql } from "drizzle-orm";
 import {
   getBlingContatos,
   createBlingContato,
@@ -203,7 +205,7 @@ async function runExport(
 
       progress.currentPage = page;
 
-      // ── Busca lote de clientes com JOIN para blingVendedorId ───────────────
+      // ── Busca lote de clientes com JOINs multi-conta ───────────────────────
       const batch = await db
         .select({
           id: clients.id,
@@ -218,11 +220,27 @@ async function runExport(
           number: clients.number,
           neighborhood: clients.neighborhood,
           state: clients.state,
-          blingContactId: clients.blingContactId,
-          blingVendedorId: users.blingVendedorId,
+          // blingContactId desta conexão específica
+          blingContactId: blingContactMappings.blingContactId,
+          // blingVendedorId do responsável nesta conexão (multi-conta)
+          blingVendedorId: blingSellerMappings.blingVendedorId,
         })
         .from(clients)
         .leftJoin(users, eq(clients.responsavelId, users.id))
+        .leftJoin(
+          blingContactMappings,
+          and(
+            eq(blingContactMappings.clientId, clients.id),
+            eq(blingContactMappings.connectionId, connection.id),
+          ),
+        )
+        .leftJoin(
+          blingSellerMappings,
+          and(
+            eq(blingSellerMappings.userId, users.id),
+            eq(blingSellerMappings.connectionId, connection.id),
+          ),
+        )
         .where(includeBlingSourced ? undefined : ne(clients.categoria, "Bling"))
         .orderBy(asc(clients.createdAt))
         .limit(PAGE_SIZE)
@@ -254,6 +272,7 @@ async function runExport(
             accessToken,
             onTokenRefresh,
             progress,
+            connection.id,
           );
           await markSynced(client.id);
         } catch (error) {
@@ -368,7 +387,7 @@ async function markSyncError(clientId: string, errorMessage: string): Promise<vo
 type ClientBatch = {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   fixedPhone: string | null;
   cpf: string | null;
   email: string | null;
@@ -378,7 +397,9 @@ type ClientBatch = {
   number: string | null;
   neighborhood: string | null;
   state: string | null;
+  /** blingContactId desta conexão (blingContactMappings); null se ainda não sincronizado */
   blingContactId: string | null;
+  /** blingVendedorId do responsável nesta conexão (blingSellerMappings); fallback para users.blingVendedorId */
   blingVendedorId: string | null;
 };
 
@@ -387,6 +408,7 @@ async function processClient(
   accessToken: string,
   onTokenRefresh: () => Promise<string>,
   progress: ExportProgress,
+  connectionId: string,
 ): Promise<void> {
   let blingContactId = client.blingContactId;
 
@@ -409,7 +431,7 @@ async function processClient(
     }
 
     // Busca por telefone se CPF não achou
-    if (!existingId) {
+    if (!existingId && client.phone) {
       const results = await getBlingContatos(
         accessToken,
         { telefone: client.phone },
@@ -421,9 +443,14 @@ async function processClient(
       }
     }
 
-    // Salva no banco e atualiza variável local
+    // Salva mapeamento e atualiza variável local
     if (existingId !== null) {
       blingContactId = String(existingId);
+      await db
+        .insert(blingContactMappings)
+        .values({ connectionId, blingContactId, clientId: client.id })
+        .onConflictDoNothing();
+      // Retrocompatibilidade: mantém clients.blingContactId para código legado
       await db
         .update(clients)
         .set({ blingContactId })
@@ -442,7 +469,7 @@ async function processClient(
     situacao: "A" as const,
     numeroDocumento: sanitizeDocument(client.cpf),
     telefone: client.fixedPhone ?? undefined,
-    celular: client.phone,
+    celular: client.phone ?? undefined,
     email: client.email ?? undefined,
     vendedor: vendedorId ? { id: vendedorId } : undefined,
     endereco: {
@@ -474,6 +501,13 @@ async function processClient(
     const { id } = await createBlingContato(accessToken, payload, onTokenRefresh);
     blingContactId = String(id);
 
+    // Salva mapeamento por conexão
+    await db
+      .insert(blingContactMappings)
+      .values({ connectionId, blingContactId, clientId: client.id })
+      .onConflictDoNothing();
+
+    // Retrocompatibilidade: mantém clients.blingContactId para código legado
     await db
       .update(clients)
       .set({ blingContactId })
@@ -520,11 +554,25 @@ export async function syncClientToBling(clientId: string): Promise<void> {
       number: clients.number,
       neighborhood: clients.neighborhood,
       state: clients.state,
-      blingContactId: clients.blingContactId,
-      blingVendedorId: users.blingVendedorId,
+      blingContactId: blingContactMappings.blingContactId,
+      blingVendedorId: blingSellerMappings.blingVendedorId,
     })
     .from(clients)
     .leftJoin(users, eq(clients.responsavelId, users.id))
+    .leftJoin(
+      blingContactMappings,
+      and(
+        eq(blingContactMappings.clientId, clients.id),
+        eq(blingContactMappings.connectionId, connection.id),
+      ),
+    )
+    .leftJoin(
+      blingSellerMappings,
+      and(
+        eq(blingSellerMappings.userId, users.id),
+        eq(blingSellerMappings.connectionId, connection.id),
+      ),
+    )
     .where(eq(clients.id, clientId))
     .limit(1);
 
@@ -550,7 +598,7 @@ export async function syncClientToBling(clientId: string): Promise<void> {
   };
 
   try {
-    await processClient(client, accessToken, onTokenRefresh, stub);
+    await processClient(client, accessToken, onTokenRefresh, stub, connection.id);
     await markSynced(clientId);
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);

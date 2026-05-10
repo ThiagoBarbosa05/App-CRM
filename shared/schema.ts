@@ -2335,7 +2335,10 @@ export const blingOrders = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
 
-    blingOrderId: text("bling_order_id").notNull().unique(),
+    blingOrderId: text("bling_order_id").notNull(),
+
+    // FK para a conexão Bling que originou o pedido (null em registros legados)
+    connectionId: varchar("connection_id").references(() => blingConnections.id),
 
     orderNumber: text("order_number").notNull(),
 
@@ -2394,6 +2397,8 @@ export const blingOrders = pgTable(
   },
   (table) => [
     index("bling_orders_bling_id_idx").on(table.blingOrderId),
+    uniqueIndex("bling_orders_conn_order_uidx").on(table.connectionId, table.blingOrderId),
+    index("bling_orders_connection_idx").on(table.connectionId),
     index("bling_orders_account_idx").on(table.accountId),
     index("bling_orders_user_idx").on(table.userId),
     index("bling_orders_contact_idx").on(table.contactId),
@@ -2790,6 +2795,140 @@ export const insertBlingClientSyncSchema = createInsertSchema(
 
 export type BlingClientSync = typeof blingClientSync.$inferSelect;
 export type InsertBlingClientSync = z.infer<typeof insertBlingClientSyncSchema>;
+
+// ---------------------------------------------------------------------------
+// Tabelas de mapeamento multi-conta Bling
+// ---------------------------------------------------------------------------
+
+// Mapeia (connectionId, blingProductId) → productId local
+export const blingProductMappings = pgTable(
+  "bling_product_mappings",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    connectionId: varchar("connection_id")
+      .references(() => blingConnections.id)
+      .notNull(),
+    blingProductId: text("bling_product_id").notNull(),
+    productId: varchar("product_id")
+      .references(() => products.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("bling_product_mappings_conn_prod_uidx").on(t.connectionId, t.blingProductId),
+    index("bling_product_mappings_product_idx").on(t.productId),
+    index("bling_product_mappings_connection_idx").on(t.connectionId),
+  ],
+);
+
+// Mapeia (connectionId, blingVendedorId) → userId local
+export const blingSellerMappings = pgTable(
+  "bling_seller_mappings",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    connectionId: varchar("connection_id")
+      .references(() => blingConnections.id)
+      .notNull(),
+    blingVendedorId: text("bling_vendedor_id").notNull(),
+    blingVendedorName: text("bling_vendedor_name"),
+    // nullable: vendedor pode não ter usuário correspondente no app
+    userId: varchar("user_id").references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("bling_seller_mappings_conn_vendor_uidx").on(t.connectionId, t.blingVendedorId),
+    index("bling_seller_mappings_user_idx").on(t.userId),
+    index("bling_seller_mappings_connection_idx").on(t.connectionId),
+  ],
+);
+
+// Mapeia (connectionId, blingContactId) → clientId local
+export const blingContactMappings = pgTable(
+  "bling_contact_mappings",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    connectionId: varchar("connection_id")
+      .references(() => blingConnections.id)
+      .notNull(),
+    blingContactId: text("bling_contact_id").notNull(),
+    clientId: varchar("client_id")
+      .references(() => clients.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("bling_contact_mappings_conn_contact_uidx").on(t.connectionId, t.blingContactId),
+    index("bling_contact_mappings_client_idx").on(t.clientId),
+    index("bling_contact_mappings_connection_idx").on(t.connectionId),
+  ],
+);
+
+export const insertBlingProductMappingSchema = createInsertSchema(blingProductMappings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBlingSellerMappingSchema = createInsertSchema(blingSellerMappings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertBlingContactMappingSchema = createInsertSchema(blingContactMappings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BlingProductMapping = typeof blingProductMappings.$inferSelect;
+export type InsertBlingProductMapping = z.infer<typeof insertBlingProductMappingSchema>;
+export type BlingSellerMapping = typeof blingSellerMappings.$inferSelect;
+export type InsertBlingSellerMapping = z.infer<typeof insertBlingSellerMappingSchema>;
+export type BlingContactMapping = typeof blingContactMappings.$inferSelect;
+export type InsertBlingContactMapping = z.infer<typeof insertBlingContactMappingSchema>;
+
+export const blingProductMappingsRelations = relations(blingProductMappings, ({ one }) => ({
+  connection: one(blingConnections, {
+    fields: [blingProductMappings.connectionId],
+    references: [blingConnections.id],
+  }),
+  product: one(products, {
+    fields: [blingProductMappings.productId],
+    references: [products.id],
+  }),
+}));
+
+export const blingSellerMappingsRelations = relations(blingSellerMappings, ({ one }) => ({
+  connection: one(blingConnections, {
+    fields: [blingSellerMappings.connectionId],
+    references: [blingConnections.id],
+  }),
+  user: one(users, {
+    fields: [blingSellerMappings.userId],
+    references: [users.id],
+  }),
+}));
+
+export const blingContactMappingsRelations = relations(blingContactMappings, ({ one }) => ({
+  connection: one(blingConnections, {
+    fields: [blingContactMappings.connectionId],
+    references: [blingConnections.id],
+  }),
+  client: one(clients, {
+    fields: [blingContactMappings.clientId],
+    references: [clients.id],
+  }),
+}));
 
 // Tabela de campanhas Umbler
 export const umblerCampaigns = pgTable("umbler_campaigns", {

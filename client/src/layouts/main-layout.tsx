@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { BlingStatusBanner } from "@/components/bling-status-banner";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -30,7 +31,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header - visible on larger screens */}
+        {/* Bling connection status banner (admin/gerente only) */}
+        <BlingStatusBanner />
 
         {/* Mobile header */}
         <header className="lg:hidden flex items-center p-4 bg-white dark:bg-slate-950 shadow-sm border-b border-slate-200 dark:border-slate-800">

@@ -3,6 +3,8 @@ import {
   blingOrders,
   blingOrderItems,
   blingOrderInstallments,
+  blingSellerMappings,
+  blingContactMappings,
   clients,
   sales,
   cashbackTransactions,
@@ -28,6 +30,7 @@ import { cashbackSettingsRepository } from "../repositories/cashback-settings.re
  */
 export interface CreateBlingOrderParams {
   message: BlingControlPubSubMessage;
+  connectionId?: string;
 }
 
 /**
@@ -35,6 +38,7 @@ export interface CreateBlingOrderParams {
  */
 export interface UpdateBlingOrderParams {
   message: BlingControlPubSubMessage;
+  connectionId?: string;
 }
 
 /**
@@ -42,6 +46,7 @@ export interface UpdateBlingOrderParams {
  */
 export interface DeleteBlingOrderParams {
   message: BlingControlPubSubMessage;
+  connectionId?: string;
 }
 
 /**
@@ -60,16 +65,19 @@ export class BlingOrdersService {
   async createOrder(
     params: CreateBlingOrderParams,
   ): Promise<BlingOrderWithDetails> {
-    const { message } = params;
+    const { message, connectionId } = params;
     const { order, metadata } = message;
 
     try {
-      // Verifica se o pedido já existe (exclui soft-deleted para permitir recriação)
+      // Verifica se o pedido já existe (escopo por connectionId quando disponível)
       const existingOrder = await db
         .select()
         .from(blingOrders)
         .where(
           and(
+            connectionId
+              ? eq(blingOrders.connectionId, connectionId)
+              : isNull(blingOrders.connectionId),
             eq(blingOrders.blingOrderId, order.id.toString()),
             isNull(blingOrders.deletedAt),
           ),
@@ -85,6 +93,7 @@ export class BlingOrdersService {
       // Prepara os dados do pedido principal
       const orderData: InsertBlingOrder = {
         blingOrderId: order.id.toString(),
+        connectionId: connectionId ?? null,
         orderNumber: order.numero.toString(),
         storeOrderNumber: order.numeroLoja || null,
         saleDate: order.data,
@@ -172,6 +181,7 @@ export class BlingOrdersService {
           order,
           userId: metadata.userId,
           blingOrdersDbId: result.id,
+          connectionId: connectionId ?? null,
         });
       } catch (error) {
         console.error(
@@ -197,16 +207,19 @@ export class BlingOrdersService {
   async updateOrder(
     params: UpdateBlingOrderParams,
   ): Promise<BlingOrderWithDetails> {
-    const { message } = params;
+    const { message, connectionId } = params;
     const { order, metadata } = message;
 
     try {
-      // Busca o pedido existente
+      // Busca o pedido existente (escopo por connectionId quando disponível)
       const existingOrder = await db
         .select()
         .from(blingOrders)
         .where(
           and(
+            connectionId
+              ? eq(blingOrders.connectionId, connectionId)
+              : isNull(blingOrders.connectionId),
             eq(blingOrders.blingOrderId, order.id.toString()),
             isNull(blingOrders.deletedAt),
           ),
@@ -218,7 +231,7 @@ export class BlingOrdersService {
         console.warn(
           `[BlingOrdersService] order.updated para pedido ${order.id} não encontrado — criando via upsert`,
         );
-        return this.createOrder({ message });
+        return this.createOrder({ message, connectionId });
       }
 
       const currentOrder = existingOrder[0];
@@ -318,6 +331,7 @@ export class BlingOrdersService {
           order,
           userId: metadata.userId,
           blingOrdersDbId: result.id,
+          connectionId: connectionId ?? null,
         });
       } catch (error) {
         console.error(
@@ -341,16 +355,19 @@ export class BlingOrdersService {
    * @returns Promise<void>
    */
   async deleteOrder(params: DeleteBlingOrderParams): Promise<void> {
-    const { message } = params;
+    const { message, connectionId } = params;
     const { order } = message;
 
     try {
-      // Busca o pedido existente
+      // Busca o pedido existente (escopo por connectionId quando disponível)
       const existingOrder = await db
         .select()
         .from(blingOrders)
         .where(
           and(
+            connectionId
+              ? eq(blingOrders.connectionId, connectionId)
+              : isNull(blingOrders.connectionId),
             eq(blingOrders.blingOrderId, order.id.toString()),
             isNull(blingOrders.deletedAt),
           ),
@@ -551,13 +568,31 @@ export class BlingOrdersService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Busca o UUID do usuário do app correspondente ao vendedor Bling pelo blingVendedorId.
+   * Busca o UUID do usuário do app correspondente ao vendedor Bling.
+   * Prioriza blingSellerMappings (multi-conta); fallback para users.blingVendedorId (legado).
    */
   private async resolveSellerAppUserId(
     blingVendedorId: number | null,
+    connectionId: string | null,
   ): Promise<string | null> {
     if (!blingVendedorId) return null;
     try {
+      // Prioridade 1: lookup na tabela de mapeamentos (multi-conta)
+      if (connectionId) {
+        const [mapping] = await db
+          .select({ userId: blingSellerMappings.userId })
+          .from(blingSellerMappings)
+          .where(
+            and(
+              eq(blingSellerMappings.connectionId, connectionId),
+              eq(blingSellerMappings.blingVendedorId, String(blingVendedorId)),
+            ),
+          )
+          .limit(1);
+        if (mapping?.userId) return mapping.userId;
+      }
+
+      // Fallback legado: campo direto na tabela users
       const [user] = await db
         .select({ id: users.id })
         .from(users)
@@ -966,8 +1001,9 @@ export class BlingOrdersService {
     order: SalesOrder;
     userId: string;
     blingOrdersDbId: string;
+    connectionId: string | null;
   }): Promise<void> {
-    const { action, order, userId, blingOrdersDbId } = params;
+    const { action, order, userId, blingOrdersDbId, connectionId } = params;
 
     // Somente Pessoa Física é elegível para vínculo com cliente do app
     if (order.contato.tipo !== "F") {
@@ -985,6 +1021,7 @@ export class BlingOrdersService {
     // Resolve o usuário do app correspondente ao vendedor Bling
     const sellerAppUserId = await this.resolveSellerAppUserId(
       order.vendedor.id ?? null,
+      connectionId,
     ).catch(() => null);
 
     // Busca cliente no app por CPF, celular ou telefone (normalizado)
@@ -1034,6 +1071,25 @@ export class BlingOrdersService {
         "[BlingOrdersService] Erro ao atualizar dados de contato no pedido:",
         error,
       );
+    }
+
+    // Registra mapeamento de contato Bling → cliente do app (multi-conta)
+    if (appClient && connectionId && order.contato.id) {
+      try {
+        await db
+          .insert(blingContactMappings)
+          .values({
+            connectionId,
+            blingContactId: String(order.contato.id),
+            clientId: appClient.id,
+          })
+          .onConflictDoNothing();
+      } catch (error) {
+        console.error(
+          "[BlingOrdersService] Erro ao registrar blingContactMappings:",
+          error,
+        );
+      }
     }
 
     if (appClient) {

@@ -96,12 +96,13 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function orderExistsInDb(blingOrderId: number): Promise<boolean> {
+async function orderExistsInDb(blingOrderId: number, connectionId: string): Promise<boolean> {
   const [row] = await db
     .select({ id: blingOrders.id })
     .from(blingOrders)
     .where(
       and(
+        eq(blingOrders.connectionId, connectionId),
         eq(blingOrders.blingOrderId, String(blingOrderId)),
         isNull(blingOrders.deletedAt),
       ),
@@ -337,7 +338,7 @@ async function processOrder(
   forceUpdate: boolean,
   progress: ImportProgress,
 ): Promise<void> {
-  const exists = await orderExistsInDb(orderId);
+  const exists = await orderExistsInDb(orderId, connection.id);
 
   if (exists && !forceUpdate) {
     progress.skipped++;
@@ -369,8 +370,8 @@ async function processOrder(
     );
   }
 
-  // 3) Lookup de selllerName no banco (zero API calls)
-  const sellerName = await resolveSellerName(pedido.vendedor?.id ?? null);
+  // 3) Lookup de sellerName no banco (zero API calls), escopo por conexão
+  const sellerName = await resolveSellerName(pedido.vendedor?.id ?? null, connection.id);
 
   // 4) Adapter → SalesOrder (mesmo formato usado pelo webhook)
   const salesOrder = mapPedidoToSalesOrder(pedido, contato, sellerName);
@@ -387,10 +388,10 @@ async function processOrder(
 
   // 5) Upsert via blingOrdersService (mesma lógica do webhook)
   if (exists) {
-    await blingOrdersService.updateOrder({ message });
+    await blingOrdersService.updateOrder({ message, connectionId: connection.id });
     progress.updated++;
   } else {
-    await blingOrdersService.createOrder({ message });
+    await blingOrdersService.createOrder({ message, connectionId: connection.id });
     progress.created++;
   }
 

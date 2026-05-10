@@ -465,6 +465,17 @@ export class BlingConnectionsService {
     return candidates.length;
   }
 
+  async getAccessTokenByConnectionId(connectionId: string, userId: string): Promise<string> {
+    const connection = await this.getById(connectionId, userId);
+    if (!connection) {
+      throw new Error("Conexão não encontrada ou não pertence ao usuário.");
+    }
+    if (connection.status !== "connected" || !connection.accessTokenEncrypted) {
+      throw new Error("Conexão Bling não está ativa. Reconecte a conta antes de continuar.");
+    }
+    return decryptToken(connection.accessTokenEncrypted);
+  }
+
   async getFirstConnectedAccessToken(): Promise<string> {
     const [connection] = await db
       .select()

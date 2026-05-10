@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db";
-import { products } from "../../shared/schema";
+import { products, blingProductMappings } from "../../shared/schema";
 import { decryptToken } from "../lib/token-crypto";
 import {
   getBlingProdutos,
@@ -101,16 +101,20 @@ export async function syncBlingProducts(
     return accessToken;
   };
 
-  // Load all app products indexed by blingProductId for O(1) lookup
-  const rawProducts = await db
-    .select({ id: products.id, name: products.name, blingProductId: products.blingProductId })
-    .from(products);
+  // Carrega mapeamentos desta conexão para lookup O(1) sem conflito entre contas
+  const existingMappings = await db
+    .select({
+      blingProductId: blingProductMappings.blingProductId,
+      productId: blingProductMappings.productId,
+      productName: products.name,
+    })
+    .from(blingProductMappings)
+    .innerJoin(products, eq(blingProductMappings.productId, products.id))
+    .where(eq(blingProductMappings.connectionId, connectionId));
 
   const productsByBlingId = new Map<string, { id: string; name: string }>();
-  for (const p of rawProducts) {
-    if (p.blingProductId) {
-      productsByBlingId.set(p.blingProductId, { id: p.id, name: p.name });
-    }
+  for (const m of existingMappings) {
+    productsByBlingId.set(m.blingProductId, { id: m.productId, name: m.productName });
   }
 
   onProgress({ type: "start" });
@@ -210,25 +214,61 @@ export async function syncBlingProducts(
 
         updated++;
       } else {
-        const [inserted] = await db
-          .insert(products)
-          .values({
-            name: blingProduct.nome ?? summary.nome,
-            country: wineCountry,
-            volume: defaultVolume,
-            type: wineType,
-            negotiatedPrice: preco.toFixed(2),
-            createdBy: defaults.createdBy,
-            blingProductId: blingIdStr,
-            ...(imageUrl ? { imageUrl } : {}),
-          })
-          .returning({ id: products.id, name: products.name });
+        // Verifica se o produto já existe via legado (products.blingProductId)
+        // para evitar duplicatas ao migrar da conta única para multi-conta
+        const [legacyProduct] = await db
+          .select({ id: products.id, name: products.name })
+          .from(products)
+          .where(eq(products.blingProductId, blingIdStr))
+          .limit(1);
 
-        if (inserted) {
-          productsByBlingId.set(blingIdStr, { id: inserted.id, name: inserted.name });
+        if (legacyProduct) {
+          // Produto legado encontrado: cria mapping e atualiza dados
+          await db
+            .insert(blingProductMappings)
+            .values({ connectionId, blingProductId: blingIdStr, productId: legacyProduct.id })
+            .onConflictDoNothing();
+
+          await db
+            .update(products)
+            .set({
+              ...(preco > 0 ? { negotiatedPrice: preco.toFixed(2) } : {}),
+              ...(imageUrl ? { imageUrl } : {}),
+              type: wineType,
+              country: wineCountry,
+              updatedAt: new Date(),
+            })
+            .where(eq(products.id, legacyProduct.id));
+
+          productsByBlingId.set(blingIdStr, { id: legacyProduct.id, name: legacyProduct.name });
+          updated++;
+        } else {
+          // Produto novo: insere e cria mapping
+          const [inserted] = await db
+            .insert(products)
+            .values({
+              name: blingProduct.nome ?? summary.nome,
+              country: wineCountry,
+              volume: defaultVolume,
+              type: wineType,
+              negotiatedPrice: preco.toFixed(2),
+              createdBy: defaults.createdBy,
+              blingProductId: blingIdStr,
+              ...(imageUrl ? { imageUrl } : {}),
+            })
+            .returning({ id: products.id, name: products.name });
+
+          if (inserted) {
+            await db
+              .insert(blingProductMappings)
+              .values({ connectionId, blingProductId: blingIdStr, productId: inserted.id })
+              .onConflictDoNothing();
+
+            productsByBlingId.set(blingIdStr, { id: inserted.id, name: inserted.name });
+          }
+
+          created++;
         }
-
-        created++;
       }
 
       processed++;

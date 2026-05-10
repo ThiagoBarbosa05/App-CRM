@@ -4,7 +4,20 @@ import { getBlingVendedores } from "../../integrations/bling";
 
 export async function getBlingVendorsController(req: Request, res: Response) {
   try {
-    const accessToken = await blingConnectionsService.getFirstConnectedAccessToken();
+    const { connectionId } = req.query as { connectionId?: string };
+
+    let accessToken: string;
+
+    if (connectionId) {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: "Usuário não autenticado" });
+      }
+      accessToken = await blingConnectionsService.getAccessTokenByConnectionId(connectionId, userId);
+    } else {
+      accessToken = await blingConnectionsService.getFirstConnectedAccessToken();
+    }
+
     const vendors = await getBlingVendedores(accessToken);
 
     return res.json({ success: true, data: vendors });
@@ -13,7 +26,7 @@ export async function getBlingVendorsController(req: Request, res: Response) {
 
     const message = error instanceof Error ? error.message : "Erro ao buscar vendedores do Bling";
 
-    if (message.includes("Nenhuma conta Bling conectada")) {
+    if (message.includes("Nenhuma conta Bling conectada") || message.includes("Conexão não encontrada")) {
       return res.status(422).json({ success: false, error: message });
     }
 
