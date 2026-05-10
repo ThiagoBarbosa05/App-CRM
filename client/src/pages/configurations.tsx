@@ -28,6 +28,7 @@ import {
   RefreshCcw,
   DollarSignIcon,
   Sparkles,
+  PlugZap,
 } from "lucide-react";
 import UsersManagement from "@/components/users-management";
 import CategoriesManagement from "@/components/categories-management";
@@ -288,18 +289,12 @@ export default function Configurations() {
               <TabsTrigger
                 value="integrations"
                 className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-slate-500/10
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
                       text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                 title="Gerenciar integrações externas"
               >
-                <div className="flex items-center gap-1">
-                  <img src="/bling.svg" alt="Bling" className="h-3 w-auto" />
-                  <span className="text-slate-300 dark:text-slate-600 text-[10px]">·</span>
-                  <img src="/twilio-login-logo.svg" alt="Twilio" className="h-2.5 w-auto" />
-                  <span className="text-slate-300 dark:text-slate-600 text-[10px]">·</span>
-                  <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-2 w-auto dark:invert" />
-                </div>
+                <PlugZap className="size-4" />
                 <span className="text-xs font-medium">Integrações</span>
               </TabsTrigger>
             </div>

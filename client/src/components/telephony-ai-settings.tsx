@@ -1332,7 +1332,11 @@ function ReadOnlyWithCopy({ value, label }: { value: string; label: string }) {
   );
 }
 
-export function TelephonyAISettings() {
+export function TelephonyAISettings({
+  activeTab: activeTabProp,
+}: {
+  activeTab?: "twilio" | "elevenlabs";
+} = {}) {
   const { data: status, isLoading: statusLoading } = useQuery<StatusResponse>({
     queryKey: ["/api/telephony-settings/status"],
     queryFn: async () => {
@@ -1766,9 +1770,10 @@ export function TelephonyAISettings() {
   return (
     <form onSubmit={handleSubmit((data) => saveMutation.mutate(data))}>
       {/* ── Status Overview Banner ─────────────────────────────────── */}
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className={`mb-6 grid grid-cols-1 gap-3 ${activeTabProp === "elevenlabs" ? "sm:grid-cols-1 max-w-xs" : activeTabProp === "twilio" ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
         {[
           {
+            key: "twilio",
             label: "Twilio",
             description: "Telefonia & Voice SDK",
             active: status?.twilio ?? false,
@@ -1779,6 +1784,7 @@ export function TelephonyAISettings() {
             activeIcon: "bg-[#F22F46]/10 dark:bg-[#F22F46]/10",
           },
           {
+            key: "elevenlabs",
             label: "ElevenLabs",
             description: "IA Conversacional",
             active: status?.elevenlabs ?? false,
@@ -1789,6 +1795,7 @@ export function TelephonyAISettings() {
             activeIcon: "bg-slate-100 dark:bg-slate-700/60",
           },
           {
+            key: "voiceSdk",
             label: "Voice SDK",
             description: "Browser WebRTC",
             active: status?.voiceSdk ?? false,
@@ -1796,7 +1803,14 @@ export function TelephonyAISettings() {
             activeBorder: "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-900/10",
             activeIcon: "bg-emerald-100 dark:bg-emerald-900/40",
           },
-        ].map((item) => (
+        ]
+          .filter((item) => {
+            if (!activeTabProp) return true;
+            if (activeTabProp === "twilio") return item.key === "twilio" || item.key === "voiceSdk";
+            if (activeTabProp === "elevenlabs") return item.key === "elevenlabs";
+            return true;
+          })
+          .map((item) => (
           <div
             key={item.label}
             className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
@@ -1827,67 +1841,73 @@ export function TelephonyAISettings() {
         ))}
       </div>
 
-      <Tabs defaultValue="twilio" className="space-y-6">
-        {/* ── Tab Selector ──────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
-          <TabsList className="contents">
-            <TabsTrigger
-              value="twilio"
-              className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                data-[state=active]:shadow-md data-[state=active]:shadow-red-500/10
-                data-[state=active]:border data-[state=active]:border-red-200/60 dark:data-[state=active]:border-red-800/40
-                text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
-                group h-auto"
-            >
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#F22F46]/10 group-data-[state=active]:bg-[#F22F46]/15 transition-colors shrink-0">
-                <img src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" />
-              </div>
-              <div className="text-left hidden sm:block">
-                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
+      <Tabs
+        value={activeTabProp ?? undefined}
+        defaultValue={activeTabProp ? undefined : "twilio"}
+        className="space-y-6"
+      >
+        {/* ── Tab Selector (oculto quando controlado externamente) ───── */}
+        {!activeTabProp && (
+          <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100/80 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+            <TabsList className="contents">
+              <TabsTrigger
+                value="twilio"
+                className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all duration-200
+                  data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
+                  data-[state=active]:shadow-md data-[state=active]:shadow-red-500/10
+                  data-[state=active]:border data-[state=active]:border-red-200/60 dark:data-[state=active]:border-red-800/40
+                  text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
+                  group h-auto"
+              >
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#F22F46]/10 group-data-[state=active]:bg-[#F22F46]/15 transition-colors shrink-0">
+                  <img src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" />
+                </div>
+                <div className="text-left hidden sm:block">
+                  <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
+                    Twilio
+                  </p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">
+                    Telefonia & Voice SDK
+                  </p>
+                </div>
+                <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
                   Twilio
-                </p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">
-                  Telefonia & Voice SDK
-                </p>
-              </div>
-              <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
-                Twilio
-              </span>
-              <div
-                className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.twilio ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
-              />
-            </TabsTrigger>
+                </span>
+                <div
+                  className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.twilio ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+                />
+              </TabsTrigger>
 
-            <TabsTrigger
-              value="elevenlabs"
-              className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                data-[state=active]:shadow-md data-[state=active]:shadow-slate-500/10
-                data-[state=active]:border data-[state=active]:border-slate-200/60 dark:data-[state=active]:border-slate-700/40
-                text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
-                group h-auto"
-            >
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 group-data-[state=active]:bg-slate-200/80 dark:bg-slate-800 dark:group-data-[state=active]:bg-slate-700 transition-colors shrink-0">
-                <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" />
-              </div>
-              <div className="text-left hidden sm:block">
-                <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
+              <TabsTrigger
+                value="elevenlabs"
+                className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all duration-200
+                  data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
+                  data-[state=active]:shadow-md data-[state=active]:shadow-slate-500/10
+                  data-[state=active]:border data-[state=active]:border-slate-200/60 dark:data-[state=active]:border-slate-700/40
+                  text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
+                  group h-auto"
+              >
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 group-data-[state=active]:bg-slate-200/80 dark:bg-slate-800 dark:group-data-[state=active]:bg-slate-700 transition-colors shrink-0">
+                  <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" />
+                </div>
+                <div className="text-left hidden sm:block">
+                  <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
+                    ElevenLabs
+                  </p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">
+                    IA Conversacional
+                  </p>
+                </div>
+                <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
                   ElevenLabs
-                </p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-tight">
-                  IA Conversacional
-                </p>
-              </div>
-              <span className="sm:hidden text-sm font-semibold text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
-                ElevenLabs
-              </span>
-              <div
-                className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.elevenlabs ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
-              />
-            </TabsTrigger>
-          </TabsList>
-        </div>
+                </span>
+                <div
+                  className={`ml-auto shrink-0 w-2 h-2 rounded-full transition-colors ${(status?.elevenlabs ?? false) ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+                />
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        )}
 
         {/* ── ABA TWILIO ─────────────────────────────────────────────── */}
         <TabsContent value="twilio" className="space-y-6 mt-0">
