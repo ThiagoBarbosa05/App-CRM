@@ -11,7 +11,6 @@ import {
   PlugZap,
   RefreshCcw,
   Save,
-  ShieldCheck,
   Unplug,
   Upload,
 } from "lucide-react";
@@ -519,7 +518,7 @@ export default function BlingAccountsManagement() {
     const message = url.searchParams.get("message");
     const tab = url.searchParams.get("tab");
 
-    if (tab !== "bling-accounts" || !status || !message) {
+    if (tab !== "integrations" || !status || !message) {
       return;
     }
 
@@ -659,28 +658,50 @@ export default function BlingAccountsManagement() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-slate-200 bg-gradient-to-br from-white to-slate-50 dark:border-slate-700 dark:from-slate-900 dark:to-slate-950">
-        <CardHeader className="border-b border-slate-200 dark:border-slate-800">
+      <Card className="overflow-hidden border-slate-200 dark:border-slate-700">
+        <div className="relative border-b border-slate-200 bg-gradient-to-r from-[#5ac782]/10 via-white to-[#5ac782]/5 px-6 py-5 dark:border-slate-800 dark:from-[#5ac782]/10 dark:via-slate-900 dark:to-[#5ac782]/5">
+          <div
+            className="pointer-events-none absolute inset-y-0 left-0 w-1 rounded-l-lg"
+            style={{ backgroundColor: "#5ac782" }}
+          />
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
-                <ShieldCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                Contas Bling
-              </CardTitle>
-              <CardDescription>
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <img
+                  src="/bling.svg"
+                  alt="Bling"
+                  className="h-7 w-auto"
+                  style={{ filter: "drop-shadow(0 1px 2px rgba(90,199,130,0.25))" }}
+                />
+                <div
+                  className="h-5 w-px rounded-full"
+                  style={{ backgroundColor: "#5ac782", opacity: 0.4 }}
+                />
+                <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">
+                  Contas Bling
+                </h2>
+              </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Conecte e mantenha as contas Bling autenticadas para uso no CRM.
-              </CardDescription>
+              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300">
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className="border-[#5ac782]/40 bg-[#5ac782]/10 text-[#3a9960] dark:border-[#5ac782]/30 dark:bg-[#5ac782]/10 dark:text-[#5ac782]"
+              >
                 {connectedCount} conectada(s)
               </Badge>
-              <Badge variant="outline">
+              <Badge variant="outline" className="text-slate-600 dark:text-slate-400">
                 {connections.length} cadastrada(s)
               </Badge>
             </div>
           </div>
+        </div>
+        <CardHeader className="sr-only">
+          <CardTitle>Contas Bling</CardTitle>
+          <CardDescription>Gerenciamento de contas Bling</CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-6 pt-6">
@@ -727,7 +748,8 @@ export default function BlingAccountsManagement() {
                 clientId.trim().length === 0 ||
                 clientSecret.trim().length === 0
               }
-              className="min-w-[220px] lg:col-span-3"
+              className="min-w-[220px] lg:col-span-3 text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ backgroundColor: "#5ac782", borderColor: "#5ac782" }}
             >
               {createConnectionMutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

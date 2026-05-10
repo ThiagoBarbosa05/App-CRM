@@ -25,11 +25,9 @@ import {
   Tags,
   Users,
   HelpCircle,
-  Link2,
   RefreshCcw,
   DollarSignIcon,
   Sparkles,
-  Phone,
 } from "lucide-react";
 import UsersManagement from "@/components/users-management";
 import CategoriesManagement from "@/components/categories-management";
@@ -46,11 +44,10 @@ import { DealQuestionsManagement } from "@/components/deal-questions-management"
 import UmblerSyncManagement from "@/components/umbler-sync-management";
 import { ConfigurationsHeader } from "@/components/configurations/configurations-header";
 import { motion, AnimatePresence } from "framer-motion";
-import BlingAccountsManagement from "@/components/bling-accounts-management";
 import { WinePriceTierSettings } from "@/components/settings-management";
 import ProductCategoriesManagement from "@/components/product-categories-management";
 import { WineAIProfileSettings } from "@/components/wine-ai-profile-settings";
-import { TelephonyAISettings } from "@/components/telephony-ai-settings";
+import { IntegrationsManagement } from "@/components/integrations-management";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -241,23 +238,11 @@ export default function Configurations() {
                 <span className="text-xs font-medium ">Questionário</span>
               </TabsTrigger>
 
-              <TabsTrigger
-                value="bling-accounts"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                       data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                       text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar contas Bling conectadas"
-              >
-                <Link2 className="size-4" />
-                <span className="text-xs font-medium ">Contas Bling</span>
-              </TabsTrigger>
-
               {/* <TabsTrigger
                 value="umbler-sync"
                 className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
                       text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
                 title="Gerenciar sincronização com Umbler"
               >
@@ -301,15 +286,21 @@ export default function Configurations() {
               </TabsTrigger>
 
               <TabsTrigger
-                value="telephony"
+                value="integrations"
                 className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
+                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
+                      data-[state=active]:shadow-lg data-[state=active]:shadow-slate-500/10
                       text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Configurações de Telefonia e IA"
+                title="Gerenciar integrações externas"
               >
-                <Phone className="size-4" />
-                <span className="text-xs font-medium">Telefonia & IA</span>
+                <div className="flex items-center gap-1">
+                  <img src="/bling.svg" alt="Bling" className="h-3 w-auto" />
+                  <span className="text-slate-300 dark:text-slate-600 text-[10px]">·</span>
+                  <img src="/twilio-login-logo.svg" alt="Twilio" className="h-2.5 w-auto" />
+                  <span className="text-slate-300 dark:text-slate-600 text-[10px]">·</span>
+                  <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-2 w-auto dark:invert" />
+                </div>
+                <span className="text-xs font-medium">Integrações</span>
               </TabsTrigger>
             </div>
           </TabsList>
@@ -370,10 +361,6 @@ export default function Configurations() {
               <DealQuestionsManagement />
             </TabsContent>
 
-            <TabsContent value="bling-accounts">
-              <BlingAccountsManagement />
-            </TabsContent>
-
             <TabsContent value="umbler-sync">
               <UmblerSyncManagement />
             </TabsContent>
@@ -390,8 +377,8 @@ export default function Configurations() {
               <WineAIProfileSettings />
             </TabsContent>
 
-            <TabsContent value="telephony">
-              <TelephonyAISettings />
+            <TabsContent value="integrations">
+              <IntegrationsManagement />
             </TabsContent>
           </motion.div>
         </AnimatePresence>

@@ -1772,48 +1772,45 @@ export function TelephonyAISettings() {
             label: "Twilio",
             description: "Telefonia & Voice SDK",
             active: status?.twilio ?? false,
-            icon: <Phone className="size-4" />,
-            color: "blue",
+            logo: (
+              <img src="/twilio-login-logo.svg" alt="Twilio" className="h-4 w-auto" />
+            ),
+            activeBorder: "border-[#F22F46]/30 bg-[#F22F46]/5 dark:border-[#F22F46]/20 dark:bg-[#F22F46]/5",
+            activeIcon: "bg-[#F22F46]/10 dark:bg-[#F22F46]/10",
           },
           {
             label: "ElevenLabs",
             description: "IA Conversacional",
             active: status?.elevenlabs ?? false,
-            icon: <Bot className="size-4" />,
-            color: "violet",
+            logo: (
+              <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3.5 w-auto dark:invert" />
+            ),
+            activeBorder: "border-slate-300 bg-slate-50/80 dark:border-slate-600 dark:bg-slate-800/40",
+            activeIcon: "bg-slate-100 dark:bg-slate-700/60",
           },
           {
             label: "Voice SDK",
             description: "Browser WebRTC",
             active: status?.voiceSdk ?? false,
-            icon: <Radio className="size-4" />,
-            color: "emerald",
+            logo: <Radio className="size-4 text-emerald-600 dark:text-emerald-400" />,
+            activeBorder: "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-900/10",
+            activeIcon: "bg-emerald-100 dark:bg-emerald-900/40",
           },
         ].map((item) => (
           <div
             key={item.label}
             className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
               item.active
-                ? item.color === "blue"
-                  ? "border-blue-200 bg-blue-50/60 dark:border-blue-800/60 dark:bg-blue-900/10"
-                  : item.color === "violet"
-                    ? "border-violet-200 bg-violet-50/60 dark:border-violet-800/60 dark:bg-violet-900/10"
-                    : "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-900/10"
+                ? item.activeBorder
                 : "border-slate-200 bg-slate-50/60 dark:border-slate-700/60 dark:bg-slate-800/30"
             }`}
           >
             <div
               className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${
-                item.active
-                  ? item.color === "blue"
-                    ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400"
-                    : item.color === "violet"
-                      ? "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400"
-                      : "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400"
-                  : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500"
+                item.active ? item.activeIcon : "bg-slate-100 dark:bg-slate-800"
               }`}
             >
-              {item.icon}
+              {item.logo}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
@@ -1838,13 +1835,13 @@ export function TelephonyAISettings() {
               value="twilio"
               className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all duration-200
                 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                data-[state=active]:shadow-md data-[state=active]:shadow-blue-500/10
-                data-[state=active]:border data-[state=active]:border-blue-200/60 dark:data-[state=active]:border-blue-800/40
+                data-[state=active]:shadow-md data-[state=active]:shadow-red-500/10
+                data-[state=active]:border data-[state=active]:border-red-200/60 dark:data-[state=active]:border-red-800/40
                 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
                 group h-auto"
             >
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-500/10 group-data-[state=active]:bg-blue-500/15 transition-colors shrink-0">
-                <Phone className="size-3.5 text-blue-600 dark:text-blue-400" />
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#F22F46]/10 group-data-[state=active]:bg-[#F22F46]/15 transition-colors shrink-0">
+                <img src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" />
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
@@ -1866,13 +1863,13 @@ export function TelephonyAISettings() {
               value="elevenlabs"
               className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl transition-all duration-200
                 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                data-[state=active]:shadow-md data-[state=active]:shadow-violet-500/10
-                data-[state=active]:border data-[state=active]:border-violet-200/60 dark:data-[state=active]:border-violet-800/40
+                data-[state=active]:shadow-md data-[state=active]:shadow-slate-500/10
+                data-[state=active]:border data-[state=active]:border-slate-200/60 dark:data-[state=active]:border-slate-700/40
                 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
                 group h-auto"
             >
-              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-violet-500/10 group-data-[state=active]:bg-violet-500/15 transition-colors shrink-0">
-                <Bot className="size-3.5 text-violet-600 dark:text-violet-400" />
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 group-data-[state=active]:bg-slate-200/80 dark:bg-slate-800 dark:group-data-[state=active]:bg-slate-700 transition-colors shrink-0">
+                <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" />
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">

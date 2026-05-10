@@ -10,7 +10,7 @@ server/index.ts
 *.sql
 .worktrees/
 .claude/
-*.png
+# *.png
 *.csv
 
 

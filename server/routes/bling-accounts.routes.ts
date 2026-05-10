@@ -60,7 +60,7 @@ function getCallbackRedirectUrl(
 ): string {
   const frontendUrl = process.env.APP_URL || "http://localhost:5000";
   const url = new URL("/configuracoes", frontendUrl);
-  url.searchParams.set("tab", "bling-accounts");
+  url.searchParams.set("tab", "integrations");
   url.searchParams.set("bling", status);
   url.searchParams.set("message", message);
   return url.toString();
