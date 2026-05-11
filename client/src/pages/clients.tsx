@@ -274,8 +274,7 @@ export default function Clients() {
   }, [selectedClients, allClientsForExport]);
 
   return (
-    <div className="bg-slate-100 dark:bg-slate-900">
-      <div className="space-y-6">
+    <div className="space-y-6 pb-10">
         <PageHeader>
           <PageHeader.Info>
             <PageHeader.Icon icon={Users} />
@@ -736,7 +735,6 @@ export default function Clients() {
             )}
           </div>
         )}
-      </div>
 
       <ClientFormModal
         open={isClientModalOpen}

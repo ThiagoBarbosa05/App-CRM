@@ -95,7 +95,7 @@ export default function Configurations() {
   });
 
   return (
-    <div className="flex-1 flex flex-col p-4 lg:p-10 space-y-10">
+    <div className="space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
           <PageHeader.Icon icon={Settings} />

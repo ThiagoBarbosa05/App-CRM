@@ -109,8 +109,7 @@ export default function UmblerContactsPage() {
   const totalContacts = contacts?.length || 0;
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen pb-10">
-      <div className="container mx-auto px-4 sm:p-6 lg:p-8 pt-6 max-w-7xl">
+    <div className="space-y-6 pb-10">
         <PageHeader>
           <PageHeader.Info>
             <PageHeader.Icon icon={Users} />
@@ -200,7 +199,6 @@ export default function UmblerContactsPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      </div>
     </div>
   );
 }

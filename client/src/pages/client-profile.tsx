@@ -92,7 +92,7 @@ export default function ClientProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-5xl mx-auto space-y-6 p-6">
+      <div className="space-y-6 pb-10">
         <div className="flex items-center gap-4">
           <Skeleton className="h-10 w-10 rounded-full" />
           <Skeleton className="h-8 w-64" />
@@ -105,7 +105,7 @@ export default function ClientProfilePage() {
 
   if (isError || !client) {
     return (
-      <div className="max-w-5xl mx-auto p-6">
+      <div className="space-y-6 pb-10">
         <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
           <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-4">
             <AlertCircle className="h-8 w-8 text-red-500" />

@@ -5,7 +5,7 @@ export default function Companies() {
   const { user } = useAuth();
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto min-h-screen">
+    <div className="space-y-6 pb-10">
       <CompaniesManagement currentUser={user} />
     </div>
   );

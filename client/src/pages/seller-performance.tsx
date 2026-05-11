@@ -130,7 +130,7 @@ export default function SellerPerformancePage() {
   const handleFilterChange = () => setPage(1);
 
   return (
-    <div className="max-w-full overflow-x-hidden space-y-6 pb-10">
+    <div className="space-y-6 pb-10">
       {/* Cabeçalho */}
       <div className="flex items-start justify-between">
         <div>

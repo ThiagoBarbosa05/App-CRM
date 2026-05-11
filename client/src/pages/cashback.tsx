@@ -550,8 +550,7 @@ export default function Cashback() {
 
   return (
     <>
-      <div className="p-4 lg:p-10 bg-slate-50 dark:bg-[#020617] min-h-screen">
-      <div className="max-w-[1600px] mx-auto space-y-10">
+      <div className="space-y-6 pb-10">
         <PageHeader>
           <PageHeader.Info>
             <PageHeader.Icon icon={Gift} />
@@ -701,7 +700,6 @@ export default function Cashback() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      </div>
     </>
   );
 }

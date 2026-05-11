@@ -93,7 +93,7 @@ export default function Trainings() {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-8 pb-10">
+    <div className="space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
           <PageHeader.Icon

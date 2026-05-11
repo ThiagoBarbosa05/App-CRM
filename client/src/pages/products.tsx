@@ -225,7 +225,7 @@ export default function Products() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto min-h-[calc(100vh-4rem)] space-y-6 sm:space-y-8 pb-12">
+    <div className="space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
           <PageHeader.Icon icon={Wine} />

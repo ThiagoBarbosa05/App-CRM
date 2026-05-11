@@ -103,7 +103,7 @@ export default function ConnectSalesPage() {
   }));
 
   return (
-    <div className="max-w-full overflow-x-hidden space-y-8 pb-10">
+    <div className="space-y-6 pb-10">
       <ConnectSalesHeader onImport={() => setImportModalOpen(true)} />
 
       <ConnectCsvImportModal

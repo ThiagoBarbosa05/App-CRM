@@ -328,7 +328,7 @@ export default function Metas() {
 
   if (isUserGoalsLoading) {
     return (
-      <div className="space-y-6 animate-pulse p-6">
+      <div className="space-y-6 animate-pulse">
         <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded-2xl w-full" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
@@ -351,7 +351,7 @@ export default function Metas() {
   ];
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-6 pb-10">
       {/* Header unificado */}
       <PageHeader>
         <PageHeader.Info>

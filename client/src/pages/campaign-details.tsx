@@ -71,7 +71,7 @@ export default function CampaignDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto py-6 space-y-6">
+      <div className="space-y-6 pb-10">
         <Skeleton className="h-8 w-64" />
         <div className="grid gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
@@ -85,7 +85,7 @@ export default function CampaignDetailsPage() {
 
   if (!campaign) {
     return (
-      <div className="container mx-auto py-12 text-center">
+      <div className="py-12 text-center">
         <h2 className="text-2xl font-bold mb-4">Campanha não encontrada</h2>
         <Button onClick={() => setLocation("/umbler/campaigns")}>
           Voltar para Campanhas
@@ -104,7 +104,7 @@ export default function CampaignDetailsPage() {
   const statusInfo = statusConfig[campaign.status];
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6 pb-10">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button
