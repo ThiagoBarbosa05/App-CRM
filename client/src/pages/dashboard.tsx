@@ -1,6 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import {
+  PillTabsList,
+  PillTabsTrigger,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+} from "@/components/app-tabs";
 import { Button } from "@/components/ui/button";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
@@ -192,7 +198,7 @@ export default function DashboardPage() {
         <PageHeader.Actions className="flex-col sm:flex-row items-start">
           {/* Filtro de período */}
           <div className="flex flex-col items-start gap-1">
-            <div className="flex items-center rounded-lg border border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-0.5 gap-0.5">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm">
               {(
                 [
                   { value: "hoje", label: "Hoje" },
@@ -203,10 +209,10 @@ export default function DashboardPage() {
                 <button
                   key={value}
                   onClick={() => setDatePreset(value)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 ${
+                  className={`inline-flex items-center whitespace-nowrap px-3.5 py-2 rounded-lg text-sm transition-all duration-200 outline-none border ${
                     datePreset === value
-                      ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800"
-                      : "text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                      ? "font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
+                      : "font-medium text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
                   }`}
                 >
                   {label}
@@ -217,10 +223,10 @@ export default function DashboardPage() {
                 <PopoverTrigger asChild>
                   <button
                     onClick={() => setDatePreset("periodo")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 ${
+                    className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-lg text-sm transition-all duration-200 outline-none border ${
                       datePreset === "periodo"
-                        ? "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800"
-                        : "text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+                        ? "font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
+                        : "font-medium text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
                     }`}
                   >
                     <CalendarIcon className="h-3.5 w-3.5" />
@@ -306,70 +312,42 @@ export default function DashboardPage() {
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md">
-          <TabsList className="grid w-full grid-cols-3 gap-2 sm:gap-1 rounded-lg bg-slate-50 dark:bg-slate-900">
-            <TabsTrigger
-              value="desempenho"
-              className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800
-                hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
-            >
-              <BarChart3 className="h-4 w-4 shrink-0" />
-              <span className="truncate">Desempenho</span>
-            </TabsTrigger>
+        <PillTabsList className="w-full grid grid-cols-3">
+          <PillTabsTrigger value="desempenho" color="blue" className="justify-center">
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span className="truncate">Desempenho</span>
+          </PillTabsTrigger>
 
-            <TabsTrigger
-              value="cobrancas"
-              className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-red-700 dark:data-[state=active]:text-red-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-red-200 dark:data-[state=active]:border-red-800
-                hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
-            >
-              <CreditCard className="h-4 w-4 shrink-0" />
-              <span className="truncate">Cobranças</span>
-            </TabsTrigger>
+          <PillTabsTrigger value="cobrancas" color="red" className="justify-center">
+            <CreditCard className="h-4 w-4 shrink-0" />
+            <span className="truncate">Cobranças</span>
+          </PillTabsTrigger>
 
-            <TabsTrigger
-              value="eventos"
-              className="flex items-center justify-center gap-2 text-sm font-medium py-2 px-3 rounded-md transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800 data-[state=active]:text-purple-700 dark:data-[state=active]:text-purple-400 data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-purple-200 dark:data-[state=active]:border-purple-800
-                hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400 border border-transparent"
-            >
-              <Calendar className="h-4 w-4 shrink-0" />
-              <span className="truncate">Eventos</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+          <PillTabsTrigger value="eventos" color="purple" className="justify-center">
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span className="truncate">Eventos</span>
+          </PillTabsTrigger>
+        </PillTabsList>
 
         {/* Aba Desempenho ─────────────────────────────────────────────────── */}
         <TabsContent value="desempenho" className="m-0 outline-none">
           <Tabs defaultValue="vendas" className="space-y-4">
-            <div className="border-b border-gray-200 dark:border-slate-800 mb-4 overflow-x-auto no-scrollbar">
-              <TabsList className="flex w-max min-w-full h-12 items-center justify-start rounded-none bg-transparent p-0">
-                <TabsTrigger
-                  value="vendas"
-                  className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 data-[state=active]:border-blue-600 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none"
-                >
-                  <BarChart3 className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Vendas</span>
-                </TabsTrigger>
+            <UnderlineTabsList>
+              <UnderlineTabsTrigger value="vendas" color="blue">
+                <BarChart3 className="h-4 w-4 shrink-0" />
+                Vendas
+              </UnderlineTabsTrigger>
 
-                <TabsTrigger
-                  value="cohort"
-                  className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 data-[state=active]:border-green-600 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none"
-                >
-                  <Percent className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Cohort</span>
-                </TabsTrigger>
+              <UnderlineTabsTrigger value="cohort" color="green">
+                <Percent className="h-4 w-4 shrink-0" />
+                Cohort
+              </UnderlineTabsTrigger>
 
-                <TabsTrigger
-                  value="pedidos"
-                  className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2 border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 data-[state=active]:border-orange-600 data-[state=active]:text-orange-700 dark:data-[state=active]:text-orange-400 data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none"
-                >
-                  <Package className="h-4 w-4 shrink-0" />
-                  <span className="truncate">Pedidos</span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
+              <UnderlineTabsTrigger value="pedidos" color="orange">
+                <Package className="h-4 w-4 shrink-0" />
+                Pedidos
+              </UnderlineTabsTrigger>
+            </UnderlineTabsList>
 
             <TabsContent value="vendas" className="m-0 outline-none">
               {showAggregateView ? (

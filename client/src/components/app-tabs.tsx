@@ -2,6 +2,46 @@ import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { cn } from "@/lib/utils";
 
+// ---------------------------------------------------------------------------
+// Color system — maps semantic intent to active-state classes
+// ---------------------------------------------------------------------------
+
+export type TabColor =
+  | "blue"
+  | "green"
+  | "orange"
+  | "red"
+  | "purple"
+  | "amber"
+  | "indigo"
+  | "teal";
+
+const underlineActiveColor: Record<TabColor, string> = {
+  blue:   "data-[state=active]:border-blue-600   data-[state=active]:text-blue-600   dark:data-[state=active]:border-blue-400   dark:data-[state=active]:text-blue-400",
+  green:  "data-[state=active]:border-green-600  data-[state=active]:text-green-600  dark:data-[state=active]:border-green-400  dark:data-[state=active]:text-green-400",
+  orange: "data-[state=active]:border-orange-500 data-[state=active]:text-orange-600 dark:data-[state=active]:border-orange-400 dark:data-[state=active]:text-orange-400",
+  red:    "data-[state=active]:border-red-600    data-[state=active]:text-red-600    dark:data-[state=active]:border-red-400    dark:data-[state=active]:text-red-400",
+  purple: "data-[state=active]:border-purple-600 data-[state=active]:text-purple-600 dark:data-[state=active]:border-purple-400 dark:data-[state=active]:text-purple-400",
+  amber:  "data-[state=active]:border-amber-500  data-[state=active]:text-amber-600  dark:data-[state=active]:border-amber-400  dark:data-[state=active]:text-amber-400",
+  indigo: "data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:border-indigo-400 dark:data-[state=active]:text-indigo-400",
+  teal:   "data-[state=active]:border-teal-600   data-[state=active]:text-teal-600   dark:data-[state=active]:border-teal-400   dark:data-[state=active]:text-teal-400",
+};
+
+const pillActiveColor: Record<TabColor, string> = {
+  blue:   "data-[state=active]:text-blue-600   dark:data-[state=active]:text-blue-400   data-[state=active]:bg-blue-50   dark:data-[state=active]:bg-blue-500/10   data-[state=active]:border-blue-200   dark:data-[state=active]:border-blue-500/20",
+  green:  "data-[state=active]:text-green-600  dark:data-[state=active]:text-green-400  data-[state=active]:bg-green-50  dark:data-[state=active]:bg-green-500/10  data-[state=active]:border-green-200  dark:data-[state=active]:border-green-500/20",
+  orange: "data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400 data-[state=active]:bg-orange-50 dark:data-[state=active]:bg-orange-500/10 data-[state=active]:border-orange-200 dark:data-[state=active]:border-orange-500/20",
+  red:    "data-[state=active]:text-red-600    dark:data-[state=active]:text-red-400    data-[state=active]:bg-red-50    dark:data-[state=active]:bg-red-500/10    data-[state=active]:border-red-200    dark:data-[state=active]:border-red-500/20",
+  purple: "data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400 data-[state=active]:bg-purple-50 dark:data-[state=active]:bg-purple-500/10 data-[state=active]:border-purple-200 dark:data-[state=active]:border-purple-500/20",
+  amber:  "data-[state=active]:text-amber-600  dark:data-[state=active]:text-amber-400  data-[state=active]:bg-amber-50  dark:data-[state=active]:bg-amber-500/10  data-[state=active]:border-amber-200  dark:data-[state=active]:border-amber-500/20",
+  indigo: "data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:bg-indigo-50 dark:data-[state=active]:bg-indigo-500/10 data-[state=active]:border-indigo-200 dark:data-[state=active]:border-indigo-500/20",
+  teal:   "data-[state=active]:text-teal-600   dark:data-[state=active]:text-teal-400   data-[state=active]:bg-teal-50   dark:data-[state=active]:bg-teal-500/10   data-[state=active]:border-teal-200   dark:data-[state=active]:border-teal-500/20",
+};
+
+// ---------------------------------------------------------------------------
+// Root
+// ---------------------------------------------------------------------------
+
 const AppTabs = TabsPrimitive.Root;
 
 // ---------------------------------------------------------------------------
@@ -16,7 +56,8 @@ const UnderlineTabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "flex items-center gap-2 border-b border-border bg-transparent h-auto p-0 overflow-x-auto no-scrollbar",
+      "flex items-center gap-1 border-b border-slate-200 dark:border-slate-700",
+      "bg-transparent h-auto p-0",
       className,
     )}
     {...props}
@@ -24,26 +65,26 @@ const UnderlineTabsList = React.forwardRef<
 ));
 UnderlineTabsList.displayName = "UnderlineTabsList";
 
+type UnderlineTriggerProps = React.ComponentPropsWithoutRef<
+  typeof TabsPrimitive.Trigger
+> & { color?: TabColor };
+
 const UnderlineTabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, ...props }, ref) => (
+  UnderlineTriggerProps
+>(({ className, color = "blue", ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      // Layout
-      "inline-flex items-center gap-1.5 whitespace-nowrap px-1 pb-3 pt-1",
-      // Typography
-      "text-sm font-medium text-muted-foreground",
-      // Border indicator (sits on top of the parent border-b)
+      "inline-flex items-center gap-2 whitespace-nowrap px-3 pb-3 pt-2",
+      "text-sm font-medium text-slate-500 dark:text-slate-400",
       "border-b-2 border-transparent -mb-px",
-      // Transitions
       "transition-colors duration-200",
-      // States
-      "hover:text-foreground",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      "disabled:pointer-events-none disabled:opacity-50",
-      "data-[state=active]:border-primary data-[state=active]:text-primary",
+      "hover:text-slate-900 dark:hover:text-slate-100",
+      // outline-none suprime o ring padrão (--ring quase preto neste tema)
+      "outline-none",
+      "disabled:pointer-events-none disabled:opacity-40",
+      underlineActiveColor[color],
       className,
     )}
     {...props}
@@ -54,7 +95,6 @@ UnderlineTabsTrigger.displayName = "UnderlineTabsTrigger";
 // ---------------------------------------------------------------------------
 // Variant: Pill
 // Use in pages/components where tabs act as mode/segment switchers
-// (e.g. Vendas / Ligações / Cadastros / Marcadores / Interações)
 // ---------------------------------------------------------------------------
 
 const PillTabsList = React.forwardRef<
@@ -64,7 +104,10 @@ const PillTabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl h-auto overflow-x-auto no-scrollbar",
+      "flex items-center gap-1 h-auto p-1 rounded-xl",
+      "bg-white dark:bg-slate-950",
+      "border border-slate-200 dark:border-slate-800",
+      "shadow-sm",
       className,
     )}
     {...props}
@@ -72,26 +115,27 @@ const PillTabsList = React.forwardRef<
 ));
 PillTabsList.displayName = "PillTabsList";
 
+type PillTriggerProps = React.ComponentPropsWithoutRef<
+  typeof TabsPrimitive.Trigger
+> & { color?: TabColor };
+
 const PillTabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, ...props }, ref) => (
+  PillTriggerProps
+>(({ className, color = "blue", ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      // Layout
-      "inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-lg",
-      // Typography
-      "text-sm font-medium text-muted-foreground",
-      // Transitions
+      "inline-flex items-center gap-2 whitespace-nowrap px-3.5 py-2 rounded-lg",
+      "text-sm font-medium text-slate-500 dark:text-slate-400",
       "transition-all duration-200",
-      // States
-      "hover:text-foreground hover:bg-white/60 dark:hover:bg-white/5",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      "disabled:pointer-events-none disabled:opacity-50",
-      "data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900",
-      "data-[state=active]:text-foreground data-[state=active]:font-semibold",
-      "data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-slate-200/80 dark:data-[state=active]:border-slate-700/60",
+      "hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60",
+      "outline-none",
+      "disabled:pointer-events-none disabled:opacity-40",
+      // Borda sempre presente para evitar layout shift
+      "border border-transparent",
+      "data-[state=active]:font-semibold",
+      pillActiveColor[color],
       className,
     )}
     {...props}
@@ -100,7 +144,7 @@ const PillTabsTrigger = React.forwardRef<
 PillTabsTrigger.displayName = "PillTabsTrigger";
 
 // ---------------------------------------------------------------------------
-// Shared content wrapper — adds standard top spacing and focus ring
+// Shared content wrapper
 // ---------------------------------------------------------------------------
 
 const AppTabsContent = React.forwardRef<
@@ -110,7 +154,7 @@ const AppTabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
-      "mt-4 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      "mt-4 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
       className,
     )}
     {...props}
@@ -120,12 +164,9 @@ AppTabsContent.displayName = "AppTabsContent";
 
 export {
   AppTabs,
-  // Underline variant
   UnderlineTabsList,
   UnderlineTabsTrigger,
-  // Pill variant
   PillTabsList,
   PillTabsTrigger,
-  // Shared
   AppTabsContent,
 };

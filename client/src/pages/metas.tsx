@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import {
@@ -13,7 +13,12 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import {
+  PillTabsList,
+  PillTabsTrigger,
+  type TabColor,
+} from "@/components/app-tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -342,12 +347,12 @@ export default function Metas() {
     );
   }
 
-  const TABS = [
-    { id: "sales", label: "Vendas", icon: Target },
-    { id: "telemarketing", label: "Ligações", icon: Phone },
-    { id: "registration", label: "Cadastros", icon: Users },
-    { id: "markers", label: "Marcadores", icon: Package },
-    { id: "interactions", label: "Interações", icon: MessageSquare },
+  const TABS: { id: string; label: string; icon: React.ElementType; color: TabColor }[] = [
+    { id: "sales",         label: "Vendas",      icon: Target,        color: "blue"   },
+    { id: "telemarketing", label: "Ligações",     icon: Phone,         color: "green"  },
+    { id: "registration",  label: "Cadastros",    icon: Users,         color: "indigo" },
+    { id: "markers",       label: "Marcadores",   icon: Package,       color: "amber"  },
+    { id: "interactions",  label: "Interações",   icon: MessageSquare, color: "purple" },
   ];
 
   return (
@@ -519,26 +524,14 @@ export default function Metas() {
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <TabsList className="flex items-center justify-start gap-2 bg-transparent h-auto p-0 overflow-x-auto no-scrollbar flex-wrap">
+        <PillTabsList>
           {TABS.map((tab) => (
-            <TabsTrigger
-              key={tab.id}
-              value={tab.id}
-              className="group flex items-center gap-2.5 px-5 py-3 rounded-xl border border-transparent transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                data-[state=active]:border-slate-200 dark:data-[state=active]:border-slate-800
-                data-[state=active]:shadow-md
-                hover:bg-white/60 dark:hover:bg-white/5"
-            >
-              <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 group-data-[state=active]:bg-blue-500/10 transition-colors">
-                <tab.icon className="h-3.5 w-3.5 text-slate-500 group-data-[state=active]:text-blue-500" />
-              </div>
-              <span className="text-sm font-bold text-slate-500 group-data-[state=active]:text-slate-900 dark:group-data-[state=active]:text-white">
-                {tab.label}
-              </span>
-            </TabsTrigger>
+            <PillTabsTrigger key={tab.id} value={tab.id} color={tab.color}>
+              <tab.icon className="h-4 w-4 shrink-0" />
+              {tab.label}
+            </PillTabsTrigger>
           ))}
-        </TabsList>
+        </PillTabsList>
 
         {/* Vendas */}
         <TabsContent value="sales" className="m-0 outline-none">
