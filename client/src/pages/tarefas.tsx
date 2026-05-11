@@ -39,7 +39,12 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AppTabs,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+  AppTabsContent,
+} from "@/components/app-tabs";
 import {
   Dialog,
   DialogContent,
@@ -2004,38 +2009,38 @@ export default function TarefasPage() {
           )}
         </div>
       ) : (
-        /* Tabs: Boards | Minhas Tarefas | Anotações */
-        <Tabs defaultValue={canManage ? "boards" : "minhas"} className="flex-1 flex flex-col">
-          <TabsList className="w-fit">
+        /* Tabs: Boards | Minhas Tarefas | Anotações | Arquivos */
+        <AppTabs defaultValue={canManage ? "boards" : "minhas"} className="flex-1 flex flex-col">
+          <UnderlineTabsList>
             {canManage && (
-              <TabsTrigger value="boards" className="flex items-center gap-1.5 text-xs">
+              <UnderlineTabsTrigger value="boards" color="purple">
                 <LayoutGrid className="h-3.5 w-3.5" />Boards
-              </TabsTrigger>
+              </UnderlineTabsTrigger>
             )}
-            <TabsTrigger value="minhas" className="flex items-center gap-1.5 text-xs">
+            <UnderlineTabsTrigger value="minhas" color="purple">
               <List className="h-3.5 w-3.5" />Minhas Tarefas
               {myTasks.filter((t) => {
                 const stage = allStages.find((s) => s.slug === t.status);
                 return !stage || !stage.name.toLowerCase().includes("conclu");
               }).length > 0 && (
-                <span className="ml-1 bg-purple-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+                <span className="ml-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
                   {myTasks.filter((t) => {
                     const stage = allStages.find((s) => s.slug === t.status);
                     return !stage || !stage.name.toLowerCase().includes("conclu");
                   }).length}
                 </span>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="anotacoes" className="flex items-center gap-1.5 text-xs">
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="anotacoes" color="purple">
               <NotebookPen className="h-3.5 w-3.5" />Anotações
-            </TabsTrigger>
-            <TabsTrigger value="arquivos" className="flex items-center gap-1.5 text-xs">
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="arquivos" color="purple">
               <Folder className="h-3.5 w-3.5" />Arquivos
-            </TabsTrigger>
-          </TabsList>
+            </UnderlineTabsTrigger>
+          </UnderlineTabsList>
 
           {canManage && (
-            <TabsContent value="boards" className="flex-1 mt-4">
+            <AppTabsContent value="boards" className="flex-1">
               {boardsLoading ? (
                 <div className="text-slate-400 text-sm">Carregando boards...</div>
               ) : boards.length === 0 ? (
@@ -2066,26 +2071,26 @@ export default function TarefasPage() {
                   </button>
                 </div>
               )}
-            </TabsContent>
+            </AppTabsContent>
           )}
 
-          <TabsContent value="minhas" className="flex-1 mt-4">
+          <AppTabsContent value="minhas" className="flex-1">
             <MyTasksListView
               tasks={myTasks}
               allStages={allStages}
               boards={boards}
               onOpen={(t) => setSelectedTaskId(t.id)}
             />
-          </TabsContent>
+          </AppTabsContent>
 
-          <TabsContent value="anotacoes" className="flex-1 mt-4">
+          <AppTabsContent value="anotacoes" className="flex-1">
             <NotesView />
-          </TabsContent>
+          </AppTabsContent>
 
-          <TabsContent value="arquivos" className="flex-1 mt-4">
+          <AppTabsContent value="arquivos" className="flex-1">
             <FilesView />
-          </TabsContent>
-        </Tabs>
+          </AppTabsContent>
+        </AppTabs>
       )}
 
       {/* Dialogs */}

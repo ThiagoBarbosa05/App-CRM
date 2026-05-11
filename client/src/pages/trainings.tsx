@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AppTabs,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+  AppTabsContent,
+} from "@/components/app-tabs";
 import {
   GraduationCap,
   Video,
@@ -110,65 +115,54 @@ export default function Trainings() {
         </PageHeader.Info>
       </PageHeader>
 
-      <Tabs defaultValue="videos" className="space-y-8">
-        <div className="flex justify-center">
-          <TabsList className="h-16 p-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl shrink-0 shadow-sm">
-            <TabsTrigger 
-              value="videos" 
-              className="px-8 rounded-2xl data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/20 transition-all gap-2"
-            >
-              <Video className="h-4 w-4" />
-              <span className="font-black uppercase text-[10px] tracking-widest px-1">Vídeos</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="documents" 
-              className="px-8 rounded-2xl data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/20 transition-all gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              <span className="font-black uppercase text-[10px] tracking-widest px-1">Manuais</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="scripts" 
-              className="px-8 rounded-2xl data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/20 transition-all gap-2"
-            >
-              <ScrollText className="h-4 w-4" />
-              <span className="font-black uppercase text-[10px] tracking-widest px-1">Scripts</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      <AppTabs defaultValue="videos" className="space-y-6">
+        <UnderlineTabsList>
+          <UnderlineTabsTrigger value="videos" color="blue">
+            <Video className="h-3.5 w-3.5" />
+            Vídeos
+          </UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="documents" color="blue">
+            <FileText className="h-3.5 w-3.5" />
+            Manuais
+          </UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="scripts" color="blue">
+            <ScrollText className="h-3.5 w-3.5" />
+            Scripts
+          </UnderlineTabsTrigger>
+        </UnderlineTabsList>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <TabsContent value="videos" className="mt-0 outline-none">
-            <VideoTab 
-              videos={trainingVideos || []} 
+          <AppTabsContent value="videos" className="mt-0">
+            <VideoTab
+              videos={trainingVideos || []}
               selectedVideo={selectedVideo}
               setSelectedVideo={setSelectedVideo}
               isAdmin={isAdmin}
               moveTraining={moveTraining}
             />
-          </TabsContent>
+          </AppTabsContent>
 
-          <TabsContent value="documents" className="mt-0 outline-none">
-            <DocumentTab 
+          <AppTabsContent value="documents" className="mt-0">
+            <DocumentTab
               documents={trainingDocument || []}
               isAdmin={isAdmin}
               moveTraining={moveTraining}
             />
-          </TabsContent>
+          </AppTabsContent>
 
-          <TabsContent value="scripts" className="mt-0 outline-none">
-            <ScriptTab 
+          <AppTabsContent value="scripts" className="mt-0">
+            <ScriptTab
               scripts={scripts || []}
               isAdmin={isAdmin}
               moveTraining={moveTraining}
             />
-          </TabsContent>
+          </AppTabsContent>
         </motion.div>
-      </Tabs>
+      </AppTabs>
     </div>
   );
 }

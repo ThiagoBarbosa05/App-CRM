@@ -1,6 +1,10 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import {
+  AppTabs,
+  PillTabsList,
+  PillTabsTrigger,
+  AppTabsContent,
+} from "@/components/app-tabs";
 import BlingAccountsManagement from "@/components/bling-accounts-management";
 import { TelephonyAISettings } from "@/components/telephony-ai-settings";
 import { useQuery } from "@tanstack/react-query";
@@ -41,83 +45,36 @@ export function IntegrationsManagement() {
 
   return (
     <div className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="p-1.5 bg-slate-100/80 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
-          <TabsList className="flex flex-wrap gap-1.5 h-auto bg-transparent p-0 w-full">
-            {/* Bling */}
-            <TabsTrigger
-              value="bling"
-              className="flex items-center gap-3 px-5 py-3 rounded-xl transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                data-[state=active]:shadow-md data-[state=active]:shadow-[#5ac782]/10
-                data-[state=active]:border data-[state=active]:border-[#5ac782]/20 dark:data-[state=active]:border-[#5ac782]/15
-                border border-transparent
-                text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
-                hover:bg-white/60 dark:hover:bg-slate-800/60 h-auto group"
-            >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#5ac782]/10 group-data-[state=active]:bg-[#5ac782]/15 transition-colors shrink-0">
-                <img src="/bling.svg" alt="Bling" className="h-4 w-auto" />
-              </div>
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
-                Bling
-              </span>
-              <StatusDot active={blingConnected} />
-            </TabsTrigger>
+      <AppTabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <PillTabsList>
+          <PillTabsTrigger value="bling" color="green" className="gap-2.5 px-4 py-2.5" title="Bling">
+            <img src="/bling.svg" alt="Bling" className="h-4 w-auto" />
+            <StatusDot active={blingConnected} />
+          </PillTabsTrigger>
 
-            {/* Twilio */}
-            <TabsTrigger
-              value="twilio"
-              className="flex items-center gap-3 px-5 py-3 rounded-xl transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                data-[state=active]:shadow-md data-[state=active]:shadow-red-500/10
-                data-[state=active]:border data-[state=active]:border-red-200/60 dark:data-[state=active]:border-red-800/30
-                border border-transparent
-                text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
-                hover:bg-white/60 dark:hover:bg-slate-800/60 h-auto group"
-            >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#F22F46]/10 group-data-[state=active]:bg-[#F22F46]/15 transition-colors shrink-0">
-                <img src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" />
-              </div>
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
-                Twilio
-              </span>
-              <StatusDot active={twilioActive} />
-            </TabsTrigger>
+          <PillTabsTrigger value="twilio" color="red" className="gap-2.5 px-4 py-2.5" title="Twilio">
+            <img src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" />
+            <StatusDot active={twilioActive} />
+          </PillTabsTrigger>
 
-            {/* ElevenLabs */}
-            <TabsTrigger
-              value="elevenlabs"
-              className="flex items-center gap-3 px-5 py-3 rounded-xl transition-all duration-200
-                data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900
-                data-[state=active]:shadow-md data-[state=active]:shadow-slate-500/10
-                data-[state=active]:border data-[state=active]:border-slate-200/60 dark:data-[state=active]:border-slate-700/40
-                border border-transparent
-                text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200
-                hover:bg-white/60 dark:hover:bg-slate-800/60 h-auto group"
-            >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 group-data-[state=active]:bg-slate-200/80 dark:bg-slate-800 dark:group-data-[state=active]:bg-slate-700/60 transition-colors shrink-0">
-                <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" />
-              </div>
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
-                ElevenLabs
-              </span>
-              <StatusDot active={elevenLabsActive} />
-            </TabsTrigger>
-          </TabsList>
-        </div>
+          <PillTabsTrigger value="elevenlabs" color="teal" className="gap-2.5 px-4 py-2.5" title="ElevenLabs">
+            <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" />
+            <StatusDot active={elevenLabsActive} />
+          </PillTabsTrigger>
+        </PillTabsList>
 
-        <TabsContent value="bling" className="mt-0">
+        <AppTabsContent value="bling" className="mt-0">
           <BlingAccountsManagement />
-        </TabsContent>
+        </AppTabsContent>
 
-        <TabsContent value="twilio" className="mt-0">
+        <AppTabsContent value="twilio" className="mt-0">
           <TelephonyAISettings activeTab="twilio" />
-        </TabsContent>
+        </AppTabsContent>
 
-        <TabsContent value="elevenlabs" className="mt-0">
+        <AppTabsContent value="elevenlabs" className="mt-0">
           <TelephonyAISettings activeTab="elevenlabs" />
-        </TabsContent>
-      </Tabs>
+        </AppTabsContent>
+      </AppTabs>
     </div>
   );
 }

@@ -10,7 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AppTabs,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+  AppTabsContent,
+} from "@/components/app-tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
@@ -309,47 +314,24 @@ export default function AIAssistant() {
             </PageHeader.Info>
           </PageHeader>
 
-          <Tabs defaultValue="wine-assistant" className="w-full">
-            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-              <TabsTrigger
-                value="wine-assistant"
-                className="group flex w-full dark:text-slate-300 items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-purple-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
-              >
-                <div className="bg-purple-100 dark:bg-purple-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
-                  <Wine className="h-4 w-4 text-purple-600 dark:text-purple-400 group-data-[state=active]:text-white" />
-                </div>
-                <span className="truncate text-sm sm:text-base">
-                  Assistente Virtual do Vinho
-                </span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="message-generator"
-                className="group flex w-full dark:text-slate-300 items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
-              >
-                <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
-                  <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400 group-data-[state=active]:text-white" />
-                </div>
-                <span className="truncate text-sm sm:text-base">
-                  Gerador de Mensagens
-                </span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="ai-config"
-                className="group flex w-full dark:text-slate-300 items-center justify-center gap-3 rounded-xl px-3 py-2 text-center font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600 data-[state=active]:to-emerald-700 data-[state=active]:text-white data-[state=active]:shadow-md hover:bg-white dark:hover:bg-gray-700/50 hover:shadow-sm min-w-0"
-              >
-                <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg  group-data-[state=active]:bg-white/20 transition-colors shrink-0">
-                  <Settings className="h-4 w-4 text-emerald-600 dark:text-emerald-400 group-data-[state=active]:text-white" />
-                </div>
-                <span className="truncate text-sm sm:text-base">
-                  Configurações da IA
-                </span>
-              </TabsTrigger>
-            </TabsList>
+          <AppTabs defaultValue="wine-assistant" className="w-full">
+            <UnderlineTabsList>
+              <UnderlineTabsTrigger value="wine-assistant" color="purple">
+                <Wine className="h-3.5 w-3.5" />
+                Assistente Virtual do Vinho
+              </UnderlineTabsTrigger>
+              <UnderlineTabsTrigger value="message-generator" color="blue">
+                <MessageSquare className="h-3.5 w-3.5" />
+                Gerador de Mensagens
+              </UnderlineTabsTrigger>
+              <UnderlineTabsTrigger value="ai-config" color="teal">
+                <Settings className="h-3.5 w-3.5" />
+                Configurações da IA
+              </UnderlineTabsTrigger>
+            </UnderlineTabsList>
 
             {/* Assistente Virtual do Vinho */}
-            <TabsContent value="wine-assistant">
+            <AppTabsContent value="wine-assistant">
               <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/10 dark:to-violet-900/10">
                 <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-t-xl border-b border-purple-100 dark:border-purple-800/30 pb-4">
                   <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
@@ -545,10 +527,10 @@ export default function AIAssistant() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </AppTabsContent>
 
             {/* Gerador de Mensagens */}
-            <TabsContent value="message-generator">
+            <AppTabsContent value="message-generator">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Formulário */}
                 <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
@@ -692,10 +674,10 @@ export default function AIAssistant() {
                   </CardContent>
                 </Card>
               </div>
-            </TabsContent>
+            </AppTabsContent>
 
             {/* Configurações da IA */}
-            <TabsContent value="ai-config">
+            <AppTabsContent value="ai-config">
               <Card className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md bg-white dark:bg-gray-900/50">
                 <CardHeader className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 rounded-t-xl border-b border-gray-200 dark:border-gray-700 pb-4">
                   <CardTitle className="flex items-center gap-3 text-lg font-bold text-gray-900 dark:text-white">
@@ -1006,8 +988,8 @@ export default function AIAssistant() {
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+            </AppTabsContent>
+          </AppTabs>
         </div>
       </div>
     </div>

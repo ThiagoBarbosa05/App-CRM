@@ -8,7 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AppTabs,
+  PillTabsList,
+  PillTabsTrigger,
+  AppTabsContent,
+} from "@/components/app-tabs";
 import {
   AlertTriangle,
   Bookmark,
@@ -108,208 +113,61 @@ export default function Configurations() {
         </PageHeader.Info>
       </PageHeader>
 
-      <Tabs
+      <AppTabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="space-y-8"
+        className="space-y-6"
       >
-        <div className="relative">
-          <div className="absolute inset-0 bg-slate-900/5 dark:bg-white/5 rounded-3xl blur-xl -z-10" />
-          <TabsList className="h-auto w-full p-2 bg-slate-50 dark:bg-slate-800/50 backdrop-blur-xl rounded-[2.5rem] border border-slate-200/60 dark:border-slate-700/60 shadow-inner">
-            <div className="flex flex-wrap items-center justify-center gap-2 w-full p-1">
-              <TabsTrigger
-                value="users"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar usuários do sistema"
-              >
-                <Users className="size-4 " />
-                <span className="text-xs font-medium ">Usuários</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="categories"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar categorias"
-              >
-                <Tags className="size-4" />
-                <span className="text-xs font-medium ">Categorias</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="markers"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar marcadores"
-              >
-                <Bookmark className="size-4" />
-                <span className="text-xs font-medium ">Marcadores</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="origins"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar origens"
-              >
-                <Tag className="size-4" />
-                <span className="text-xs font-medium ">Origens</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="sectors"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar setores"
-              >
-                <LayoutPanelTop className="size-4" />
-                <span className="text-xs font-medium ">Setores</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="learning-images"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar treinamentos"
-              >
-                <GraduationCap className="size-4" />
-                <span className="text-xs font-medium ">Treinamentos</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="cashback"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Configurações de cashback"
-              >
-                <CircleDollarSign className="size-4" />
-                <span className="text-xs font-medium ">Cashback</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="debts"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar dívidas de clientes"
-              >
-                <BookMarked className="size-4" />
-                <span className="text-xs font-medium ">Dívidas</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="export"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Exportar dados do sistema"
-              >
-                <Download className="size-4" />
-                <span className="text-xs font-medium ">Exportação</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="automation"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Configurações de automação"
-              >
-                <Bot className="size-4" />
-                <span className="text-xs font-medium ">Automação</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="deal-questions"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                      data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10 
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar perguntas dos deals"
-              >
-                <HelpCircle className="size-4" />
-                <span className="text-xs font-medium ">Questionário</span>
-              </TabsTrigger>
-
-              {/* <TabsTrigger
-                value="umbler-sync"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar sincronização com Umbler"
-              >
-                <RefreshCcw className="size-4" />
-                <span className="text-xs font-medium ">Umbler Sync</span>
-              </TabsTrigger> */}
-              {/* <TabsTrigger
-                value="wine-price-tiers"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar faixas de preço de vinhos"
-              >
-                <DollarSignIcon className="size-4" />
-                <span className="text-xs font-medium ">Faixas de Preço</span>
-              </TabsTrigger> */}
-
-              <TabsTrigger
-                value="product-categories"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar categorias de produto"
-              >
-                <Grid3X3 className="size-4" />
-                <span className="text-xs font-medium">Cat. Produto</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="ai-profile"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-violet-500/10
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Configurações do Perfil IA de vinhos"
-              >
-                <Sparkles className="size-4" />
-                <span className="text-xs font-medium">Perfil IA</span>
-              </TabsTrigger>
-
-              <TabsTrigger
-                value="integrations"
-                className="flex flex-col items-center justify-center gap-2 px-4 py-3 min-w-[100px] rounded-2xl transition-all duration-300
-                       data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400
-                      data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/10
-                      text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-slate-800/40"
-                title="Gerenciar integrações externas"
-              >
-                <PlugZap className="size-4" />
-                <span className="text-xs font-medium">Integrações</span>
-              </TabsTrigger>
-            </div>
-          </TabsList>
-        </div>
+        <PillTabsList className="flex-wrap h-auto">
+          <PillTabsTrigger value="users" color="blue">
+            <Users className="h-3.5 w-3.5" />Usuários
+          </PillTabsTrigger>
+          <PillTabsTrigger value="categories" color="blue">
+            <Tags className="h-3.5 w-3.5" />Categorias
+          </PillTabsTrigger>
+          <PillTabsTrigger value="markers" color="blue">
+            <Bookmark className="h-3.5 w-3.5" />Marcadores
+          </PillTabsTrigger>
+          <PillTabsTrigger value="origins" color="blue">
+            <Tag className="h-3.5 w-3.5" />Origens
+          </PillTabsTrigger>
+          <PillTabsTrigger value="sectors" color="blue">
+            <LayoutPanelTop className="h-3.5 w-3.5" />Setores
+          </PillTabsTrigger>
+          <PillTabsTrigger value="learning-images" color="blue">
+            <GraduationCap className="h-3.5 w-3.5" />Treinamentos
+          </PillTabsTrigger>
+          <PillTabsTrigger value="cashback" color="blue">
+            <CircleDollarSign className="h-3.5 w-3.5" />Cashback
+          </PillTabsTrigger>
+          <PillTabsTrigger value="debts" color="blue">
+            <BookMarked className="h-3.5 w-3.5" />Dívidas
+          </PillTabsTrigger>
+          <PillTabsTrigger value="export" color="blue">
+            <Download className="h-3.5 w-3.5" />Exportação
+          </PillTabsTrigger>
+          <PillTabsTrigger value="automation" color="blue">
+            <Bot className="h-3.5 w-3.5" />Automação
+          </PillTabsTrigger>
+          <PillTabsTrigger value="deal-questions" color="blue">
+            <HelpCircle className="h-3.5 w-3.5" />Questionário
+          </PillTabsTrigger>
+          {/* <PillTabsTrigger value="umbler-sync" color="blue">
+            <RefreshCcw className="h-3.5 w-3.5" />Umbler Sync
+          </PillTabsTrigger> */}
+          {/* <PillTabsTrigger value="wine-price-tiers" color="blue">
+            <DollarSignIcon className="h-3.5 w-3.5" />Faixas de Preço
+          </PillTabsTrigger> */}
+          <PillTabsTrigger value="product-categories" color="blue">
+            <Grid3X3 className="h-3.5 w-3.5" />Cat. Produto
+          </PillTabsTrigger>
+          <PillTabsTrigger value="ai-profile" color="purple">
+            <Sparkles className="h-3.5 w-3.5" />Perfil IA
+          </PillTabsTrigger>
+          <PillTabsTrigger value="integrations" color="blue">
+            <PlugZap className="h-3.5 w-3.5" />Integrações
+          </PillTabsTrigger>
+        </PillTabsList>
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -318,76 +176,73 @@ export default function Configurations() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: -20, opacity: 0 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="relative"
           >
-            <div className="absolute inset-0 bg-blue-500/5 dark:bg-blue-400/5 blur-3xl rounded-[3rem] -z-10" />
-
-            <TabsContent value="users">
+            <AppTabsContent value="users">
               <UsersManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="categories">
+            <AppTabsContent value="categories">
               <CategoriesManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="markers">
+            <AppTabsContent value="markers">
               <MarkersManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="origins">
+            <AppTabsContent value="origins">
               <OriginsManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="sectors">
+            <AppTabsContent value="sectors">
               <SectorsManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="learning-images" className="h-full">
+            <AppTabsContent value="learning-images" className="h-full">
               <LearningImagesManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="cashback">
+            <AppTabsContent value="cashback">
               <CashbackSettingsManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="debts">
+            <AppTabsContent value="debts">
               <ClientDebtsManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="export">
+            <AppTabsContent value="export">
               <DataExportManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="automation">
+            <AppTabsContent value="automation">
               <AutomationManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="deal-questions">
+            <AppTabsContent value="deal-questions">
               <DealQuestionsManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="umbler-sync">
+            <AppTabsContent value="umbler-sync">
               <UmblerSyncManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="wine-price-tiers">
+            <AppTabsContent value="wine-price-tiers">
               <WinePriceTierSettings />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="product-categories">
+            <AppTabsContent value="product-categories">
               <ProductCategoriesManagement />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="ai-profile">
+            <AppTabsContent value="ai-profile">
               <WineAIProfileSettings />
-            </TabsContent>
+            </AppTabsContent>
 
-            <TabsContent value="integrations">
+            <AppTabsContent value="integrations">
               <IntegrationsManagement />
-            </TabsContent>
+            </AppTabsContent>
           </motion.div>
         </AnimatePresence>
-      </Tabs>
+      </AppTabs>
     </div>
   );
 }

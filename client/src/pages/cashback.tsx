@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import CashbackReports from "@/components/CashbackReports";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AppTabs,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+  AppTabsContent,
+} from "@/components/app-tabs";
 import {
   Gift,
   DollarSign,
@@ -563,34 +568,33 @@ export default function Cashback() {
           </PageHeader.Info>
         </PageHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-8">
-          <TabsList className="flex items-center justify-start gap-4 bg-transparent h-auto p-0 overflow-x-auto no-scrollbar">
-            {[
-              { id: "overview", label: "Visão Geral", icon: Gift, color: "blue" },
-              { id: "sales", label: "Vendas", icon: DollarSign, color: "emerald" },
-              { id: "balances", label: "Saldos", icon: Wallet, color: "purple" },
-              { id: "transactions", label: "Transações", icon: History, color: "amber" },
-              { id: "usage", label: "Resgates", icon: Percent, color: "rose" },
-              { id: "reports", label: "Relatórios", icon: Calculator, color: "indigo" },
-            ].map((tab) => (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className={`group flex items-center gap-3 px-6 py-4 rounded-2xl border border-transparent transition-all duration-300
-                  data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 
-                  data-[state=active]:border-slate-200 dark:data-[state=active]:border-slate-800 
-                  data-[state=active]:shadow-lg dark:data-[state=active]:shadow-blue-500/5 
-                  hover:bg-white/50 dark:hover:bg-white/5`}
-              >
-                <div className={`p-2 rounded-xl bg-slate-100 dark:bg-slate-800 group-data-[state=active]:bg-blue-500/10 transition-colors`}>
-                  <tab.icon className={`h-4 w-4 text-slate-500 group-data-[state=active]:text-blue-500`} />
-                </div>
-                <span className="text-sm font-bold tracking-tight text-slate-500 group-data-[state=active]:text-slate-900 dark:group-data-[state=active]:text-white">
-                  {tab.label}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        <AppTabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+          <UnderlineTabsList>
+            <UnderlineTabsTrigger value="overview" color="blue">
+              <Gift className="h-3.5 w-3.5" />
+              Visão Geral
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="sales" color="green">
+              <DollarSign className="h-3.5 w-3.5" />
+              Vendas
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="balances" color="purple">
+              <Wallet className="h-3.5 w-3.5" />
+              Saldos
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="transactions" color="amber">
+              <History className="h-3.5 w-3.5" />
+              Transações
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="usage" color="red">
+              <Percent className="h-3.5 w-3.5" />
+              Resgates
+            </UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="reports" color="indigo">
+              <Calculator className="h-3.5 w-3.5" />
+              Relatórios
+            </UnderlineTabsTrigger>
+          </UnderlineTabsList>
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -600,56 +604,53 @@ export default function Cashback() {
               exit={{ y: -20, opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
+              <AppTabsContent value="overview" className="space-y-6">
+                <CashbackStatsCards
+                  statistics={cashbackStats}
+                  isLoading={isStatsLoading}
+                  formatCurrency={formatCurrency}
+                />
+                <ExpiringCashbacks formatCurrency={formatCurrency} />
+              </AppTabsContent>
 
-            <TabsContent value="overview" className="space-y-6">
-              <CashbackStatsCards
-                statistics={cashbackStats}
-                isLoading={isStatsLoading}
-                formatCurrency={formatCurrency}
-              />
+              <AppTabsContent value="sales" className="space-y-6">
+                <SalesManagementTab
+                  isDialogOpen={isDialogOpen}
+                  setIsDialogOpen={setIsDialogOpen}
+                />
+              </AppTabsContent>
 
-              {/* Seção de Cashback Vencendo com filtros e ordenação */}
-              <ExpiringCashbacks formatCurrency={formatCurrency} />
-            </TabsContent>
+              <AppTabsContent value="balances" className="space-y-6">
+                <CashbackBalancesList
+                  formatCurrency={formatCurrency}
+                  users={users}
+                  onDeleteBalance={(balanceId) =>
+                    setDeletingBalance({ id: balanceId })
+                  }
+                  isAdmin={isAdmin}
+                />
+              </AppTabsContent>
 
-            <TabsContent value="sales" className="space-y-6">
-              <SalesManagementTab
-                isDialogOpen={isDialogOpen}
-                setIsDialogOpen={setIsDialogOpen}
-              />
-            </TabsContent>
+              <AppTabsContent value="transactions" className="space-y-6">
+                <CashbackTransactionsList
+                  formatCurrency={formatCurrency}
+                  users={users}
+                />
+              </AppTabsContent>
 
-            <TabsContent value="balances" className="space-y-6">
-              <CashbackBalancesList
-                formatCurrency={formatCurrency}
-                users={users}
-                onDeleteBalance={(balanceId) =>
-                  setDeletingBalance({ id: balanceId })
-                }
-                isAdmin={isAdmin}
-              />
-            </TabsContent>
+              <AppTabsContent value="usage" className="space-y-6">
+                <CashbackUsageList
+                  formatCurrency={formatCurrency}
+                  users={users}
+                />
+              </AppTabsContent>
 
-            <TabsContent value="transactions" className="space-y-6">
-              <CashbackTransactionsList
-                formatCurrency={formatCurrency}
-                users={users}
-              />
-            </TabsContent>
-
-            <TabsContent value="usage" className="space-y-6">
-              <CashbackUsageList
-                formatCurrency={formatCurrency}
-                users={users}
-              />
-            </TabsContent>
-
-            <TabsContent value="reports" className="space-y-6">
-              <CashbackReports />
-            </TabsContent>
+              <AppTabsContent value="reports" className="space-y-6">
+                <CashbackReports />
+              </AppTabsContent>
             </motion.div>
           </AnimatePresence>
-        </Tabs>
+        </AppTabs>
       </div>
 
       <CashbackUsageModal
