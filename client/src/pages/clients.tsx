@@ -292,31 +292,34 @@ export default function Clients() {
               </PageHeader.Description>
             </PageHeader.Text>
           </PageHeader.Info>
-          <PageHeader.Actions>
+          <PageHeader.Actions className="flex-wrap">
             <Link href="/clientes/duplicatas">
               <Button
                 variant="outline"
-                className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                size="sm"
+                className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl"
               >
-                <Copy className="h-4 w-4 mr-2" />
-                Duplicados
+                <Copy className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Duplicados</span>
               </Button>
             </Link>
             {user?.role === "admin" && (
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => setIsImportModalOpen(true)}
-                className="text-wine-600 dark:text-purple-400 border-wine-600 dark:border-purple-600 hover:bg-wine-50 dark:hover:bg-purple-900/30"
+                className="text-wine-600 dark:text-purple-400 border-wine-600 dark:border-purple-600 hover:bg-wine-50 dark:hover:bg-purple-900/30 rounded-xl"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                Importar
+                <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Importar</span>
               </Button>
             )}
             <Button
+              size="sm"
               onClick={() => setIsClientModalOpen(true)}
-              className="bg-primary hover:bg-primary-dark dark:bg-purple-600 dark:hover:bg-purple-700 text-white"
+              className="bg-primary hover:bg-primary-dark dark:bg-purple-600 dark:hover:bg-purple-700 text-white rounded-xl gap-2"
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4" />
               Novo Cliente
             </Button>
           </PageHeader.Actions>
@@ -469,46 +472,39 @@ export default function Clients() {
         {/* Clients Table */}
         <div className="bg-white dark:bg-slate-950 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
           {/* Header da tabela com informações de paginação */}
-          <div className="bg-gradient-to-r from-slate-50  to-slate-100 dark:from-slate-900 dark:to-slate-800 px-6 py-4 border-b border-gray-200 dark:border-slate-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-slate-800">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg shrink-0">
                   <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-slate-100 text-lg">
+                  <h3 className="font-semibold text-gray-900 dark:text-slate-100 text-base sm:text-lg">
                     Lista de Clientes
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">
-                    Mostrando {clientsArray.length} de {itemsPerPage} clientes
-                    por página
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-0.5">
+                    {clientsArray.length} de {itemsPerPage} por página
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                {/* Badge de status da busca */}
+              <div className="flex items-center gap-2 flex-wrap">
                 {(debouncedSearchQuery ||
                   Object.values(clientFilters).some(
                     (value) => value && value !== "all",
                   )) && (
-                  <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-3 py-2 rounded-lg">
-                    <Search className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                  <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-2.5 py-1.5 rounded-lg">
+                    <Search className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
                       Filtros ativos
                     </span>
                   </div>
                 )}
-
-                {/* Informação de paginação */}
-                <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 px-3 py-2 rounded-lg shadow-sm">
-                  <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                    Página {currentPage}
+                <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 px-2.5 py-1.5 rounded-lg shadow-sm">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-slate-300">
+                    Pág. {currentPage}
                     {totalPages && (
-                      <span className="text-gray-500 dark:text-slate-400">
-                        {" "}
-                        de {totalPages}
-                      </span>
+                      <span className="text-gray-500 dark:text-slate-400"> de {totalPages}</span>
                     )}
                   </span>
                 </div>
@@ -654,84 +650,105 @@ export default function Clients() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-purple-50 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-800">
-                      <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
-                        Nome / Razão Social
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
-                        CNPJ
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-3.5 w-3.5" />
-                          Telefone
+              <>
+                {/* Mobile: cards */}
+                <div className="sm:hidden divide-y divide-purple-100 dark:divide-purple-900/30">
+                  {companiesArray.map((company: any) => (
+                    <div key={company.id} className="p-4 space-y-2 bg-white dark:bg-slate-950">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-gray-900 dark:text-slate-100">
+                            {company.nomeFantasia || company.razaoSocial}
+                          </p>
+                          {company.nomeFantasia && company.razaoSocial && company.nomeFantasia !== company.razaoSocial && (
+                            <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{company.razaoSocial}</p>
+                          )}
                         </div>
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5" />
-                          Localização
-                        </div>
-                      </th>
-                      <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
-                        Ações
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {companiesArray.map((company: any, index: number) => (
-                      <tr
-                        key={company.id}
-                        className={`border-b border-gray-100 dark:border-slate-800 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-colors ${
-                          index % 2 === 0
-                            ? "bg-white dark:bg-slate-950"
-                            : "bg-purple-50/20 dark:bg-purple-900/5"
-                        }`}
-                      >
-                        <td className="px-4 py-3">
-                          <div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 shrink-0 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30"
+                          onClick={() => navigate(`/empresas`)}
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs text-gray-500 dark:text-slate-400">
+                        {company.cnpj && (
+                          <span className="font-mono bg-purple-50 dark:bg-purple-900/20 px-1.5 py-0.5 rounded text-purple-700 dark:text-purple-300">
+                            {company.cnpj}
+                          </span>
+                        )}
+                        {company.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />{company.phone}
+                          </span>
+                        )}
+                        {(company.city || company.state) && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {[company.city, company.state].filter(Boolean).join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop: table */}
+                <div className="hidden sm:block overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-purple-50 dark:bg-purple-900/10 border-b border-purple-100 dark:border-purple-800">
+                        <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">Nome / Razão Social</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">CNPJ</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
+                          <div className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />Telefone</div>
+                        </th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">
+                          <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />Localização</div>
+                        </th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-700 dark:text-slate-300">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {companiesArray.map((company: any, index: number) => (
+                        <tr
+                          key={company.id}
+                          className={`border-b border-gray-100 dark:border-slate-800 hover:bg-purple-50/50 dark:hover:bg-purple-900/10 transition-colors ${
+                            index % 2 === 0 ? "bg-white dark:bg-slate-950" : "bg-purple-50/20 dark:bg-purple-900/5"
+                          }`}
+                        >
+                          <td className="px-4 py-3">
                             <p className="font-medium text-gray-900 dark:text-slate-100">
                               {company.nomeFantasia || company.razaoSocial}
                             </p>
-                            {company.nomeFantasia &&
-                              company.razaoSocial &&
-                              company.nomeFantasia !== company.razaoSocial && (
-                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                                  {company.razaoSocial}
-                                </p>
-                              )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-slate-400 font-mono text-xs">
-                          {company.cnpj || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-slate-400">
-                          {company.phone || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-gray-600 dark:text-slate-400">
-                          {[company.city, company.state]
-                            .filter(Boolean)
-                            .join(", ") || "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30"
-                            onClick={() => navigate(`/empresas`)}
-                          >
-                            <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                            Ver
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            {company.nomeFantasia && company.razaoSocial && company.nomeFantasia !== company.razaoSocial && (
+                              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{company.razaoSocial}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-slate-400 font-mono text-xs">{company.cnpj || "—"}</td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-slate-400">{company.phone || "—"}</td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-slate-400">
+                            {[company.city, company.state].filter(Boolean).join(", ") || "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30"
+                              onClick={() => navigate(`/empresas`)}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                              Ver
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         )}

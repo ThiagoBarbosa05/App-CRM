@@ -255,7 +255,213 @@ export default function ClientsTableWithSelection({
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-950  shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-3">
+        {sortedClients.length === 0 ? (
+          <div className="flex flex-col items-center space-y-4 py-16 text-center border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-2xl">
+            <div className="p-4 bg-gray-100 dark:bg-slate-800 rounded-full">
+              <User className="h-8 w-8 text-gray-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-1">Nenhum cliente encontrado</h3>
+              <p className="text-gray-500 dark:text-slate-400 text-sm">Tente ajustar os filtros ou adicione novos clientes</p>
+            </div>
+          </div>
+        ) : (
+          sortedClients.map((client) => {
+            const responsavelName = (() => {
+              const u = users.find((u) => u.id === client.responsavelId);
+              return u ? u.name : client.responsavelId ? "Não encontrado" : "Não atribuído";
+            })();
+            const status = computePurchaseStatus((client as any).lastPurchaseDate);
+            const isSelected = selectedClientIds.includes(client.id);
+            return (
+              <div
+                key={client.id}
+                className={`bg-white dark:bg-slate-900 border rounded-2xl shadow-sm overflow-hidden transition-all duration-200 cursor-pointer ${
+                  isSelected
+                    ? "border-blue-500 dark:border-blue-400 ring-2 ring-blue-500/20"
+                    : "border-gray-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md"
+                }`}
+                onClick={() => navigate(`/clientes/${client.id}`)}
+              >
+                {/* Top accent bar based on status */}
+                <div className={`h-1 w-full ${status === "ativo" ? "bg-gradient-to-r from-green-400 to-emerald-500" : "bg-gradient-to-r from-red-400 to-rose-500"}`} />
+
+                {/* Card header */}
+                <div className="flex items-center gap-3 px-4 pt-3 pb-3">
+                  {/* Checkbox + Avatar */}
+                  <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
+                      className="border-2 border-gray-300 dark:border-slate-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    />
+                  </div>
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-800 shrink-0">
+                    <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 dark:text-slate-100 text-base leading-tight">
+                      {client.name}
+                    </p>
+                    {(client.city || client.state) && (
+                      <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-500 dark:text-slate-400">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        <span>{[client.city, client.state].filter(Boolean).join(", ")}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setSaleClient(client)}>
+                          <DollarSign className="mr-2 h-4 w-4 text-green-600" />
+                          Lançar venda
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingClient(client)}>
+                          <Edit className="mr-2 h-4 w-4 text-blue-600" />
+                          Editar
+                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeletingClient(client)}
+                              className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="mx-4 border-t border-gray-100 dark:border-slate-800" />
+
+                {/* Card body */}
+                <div className="px-4 py-3 space-y-2.5">
+
+                  {/* Contact row */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded-md shrink-0">
+                        <Phone className="h-3 w-3 text-green-600 dark:text-green-400" />
+                      </div>
+                      <a
+                        href={`tel:${client.phone}`}
+                        className="text-blue-600 dark:text-blue-400 hover:underline font-medium text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {client.phone || "—"}
+                      </a>
+                    </div>
+                    {client.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="p-1 bg-slate-100 dark:bg-slate-800 rounded-md shrink-0">
+                          <Mail className="h-3 w-3 text-slate-500 dark:text-slate-400" />
+                        </div>
+                        <span className="text-gray-600 dark:text-slate-300 text-xs break-all">{client.email}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Responsável + Aniversário */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="p-1 bg-purple-100 dark:bg-purple-900/30 rounded-md shrink-0">
+                        <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <span className="text-gray-700 dark:text-slate-300 text-xs font-medium">{responsavelName}</span>
+                    </div>
+                    {client.birthday && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-md shrink-0">
+                          <Calendar className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <span className="text-gray-600 dark:text-slate-400 text-xs">{formatDate(client.birthday)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badges row: categoria + status */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {client.categoria && (
+                      <Badge variant="outline" className="capitalize text-xs bg-gradient-to-r dark:from-blue-500 dark:to-blue-900 dark:text-slate-100 from-orange-50 to-amber-50 border-orange-200 text-orange-800 font-medium">
+                        {client.categoria}
+                      </Badge>
+                    )}
+                    {status === "ativo" ? (
+                      <Badge className="text-xs bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-300 dark:border-green-700 font-semibold">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        ATIVO
+                      </Badge>
+                    ) : (
+                      <Badge className="text-xs bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-300 dark:border-red-700 font-semibold">
+                        <AlertCircle className="h-3 w-3 mr-1" />
+                        INATIVO
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Marcadores */}
+                  {client.markers && client.markers.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {client.markers.slice(0, 3).map((marker, i) => (
+                        <Badge key={i} variant="secondary" className="text-xs bg-gradient-to-r from-violet-100 dark:from-teal-600 dark:text-slate-50 dark:border-none dark:to-teal-800 to-purple-100 border-violet-200 text-violet-800 px-2 py-0.5">
+                          <Tag className="h-3 w-3 mr-1" />
+                          {marker}
+                        </Badge>
+                      ))}
+                      {client.markers.length > 3 && (
+                        <Badge variant="secondary" className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300">
+                          +{client.markers.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tags Umbler */}
+                  {client.tags && client.tags.length > 0 && (
+                    <div
+                      className="flex flex-wrap gap-1 cursor-pointer"
+                      onClick={(e) => { e.stopPropagation(); setTagsModalClient(client); }}
+                    >
+                      {client.tags.slice(0, 3).map((tag: any, i: number) => (
+                        <Badge
+                          key={tag.id || i}
+                          variant="outline"
+                          className="text-xs bg-gradient-to-r dark:from-blue-500 dark:to-blue-900 dark:text-slate-50 from-emerald-50 to-teal-50 border-emerald-300 text-emerald-800 px-2 py-0.5"
+                        >
+                          {tag.emoji && <span className="mr-1">{tag.emoji}</span>}
+                          {tag.externalTagName || tag.name || "Tag"}
+                        </Badge>
+                      ))}
+                      {client.tags.length > 3 && (
+                        <Badge variant="secondary" className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200">
+                          +{client.tags.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop table view */}
+      <div className="hidden sm:block bg-white dark:bg-slate-950 shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

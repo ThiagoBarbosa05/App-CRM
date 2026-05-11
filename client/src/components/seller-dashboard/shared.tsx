@@ -230,7 +230,7 @@ export function KpiCard({
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 break-words">
               {label}
             </span>
-            <p className="text-2xl lg:text-3xl font-black tabular-nums text-slate-900 dark:text-white truncate">
+            <p className="text-2xl lg:text-3xl font-black tabular-nums text-slate-900 dark:text-white">
               {value}
             </p>
           </div>
@@ -239,7 +239,7 @@ export function KpiCard({
           </div>
         </div>
         <div className="mt-4 flex flex-col gap-2 pt-2 border-t border-slate-50 dark:border-slate-800/80">
-          <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+          <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
             {subValue}
           </span>
           {hasHistory && (
@@ -292,7 +292,7 @@ export function PortfolioKpiCard({ stats }: { stats: ClientPortfolioStats }) {
               Positivação
             </span>
             <span
-              className={`text-2xl lg:text-3xl font-black tabular-nums truncate ${pctColor}`}
+              className={`text-2xl lg:text-3xl font-black tabular-nums ${pctColor}`}
             >
               {stats.positivacao.toFixed(1)}%
             </span>
@@ -313,10 +313,10 @@ export function PortfolioKpiCard({ stats }: { stats: ClientPortfolioStats }) {
             />
           </div>
           <div className="flex justify-between items-center text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400 pt-1 w-full gap-2">
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold truncate shrink-0">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold shrink-0">
               {stats.active} ativo{stats.active !== 1 ? "s" : ""}
             </span>
-            <span className="text-red-500 dark:text-red-400 font-semibold truncate shrink-0 text-right">
+            <span className="text-red-500 dark:text-red-400 font-semibold shrink-0 text-right">
               {stats.inactive} inativo{stats.inactive !== 1 ? "s" : ""}
             </span>
           </div>
@@ -461,7 +461,7 @@ export function ClientRow({
         #{rank}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
           {name ?? "—"}
         </p>
         <p className="text-xs text-slate-500 dark:text-slate-400">{secondary}</p>

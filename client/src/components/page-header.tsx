@@ -96,7 +96,7 @@ function PageHeaderDescription({
   return (
     <p
       className={cn(
-        "text-slate-500 dark:text-slate-400 text-sm mt-1 truncate",
+        "text-slate-500 dark:text-slate-400 text-sm mt-1 line-clamp-2",
         className
       )}
     >

@@ -197,7 +197,7 @@ function AllSellersGoalProgress({
                     className="rounded-xl border border-gray-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-4 space-y-3"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
                         {goal.userName}
                       </p>
                       <Badge
@@ -290,7 +290,7 @@ function AllSellersGoalProgress({
                       <div className="flex items-center justify-between gap-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <Wine className="h-3 w-3 text-rose-500 shrink-0" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 truncate">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">
                             Valor Médio / Garrafa
                           </span>
                         </div>
@@ -408,7 +408,7 @@ function SellerRankingCard({ sellers }: { sellers: SellerRankingRow[] }) {
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                           {s.sellerName}
                         </p>
                         <div className="flex items-center gap-3 shrink-0">

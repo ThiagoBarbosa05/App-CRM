@@ -44,7 +44,7 @@ export function DashboardDebtsTab({
           <div className="p-2 bg-red-50 dark:bg-red-900/30 rounded-lg">
             <CreditCard className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
           </div>
-          <span className="truncate">Dívidas Pendentes dos Clientes</span>
+          <span>Dívidas Pendentes dos Clientes</span>
         </CardTitle>
         <CardDescription className="text-sm text-gray-600 dark:text-slate-400 mt-2">
           Dívidas que ainda não foram quitadas e requerem acompanhamento
@@ -97,7 +97,7 @@ export function DashboardDebtsTab({
 
                 <div className="flex-1 min-w-0 w-full sm:w-auto pl-2">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
-                    <h3 className="font-semibold text-lg text-gray-900 dark:text-slate-100 truncate">
+                    <h3 className="font-semibold text-lg text-gray-900 dark:text-slate-100">
                       {debt.client.name}
                     </h3>
                     <Badge
@@ -134,7 +134,7 @@ export function DashboardDebtsTab({
                       {debt.client.responsibleName && (
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-purple-600 dark:text-purple-400 shrink-0" />
-                          <span className="text-gray-600 dark:text-slate-400 truncate">
+                          <span className="text-gray-600 dark:text-slate-400">
                             {debt.client.responsibleName}
                           </span>
                         </div>

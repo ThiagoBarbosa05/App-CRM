@@ -22,7 +22,7 @@ export function DashboardSummaryTab({
           <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
             <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0" />
           </div>
-          <span className="truncate">Resumo Executivo</span>
+          <span>Resumo Executivo</span>
         </CardTitle>
         <CardDescription className="text-sm text-gray-600 dark:text-slate-400 mt-2">
           Visão geral financeira e ações prioritárias para o negócio

@@ -38,87 +38,97 @@ export function ClientsActions({
   users = [],
 }: ClientsActionsProps) {
   return (
-    <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 px-6 py-4 rounded-lg shadow-sm">
-      <div className="flex flex-col lg:flex-row gap-2">
-        {/* Seletor de vendedor — admin/gerente */}
-        {isAdmin && (
-          <div className="flex items-center gap-2 shrink-0">
-            <Users className="h-4 w-4 text-slate-400" />
-            <Select
-              value={clientFilters.responsavelId}
-              onValueChange={(val) =>
-                onFiltersChange({ ...clientFilters, responsavelId: val })
-              }
-            >
-              <SelectTrigger className="w-48 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium">
-                <SelectValue placeholder="Todos os vendedores" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="all" className="font-semibold">
-                  Todos os vendedores
-                </SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-4 w-4" />
-          <Input
-            type="text"
-            placeholder="Buscar clientes..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 w-full"
-          />
-        </div>
+    <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-700 px-4 sm:px-6 py-4 rounded-lg shadow-sm">
+      <div className="flex flex-col gap-2">
+        {/* Row 1: seller select (admin) + search */}
         <div className="flex flex-col sm:flex-row gap-2">
+          {isAdmin && (
+            <div className="flex items-center gap-2 shrink-0">
+              <Users className="h-4 w-4 text-slate-400 shrink-0" />
+              <Select
+                value={clientFilters.responsavelId}
+                onValueChange={(val) =>
+                  onFiltersChange({ ...clientFilters, responsavelId: val })
+                }
+              >
+                <SelectTrigger className="w-full sm:w-48 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium">
+                  <SelectValue placeholder="Todos os vendedores" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all" className="font-semibold">
+                    Todos os vendedores
+                  </SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Buscar clientes..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="pl-10 w-full"
+            />
+          </div>
+        </div>
+
+        {/* Row 2: filters + actions */}
+        <div className="flex flex-wrap items-center gap-2">
           <ClientFilters
             currentFilters={clientFilters}
             onFiltersChange={onFiltersChange}
           />
-          <div className="flex items-center gap-2">
-            {selectedCount > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                  {selectedCount} selecionados
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onClearSelection}
-                  className="h-6 w-6 p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
-                >
-                  ×
-                </Button>
-              </div>
-            )}
-            {selectedCount > 0 && (
+
+          {selectedCount > 0 && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                {selectedCount} selecionados
+              </span>
               <Button
-                variant="outline"
-                onClick={onBulkDealClick}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white border-blue-600 dark:border-blue-700"
-                data-testid="button-bulk-deals"
+                variant="ghost"
+                size="sm"
+                onClick={onClearSelection}
+                className="h-6 w-6 p-0 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
               >
-                <Briefcase className="h-4 w-4 mr-2" />
-                Criar Negócios em Lote ({selectedCount})
+                ×
               </Button>
-            )}
+            </div>
+          )}
+
+          {selectedCount > 0 && (
             <Button
               variant="outline"
-              onClick={onExportClick}
-              className="w-full"
-              disabled={isExporting}
+              onClick={onBulkDealClick}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white border-blue-600 dark:border-blue-700 rounded-xl"
+              data-testid="button-bulk-deals"
             >
-              <Download className="h-4 w-4 mr-2" />
-              {isExporting ? "Preparando..." : selectedCount > 0 ? `Exportar ${selectedCount} Selecionados` : "Exportar Todos"}
+              <Briefcase className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Criar Negócios em Lote ({selectedCount})</span>
+              <span className="sm:hidden">Lote ({selectedCount})</span>
             </Button>
-          </div>
+          )}
+
+          <Button
+            variant="outline"
+            onClick={onExportClick}
+            size="sm"
+            className="rounded-xl ml-auto"
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">
+              {isExporting ? "Preparando..." : selectedCount > 0 ? `Exportar ${selectedCount}` : "Exportar Todos"}
+            </span>
+          </Button>
         </div>
       </div>
     </div>

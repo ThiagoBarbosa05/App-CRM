@@ -264,10 +264,10 @@ function SalesGoalCard({
         <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <CardTitle className="text-lg font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              <CardTitle className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                 {goal.userName}
               </CardTitle>
-              <CardDescription className="text-slate-500 dark:text-slate-400 truncate">
+              <CardDescription className="text-slate-500 dark:text-slate-400 break-all">
                 {goal.userEmail}
               </CardDescription>
             </div>
@@ -548,9 +548,9 @@ function MetricProgress({
         />
       </div>
 
-      <div className="flex justify-between text-[11px] font-medium text-slate-500 dark:text-slate-400">
-        <span className="truncate max-w-[50%]">Alcançado: {achieved}</span>
-        <span className="truncate max-w-[50%]">Meta: {goal}</span>
+      <div className="flex justify-between gap-2 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+        <span className="min-w-0">Alcançado: {achieved}</span>
+        <span className="min-w-0 text-right">Meta: {goal}</span>
       </div>
     </div>
   );

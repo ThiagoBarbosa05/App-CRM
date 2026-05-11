@@ -22,7 +22,7 @@ export function DashboardStatsCards({
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
                 Meus Clientes
               </span>
-              <span className="text-3xl font-black tabular-nums text-slate-900 dark:text-white truncate">
+              <span className="text-3xl font-black tabular-nums text-slate-900 dark:text-white">
                 {stats?.totalClients || 0}
               </span>
             </div>
@@ -45,7 +45,7 @@ export function DashboardStatsCards({
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">
                 Negócios Ativos
               </span>
-              <span className="text-3xl font-black tabular-nums text-slate-900 dark:text-white truncate">
+              <span className="text-3xl font-black tabular-nums text-slate-900 dark:text-white">
                 {stats?.activeDeals || 0}
               </span>
             </div>
@@ -69,7 +69,7 @@ export function DashboardStatsCards({
                 Dívidas Pendentes
               </span>
               <div className="flex items-center gap-3">
-                <span className="text-3xl font-black tabular-nums text-yellow-600 dark:text-yellow-400 truncate">
+                <span className="text-3xl font-black tabular-nums text-yellow-600 dark:text-yellow-400">
                   {pendingDebts.length}
                 </span>
                 {pendingDebts.length > 0 && (
@@ -100,7 +100,7 @@ export function DashboardStatsCards({
                 Dívidas Vencidas
               </span>
               <div className="flex items-center gap-3">
-                <span className="text-3xl font-black tabular-nums text-red-600 dark:text-red-400 truncate">
+                <span className="text-3xl font-black tabular-nums text-red-600 dark:text-red-400">
                   {overdueDebts.length}
                 </span>
                 {overdueDebts.length > 0 && (

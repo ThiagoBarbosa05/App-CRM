@@ -369,75 +369,78 @@ export default function Metas() {
           </PageHeader.Text>
         </PageHeader.Info>
 
-        <PageHeader.Actions className="flex-wrap items-center">
-          {isManager && users.length > 0 && (
-            <div className="flex items-center gap-2">
+        <PageHeader.Actions className="flex-col items-start w-full md:w-auto">
+          {/* Linha de filtros: Vendedor + Mês + Ano */}
+          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+            {isManager && users.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">
+                  Vendedor
+                </span>
+                <select
+                  value={selectedSellerId}
+                  onChange={(e) => setSelectedSellerId(e.target.value)}
+                  className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm max-w-[150px]"
+                >
+                  <option value="all">Todos</option>
+                  {users.map((u: any) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5">
               <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">
-                Vendedor
+                Mês
               </span>
               <select
-                value={selectedSellerId}
-                onChange={(e) => setSelectedSellerId(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm max-w-[180px]"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
               >
-                <option value="all">Todos</option>
-                {users.map((u: any) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                  <option key={month} value={month}>
+                    {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                      month: "long",
+                    })}
                   </option>
                 ))}
               </select>
             </div>
-          )}
 
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-              Mês
-            </span>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
-            >
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                <option key={month} value={month}>
-                  {new Date(0, month - 1).toLocaleDateString("pt-BR", {
-                    month: "long",
-                  })}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">
+                Ano
+              </span>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+              >
+                {Array.from(
+                  { length: 5 },
+                  (_, i) => new Date().getFullYear() - 2 + i,
+                ).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {isManager && (
+              <Button
+                onClick={handleNewGoal}
+                className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest gap-2 shadow-sm shadow-blue-500/20 shrink-0"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Nova Meta
+              </Button>
+            )}
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
-              Ano
-            </span>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
-            >
-              {Array.from(
-                { length: 5 },
-                (_, i) => new Date().getFullYear() - 2 + i,
-              ).map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {isManager && (
-            <Button
-              onClick={handleNewGoal}
-              className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest gap-2 shadow-sm shadow-blue-500/20"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Nova Meta
-            </Button>
-          )}
         </PageHeader.Actions>
       </PageHeader>
 
@@ -524,14 +527,16 @@ export default function Metas() {
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <PillTabsList>
-          {TABS.map((tab) => (
-            <PillTabsTrigger key={tab.id} value={tab.id} color={tab.color}>
-              <tab.icon className="h-4 w-4 shrink-0" />
-              {tab.label}
-            </PillTabsTrigger>
-          ))}
-        </PillTabsList>
+        <div className="overflow-x-auto w-full pb-0.5">
+          <PillTabsList className="min-w-max">
+            {TABS.map((tab) => (
+              <PillTabsTrigger key={tab.id} value={tab.id} color={tab.color}>
+                <tab.icon className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </PillTabsTrigger>
+            ))}
+          </PillTabsList>
+        </div>
 
         {/* Vendas */}
         <TabsContent value="sales" className="m-0 outline-none">

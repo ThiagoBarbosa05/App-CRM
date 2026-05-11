@@ -258,10 +258,10 @@ function ActivityGoalCard({
       <Card className="border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all duration-300 rounded-3xl overflow-hidden bg-white dark:bg-slate-900 group">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <div className="min-w-0">
-            <CardTitle className="text-base font-bold text-slate-900 dark:text-white truncate">
+            <CardTitle className="text-base font-bold text-slate-900 dark:text-white">
               {title}
             </CardTitle>
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
               {subtitle}
             </p>
           </div>

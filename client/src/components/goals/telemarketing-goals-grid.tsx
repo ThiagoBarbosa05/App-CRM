@@ -125,10 +125,10 @@ function TelemarketingGoalCard({
         <CardHeader className={`pb-4 border-b border-white/10 bg-${color}-500/10 dark:bg-${color}-500/20`}>
           <div className="flex items-center justify-between">
             <div className="min-w-0">
-              <CardTitle className="text-lg font-bold text-slate-900 dark:text-white truncate">
+              <CardTitle className="text-lg font-bold text-slate-900 dark:text-white">
                 {goal.userName}
               </CardTitle>
-              <CardDescription className={`text-${color}-600 dark:text-${color}-400 font-medium truncate`}>
+              <CardDescription className={`text-${color}-600 dark:text-${color}-400 font-medium`}>
                 Foco: {goal.targetResult}
               </CardDescription>
             </div>
@@ -201,7 +201,7 @@ function StatMiniItem({ label, value, icon, color }: { label: string, value: num
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter truncate">{label}</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{label}</p>
         <p className="text-sm font-bold text-slate-700 dark:text-slate-200 leading-none">{value}</p>
       </div>
     </div>

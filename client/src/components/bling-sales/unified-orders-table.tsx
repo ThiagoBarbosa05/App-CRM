@@ -169,7 +169,154 @@ export function UnifiedOrdersTable({
 
   return (
     <div className="space-y-6 max-w-full">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+      {/* ── Mobile: Cards ──────────────────────────────────────────────────── */}
+      <div className="sm:hidden space-y-3">
+        {orders.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center gap-4 py-16 px-6 shadow-sm">
+            <div className="rounded-2xl bg-slate-50 dark:bg-slate-800 p-4 border border-dashed border-slate-200 dark:border-slate-700">
+              <InboxIcon className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+            </div>
+            <div className="space-y-1 text-center">
+              <p className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                Vazio por aqui
+              </p>
+              <p className="text-xs font-medium text-slate-500">
+                Não encontramos pedidos com os filtros aplicados.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            {orders.map((order, index) => {
+              const hasConnectItems =
+                order.source === "connect" &&
+                (order.connectItems?.length ?? 0) > 0;
+
+              return (
+                <motion.div
+                  key={`card-${order.source}-${order.id}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm space-y-3"
+                >
+                  {/* Row 1: Source + Ref + Situação + Valor */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <SourceBadge source={order.source} />
+                      {order.orderNumber ? (
+                        <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg font-mono text-[11px] font-black text-slate-600 dark:text-slate-300">
+                          #{order.orderNumber}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400 italic">
+                          CSV Import
+                        </span>
+                      )}
+                      {order.situationValue && (
+                        <span
+                          className={cn(
+                            "rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider",
+                            getSituationBadgeClass(order.situationValue),
+                          )}
+                        >
+                          {getSituationLabel(order.situationValue)}
+                        </span>
+                      )}
+                      {order.appClientStatus && !order.orderNumber && (
+                        <span
+                          className={cn(
+                            "text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md",
+                            order.appClientStatus === "found"
+                              ? "bg-blue-50 text-blue-500 dark:bg-blue-900/20 dark:text-blue-400"
+                              : order.appClientStatus === "created"
+                                ? "bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20 dark:text-emerald-400"
+                                : "bg-slate-50 text-slate-400 dark:bg-slate-800 dark:text-slate-500",
+                          )}
+                        >
+                          {order.appClientStatus === "found"
+                            ? "encontrado"
+                            : order.appClientStatus === "created"
+                              ? "criado"
+                              : "não encontrado"}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-base font-black text-slate-900 dark:text-white shrink-0">
+                      {formatCurrency(parseFloat(order.totalValue))}
+                    </span>
+                  </div>
+
+                  {/* Row 2: Cliente + Vendedor */}
+                  <div className="flex flex-col gap-0.5">
+                    {order.appClientId ? (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenClientPurchases(order.appClientId)}
+                        className="text-sm font-black text-left text-slate-900 dark:text-white hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                      >
+                        {order.contactName || "Anônimo"}
+                      </button>
+                    ) : (
+                      <span className="text-sm font-black text-slate-900 dark:text-white">
+                        {order.contactName || "Anônimo"}
+                      </span>
+                    )}
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-tighter">
+                      Rep: {order.sellerName || "Não vinculado"}
+                    </span>
+                  </div>
+
+                  {/* Row 3: Data + App link */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500">
+                      {order.saleDate
+                        ? format(
+                            parseISO(order.saleDate + "T12:00:00"),
+                            "dd 'de' MMM, yyyy",
+                            { locale: ptBR },
+                          )
+                        : "—"}
+                    </span>
+                    <AppLinkBadge order={order} />
+                  </div>
+
+                  {/* Row 4: Actions */}
+                  {(order.blingOrderId || hasConnectItems) && (
+                    <div className="flex gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                      {order.blingOrderId && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="flex-1 gap-2 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-xl border-none text-xs font-bold"
+                          onClick={() => handleViewBlingDetails(order.blingOrderId!)}
+                        >
+                          <EyeIcon className="h-3.5 w-3.5" />
+                          Ver detalhes
+                        </Button>
+                      )}
+                      {hasConnectItems && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="flex-1 gap-2 bg-violet-50 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900 rounded-xl border-none text-xs font-bold"
+                          onClick={() => handleViewConnectDetails(order)}
+                        >
+                          <Package className="h-3.5 w-3.5" />
+                          Produtos
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        )}
+      </div>
+
+      {/* ── Desktop: Table ─────────────────────────────────────────────────── */}
+      <div className="hidden sm:block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <Table className="min-w-[700px] lg:min-w-full">
             <TableHeader>

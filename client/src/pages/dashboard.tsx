@@ -195,108 +195,113 @@ export default function DashboardPage() {
           </PageHeader.Text>
         </PageHeader.Info>
 
-        <PageHeader.Actions className="flex-col sm:flex-row items-start">
+        <PageHeader.Actions className="flex-col items-start w-full md:w-auto">
           {/* Filtro de período */}
-          <div className="flex flex-col items-start gap-1">
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm">
-              {(
-                [
-                  { value: "hoje", label: "Hoje" },
-                  { value: "este-mes", label: "Este mês" },
-                  { value: "mes-passado", label: "Mês passado" },
-                ] as const
-              ).map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setDatePreset(value)}
-                  className={`inline-flex items-center whitespace-nowrap px-3.5 py-2 rounded-lg text-sm transition-all duration-200 outline-none border ${
-                    datePreset === value
-                      ? "font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
-                      : "font-medium text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                <PopoverTrigger asChild>
+          <div className="flex flex-col items-start gap-1 w-full">
+            <div className="overflow-x-auto w-full pb-0.5">
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm min-w-max">
+                {(
+                  [
+                    { value: "hoje", label: "Hoje" },
+                    { value: "este-mes", label: "Este mês" },
+                    { value: "mes-passado", label: "Mês passado" },
+                  ] as const
+                ).map(({ value, label }) => (
                   <button
-                    onClick={() => setDatePreset("periodo")}
-                    className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-lg text-sm transition-all duration-200 outline-none border ${
-                      datePreset === "periodo"
+                    key={value}
+                    onClick={() => setDatePreset(value)}
+                    className={`inline-flex items-center whitespace-nowrap px-3.5 py-2 rounded-lg text-sm transition-all duration-200 outline-none border ${
+                      datePreset === value
                         ? "font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
                         : "font-medium text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
                     }`}
                   >
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {datePreset === "periodo" && customRange?.from ? (
-                      <span>
-                        {format(customRange.from, "dd/MM/yy")}
-                        {customRange.to &&
-                          customRange.to !== customRange.from &&
-                          ` — ${format(customRange.to, "dd/MM/yy")}`}
-                      </span>
-                    ) : (
-                      "Período"
-                    )}
+                    {label}
                   </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <CalendarComponent
-                    initialFocus
-                    mode="range"
-                    defaultMonth={customRange?.from ?? new Date()}
-                    selected={customRange}
-                    onSelect={(range) => {
-                      setCustomRange(range);
-                      if (range?.from && range?.to) setIsCalendarOpen(false);
-                    }}
-                    numberOfMonths={2}
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+                ))}
+
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      onClick={() => setDatePreset("periodo")}
+                      className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-lg text-sm transition-all duration-200 outline-none border ${
+                        datePreset === "periodo"
+                          ? "font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20"
+                          : "font-medium text-slate-500 dark:text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                      }`}
+                    >
+                      <CalendarIcon className="h-3.5 w-3.5" />
+                      {datePreset === "periodo" && customRange?.from ? (
+                        <span>
+                          {format(customRange.from, "dd/MM/yy")}
+                          {customRange.to &&
+                            customRange.to !== customRange.from &&
+                            ` — ${format(customRange.to, "dd/MM/yy")}`}
+                        </span>
+                      ) : (
+                        "Período"
+                      )}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <CalendarComponent
+                      initialFocus
+                      mode="range"
+                      defaultMonth={customRange?.from ?? new Date()}
+                      selected={customRange}
+                      onSelect={(range) => {
+                        setCustomRange(range);
+                        if (range?.from && range?.to) setIsCalendarOpen(false);
+                      }}
+                      numberOfMonths={2}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <p className="text-xs text-slate-400">
               Afeta gráficos e métricas do período
             </p>
           </div>
 
-          {/* Seletor de vendedor — admin/gerente */}
-          {isAdmin && (
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-slate-400" />
-              <Select
-                value={selectedSellerId}
-                onValueChange={setSelectedSellerId}
-              >
-                <SelectTrigger className="w-52 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium">
-                  <SelectValue placeholder="Selecionar vendedor" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all" className="font-semibold">
-                    Todos os vendedores
-                  </SelectItem>
-                  {usersList.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          {/* Seletor de vendedor + Importar CSV (linha única no mobile) */}
+          {(isAdmin || user?.role === "admin") && (
+            <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+              {isAdmin && (
+                <>
+                  <Users className="h-4 w-4 text-slate-400 shrink-0" />
+                  <Select
+                    value={selectedSellerId}
+                    onValueChange={setSelectedSellerId}
+                  >
+                    <SelectTrigger className="flex-1 min-w-0 md:w-52 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium">
+                      <SelectValue placeholder="Selecionar vendedor" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="all" className="font-semibold">
+                        Todos os vendedores
+                      </SelectItem>
+                      {usersList.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
 
-          {/* Importar CSV */}
-          {user?.role === "admin" && (
-            <Button
-              onClick={() => setConnectImportOpen(true)}
-              className="gap-2 bg-violet-600 hover:bg-violet-700 rounded-xl h-9 px-4 text-sm font-bold shrink-0"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              Importar CSV
-            </Button>
+              {user?.role === "admin" && (
+                <Button
+                  onClick={() => setConnectImportOpen(true)}
+                  className="gap-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl h-9 px-4 text-sm font-bold shrink-0"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Importar CSV
+                </Button>
+              )}
+            </div>
           )}
         </PageHeader.Actions>
       </PageHeader>
@@ -312,20 +317,20 @@ export default function DashboardPage() {
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <PillTabsList className="w-full grid grid-cols-3">
-          <PillTabsTrigger value="desempenho" color="blue" className="justify-center">
+        <PillTabsList className="w-full">
+          <PillTabsTrigger value="desempenho" color="blue" className="flex-1 justify-center">
             <BarChart3 className="h-4 w-4 shrink-0" />
-            <span className="truncate">Desempenho</span>
+            <span className="hidden sm:inline">Desempenho</span>
           </PillTabsTrigger>
 
-          <PillTabsTrigger value="cobrancas" color="red" className="justify-center">
+          <PillTabsTrigger value="cobrancas" color="red" className="flex-1 justify-center">
             <CreditCard className="h-4 w-4 shrink-0" />
-            <span className="truncate">Cobranças</span>
+            <span className="hidden sm:inline">Cobranças</span>
           </PillTabsTrigger>
 
-          <PillTabsTrigger value="eventos" color="purple" className="justify-center">
+          <PillTabsTrigger value="eventos" color="purple" className="flex-1 justify-center">
             <Calendar className="h-4 w-4 shrink-0" />
-            <span className="truncate">Eventos</span>
+            <span className="hidden sm:inline">Eventos</span>
           </PillTabsTrigger>
         </PillTabsList>
 
@@ -335,17 +340,17 @@ export default function DashboardPage() {
             <UnderlineTabsList>
               <UnderlineTabsTrigger value="vendas" color="blue">
                 <BarChart3 className="h-4 w-4 shrink-0" />
-                Vendas
+                <span>Vendas</span>
               </UnderlineTabsTrigger>
 
               <UnderlineTabsTrigger value="cohort" color="green">
                 <Percent className="h-4 w-4 shrink-0" />
-                Cohort
+                <span>Cohort</span>
               </UnderlineTabsTrigger>
 
               <UnderlineTabsTrigger value="pedidos" color="orange">
                 <Package className="h-4 w-4 shrink-0" />
-                Pedidos
+                <span>Pedidos</span>
               </UnderlineTabsTrigger>
             </UnderlineTabsList>
 
