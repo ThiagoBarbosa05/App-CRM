@@ -2,16 +2,11 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeader } from "@/components/page-header";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -1210,64 +1205,59 @@ export default function EventsManagement() {
 
   return (
     <>
-      <div>
-        <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 dark:from-slate-800 dark:to-slate-900 dark:border-slate-700">
-          <CardHeader className="bg-gradient-to-r from-orange-100 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 border-b border-slate-200 dark:border-slate-700">
-            <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
-              <div className="flex-1 min-w-0">
-                <CardTitle className="flex items-center gap-3 text-slate-800 dark:text-slate-200">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-orange-200 to-amber-200 dark:from-orange-700 dark:to-amber-700 flex-shrink-0">
-                    <CalendarDays className="h-5 w-5 text-orange-600 dark:text-orange-300" />
-                  </div>
-                  <span className="bg-gradient-to-r from-orange-600 to-amber-600 dark:from-orange-400 dark:to-amber-400 bg-clip-text text-transparent font-bold truncate">
-                    Gestão de Eventos
-                  </span>
-                </CardTitle>
-                <CardDescription className="text-slate-600 dark:text-slate-400 mt-2 text-sm">
-                  Gerencie eventos, participantes e acompanhe o engajamento da
-                  sua empresa
-                </CardDescription>
-              </div>
-
-              <div className="flex items-center gap-3 flex-shrink-0">
-                {/* Tab switcher */}
-                <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 gap-1">
-                  <button
-                    onClick={() => setActiveView("eventos")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                      activeView === "eventos"
-                        ? "bg-orange-500 text-white shadow-sm"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                    }`}
-                  >
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    Eventos
-                  </button>
-                  <button
-                    onClick={() => setActiveView("analises")}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                      activeView === "analises"
-                        ? "bg-orange-500 text-white shadow-sm"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                    }`}
-                  >
-                    <BarChart2Icon className="h-3.5 w-3.5" />
-                    Análises
-                  </button>
-                </div>
-
-                {user?.role === "admin" && activeView === "eventos" && (
-                  <Button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 w-full md:w-auto"
-                  >
-                    <CalendarIcon className="h-4 w-4 mr-2" />
-                    Novo Evento
-                  </Button>
-                )}
-              </div>
+      <div className="space-y-6">
+        <PageHeader>
+          <PageHeader.Info>
+            <PageHeader.Icon
+              icon={CalendarDays}
+              color="text-orange-600 dark:text-orange-400"
+              bgColor="bg-orange-50 dark:bg-orange-900/30"
+            />
+            <PageHeader.Text>
+              <PageHeader.Title>Gestão de Eventos</PageHeader.Title>
+              <PageHeader.Description>
+                Gerencie eventos, participantes e acompanhe o engajamento da sua empresa
+              </PageHeader.Description>
+            </PageHeader.Text>
+          </PageHeader.Info>
+          <PageHeader.Actions>
+            <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 gap-1">
+              <button
+                onClick={() => setActiveView("eventos")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  activeView === "eventos"
+                    ? "bg-orange-500 text-white shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                }`}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Eventos
+              </button>
+              <button
+                onClick={() => setActiveView("analises")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  activeView === "analises"
+                    ? "bg-orange-500 text-white shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                }`}
+              >
+                <BarChart2Icon className="h-3.5 w-3.5" />
+                Análises
+              </button>
             </div>
-          </CardHeader>
+            {user?.role === "admin" && (
+              <Button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                Novo Evento
+              </Button>
+            )}
+          </PageHeader.Actions>
+        </PageHeader>
+
+        <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 dark:from-slate-800 dark:to-slate-900 dark:border-slate-700">
 
           {activeView === "analises" ? (
             <CardContent className="p-3 md:p-6">

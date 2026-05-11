@@ -3,6 +3,7 @@ import { Redirect } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { Activity, BarChart2, History, Phone, Radio } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { TwilioDeviceProvider } from "@/contexts/twilio-device-context";
 import { DashboardTabContent } from "@/components/telemarketing/tabs/dashboard-tab";
 import { DialerTabContent } from "@/components/telemarketing/tabs/dialer-tab";
@@ -93,36 +94,22 @@ export default function TelemarketingPage() {
     <TwilioDeviceProvider>
       <div className="space-y-6 pb-10">
         {/* Cabeçalho */}
-        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-start gap-4">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-950/40">
-                <Phone className="size-6 text-blue-600 dark:text-blue-300" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                  Telemarketing
-                </h1>
-                <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
-                  Discador WebRTC, campanhas de voz e histórico de chamadas em
-                  um único fluxo operacional.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 lg:max-w-[420px] lg:justify-end">
-              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                WebRTC
-              </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                Campanhas com IA
-              </span>
-              <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                Histórico centralizado
-              </span>
-            </div>
-          </div>
-        </section>
+        <PageHeader>
+          <PageHeader.Info>
+            <PageHeader.Icon icon={Phone} />
+            <PageHeader.Text>
+              <PageHeader.Title>Telemarketing</PageHeader.Title>
+              <PageHeader.Description>
+                Discador WebRTC, campanhas de voz e histórico de chamadas em um único fluxo
+              </PageHeader.Description>
+            </PageHeader.Text>
+          </PageHeader.Info>
+          <PageHeader.Actions>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">WebRTC</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">Campanhas com IA</span>
+            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-300">Histórico centralizado</span>
+          </PageHeader.Actions>
+        </PageHeader>
 
         {/* Tabs */}
         <Tabs

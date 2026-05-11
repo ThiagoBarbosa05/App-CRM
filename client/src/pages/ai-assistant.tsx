@@ -37,7 +37,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import Sidebar from "@/components/sidebar";
+import { PageHeader } from "@/components/page-header";
 
 interface ChatMessage {
   id: string;
@@ -297,21 +297,17 @@ export default function AIAssistant() {
     <div className="flex">
       <div className="flex-1">
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-950 border-b dark:border dark:border-gray-700 border-gray-200 px-6 py-4 rounded-lg shadow-sm">
-            <div className="flex items-center gap-2 flex-wrap justify-between">
-              <div className="flex items-center gap-4">
-                <Sparkles className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-                    Assistente de IA
-                  </h2>
-                  <p className="text-gray-600 dark:text-gray-400 mt-1">
-                    Ferramentas inteligentes para seu negócio de vinhos
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PageHeader>
+            <PageHeader.Info>
+              <PageHeader.Icon icon={Sparkles} />
+              <PageHeader.Text>
+                <PageHeader.Title>Assistente de IA</PageHeader.Title>
+                <PageHeader.Description>
+                  Ferramentas inteligentes para seu negócio de vinhos
+                </PageHeader.Description>
+              </PageHeader.Text>
+            </PageHeader.Info>
+          </PageHeader>
 
           <Tabs defaultValue="wine-assistant" className="w-full">
             <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 gap-2 bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">

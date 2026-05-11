@@ -43,7 +43,7 @@ import { Separator } from "@/components/ui/separator";
 import { AutomationManagement } from "@/components/automation-management";
 import { DealQuestionsManagement } from "@/components/deal-questions-management";
 import UmblerSyncManagement from "@/components/umbler-sync-management";
-import { ConfigurationsHeader } from "@/components/configurations/configurations-header";
+import { PageHeader } from "@/components/page-header";
 import { motion, AnimatePresence } from "framer-motion";
 import { WinePriceTierSettings } from "@/components/settings-management";
 import ProductCategoriesManagement from "@/components/product-categories-management";
@@ -96,7 +96,17 @@ export default function Configurations() {
 
   return (
     <div className="flex-1 flex flex-col p-4 lg:p-10 space-y-10">
-      <ConfigurationsHeader />
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon icon={Settings} />
+          <PageHeader.Text>
+            <PageHeader.Title>Painel de Configurações</PageHeader.Title>
+            <PageHeader.Description>
+              Gerencie usuários, categorias e todas as preferências do sistema
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+      </PageHeader>
 
       <Tabs
         value={activeTab}

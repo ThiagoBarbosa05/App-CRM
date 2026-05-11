@@ -24,6 +24,7 @@ import {
   RotateCcw,
   Wine,
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 // ---------------------------------------------------------------------------
 // Tipos e configurações
@@ -635,41 +636,33 @@ export default function CalculadoraVinho() {
       {/* ------------------------------------------------------------------ */}
       <div id="wine-screen-content" className="mx-auto space-y-6 pb-5">
         {/* Header */}
-        <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-4 sm:px-6 py-4 rounded-lg shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Wine className="size-6 shrink-0 text-purple-600 dark:text-purple-400" />
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-                Calculadora de Vinho
-              </h2>
-              <p className="text-gray-600 dark:text-slate-400 mt-1">
+        <PageHeader>
+          <PageHeader.Info>
+            <PageHeader.Icon
+              icon={Wine}
+              color="text-purple-600 dark:text-purple-400"
+              bgColor="bg-purple-50 dark:bg-purple-900/30"
+            />
+            <PageHeader.Text>
+              <PageHeader.Title>Calculadora de Vinho</PageHeader.Title>
+              <PageHeader.Description>
                 Dimensione o consumo de vinhos para o seu evento
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
+              </PageHeader.Description>
+            </PageHeader.Text>
+          </PageHeader.Info>
+          <PageHeader.Actions>
             {result && guestsNum > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePrint}
-                className="gap-2 text-purple-600 border-purple-200 bg-white hover:bg-purple-50 dark:border-purple-800 dark:bg-slate-950 dark:hover:bg-purple-900/20"
-              >
+              <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 text-purple-600 border-purple-200 bg-white hover:bg-purple-50 dark:border-purple-800 dark:bg-slate-950 dark:hover:bg-purple-900/20">
                 <FileDown className="h-4 w-4" />
                 Gerar PDF
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={reset}
-              className="gap-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
-            >
+            <Button variant="ghost" size="sm" onClick={reset} className="gap-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">
               <RotateCcw className="h-4 w-4" />
               Limpar
             </Button>
-          </div>
-        </div>
+          </PageHeader.Actions>
+        </PageHeader>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* ---------------------------------------------------------------- */}

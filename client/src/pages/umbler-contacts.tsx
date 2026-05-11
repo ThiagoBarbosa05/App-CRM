@@ -3,7 +3,10 @@ import { UmblerContactDialog } from "@/components/umbler-contact-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { UmblerContactsHeader } from "@/components/umbler/umbler-contacts-header";
+import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { PageHeader } from "@/components/page-header";
+import { Users, Send } from "lucide-react";
 import { UmblerContactsFilters } from "@/components/umbler/umbler-contacts-filters";
 import { UmblerContactsTable } from "@/components/umbler/umbler-contacts-table";
 import {
@@ -16,6 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 
 export default function UmblerContactsPage() {
   const [search, setSearch] = useState("");
@@ -28,6 +32,8 @@ export default function UmblerContactsPage() {
   const [contactToDelete, setContactToDelete] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
 
   // Fetch contacts based on filters
   const { data: contacts, isLoading } = useQuery({
@@ -105,10 +111,30 @@ export default function UmblerContactsPage() {
   return (
     <div className="bg-slate-50 dark:bg-slate-950 min-h-screen pb-10">
       <div className="container mx-auto px-4 sm:p-6 lg:p-8 pt-6 max-w-7xl">
-        <UmblerContactsHeader 
-          totalContacts={totalContacts} 
-          isLoading={isLoading} 
-        />
+        <PageHeader>
+          <PageHeader.Info>
+            <PageHeader.Icon icon={Users} />
+            <PageHeader.Text>
+              <PageHeader.Title>Contatos Umbler</PageHeader.Title>
+              <PageHeader.Description>
+                Gerencie todos os seus contatos sincronizados do Umbler uTalk
+              </PageHeader.Description>
+            </PageHeader.Text>
+          </PageHeader.Info>
+          <PageHeader.Actions>
+            {user?.role === "admin" && (
+              <Button
+                variant="outline"
+                onClick={() => setLocation("/umbler/campaigns/create")}
+                className="gap-2"
+              >
+                <Send className="h-4 w-4" />
+                Criar Campanha
+              </Button>
+            )}
+            <UmblerContactDialog />
+          </PageHeader.Actions>
+        </PageHeader>
 
         <UmblerContactsFilters
           search={search}
@@ -150,7 +176,8 @@ export default function UmblerContactsPage() {
                 Confirmar exclusão
               </AlertDialogTitle>
               <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
-                Tem certeza que deseja deletar este contato? Esta ação não pode ser desfeita e ele será removido das campanhas ativas.
+                Tem certeza que deseja deletar este contato? Esta ação não pode
+                ser desfeita e ele será removido das campanhas ativas.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter className="mt-4 gap-3">

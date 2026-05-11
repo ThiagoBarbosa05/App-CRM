@@ -23,8 +23,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { StartBirthdayBot } from "@/components/start-birthday-bot";
 
+import { PageHeader } from "@/components/page-header";
+import { Bell, Calendar } from "lucide-react";
+
 // New specialized components
-import { CalendarHeader } from "@/components/calendar/calendar-header";
 import { CalendarStatistics } from "@/components/calendar/calendar-statistics";
 import { CalendarView } from "@/components/calendar/calendar-view";
 import { UpcomingBirthdays } from "@/components/calendar/upcoming-birthdays";
@@ -217,10 +219,27 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6 md:space-y-8 pb-10">
-      <CalendarHeader
-        onCreateAutoReminders={() => createAutoRemindersMutation.mutate()}
-        isPending={createAutoRemindersMutation.isPending}
-      />
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon icon={Calendar} />
+          <PageHeader.Text>
+            <PageHeader.Title>Aniversários</PageHeader.Title>
+            <PageHeader.Description>
+              Visualize e gerencie os aniversários dos seus clientes
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        <PageHeader.Actions>
+          <Button
+            onClick={() => createAutoRemindersMutation.mutate()}
+            disabled={createAutoRemindersMutation.isPending}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-6 h-11 rounded-xl flex-1 md:flex-none"
+          >
+            <Bell className="h-4 w-4 mr-2" />
+            {createAutoRemindersMutation.isPending ? "Criando..." : "Lembretes Automáticos"}
+          </Button>
+        </PageHeader.Actions>
+      </PageHeader>
 
       <CalendarStatistics stats={stats} />
 

@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Video, 
-  FileText, 
+import {
+  GraduationCap,
+  Video,
+  FileText,
   ScrollText
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { Training } from "@/components/learning-images-management";
-import { TrainingsHeader } from "@/components/trainings/trainings-header";
+import { PageHeader } from "@/components/page-header";
 import { VideoTab } from "@/components/trainings/video-tab";
 import { DocumentTab } from "@/components/trainings/document-tab";
 import { ScriptTab } from "@/components/trainings/script-tab";
@@ -93,7 +94,21 @@ export default function Trainings() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-8 pb-10">
-      <TrainingsHeader />
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={GraduationCap}
+            color="text-white"
+            bgColor="bg-gradient-to-br from-blue-600 to-indigo-700"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Centro de Treinamento</PageHeader.Title>
+            <PageHeader.Description>
+              Vídeos, documentos e recursos para potencializar sua performance
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+      </PageHeader>
 
       <Tabs defaultValue="videos" className="space-y-8">
         <div className="flex justify-center">

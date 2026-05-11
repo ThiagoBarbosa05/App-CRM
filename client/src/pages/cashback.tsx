@@ -31,7 +31,7 @@ import { ExpiringCashbacks } from "@/components/expiring-cashbacks";
 import { CashbackBalancesList } from "@/components/cashback-balances-list";
 import { CashbackTransactionsList } from "@/components/cashback-transactions-list";
 import { CashbackUsageList } from "@/components/cashback-usage-list";
-import { CashbackHeader } from "@/components/cashback/cashback-header";
+import { PageHeader } from "@/components/page-header";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Interfaces
@@ -552,7 +552,17 @@ export default function Cashback() {
     <>
       <div className="p-4 lg:p-10 bg-slate-50 dark:bg-[#020617] min-h-screen">
       <div className="max-w-[1600px] mx-auto space-y-10">
-        <CashbackHeader />
+        <PageHeader>
+          <PageHeader.Info>
+            <PageHeader.Icon icon={Gift} />
+            <PageHeader.Text>
+              <PageHeader.Title>Sistema de Cashback</PageHeader.Title>
+              <PageHeader.Description>
+                Gestão estratégica de recompensas, saldos e fidelização de clientes
+              </PageHeader.Description>
+            </PageHeader.Text>
+          </PageHeader.Info>
+        </PageHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-8">
           <TabsList className="flex items-center justify-start gap-4 bg-transparent h-auto p-0 overflow-x-auto no-scrollbar">

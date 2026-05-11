@@ -28,6 +28,7 @@ import {
   Upload,
   Users,
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import {
   format,
   startOfMonth,
@@ -177,20 +178,18 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 pb-10">
       {/* Header ──────────────────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 px-4 sm:px-6 py-4 rounded-lg shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <TrendingUp className="size-6 shrink-0 text-blue-600 dark:text-blue-400" />
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
-              Dashboard
-            </h2>
-            <p className="text-gray-600 dark:text-slate-400 mt-1">
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon icon={TrendingUp} />
+          <PageHeader.Text>
+            <PageHeader.Title>Dashboard</PageHeader.Title>
+            <PageHeader.Description>
               Visão geral de performance e atividades
-            </p>
-          </div>
-        </div>
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
 
-        <div className="flex flex-col sm:flex-row items-start gap-3 shrink-0">
+        <PageHeader.Actions className="flex-col sm:flex-row items-start">
           {/* Filtro de período */}
           <div className="flex flex-col items-start gap-1">
             <div className="flex items-center rounded-lg border border-gray-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-0.5 gap-0.5">
@@ -293,8 +292,8 @@ export default function DashboardPage() {
               Importar CSV
             </Button>
           )}
-        </div>
-      </div>
+        </PageHeader.Actions>
+      </PageHeader>
 
       <ConnectCsvImportModal
         open={connectImportOpen}

@@ -5,6 +5,7 @@ import {
   BarChart3,
   DollarSign,
   Package,
+  Plus,
   Target,
   Users,
   Phone,
@@ -16,8 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
+import { PageHeader } from "@/components/page-header";
+
 // Componentes de visualização
-import { GoalsHeader } from "@/components/goals/goals-header";
 import { SalesGoalsGrid } from "@/components/goals/sales-goals-grid";
 import { TelemarketingGoalsGrid } from "@/components/goals/telemarketing-goals-grid";
 import { ActivityGoalsSections } from "@/components/goals/activity-goals-sections";
@@ -30,6 +32,8 @@ import { TelemarketingGoalModal } from "@/components/admin-goals/modals/telemark
 import { ClientRegistrationGoalModal } from "@/components/admin-goals/modals/registration-goal-modal";
 import { MarkerGoalModal } from "@/components/admin-goals/modals/marker-goal-modal";
 import { InteractionGoalModal } from "@/components/admin-goals/modals/interaction-goal-modal";
+import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
 
 export default function Metas() {
   const { user } = useAuth();
@@ -170,12 +174,21 @@ export default function Metas() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [`/api/client-registration-goals/${selectedMonth}/${selectedYear}`],
+        queryKey: [
+          `/api/client-registration-goals/${selectedMonth}/${selectedYear}`,
+        ],
       });
-      toast({ title: "Meta excluída", description: "Meta de cadastros excluída com sucesso." });
+      toast({
+        title: "Meta excluída",
+        description: "Meta de cadastros excluída com sucesso.",
+      });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -340,19 +353,88 @@ export default function Metas() {
   return (
     <div className="space-y-8 pb-10">
       {/* Header unificado */}
-      <GoalsHeader
-        selectedMonth={selectedMonth}
-        selectedYear={selectedYear}
-        onMonthChange={setSelectedMonth}
-        onYearChange={setSelectedYear}
-        isAdmin={isManager}
-        onNewGoal={isManager ? handleNewGoal : undefined}
-        sellers={
-          isManager ? users.map((u) => ({ id: u.id, name: u.name })) : undefined
-        }
-        selectedSellerId={selectedSellerId}
-        onSellerChange={isManager ? setSelectedSellerId : undefined}
-      />
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon icon={Target} />
+          <PageHeader.Text>
+            <PageHeader.Title>Análise de Metas</PageHeader.Title>
+            <PageHeader.Description>
+              Acompanhe o progresso das metas da equipe
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+
+        <PageHeader.Actions className="flex-wrap items-center">
+          {isManager && users.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">
+                Vendedor
+              </span>
+              <select
+                value={selectedSellerId}
+                onChange={(e) => setSelectedSellerId(e.target.value)}
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm max-w-[180px]"
+              >
+                <option value="all">Todos</option>
+                {users.map((u: any) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+              Mês
+            </span>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                <option key={month} value={month}>
+                  {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                    month: "long",
+                  })}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider">
+              Ano
+            </span>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+            >
+              {Array.from(
+                { length: 5 },
+                (_, i) => new Date().getFullYear() - 2 + i,
+              ).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {isManager && (
+            <Button
+              onClick={handleNewGoal}
+              className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest gap-2 shadow-sm shadow-blue-500/20"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nova Meta
+            </Button>
+          )}
+        </PageHeader.Actions>
+      </PageHeader>
 
       {/* Aviso para vendedor */}
       {!isManager && (
@@ -526,9 +608,27 @@ export default function Metas() {
               calculatePercentage={calculatePercentage}
               getInteractionTypeLabel={getInteractionTypeLabel}
               isAdmin={isManager}
-              onNewRegistration={isManager ? () => { setEditingRegistrationGoal(null); setIsRegistrationModalOpen(true); } : undefined}
-              onEditRegistration={isManager ? (goal) => { setEditingRegistrationGoal(goal); setIsRegistrationModalOpen(true); } : undefined}
-              onDeleteRegistration={isManager ? (goalId) => deleteRegistrationGoalMutation.mutate(goalId) : undefined}
+              onNewRegistration={
+                isManager
+                  ? () => {
+                      setEditingRegistrationGoal(null);
+                      setIsRegistrationModalOpen(true);
+                    }
+                  : undefined
+              }
+              onEditRegistration={
+                isManager
+                  ? (goal) => {
+                      setEditingRegistrationGoal(goal);
+                      setIsRegistrationModalOpen(true);
+                    }
+                  : undefined
+              }
+              onDeleteRegistration={
+                isManager
+                  ? (goalId) => deleteRegistrationGoalMutation.mutate(goalId)
+                  : undefined
+              }
             />
           ) : (
             <EmptyTabState message="Nenhuma meta de cadastros para este período." />

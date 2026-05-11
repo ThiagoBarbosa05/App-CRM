@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1926,43 +1927,49 @@ export default function TarefasPage() {
   return (
     <div className="flex flex-col gap-6 h-full">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <ClipboardList className="h-6 w-6 text-purple-600" />
-            {selectedBoard ? (
-              <span className="flex items-center gap-2">
-                <button onClick={() => { setSelectedBoardId(null); setSelectedTaskId(null); }}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-                {selectedBoard.name}
-              </span>
-            ) : "Tarefas"}
-          </h1>
-          <div className="flex items-center gap-3 mt-1">
-            {selectedBoard ? (
-              <span className="text-sm text-slate-500 dark:text-slate-400">
-                {boardTasks.length} tarefa{boardTasks.length !== 1 ? "s" : ""}
-              </span>
-            ) : (
-              <>
-                <span className="text-sm text-slate-500 dark:text-slate-400">{myTasks.length} tarefa{myTasks.length !== 1 ? "s" : ""} atribuídas a mim</span>
-                {overdueCt > 0 && (
-                  <span className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
-                    {overdueCt} vencida{overdueCt !== 1 ? "s" : ""}
-                  </span>
-                )}
-                {dueTodayCt > 0 && (
-                  <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                    {dueTodayCt} vencem hoje
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={ClipboardList}
+            color="text-purple-600 dark:text-purple-400"
+            bgColor="bg-purple-50 dark:bg-purple-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>
+              {selectedBoard ? (
+                <span className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setSelectedBoardId(null); setSelectedTaskId(null); }}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  {selectedBoard.name}
+                </span>
+              ) : "Tarefas"}
+            </PageHeader.Title>
+            <PageHeader.Description>
+              {selectedBoard ? (
+                <>{boardTasks.length} tarefa{boardTasks.length !== 1 ? "s" : ""}</>
+              ) : (
+                <span className="flex items-center gap-3">
+                  {myTasks.length} tarefa{myTasks.length !== 1 ? "s" : ""} atribuídas a mim
+                  {overdueCt > 0 && (
+                    <span className="text-xs font-semibold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                      {overdueCt} vencida{overdueCt !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {dueTodayCt > 0 && (
+                    <span className="text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      {dueTodayCt} vencem hoje
+                    </span>
+                  )}
+                </span>
+              )}
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        <PageHeader.Actions>
           {selectedBoard && canManage && (
             <Button onClick={() => setCreateTaskOpen(true)} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />Nova Tarefa
@@ -1973,8 +1980,8 @@ export default function TarefasPage() {
               <Plus className="h-4 w-4" />Novo Board
             </Button>
           )}
-        </div>
-      </div>
+        </PageHeader.Actions>
+      </PageHeader>
 
       {/* Board kanban drill-down */}
       {selectedBoard ? (

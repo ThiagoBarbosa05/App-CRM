@@ -10,12 +10,15 @@ import { queryClient } from "@/lib/queryClient";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
+import { Download, Plus, RefreshCw, Upload, Wine } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+
 // Extracted Components
-import { ProductsHeader } from "@/components/products/products-header";
 import { ProductsStatistics } from "@/components/products/products-statistics";
 import { ProductsFilters } from "@/components/products/products-filters";
 import { ProductsTable } from "@/components/products/products-table";
 import { ProductProfileSheet } from "@/components/products/product-profile-sheet";
+import { Button } from "@/components/ui/button";
 
 interface Product {
   id: string;
@@ -84,7 +87,8 @@ export default function Products() {
       if (debouncedCountryFilter)
         params.append("country", debouncedCountryFilter);
       if (debouncedVolumeFilter) params.append("volume", debouncedVolumeFilter);
-      if (debouncedCategoryFilter) params.append("category", debouncedCategoryFilter);
+      if (debouncedCategoryFilter)
+        params.append("category", debouncedCategoryFilter);
       params.append("page", currentPage.toString());
       params.append("pageSize", pageSize.toString());
 
@@ -222,14 +226,53 @@ export default function Products() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto min-h-[calc(100vh-4rem)] space-y-6 sm:space-y-8 pb-12">
-      <ProductsHeader
-        onImportClick={() => setIsImportModalOpen(true)}
-        onExportClick={handleExportProducts}
-        onNewProductClick={() => setIsProductModalOpen(true)}
-        onBlingSync={() => setIsBlingModalOpen(true)}
-        isExportPending={false} // Product export is synchronous here
-        productsCount={totalProducts}
-      />
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon icon={Wine} />
+          <PageHeader.Text>
+            <PageHeader.Title>Catálogo de Produtos</PageHeader.Title>
+            <PageHeader.Description>
+              Gerencie e explore seu portfólio de vinhos
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        <PageHeader.Actions>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsBlingModalOpen(true)}
+            className="h-11 px-5 rounded-xl"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Sincronizar Bling
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsImportModalOpen(true)}
+            className="h-11 px-5 rounded-xl"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Importar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportProducts}
+            className="h-11 px-5 rounded-xl"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Exportar
+          </Button>
+          <Button
+            onClick={() => setIsProductModalOpen(true)}
+            className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Produto
+          </Button>
+        </PageHeader.Actions>
+      </PageHeader>
 
       <div className="flex flex-col gap-6">
         <ProductsStatistics
@@ -295,7 +338,6 @@ export default function Products() {
         open={isBlingModalOpen}
         onOpenChange={setIsBlingModalOpen}
       />
-
     </div>
   );
 }
