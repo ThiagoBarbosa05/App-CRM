@@ -541,10 +541,12 @@ function WebhookForm({
   initial,
   onSave,
   onCancel,
+  isSaving,
 }: {
   initial?: WebhookTool;
   onSave: (tool: WebhookTool) => void;
   onCancel: () => void;
+  isSaving?: boolean;
 }) {
   // Seções do formulário
   const [section, setSection] = useState<"basic" | "body" | "advanced" | "mocks">("basic");
@@ -926,11 +928,11 @@ function WebhookForm({
       )}
 
       <DialogFooter className="pt-2 border-t border-slate-100 dark:border-slate-800">
-        <Button variant="outline" type="button" onClick={onCancel}>
+        <Button variant="outline" type="button" onClick={onCancel} disabled={isSaving}>
           Cancelar
         </Button>
-        <Button type="button" onClick={handleSave} className="gap-2">
-          <Check className="size-4" />
+        <Button type="button" onClick={handleSave} className="gap-2" disabled={isSaving}>
+          {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
           Salvar ferramenta
         </Button>
       </DialogFooter>
@@ -1531,6 +1533,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                 initial={editingTool}
                 onSave={handleEditWebhook}
                 onCancel={() => setEditingTool(null)}
+                isSaving={updateToolMutation.isPending}
               />
             )}
           </div>

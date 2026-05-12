@@ -7,7 +7,7 @@ import {
   calls,
   clients,
 } from "@shared/schema";
-import { eq, and, inArray, ne, sql } from "drizzle-orm";
+import { eq, and, inArray, ne, sql, isNull } from "drizzle-orm";
 import twilio from "twilio";
 import {
   getTwilioConfig,
@@ -22,7 +22,11 @@ const router = Router();
 
 router.get("/", async (_req: Request, res: Response) => {
   try {
-    const rows = await db.select().from(campaigns).orderBy(campaigns.createdAt);
+    const rows = await db
+      .select()
+      .from(campaigns)
+      .where(isNull(campaigns.deletedAt))
+      .orderBy(campaigns.createdAt);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ message: "Erro ao buscar campanhas" });
@@ -176,7 +180,12 @@ router.put("/:id", async (req: Request, res: Response) => {
 
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
-    await db.delete(campaigns).where(eq(campaigns.id, req.params.id));
+    const [updated] = await db
+      .update(campaigns)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(campaigns.id, req.params.id), isNull(campaigns.deletedAt)))
+      .returning({ id: campaigns.id });
+    if (!updated) return res.status(404).json({ message: "Campanha não encontrada" });
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ message: "Erro ao excluir campanha" });

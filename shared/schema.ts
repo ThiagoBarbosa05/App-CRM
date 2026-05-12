@@ -3313,6 +3313,7 @@ export const campaigns = pgTable("campaigns", {
   umblerTriggerDecision: text("umbler_trigger_decision"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const calls = pgTable("calls", {
