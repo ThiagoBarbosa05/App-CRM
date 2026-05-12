@@ -1216,15 +1216,16 @@ export default function EventsManagement() {
             <PageHeader.Text>
               <PageHeader.Title>Gestão de Eventos</PageHeader.Title>
               <PageHeader.Description>
-                Gerencie eventos, participantes e acompanhe o engajamento da sua empresa
+                Gerencie eventos, participantes e acompanhe o engajamento da sua
+                empresa
               </PageHeader.Description>
             </PageHeader.Text>
           </PageHeader.Info>
-          <PageHeader.Actions>
-            <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 gap-1">
+          <PageHeader.Actions className="flex-wrap w-full md:w-auto mt-4 md:mt-0 justify-start sm:justify-end gap-2">
+            <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 gap-1 w-full sm:w-auto overflow-x-auto">
               <button
                 onClick={() => setActiveView("eventos")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none ${
                   activeView === "eventos"
                     ? "bg-orange-500 text-white shadow-sm"
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
@@ -1235,7 +1236,7 @@ export default function EventsManagement() {
               </button>
               <button
                 onClick={() => setActiveView("analises")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none ${
                   activeView === "analises"
                     ? "bg-orange-500 text-white shadow-sm"
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
@@ -1248,7 +1249,7 @@ export default function EventsManagement() {
             {user?.role === "admin" && (
               <Button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200"
+                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 w-full sm:w-auto flex-1 sm:flex-none"
               >
                 <CalendarIcon className="h-4 w-4 mr-2" />
                 Novo Evento
@@ -1258,7 +1259,6 @@ export default function EventsManagement() {
         </PageHeader>
 
         <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200 dark:from-slate-800 dark:to-slate-900 dark:border-slate-700">
-
           {activeView === "analises" ? (
             <CardContent className="p-3 md:p-6">
               <EventsAnalytics />

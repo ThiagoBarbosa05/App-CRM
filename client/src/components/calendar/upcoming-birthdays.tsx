@@ -86,8 +86,8 @@ function UpcomingBirthdayItem({ client, users, index }: { client: any; users: an
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <h4 className="font-bold text-slate-900 dark:text-white text-sm truncate">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <h4 className="font-bold text-slate-900 dark:text-white text-sm break-words">
               {client.name}
             </h4>
             <Badge className={`${status.className} border-none px-2 py-0 h-5 text-[10px] whitespace-nowrap`}>
@@ -95,7 +95,7 @@ function UpcomingBirthdayItem({ client, users, index }: { client: any; users: an
             </Badge>
           </div>
           
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-1">
             <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
               <CalendarIcon className="h-3 w-3" />
               {formatDate(client.birthday)} ({age} anos)

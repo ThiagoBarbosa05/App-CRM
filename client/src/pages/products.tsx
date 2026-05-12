@@ -236,39 +236,39 @@ export default function Products() {
             </PageHeader.Description>
           </PageHeader.Text>
         </PageHeader.Info>
-        <PageHeader.Actions>
+        <PageHeader.Actions className="flex-wrap w-full md:w-auto mt-4 md:mt-0 justify-start sm:justify-end gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsBlingModalOpen(true)}
-            className="h-11 px-5 rounded-xl"
+            className="h-11 px-5 rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
             Sincronizar Bling
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsImportModalOpen(true)}
-            className="h-11 px-5 rounded-xl"
+            className="h-11 px-5 rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
           >
-            <Upload className="mr-2 h-4 w-4" />
+            <Upload className="mr-2 h-4 w-4 shrink-0" />
             Importar
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportProducts}
-            className="h-11 px-5 rounded-xl"
+            className="h-11 px-5 rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
           >
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="mr-2 h-4 w-4 shrink-0" />
             Exportar
           </Button>
           <Button
             onClick={() => setIsProductModalOpen(true)}
-            className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl"
+            className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4 shrink-0" />
             Novo Produto
           </Button>
         </PageHeader.Actions>

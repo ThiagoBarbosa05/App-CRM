@@ -86,10 +86,10 @@ export function CalendarView({
               nav_button_previous: "absolute left-1",
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse",
-              head_row: "flex w-full",
-              head_cell: "text-slate-500 dark:text-slate-400 rounded-md flex-1 font-medium text-sm text-center py-2",
-              row: "flex w-full mt-2",
-              cell: "flex-1 h-11 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+              head_row: "flex w-full justify-between mb-2",
+              head_cell: "text-slate-500 dark:text-slate-400 font-medium text-sm text-center w-8 sm:w-10 md:w-12",
+              row: "flex w-full justify-between mt-2",
+              cell: "w-8 sm:w-10 md:w-12 h-11 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
               day: "h-11 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center justify-center",
               day_selected: "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-600 focus:text-white rounded-lg",
               day_today: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold",
@@ -109,7 +109,7 @@ export function CalendarView({
               <Gift className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-lg font-bold text-slate-900 dark:text-white truncate">
+              <div className="text-lg font-bold text-slate-900 dark:text-white break-words">
                 {format(selectedDate, "dd 'de' MMMM", { locale: ptBR })}
               </div>
               <div className="text-sm text-slate-500 dark:text-slate-400 font-normal">
@@ -185,10 +185,10 @@ function ClientBirthdayCard({
         </div>
         
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-slate-900 dark:text-white text-lg truncate mb-1">
+          <h3 className="font-bold text-slate-900 dark:text-white text-lg break-words max-w-full mb-1">
             {client.name}
           </h3>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             <Badge className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-none px-2 py-0 h-5 text-[10px] uppercase font-bold tracking-wider">
               {age} ANOS
             </Badge>
@@ -200,14 +200,14 @@ function ClientBirthdayCard({
           
           <div className="space-y-2">
             {client.phone && (
-              <a href={`tel:${client.phone}`} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">
-                <Phone className="h-3.5 w-3.5" />
+              <a href={`tel:${client.phone}`} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors break-all">
+                <Phone className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 {client.phone}
               </a>
             )}
             {client.email && (
-              <a href={`mailto:${client.email}`} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors">
-                <Mail className="h-3.5 w-3.5" />
+              <a href={`mailto:${client.email}`} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors break-all">
+                <Mail className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 {client.email}
               </a>
             )}
@@ -215,11 +215,11 @@ function ClientBirthdayCard({
         </div>
       </div>
 
-      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2">
         <Button 
           variant="outline" 
           size="sm" 
-          className="rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 gap-2"
+          className="flex-1 min-w-[110px] rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400 gap-2"
           onClick={() => onStartBot(client)}
         >
           <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
@@ -227,23 +227,23 @@ function ClientBirthdayCard({
         <Button 
           variant="outline" 
           size="sm" 
-          className="rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 gap-2"
+          className="flex-1 min-w-[110px] rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 gap-2"
           onClick={() => window.open(`tel:${client.phone}`, '_self')}
         >
-          <Phone className="h-3.5 w-3.5" /> Ligar
+          <Phone className="h-3.5 w-3.5 mt-0.5 shrink-0" /> Ligar
         </Button>
         <Button 
           variant="outline" 
           size="sm" 
-          className="rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 gap-2"
+          className="flex-1 min-w-[110px] rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 gap-2"
           onClick={() => window.open(`mailto:${client.email}`, '_blank')}
         >
-          <Mail className="h-3.5 w-3.5" /> Email
+          <Mail className="h-3.5 w-3.5 mt-0.5 shrink-0" /> Email
         </Button>
         <Button 
           variant="outline" 
           size="sm" 
-          className="rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 dark:hover:text-amber-400 gap-2"
+          className="flex-1 min-w-[110px] rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 dark:hover:text-amber-400 gap-2"
           onClick={() => onCreateReminder(client)}
         >
           <Bell className="h-3.5 w-3.5" /> Lembrete

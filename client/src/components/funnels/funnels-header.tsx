@@ -21,12 +21,14 @@ export function FunnelsHeader({
   const isListView = viewMode === "list";
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 sm:px-6 py-5 rounded-2xl shadow-sm relative overflow-hidden">
-      {/* Decorative gradient blur */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 sm:px-6 py-5 rounded-2xl shadow-sm relative">
+      {/* Decorative gradient blur — overflow isolado para não clipar conteúdo no mobile */}
+      <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      </div>
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative z-10">
-        <div className="flex items-center gap-4 min-w-0 flex-1">
+        <div className="flex items-center gap-4 min-w-0 w-full flex-1">
           {!isListView && (
             <Button
               variant="ghost"
@@ -62,20 +64,20 @@ export function FunnelsHeader({
                 </Badge>
               )}
             </h1>
-            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 truncate">
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 line-clamp-2">
               {isListView
                 ? "Configure e gerencie seus funis de vendas e pipelines"
                 : viewMode === "kanban"
-                ? "Board Kanban - Gerencie seus deals e oportunidades"
-                : "Gerencie etapas do funil de vendas"}
+                  ? "Board Kanban - Gerencie seus deals e oportunidades"
+                  : "Gerencie etapas do funil de vendas"}
             </p>
           </div>
         </div>
 
         {isListView && (
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
             className="flex items-center gap-3 w-full md:w-auto"
           >
             <Button

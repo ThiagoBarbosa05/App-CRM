@@ -12,11 +12,14 @@ function PageHeaderRoot({
   return (
     <div
       className={cn(
-        "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 sm:px-6 py-5 rounded-2xl shadow-sm relative overflow-hidden",
-        className
+        "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 sm:px-6 py-5 rounded-2xl shadow-sm relative",
+        className,
       )}
     >
-      <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+      {/* Decorative blur isolado para não clipar o conteúdo no mobile */}
+      <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+      </div>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative z-10">
         {children}
       </div>
@@ -41,7 +44,7 @@ function PageHeaderIcon({
         "flex h-12 w-12 items-center justify-center rounded-2xl flex-shrink-0 shadow-inner",
         bgColor,
         color,
-        className
+        className,
       )}
     >
       <Icon className="h-6 w-6" />
@@ -78,7 +81,7 @@ function PageHeaderTitle({
     <h1
       className={cn(
         "text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate",
-        className
+        className,
       )}
     >
       {children}
@@ -97,7 +100,7 @@ function PageHeaderDescription({
     <p
       className={cn(
         "text-slate-500 dark:text-slate-400 text-sm mt-1 line-clamp-2",
-        className
+        className,
       )}
     >
       {children}

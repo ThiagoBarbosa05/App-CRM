@@ -95,7 +95,189 @@ export function ProductsTable({
   const [, navigate] = useLocation();
   return (
     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 rounded-3xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-      <div className="overflow-x-auto grow">
+            {/* Mobile Card View */}
+      <div className="md:hidden flex flex-col gap-4 p-4 grow">
+        <AnimatePresence mode="wait">
+          {isFetching ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-20 gap-5"
+            >
+              <div className="relative">
+                <div className="animate-spin rounded-full h-14 w-14 border-[3px] border-blue-500/20 border-t-blue-600" />
+                <Wine className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 text-blue-600/80" />
+              </div>
+              <div className="space-y-1 text-center">
+                <p className="font-bold text-slate-800 dark:text-slate-200">
+                  Carregando catálogo...
+                </p>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                  Só um instante enquanto preparamos a lista
+                </p>
+              </div>
+            </motion.div>
+          ) : products.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-20 gap-5 text-center"
+            >
+              <div className="p-5 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800/80 dark:to-slate-900 rounded-3xl shadow-inner border border-slate-200/50 dark:border-slate-700/50">
+                <Wine className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+              </div>
+              <div className="space-y-1 max-w-xs">
+                <p className="font-extrabold text-slate-800 dark:text-slate-200 tracking-tight text-lg">
+                  Adega vazia
+                </p>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                  Não encontramos nenhum vinho com os filtros atuais.
+                  Tente ajustar sua busca.
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            products.map((product, index) => (
+              <motion.div
+                key={product.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03, duration: 0.3 }}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 shadow-sm flex flex-col gap-4 relative"
+              >
+                <div className="flex justify-between items-start gap-4">
+                  <div
+                    className="flex items-start gap-3 cursor-pointer flex-1 min-w-0"
+                    onClick={() => navigate(`/products/${product.id}`)}
+                  >
+                    <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-700 flex items-center justify-center shrink-0 border border-blue-100/60 dark:border-slate-600/60 overflow-hidden relative">
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          className="h-full w-full object-contain p-1 mix-blend-multiply dark:mix-blend-normal"
+                        />
+                      ) : (
+                        <Wine className="h-6 w-6 text-blue-600/70" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 dark:text-slate-100 text-sm leading-tight break-words">
+                        {product.name}
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider mt-1">
+                        REF: {product.id.slice(0, 8)}
+                      </p>
+                      
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                        {isWineProduct(product.category) && (
+                          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md px-1.5 py-0.5">
+                            <span className="text-sm leading-none drop-shadow-sm">{getCountryFlag(product.country)}</span>
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase truncate">
+                              {product.country}
+                            </span>
+                          </div>
+                        )}
+                        {product.category && (
+                          <Badge variant="secondary" className="bg-violet-100/80 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold border-0 text-[9px] uppercase tracking-widest px-1.5 py-0">
+                            {product.category}
+                          </Badge>
+                        )}
+                        {isWineProduct(product.category) && (
+                          <Badge className={`font-black uppercase text-[9px] tracking-widest shadow-none ${getTypeColor(product.type)} border-0 px-1.5 py-0 h-4`}>
+                            {product.type}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col gap-1 shrink-0 items-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 rounded-xl">
+                        <DropdownMenuItem onClick={() => onEdit(product)} className="gap-2 cursor-pointer">
+                          <Edit className="h-4 w-4" /> Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
+                              <Trash2 className="h-4 w-4" /> Excluir
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="rounded-3xl border-slate-200/60 dark:border-slate-800/60 p-6 max-w-[90vw]">
+                            <AlertDialogHeader className="gap-2">
+                              <div className="mx-auto bg-red-100 dark:bg-red-900/30 p-3 rounded-full mb-2">
+                                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-500" />
+                              </div>
+                              <AlertDialogTitle className="font-extrabold text-xl text-center text-slate-900 dark:text-white">
+                                Excluir Produto?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription className="text-slate-500 font-medium text-center text-sm">
+                                Tem certeza deseja excluir?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="gap-3 sm:justify-center mt-6">
+                              <AlertDialogCancel className="rounded-xl border-slate-200 hover:bg-slate-50 font-bold h-11 px-6">
+                                Cancelar
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => onDelete(product.id)}
+                                className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-xl font-bold h-11 px-6 border-0 shadow-md shadow-red-500/20"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-3 border border-slate-100 dark:border-slate-800">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Volume</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      {isWineProduct(product.category) ? product.volume : "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 items-end">
+                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Valor UND</span>
+                    <span className="text-emerald-700 dark:text-emerald-400 font-black text-sm">
+                      R$ {parseFloat(product.negotiatedPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <div
+                    className="flex justify-center flex-1 gap-2 px-3 py-2.5 bg-blue-50/80 dark:bg-blue-500/10 border border-blue-100/80 dark:border-blue-500/20 rounded-xl cursor-pointer hover:bg-blue-100 transition-colors"
+                    onClick={() => onViewClients(product)}
+                  >
+                    <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300 tracking-tight">
+                      {product.clientCount} alcance
+                    </span>
+                  </div>
+                  <Button variant="outline" className="rounded-xl h-auto py-2.5 px-4 text-xs font-bold" onClick={() => navigate(`/products/${product.id}`)}>
+                    Detalhes
+                  </Button>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="overflow-x-auto grow hidden md:block">
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-200/60 dark:border-slate-800/60 hover:bg-transparent">
