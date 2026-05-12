@@ -77,6 +77,7 @@ import { AgentConfigModal } from "./agent-config-modal";
 import { AgentToolsModal } from "./agent-tools-modal";
 import { useUmblerChannels } from "@/hooks/use-umbler-channels";
 import { useUmblerBots } from "@/hooks/use-umbler-bots";
+import { useAuth } from "@/hooks/useAuth";
 
 type Campaign = {
   id: string;
@@ -232,13 +233,22 @@ function CampaignProgress({
 }
 
 export function CampaignsList() {
+  const { user } = useAuth();
+  const isAdminOrManager =
+    user?.role === "admin" ||
+    user?.role === "administrador" ||
+    user?.role === "gerente";
+
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [clientsDialog, setClientsDialog] = useState<Campaign | null>(null);
   const [dispatchDialog, setDispatchDialog] = useState<Campaign | null>(null);
   const [monitorCampaign, setMonitorCampaign] = useState<Campaign | null>(null);
-  const [agentConfigCampaign, setAgentConfigCampaign] = useState<Campaign | null>(null);
-  const [agentToolsCampaign, setAgentToolsCampaign] = useState<Campaign | null>(null);
+  const [agentConfigCampaign, setAgentConfigCampaign] =
+    useState<Campaign | null>(null);
+  const [agentToolsCampaign, setAgentToolsCampaign] = useState<Campaign | null>(
+    null,
+  );
 
   const {
     data: campaigns = [],
@@ -616,43 +626,49 @@ export function CampaignsList() {
                         <SlidersHorizontal className="size-3.5" />
                       </Button>
 
-                      {/* Configurar Agente IA */}
-                      {campaign.type === "ia" && campaign.elevenLabsAgentId && (
+                      {/* Configurar Agente IA — apenas admin/gerente */}
+                      {isAdminOrManager &&
+                        campaign.type === "ia" &&
+                        campaign.elevenLabsAgentId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 w-9 shrink-0 rounded-xl p-0 text-violet-600 border-violet-200 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-900/20"
+                            title="Configurar agente IA"
+                            onClick={() => setAgentConfigCampaign(campaign)}
+                          >
+                            <Settings2 className="size-3.5" />
+                          </Button>
+                        )}
+
+                      {/* Ferramentas do Agente IA — apenas admin/gerente */}
+                      {isAdminOrManager &&
+                        campaign.type === "ia" &&
+                        campaign.elevenLabsAgentId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 w-9 shrink-0 rounded-xl p-0 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
+                            title="Gerenciar ferramentas do agente"
+                            onClick={() => setAgentToolsCampaign(campaign)}
+                          >
+                            <Webhook className="size-3.5" />
+                          </Button>
+                        )}
+
+                      {/* Excluir — apenas admin/gerente */}
+                      {isAdminOrManager && (
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          className="h-9 w-9 shrink-0 rounded-xl p-0 text-violet-600 border-violet-200 hover:bg-violet-50 dark:border-violet-800 dark:text-violet-400 dark:hover:bg-violet-900/20"
-                          title="Configurar agente IA"
-                          onClick={() => setAgentConfigCampaign(campaign)}
+                          className="h-9 w-9 shrink-0 rounded-xl p-0 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                          title="Excluir campanha"
+                          onClick={() => deleteMutation.mutate(campaign.id)}
+                          disabled={deleteMutation.isPending}
                         >
-                          <Settings2 className="size-3.5" />
+                          <Trash2 className="size-3.5" />
                         </Button>
                       )}
-
-                      {/* Ferramentas do Agente IA */}
-                      {campaign.type === "ia" && campaign.elevenLabsAgentId && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 shrink-0 rounded-xl p-0 text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-400 dark:hover:bg-indigo-900/20"
-                          title="Gerenciar ferramentas do agente"
-                          onClick={() => setAgentToolsCampaign(campaign)}
-                        >
-                          <Webhook className="size-3.5" />
-                        </Button>
-                      )}
-
-                      {/* Excluir */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-9 w-9 shrink-0 rounded-xl p-0 text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                        title="Excluir campanha"
-                        onClick={() => deleteMutation.mutate(campaign.id)}
-                        disabled={deleteMutation.isPending}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -875,7 +891,9 @@ export function CampaignsList() {
                   {umblerEnabled && (
                     <>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Disparar quando decisão for</Label>
+                        <Label className="text-sm">
+                          Disparar quando decisão for
+                        </Label>
                         <Controller
                           control={control}
                           name="umblerTriggerDecision"
@@ -888,10 +906,18 @@ export function CampaignsList() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="qualquer">Qualquer resposta</SelectItem>
-                                <SelectItem value="sim">Sim (interessado)</SelectItem>
-                                <SelectItem value="nao">Não (sem interesse)</SelectItem>
-                                <SelectItem value="sem_resposta">Sem resposta</SelectItem>
+                                <SelectItem value="qualquer">
+                                  Qualquer resposta
+                                </SelectItem>
+                                <SelectItem value="sim">
+                                  Sim (interessado)
+                                </SelectItem>
+                                <SelectItem value="nao">
+                                  Não (sem interesse)
+                                </SelectItem>
+                                <SelectItem value="sem_resposta">
+                                  Sem resposta
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           )}
@@ -912,7 +938,13 @@ export function CampaignsList() {
                                 <SelectValue placeholder="Selecione o canal" />
                               </SelectTrigger>
                               <SelectContent>
-                                {(channels as Array<{ id: string; name: string; state: string }>)
+                                {(
+                                  channels as Array<{
+                                    id: string;
+                                    name: string;
+                                    state: string;
+                                  }>
+                                )
                                   .filter((ch) => ch.state === "Live")
                                   .map((ch) => (
                                     <SelectItem key={ch.id} value={ch.id}>
@@ -926,7 +958,9 @@ export function CampaignsList() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Bot a disparar (opcional)</Label>
+                        <Label className="text-sm">
+                          Bot a disparar (opcional)
+                        </Label>
                         <Controller
                           control={control}
                           name="umblerBotId"
@@ -937,9 +971,13 @@ export function CampaignsList() {
                                 const val = v === "none" ? "" : v;
                                 field.onChange(val);
                                 const bot = botsData?.result?.find(
-                                  (b: { botId: string; triggerName: string }) => b.botId === v,
+                                  (b: { botId: string; triggerName: string }) =>
+                                    b.botId === v,
                                 );
-                                setValue("umblerBotTriggerName", bot ? bot.triggerName : "");
+                                setValue(
+                                  "umblerBotTriggerName",
+                                  bot ? bot.triggerName : "",
+                                );
                               }}
                             >
                               <SelectTrigger>
@@ -961,7 +999,9 @@ export function CampaignsList() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Mensagem pré-definida (opcional)</Label>
+                        <Label className="text-sm">
+                          Mensagem pré-definida (opcional)
+                        </Label>
                         <Textarea
                           {...register("umblerMessageText")}
                           placeholder="Texto a enviar via WhatsApp após a ligação"
