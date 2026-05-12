@@ -436,9 +436,7 @@ export function Dialer() {
   const [twilioStatusLoading, setTwilioStatusLoading] = useState(false);
   const [clientSearch, setClientSearch] = useState("");
   // Em desktop (xl) a coluna de clientes fica sempre visível; em mobile começa fechada
-  const [showClients, setShowClients] = useState(
-    () => typeof window !== "undefined" && window.innerWidth >= 1280,
-  );
+  const [showClients, setShowClients] = useState(true);
   // Rastreia o breakpoint xl (≥1280px) de forma reativa para evitar
   // que o backdrop do Sheet apareça em telas grandes
   const [isXl, setIsXl] = useState(
@@ -446,7 +444,10 @@ export function Dialer() {
   );
   useEffect(() => {
     const mql = window.matchMedia("(min-width: 1280px)");
-    const handler = (e: MediaQueryListEvent) => setIsXl(e.matches);
+    const handler = (e: MediaQueryListEvent) => {
+      setIsXl(e.matches);
+      if (e.matches) setShowClients(true);
+    };
     mql.addEventListener("change", handler);
     return () => mql.removeEventListener("change", handler);
   }, []);
