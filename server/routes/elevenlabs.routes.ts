@@ -395,45 +395,18 @@ router.get("/agents/:agentId", requireAuth, async (req: Request, res: Response) 
       return res.status(response.status).json({ message: body });
     }
 
-    const data = (await response.json()) as {
-      agent_id: string;
-      name: string;
-      conversation_config?: {
-        tts?: { voice_id?: string };
-        turn?: Record<string, unknown>;
-        agent?: {
-          prompt?: {
-            prompt?: string;
-            llm?: string;
-            tools?: unknown[];
-            tool_ids?: string[];
-            built_in_tools?: Record<string, unknown>;
-          };
-          first_message?: string;
-          language?: string;
-          disable_first_message_interruptions?: boolean;
-        };
-      };
-    };
-
-    const rawPrompt = data.conversation_config?.agent?.prompt;
-    const rawTools = rawPrompt?.tools ?? [];
-    const rawToolIds = rawPrompt?.tool_ids ?? [];
-    const rawBuiltInTools = rawPrompt?.built_in_tools ?? {};
-    const disableInterruptions = data.conversation_config?.agent?.disable_first_message_interruptions;
+    // Retorna o payload completo + campos normalizados usados pelo agent-tools-modal
+    const data = (await response.json()) as Record<string, unknown>;
+    const cc = (data.conversation_config ?? {}) as Record<string, unknown>;
+    const agentCfg = (cc.agent ?? {}) as Record<string, unknown>;
+    const promptCfg = (agentCfg.prompt ?? {}) as Record<string, unknown>;
 
     res.json({
-      agentId: data.agent_id,
-      name: data.name,
-      prompt: rawPrompt?.prompt ?? "",
-      firstMessage: data.conversation_config?.agent?.first_message ?? "",
-      language: data.conversation_config?.agent?.language ?? "pt",
-      voiceId: data.conversation_config?.tts?.voice_id ?? "",
-      llm: rawPrompt?.llm ?? "gemini-2.5-flash",
-      tools: rawTools,
-      toolIds: rawToolIds,
-      builtInTools: rawBuiltInTools,
-      interruptible: disableInterruptions === undefined ? true : !disableInterruptions,
+      ...data,
+      // Campos normalizados para compatibilidade com agent-tools-modal
+      toolIds: (promptCfg.tool_ids as string[]) ?? [],
+      tools: (promptCfg.tools as unknown[]) ?? [],
+      builtInTools: (promptCfg.built_in_tools as Record<string, unknown>) ?? {},
     });
   } catch (e) {
     console.error("[elevenlabs] get-agent error:", e);
@@ -690,45 +663,19 @@ router.post("/agents", requireAuth, async (req: Request, res: Response) => {
     const apiKey = await getElevenLabsKey();
     if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
 
-    const { name, prompt, firstMessage, language, voiceId, llm, interruptible } = req.body as {
+    const { name, conversationConfig, platformSettings } = req.body as {
       name: string;
-      prompt?: string;
-      firstMessage?: string;
-      language?: string;
-      voiceId?: string;
-      llm?: string;
-      interruptible?: boolean;
+      conversationConfig?: Record<string, unknown>;
+      platformSettings?: Record<string, unknown>;
     };
 
     if (!name?.trim()) {
       return res.status(400).json({ message: "Nome do agente é obrigatório" });
     }
 
-    const selectedLang = language ?? "pt-br";
-    const isEnglish = selectedLang === "en";
-    // LLM: Gemini/Claude for multilingual, GPT for English-only
-    const selectedLlm = llm ?? (isEnglish ? "gpt-4o-mini" : "gemini-2.5-flash");
-    // TTS model: eleven_turbo_v2_5 supports all languages; default only supports English
-    const ttsModelId = isEnglish ? "eleven_monolingual_v1" : "eleven_turbo_v2_5";
-
-    const body: Record<string, unknown> = {
-      name,
-      conversation_config: {
-        tts: {
-          model_id: ttsModelId,
-          ...(voiceId ? { voice_id: voiceId } : {}),
-        },
-        agent: {
-          prompt: {
-            prompt: prompt ?? "",
-            llm: selectedLlm,
-          },
-          first_message: firstMessage ?? "",
-          language: selectedLang,
-          disable_first_message_interruptions: interruptible === false,
-        },
-      },
-    };
+    const body: Record<string, unknown> = { name };
+    if (conversationConfig) body.conversation_config = conversationConfig;
+    if (platformSettings) body.platform_settings = platformSettings;
 
     const response = await fetch("https://api.elevenlabs.io/v1/convai/agents/create", {
       method: "POST",
@@ -756,53 +703,38 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
     const apiKey = await getElevenLabsKey();
     if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
 
-    const { name, prompt, firstMessage, language, voiceId, llm, tools, toolIds, builtInTools, interruptible } = req.body as {
+    // Aceita tanto o formato completo (conversationConfig + platformSettings) quanto
+    // o formato legado usado pelo agent-tools-modal (toolIds, builtInTools, tools).
+    const { name, conversationConfig, platformSettings, toolIds, builtInTools, tools } = req.body as {
       name?: string;
-      prompt?: string;
-      firstMessage?: string;
-      language?: string;
-      voiceId?: string;
-      llm?: string;
-      tools?: unknown[];
+      conversationConfig?: Record<string, unknown>;
+      platformSettings?: Record<string, unknown>;
+      // Campos legados do agent-tools-modal
       toolIds?: string[];
       builtInTools?: Record<string, unknown>;
-      interruptible?: boolean;
+      tools?: unknown[];
     };
 
     const body: Record<string, unknown> = {};
     if (name) body.name = name;
 
-    const conversationConfig: Record<string, unknown> = {};
-    const agentConfig: Record<string, unknown> = {};
-
-    // Build prompt sub-object. System tools → built_in_tools. Webhook tools → tool_ids (new format).
-    // When tool_ids is set, also clear the deprecated inline tools array to avoid stale reference errors.
-    if (prompt !== undefined || llm !== undefined || tools !== undefined || toolIds !== undefined || builtInTools !== undefined) {
+    if (conversationConfig) {
+      body.conversation_config = conversationConfig;
+    } else if (toolIds !== undefined || builtInTools !== undefined || tools !== undefined) {
+      // Compatibilidade com agent-tools-modal que envia campos separados
       const promptObj: Record<string, unknown> = {};
-      if (prompt !== undefined) promptObj.prompt = prompt;
-      if (llm !== undefined) promptObj.llm = llm;
       if (toolIds !== undefined) {
         promptObj.tool_ids = toolIds;
         promptObj.tools = [];
       } else if (tools !== undefined) {
         promptObj.tools = tools;
-        // Clear stale tool_id references to avoid "document_not_found" validation errors
         promptObj.tool_ids = [];
       }
       if (builtInTools !== undefined) promptObj.built_in_tools = builtInTools;
-      agentConfig.prompt = promptObj;
+      body.conversation_config = { agent: { prompt: promptObj } };
     }
-    if (firstMessage !== undefined) agentConfig.first_message = firstMessage;
-    if (language !== undefined) agentConfig.language = language;
-    if (Object.keys(agentConfig).length > 0) conversationConfig.agent = agentConfig;
 
-    if (voiceId !== undefined) conversationConfig.tts = { voice_id: voiceId };
-    if (interruptible !== undefined) {
-      const agentCfg = (conversationConfig.agent ?? {}) as Record<string, unknown>;
-      agentCfg.disable_first_message_interruptions = !interruptible;
-      conversationConfig.agent = agentCfg;
-    }
-    if (Object.keys(conversationConfig).length > 0) body.conversation_config = conversationConfig;
+    if (platformSettings) body.platform_settings = platformSettings;
 
     const response = await fetch(
       `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(req.params.agentId)}`,
