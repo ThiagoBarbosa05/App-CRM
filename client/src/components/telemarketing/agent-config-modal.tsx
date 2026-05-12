@@ -24,10 +24,30 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, X, Plus, Check, ChevronsUpDown, Rocket } from "lucide-react";
+import {
+  Loader2,
+  X,
+  Plus,
+  Check,
+  ChevronsUpDown,
+  Rocket,
+  Sparkles,
+} from "lucide-react";
+import { PromptAssistantDialog } from "@/components/telemarketing/prompt-assistant-dialog";
 import { cn } from "@/lib/utils";
 import { VoiceSelector } from "@/components/voice-selector";
 import {
@@ -88,10 +108,16 @@ const agentSchema = z.object({
   backgroundMusicSourceType: z.string().nullable().default(null),
   backgroundMusicSourceId: z.string().default(""),
   backgroundMusicVolume: z.number().min(0).max(1).default(0.6),
-  clientEvents: z.array(z.string()).default([
-    "audio", "interruption", "agent_response", "user_transcript",
-    "agent_response_correction", "agent_tool_response",
-  ]),
+  clientEvents: z
+    .array(z.string())
+    .default([
+      "audio",
+      "interruption",
+      "agent_response",
+      "user_transcript",
+      "agent_response_correction",
+      "agent_tool_response",
+    ]),
   // Avançado — Privacidade
   recordVoice: z.boolean().default(true),
   retentionDays: z.number().default(-1),
@@ -136,7 +162,10 @@ const LANGUAGES = [
 ];
 
 const LLM_MODELS = [
-  { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (multilíngue, recomendado)" },
+  {
+    value: "gemini-2.5-flash",
+    label: "Gemini 2.5 Flash (multilíngue, recomendado)",
+  },
   { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (rápido)" },
   { value: "claude-sonnet-4", label: "Claude Sonnet 4 (multilíngue)" },
   { value: "claude-haiku-4-5", label: "Claude Haiku 4.5 (rápido)" },
@@ -146,12 +175,21 @@ const LLM_MODELS = [
 ];
 
 const TTS_MODELS = [
-  { value: "eleven_v3_conversational", label: "Eleven v3 Conversational (recomendado)" },
-  { value: "eleven_turbo_v2_5", label: "Eleven Turbo v2.5 (multilíngue, baixa latência)" },
+  {
+    value: "eleven_v3_conversational",
+    label: "Eleven v3 Conversational (recomendado)",
+  },
+  {
+    value: "eleven_turbo_v2_5",
+    label: "Eleven Turbo v2.5 (multilíngue, baixa latência)",
+  },
   { value: "eleven_multilingual_v2", label: "Eleven Multilingual v2" },
   { value: "eleven_flash_v2_5", label: "Eleven Flash v2.5 (mais rápido)" },
   { value: "eleven_flash_v2", label: "Eleven Flash v2" },
-  { value: "eleven_monolingual_v1", label: "Eleven Monolingual v1 (somente inglês)" },
+  {
+    value: "eleven_monolingual_v1",
+    label: "Eleven Monolingual v1 (somente inglês)",
+  },
 ];
 
 const AUDIO_FORMATS = [
@@ -278,20 +316,38 @@ function TimezoneSelector({
             <CommandGroup>
               <CommandItem
                 value=""
-                onSelect={() => { onChange(""); setOpen(false); }}
+                onSelect={() => {
+                  onChange("");
+                  setOpen(false);
+                }}
               >
-                <Check className={cn("mr-2 size-4", value === "" ? "opacity-100" : "opacity-0")} />
+                <Check
+                  className={cn(
+                    "mr-2 size-4",
+                    value === "" ? "opacity-100" : "opacity-0",
+                  )}
+                />
                 Padrão do workspace
               </CommandItem>
               {TIMEZONES.map((tz) => (
                 <CommandItem
                   key={tz.value}
                   value={`${tz.label} ${tz.value}`}
-                  onSelect={() => { onChange(tz.value); setOpen(false); }}
+                  onSelect={() => {
+                    onChange(tz.value);
+                    setOpen(false);
+                  }}
                 >
-                  <Check className={cn("mr-2 size-4", value === tz.value ? "opacity-100" : "opacity-0")} />
+                  <Check
+                    className={cn(
+                      "mr-2 size-4",
+                      value === tz.value ? "opacity-100" : "opacity-0",
+                    )}
+                  />
                   <span>{tz.label}</span>
-                  <span className="ml-auto text-xs text-slate-400">{tz.value}</span>
+                  <span className="ml-auto text-xs text-slate-400">
+                    {tz.value}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -303,13 +359,37 @@ function TimezoneSelector({
 }
 
 const GUARDRAIL_CATEGORIES = [
-  { key: "Sexual", field: "guardrailSexual" as const, label: "Conteúdo sexual" },
+  {
+    key: "Sexual",
+    field: "guardrailSexual" as const,
+    label: "Conteúdo sexual",
+  },
   { key: "Violence", field: "guardrailViolence" as const, label: "Violência" },
-  { key: "Harassment", field: "guardrailHarassment" as const, label: "Assédio" },
-  { key: "SelfHarm", field: "guardrailSelfHarm" as const, label: "Automutilação" },
-  { key: "Profanity", field: "guardrailProfanity" as const, label: "Palavrões" },
-  { key: "ReligionPolitics", field: "guardrailReligionPolitics" as const, label: "Religião/Política" },
-  { key: "MedicalLegal", field: "guardrailMedicalLegal" as const, label: "Médico/Jurídico" },
+  {
+    key: "Harassment",
+    field: "guardrailHarassment" as const,
+    label: "Assédio",
+  },
+  {
+    key: "SelfHarm",
+    field: "guardrailSelfHarm" as const,
+    label: "Automutilação",
+  },
+  {
+    key: "Profanity",
+    field: "guardrailProfanity" as const,
+    label: "Palavrões",
+  },
+  {
+    key: "ReligionPolitics",
+    field: "guardrailReligionPolitics" as const,
+    label: "Religião/Política",
+  },
+  {
+    key: "MedicalLegal",
+    field: "guardrailMedicalLegal" as const,
+    label: "Médico/Jurídico",
+  },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -350,7 +430,8 @@ function mapApiToForm(data: Record<string, any>): Partial<AgentForm> {
     temperature: safeNum(promptCfg.temperature, 0),
     maxTokens: safeNum(promptCfg.max_tokens, -1),
     timezone: agent.timezone ?? "",
-    disableFirstMessageInterruptions: agent.disable_first_message_interruptions ?? false,
+    disableFirstMessageInterruptions:
+      agent.disable_first_message_interruptions ?? false,
     ignoreDefaultPersonality: agent.ignore_default_personality ?? false,
     enableParallelToolCalls: promptCfg.enable_parallel_tool_calls ?? false,
     cascadeTimeoutSeconds: safeNum(agent.cascade_timeout_seconds, 8),
@@ -389,10 +470,16 @@ function mapApiToForm(data: Record<string, any>): Partial<AgentForm> {
     backgroundMusicSourceType: bgMusic.source_type ?? null,
     backgroundMusicSourceId: bgMusic.source_id ?? "",
     backgroundMusicVolume: safeNum(bgMusic.volume, 0.6),
-    clientEvents: Array.isArray(conv.client_events) ? conv.client_events : [
-      "audio", "interruption", "agent_response", "user_transcript",
-      "agent_response_correction", "agent_tool_response",
-    ],
+    clientEvents: Array.isArray(conv.client_events)
+      ? conv.client_events
+      : [
+          "audio",
+          "interruption",
+          "agent_response",
+          "user_transcript",
+          "agent_response_correction",
+          "agent_tool_response",
+        ],
 
     recordVoice: privacy.record_voice ?? true,
     retentionDays: safeNum(privacy.retention_days, -1),
@@ -404,26 +491,38 @@ function mapApiToForm(data: Record<string, any>): Partial<AgentForm> {
     burstingEnabled: callLimits.bursting_enabled ?? true,
 
     guardrailFocusEnabled: guardrails.focus?.is_enabled ?? false,
-    guardrailPromptInjectionEnabled: guardrails.prompt_injection?.is_enabled ?? false,
+    guardrailPromptInjectionEnabled:
+      guardrails.prompt_injection?.is_enabled ?? false,
     guardrailTriggerAction: triggerAction.type ?? "end_call",
     guardrailSexualEnabled: guardrailConfig.sexual?.is_enabled ?? false,
     guardrailSexualThreshold: guardrailConfig.sexual?.threshold ?? "medium",
     guardrailViolenceEnabled: guardrailConfig.violence?.is_enabled ?? false,
     guardrailViolenceThreshold: guardrailConfig.violence?.threshold ?? "medium",
     guardrailHarassmentEnabled: guardrailConfig.harassment?.is_enabled ?? false,
-    guardrailHarassmentThreshold: guardrailConfig.harassment?.threshold ?? "medium",
+    guardrailHarassmentThreshold:
+      guardrailConfig.harassment?.threshold ?? "medium",
     guardrailSelfHarmEnabled: guardrailConfig.self_harm?.is_enabled ?? false,
-    guardrailSelfHarmThreshold: guardrailConfig.self_harm?.threshold ?? "medium",
+    guardrailSelfHarmThreshold:
+      guardrailConfig.self_harm?.threshold ?? "medium",
     guardrailProfanityEnabled: guardrailConfig.profanity?.is_enabled ?? false,
-    guardrailProfanityThreshold: guardrailConfig.profanity?.threshold ?? "medium",
-    guardrailReligionPoliticsEnabled: guardrailConfig.religion_or_politics?.is_enabled ?? false,
-    guardrailReligionPoliticsThreshold: guardrailConfig.religion_or_politics?.threshold ?? "medium",
-    guardrailMedicalLegalEnabled: guardrailConfig.medical_and_legal_information?.is_enabled ?? false,
-    guardrailMedicalLegalThreshold: guardrailConfig.medical_and_legal_information?.threshold ?? "medium",
+    guardrailProfanityThreshold:
+      guardrailConfig.profanity?.threshold ?? "medium",
+    guardrailReligionPoliticsEnabled:
+      guardrailConfig.religion_or_politics?.is_enabled ?? false,
+    guardrailReligionPoliticsThreshold:
+      guardrailConfig.religion_or_politics?.threshold ?? "medium",
+    guardrailMedicalLegalEnabled:
+      guardrailConfig.medical_and_legal_information?.is_enabled ?? false,
+    guardrailMedicalLegalThreshold:
+      guardrailConfig.medical_and_legal_information?.threshold ?? "medium",
   };
 }
 
-function mapFormToApi(f: AgentForm): { name: string; conversationConfig: Record<string, unknown>; platformSettings: Record<string, unknown> } {
+function mapFormToApi(f: AgentForm): {
+  name: string;
+  conversationConfig: Record<string, unknown>;
+  platformSettings: Record<string, unknown>;
+} {
   return {
     name: f.name,
     conversationConfig: {
@@ -509,13 +608,34 @@ function mapFormToApi(f: AgentForm): { name: string; conversationConfig: Record<
         content: {
           execution_mode: "streaming",
           config: {
-            sexual: { is_enabled: f.guardrailSexualEnabled, threshold: f.guardrailSexualThreshold },
-            violence: { is_enabled: f.guardrailViolenceEnabled, threshold: f.guardrailViolenceThreshold },
-            harassment: { is_enabled: f.guardrailHarassmentEnabled, threshold: f.guardrailHarassmentThreshold },
-            self_harm: { is_enabled: f.guardrailSelfHarmEnabled, threshold: f.guardrailSelfHarmThreshold },
-            profanity: { is_enabled: f.guardrailProfanityEnabled, threshold: f.guardrailProfanityThreshold },
-            religion_or_politics: { is_enabled: f.guardrailReligionPoliticsEnabled, threshold: f.guardrailReligionPoliticsThreshold },
-            medical_and_legal_information: { is_enabled: f.guardrailMedicalLegalEnabled, threshold: f.guardrailMedicalLegalThreshold },
+            sexual: {
+              is_enabled: f.guardrailSexualEnabled,
+              threshold: f.guardrailSexualThreshold,
+            },
+            violence: {
+              is_enabled: f.guardrailViolenceEnabled,
+              threshold: f.guardrailViolenceThreshold,
+            },
+            harassment: {
+              is_enabled: f.guardrailHarassmentEnabled,
+              threshold: f.guardrailHarassmentThreshold,
+            },
+            self_harm: {
+              is_enabled: f.guardrailSelfHarmEnabled,
+              threshold: f.guardrailSelfHarmThreshold,
+            },
+            profanity: {
+              is_enabled: f.guardrailProfanityEnabled,
+              threshold: f.guardrailProfanityThreshold,
+            },
+            religion_or_politics: {
+              is_enabled: f.guardrailReligionPoliticsEnabled,
+              threshold: f.guardrailReligionPoliticsThreshold,
+            },
+            medical_and_legal_information: {
+              is_enabled: f.guardrailMedicalLegalEnabled,
+              threshold: f.guardrailMedicalLegalThreshold,
+            },
           },
           trigger_action: { type: f.guardrailTriggerAction },
         },
@@ -526,12 +646,22 @@ function mapFormToApi(f: AgentForm): { name: string; conversationConfig: Record<
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function FieldRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+function FieldRow({
+  label,
+  hint,
+  children,
+}: {
+  label: ReactNode;
+  hint?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <Label className="text-sm">{label}</Label>
       {children}
-      {hint && <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>}
+      {hint && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>
+      )}
     </div>
   );
 }
@@ -550,8 +680,12 @@ function SwitchRow({
   return (
     <div className="flex items-center justify-between py-2">
       <div className="flex-1 pr-4">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</p>
-        {hint && <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>}
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          {label}
+        </p>
+        {hint && (
+          <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>
+        )}
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>
@@ -605,6 +739,7 @@ export function AgentConfigModal({
   campaignName,
 }: AgentConfigModalProps) {
   const [keywordInput, setKeywordInput] = useState("");
+  const [promptAssistantOpen, setPromptAssistantOpen] = useState(false);
 
   const {
     register,
@@ -645,7 +780,9 @@ export function AgentConfigModal({
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao salvar");
       }
     },
@@ -654,7 +791,11 @@ export function AgentConfigModal({
       onClose();
     },
     onError: (err: Error) =>
-      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro ao salvar",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const saveAndPublishMutation = useMutation({
@@ -668,28 +809,42 @@ export function AgentConfigModal({
         body: JSON.stringify(payload),
       });
       if (!saveRes.ok) {
-        const err = (await saveRes.json().catch(() => ({}))) as { message?: string };
+        const err = (await saveRes.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao salvar");
       }
 
       // 2. Publicar (deploy branch principal com 100% de tráfego)
-      const deployRes = await fetch(`/api/elevenlabs/agents/${agentId}/deploy`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({}),
-      });
+      const deployRes = await fetch(
+        `/api/elevenlabs/agents/${agentId}/deploy`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({}),
+        },
+      );
       if (!deployRes.ok) {
-        const err = (await deployRes.json().catch(() => ({}))) as { message?: string };
+        const err = (await deployRes.json().catch(() => ({}))) as {
+          message?: string;
+        };
         throw new Error(err.message ?? "Erro ao publicar");
       }
     },
     onSuccess: () => {
-      toast({ title: "Agente publicado com sucesso", description: "As alterações estão ao vivo." });
+      toast({
+        title: "Agente publicado com sucesso",
+        description: "As alterações estão ao vivo.",
+      });
       onClose();
     },
     onError: (err: Error) =>
-      toast({ title: "Erro ao publicar", description: err.message, variant: "destructive" }),
+      toast({
+        title: "Erro ao publicar",
+        description: err.message,
+        variant: "destructive",
+      }),
   });
 
   const w = watch();
@@ -705,13 +860,19 @@ export function AgentConfigModal({
   };
 
   const removeKeyword = (kw: string) => {
-    setValue("asrKeywords", (w.asrKeywords ?? []).filter((k) => k !== kw));
+    setValue(
+      "asrKeywords",
+      (w.asrKeywords ?? []).filter((k) => k !== kw),
+    );
   };
 
   const toggleClientEvent = (ev: string) => {
     const current = w.clientEvents ?? [];
     if (current.includes(ev)) {
-      setValue("clientEvents", current.filter((e) => e !== ev));
+      setValue(
+        "clientEvents",
+        current.filter((e) => e !== ev),
+      );
     } else {
       setValue("clientEvents", [...current, ev]);
     }
@@ -738,52 +899,110 @@ export function AgentConfigModal({
             onSubmit={handleSubmit((d) => saveMutation.mutate(d))}
             className="flex flex-col flex-1 overflow-hidden"
           >
-            <AppTabs defaultValue="geral" className="flex flex-col flex-1 overflow-hidden">
+            <AppTabs
+              defaultValue="geral"
+              className="flex flex-col flex-1 overflow-hidden"
+            >
               <UnderlineTabsList className="px-6 shrink-0">
-                <UnderlineTabsTrigger value="geral" color="blue">Geral</UnderlineTabsTrigger>
-                <UnderlineTabsTrigger value="voz" color="blue">Voz & TTS</UnderlineTabsTrigger>
-                <UnderlineTabsTrigger value="asr" color="blue">ASR & VAD</UnderlineTabsTrigger>
-                <UnderlineTabsTrigger value="turno" color="blue">Turno</UnderlineTabsTrigger>
-                <UnderlineTabsTrigger value="conversa" color="blue">Conversa</UnderlineTabsTrigger>
-                <UnderlineTabsTrigger value="avancado" color="blue">Avançado</UnderlineTabsTrigger>
+                <UnderlineTabsTrigger value="geral" color="blue">
+                  Geral
+                </UnderlineTabsTrigger>
+                <UnderlineTabsTrigger value="voz" color="blue">
+                  Voz & TTS
+                </UnderlineTabsTrigger>
+                <UnderlineTabsTrigger value="asr" color="blue">
+                  ASR & VAD
+                </UnderlineTabsTrigger>
+                <UnderlineTabsTrigger value="turno" color="blue">
+                  Turno
+                </UnderlineTabsTrigger>
+                <UnderlineTabsTrigger value="conversa" color="blue">
+                  Conversa
+                </UnderlineTabsTrigger>
+                <UnderlineTabsTrigger value="avancado" color="blue">
+                  Avançado
+                </UnderlineTabsTrigger>
               </UnderlineTabsList>
 
               {/* ── Tab: Geral ─────────────────────────────────────── */}
-              <AppTabsContent value="geral" className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4">
+              <AppTabsContent
+                value="geral"
+                className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4"
+              >
                 <FieldRow label="Nome do agente">
-                  <Input {...register("name")} placeholder="Ex: Agente de vendas" />
-                  {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+                  <Input
+                    {...register("name")}
+                    placeholder="Ex: Agente de vendas"
+                  />
+                  {errors.name && (
+                    <p className="text-xs text-red-500">
+                      {errors.name.message}
+                    </p>
+                  )}
                 </FieldRow>
 
                 <FieldRow label="Primeira mensagem">
-                  <Input {...register("firstMessage")} placeholder="Ex: Olá, posso te ajudar?" />
+                  <Input
+                    {...register("firstMessage")}
+                    placeholder="Ex: Olá, posso te ajudar?"
+                  />
                 </FieldRow>
 
                 <div className="grid grid-cols-2 gap-4">
                   <FieldRow label="Idioma">
-                    <Select value={w.language} onValueChange={(v) => setValue("language", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={w.language}
+                      onValueChange={(v) => setValue("language", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         {LANGUAGES.map((l) => (
-                          <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                          <SelectItem key={l.value} value={l.value}>
+                            {l.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </FieldRow>
 
                   <FieldRow label="Modelo LLM">
-                    <Select value={w.llm} onValueChange={(v) => setValue("llm", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={w.llm}
+                      onValueChange={(v) => setValue("llm", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         {LLM_MODELS.map((m) => (
-                          <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          <SelectItem key={m.value} value={m.value}>
+                            {m.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </FieldRow>
                 </div>
 
-                <FieldRow label="System Prompt">
+                <FieldRow
+                  label={
+                    <div className="flex items-center justify-between">
+                      <span>System Prompt</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 h-7 text-xs font-normal text-violet-600 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 -mr-1"
+                        onClick={() => setPromptAssistantOpen(true)}
+                      >
+                        <Sparkles className="size-3.5" />
+                        Gerar com IA
+                      </Button>
+                    </div>
+                  }
+                >
                   <Textarea
                     {...register("prompt")}
                     placeholder="Instruções de comportamento do agente..."
@@ -792,20 +1011,37 @@ export function AgentConfigModal({
                   />
                 </FieldRow>
 
-                <FieldRow label="Temperature" hint="0 = determinístico, 1 = criativo">
+                <PromptAssistantDialog
+                  open={promptAssistantOpen}
+                  onClose={() => setPromptAssistantOpen(false)}
+                  agentName={w.name}
+                  onApply={(prompt) => setValue("prompt", prompt)}
+                />
+
+                <FieldRow
+                  label="Temperature"
+                  hint="0 = determinístico, 1 = criativo"
+                >
                   <div className="flex items-center gap-3 pt-1">
                     <Slider
                       value={[w.temperature ?? 0]}
-                      min={0} max={1} step={0.05}
+                      min={0}
+                      max={1}
+                      step={0.05}
                       onValueChange={([v]) => setValue("temperature", v)}
                       className="flex-1"
                     />
-                    <span className="text-sm w-8 text-right tabular-nums">{(w.temperature ?? 0).toFixed(2)}</span>
+                    <span className="text-sm w-8 text-right tabular-nums">
+                      {(w.temperature ?? 0).toFixed(2)}
+                    </span>
                   </div>
                 </FieldRow>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FieldRow label="Cascade Timeout (s)" hint="Tempo máximo de resposta do LLM">
+                  <FieldRow
+                    label="Cascade Timeout (s)"
+                    hint="Tempo máximo de resposta do LLM"
+                  >
                     <Controller
                       control={control}
                       name="cascadeTimeoutSeconds"
@@ -813,7 +1049,9 @@ export function AgentConfigModal({
                         <Input
                           type="number"
                           value={field.value}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
                         />
                       )}
                     />
@@ -827,14 +1065,19 @@ export function AgentConfigModal({
                         <Input
                           type="number"
                           value={field.value}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
                         />
                       )}
                     />
                   </FieldRow>
                 </div>
 
-                <FieldRow label="Fuso horário" hint="Deixe em branco para usar o padrão do workspace">
+                <FieldRow
+                  label="Fuso horário"
+                  hint="Deixe em branco para usar o padrão do workspace"
+                >
                   <TimezoneSelector
                     value={w.timezone ?? ""}
                     onChange={(v) => setValue("timezone", v)}
@@ -846,24 +1089,33 @@ export function AgentConfigModal({
                     label="Interrompível"
                     hint="Permite que o usuário interrompa a fala do agente durante a 1ª mensagem"
                     checked={!(w.disableFirstMessageInterruptions ?? false)}
-                    onCheckedChange={(v) => setValue("disableFirstMessageInterruptions", !v)}
+                    onCheckedChange={(v) =>
+                      setValue("disableFirstMessageInterruptions", !v)
+                    }
                   />
                   <SwitchRow
                     label="Ignorar personalidade padrão do workspace"
                     checked={w.ignoreDefaultPersonality ?? false}
-                    onCheckedChange={(v) => setValue("ignoreDefaultPersonality", v)}
+                    onCheckedChange={(v) =>
+                      setValue("ignoreDefaultPersonality", v)
+                    }
                   />
                   <SwitchRow
                     label="Chamadas de ferramentas em paralelo"
                     hint="Permite que o agente invoque múltiplas tools simultaneamente"
                     checked={w.enableParallelToolCalls ?? false}
-                    onCheckedChange={(v) => setValue("enableParallelToolCalls", v)}
+                    onCheckedChange={(v) =>
+                      setValue("enableParallelToolCalls", v)
+                    }
                   />
                 </div>
               </AppTabsContent>
 
               {/* ── Tab: Voz & TTS ─────────────────────────────────── */}
-              <AppTabsContent value="voz" className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4">
+              <AppTabsContent
+                value="voz"
+                className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4"
+              >
                 <FieldRow label="Voz">
                   <VoiceSelector
                     value={w.voiceId}
@@ -873,11 +1125,18 @@ export function AgentConfigModal({
                 </FieldRow>
 
                 <FieldRow label="Modelo TTS">
-                  <Select value={w.ttsModelId} onValueChange={(v) => setValue("ttsModelId", v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={w.ttsModelId}
+                    onValueChange={(v) => setValue("ttsModelId", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {TTS_MODELS.map((m) => (
-                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                        <SelectItem key={m.value} value={m.value}>
+                          {m.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -885,22 +1144,42 @@ export function AgentConfigModal({
 
                 <div className="grid grid-cols-2 gap-4">
                   <FieldRow label="Formato de saída de áudio">
-                    <Select value={w.agentOutputAudioFormat} onValueChange={(v) => setValue("agentOutputAudioFormat", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={w.agentOutputAudioFormat}
+                      onValueChange={(v) =>
+                        setValue("agentOutputAudioFormat", v)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         {AUDIO_FORMATS.map((f) => (
-                          <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                          <SelectItem key={f.value} value={f.value}>
+                            {f.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </FieldRow>
 
                   <FieldRow label="Normalização de texto">
-                    <Select value={w.textNormalisationType} onValueChange={(v) => setValue("textNormalisationType", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={w.textNormalisationType}
+                      onValueChange={(v) =>
+                        setValue("textNormalisationType", v)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="system_prompt">Via system prompt</SelectItem>
-                        <SelectItem value="post_generation">Pós-geração</SelectItem>
+                        <SelectItem value="system_prompt">
+                          Via system prompt
+                        </SelectItem>
+                        <SelectItem value="post_generation">
+                          Pós-geração
+                        </SelectItem>
                         <SelectItem value="disabled">Desabilitado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -910,12 +1189,18 @@ export function AgentConfigModal({
                 <FieldRow label="Otimização de latência">
                   <Select
                     value={String(w.optimizeStreamingLatency ?? 3)}
-                    onValueChange={(v) => setValue("optimizeStreamingLatency", Number(v))}
+                    onValueChange={(v) =>
+                      setValue("optimizeStreamingLatency", Number(v))
+                    }
                   >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {LATENCY_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                        <SelectItem key={o.value} value={String(o.value)}>
+                          {o.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -925,7 +1210,9 @@ export function AgentConfigModal({
                   label="Stability"
                   hint="Consistência da voz. Valores altos = mais estável, valores baixos = mais expressivo"
                   value={w.stability ?? 0.5}
-                  min={0} max={1} step={0.05}
+                  min={0}
+                  max={1}
+                  step={0.05}
                   onChange={(v) => setValue("stability", v)}
                 />
 
@@ -933,7 +1220,9 @@ export function AgentConfigModal({
                   label="Similarity Boost"
                   hint="Clareza e semelhança com a voz original"
                   value={w.similarityBoost ?? 0.8}
-                  min={0} max={1} step={0.05}
+                  min={0}
+                  max={1}
+                  step={0.05}
                   onChange={(v) => setValue("similarityBoost", v)}
                 />
 
@@ -941,7 +1230,9 @@ export function AgentConfigModal({
                   label="Speed"
                   hint="Velocidade de fala (0.5 = lento, 1 = normal, 2 = rápido)"
                   value={w.speed ?? 1}
-                  min={0.5} max={2} step={0.05}
+                  min={0.5}
+                  max={2}
+                  step={0.05}
                   onChange={(v) => setValue("speed", v)}
                 />
 
@@ -954,11 +1245,19 @@ export function AgentConfigModal({
               </AppTabsContent>
 
               {/* ── Tab: ASR & VAD ──────────────────────────────────── */}
-              <AppTabsContent value="asr" className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4">
+              <AppTabsContent
+                value="asr"
+                className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4"
+              >
                 <div className="grid grid-cols-2 gap-4">
                   <FieldRow label="Qualidade ASR">
-                    <Select value={w.asrQuality} onValueChange={(v) => setValue("asrQuality", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={w.asrQuality}
+                      onValueChange={(v) => setValue("asrQuality", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="high">Alta</SelectItem>
                         <SelectItem value="low">Baixa</SelectItem>
@@ -967,10 +1266,17 @@ export function AgentConfigModal({
                   </FieldRow>
 
                   <FieldRow label="Provider ASR">
-                    <Select value={w.asrProvider} onValueChange={(v) => setValue("asrProvider", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={w.asrProvider}
+                      onValueChange={(v) => setValue("asrProvider", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="scribe_realtime">Scribe Realtime (padrão)</SelectItem>
+                        <SelectItem value="scribe_realtime">
+                          Scribe Realtime (padrão)
+                        </SelectItem>
                         <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
                       </SelectContent>
                     </Select>
@@ -978,25 +1284,45 @@ export function AgentConfigModal({
                 </div>
 
                 <FieldRow label="Formato de entrada de áudio (usuário)">
-                  <Select value={w.userInputAudioFormat} onValueChange={(v) => setValue("userInputAudioFormat", v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={w.userInputAudioFormat}
+                    onValueChange={(v) => setValue("userInputAudioFormat", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       {INPUT_AUDIO_FORMATS.map((f) => (
-                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                        <SelectItem key={f.value} value={f.value}>
+                          {f.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </FieldRow>
 
-                <FieldRow label="Keywords ASR" hint="Palavras-chave que melhoram o reconhecimento de fala">
+                <FieldRow
+                  label="Keywords ASR"
+                  hint="Palavras-chave que melhoram o reconhecimento de fala"
+                >
                   <div className="flex gap-2">
                     <Input
                       value={keywordInput}
                       onChange={(e) => setKeywordInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addKeyword();
+                        }
+                      }}
                       placeholder="Digite e pressione Enter"
                     />
-                    <Button type="button" variant="outline" size="icon" onClick={addKeyword}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={addKeyword}
+                    >
                       <Plus className="size-4" />
                     </Button>
                   </div>
@@ -1020,30 +1346,53 @@ export function AgentConfigModal({
                     label="Detecção de voz em segundo plano"
                     hint="Filtra ruído de outras vozes durante a chamada"
                     checked={w.backgroundVoiceDetection ?? false}
-                    onCheckedChange={(v) => setValue("backgroundVoiceDetection", v)}
+                    onCheckedChange={(v) =>
+                      setValue("backgroundVoiceDetection", v)
+                    }
                   />
                 </div>
               </AppTabsContent>
 
               {/* ── Tab: Detecção de Turno ──────────────────────────── */}
-              <AppTabsContent value="turno" className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4">
+              <AppTabsContent
+                value="turno"
+                className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4"
+              >
                 <div className="grid grid-cols-2 gap-4">
-                  <FieldRow label="Turn Timeout (s)" hint="Tempo sem fala para encerrar turno do usuário">
+                  <FieldRow
+                    label="Turn Timeout (s)"
+                    hint="Tempo sem fala para encerrar turno do usuário"
+                  >
                     <Controller
                       control={control}
                       name="turnTimeout"
                       render={({ field }) => (
-                        <Input type="number" value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                        <Input
+                          type="number"
+                          value={field.value}
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
                       )}
                     />
                   </FieldRow>
 
-                  <FieldRow label="Silence End Call (s)" hint="-1 = desabilitado">
+                  <FieldRow
+                    label="Silence End Call (s)"
+                    hint="-1 = desabilitado"
+                  >
                     <Controller
                       control={control}
                       name="silenceEndCallTimeout"
                       render={({ field }) => (
-                        <Input type="number" value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                        <Input
+                          type="number"
+                          value={field.value}
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
                       )}
                     />
                   </FieldRow>
@@ -1051,8 +1400,13 @@ export function AgentConfigModal({
 
                 <div className="grid grid-cols-2 gap-4">
                   <FieldRow label="Modo de turno">
-                    <Select value={w.turnMode} onValueChange={(v) => setValue("turnMode", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={w.turnMode}
+                      onValueChange={(v) => setValue("turnMode", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="turn">Turn (padrão)</SelectItem>
                         <SelectItem value="silence">Silence</SelectItem>
@@ -1061,11 +1415,18 @@ export function AgentConfigModal({
                   </FieldRow>
 
                   <FieldRow label="Turn Eagerness" hint="Velocidade de reação">
-                    <Select value={w.turnEagerness} onValueChange={(v) => setValue("turnEagerness", v)}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={w.turnEagerness}
+                      onValueChange={(v) => setValue("turnEagerness", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         {TURN_EAGERNESS.map((t) => (
-                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -1082,13 +1443,20 @@ export function AgentConfigModal({
                   <SwitchRow
                     label="Re-transcrever no timeout de turno"
                     checked={w.retranscribeOnTurnTimeout ?? false}
-                    onCheckedChange={(v) => setValue("retranscribeOnTurnTimeout", v)}
+                    onCheckedChange={(v) =>
+                      setValue("retranscribeOnTurnTimeout", v)
+                    }
                   />
                 </div>
 
                 <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Soft Timeout (filler)</p>
-                  <p className="text-xs text-slate-500">Frase reproduzida enquanto o LLM processa uma resposta demorada.</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Soft Timeout (filler)
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Frase reproduzida enquanto o LLM processa uma resposta
+                    demorada.
+                  </p>
 
                   <div className="grid grid-cols-2 gap-4">
                     <FieldRow label="Timeout (s)" hint="-1 = desabilitado">
@@ -1096,13 +1464,22 @@ export function AgentConfigModal({
                         control={control}
                         name="softTimeoutSeconds"
                         render={({ field }) => (
-                          <Input type="number" value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          <Input
+                            type="number"
+                            value={field.value}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                          />
                         )}
                       />
                     </FieldRow>
 
                     <FieldRow label="Mensagem filler">
-                      <Input {...register("softTimeoutMessage")} placeholder="Hhmmmm...yeah." />
+                      <Input
+                        {...register("softTimeoutMessage")}
+                        placeholder="Hhmmmm...yeah."
+                      />
                     </FieldRow>
                   </div>
 
@@ -1110,20 +1487,31 @@ export function AgentConfigModal({
                     label="Gerar mensagem via LLM"
                     hint="Quando ativo, o LLM gera uma frase contextual em vez da mensagem fixa"
                     checked={w.useLlmGeneratedMessage ?? false}
-                    onCheckedChange={(v) => setValue("useLlmGeneratedMessage", v)}
+                    onCheckedChange={(v) =>
+                      setValue("useLlmGeneratedMessage", v)
+                    }
                   />
                 </div>
               </AppTabsContent>
 
               {/* ── Tab: Conversa ───────────────────────────────────── */}
-              <AppTabsContent value="conversa" className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4">
+              <AppTabsContent
+                value="conversa"
+                className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-4"
+              >
                 <div className="grid grid-cols-2 gap-4">
                   <FieldRow label="Duração máxima (s)" hint="600 = 10 minutos">
                     <Controller
                       control={control}
                       name="maxDurationSeconds"
                       render={({ field }) => (
-                        <Input type="number" value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                        <Input
+                          type="number"
+                          value={field.value}
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
                       )}
                     />
                   </FieldRow>
@@ -1154,21 +1542,38 @@ export function AgentConfigModal({
                       control={control}
                       name="fileInputMaxFiles"
                       render={({ field }) => (
-                        <Input type="number" min={1} max={50} value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                        <Input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={field.value}
+                          onChange={(e) =>
+                            field.onChange(Number(e.target.value))
+                          }
+                        />
                       )}
                     />
                   </FieldRow>
                 )}
 
                 <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Música de fundo</p>
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Música de fundo
+                  </p>
 
                   <FieldRow label="Tipo de fonte">
                     <Select
                       value={w.backgroundMusicSourceType ?? "null"}
-                      onValueChange={(v) => setValue("backgroundMusicSourceType", v === "null" ? null : v)}
+                      onValueChange={(v) =>
+                        setValue(
+                          "backgroundMusicSourceType",
+                          v === "null" ? null : v,
+                        )
+                      }
                     >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="null">Nenhuma</SelectItem>
                         <SelectItem value="url">URL</SelectItem>
@@ -1178,19 +1583,27 @@ export function AgentConfigModal({
 
                   {w.backgroundMusicSourceType && (
                     <FieldRow label="URL da música">
-                      <Input {...register("backgroundMusicSourceId")} placeholder="https://..." />
+                      <Input
+                        {...register("backgroundMusicSourceId")}
+                        placeholder="https://..."
+                      />
                     </FieldRow>
                   )}
 
                   <SliderField
                     label="Volume"
                     value={w.backgroundMusicVolume ?? 0.6}
-                    min={0} max={1} step={0.05}
+                    min={0}
+                    max={1}
+                    step={0.05}
                     onChange={(v) => setValue("backgroundMusicVolume", v)}
                   />
                 </div>
 
-                <FieldRow label="Client Events" hint="Eventos enviados ao cliente WebSocket durante a conversa">
+                <FieldRow
+                  label="Client Events"
+                  hint="Eventos enviados ao cliente WebSocket durante a conversa"
+                >
                   <div className="grid grid-cols-2 gap-2 mt-1">
                     {CLIENT_EVENTS.map((ev) => (
                       <div key={ev.value} className="flex items-center gap-2">
@@ -1199,7 +1612,10 @@ export function AgentConfigModal({
                           checked={(w.clientEvents ?? []).includes(ev.value)}
                           onCheckedChange={() => toggleClientEvent(ev.value)}
                         />
-                        <label htmlFor={`ev-${ev.value}`} className="text-xs font-mono cursor-pointer">
+                        <label
+                          htmlFor={`ev-${ev.value}`}
+                          className="text-xs font-mono cursor-pointer"
+                        >
                           {ev.label}
                         </label>
                       </div>
@@ -1209,10 +1625,15 @@ export function AgentConfigModal({
               </AppTabsContent>
 
               {/* ── Tab: Avançado ───────────────────────────────────── */}
-              <AppTabsContent value="avancado" className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-5">
+              <AppTabsContent
+                value="avancado"
+                className="flex-1 overflow-y-auto px-6 pb-4 mt-0 space-y-5"
+              >
                 {/* Privacidade */}
                 <div>
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Privacidade</p>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Privacidade
+                  </p>
                   <div className="border border-slate-100 dark:border-slate-800 rounded-lg px-3 divide-y divide-slate-100 dark:divide-slate-800">
                     <SwitchRow
                       label="Gravar áudio da chamada"
@@ -1227,16 +1648,27 @@ export function AgentConfigModal({
                     <SwitchRow
                       label="Deletar transcrição e PII"
                       checked={w.deleteTranscriptAndPii ?? false}
-                      onCheckedChange={(v) => setValue("deleteTranscriptAndPii", v)}
+                      onCheckedChange={(v) =>
+                        setValue("deleteTranscriptAndPii", v)
+                      }
                     />
                   </div>
                   <div className="mt-3">
-                    <FieldRow label="Retenção (dias)" hint="-1 = manter indefinidamente">
+                    <FieldRow
+                      label="Retenção (dias)"
+                      hint="-1 = manter indefinidamente"
+                    >
                       <Controller
                         control={control}
                         name="retentionDays"
                         render={({ field }) => (
-                          <Input type="number" value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          <Input
+                            type="number"
+                            value={field.value}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                          />
                         )}
                       />
                     </FieldRow>
@@ -1245,14 +1677,22 @@ export function AgentConfigModal({
 
                 {/* Limites de chamada */}
                 <div>
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Limites de chamada</p>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Limites de chamada
+                  </p>
                   <div className="grid grid-cols-2 gap-4">
                     <FieldRow label="Concorrência máxima" hint="-1 = ilimitado">
                       <Controller
                         control={control}
                         name="agentConcurrencyLimit"
                         render={({ field }) => (
-                          <Input type="number" value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          <Input
+                            type="number"
+                            value={field.value}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                          />
                         )}
                       />
                     </FieldRow>
@@ -1261,7 +1701,13 @@ export function AgentConfigModal({
                         control={control}
                         name="dailyLimit"
                         render={({ field }) => (
-                          <Input type="number" value={field.value} onChange={(e) => field.onChange(Number(e.target.value))} />
+                          <Input
+                            type="number"
+                            value={field.value}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                          />
                         )}
                       />
                     </FieldRow>
@@ -1278,44 +1724,62 @@ export function AgentConfigModal({
 
                 {/* Guardrails */}
                 <div>
-                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Guardrails</p>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                    Guardrails
+                  </p>
 
                   <div className="border border-slate-100 dark:border-slate-800 rounded-lg px-3 divide-y divide-slate-100 dark:divide-slate-800 mb-3">
                     <SwitchRow
                       label="Foco (bloquear tópicos fora do escopo)"
                       checked={w.guardrailFocusEnabled ?? false}
-                      onCheckedChange={(v) => setValue("guardrailFocusEnabled", v)}
+                      onCheckedChange={(v) =>
+                        setValue("guardrailFocusEnabled", v)
+                      }
                     />
                     <SwitchRow
                       label="Proteção contra prompt injection"
                       checked={w.guardrailPromptInjectionEnabled ?? false}
-                      onCheckedChange={(v) => setValue("guardrailPromptInjectionEnabled", v)}
+                      onCheckedChange={(v) =>
+                        setValue("guardrailPromptInjectionEnabled", v)
+                      }
                     />
                   </div>
 
                   <FieldRow label="Ação ao acionar guardrail">
                     <Select
                       value={w.guardrailTriggerAction ?? "end_call"}
-                      onValueChange={(v) => setValue("guardrailTriggerAction", v)}
+                      onValueChange={(v) =>
+                        setValue("guardrailTriggerAction", v)
+                      }
                     >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="end_call">Encerrar chamada</SelectItem>
+                        <SelectItem value="end_call">
+                          Encerrar chamada
+                        </SelectItem>
                         <SelectItem value="warn">Avisar usuário</SelectItem>
                       </SelectContent>
                     </Select>
                   </FieldRow>
 
                   <div className="mt-3 space-y-2">
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Filtros de conteúdo</p>
+                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                      Filtros de conteúdo
+                    </p>
                     {GUARDRAIL_CATEGORIES.map(({ key, field, label }) => {
                       const enabledKey = `${field}Enabled` as keyof AgentForm;
-                      const thresholdKey = `${field}Threshold` as keyof AgentForm;
+                      const thresholdKey =
+                        `${field}Threshold` as keyof AgentForm;
                       const isEnabled = w[enabledKey] as boolean;
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       const setAny = setValue as (k: string, v: any) => void;
                       return (
-                        <div key={key} className="flex items-center gap-3 border border-slate-100 dark:border-slate-800 rounded-lg p-2.5">
+                        <div
+                          key={key}
+                          className="flex items-center gap-3 border border-slate-100 dark:border-slate-800 rounded-lg p-2.5"
+                        >
                           <Switch
                             checked={isEnabled}
                             onCheckedChange={(v) => setAny(enabledKey, v)}
@@ -1349,27 +1813,36 @@ export function AgentConfigModal({
                 variant="outline"
                 type="button"
                 onClick={onClose}
-                disabled={saveMutation.isPending || saveAndPublishMutation.isPending}
+                disabled={
+                  saveMutation.isPending || saveAndPublishMutation.isPending
+                }
               >
                 Cancelar
               </Button>
               <Button
                 variant="outline"
                 type="submit"
-                disabled={saveMutation.isPending || saveAndPublishMutation.isPending}
+                disabled={
+                  saveMutation.isPending || saveAndPublishMutation.isPending
+                }
               >
-                {saveMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {saveMutation.isPending && (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                )}
                 Salvar
               </Button>
               <Button
                 type="button"
-                disabled={saveMutation.isPending || saveAndPublishMutation.isPending}
+                disabled={
+                  saveMutation.isPending || saveAndPublishMutation.isPending
+                }
                 onClick={handleSubmit((d) => saveAndPublishMutation.mutate(d))}
               >
-                {saveAndPublishMutation.isPending
-                  ? <Loader2 className="mr-2 size-4 animate-spin" />
-                  : <Rocket className="mr-2 size-4" />
-                }
+                {saveAndPublishMutation.isPending ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Rocket className="mr-2 size-4" />
+                )}
                 Salvar e Publicar
               </Button>
             </SheetFooter>

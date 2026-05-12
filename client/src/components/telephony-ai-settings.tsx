@@ -74,6 +74,7 @@ import {
 } from "lucide-react";
 import { AgentConfigModal } from "@/components/telemarketing/agent-config-modal";
 import { AgentToolsModal } from "@/components/telemarketing/agent-tools-modal";
+import { PromptAssistantDialog } from "@/components/telemarketing/prompt-assistant-dialog";
 import { VoiceSelector } from "@/components/voice-selector";
 import { VoiceCloneDialog } from "@/components/voice-clone-dialog";
 
@@ -1080,6 +1081,9 @@ function CreateAgentDialog({
   const language = watch("language");
   const llm = watch("llm");
   const interruptible = watch("interruptible");
+  const agentName = watch("name");
+
+  const [promptAssistantOpen, setPromptAssistantOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -1176,7 +1180,19 @@ function CreateAgentDialog({
             </div>
 
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-sm">System Prompt</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">System Prompt</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 h-7 text-xs font-normal text-violet-600 hover:text-violet-700 hover:bg-violet-50 dark:hover:bg-violet-900/20 -mr-1"
+                  onClick={() => setPromptAssistantOpen(true)}
+                >
+                  <Sparkles className="size-3.5" />
+                  Gerar com IA
+                </Button>
+              </div>
               <Textarea
                 {...register("prompt")}
                 placeholder="Você é um assistente de vendas..."
@@ -1185,6 +1201,13 @@ function CreateAgentDialog({
               />
             </div>
           </div>
+
+          <PromptAssistantDialog
+            open={promptAssistantOpen}
+            onClose={() => setPromptAssistantOpen(false)}
+            agentName={agentName}
+            onApply={(prompt) => setValue("prompt", prompt)}
+          />
 
           <DialogFooter>
             <Button variant="outline" type="button" onClick={onClose}>
@@ -1770,7 +1793,9 @@ export function TelephonyAISettings({
   return (
     <form onSubmit={handleSubmit((data) => saveMutation.mutate(data))}>
       {/* ── Status Overview Banner ─────────────────────────────────── */}
-      <div className={`mb-6 grid grid-cols-1 gap-3 ${activeTabProp === "elevenlabs" ? "sm:grid-cols-1 max-w-xs" : activeTabProp === "twilio" ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+      <div
+        className={`mb-6 grid grid-cols-1 gap-3 ${activeTabProp === "elevenlabs" ? "sm:grid-cols-1 max-w-xs" : activeTabProp === "twilio" ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}
+      >
         {[
           {
             key: "twilio",
@@ -1778,9 +1803,14 @@ export function TelephonyAISettings({
             description: "Telefonia & Voice SDK",
             active: status?.twilio ?? false,
             logo: (
-              <img src="/twilio-login-logo.svg" alt="Twilio" className="h-4 w-auto" />
+              <img
+                src="/twilio-login-logo.svg"
+                alt="Twilio"
+                className="h-4 w-auto"
+              />
             ),
-            activeBorder: "border-[#F22F46]/30 bg-[#F22F46]/5 dark:border-[#F22F46]/20 dark:bg-[#F22F46]/5",
+            activeBorder:
+              "border-[#F22F46]/30 bg-[#F22F46]/5 dark:border-[#F22F46]/20 dark:bg-[#F22F46]/5",
             activeIcon: "bg-[#F22F46]/10 dark:bg-[#F22F46]/10",
           },
           {
@@ -1789,9 +1819,14 @@ export function TelephonyAISettings({
             description: "IA Conversacional",
             active: status?.elevenlabs ?? false,
             logo: (
-              <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3.5 w-auto dark:invert" />
+              <img
+                src="/elevenlabs-logo-black.svg"
+                alt="ElevenLabs"
+                className="h-3.5 w-auto dark:invert"
+              />
             ),
-            activeBorder: "border-slate-300 bg-slate-50/80 dark:border-slate-600 dark:bg-slate-800/40",
+            activeBorder:
+              "border-slate-300 bg-slate-50/80 dark:border-slate-600 dark:bg-slate-800/40",
             activeIcon: "bg-slate-100 dark:bg-slate-700/60",
           },
           {
@@ -1799,46 +1834,53 @@ export function TelephonyAISettings({
             label: "Voice SDK",
             description: "Browser WebRTC",
             active: status?.voiceSdk ?? false,
-            logo: <Radio className="size-4 text-emerald-600 dark:text-emerald-400" />,
-            activeBorder: "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-900/10",
+            logo: (
+              <Radio className="size-4 text-emerald-600 dark:text-emerald-400" />
+            ),
+            activeBorder:
+              "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-900/10",
             activeIcon: "bg-emerald-100 dark:bg-emerald-900/40",
           },
         ]
           .filter((item) => {
             if (!activeTabProp) return true;
-            if (activeTabProp === "twilio") return item.key === "twilio" || item.key === "voiceSdk";
-            if (activeTabProp === "elevenlabs") return item.key === "elevenlabs";
+            if (activeTabProp === "twilio")
+              return item.key === "twilio" || item.key === "voiceSdk";
+            if (activeTabProp === "elevenlabs")
+              return item.key === "elevenlabs";
             return true;
           })
           .map((item) => (
-          <div
-            key={item.label}
-            className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
-              item.active
-                ? item.activeBorder
-                : "border-slate-200 bg-slate-50/60 dark:border-slate-700/60 dark:bg-slate-800/30"
-            }`}
-          >
             <div
-              className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${
-                item.active ? item.activeIcon : "bg-slate-100 dark:bg-slate-800"
+              key={item.label}
+              className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors ${
+                item.active
+                  ? item.activeBorder
+                  : "border-slate-200 bg-slate-50/60 dark:border-slate-700/60 dark:bg-slate-800/30"
               }`}
             >
-              {item.logo}
+              <div
+                className={`flex items-center justify-center w-9 h-9 rounded-xl shrink-0 ${
+                  item.active
+                    ? item.activeIcon
+                    : "bg-slate-100 dark:bg-slate-800"
+                }`}
+              >
+                {item.logo}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                  {item.label}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {item.description}
+                </p>
+              </div>
+              <div
+                className={`shrink-0 w-2 h-2 rounded-full ${item.active ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+              />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {item.label}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {item.description}
-              </p>
-            </div>
-            <div
-              className={`shrink-0 w-2 h-2 rounded-full ${item.active ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
-            />
-          </div>
-        ))}
+          ))}
       </div>
 
       <Tabs
@@ -1860,7 +1902,11 @@ export function TelephonyAISettings({
                   group h-auto"
               >
                 <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#F22F46]/10 group-data-[state=active]:bg-[#F22F46]/15 transition-colors shrink-0">
-                  <img src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" />
+                  <img
+                    src="/twilio-login-logo.svg"
+                    alt="Twilio"
+                    className="h-3.5 w-auto"
+                  />
                 </div>
                 <div className="text-left hidden sm:block">
                   <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
@@ -1888,7 +1934,11 @@ export function TelephonyAISettings({
                   group h-auto"
               >
                 <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 group-data-[state=active]:bg-slate-200/80 dark:bg-slate-800 dark:group-data-[state=active]:bg-slate-700 transition-colors shrink-0">
-                  <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" />
+                  <img
+                    src="/elevenlabs-logo-black.svg"
+                    alt="ElevenLabs"
+                    className="h-3 w-auto dark:invert"
+                  />
                 </div>
                 <div className="text-left hidden sm:block">
                   <p className="text-sm font-semibold leading-tight text-slate-800 dark:text-slate-200 group-data-[state=inactive]:text-slate-500">
@@ -1911,46 +1961,6 @@ export function TelephonyAISettings({
 
         {/* ── ABA TWILIO ─────────────────────────────────────────────── */}
         <TabsContent value="twilio" className="space-y-6 mt-0">
-          {/* Servidor */}
-          <Card className="border border-slate-200/70 dark:border-slate-700/60 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
-            <div className="h-0.5 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-300 dark:from-slate-600 dark:via-slate-500 dark:to-slate-600" />
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800">
-                  <Server className="size-3.5 text-slate-600 dark:text-slate-400" />
-                </div>
-                Servidor
-              </CardTitle>
-              <CardDescription>
-                URL pública do servidor que o Twilio e o ElevenLabs usam para
-                enviar eventos ao sistema. Deve ser acessível pela internet —
-                não use{" "}
-                <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">
-                  localhost
-                </code>
-                .
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-5 sm:grid-cols-2">
-              <FieldGroup
-                label="Server Base URL"
-                hint="Ex: https://meucrm.com.br — informe sem barra final. Ao sair do campo, as URLs do TwiML App ativo são atualizadas automaticamente com este endereço base."
-                hintVariant="info"
-              >
-                <div className="relative">
-                  <Input
-                    {...register("server_base_url")}
-                    placeholder="https://meucrm.com.br"
-                    onBlur={(e) => handleServerBaseUrlBlur(e.target.value)}
-                  />
-                  {syncAppMutation.isPending && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 animate-spin text-slate-400" />
-                  )}
-                </div>
-              </FieldGroup>
-            </CardContent>
-          </Card>
-
           {/* Twilio Core */}
           <Card className="border border-blue-200/60 dark:border-blue-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
             <div className="h-0.5 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-400" />
@@ -2026,6 +2036,46 @@ export function TelephonyAISettings({
                   {...register("twilio_status_callback_url")}
                   placeholder="https://meucrm.com.br/api/calls/twilio-status"
                 />
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          {/* Servidor */}
+          <Card className="border border-slate-200/70 dark:border-slate-700/60 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-300 dark:from-slate-600 dark:via-slate-500 dark:to-slate-600" />
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800">
+                  <Server className="size-3.5 text-slate-600 dark:text-slate-400" />
+                </div>
+                Servidor
+              </CardTitle>
+              <CardDescription>
+                URL pública do servidor que o Twilio e o ElevenLabs usam para
+                enviar eventos ao sistema. Deve ser acessível pela internet —
+                não use{" "}
+                <code className="text-xs font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">
+                  localhost
+                </code>
+                .
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-5 sm:grid-cols-2">
+              <FieldGroup
+                label="Server Base URL"
+                hint="Ex: https://meucrm.com.br — informe sem barra final. Ao sair do campo, as URLs do TwiML App ativo são atualizadas automaticamente com este endereço base."
+                hintVariant="info"
+              >
+                <div className="relative">
+                  <Input
+                    {...register("server_base_url")}
+                    placeholder="https://meucrm.com.br"
+                    onBlur={(e) => handleServerBaseUrlBlur(e.target.value)}
+                  />
+                  {syncAppMutation.isPending && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 animate-spin text-slate-400" />
+                  )}
+                </div>
               </FieldGroup>
             </CardContent>
           </Card>
@@ -2219,233 +2269,6 @@ export function TelephonyAISettings({
                     )}
                   </>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Voice Intelligence */}
-          <Card className="border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
-            <div className="h-0.5 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-400" />
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                    <Radio className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  Voice Intelligence (Transcrição Nativa)
-                </CardTitle>
-                {intelligenceSid && (
-                  <Badge
-                    variant="outline"
-                    className="gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0"
-                  >
-                    <CheckCircle2 className="size-3.5" />
-                    Configurado
-                  </Badge>
-                )}
-              </div>
-              <CardDescription>
-                Serviço nativo do Twilio que transcreve chamadas de voz
-                automaticamente em texto. Permite análise de sentimento, redação
-                de dados sensíveis (PII) e extração de informações estruturadas
-                via Language Operators.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {transcriptionWebhookUrl && (
-                <ReadOnlyWithCopy
-                  label="URL do Webhook de Transcrição"
-                  value={transcriptionWebhookUrl}
-                />
-              )}
-
-              {!status?.twilio && (
-                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
-                  <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
-                    Configure e salve as credenciais Twilio antes de gerenciar
-                    serviços de inteligência.
-                  </p>
-                </div>
-              )}
-
-              {status?.twilio && (
-                <div className="space-y-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 rounded-xl w-full"
-                    onClick={() => setCreateIntelligenceOpen(true)}
-                  >
-                    <Plus className="size-4" />
-                    Criar novo serviço de inteligência
-                  </Button>
-
-                  {intelligenceLoading && (
-                    <div className="flex items-center gap-2 text-sm text-slate-500 py-1">
-                      <Loader2 className="size-4 animate-spin" /> Carregando
-                      serviços...
-                    </div>
-                  )}
-
-                  {(intelligenceServices ?? []).map((svc) => {
-                    const isActive = intelligenceSid === svc.sid;
-                    return (
-                      <div
-                        key={svc.sid}
-                        className={`rounded-xl border px-4 py-3 space-y-2 transition-colors ${
-                          isActive
-                            ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/10"
-                            : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
-                              {svc.friendlyName || svc.uniqueName}
-                            </p>
-                            {isActive && (
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] px-1.5 py-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                              >
-                                ativo
-                              </Badge>
-                            )}
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] px-1.5 py-0 font-mono"
-                            >
-                              {svc.languageCode}
-                            </Badge>
-                          </div>
-                          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                            {svc.sid}
-                          </p>
-                          <div className="flex gap-3 mt-1">
-                            {svc.autoTranscribe && (
-                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                <CheckCircle2 className="size-3 text-emerald-500" />{" "}
-                                Transcrição automática
-                              </span>
-                            )}
-                            {svc.autoRedaction && (
-                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                                <CheckCircle2 className="size-3 text-emerald-500" />{" "}
-                                Redação de PII
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          {!isActive && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 gap-1.5 rounded-lg text-xs"
-                              disabled={selectIntelligenceMutation.isPending}
-                              onClick={() =>
-                                selectIntelligenceMutation.mutate(svc.sid)
-                              }
-                            >
-                              <Check className="size-3.5" />
-                              Usar este serviço
-                            </Button>
-                          )}
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 rounded-lg text-xs"
-                            onClick={() => setEditingService(svc)}
-                          >
-                            <Pencil className="size-3.5" />
-                            Editar
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {!intelligenceLoading &&
-                    (intelligenceServices ?? []).length === 0 && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-1">
-                        Nenhum serviço de inteligência encontrado na conta. Crie
-                        um acima.
-                      </p>
-                    )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Gravação de Chamadas */}
-          <Card className="border border-amber-200/60 dark:border-amber-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
-            <div className="h-0.5 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400" />
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/40">
-                    <Phone className="size-3.5 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  Gravação de Chamadas
-                </CardTitle>
-                <Badge
-                  variant="outline"
-                  className={
-                    recordCalls
-                      ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1.5"
-                      : "border-slate-300/60 bg-slate-100/60 text-slate-500 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 gap-1.5"
-                  }
-                >
-                  {recordCalls ? (
-                    <CheckCircle2 className="size-3.5" />
-                  ) : (
-                    <XCircle className="size-3.5" />
-                  )}
-                  {recordCalls ? "Ativo" : "Inativo"}
-                </Badge>
-              </div>
-              <CardDescription>
-                Quando habilitada, o Twilio grava todas as chamadas e
-                disponibiliza os áudios para reprodução no histórico do cliente.
-                As gravações ficam armazenadas no Twilio e podem ser acessadas
-                via API.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Switch
-                  id="twilio_record_calls"
-                  checked={recordCalls ?? false}
-                  onCheckedChange={(v) => setValue("twilio_record_calls", v)}
-                />
-                <div>
-                  <Label
-                    htmlFor="twilio_record_calls"
-                    className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
-                  >
-                    Gravar chamadas automaticamente
-                  </Label>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Quando ativado, todas as chamadas feitas via Twilio serão
-                    gravadas.
-                  </p>
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3">
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
-                  Aviso legal
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  A gravação de chamadas pode estar sujeita a regulamentações
-                  locais. Em muitas jurisdições brasileiras, é necessário
-                  informar ao interlocutor que a ligação está sendo gravada.
-                  Certifique-se de estar em conformidade com a LGPD e demais
-                  legislações aplicáveis.
-                </p>
               </div>
             </CardContent>
           </Card>
@@ -2680,6 +2503,233 @@ export function TelephonyAISettings({
                   )}
               </CardContent>
             )}
+          </Card>
+
+          {/* Gravação de Chamadas */}
+          <Card className="border border-amber-200/60 dark:border-amber-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                    <Phone className="size-3.5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  Gravação de Chamadas
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className={
+                    recordCalls
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1.5"
+                      : "border-slate-300/60 bg-slate-100/60 text-slate-500 dark:border-slate-700/60 dark:bg-slate-800/60 dark:text-slate-400 gap-1.5"
+                  }
+                >
+                  {recordCalls ? (
+                    <CheckCircle2 className="size-3.5" />
+                  ) : (
+                    <XCircle className="size-3.5" />
+                  )}
+                  {recordCalls ? "Ativo" : "Inativo"}
+                </Badge>
+              </div>
+              <CardDescription>
+                Quando habilitada, o Twilio grava todas as chamadas e
+                disponibiliza os áudios para reprodução no histórico do cliente.
+                As gravações ficam armazenadas no Twilio e podem ser acessadas
+                via API.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Switch
+                  id="twilio_record_calls"
+                  checked={recordCalls ?? false}
+                  onCheckedChange={(v) => setValue("twilio_record_calls", v)}
+                />
+                <div>
+                  <Label
+                    htmlFor="twilio_record_calls"
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
+                  >
+                    Gravar chamadas automaticamente
+                  </Label>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Quando ativado, todas as chamadas feitas via Twilio serão
+                    gravadas.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                  Aviso legal
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  A gravação de chamadas pode estar sujeita a regulamentações
+                  locais. Em muitas jurisdições brasileiras, é necessário
+                  informar ao interlocutor que a ligação está sendo gravada.
+                  Certifique-se de estar em conformidade com a LGPD e demais
+                  legislações aplicáveis.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Voice Intelligence */}
+          <Card className="border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-emerald-400 via-teal-500 to-emerald-400" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                    <Radio className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  Voice Intelligence (Transcrição Nativa)
+                </CardTitle>
+                {intelligenceSid && (
+                  <Badge
+                    variant="outline"
+                    className="gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0"
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                    Configurado
+                  </Badge>
+                )}
+              </div>
+              <CardDescription>
+                Serviço nativo do Twilio que transcreve chamadas de voz
+                automaticamente em texto. Permite análise de sentimento, redação
+                de dados sensíveis (PII) e extração de informações estruturadas
+                via Language Operators.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {transcriptionWebhookUrl && (
+                <ReadOnlyWithCopy
+                  label="URL do Webhook de Transcrição"
+                  value={transcriptionWebhookUrl}
+                />
+              )}
+
+              {!status?.twilio && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex gap-2">
+                  <Info className="size-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Configure e salve as credenciais Twilio antes de gerenciar
+                    serviços de inteligência.
+                  </p>
+                </div>
+              )}
+
+              {status?.twilio && (
+                <div className="space-y-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 rounded-xl w-full"
+                    onClick={() => setCreateIntelligenceOpen(true)}
+                  >
+                    <Plus className="size-4" />
+                    Criar novo serviço de inteligência
+                  </Button>
+
+                  {intelligenceLoading && (
+                    <div className="flex items-center gap-2 text-sm text-slate-500 py-1">
+                      <Loader2 className="size-4 animate-spin" /> Carregando
+                      serviços...
+                    </div>
+                  )}
+
+                  {(intelligenceServices ?? []).map((svc) => {
+                    const isActive = intelligenceSid === svc.sid;
+                    return (
+                      <div
+                        key={svc.sid}
+                        className={`rounded-xl border px-4 py-3 space-y-2 transition-colors ${
+                          isActive
+                            ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-500/10"
+                            : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                              {svc.friendlyName || svc.uniqueName}
+                            </p>
+                            {isActive && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              >
+                                ativo
+                              </Badge>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 font-mono"
+                            >
+                              {svc.languageCode}
+                            </Badge>
+                          </div>
+                          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                            {svc.sid}
+                          </p>
+                          <div className="flex gap-3 mt-1">
+                            {svc.autoTranscribe && (
+                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                <CheckCircle2 className="size-3 text-emerald-500" />{" "}
+                                Transcrição automática
+                              </span>
+                            )}
+                            {svc.autoRedaction && (
+                              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                <CheckCircle2 className="size-3 text-emerald-500" />{" "}
+                                Redação de PII
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {!isActive && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 gap-1.5 rounded-lg text-xs"
+                              disabled={selectIntelligenceMutation.isPending}
+                              onClick={() =>
+                                selectIntelligenceMutation.mutate(svc.sid)
+                              }
+                            >
+                              <Check className="size-3.5" />
+                              Usar este serviço
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 rounded-lg text-xs"
+                            onClick={() => setEditingService(svc)}
+                          >
+                            <Pencil className="size-3.5" />
+                            Editar
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {!intelligenceLoading &&
+                    (intelligenceServices ?? []).length === 0 && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-1">
+                        Nenhum serviço de inteligência encontrado na conta. Crie
+                        um acima.
+                      </p>
+                    )}
+                </div>
+              )}
+            </CardContent>
           </Card>
 
           {/* Webhook de Erros e Avisos */}
