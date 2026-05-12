@@ -105,6 +105,7 @@ type BuiltInToolEntry = {
 
 type AgentConfig = {
   tools: AgentTool[];
+  toolIds: string[];
   builtInTools?: Record<string, BuiltInToolEntry>;
 };
 
@@ -338,24 +339,33 @@ function PropertyRow({
           {prop.valueType === "dynamic_variable" && (
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-500">Nome da Variável</Label>
-              <Select
+              <Input
                 value={prop.variableName}
-                onValueChange={(v) => onChange({ ...prop, variableName: v })}
-              >
-                <SelectTrigger className="h-8 text-sm font-mono">
-                  <SelectValue placeholder="Selecionar variável..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {DYNAMIC_VARIABLES.map((dv) => (
-                    <SelectItem key={dv.value} value={dv.value} className="font-mono text-sm">
-                      {dv.value}
-                      <span className="ml-2 text-xs text-slate-400 font-sans">{dv.label.split("—")[1]}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(e) => onChange({ ...prop, variableName: e.target.value })}
+                placeholder="nomeVariavel"
+                className="h-8 text-sm font-mono"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {DYNAMIC_VARIABLES.map((dv) => (
+                  <button
+                    key={dv.value}
+                    type="button"
+                    onClick={() => onChange({ ...prop, variableName: dv.value })}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-xs transition-colors",
+                      prop.variableName === dv.value
+                        ? "border-violet-300 bg-violet-100 text-violet-700 dark:border-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400",
+                    )}
+                    title={dv.label.split("—")[1]?.trim()}
+                  >
+                    <Zap className="size-2.5" />
+                    {dv.value}
+                  </button>
+                ))}
+              </div>
               <p className="text-xs text-slate-400">
-                Variáveis injetadas automaticamente no início de cada conversa via Twilio.
+                Digite qualquer nome ou selecione uma sugestão. Variáveis pré-definidas são injetadas automaticamente via Twilio.
               </p>
             </div>
           )}
@@ -943,7 +953,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
   const [addTab, setAddTab] = useState<"library" | "new">("library");
   const [librarySearch, setLibrarySearch] = useState("");
   const [addingLibraryTool, setAddingLibraryTool] = useState<string | null>(null);
-  const [editingTool, setEditingTool] = useState<WebhookTool | null>(null);
+  const [editingTool, setEditingTool] = useState<(WebhookTool & { tool_id: string }) | null>(null);
   const [pendingSystemTool, setPendingSystemTool] = useState<string | null>(null);
 
   const { data: config, isLoading } = useQuery<AgentConfig>({
@@ -966,14 +976,27 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
     enabled: open,
   });
 
-  const tools: AgentTool[] = (config?.tools as AgentTool[] | undefined) ?? [];
+  // Active tool_ids attached to this agent (new ElevenLabs format)
+  const activeToolIds: string[] = config?.toolIds ?? [];
 
-  // Only include webhook tools that have an inline definition (name set).
-  // Pure library references { type:"webhook", tool_id:"..." } without name are silently dropped
-  // because sending them back in PATCH causes "document_not_found" errors on ElevenLabs.
-  const webhookTools = tools.filter(
-    (t): t is WebhookTool => t.type === "webhook" && !!(t as WebhookTool & Record<string, unknown>).name,
+  // Workspace tools currently attached to this agent (new format: tool_ids)
+  const workspaceMap = new Map((workspaceData?.tools ?? []).map((t) => [t.tool_id, t]));
+  const activeWebhookTools: WorkspaceTool[] = activeToolIds
+    .map((id) => workspaceMap.get(id))
+    .filter((t): t is WorkspaceTool => !!t);
+
+  // Inline webhook tools still in prompt.tools (legacy/deprecated format but still functional).
+  // Exclude any whose name already appears in activeWebhookTools (workspace version takes priority).
+  const tools: AgentTool[] = (config?.tools as AgentTool[] | undefined) ?? [];
+  const activeWebhookNames = new Set(activeWebhookTools.map((t) => t.name));
+  const inlineWebhookTools: WebhookTool[] = tools.filter(
+    (t): t is WebhookTool =>
+      t.type === "webhook" &&
+      !!(t as WebhookTool & Record<string, unknown>).name &&
+      !activeWebhookNames.has((t as WebhookTool).name),
   );
+
+  const totalWebhooks = activeWebhookTools.length + inlineWebhookTools.length;
 
   // Active system tools come from built_in_tools (new API format: non-null entry = active).
   // Fall back to the deprecated tools array for agents not yet migrated.
@@ -985,49 +1008,18 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
         .map(([k]) => k),
     );
     if (Object.keys(builtInToolsMap).length > 0) return fromNew;
-    // Fallback: old format had system tools inside prompt.tools
     const systemFromOld = tools.filter((t) => t.type === "system") as SystemTool[];
     return new Set(systemFromOld.map((t) => t.name));
   })();
 
-  // Sanitize tools before sending to ElevenLabs PATCH.
-  // Two problems with the raw GET response:
-  //   1. Library tools added via ElevenLabs UI come back as { type:"webhook", tool_id:"tool_xxx" }
-  //      (just a reference, no inline definition). Sending tool_id → "document_not_found" error.
-  //      Sending without tool_id but with no name → ElevenLabs creates invalid "unknown tool".
-  //      Fix: skip any webhook tool that has no `name` (pure library reference).
-  //   2. Inline tools may have an extra `tool_id` field from the API. Strip it.
-  function sanitizeTools(rawTools: AgentTool[]): AgentTool[] {
-    const result: AgentTool[] = [];
-    for (const t of rawTools) {
-      if (t.type !== "webhook") {
-        result.push(t);
-        continue;
-      }
-      const wt = t as WebhookTool & Record<string, unknown>;
-      // Skip pure library references that have no inline definition
-      if (!wt.name) continue;
-      result.push({
-        type: "webhook",
-        name: wt.name,
-        description: wt.description ?? "",
-        ...(wt.api_schema ? { api_schema: wt.api_schema } : {}),
-        ...(wt.expects_response !== undefined ? { expects_response: wt.expects_response } : {}),
-        ...(wt.response_timeout_secs !== undefined ? { response_timeout_secs: wt.response_timeout_secs } : {}),
-        ...(wt.mocks?.length ? { mocks: wt.mocks } : {}),
-      });
-    }
-    return result;
-  }
-
-  // Mutation for webhook tools (uses deprecated prompt.tools — still functional for inline webhooks).
-  const saveMutation = useMutation({
-    mutationFn: async (newWebhookTools: WebhookTool[]) => {
+  // Mutation to update the agent's tool_ids list (new ElevenLabs format)
+  const toolIdsMutation = useMutation({
+    mutationFn: async (newToolIds: string[]) => {
       const res = await fetch(`/api/elevenlabs/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ tools: sanitizeTools(newWebhookTools) }),
+        body: JSON.stringify({ toolIds: newToolIds }),
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { message?: string };
@@ -1041,8 +1033,86 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" }),
   });
 
+  // Mutation: create workspace tool then add to agent
+  const createAndAddMutation = useMutation({
+    mutationFn: async (tool: WebhookTool) => {
+      const createRes = await fetch("/api/elevenlabs/tools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: tool.name,
+          description: tool.description,
+          url: tool.api_schema?.url ?? "",
+          method: tool.api_schema?.method ?? "POST",
+          requestBodySchema: tool.api_schema?.request_body_schema,
+          requestHeaders: tool.api_schema?.request_headers,
+          expectsResponse: tool.expects_response,
+          responseTimeoutSecs: tool.response_timeout_secs,
+          mocks: tool.mocks,
+        }),
+      });
+      if (!createRes.ok) {
+        const err = (await createRes.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao criar ferramenta");
+      }
+      const { toolId } = (await createRes.json()) as { toolId: string };
+
+      const patchRes = await fetch(`/api/elevenlabs/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ toolIds: [...activeToolIds, toolId] }),
+      });
+      if (!patchRes.ok) {
+        const err = (await patchRes.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao adicionar ferramenta ao agente");
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/elevenlabs/agents", agentId] });
+      qc.invalidateQueries({ queryKey: ["/api/elevenlabs/tools"] });
+      toast({ title: "Ferramenta criada e adicionada" });
+      setAddOpen(false);
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  // Mutation: update existing workspace tool
+  const updateToolMutation = useMutation({
+    mutationFn: async ({ toolId, tool }: { toolId: string; tool: WebhookTool }) => {
+      const res = await fetch(`/api/elevenlabs/tools/${toolId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: tool.name,
+          description: tool.description,
+          url: tool.api_schema?.url ?? "",
+          method: tool.api_schema?.method ?? "POST",
+          requestBodySchema: tool.api_schema?.request_body_schema,
+          requestHeaders: tool.api_schema?.request_headers,
+          expectsResponse: tool.expects_response,
+          responseTimeoutSecs: tool.response_timeout_secs,
+          mocks: tool.mocks,
+        }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao atualizar ferramenta");
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/elevenlabs/tools"] });
+      toast({ title: "Ferramenta atualizada" });
+      setEditingTool(null);
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" }),
+  });
+
   // Mutation for system tools — uses the new built_in_tools format.
-  // ElevenLabs deprecated prompt.tools for system tools; they must now go to prompt.built_in_tools.
   const systemToolMutation = useMutation({
     mutationFn: async (newBuiltInTools: Record<string, BuiltInToolEntry>) => {
       const res = await fetch(`/api/elevenlabs/agents/${agentId}`, {
@@ -1066,7 +1136,6 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
   const toggleSystemTool = (name: string, enabled: boolean) => {
     setPendingSystemTool(name);
 
-    // Build a new built_in_tools map: active tools get their config, disabled get null.
     const newBuiltInTools: Record<string, BuiltInToolEntry> = { ...builtInToolsMap };
     if (enabled) {
       const def = ALL_SYSTEM_TOOLS.find((t) => t.name === name)!;
@@ -1087,27 +1156,12 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
   };
 
   const handleAddWebhook = (tool: WebhookTool) => {
-    saveMutation.mutate([...webhookTools, tool], {
-      onSuccess: () => { toast({ title: "Ferramenta adicionada" }); setAddOpen(false); },
-    });
+    createAndAddMutation.mutate(tool);
   };
 
   const handleAddFromLibrary = (wt: WorkspaceTool) => {
     setAddingLibraryTool(wt.tool_id);
-    const tool: WebhookTool = {
-      type: "webhook",
-      name: wt.name,
-      description: wt.description ?? "",
-      api_schema: wt.api_schema
-        ? {
-            url: wt.api_schema.url ?? "",
-            method: wt.api_schema.method ?? "POST",
-            content_type: "application/json",
-            ...(wt.api_schema.request_body_schema ? { request_body_schema: wt.api_schema.request_body_schema } : {}),
-          }
-        : undefined,
-    };
-    saveMutation.mutate([...webhookTools, tool], {
+    toolIdsMutation.mutate([...activeToolIds, wt.tool_id], {
       onSuccess: () => {
         toast({ title: "Ferramenta adicionada da biblioteca" });
         setAddingLibraryTool(null);
@@ -1117,17 +1171,53 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
     });
   };
 
+  // Mutation to update inline tools array (legacy format — also clears stale tool_ids)
+  const inlineToolsMutation = useMutation({
+    mutationFn: async (newInlineTools: WebhookTool[]) => {
+      const sanitized = newInlineTools.map((t) => ({
+        type: "webhook" as const,
+        name: t.name,
+        description: t.description ?? "",
+        ...(t.api_schema ? { api_schema: t.api_schema } : {}),
+        ...(t.expects_response !== undefined ? { expects_response: t.expects_response } : {}),
+        ...(t.response_timeout_secs !== undefined ? { response_timeout_secs: t.response_timeout_secs } : {}),
+        ...(t.mocks?.length ? { mocks: t.mocks } : {}),
+      }));
+      const res = await fetch(`/api/elevenlabs/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tools: sanitized }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao salvar");
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/elevenlabs/agents", agentId] });
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao remover", description: err.message, variant: "destructive" }),
+  });
+
   const handleEditWebhook = (tool: WebhookTool) => {
-    const updated = webhookTools.map((t) => (t.name === tool.name ? tool : t));
-    saveMutation.mutate(updated, {
-      onSuccess: () => { toast({ title: "Ferramenta atualizada" }); setEditingTool(null); },
-    });
+    if (!editingTool) return;
+    updateToolMutation.mutate({ toolId: editingTool.tool_id, tool });
   };
 
-  const handleDeleteWebhook = (name: string) => {
-    saveMutation.mutate(webhookTools.filter((t) => t.name !== name), {
-      onSuccess: () => toast({ title: "Ferramenta removida" }),
-    });
+  const handleDeleteWebhook = (toolId: string) => {
+    toolIdsMutation.mutate(
+      activeToolIds.filter((id) => id !== toolId),
+      { onSuccess: () => toast({ title: "Ferramenta removida do agente" }) },
+    );
+  };
+
+  const handleDeleteInlineTool = (name: string) => {
+    inlineToolsMutation.mutate(
+      inlineWebhookTools.filter((t) => t.name !== name),
+      { onSuccess: () => toast({ title: "Ferramenta removida" }) },
+    );
   };
 
   return (
@@ -1184,23 +1274,85 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                   <Webhook className="size-4 text-violet-500" />
                   <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Webhooks</h3>
                   <Badge variant="outline" className="rounded-full text-xs border-violet-200 text-violet-600 dark:border-violet-700 dark:text-violet-400">
-                    {webhookTools.length}
+                    {totalWebhooks}
                   </Badge>
                 </div>
 
-                {webhookTools.length === 0 ? (
+                {totalWebhooks === 0 ? (
                   <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 py-8 text-center dark:border-slate-700 mb-3">
                     <AlertCircle className="mb-2 size-6 text-slate-300 dark:text-slate-600" />
                     <p className="text-sm text-slate-500">Nenhum webhook configurado</p>
                   </div>
                 ) : (
                   <div className="space-y-2 mb-3">
-                    {webhookTools.map((tool) => {
+                    {/* Workspace tools (tool_ids — new format) */}
+                    {activeWebhookTools.map((wt) => {
+                      const propCount = (() => {
+                        const s = wt.api_schema?.request_body_schema as Record<string, unknown> | undefined;
+                        return s?.properties ? Object.keys(s.properties as object).length : 0;
+                      })();
+                      return (
+                        <div
+                          key={wt.tool_id}
+                          className="flex items-start gap-3 rounded-2xl border p-4 border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                {wt.name}
+                              </span>
+                              {propCount > 0 && (
+                                <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-500">
+                                  {propCount} parâmetro{propCount > 1 ? "s" : ""}
+                                </Badge>
+                              )}
+                            </div>
+                            {wt.description && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{wt.description}</p>
+                            )}
+                            {wt.api_schema?.url && (
+                              <p className="mt-1 truncate font-mono text-[11px] text-slate-400">
+                                {wt.api_schema.method ?? "POST"} {wt.api_schema.url}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 gap-1">
+                            <Button
+                              variant="ghost" size="sm"
+                              className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:text-slate-600"
+                              onClick={() => setEditingTool({
+                                tool_id: wt.tool_id,
+                                type: "webhook",
+                                name: wt.name,
+                                description: wt.description ?? "",
+                                api_schema: wt.api_schema ? {
+                                  url: wt.api_schema.url ?? "",
+                                  method: wt.api_schema.method ?? "POST",
+                                  request_body_schema: wt.api_schema.request_body_schema,
+                                } : undefined,
+                              })}
+                            >
+                              <Edit className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost" size="sm"
+                              className="h-8 w-8 rounded-xl p-0 text-red-400 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => handleDeleteWebhook(wt.tool_id)}
+                              disabled={toolIdsMutation.isPending}
+                            >
+                              {toolIdsMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Inline tools (prompt.tools — legacy format) */}
+                    {inlineWebhookTools.map((tool) => {
                       const propCount = (() => {
                         const s = tool.api_schema?.request_body_schema as Record<string, unknown> | undefined;
                         return s?.properties ? Object.keys(s.properties as object).length : 0;
                       })();
-
                       return (
                         <div
                           key={tool.name}
@@ -1211,9 +1363,9 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                               <span className="font-mono text-sm font-semibold text-slate-800 dark:text-slate-100">
                                 {tool.name}
                               </span>
-                              {tool.response_timeout_secs && (
-                                <Badge variant="outline" className="text-[10px] text-slate-400">{tool.response_timeout_secs}s timeout</Badge>
-                              )}
+                              <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-300">
+                                inline
+                              </Badge>
                               {propCount > 0 && (
                                 <Badge variant="outline" className="text-[10px] border-violet-200 text-violet-500">
                                   {propCount} parâmetro{propCount > 1 ? "s" : ""}
@@ -1223,27 +1375,20 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                             {tool.description && (
                               <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{tool.description}</p>
                             )}
-                            {(tool.api_schema?.url || tool.api_schema?.method) && (
+                            {tool.api_schema?.url && (
                               <p className="mt-1 truncate font-mono text-[11px] text-slate-400">
-                                {tool.api_schema?.method} {tool.api_schema?.url}
+                                {tool.api_schema.method ?? "POST"} {tool.api_schema.url}
                               </p>
                             )}
                           </div>
                           <div className="flex shrink-0 gap-1">
                             <Button
                               variant="ghost" size="sm"
-                              className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:text-slate-600"
-                              onClick={() => setEditingTool(tool)}
-                            >
-                              <Edit className="size-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost" size="sm"
                               className="h-8 w-8 rounded-xl p-0 text-red-400 hover:bg-red-50 hover:text-red-600"
-                              onClick={() => handleDeleteWebhook(tool.name)}
-                              disabled={saveMutation.isPending}
+                              onClick={() => handleDeleteInlineTool(tool.name)}
+                              disabled={inlineToolsMutation.isPending}
                             >
-                              {saveMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                              {inlineToolsMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
                             </Button>
                           </div>
                         </div>
@@ -1300,7 +1445,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                 {workspaceLoading ? (
                   <div className="flex justify-center py-12"><Loader2 className="size-5 animate-spin text-slate-400" /></div>
                 ) : (() => {
-                  const alreadyAdded = new Set(webhookTools.map((t) => t.name));
+                  const activeSet = new Set(activeToolIds);
                   const filtered = (workspaceData?.tools ?? []).filter(
                     (t) =>
                       t.name.toLowerCase().includes(librarySearch.toLowerCase()) ||
@@ -1320,7 +1465,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                   return (
                     <div className="space-y-2">
                       {filtered.map((wt) => {
-                        const added = alreadyAdded.has(wt.name);
+                        const added = activeSet.has(wt.tool_id);
                         const isPending = addingLibraryTool === wt.tool_id;
                         return (
                           <div
@@ -1352,7 +1497,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                               size="sm"
                               variant={added ? "outline" : "default"}
                               className={cn("shrink-0 rounded-xl gap-1.5 min-w-[90px]", added && "border-emerald-300 text-emerald-700")}
-                              disabled={added || isPending || saveMutation.isPending}
+                              disabled={added || isPending || toolIdsMutation.isPending}
                               onClick={() => !added && handleAddFromLibrary(wt)}
                             >
                               {isPending ? <Loader2 className="size-3.5 animate-spin" /> : added ? <><Check className="size-3.5" />Adicionada</> : <><Plus className="size-3.5" />Adicionar</>}

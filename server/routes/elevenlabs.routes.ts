@@ -400,24 +400,27 @@ router.get("/agents/:agentId", requireAuth, async (req: Request, res: Response) 
       name: string;
       conversation_config?: {
         tts?: { voice_id?: string };
-        turn?: { interruption_threshold?: number };
+        turn?: Record<string, unknown>;
         agent?: {
           prompt?: {
             prompt?: string;
             llm?: string;
             tools?: unknown[];
+            tool_ids?: string[];
             built_in_tools?: Record<string, unknown>;
           };
           first_message?: string;
           language?: string;
+          disable_first_message_interruptions?: boolean;
         };
       };
     };
 
     const rawPrompt = data.conversation_config?.agent?.prompt;
     const rawTools = rawPrompt?.tools ?? [];
+    const rawToolIds = rawPrompt?.tool_ids ?? [];
     const rawBuiltInTools = rawPrompt?.built_in_tools ?? {};
-    const interruptionThreshold = data.conversation_config?.turn?.interruption_threshold;
+    const disableInterruptions = data.conversation_config?.agent?.disable_first_message_interruptions;
 
     res.json({
       agentId: data.agent_id,
@@ -428,8 +431,9 @@ router.get("/agents/:agentId", requireAuth, async (req: Request, res: Response) 
       voiceId: data.conversation_config?.tts?.voice_id ?? "",
       llm: rawPrompt?.llm ?? "gemini-2.5-flash",
       tools: rawTools,
+      toolIds: rawToolIds,
       builtInTools: rawBuiltInTools,
-      interruptible: interruptionThreshold === undefined ? true : interruptionThreshold > 0,
+      interruptible: disableInterruptions === undefined ? true : !disableInterruptions,
     });
   } catch (e) {
     console.error("[elevenlabs] get-agent error:", e);
@@ -455,7 +459,12 @@ router.get("/tools", requireAuth, async (req: Request, res: Response) => {
 
     const data = (await response.json()) as {
       tools: Array<{
-        id: string;
+        id?: string;
+        tool_id?: string;
+        name?: string;
+        description?: string;
+        type?: string;
+        api_schema?: { url?: string; method?: string; request_body_schema?: unknown };
         tool_config?: {
           type?: string;
           name?: string;
@@ -467,17 +476,154 @@ router.get("/tools", requireAuth, async (req: Request, res: Response) => {
     };
 
     const normalized = (data.tools ?? []).map((t) => ({
-      tool_id: t.id,
-      name: t.tool_config?.name ?? "",
-      description: t.tool_config?.description ?? "",
-      type: t.tool_config?.type,
-      api_schema: t.tool_config?.api_schema ?? t.tool_config?.base_api_schema,
+      tool_id: t.id ?? t.tool_id ?? "",
+      name: t.name ?? t.tool_config?.name ?? "",
+      description: t.description ?? t.tool_config?.description ?? "",
+      type: t.type ?? t.tool_config?.type,
+      api_schema: t.api_schema ?? t.tool_config?.api_schema ?? t.tool_config?.base_api_schema,
     }));
 
     res.json({ tools: normalized });
   } catch (e) {
     console.error("[elevenlabs] list-tools error:", e);
     res.status(500).json({ message: "Erro ao listar ferramentas" });
+  }
+});
+
+// ─── Criar ferramenta no workspace ───────────────────────────────────────────
+
+router.post("/tools", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const { name, description, url, method, requestBodySchema, requestHeaders, expectsResponse, responseTimeoutSecs, mocks } = req.body as {
+      name: string;
+      description?: string;
+      url: string;
+      method?: string;
+      requestBodySchema?: unknown;
+      requestHeaders?: Record<string, string>;
+      expectsResponse?: boolean;
+      responseTimeoutSecs?: number;
+      mocks?: Array<{ response_body: string }>;
+    };
+
+    if (!name?.trim()) return res.status(400).json({ message: "Nome é obrigatório" });
+    if (!url?.trim()) return res.status(400).json({ message: "URL é obrigatória" });
+
+    const toolConfig: Record<string, unknown> = {
+      type: "webhook",
+      name,
+      description: description ?? "",
+      api_schema: {
+        url,
+        method: method ?? "POST",
+        content_type: "application/json",
+        ...(requestBodySchema ? { request_body_schema: requestBodySchema } : {}),
+        ...(requestHeaders && Object.keys(requestHeaders).length > 0 ? { request_headers: requestHeaders } : {}),
+      },
+      ...(expectsResponse !== undefined ? { expects_response: expectsResponse } : {}),
+      ...(responseTimeoutSecs !== undefined ? { response_timeout_secs: responseTimeoutSecs } : {}),
+      ...(mocks?.length ? { mocks } : {}),
+    };
+
+    const response = await fetch("https://api.elevenlabs.io/v1/convai/tools", {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ tool_config: toolConfig }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text });
+    }
+
+    const data = (await response.json()) as { tool_id?: string; id?: string };
+    res.status(201).json({ toolId: data.tool_id ?? data.id });
+  } catch (e) {
+    console.error("[elevenlabs] create-tool error:", e);
+    res.status(500).json({ message: "Erro ao criar ferramenta" });
+  }
+});
+
+// ─── Atualizar ferramenta do workspace ────────────────────────────────────────
+
+router.patch("/tools/:toolId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const { name, description, url, method, requestBodySchema, requestHeaders, expectsResponse, responseTimeoutSecs, mocks } = req.body as {
+      name?: string;
+      description?: string;
+      url?: string;
+      method?: string;
+      requestBodySchema?: unknown;
+      requestHeaders?: Record<string, string>;
+      expectsResponse?: boolean;
+      responseTimeoutSecs?: number;
+      mocks?: Array<{ response_body: string }>;
+    };
+
+    const toolConfig: Record<string, unknown> = { type: "webhook" };
+    if (name !== undefined) toolConfig.name = name;
+    if (description !== undefined) toolConfig.description = description;
+    if (url !== undefined || method !== undefined || requestBodySchema !== undefined || requestHeaders !== undefined) {
+      toolConfig.api_schema = {
+        ...(url ? { url } : {}),
+        ...(method ? { method } : {}),
+        content_type: "application/json",
+        ...(requestBodySchema ? { request_body_schema: requestBodySchema } : {}),
+        ...(requestHeaders && Object.keys(requestHeaders).length > 0 ? { request_headers: requestHeaders } : {}),
+      };
+    }
+    if (expectsResponse !== undefined) toolConfig.expects_response = expectsResponse;
+    if (responseTimeoutSecs !== undefined) toolConfig.response_timeout_secs = responseTimeoutSecs;
+    if (mocks !== undefined) toolConfig.mocks = mocks;
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/tools/${encodeURIComponent(req.params.toolId)}`,
+      {
+        method: "PATCH",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ tool_config: toolConfig }),
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("[elevenlabs] update-tool error:", e);
+    res.status(500).json({ message: "Erro ao atualizar ferramenta" });
+  }
+});
+
+// ─── Deletar ferramenta do workspace ─────────────────────────────────────────
+
+router.delete("/tools/:toolId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/tools/${encodeURIComponent(req.params.toolId)}`,
+      { method: "DELETE", headers: { "xi-api-key": apiKey } },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(response.status).json({ message: text });
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("[elevenlabs] delete-tool error:", e);
+    res.status(500).json({ message: "Erro ao deletar ferramenta" });
   }
 });
 
@@ -572,9 +718,6 @@ router.post("/agents", requireAuth, async (req: Request, res: Response) => {
           model_id: ttsModelId,
           ...(voiceId ? { voice_id: voiceId } : {}),
         },
-        turn: {
-          interruption_threshold: interruptible === false ? 0 : 100,
-        },
         agent: {
           prompt: {
             prompt: prompt ?? "",
@@ -582,6 +725,7 @@ router.post("/agents", requireAuth, async (req: Request, res: Response) => {
           },
           first_message: firstMessage ?? "",
           language: selectedLang,
+          disable_first_message_interruptions: interruptible === false,
         },
       },
     };
@@ -612,7 +756,7 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
     const apiKey = await getElevenLabsKey();
     if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
 
-    const { name, prompt, firstMessage, language, voiceId, llm, tools, builtInTools, interruptible } = req.body as {
+    const { name, prompt, firstMessage, language, voiceId, llm, tools, toolIds, builtInTools, interruptible } = req.body as {
       name?: string;
       prompt?: string;
       firstMessage?: string;
@@ -620,6 +764,7 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
       voiceId?: string;
       llm?: string;
       tools?: unknown[];
+      toolIds?: string[];
       builtInTools?: Record<string, unknown>;
       interruptible?: boolean;
     };
@@ -630,14 +775,20 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
     const conversationConfig: Record<string, unknown> = {};
     const agentConfig: Record<string, unknown> = {};
 
-    // Build prompt sub-object accumulating all prompt-level fields.
-    // System tools go to built_in_tools (new ElevenLabs API format).
-    // Webhook tools go to tools (deprecated but still functional for inline webhooks).
-    if (prompt !== undefined || llm !== undefined || tools !== undefined || builtInTools !== undefined) {
+    // Build prompt sub-object. System tools → built_in_tools. Webhook tools → tool_ids (new format).
+    // When tool_ids is set, also clear the deprecated inline tools array to avoid stale reference errors.
+    if (prompt !== undefined || llm !== undefined || tools !== undefined || toolIds !== undefined || builtInTools !== undefined) {
       const promptObj: Record<string, unknown> = {};
       if (prompt !== undefined) promptObj.prompt = prompt;
       if (llm !== undefined) promptObj.llm = llm;
-      if (tools !== undefined) promptObj.tools = tools;
+      if (toolIds !== undefined) {
+        promptObj.tool_ids = toolIds;
+        promptObj.tools = [];
+      } else if (tools !== undefined) {
+        promptObj.tools = tools;
+        // Clear stale tool_id references to avoid "document_not_found" validation errors
+        promptObj.tool_ids = [];
+      }
       if (builtInTools !== undefined) promptObj.built_in_tools = builtInTools;
       agentConfig.prompt = promptObj;
     }
@@ -646,7 +797,11 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
     if (Object.keys(agentConfig).length > 0) conversationConfig.agent = agentConfig;
 
     if (voiceId !== undefined) conversationConfig.tts = { voice_id: voiceId };
-    if (interruptible !== undefined) conversationConfig.turn = { interruption_threshold: interruptible ? 100 : 0 };
+    if (interruptible !== undefined) {
+      const agentCfg = (conversationConfig.agent ?? {}) as Record<string, unknown>;
+      agentCfg.disable_first_message_interruptions = !interruptible;
+      conversationConfig.agent = agentCfg;
+    }
     if (Object.keys(conversationConfig).length > 0) body.conversation_config = conversationConfig;
 
     const response = await fetch(
