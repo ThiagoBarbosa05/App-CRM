@@ -27,7 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, X, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Loader2, X, Plus, Check, ChevronsUpDown, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceSelector } from "@/components/voice-selector";
 import {
@@ -650,11 +650,46 @@ export function AgentConfigModal({
       }
     },
     onSuccess: () => {
-      toast({ title: "Agente atualizado com sucesso" });
+      toast({ title: "Configurações salvas" });
       onClose();
     },
     onError: (err: Error) =>
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" }),
+  });
+
+  const saveAndPublishMutation = useMutation({
+    mutationFn: async (data: AgentForm) => {
+      // 1. Salvar configurações
+      const payload = mapFormToApi(data);
+      const saveRes = await fetch(`/api/elevenlabs/agents/${agentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!saveRes.ok) {
+        const err = (await saveRes.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao salvar");
+      }
+
+      // 2. Publicar (deploy branch principal com 100% de tráfego)
+      const deployRes = await fetch(`/api/elevenlabs/agents/${agentId}/deploy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      if (!deployRes.ok) {
+        const err = (await deployRes.json().catch(() => ({}))) as { message?: string };
+        throw new Error(err.message ?? "Erro ao publicar");
+      }
+    },
+    onSuccess: () => {
+      toast({ title: "Agente publicado com sucesso", description: "As alterações estão ao vivo." });
+      onClose();
+    },
+    onError: (err: Error) =>
+      toast({ title: "Erro ao publicar", description: err.message, variant: "destructive" }),
   });
 
   const w = watch();
@@ -1309,13 +1344,33 @@ export function AgentConfigModal({
               </AppTabsContent>
             </AppTabs>
 
-            <SheetFooter className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
-              <Button variant="outline" type="button" onClick={onClose}>
+            <SheetFooter className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 shrink-0 flex-row gap-2 justify-end">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={onClose}
+                disabled={saveMutation.isPending || saveAndPublishMutation.isPending}
+              >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
+              <Button
+                variant="outline"
+                type="submit"
+                disabled={saveMutation.isPending || saveAndPublishMutation.isPending}
+              >
                 {saveMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Salvar
+              </Button>
+              <Button
+                type="button"
+                disabled={saveMutation.isPending || saveAndPublishMutation.isPending}
+                onClick={handleSubmit((d) => saveAndPublishMutation.mutate(d))}
+              >
+                {saveAndPublishMutation.isPending
+                  ? <Loader2 className="mr-2 size-4 animate-spin" />
+                  : <Rocket className="mr-2 size-4" />
+                }
+                Salvar e Publicar
               </Button>
             </SheetFooter>
           </form>

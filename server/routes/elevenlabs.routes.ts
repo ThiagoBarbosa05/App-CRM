@@ -757,6 +757,137 @@ router.patch("/agents/:agentId", requireAuth, async (req: Request, res: Response
   }
 });
 
+// ─── Listar branches do agente ───────────────────────────────────────────────
+
+router.get("/agents/:agentId/branches", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(req.params.agentId)}/branches`,
+      { headers: { "xi-api-key": apiKey } },
+    );
+
+    if (!response.ok) {
+      const body = await response.text();
+      return res.status(response.status).json({ message: body });
+    }
+
+    const data = (await response.json()) as Record<string, unknown>;
+
+    type BranchItem = {
+      id: string;
+      name: string;
+      current_live_percentage: number;
+      draft_exists: boolean;
+      parent_branch_id: string | null;
+    };
+
+    const items =
+      (data.results as BranchItem[] | undefined) ??
+      (data.items as BranchItem[] | undefined) ??
+      (data.branches as BranchItem[] | undefined) ??
+      [];
+
+    res.json({ branches: items });
+  } catch (e) {
+    console.error("[elevenlabs] list-branches error:", e);
+    res.status(500).json({ message: "Erro ao listar branches" });
+  }
+});
+
+// ─── Publicar/deploy do agente ────────────────────────────────────────────────
+// Estratégia: tenta obter o branch via /branches; se vazio, lê o current_branch_id
+// do próprio agente; como último recurso tenta o deploy sem branch_id (agentes sem versioning).
+
+router.post("/agents/:agentId/deploy", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const apiKey = await getElevenLabsKey();
+    if (!apiKey) return res.status(400).json({ message: "ElevenLabs não configurado" });
+
+    const agentId = req.params.agentId;
+    const { branchId: explicitBranchId } = req.body as { branchId?: string };
+
+    let branchId = explicitBranchId;
+
+    if (!branchId) {
+      // 1. Tentar listar branches
+      const branchRes = await fetch(
+        `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}/branches`,
+        { headers: { "xi-api-key": apiKey } },
+      );
+
+      if (branchRes.ok) {
+        const branchData = (await branchRes.json()) as Record<string, unknown>;
+
+        type BranchItem = { id: string; name: string; parent_branch_id?: string | null };
+        // A API retorna o array em "results", "items" ou "branches" dependendo da versão
+        const items =
+          (branchData.results as BranchItem[] | undefined) ??
+          (branchData.items as BranchItem[] | undefined) ??
+          (branchData.branches as BranchItem[] | undefined) ??
+          [];
+
+        const mainBranch =
+          items.find((b) => b.parent_branch_id === null) ??
+          items.find((b) => b.name?.toLowerCase() === "main") ??
+          items[0];
+
+        if (mainBranch) branchId = mainBranch.id;
+      }
+
+      // 2. Fallback: usar branch_id do próprio agente
+      if (!branchId) {
+        const agentRes = await fetch(
+          `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}`,
+          { headers: { "xi-api-key": apiKey } },
+        );
+        if (agentRes.ok) {
+          const agentData = (await agentRes.json()) as Record<string, unknown>;
+          branchId =
+            (agentData.branch_id as string | undefined) ??
+            (agentData.main_branch_id as string | undefined) ??
+            undefined;
+        }
+      }
+
+      if (!branchId) {
+        return res.status(404).json({ message: "Não foi possível determinar o branch do agente" });
+      }
+    }
+
+    const deployRes = await fetch(
+      `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}/deployments`,
+      {
+        method: "POST",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deployment_request: {
+            requests: [
+              {
+                branch_id: branchId,
+                deployment_strategy: { type: "percentage", traffic_percentage: 100 },
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    if (!deployRes.ok) {
+      const text = await deployRes.text();
+      return res.status(deployRes.status).json({ message: text });
+    }
+
+    const deployData = await deployRes.json();
+    res.json({ ok: true, branchId, deployment: deployData });
+  } catch (e) {
+    console.error("[elevenlabs] deploy-agent error:", e);
+    res.status(500).json({ message: "Erro ao publicar agente" });
+  }
+});
+
 // ─── Clonar / criar voz ──────────────────────────────────────────────────────
 
 router.post(
