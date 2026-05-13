@@ -47,7 +47,7 @@ export default function TelemarketingPage() {
         {/* Cabeçalho */}
         <PageHeader>
           <PageHeader.Info>
-            <PageHeader.Icon icon={Phone} />
+            <PageHeader.Icon icon={Phone} color="text-primary" bgColor="bg-accent" />
             <PageHeader.Text>
               <PageHeader.Title>Telemarketing</PageHeader.Title>
               <PageHeader.Description>
@@ -77,25 +77,25 @@ export default function TelemarketingPage() {
         >
           <UnderlineTabsList>
             {isAdminOrManager && (
-              <UnderlineTabsTrigger value="dashboard" color="indigo">
+              <UnderlineTabsTrigger value="dashboard" color="wine">
                 <BarChart2 className="h-3.5 w-3.5" />
                 Dashboard
               </UnderlineTabsTrigger>
             )}
-            <UnderlineTabsTrigger value="dialer" color="blue">
+            <UnderlineTabsTrigger value="dialer" color="wine">
               <Phone className="h-3.5 w-3.5" />
               Discador
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="campaigns" color="purple">
+            <UnderlineTabsTrigger value="campaigns" color="wine">
               <Radio className="h-3.5 w-3.5" />
               Campanhas
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="history" color="green">
+            <UnderlineTabsTrigger value="history" color="wine">
               <History className="h-3.5 w-3.5" />
               Histórico
             </UnderlineTabsTrigger>
             {isAdminOrManager && (
-              <UnderlineTabsTrigger value="monitor" color="red">
+              <UnderlineTabsTrigger value="monitor" color="wine">
                 <Activity className="h-3.5 w-3.5" />
                 Monitor
               </UnderlineTabsTrigger>

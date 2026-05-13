@@ -152,7 +152,7 @@ function SummaryCard({
   color: string;
 }) {
   return (
-    <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
+    <Card className="border border-border bg-card shadow-sm">
       <CardContent className="p-5">
         <div className="flex items-start gap-3">
           <div className={`p-2.5 rounded-xl ${color} shrink-0`}>{icon}</div>
@@ -178,7 +178,7 @@ function SummaryCard({
 function CustomBarTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-xl text-sm">
+    <div className="bg-card border border-border rounded-xl p-3 shadow-xl text-sm">
       <p className="font-bold text-slate-700 dark:text-slate-200 mb-1">
         {label}
       </p>
@@ -261,7 +261,7 @@ function SensoryGauge({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-700/70 bg-white dark:bg-slate-900 p-4 shadow-xl ${theme.glow}`}
+      className={`relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm ${theme.glow}`}
     >
       <div
         className={`absolute -right-10 -top-10 h-28 w-28 rounded-full bg-gradient-to-br ${theme.gradient} opacity-15 blur-2xl`}
@@ -430,29 +430,23 @@ export default function ProductProfilePage() {
   const isWine = isWineCategory(product?.category);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-12">
+    <div className="space-y-6 pb-12">
       {/* Back + header */}
-      <div className="flex items-start gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/products")}
-          className="rounded-xl h-10 w-10 shrink-0 mt-1"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+      <PageHeader>
+        <PageHeader.Info className="flex-col sm:flex-row items-start sm:items-center">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/products")}
+              className="shrink-0 h-9 w-9 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
 
-        {isLoadingProduct ? (
-          <div className="flex items-center gap-4 flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 shadow-sm">
-            <Skeleton className="h-12 w-12 rounded-2xl shrink-0" />
-            <div className="space-y-2 flex-1">
-              <Skeleton className="h-6 w-64" />
-              <Skeleton className="h-4 w-40" />
-            </div>
-          </div>
-        ) : (
-          <PageHeader className="flex-1">
-            <PageHeader.Info>
+            {isLoadingProduct ? (
+              <Skeleton className="h-12 w-12 rounded-2xl shrink-0" />
+            ) : (
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl flex-shrink-0 shadow-inner bg-accent border border-border overflow-hidden">
                 {product?.imageUrl ? (
                   <img
@@ -464,7 +458,17 @@ export default function ProductProfilePage() {
                   <Wine className="h-6 w-6 text-primary" />
                 )}
               </div>
-              <PageHeader.Text>
+            )}
+          </div>
+
+          <PageHeader.Text>
+            {isLoadingProduct ? (
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-64" />
+                <Skeleton className="h-4 w-40" />
+              </div>
+            ) : (
+              <>
                 <PageHeader.Title>{product?.name}</PageHeader.Title>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {product?.country && (
@@ -490,11 +494,11 @@ export default function ProductProfilePage() {
                     </Badge>
                   )}
                 </div>
-              </PageHeader.Text>
-            </PageHeader.Info>
-          </PageHeader>
-        )}
-      </div>
+              </>
+            )}
+          </PageHeader.Text>
+        </PageHeader.Info>
+      </PageHeader>
 
       {/* Summary cards */}
       <div>
@@ -581,7 +585,7 @@ export default function ProductProfilePage() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {isWine && (
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                <div className="bg-card rounded-2xl p-4 border border-border">
                   <div className="flex items-center gap-2 mb-2">
                     <MapPin className="h-3.5 w-3.5 text-slate-400" />
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -595,7 +599,7 @@ export default function ProductProfilePage() {
               )}
 
               {isWine && (
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                <div className="bg-card rounded-2xl p-4 border border-border">
                   <div className="flex items-center gap-2 mb-2">
                     <Ruler className="h-3.5 w-3.5 text-slate-400" />
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -609,7 +613,7 @@ export default function ProductProfilePage() {
               )}
 
               {isWine && (
-                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                <div className="bg-card rounded-2xl p-4 border border-border">
                   <div className="flex items-center gap-2 mb-2">
                     <Tag className="h-3.5 w-3.5 text-slate-400" />
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -628,7 +632,7 @@ export default function ProductProfilePage() {
                 </div>
               )}
 
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+              <div className="bg-card rounded-2xl p-4 border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <Tag className="h-3.5 w-3.5 text-slate-400" />
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -652,7 +656,7 @@ export default function ProductProfilePage() {
                 </p>
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+              <div className="bg-card rounded-2xl p-4 border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="h-3.5 w-3.5 text-slate-400" />
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -667,7 +671,7 @@ export default function ProductProfilePage() {
                 </p>
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+              <div className="bg-card rounded-2xl p-4 border border-border">
                 <div className="flex items-center gap-2 mb-2">
                   <User className="h-3.5 w-3.5 text-slate-400" />
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -679,7 +683,7 @@ export default function ProductProfilePage() {
                 </p>
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200/60 dark:border-slate-700/60 col-span-2">
+              <div className="bg-card rounded-2xl p-4 border border-border col-span-2">
                 <div className="flex items-center gap-2 mb-2">
                   <Calendar className="h-3.5 w-3.5 text-slate-400" />
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -702,7 +706,7 @@ export default function ProductProfilePage() {
 
         {/* Tab: Perfil IA */}
         <AppTabsContent value="ai-profile" className="mt-6">
-          <div className="max-w-2xl space-y-5">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
                 Perfil gerado por IA
@@ -792,13 +796,12 @@ export default function ProductProfilePage() {
                     {
                       label: "Mundo",
                       value: aiProfile.mundo,
-                      color:
-                        "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+                      color: "bg-accent text-slate-700 dark:text-slate-300",
                     },
                   ].map((attr) => (
                     <div
                       key={attr.label}
-                      className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60"
+                      className="bg-card rounded-xl p-4 border border-border"
                     >
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
                         {attr.label}
@@ -816,7 +819,7 @@ export default function ProductProfilePage() {
                 {(aiProfile.regiao || aiProfile.produtor) && (
                   <div className="grid grid-cols-2 gap-3">
                     {aiProfile.regiao && (
-                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                      <div className="bg-card rounded-xl p-4 border border-border">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                           Região
                         </p>
@@ -826,7 +829,7 @@ export default function ProductProfilePage() {
                       </div>
                     )}
                     {aiProfile.produtor && (
-                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                      <div className="bg-card rounded-xl p-4 border border-border">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                           Produtor
                         </p>
@@ -840,7 +843,7 @@ export default function ProductProfilePage() {
 
                 {/* Uvas */}
                 {aiProfile.uvas?.length > 0 && (
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="bg-card rounded-xl p-4 border border-border">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">
                       Uvas
                     </p>
@@ -859,7 +862,7 @@ export default function ProductProfilePage() {
 
                 {/* Harmonização */}
                 {aiProfile.harmonizacao?.length > 0 && (
-                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
+                  <div className="bg-card rounded-xl p-4 border border-border">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">
                       Harmonização
                     </p>
@@ -886,8 +889,8 @@ export default function ProductProfilePage() {
             <Skeleton className="h-96 rounded-2xl" />
           ) : chartData.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-full mb-4">
-                <BarChart className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+              <div className="p-5 bg-accent rounded-full mb-4">
+                <BarChart className="h-10 w-10 text-primary" />
               </div>
               <p className="font-semibold text-slate-700 dark:text-slate-300 text-lg">
                 Nenhum histórico encontrado
@@ -898,7 +901,7 @@ export default function ProductProfilePage() {
             </div>
           ) : (
             <div className="space-y-6">
-              <Card className="border border-slate-200 dark:border-slate-800 shadow-sm">
+              <Card className="border border-border bg-card shadow-sm">
                 <CardContent className="pt-6">
                   <div className="h-80 w-full">
                     <ResponsiveContainer width="100%" height="100%">
@@ -966,7 +969,7 @@ export default function ProductProfilePage() {
                 {[...chartData].reverse().map((m) => (
                   <div
                     key={m.month}
-                    className="flex items-center justify-between px-5 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800"
+                    className="flex items-center justify-between px-5 py-3 rounded-xl bg-card border border-border"
                   >
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-300 capitalize w-24">
                       {m.month}
@@ -1032,8 +1035,8 @@ export default function ProductProfilePage() {
             </div>
           ) : (profile?.buyers.length ?? 0) === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="p-5 bg-slate-50 dark:bg-slate-800 rounded-full mb-4">
-                <Building2 className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+              <div className="p-5 bg-accent rounded-full mb-4">
+                <Building2 className="h-10 w-10 text-primary" />
               </div>
               <p className="font-semibold text-slate-700 dark:text-slate-300 text-lg">
                 Nenhum comprador encontrado
@@ -1050,9 +1053,9 @@ export default function ProductProfilePage() {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="flex items-center gap-4 px-5 py-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors shadow-sm"
+                  className="flex items-center gap-4 px-5 py-4 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors shadow-sm"
                 >
-                  <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-sm font-black text-slate-500 shrink-0">
+                  <div className="h-9 w-9 rounded-xl bg-accent border border-border flex items-center justify-center text-sm font-black text-primary shrink-0">
                     {i + 1}
                   </div>
                   <div className="min-w-0 flex-1">

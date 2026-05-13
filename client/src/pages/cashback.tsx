@@ -558,7 +558,7 @@ export default function Cashback() {
       <div className="space-y-6 pb-10">
         <PageHeader>
           <PageHeader.Info>
-            <PageHeader.Icon icon={Gift} />
+            <PageHeader.Icon icon={Gift} color="text-primary" bgColor="bg-accent" />
             <PageHeader.Text>
               <PageHeader.Title>Sistema de Cashback</PageHeader.Title>
               <PageHeader.Description>
@@ -570,27 +570,27 @@ export default function Cashback() {
 
         <AppTabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
           <UnderlineTabsList>
-            <UnderlineTabsTrigger value="overview" color="blue">
+            <UnderlineTabsTrigger value="overview" color="wine">
               <Gift className="h-3.5 w-3.5" />
               Visão Geral
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="sales" color="green">
+            <UnderlineTabsTrigger value="sales" color="wine">
               <DollarSign className="h-3.5 w-3.5" />
               Vendas
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="balances" color="purple">
+            <UnderlineTabsTrigger value="balances" color="wine">
               <Wallet className="h-3.5 w-3.5" />
               Saldos
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="transactions" color="amber">
+            <UnderlineTabsTrigger value="transactions" color="wine">
               <History className="h-3.5 w-3.5" />
               Transações
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="usage" color="red">
+            <UnderlineTabsTrigger value="usage" color="wine">
               <Percent className="h-3.5 w-3.5" />
               Resgates
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="reports" color="indigo">
+            <UnderlineTabsTrigger value="reports" color="wine">
               <Calculator className="h-3.5 w-3.5" />
               Relatórios
             </UnderlineTabsTrigger>

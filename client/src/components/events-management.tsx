@@ -1210,8 +1210,8 @@ export default function EventsManagement() {
           <PageHeader.Info>
             <PageHeader.Icon
               icon={CalendarDays}
-              color="text-orange-600 dark:text-orange-400"
-              bgColor="bg-orange-50 dark:bg-orange-900/30"
+              color="text-primary"
+              bgColor="bg-accent"
             />
             <PageHeader.Text>
               <PageHeader.Title>Gestão de Eventos</PageHeader.Title>
@@ -1227,7 +1227,7 @@ export default function EventsManagement() {
                 onClick={() => setActiveView("eventos")}
                 className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none ${
                   activeView === "eventos"
-                    ? "bg-orange-500 text-white shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                 }`}
               >
@@ -1238,7 +1238,7 @@ export default function EventsManagement() {
                 onClick={() => setActiveView("analises")}
                 className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all whitespace-nowrap flex-1 sm:flex-none ${
                   activeView === "analises"
-                    ? "bg-orange-500 text-white shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                 }`}
               >
@@ -1249,7 +1249,7 @@ export default function EventsManagement() {
             {user?.role === "admin" && (
               <Button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200 w-full sm:w-auto flex-1 sm:flex-none"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-sm hover:shadow-md transition-all duration-200 w-full sm:w-auto flex-1 sm:flex-none"
               >
                 <CalendarIcon className="h-4 w-4 mr-2" />
                 Novo Evento

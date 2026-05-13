@@ -21,10 +21,10 @@ export function FunnelsHeader({
   const isListView = viewMode === "list";
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-5 sm:px-6 py-5 rounded-2xl shadow-sm relative">
+    <div className="bg-card border border-border px-5 sm:px-6 py-5 rounded-2xl shadow-sm relative">
       {/* Decorative gradient blur — overflow isolado para não clipar conteúdo no mobile */}
       <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
       </div>
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative z-10">
@@ -34,13 +34,13 @@ export function FunnelsHeader({
               variant="ghost"
               size="icon"
               onClick={onBackToList}
-              className="h-10 w-10 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl flex-shrink-0"
+              className="h-10 w-10 text-slate-500 hover:text-primary hover:bg-accent rounded-xl flex-shrink-0"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
 
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex-shrink-0 shadow-inner">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-primary flex-shrink-0 shadow-inner">
             {viewMode === "stages" ? (
               <Settings className="h-6 w-6" />
             ) : (
@@ -82,7 +82,7 @@ export function FunnelsHeader({
           >
             <Button
               onClick={onNewFunnelClick}
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-6 h-11 rounded-xl flex-1 md:flex-none"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm px-6 h-11 rounded-xl flex-1 md:flex-none"
             >
               <Plus className="h-4 w-4 mr-2" />
               Novo Funil

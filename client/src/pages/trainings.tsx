@@ -103,8 +103,8 @@ export default function Trainings() {
         <PageHeader.Info>
           <PageHeader.Icon
             icon={GraduationCap}
-            color="text-white"
-            bgColor="bg-gradient-to-br from-blue-600 to-indigo-700"
+            color="text-primary"
+            bgColor="bg-accent"
           />
           <PageHeader.Text>
             <PageHeader.Title>Centro de Treinamento</PageHeader.Title>
@@ -117,15 +117,15 @@ export default function Trainings() {
 
       <AppTabs defaultValue="videos" className="space-y-6">
         <UnderlineTabsList>
-          <UnderlineTabsTrigger value="videos" color="blue">
+          <UnderlineTabsTrigger value="videos" color="wine">
             <Video className="h-3.5 w-3.5" />
             Vídeos
           </UnderlineTabsTrigger>
-          <UnderlineTabsTrigger value="documents" color="blue">
+          <UnderlineTabsTrigger value="documents" color="wine">
             <FileText className="h-3.5 w-3.5" />
             Manuais
           </UnderlineTabsTrigger>
-          <UnderlineTabsTrigger value="scripts" color="blue">
+          <UnderlineTabsTrigger value="scripts" color="wine">
             <ScrollText className="h-3.5 w-3.5" />
             Scripts
           </UnderlineTabsTrigger>

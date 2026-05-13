@@ -640,8 +640,8 @@ export default function CalculadoraVinho() {
           <PageHeader.Info>
             <PageHeader.Icon
               icon={Wine}
-              color="text-purple-600 dark:text-purple-400"
-              bgColor="bg-purple-50 dark:bg-purple-900/30"
+              color="text-primary"
+              bgColor="bg-accent"
             />
             <PageHeader.Text>
               <PageHeader.Title>Calculadora de Vinho</PageHeader.Title>

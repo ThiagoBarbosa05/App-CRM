@@ -103,7 +103,7 @@ export default function Configurations() {
     <div className="space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
-          <PageHeader.Icon icon={Settings} />
+          <PageHeader.Icon icon={Settings} color="text-primary" bgColor="bg-accent" />
           <PageHeader.Text>
             <PageHeader.Title>Painel de Configurações</PageHeader.Title>
             <PageHeader.Description>
@@ -119,37 +119,37 @@ export default function Configurations() {
         className="space-y-6"
       >
         <PillTabsList className="flex-wrap h-auto">
-          <PillTabsTrigger value="users" color="blue">
+          <PillTabsTrigger value="users" color="wine">
             <Users className="h-3.5 w-3.5" />Usuários
           </PillTabsTrigger>
-          <PillTabsTrigger value="categories" color="blue">
+          <PillTabsTrigger value="categories" color="wine">
             <Tags className="h-3.5 w-3.5" />Categorias
           </PillTabsTrigger>
-          <PillTabsTrigger value="markers" color="blue">
+          <PillTabsTrigger value="markers" color="wine">
             <Bookmark className="h-3.5 w-3.5" />Marcadores
           </PillTabsTrigger>
-          <PillTabsTrigger value="origins" color="blue">
+          <PillTabsTrigger value="origins" color="wine">
             <Tag className="h-3.5 w-3.5" />Origens
           </PillTabsTrigger>
-          <PillTabsTrigger value="sectors" color="blue">
+          <PillTabsTrigger value="sectors" color="wine">
             <LayoutPanelTop className="h-3.5 w-3.5" />Setores
           </PillTabsTrigger>
-          <PillTabsTrigger value="learning-images" color="blue">
+          <PillTabsTrigger value="learning-images" color="wine">
             <GraduationCap className="h-3.5 w-3.5" />Treinamentos
           </PillTabsTrigger>
-          <PillTabsTrigger value="cashback" color="blue">
+          <PillTabsTrigger value="cashback" color="wine">
             <CircleDollarSign className="h-3.5 w-3.5" />Cashback
           </PillTabsTrigger>
-          <PillTabsTrigger value="debts" color="blue">
+          <PillTabsTrigger value="debts" color="wine">
             <BookMarked className="h-3.5 w-3.5" />Dívidas
           </PillTabsTrigger>
-          <PillTabsTrigger value="export" color="blue">
+          <PillTabsTrigger value="export" color="wine">
             <Download className="h-3.5 w-3.5" />Exportação
           </PillTabsTrigger>
-          <PillTabsTrigger value="automation" color="blue">
+          <PillTabsTrigger value="automation" color="wine">
             <Bot className="h-3.5 w-3.5" />Automação
           </PillTabsTrigger>
-          <PillTabsTrigger value="deal-questions" color="blue">
+          <PillTabsTrigger value="deal-questions" color="wine">
             <HelpCircle className="h-3.5 w-3.5" />Questionário
           </PillTabsTrigger>
           {/* <PillTabsTrigger value="umbler-sync" color="blue">
@@ -158,13 +158,13 @@ export default function Configurations() {
           {/* <PillTabsTrigger value="wine-price-tiers" color="blue">
             <DollarSignIcon className="h-3.5 w-3.5" />Faixas de Preço
           </PillTabsTrigger> */}
-          <PillTabsTrigger value="product-categories" color="blue">
+          <PillTabsTrigger value="product-categories" color="wine">
             <Grid3X3 className="h-3.5 w-3.5" />Cat. Produto
           </PillTabsTrigger>
-          <PillTabsTrigger value="ai-profile" color="purple">
+          <PillTabsTrigger value="ai-profile" color="wine">
             <Sparkles className="h-3.5 w-3.5" />Perfil IA
           </PillTabsTrigger>
-          <PillTabsTrigger value="integrations" color="blue">
+          <PillTabsTrigger value="integrations" color="wine">
             <PlugZap className="h-3.5 w-3.5" />Integrações
           </PillTabsTrigger>
         </PillTabsList>

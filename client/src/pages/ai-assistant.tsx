@@ -304,7 +304,7 @@ export default function AIAssistant() {
         <div className="space-y-6">
           <PageHeader>
             <PageHeader.Info>
-              <PageHeader.Icon icon={Sparkles} />
+              <PageHeader.Icon icon={Sparkles} color="text-primary" bgColor="bg-accent" />
               <PageHeader.Text>
                 <PageHeader.Title>Assistente de IA</PageHeader.Title>
                 <PageHeader.Description>
@@ -316,15 +316,15 @@ export default function AIAssistant() {
 
           <AppTabs defaultValue="wine-assistant" className="w-full">
             <UnderlineTabsList>
-              <UnderlineTabsTrigger value="wine-assistant" color="purple">
+              <UnderlineTabsTrigger value="wine-assistant" color="wine">
                 <Wine className="h-3.5 w-3.5" />
                 Assistente Virtual do Vinho
               </UnderlineTabsTrigger>
-              <UnderlineTabsTrigger value="message-generator" color="blue">
+              <UnderlineTabsTrigger value="message-generator" color="wine">
                 <MessageSquare className="h-3.5 w-3.5" />
                 Gerador de Mensagens
               </UnderlineTabsTrigger>
-              <UnderlineTabsTrigger value="ai-config" color="teal">
+              <UnderlineTabsTrigger value="ai-config" color="wine">
                 <Settings className="h-3.5 w-3.5" />
                 Configurações da IA
               </UnderlineTabsTrigger>

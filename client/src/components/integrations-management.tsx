@@ -9,11 +9,44 @@ import BlingAccountsManagement from "@/components/bling-accounts-management";
 import { TelephonyAISettings } from "@/components/telephony-ai-settings";
 import { useQuery } from "@tanstack/react-query";
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
+import { cn } from "@/lib/utils";
 
 interface TelephonyStatus {
   twilio: boolean;
   elevenlabs: boolean;
   voiceSdk: boolean;
+}
+
+interface LogoImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+  fallbackText: string;
+}
+
+function LogoImage({ src, alt, className, fallbackText }: LogoImageProps) {
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+
+  return (
+    <span className="relative inline-flex items-center">
+      {status === "loading" && (
+        <span className="absolute inset-0 animate-pulse rounded bg-current opacity-10" />
+      )}
+      {status === "error" ? (
+        <span className="text-[0.65rem] font-bold leading-none tracking-tight">
+          {fallbackText}
+        </span>
+      ) : (
+        <img
+          src={src}
+          alt={alt}
+          className={cn(className, status === "loading" && "opacity-0")}
+          onLoad={() => setStatus("loaded")}
+          onError={() => setStatus("error")}
+        />
+      )}
+    </span>
+  );
 }
 
 function StatusDot({ active }: { active: boolean }) {
@@ -48,17 +81,17 @@ export function IntegrationsManagement() {
       <AppTabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <PillTabsList>
           <PillTabsTrigger value="bling" color="green" className="gap-2.5 px-4 py-2.5" title="Bling">
-            <img src="/bling.svg" alt="Bling" className="h-4 w-auto" />
+            <LogoImage src="/bling.svg" alt="Bling" className="h-4 w-auto" fallbackText="Bling" />
             <StatusDot active={blingConnected} />
           </PillTabsTrigger>
 
           <PillTabsTrigger value="twilio" color="red" className="gap-2.5 px-4 py-2.5" title="Twilio">
-            <img src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" />
+            <LogoImage src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" fallbackText="Twilio" />
             <StatusDot active={twilioActive} />
           </PillTabsTrigger>
 
           <PillTabsTrigger value="elevenlabs" color="teal" className="gap-2.5 px-4 py-2.5" title="ElevenLabs">
-            <img src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" />
+            <LogoImage src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" fallbackText="ElevenLabs" />
             <StatusDot active={elevenLabsActive} />
           </PillTabsTrigger>
         </PillTabsList>

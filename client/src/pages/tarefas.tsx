@@ -3047,8 +3047,8 @@ export default function TarefasPage() {
         <PageHeader.Info>
           <PageHeader.Icon
             icon={ClipboardList}
-            color="text-purple-600 dark:text-purple-400"
-            bgColor="bg-purple-50 dark:bg-purple-900/30"
+            color="text-primary"
+            bgColor="bg-accent"
           />
           <PageHeader.Text>
             <PageHeader.Title>
@@ -3152,19 +3152,19 @@ export default function TarefasPage() {
         >
           <UnderlineTabsList>
             {canManage && (
-              <UnderlineTabsTrigger value="boards" color="purple">
+              <UnderlineTabsTrigger value="boards" color="wine">
                 <LayoutGrid className="h-3.5 w-3.5" />
                 Boards
               </UnderlineTabsTrigger>
             )}
-            <UnderlineTabsTrigger value="minhas" color="purple">
+            <UnderlineTabsTrigger value="minhas" color="wine">
               <List className="h-3.5 w-3.5" />
               Minhas Tarefas
               {myTasks.filter((t) => {
                 const stage = allStages.find((s) => s.slug === t.status);
                 return !stage || !stage.name.toLowerCase().includes("conclu");
               }).length > 0 && (
-                <span className="ml-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+                <span className="ml-0.5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
                   {
                     myTasks.filter((t) => {
                       const stage = allStages.find((s) => s.slug === t.status);
@@ -3176,11 +3176,11 @@ export default function TarefasPage() {
                 </span>
               )}
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="anotacoes" color="purple">
+            <UnderlineTabsTrigger value="anotacoes" color="wine">
               <NotebookPen className="h-3.5 w-3.5" />
               Anotações
             </UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="arquivos" color="purple">
+            <UnderlineTabsTrigger value="arquivos" color="wine">
               <Folder className="h-3.5 w-3.5" />
               Arquivos
             </UnderlineTabsTrigger>
@@ -3198,7 +3198,7 @@ export default function TarefasPage() {
                   <p>Nenhum board ainda.</p>
                   <button
                     onClick={() => setAddBoardOpen(true)}
-                    className="text-purple-600 text-sm hover:underline mt-1"
+                    className="text-primary text-sm hover:underline mt-1"
                   >
                     Criar primeiro board
                   </button>
@@ -3218,7 +3218,7 @@ export default function TarefasPage() {
                   ))}
                   <button
                     onClick={() => setAddBoardOpen(true)}
-                    className="rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-purple-400 dark:hover:border-purple-600 flex flex-col items-center justify-center gap-2 py-10 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                    className="rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-primary flex flex-col items-center justify-center gap-2 py-10 text-slate-400 hover:text-primary transition-colors"
                   >
                     <Plus className="h-8 w-8" />
                     <span className="text-sm font-medium">Novo Board</span>
