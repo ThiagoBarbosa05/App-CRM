@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { referrals, clients } from "../../shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import type { Referral } from "../../shared/schema";
 
 export interface ReferralStats {
@@ -72,6 +72,7 @@ export const referralsService = {
     referrerId: string;
     referredName: string;
     referredPhone: string;
+    createdByUserId: string | null;
   }): Promise<Referral> {
     const phone = data.referredPhone.replace(/\D/g, "");
 
@@ -104,6 +105,7 @@ export const referralsService = {
           origem: "Indicação",
           status: "pending",
           markers: [],
+          responsavelId: data.createdByUserId,
         })
         .returning({ id: clients.id });
 
@@ -184,6 +186,75 @@ export const referralsService = {
         .set({ referredClientId: clientId })
         .where(eq(referrals.id, referral.id));
     }
+  },
+
+  async getProgramData(
+    userId: string,
+    userRole: string,
+  ): Promise<{
+    referrals: Array<{
+      id: string;
+      referrerId: string;
+      referrerName: string;
+      referredName: string;
+      referredPhone: string;
+      referredClientId: string | null;
+      messageSent: boolean;
+      hasPurchased: boolean;
+      purchasedAt: Date | null;
+      createdAt: Date;
+      benefit1DeliveredAt: Date | null;
+      benefit2DeliveredAt: Date | null;
+    }>;
+    stats: {
+      totalReferrals: number;
+      totalPurchased: number;
+      conversionRate: number;
+      clientsWithBenefit1: number;
+      clientsWithBenefit2: number;
+    };
+  }> {
+    const rows = await db
+      .select({
+        id: referrals.id,
+        referrerId: referrals.referrerId,
+        referrerName: clients.name,
+        referredName: referrals.referredName,
+        referredPhone: referrals.referredPhone,
+        referredClientId: referrals.referredClientId,
+        messageSent: referrals.messageSent,
+        hasPurchased: referrals.hasPurchased,
+        purchasedAt: referrals.purchasedAt,
+        createdAt: referrals.createdAt,
+        benefit1DeliveredAt: clients.referralBenefit1At,
+        benefit2DeliveredAt: clients.referralBenefit2At,
+      })
+      .from(referrals)
+      .innerJoin(clients, eq(referrals.referrerId, clients.id))
+      .orderBy(referrals.createdAt);
+
+    const totalReferrals = rows.length;
+    const totalPurchased = rows.filter((r) => r.hasPurchased).length;
+    const conversionRate =
+      totalReferrals > 0 ? Math.round((totalPurchased / totalReferrals) * 100) : 0;
+
+    const referrerIds = Array.from(new Set(rows.map((r) => r.referrerId)));
+    const referrers = await db
+      .select({
+        id: clients.id,
+        b1: clients.referralBenefit1At,
+        b2: clients.referralBenefit2At,
+      })
+      .from(clients)
+      .where(referrerIds.length > 0 ? inArray(clients.id, referrerIds) : eq(clients.id, "none"));
+
+    const clientsWithBenefit1 = referrers.filter((r) => r.b1 !== null).length;
+    const clientsWithBenefit2 = referrers.filter((r) => r.b2 !== null).length;
+
+    return {
+      referrals: rows,
+      stats: { totalReferrals, totalPurchased, conversionRate, clientsWithBenefit1, clientsWithBenefit2 },
+    };
   },
 
   async getReferrerByClientId(clientId: string): Promise<ReferrerInfo | null> {

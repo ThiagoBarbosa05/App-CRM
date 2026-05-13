@@ -450,13 +450,17 @@ function SellerRankingCard({ sellers }: { sellers: SellerRankingRow[] }) {
 export function AggregateView({
   startDate,
   endDate,
+  prevStartDate,
+  prevEndDate,
 }: {
   startDate: string;
   endDate: string;
+  prevStartDate?: string;
+  prevEndDate?: string;
 }) {
   const [source, setSource] = useState<OrderSource>("all");
 
-  const qs = `startDate=${startDate}&endDate=${endDate}`;
+  const qs = `startDate=${startDate}&endDate=${endDate}${prevStartDate ? `&prevStartDate=${prevStartDate}` : ""}${prevEndDate ? `&prevEndDate=${prevEndDate}` : ""}`;
 
   const { data: summaryData, isLoading: isSummaryLoading } = useQuery<
     Pick<AggregateDashboardData, "monthlySummary" | "prevMonthSummary">
@@ -494,7 +498,7 @@ export function AggregateView({
 
   // Hooks unificados para KPIs e gráfico filtráveis por origem
   const { data: salesComparison, isLoading: isComparisonLoading } =
-    useUnifiedSalesComparison(startDate, endDate, source);
+    useUnifiedSalesComparison(startDate, endDate, source, prevStartDate, prevEndDate);
   const { data: unifiedEvolution = [], isLoading: isEvolutionLoading } =
     useUnifiedSalesEvolution(startDate, endDate, groupBy, source);
 

@@ -413,15 +413,19 @@ export function IndividualSellerView({
   isOwnView,
   startDate,
   endDate,
+  prevStartDate,
+  prevEndDate,
 }: {
   sellerId: string;
   isOwnView: boolean;
   startDate: string;
   endDate: string;
+  prevStartDate?: string;
+  prevEndDate?: string;
 }) {
   const [source, setSource] = useState<OrderSource>("all");
 
-  const queryUrl = `/api/users/${sellerId}/seller-dashboard?startDate=${startDate}&endDate=${endDate}`;
+  const queryUrl = `/api/users/${sellerId}/seller-dashboard?startDate=${startDate}&endDate=${endDate}${prevStartDate ? `&prevStartDate=${prevStartDate}` : ""}${prevEndDate ? `&prevEndDate=${prevEndDate}` : ""}`;
   const { data, isLoading, isError, error } = useQuery<DashboardData>({
     queryKey: [queryUrl],
     enabled: !!sellerId,

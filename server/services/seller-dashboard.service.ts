@@ -240,6 +240,8 @@ export async function getSellerDashboard(
   startDate?: string,
   endDate?: string,
   scope?: ClientAnalyticsScope,
+  prevStartDateOverride?: string,
+  prevEndDateOverride?: string,
 ): Promise<SellerDashboardResult> {
   const [inactiveDays, winePriceTierThresholds] = await Promise.all([
     getPurchaseStatusDays(),
@@ -250,14 +252,21 @@ export async function getSellerDashboard(
   const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
   const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
 
-  const duration = differenceInCalendarDays(
-    parseISO(currentEnd),
-    parseISO(currentStart),
-  );
-  const prevEndDate = subDays(parseISO(currentStart), 1);
-  const prevStartDate = subDays(prevEndDate, duration);
-  const prevStart = format(prevStartDate, "yyyy-MM-dd");
-  const prevEnd = format(prevEndDate, "yyyy-MM-dd");
+  let prevStart: string;
+  let prevEnd: string;
+  if (prevStartDateOverride && prevEndDateOverride) {
+    prevStart = prevStartDateOverride;
+    prevEnd = prevEndDateOverride;
+  } else {
+    const duration = differenceInCalendarDays(
+      parseISO(currentEnd),
+      parseISO(currentStart),
+    );
+    const prevEndDate = subDays(parseISO(currentStart), 1);
+    const prevStartDate = subDays(prevEndDate, duration);
+    prevStart = format(prevStartDate, "yyyy-MM-dd");
+    prevEnd = format(prevEndDate, "yyyy-MM-dd");
+  }
   const scopedClientIds = await resolveScopedClientIds(scope);
 
   const EMPTY_PORTFOLIO: ClientPortfolioStats = {
@@ -984,15 +993,24 @@ export async function getAggregateDashboard(
 export async function getAggregateSummaryData(
   startDate?: string,
   endDate?: string,
+  prevStartDateOverride?: string,
+  prevEndDateOverride?: string,
 ): Promise<{ monthlySummary: MonthlySummary; prevMonthSummary: MonthlySummary }> {
   const now = new Date();
   const currentStart = startDate ?? format(startOfMonth(now), "yyyy-MM-dd");
   const currentEnd = endDate ?? format(endOfMonth(now), "yyyy-MM-dd");
 
-  const duration = differenceInCalendarDays(parseISO(currentEnd), parseISO(currentStart));
-  const prevEndDate = subDays(parseISO(currentStart), 1);
-  const prevStart = format(subDays(prevEndDate, duration), "yyyy-MM-dd");
-  const prevEnd = format(prevEndDate, "yyyy-MM-dd");
+  let prevStart: string;
+  let prevEnd: string;
+  if (prevStartDateOverride && prevEndDateOverride) {
+    prevStart = prevStartDateOverride;
+    prevEnd = prevEndDateOverride;
+  } else {
+    const duration = differenceInCalendarDays(parseISO(currentEnd), parseISO(currentStart));
+    const prevEndDate = subDays(parseISO(currentStart), 1);
+    prevStart = format(subDays(prevEndDate, duration), "yyyy-MM-dd");
+    prevEnd = format(prevEndDate, "yyyy-MM-dd");
+  }
 
   const [monthlySummary, prevMonthSummary] = await Promise.all([
     fetchAggregateSummary(currentStart, currentEnd).catch(() => EMPTY_SUMMARY),

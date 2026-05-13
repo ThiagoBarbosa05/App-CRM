@@ -12,6 +12,14 @@ const baseQuerySchema = z.object({
     .string()
     .regex(dateRegex, "Data final deve estar no formato YYYY-MM-DD"),
   source: z.enum(["bling", "connect", "all"]).optional().default("all"),
+  prevStartDate: z
+    .string()
+    .regex(dateRegex, "Data inicial anterior deve estar no formato YYYY-MM-DD")
+    .optional(),
+  prevEndDate: z
+    .string()
+    .regex(dateRegex, "Data final anterior deve estar no formato YYYY-MM-DD")
+    .optional(),
 });
 
 const listQuerySchema = baseQuerySchema.extend({
@@ -113,6 +121,8 @@ export class UnifiedOrdersController {
         query.startDate,
         query.endDate,
         query.source,
+        query.prevStartDate,
+        query.prevEndDate,
       );
       return res.json({ success: true, data });
     } catch (error) {

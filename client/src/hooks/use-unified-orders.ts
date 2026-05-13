@@ -135,6 +135,8 @@ export function useUnifiedSalesComparison(
   startDate: string,
   endDate: string,
   source: OrderSource = "all",
+  prevStartDate?: string,
+  prevEndDate?: string,
 ) {
   return useQuery<UnifiedSalesComparison>({
     queryKey: [
@@ -142,10 +144,15 @@ export function useUnifiedSalesComparison(
       startDate,
       endDate,
       source,
+      prevStartDate,
+      prevEndDate,
     ],
     queryFn: async () => {
+      const params = new URLSearchParams({ startDate, endDate, source });
+      if (prevStartDate) params.set("prevStartDate", prevStartDate);
+      if (prevEndDate) params.set("prevEndDate", prevEndDate);
       const res = await fetch(
-        `/api/unified-orders/statistics/sales-comparison?startDate=${startDate}&endDate=${endDate}&source=${source}`,
+        `/api/unified-orders/statistics/sales-comparison?${params}`,
       );
       const json = await res.json();
       if (!json.success) throw new Error(json.error);

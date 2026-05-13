@@ -130,6 +130,16 @@ export default function DashboardPage() {
     [dateRange.to],
   );
 
+  // Quando o filtro é "Este mês", compara contra o mesmo intervalo do mês anterior
+  // (ex: 01/05–13/05 compara com 01/04–13/04, não com 18/04–30/04)
+  const { prevStartDate, prevEndDate } = useMemo(() => {
+    if (datePreset !== "este-mes") return { prevStartDate: undefined, prevEndDate: undefined };
+    return {
+      prevStartDate: format(subMonths(dateRange.from!, 1), "yyyy-MM-dd"),
+      prevEndDate: format(subMonths(dateRange.to!, 1), "yyyy-MM-dd"),
+    };
+  }, [datePreset, dateRange.from, dateRange.to]);
+
   // ── Seletor de vendedor (admin) ────────────────────────────────────────────
   const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
   const [connectImportOpen, setConnectImportOpen] = useState(false);
@@ -364,7 +374,12 @@ export default function DashboardPage() {
 
             <TabsContent value="vendas" className="m-0 outline-none">
               {showAggregateView ? (
-                <AggregateView startDate={startDate} endDate={endDate} />
+                <AggregateView
+                  startDate={startDate}
+                  endDate={endDate}
+                  prevStartDate={prevStartDate}
+                  prevEndDate={prevEndDate}
+                />
               ) : (
                 user && (
                   <IndividualSellerView
@@ -372,6 +387,8 @@ export default function DashboardPage() {
                     isOwnView={!isAdmin || selectedSellerId === user.id}
                     startDate={startDate}
                     endDate={endDate}
+                    prevStartDate={prevStartDate}
+                    prevEndDate={prevEndDate}
                   />
                 )
               )}

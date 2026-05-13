@@ -20,6 +20,7 @@ export const postReferralController = async (req: Request, res: Response) => {
       referrerId: clientId,
       referredName: parsed.data.referredName,
       referredPhone: parsed.data.referredPhone,
+      createdByUserId: req.user?.userId ?? null,
     });
 
     return res.status(201).json(referral);

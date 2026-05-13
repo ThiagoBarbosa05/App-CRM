@@ -29,6 +29,8 @@ export async function getSellerDashboardController(req: Request, res: Response) 
 
     const startDate = typeof req.query.startDate === "string" ? req.query.startDate : undefined;
     const endDate = typeof req.query.endDate === "string" ? req.query.endDate : undefined;
+    const prevStartDate = typeof req.query.prevStartDate === "string" ? req.query.prevStartDate : undefined;
+    const prevEndDate = typeof req.query.prevEndDate === "string" ? req.query.prevEndDate : undefined;
     const { userId: requestUserId, userRole: requestUserRole, filters } =
       clientsService.processRequestParams(req);
 
@@ -43,6 +45,8 @@ export async function getSellerDashboardController(req: Request, res: Response) 
         filterUserId: user.id,
         filters,
       },
+      prevStartDate,
+      prevEndDate,
     );
 
     return res.json({ success: true, seller: { id: user.id, name: user.name }, ...data });

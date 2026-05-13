@@ -34,6 +34,7 @@ import EventsPage from "./pages/events";
 import TarefasPage from "./pages/tarefas";
 import RankingPage from "./pages/ranking";
 import TelemarketingPage from "./pages/telemarketing";
+import ReferralProgramPage from "./pages/referral-program";
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -244,6 +245,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <TelemarketingPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/indicacoes"
+        component={() => (
+          <MainLayout>
+            <ReferralProgramPage />
           </MainLayout>
         )}
       />

@@ -45,7 +45,9 @@
       "Bash(sed -n '3253,3275p' /home/runner/workspace/shared/schema.ts)",
       "Bash(awk 'NR<=2420 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)",
       "Bash(awk 'NR<=3431 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)",
-      "Bash(awk 'NR<=3356 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)"
+      "Bash(awk 'NR<=3356 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)",
+      "Bash(xargs ls -la)",
+      "Bash(git stash *)"
     ]
   }
 }

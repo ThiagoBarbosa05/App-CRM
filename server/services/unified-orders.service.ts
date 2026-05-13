@@ -315,8 +315,12 @@ export const unifiedOrdersService = {
     startDate: string,
     endDate: string,
     source: Source = "all",
+    prevStartDate?: string,
+    prevEndDate?: string,
   ): Promise<UnifiedSalesComparison> {
-    const { prevStart, prevEnd } = getPreviousPeriod(startDate, endDate);
+    const { prevStart: defaultPrevStart, prevEnd: defaultPrevEnd } = getPreviousPeriod(startDate, endDate);
+    const prevStart = prevStartDate ?? defaultPrevStart;
+    const prevEnd = prevEndDate ?? defaultPrevEnd;
 
     const [current, previous] = await Promise.all([
       unifiedOrdersService.getSalesStatistics(startDate, endDate, source),
