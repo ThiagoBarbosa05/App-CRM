@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   XCircle,
   ShoppingCart,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +82,10 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
 
   const { data: systemSettings } = useQuery<Record<string, string>>({
     queryKey: ["/api/system-settings"],
+  });
+
+  const { data: referrer } = useQuery<{ id: string; name: string } | null>({
+    queryKey: [`/api/clients/${client.id}/referrer`],
   });
   const purchaseStatusDays = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
   const lastPurchaseDate = (client as any).lastPurchaseDate as string | null | undefined;
@@ -314,7 +319,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
             </div>
           )}
 
-          {hasCommercialInfo ? (
+          {hasCommercialInfo || referrer ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {client.categoria && (
                 <CommercialTile label="Categoria">
@@ -335,6 +340,22 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                   >
                     {client.origem}
                   </Badge>
+                </CommercialTile>
+              )}
+
+              {referrer && (
+                <CommercialTile label="Indicado por">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center shrink-0">
+                      <Users className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    <a
+                      href={`/clientes/${referrer.id}`}
+                      className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      {referrer.name}
+                    </a>
+                  </div>
                 </CommercialTile>
               )}
             </div>

@@ -1117,6 +1117,13 @@ export class BlingOrdersService {
         console.error("[BlingOrdersService] Erro ao registrar venda:", error);
       }
 
+      try {
+        const { referralsService } = await import("./referrals.service");
+        await referralsService.checkAndMarkPurchase(appClient.id);
+      } catch (error) {
+        console.error("[BlingOrdersService] Erro ao verificar indicação:", error);
+      }
+
       // TODO: Sincronização do saldo de cashback com campo customizado do Umbler
       // Desabilitado temporariamente para testes. Para habilitar, descomentar e
       // buscar o umblerContactId do appClient para chamar createCashback/updateCashback.

@@ -892,6 +892,37 @@ export const interactionWeeklyResults = pgTable("interaction_weekly_results", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Tabela de indicações (programa de referral)
+export const referrals = pgTable("referrals", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  referrerId: varchar("referrer_id")
+    .references(() => clients.id, { onDelete: "cascade" })
+    .notNull(),
+  referredName: text("referred_name").notNull(),
+  referredPhone: text("referred_phone").notNull(),
+  referredClientId: varchar("referred_client_id").references(
+    () => clients.id,
+    { onDelete: "set null" },
+  ),
+  messageSent: boolean("message_sent").notNull().default(false),
+  hasPurchased: boolean("has_purchased").notNull().default(false),
+  purchasedAt: timestamp("purchased_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertReferralSchema = createInsertSchema(referrals).omit({
+  id: true,
+  createdAt: true,
+  hasPurchased: true,
+  purchasedAt: true,
+  messageSent: true,
+});
+
+export type InsertReferral = z.infer<typeof insertReferralSchema>;
+export type Referral = typeof referrals.$inferSelect;
+
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(
   birthdayReminders,

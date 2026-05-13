@@ -364,6 +364,14 @@ export class ClientsService {
         console.error("[Bling] Erro ao sincronizar cliente criado:", err),
       );
 
+      if (client.phone) {
+        void import("./referrals.service").then(({ referralsService }) =>
+          referralsService.matchReferralByPhone(client.phone!, client.id),
+        ).catch((err) =>
+          console.error("[Referral] Erro ao vincular indicação:", err),
+        );
+      }
+
       void ensureClientInDesvendandoVinhoFunnel(client.id).catch((err) =>
         console.error("[DesvendandoVinhoFunnel] Erro ao incluir cliente criado:", err),
       );

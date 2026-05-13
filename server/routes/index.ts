@@ -74,6 +74,7 @@ import {
   interactionGoalsRouter,
   interactionStatsRouter,
 } from "./interaction-goals.routes";
+import { referralsRouter } from "./referrals.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -160,3 +161,4 @@ apiRouter.use("/note-sections", noteSectionsRouter);
 apiRouter.use("/notes", notesRouter);
 apiRouter.use("/task-file-folders", taskFileFoldersRouter);
 apiRouter.use("/task-files", taskFilesRouter);
+apiRouter.use("/referrals", referralsRouter);

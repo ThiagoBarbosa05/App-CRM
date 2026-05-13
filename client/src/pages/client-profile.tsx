@@ -23,6 +23,7 @@ import {
   Edit,
   GitBranch,
   ShoppingBag,
+  Users,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -36,6 +37,7 @@ import { ClientPurchasesTab } from "@/components/clients/client-purchases-tab";
 import { ClientEventsTab } from "@/components/clients/client-events-tab";
 import { ClientWineProfileTab } from "@/components/clients/client-wine-profile-tab";
 import { ClientTelemarketingTab } from "@/components/clients/client-telemarketing-tab";
+import { ClientReferralsTab } from "@/components/clients/client-referrals-tab";
 import ClientFormModal from "@/components/client-form-modal";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -282,6 +284,11 @@ export default function ClientProfilePage() {
                 <Phone className="h-3.5 w-3.5" />
                 Telemarketing
               </UnderlineTabsTrigger>
+
+              <UnderlineTabsTrigger value="indicacoes" color="indigo">
+                <Users className="h-3.5 w-3.5" />
+                Indicações
+              </UnderlineTabsTrigger>
             </UnderlineTabsList>
           </div>
 
@@ -343,6 +350,10 @@ export default function ClientProfilePage() {
 
                 {activeTab === "telemarketing" && (
                   <ClientTelemarketingTab clientId={client.id} />
+                )}
+
+                {activeTab === "indicacoes" && (
+                  <ClientReferralsTab clientId={client.id} />
                 )}
               </motion.div>
             </AnimatePresence>
