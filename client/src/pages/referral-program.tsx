@@ -483,7 +483,7 @@ export default function ReferralProgramPage() {
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="text-slate-400 text-xs gap-1">
-                      <Clock className="h-3 w-3" /> Aguardando
+                      <Clock className="h-3 w-3" /> Ainda não comprou
                     </Badge>
                   )}
                   {r.messageSent && (
