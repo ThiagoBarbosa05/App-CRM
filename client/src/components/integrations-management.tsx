@@ -25,7 +25,9 @@ interface LogoImageProps {
 }
 
 function LogoImage({ src, alt, className, fallbackText }: LogoImageProps) {
-  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">(
+    "loading",
+  );
 
   return (
     <span className="relative inline-flex items-center">
@@ -78,20 +80,54 @@ export function IntegrationsManagement() {
 
   return (
     <div className="space-y-6">
-      <AppTabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <AppTabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <PillTabsList>
-          <PillTabsTrigger value="bling" color="green" className="gap-2.5 px-4 py-2.5" title="Bling">
-            <LogoImage src="/bling.svg" alt="Bling" className="h-4 w-auto" fallbackText="Bling" />
+          <PillTabsTrigger
+            value="bling"
+            color="green"
+            className="gap-2.5 px-4 py-2.5"
+            title="Bling"
+          >
+            <LogoImage
+              src="/bling.svg"
+              alt="Bling"
+              className="h-4 w-auto"
+              fallbackText="Bling"
+            />
             <StatusDot active={blingConnected} />
           </PillTabsTrigger>
 
-          <PillTabsTrigger value="twilio" color="red" className="gap-2.5 px-4 py-2.5" title="Twilio">
-            <LogoImage src="/twilio-login-logo.svg" alt="Twilio" className="h-3.5 w-auto" fallbackText="Twilio" />
+          <PillTabsTrigger
+            value="twilio"
+            color="red"
+            className="gap-2.5 px-4 py-2.5"
+            title="Twilio"
+          >
+            <LogoImage
+              src="/twilio-login-logo.svg"
+              alt="Twilio"
+              className="h-3.5 w-auto"
+              fallbackText="Twilio"
+            />
             <StatusDot active={twilioActive} />
           </PillTabsTrigger>
 
-          <PillTabsTrigger value="elevenlabs" color="teal" className="gap-2.5 px-4 py-2.5" title="ElevenLabs">
-            <LogoImage src="/elevenlabs-logo-black.svg" alt="ElevenLabs" className="h-3 w-auto dark:invert" fallbackText="ElevenLabs" />
+          <PillTabsTrigger
+            value="elevenlabs"
+            color="teal"
+            className="gap-2.5 px-4 py-2.5"
+            title="ElevenLabs"
+          >
+            <LogoImage
+              src="/elevenlabs-logo-black.svg"
+              alt="ElevenLabs"
+              className="h-3 w-auto dark:invert"
+              fallbackText="ElevenLabs"
+            />
             <StatusDot active={elevenLabsActive} />
           </PillTabsTrigger>
         </PillTabsList>

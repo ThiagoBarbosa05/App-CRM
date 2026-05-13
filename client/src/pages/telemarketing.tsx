@@ -47,7 +47,11 @@ export default function TelemarketingPage() {
         {/* Cabeçalho */}
         <PageHeader>
           <PageHeader.Info>
-            <PageHeader.Icon icon={Phone} color="text-primary" bgColor="bg-accent" />
+            <PageHeader.Icon
+              icon={Phone}
+              color="text-primary"
+              bgColor="bg-accent"
+            />
             <PageHeader.Text>
               <PageHeader.Title>Telemarketing</PageHeader.Title>
               <PageHeader.Description>

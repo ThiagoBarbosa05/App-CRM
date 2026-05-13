@@ -558,17 +558,26 @@ export default function Cashback() {
       <div className="space-y-6 pb-10">
         <PageHeader>
           <PageHeader.Info>
-            <PageHeader.Icon icon={Gift} color="text-primary" bgColor="bg-accent" />
+            <PageHeader.Icon
+              icon={Gift}
+              color="text-primary"
+              bgColor="bg-accent"
+            />
             <PageHeader.Text>
               <PageHeader.Title>Sistema de Cashback</PageHeader.Title>
               <PageHeader.Description>
-                Gestão estratégica de recompensas, saldos e fidelização de clientes
+                Gestão estratégica de recompensas, saldos e fidelização de
+                clientes
               </PageHeader.Description>
             </PageHeader.Text>
           </PageHeader.Info>
         </PageHeader>
 
-        <AppTabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+        <AppTabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="w-full space-y-6"
+        >
           <UnderlineTabsList>
             <UnderlineTabsTrigger value="overview" color="wine">
               <Gift className="h-3.5 w-3.5" />

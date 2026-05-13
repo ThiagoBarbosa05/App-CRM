@@ -304,7 +304,11 @@ export default function AIAssistant() {
         <div className="space-y-6">
           <PageHeader>
             <PageHeader.Info>
-              <PageHeader.Icon icon={Sparkles} color="text-primary" bgColor="bg-accent" />
+              <PageHeader.Icon
+                icon={Sparkles}
+                color="text-primary"
+                bgColor="bg-accent"
+              />
               <PageHeader.Text>
                 <PageHeader.Title>Assistente de IA</PageHeader.Title>
                 <PageHeader.Description>

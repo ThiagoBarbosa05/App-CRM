@@ -652,12 +652,22 @@ export default function CalculadoraVinho() {
           </PageHeader.Info>
           <PageHeader.Actions>
             {result && guestsNum > 0 && (
-              <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 text-purple-600 border-purple-200 bg-white hover:bg-purple-50 dark:border-purple-800 dark:bg-slate-950 dark:hover:bg-purple-900/20">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePrint}
+                className="gap-2 text-purple-600 border-purple-200 bg-white hover:bg-purple-50 dark:border-purple-800 dark:bg-slate-950 dark:hover:bg-purple-900/20"
+              >
                 <FileDown className="h-4 w-4" />
                 Gerar PDF
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={reset} className="gap-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={reset}
+              className="gap-2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+            >
               <RotateCcw className="h-4 w-4" />
               Limpar
             </Button>

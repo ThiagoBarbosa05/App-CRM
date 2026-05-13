@@ -5,12 +5,7 @@ import {
   UnderlineTabsTrigger,
   AppTabsContent,
 } from "@/components/app-tabs";
-import {
-  GraduationCap,
-  Video,
-  FileText,
-  ScrollText
-} from "lucide-react";
+import { GraduationCap, Video, FileText, ScrollText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
@@ -26,7 +21,9 @@ export default function Trainings() {
   const { user } = useAuth();
   const [selectedVideo, setSelectedVideo] = useState<Training | null>(null);
 
-  const { data: trainingVideos, isLoading: isLoadingVideos } = useQuery<Training[]>({
+  const { data: trainingVideos, isLoading: isLoadingVideos } = useQuery<
+    Training[]
+  >({
     queryKey: ["/api/trainings?type=video"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=video");
@@ -35,12 +32,16 @@ export default function Trainings() {
       return videos.sort((a: Training, b: Training) => {
         const orderA = a.displayOrder ?? 999999;
         const orderB = b.displayOrder ?? 999999;
-        return orderA !== orderB ? orderA - orderB : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return orderA !== orderB
+          ? orderA - orderB
+          : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
     },
   });
 
-  const { data: trainingDocument, isLoading: isLoadingDocuments } = useQuery<Training[]>({
+  const { data: trainingDocument, isLoading: isLoadingDocuments } = useQuery<
+    Training[]
+  >({
     queryKey: ["/api/trainings?type=document"],
     queryFn: async () => {
       const response = await fetch("/api/trainings?type=document");
@@ -49,7 +50,9 @@ export default function Trainings() {
       return documents.sort((a: Training, b: Training) => {
         const orderA = a.displayOrder ?? 999999;
         const orderB = b.displayOrder ?? 999999;
-        return orderA !== orderB ? orderA - orderB : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return orderA !== orderB
+          ? orderA - orderB
+          : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
     },
   });
@@ -63,14 +66,20 @@ export default function Trainings() {
       return data.sort((a: Training, b: Training) => {
         const orderA = a.displayOrder ?? 999999;
         const orderB = b.displayOrder ?? 999999;
-        return orderA !== orderB ? orderA - orderB : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return orderA !== orderB
+          ? orderA - orderB
+          : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       });
     },
   });
 
   const isAdmin = user?.role === "admin";
 
-  const moveTraining = async (trainingId: string, direction: "up" | "down", type: string) => {
+  const moveTraining = async (
+    trainingId: string,
+    direction: "up" | "down",
+    type: string,
+  ) => {
     try {
       const response = await fetch(`/api/trainings/${trainingId}/order`, {
         method: "PUT",
@@ -91,7 +100,8 @@ export default function Trainings() {
       console.error("Erro ao atualizar ordem:", error);
       toast({
         title: "Erro ao atualizar ordem",
-        description: error instanceof Error ? error.message : "Erro desconhecido.",
+        description:
+          error instanceof Error ? error.message : "Erro desconhecido.",
         variant: "destructive",
       });
     }
