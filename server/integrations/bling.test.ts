@@ -11,7 +11,10 @@ test("createBlingContato normalizes payload and returns created id", async () =>
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;
 
-  globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
+  globalThis.fetch = async (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
     calls.push({ url: String(input), init });
 
     return new Response(JSON.stringify({ data: { id: 12345678 } }), {
@@ -38,7 +41,7 @@ test("createBlingContato normalizes payload and returns created id", async () =>
 
     assert.deepEqual(result, { id: 12345678 });
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]?.url, "https://www.bling.com.br/Api/v3/contatos");
+    assert.equal(calls[0]?.url, "https://api.bling.com.br/Api/v3/contatos");
     assert.equal(calls[0]?.init?.method, "POST");
 
     const headers = new Headers(calls[0]?.init?.headers);
@@ -46,7 +49,10 @@ test("createBlingContato normalizes payload and returns created id", async () =>
     assert.equal(headers.get("Content-Type"), "application/json");
     assert.equal(headers.get("Accept"), "application/json");
 
-    const body = JSON.parse(String(calls[0]?.init?.body)) as Record<string, unknown>;
+    const body = JSON.parse(String(calls[0]?.init?.body)) as Record<
+      string,
+      unknown
+    >;
 
     assert.deepEqual(body, {
       nome: "Contato",
@@ -69,7 +75,10 @@ test("updateBlingContato sends PUT with normalized payload and succeeds on 204",
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;
 
-  globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
+  globalThis.fetch = async (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
     calls.push({ url: String(input), init });
 
     return new Response(null, {
@@ -95,7 +104,10 @@ test("updateBlingContato sends PUT with normalized payload and succeeds on 204",
     });
 
     assert.equal(calls.length, 1);
-    assert.equal(calls[0]?.url, "https://www.bling.com.br/Api/v3/contatos/987654");
+    assert.equal(
+      calls[0]?.url,
+      "https://api.bling.com.br/Api/v3/contatos/987654",
+    );
     assert.equal(calls[0]?.init?.method, "PUT");
 
     const headers = new Headers(calls[0]?.init?.headers);
@@ -103,7 +115,10 @@ test("updateBlingContato sends PUT with normalized payload and succeeds on 204",
     assert.equal(headers.get("Content-Type"), "application/json");
     assert.equal(headers.get("Accept"), "application/json");
 
-    const body = JSON.parse(String(calls[0]?.init?.body)) as Record<string, unknown>;
+    const body = JSON.parse(String(calls[0]?.init?.body)) as Record<
+      string,
+      unknown
+    >;
 
     assert.deepEqual(body, {
       nome: "Contato Atualizado",
@@ -126,7 +141,10 @@ test("getBlingContatos normalizes query params and returns contact summaries", a
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   const originalFetch = globalThis.fetch;
 
-  globalThis.fetch = async (input: string | URL | Request, init?: RequestInit) => {
+  globalThis.fetch = async (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
     calls.push({ url: String(input), init });
 
     return new Response(
@@ -171,7 +189,7 @@ test("getBlingContatos normalizes query params and returns contact summaries", a
     assert.equal(calls.length, 1);
     assert.equal(
       calls[0]?.url,
-      "https://www.bling.com.br/Api/v3/contatos?telefone=%2851%29+99999-9999&numeroDocumento=12345678910",
+      "https://api.bling.com.br/Api/v3/contatos?telefone=%2851%29+99999-9999&numeroDocumento=12345678910",
     );
     assert.equal(calls[0]?.init?.method, "GET");
   } finally {

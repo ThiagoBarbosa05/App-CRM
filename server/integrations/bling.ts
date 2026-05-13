@@ -1,6 +1,6 @@
 import { URLSearchParams } from "url";
 
-const DEFAULT_API_BASE_URL = "https://www.bling.com.br/Api/v3";
+const DEFAULT_API_BASE_URL = "https://api.bling.com.br/Api/v3";
 
 function getApiBaseUrl(): string {
   return process.env.BLING_API_BASE_URL || DEFAULT_API_BASE_URL;
@@ -543,7 +543,12 @@ export async function getBlingCategoriaProduto(
 // Mapeamento de categorias de produto para enums locais
 // ---------------------------------------------------------------------------
 
-export type BlingWineType = "ESPUMANTE" | "BRANCO" | "ROSE" | "TINTO" | "PÓS-REFEIÇÃO";
+export type BlingWineType =
+  | "ESPUMANTE"
+  | "BRANCO"
+  | "ROSE"
+  | "TINTO"
+  | "PÓS-REFEIÇÃO";
 export type BlingWineCountry =
   | "CHILE"
   | "ARGENTINA"
@@ -1076,7 +1081,7 @@ interface JwtPayload {
   [key: string]: unknown;
 }
 
-const DEFAULT_OAUTH_BASE_URL = "https://www.bling.com.br/Api/v3/oauth";
+const DEFAULT_OAUTH_BASE_URL = "https://api.bling.com.br/Api/v3/oauth";
 
 interface BlingOAuthClientCredentials {
   clientId: string;
