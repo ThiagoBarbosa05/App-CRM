@@ -502,6 +502,13 @@ export function AggregateView({
   const { data: unifiedEvolution = [], isLoading: isEvolutionLoading } =
     useUnifiedSalesEvolution(startDate, endDate, groupBy, source);
 
+  // Mesmo período no ano anterior
+  const lastYearStart = startDate ? startDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
+  const lastYearEnd = endDate ? endDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
+  const { data: lastYearComparison } = useUnifiedSalesComparison(lastYearStart, lastYearEnd, source);
+  const lastYearStats = lastYearComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
+  const lastYearLabel = startDate ? `Mesmo período ${parseInt(startDate.slice(0, 4)) - 1}` : "Ano anterior";
+
   const currentStats = salesComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
   const previousStats = salesComparison?.previous ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
 
@@ -548,6 +555,7 @@ export function AggregateView({
           label="Total Vendido"
           value={(isStatsLoading) ? "—" : formatCurrency(currentStats.totalValue)}
           subValue={`vs período anterior: ${formatCurrency(previousStats.totalValue)}`}
+          subValue2={`${lastYearLabel}: ${formatCurrency(lastYearStats.totalValue)}`}
           icon={<TrendingUp className="h-4 w-4" />}
           iconBg="bg-emerald-50 dark:bg-emerald-900/20"
           iconColor="text-emerald-600 dark:text-emerald-400"

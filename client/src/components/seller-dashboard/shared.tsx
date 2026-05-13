@@ -203,6 +203,7 @@ export function KpiCard({
   label,
   value,
   subValue,
+  subValue2,
   icon,
   iconBg,
   iconColor,
@@ -212,6 +213,7 @@ export function KpiCard({
   label: string;
   value: string;
   subValue?: string;
+  subValue2?: string;
   icon: React.ReactNode;
   iconBg: string;
   iconColor: string;
@@ -242,6 +244,11 @@ export function KpiCard({
           <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
             {subValue}
           </span>
+          {subValue2 && (
+            <span className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500">
+              {subValue2}
+            </span>
+          )}
           {hasHistory && (
             <div
               className={`flex items-center gap-1 font-bold text-[11px] sm:text-xs ${isUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}

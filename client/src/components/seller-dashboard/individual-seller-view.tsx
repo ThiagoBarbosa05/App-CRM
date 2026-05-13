@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUnifiedTopSellers, type OrderSource } from "@/hooks/use-unified-orders";
+import { useUnifiedTopSellers, useUnifiedSalesComparison, type OrderSource } from "@/hooks/use-unified-orders";
 import { useClientReports } from "@/hooks/useReports";
 import { SalesEvolutionChart } from "@/components/bling-sales/sales-evolution-chart";
 import { TopProductsChart } from "@/components/bling-sales/top-products-chart";
@@ -561,6 +561,13 @@ export function IndividualSellerView({
     avgTicket: 0,
     uniqueClients: 0,
   };
+
+  // Mesmo período no ano anterior
+  const lastYearStart = startDate ? startDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
+  const lastYearEnd = endDate ? endDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
+  const { data: lastYearComparison } = useUnifiedSalesComparison(lastYearStart, lastYearEnd, source);
+  const lastYearStats = lastYearComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
+  const lastYearLabel = startDate ? `Mesmo período ${parseInt(startDate.slice(0, 4)) - 1}` : "Ano anterior";
   return (
     <div className="space-y-6">
       {/* Filtro de Origem */}
@@ -595,6 +602,7 @@ export function IndividualSellerView({
           label="Total Vendido"
           value={formatCurrency(ms.totalValue)}
           subValue={`vs período anterior: ${formatCurrency(pms.totalValue)}`}
+          subValue2={`${lastYearLabel}: ${formatCurrency(lastYearStats.totalValue)}`}
           icon={<TrendingUp className="h-4 w-4" />}
           iconBg="bg-emerald-50 dark:bg-emerald-900/20"
           iconColor="text-emerald-600 dark:text-emerald-400"
