@@ -106,8 +106,8 @@ export function ProductsTable({
               className="flex flex-col items-center justify-center py-20 gap-5"
             >
               <div className="relative">
-                <div className="animate-spin rounded-full h-14 w-14 border-[3px] border-blue-500/20 border-t-blue-600" />
-                <Wine className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 text-blue-600/80" />
+                <div className="animate-spin rounded-full h-14 w-14 border-[3px] border-primary/20 border-t-primary" />
+                <Wine className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 text-primary/80" />
               </div>
               <div className="space-y-1 text-center">
                 <p className="font-bold text-slate-800 dark:text-slate-200">
@@ -152,7 +152,7 @@ export function ProductsTable({
                     className="flex items-start gap-3 cursor-pointer flex-1 min-w-0"
                     onClick={() => navigate(`/products/${product.id}`)}
                   >
-                    <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-700 flex items-center justify-center shrink-0 border border-blue-100/60 dark:border-slate-600/60 overflow-hidden relative">
+                    <div className="h-16 w-16 rounded-xl bg-accent flex items-center justify-center shrink-0 border border-border overflow-hidden relative">
                       {product.imageUrl ? (
                         <img
                           src={product.imageUrl}
@@ -160,7 +160,7 @@ export function ProductsTable({
                           className="h-full w-full object-contain p-1 mix-blend-multiply dark:mix-blend-normal"
                         />
                       ) : (
-                        <Wine className="h-6 w-6 text-blue-600/70" />
+                        <Wine className="h-6 w-6 text-primary/70" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -181,7 +181,7 @@ export function ProductsTable({
                           </div>
                         )}
                         {product.category && (
-                          <Badge variant="secondary" className="bg-violet-100/80 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold border-0 text-[9px] uppercase tracking-widest px-1.5 py-0">
+                          <Badge variant="secondary" className="bg-accent text-primary font-bold border-0 text-[9px] uppercase tracking-widest px-1.5 py-0">
                             {product.category}
                           </Badge>
                         )}
@@ -259,11 +259,11 @@ export function ProductsTable({
 
                 <div className="flex gap-2">
                   <div
-                    className="flex justify-center flex-1 gap-2 px-3 py-2.5 bg-blue-50/80 dark:bg-blue-500/10 border border-blue-100/80 dark:border-blue-500/20 rounded-xl cursor-pointer hover:bg-blue-100 transition-colors"
+                    className="flex justify-center flex-1 gap-2 px-3 py-2.5 bg-accent border border-border rounded-xl cursor-pointer hover:bg-accent/70 transition-colors"
                     onClick={() => onViewClients(product)}
                   >
-                    <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300 tracking-tight">
+                    <Users className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-extrabold text-primary tracking-tight">
                       {product.clientCount} alcance
                     </span>
                   </div>
@@ -369,8 +369,8 @@ export function ProductsTable({
                         className="flex items-center gap-4 cursor-pointer"
                         onClick={() => navigate(`/products/${product.id}`)}
                       >
-                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800 flex items-center justify-center shrink-0 border border-blue-100/60 dark:border-slate-700/60 group-hover:scale-105 group-hover:shadow-md group-hover:from-blue-100 group-hover:to-indigo-100 transition-all duration-300 overflow-hidden relative">
-                          <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="h-12 w-12 rounded-xl bg-accent flex items-center justify-center shrink-0 border border-border group-hover:scale-105 group-hover:shadow-md transition-all duration-300 overflow-hidden relative">
+                          <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                           {product.imageUrl ? (
                             <img
                               src={product.imageUrl}
@@ -378,11 +378,11 @@ export function ProductsTable({
                               className="h-full w-full object-contain p-1 mix-blend-multiply dark:mix-blend-normal relative z-10"
                             />
                           ) : (
-                            <Wine className="h-5 w-5 text-blue-600/70 dark:text-blue-400 relative z-10" />
+                            <Wine className="h-5 w-5 text-primary/70 relative z-10" />
                           )}
                         </div>
                         <div className="min-w-0 pr-4">
-                          <p className="font-bold text-slate-900 dark:text-slate-100 leading-tight truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors text-sm sm:text-base">
+                          <p className="font-bold text-slate-900 dark:text-slate-100 leading-tight truncate group-hover:text-primary transition-colors text-sm sm:text-base">
                             {product.name}
                           </p>
                           <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider mt-1">
@@ -421,7 +421,7 @@ export function ProductsTable({
                       {product.category ? (
                         <Badge
                           variant="secondary"
-                          className="bg-violet-100/80 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 font-bold border-0 text-[10px] uppercase tracking-widest"
+                          className="bg-accent text-primary font-bold border-0 text-[10px] uppercase tracking-widest"
                         >
                           {product.category}
                         </Badge>
@@ -462,11 +462,11 @@ export function ProductsTable({
                     <TableCell className="py-5 px-6 hidden lg:table-cell">
                       <div className="flex items-center gap-2">
                         <div
-                          className="flex items-center justify-center min-w-[54px] gap-2 px-2.5 py-1.5 bg-blue-50/80 dark:bg-blue-500/10 border border-blue-100/80 dark:border-blue-500/20 rounded-xl cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors group/clients shadow-sm"
+                          className="flex items-center justify-center min-w-[54px] gap-2 px-2.5 py-1.5 bg-accent border border-border rounded-xl cursor-pointer hover:bg-accent/70 transition-colors group/clients shadow-sm"
                           onClick={() => onViewClients(product)}
                         >
-                          <Users className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 group-hover/clients:scale-110 transition-transform" />
-                          <span className="text-sm font-extrabold text-blue-700 dark:text-blue-300 tracking-tight">
+                          <Users className="h-3.5 w-3.5 text-primary group-hover/clients:scale-110 transition-transform" />
+                          <span className="text-sm font-extrabold text-primary tracking-tight">
                             {product.clientCount}
                           </span>
                         </div>
@@ -478,7 +478,7 @@ export function ProductsTable({
                           variant="ghost"
                           size="icon"
                           onClick={() => onEdit(product)}
-                          className="h-10 w-10 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-colors"
+                          className="h-10 w-10 text-slate-400 hover:text-primary hover:bg-accent rounded-xl transition-colors"
                         >
                           <Edit className="h-[18px] w-[18px]" />
                         </Button>
@@ -538,8 +538,8 @@ export function ProductsTable({
       <div className="bg-slate-50/80 dark:bg-slate-900/80 border-t border-slate-200/60 dark:border-slate-800/60 p-4 px-6 md:p-6 mt-auto">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-2xl shadow-inner border border-blue-200/50 dark:border-blue-800/50">
-              <Wine className="h-5 w-5 text-blue-700 dark:text-blue-400" />
+            <div className="p-3 bg-accent rounded-2xl shadow-inner border border-border">
+              <Wine className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-[13px] font-black text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
@@ -578,7 +578,7 @@ export function ProductsTable({
               </Button>
               <div className="w-px h-6 bg-slate-200 dark:bg-slate-700 mx-1"></div>
               <span className="px-4 font-black text-slate-700 dark:text-slate-200 text-sm whitespace-nowrap tabular-nums tracking-wide">
-                <span className="text-blue-600 dark:text-blue-400 font-extrabold">
+                <span className="text-primary font-extrabold">
                   Pág {currentPage}
                 </span>{" "}
                 <span className="text-slate-400 font-medium">/</span>{" "}

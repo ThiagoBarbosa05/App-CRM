@@ -14,7 +14,8 @@ export type TabColor =
   | "purple"
   | "amber"
   | "indigo"
-  | "teal";
+  | "teal"
+  | "wine";
 
 const underlineActiveColor: Record<TabColor, string> = {
   blue:   "data-[state=active]:border-blue-600   data-[state=active]:text-blue-600   dark:data-[state=active]:border-blue-400   dark:data-[state=active]:text-blue-400",
@@ -25,6 +26,7 @@ const underlineActiveColor: Record<TabColor, string> = {
   amber:  "data-[state=active]:border-amber-500  data-[state=active]:text-amber-600  dark:data-[state=active]:border-amber-400  dark:data-[state=active]:text-amber-400",
   indigo: "data-[state=active]:border-indigo-600 data-[state=active]:text-indigo-600 dark:data-[state=active]:border-indigo-400 dark:data-[state=active]:text-indigo-400",
   teal:   "data-[state=active]:border-teal-600   data-[state=active]:text-teal-600   dark:data-[state=active]:border-teal-400   dark:data-[state=active]:text-teal-400",
+  wine:   "data-[state=active]:border-primary      data-[state=active]:text-primary",
 };
 
 const pillActiveColor: Record<TabColor, string> = {
@@ -36,6 +38,7 @@ const pillActiveColor: Record<TabColor, string> = {
   amber:  "data-[state=active]:text-amber-600  dark:data-[state=active]:text-amber-400  data-[state=active]:bg-amber-50  dark:data-[state=active]:bg-amber-500/10  data-[state=active]:border-amber-200  dark:data-[state=active]:border-amber-500/20",
   indigo: "data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:bg-indigo-50 dark:data-[state=active]:bg-indigo-500/10 data-[state=active]:border-indigo-200 dark:data-[state=active]:border-indigo-500/20",
   teal:   "data-[state=active]:text-teal-600   dark:data-[state=active]:text-teal-400   data-[state=active]:bg-teal-50   dark:data-[state=active]:bg-teal-500/10   data-[state=active]:border-teal-200   dark:data-[state=active]:border-teal-500/20",
+  wine:   "data-[state=active]:text-primary       data-[state=active]:bg-accent          data-[state=active]:border-border",
 };
 
 // ---------------------------------------------------------------------------

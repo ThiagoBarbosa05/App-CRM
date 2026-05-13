@@ -133,24 +133,24 @@ export function AppSidebar({
               <div className="flex justify-center mb-2">
                 <div
                   title={user.name}
-                  className="bg-purple-100 dark:bg-purple-900/40 rounded-full p-2.5 cursor-default"
+                  className="bg-accent rounded-full p-2.5 cursor-default"
                 >
-                  <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  <User className="h-4 w-4 text-primary" />
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-100 dark:border-purple-800/40 mb-3">
-                <div className="bg-purple-100 dark:bg-purple-800/40 rounded-full p-2 shrink-0">
-                  <User className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary border border-border mb-3">
+                <div className="bg-accent rounded-full p-2 shrink-0">
+                  <User className="h-4 w-4 text-primary" />
                 </div>
                 <div className="flex flex-col min-w-0 gap-1">
-                  <span className="text-sm font-semibold leading-none text-slate-900 dark:text-slate-100 truncate">
+                  <span className="text-sm font-semibold leading-none text-foreground truncate">
                     {user.name}
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  <span className="text-xs text-muted-foreground truncate">
                     {user.email}
                   </span>
-                  <Badge className="self-start bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-700/50 text-[10px] px-1.5 py-0 h-4 font-medium">
+                  <Badge className="self-start bg-accent text-primary border-border text-[10px] px-1.5 py-0 h-4 font-medium">
                     {user.role}
                   </Badge>
                 </div>
@@ -189,8 +189,8 @@ export function AppSidebar({
                   "w-full flex items-center text-left rounded-lg font-medium transition-all duration-200 group",
                   collapsed ? "justify-center p-2.5" : "px-3 py-2.5",
                   isActive
-                    ? "text-white bg-gradient-to-r from-purple-600 to-indigo-600 shadow-sm shadow-purple-500/30"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-slate-100",
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
                 <item.icon
@@ -198,7 +198,7 @@ export function AppSidebar({
                     "h-[18px] w-[18px] shrink-0 transition-all duration-200",
                     !collapsed && "mr-3",
                     !isActive &&
-                      "group-hover:scale-110 group-hover:text-purple-500 dark:group-hover:text-purple-400",
+                      "group-hover:scale-110 group-hover:text-primary",
                   )}
                 />
                 {!collapsed && <span className="text-sm">{item.label}</span>}

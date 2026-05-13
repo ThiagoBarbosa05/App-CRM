@@ -99,90 +99,92 @@
 }
 
 :root {
-  --bordeaux-50: #fef7f0;
-  --bordeaux-100: #fdecdb;
-  --bordeaux-200: #fad2b7;
-  --bordeaux-300: #f6ad87;
-  --bordeaux-400: #f07d56;
-  --bordeaux-500: #ec5638;
-  --bordeaux-600: #8b0000;
-  --bordeaux-700: #7a0000;
-  --bordeaux-800: #6b0000;
-  --bordeaux-900: #5c0000;
-  --bordeaux-950: #4d0000;
+  /* Grand Cru — Paleta de vinho/borgonha */
+  --bordeaux-50: #fdf6f7;
+  --bordeaux-100: #fae6e9;
+  --bordeaux-200: #f4cdd3;
+  --bordeaux-300: #e8a4af;
+  --bordeaux-400: #d97285;
+  --bordeaux-500: #c04060;
+  --bordeaux-600: #8b1a2c; /* primary wine */
+  --bordeaux-700: #6b1428;
+  --bordeaux-800: #4d0e1d;
+  --bordeaux-900: #2a0a11;
+  --bordeaux-950: #1a0a0e;
 }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Grand Cru — Light Theme */
+    --background: 210 40% 98%; /* slate-50 */
+    --foreground: 222 47% 11%; /* slate-900 */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 350 68% 32%; /* #8b1a2c vinho */
+    --primary-foreground: 20 43% 97%; /* #faf7f5 creme */
+    --secondary: 210 40% 96%; /* slate-100 */
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%; /* slate-100 */
+    --muted-foreground: 215 16% 47%; /* slate-500 */
+    --accent: 210 40% 94%; /* slate-200 */
+    --accent-foreground: 222 47% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 214 32% 91%; /* slate-200 */
+    --input: 214 32% 91%;
+    --ring: 350 68% 32%; /* wine focus ring */
     --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
+    --chart-1: 350 68% 32%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 10.6% 64.9%;
+    --sidebar-background: 210 40% 98%; /* slate-50 */
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 350 68% 32%; /* wine */
+    --sidebar-primary-foreground: 20 43% 97%;
+    --sidebar-accent: 210 40% 94%; /* slate-200 */
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%; /* slate-200 */
+    --sidebar-ring: 350 68% 32%;
   }
 
   .dark {
-    /* Deepened Dark Theme */
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 40% 98%;
-    --card: 224 71.4% 4.1%;
+    /* Grand Cru — Dark Theme (slate escuro + wine accent) */
+    --background: 222 47% 11%; /* slate-900 */
+    --foreground: 210 40% 98%; /* slate-50 */
+    --card: 217 33% 17%; /* slate-800 */
     --card-foreground: 210 40% 98%;
-    --popover: 224 71.4% 4.1%;
+    --popover: 217 33% 17%; /* slate-800 */
     --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 215 27.9% 16.9%;
+    --primary: 350 60% 55%; /* vinho claro para fundo escuro */
+    --primary-foreground: 222 47% 9%;
+    --secondary: 215 28% 20%; /* slate-700 */
     --secondary-foreground: 210 40% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
+    --muted: 215 28% 20%; /* slate-700 */
+    --muted-foreground: 215 16% 65%; /* slate-400 */
+    --accent: 215 28% 22%; /* slate-700 */
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62.8% 50%;
     --destructive-foreground: 210 40% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 212.7 26.8% 83.9%;
-    --chart-1: 220 70% 50%;
+    --border: 215 28% 22%; /* slate-700 */
+    --input: 215 28% 22%;
+    --ring: 350 60% 55%; /* wine focus ring */
+    --chart-1: 350 65% 55%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar-background: 224 71.4% 4.1%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 94.1%;
-    --sidebar-primary-foreground: 220.9 39.3% 11%;
-    --sidebar-accent: 215 27.9% 16.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 215 27.9% 16.9%;
-    --sidebar-ring: 217.2 10.6% 64.9%;
+    --sidebar-background: 222 47% 9%; /* slate-900 escuro */
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 350 60% 55%; /* wine */
+    --sidebar-primary-foreground: 222 47% 9%;
+    --sidebar-accent: 215 28% 18%; /* slate-800 */
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 28% 18%; /* slate-800 */
+    --sidebar-ring: 350 60% 55%;
   }
 }
 
@@ -194,14 +196,19 @@
   body {
     @apply bg-background text-foreground;
     font-size: 16px;
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Prevent zoom on iOS */
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Outfit', sans-serif;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Outfit", sans-serif;
     letter-spacing: -0.02em;
   }
 }
@@ -217,12 +224,12 @@
 
   /* Ensure primary buttons have proper styling */
   .bg-primary {
-    background-color: #7c3aed !important;
-    color: white !important;
+    background-color: #8b1a2c !important;
+    color: #faf7f5 !important;
   }
 
   .bg-primary:hover {
-    background-color: #6d28d9 !important;
+    background-color: #6b1428 !important;
   }
 
   /* Dark mode for React Quill editor */
@@ -472,18 +479,18 @@ pre {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #7b3aec;
+  background: #8b1a2c;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6d28d9;
+  background: #6b1428;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #9333ea;
+  background: #c04060;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #a855f7;
+  background: #d97285;
 }

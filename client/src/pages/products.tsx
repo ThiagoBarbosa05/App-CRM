@@ -228,7 +228,7 @@ export default function Products() {
     <div className="space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
-          <PageHeader.Icon icon={Wine} />
+          <PageHeader.Icon icon={Wine} color="text-primary" bgColor="bg-accent" />
           <PageHeader.Text>
             <PageHeader.Title>Catálogo de Produtos</PageHeader.Title>
             <PageHeader.Description>
@@ -266,7 +266,7 @@ export default function Products() {
           </Button>
           <Button
             onClick={() => setIsProductModalOpen(true)}
-            className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
+            className="h-11 px-6 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
           >
             <Plus className="mr-2 h-4 w-4 shrink-0" />
             Novo Produto

@@ -207,7 +207,7 @@ export default function UsersManagement() {
             </div>
             <Button
               onClick={() => setShowCreateModal(true)}
-              className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+              className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all duration-200"
             >
               <Plus className="h-4 w-4 mr-2" />
               Novo Usuário
@@ -301,8 +301,8 @@ export default function UsersManagement() {
                     {/* Avatar e informações principais */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar className="h-12 w-12 border-2 border-slate-200 dark:border-slate-600">
-                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        <div className="h-12 w-12 rounded-full bg-accent flex items-center justify-center">
+                          <span className="text-sm font-semibold text-primary">
                             {getInitials(user.name)}
                           </span>
                         </div>
@@ -428,7 +428,7 @@ export default function UsersManagement() {
                         variant="ghost"
                         onClick={() => setEditingUser(user)}
                         title="Editar usuário"
-                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        className="text-primary hover:text-primary/80 hover:bg-accent"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -478,7 +478,7 @@ export default function UsersManagement() {
                     <Button
                       variant="default"
                       size="sm"
-                      className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white"
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     >
                       1
                     </Button>

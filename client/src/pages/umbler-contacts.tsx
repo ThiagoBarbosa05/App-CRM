@@ -112,7 +112,7 @@ export default function UmblerContactsPage() {
     <div className="space-y-6 pb-10">
         <PageHeader>
           <PageHeader.Info>
-            <PageHeader.Icon icon={Users} />
+            <PageHeader.Icon icon={Users} color="text-primary" bgColor="bg-accent" />
             <PageHeader.Text>
               <PageHeader.Title>Contatos Umbler</PageHeader.Title>
               <PageHeader.Description>

@@ -15,10 +15,10 @@ export function UpcomingBirthdays({
   users,
 }: UpcomingBirthdaysProps) {
   return (
-    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border-t-4 border-t-blue-500">
+    <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border-t-4 border-t-primary">
       <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
         <CardTitle className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-primary">
             <Gift className="h-5 w-5" />
           </div>
           <div>
@@ -68,7 +68,7 @@ function UpcomingBirthdayItem({ client, users, index }: { client: any; users: an
   const getStatusBadge = () => {
     if (daysUntil === 0) return { label: "🎉 Hoje!", className: "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" };
     if (daysUntil === 1) return { label: "🎂 Amanhã", className: "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" };
-    return { label: `⏰ ${daysUntil} dias`, className: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300" };
+    return { label: `⏰ ${daysUntil} dias`, className: "bg-accent text-primary" };
   };
 
   const status = getStatusBadge();
@@ -81,7 +81,7 @@ function UpcomingBirthdayItem({ client, users, index }: { client: any; users: an
       className="p-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group"
     >
       <div className="flex items-center gap-4">
-        <div className="h-10 w-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+        <div className="h-10 w-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-primary group-hover:scale-110 transition-transform">
           <Gift className="h-5 w-5" />
         </div>
         

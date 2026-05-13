@@ -15,6 +15,13 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   PillTabsList,
   PillTabsTrigger,
   type TabColor,
@@ -347,12 +354,22 @@ export default function Metas() {
     );
   }
 
-  const TABS: { id: string; label: string; icon: React.ElementType; color: TabColor }[] = [
-    { id: "sales",         label: "Vendas",      icon: Target,        color: "blue"   },
-    { id: "telemarketing", label: "Ligações",     icon: Phone,         color: "green"  },
-    { id: "registration",  label: "Cadastros",    icon: Users,         color: "indigo" },
-    { id: "markers",       label: "Marcadores",   icon: Package,       color: "amber"  },
-    { id: "interactions",  label: "Interações",   icon: MessageSquare, color: "purple" },
+  const TABS: {
+    id: string;
+    label: string;
+    icon: React.ElementType;
+    color: TabColor;
+  }[] = [
+    { id: "sales", label: "Vendas", icon: Target, color: "blue" },
+    { id: "telemarketing", label: "Ligações", icon: Phone, color: "green" },
+    { id: "registration", label: "Cadastros", icon: Users, color: "indigo" },
+    { id: "markers", label: "Marcadores", icon: Package, color: "amber" },
+    {
+      id: "interactions",
+      label: "Interações",
+      icon: MessageSquare,
+      color: "purple",
+    },
   ];
 
   return (
@@ -360,7 +377,11 @@ export default function Metas() {
       {/* Header unificado */}
       <PageHeader>
         <PageHeader.Info>
-          <PageHeader.Icon icon={Target} />
+          <PageHeader.Icon
+            icon={Target}
+            color="text-primary"
+            bgColor="bg-accent"
+          />
           <PageHeader.Text>
             <PageHeader.Title>Análise de Metas</PageHeader.Title>
             <PageHeader.Description>
@@ -369,78 +390,77 @@ export default function Metas() {
           </PageHeader.Text>
         </PageHeader.Info>
 
-        <PageHeader.Actions className="flex-col items-start w-full md:w-auto">
-          {/* Linha de filtros: Vendedor + Mês + Ano */}
-          <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
-            {isManager && users.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">
-                  Vendedor
-                </span>
-                <select
-                  value={selectedSellerId}
-                  onChange={(e) => setSelectedSellerId(e.target.value)}
-                  className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm max-w-[150px]"
-                >
-                  <option value="all">Todos</option>
+        <PageHeader.Actions className="flex-wrap items-center gap-2 w-full md:w-auto">
+          {isManager && users.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <Select
+                value={selectedSellerId}
+                onValueChange={setSelectedSellerId}
+              >
+                <SelectTrigger className="w-auto min-w-[130px] rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium [&>span]:line-clamp-none [&>span]:whitespace-nowrap">
+                  <SelectValue placeholder="Vendedor" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all" className="font-semibold">
+                    Todos os vendedores
+                  </SelectItem>
                   {users.map((u: any) => (
-                    <option key={u.id} value={u.id}>
+                    <SelectItem key={u.id} value={u.id}>
                       {u.name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-              </div>
-            )}
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">
-                Mês
-              </span>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
-              >
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                  <option key={month} value={month}>
-                    {new Date(0, month - 1).toLocaleDateString("pt-BR", {
-                      month: "long",
-                    })}
-                  </option>
-                ))}
-              </select>
+                </SelectContent>
+              </Select>
             </div>
+          )}
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">
-                Ano
-              </span>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
-              >
-                {Array.from(
-                  { length: 5 },
-                  (_, i) => new Date().getFullYear() - 2 + i,
-                ).map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <Select
+            value={String(selectedMonth)}
+            onValueChange={(v) => setSelectedMonth(Number(v))}
+          >
+            <SelectTrigger className="w-auto min-w-[120px] rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium [&>span]:line-clamp-none [&>span]:whitespace-nowrap">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                <SelectItem key={month} value={String(month)}>
+                  {new Date(0, month - 1).toLocaleDateString("pt-BR", {
+                    month: "long",
+                  })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            {isManager && (
-              <Button
-                onClick={handleNewGoal}
-                className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-widest gap-2 shadow-sm shadow-blue-500/20 shrink-0"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Nova Meta
-              </Button>
-            )}
-          </div>
+          <Select
+            value={String(selectedYear)}
+            onValueChange={(v) => setSelectedYear(Number(v))}
+          >
+            <SelectTrigger className="w-24 rounded-lg border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium">
+              <SelectValue placeholder="Ano" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              {Array.from(
+                { length: 5 },
+                (_, i) => new Date().getFullYear() - 2 + i,
+              ).map((year) => (
+                <SelectItem key={year} value={String(year)}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {isManager && (
+            <Button
+              onClick={handleNewGoal}
+              className="h-9 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm gap-2 shrink-0"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nova Meta
+            </Button>
+          )}
         </PageHeader.Actions>
       </PageHeader>
 

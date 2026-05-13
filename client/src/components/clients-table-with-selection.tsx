@@ -91,9 +91,14 @@ export default function ClientsTableWithSelection({
   const { data: systemSettings } = useQuery<Record<string, string>>({
     queryKey: ["/api/system-settings"],
   });
-  const purchaseStatusDays = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
+  const purchaseStatusDays = parseInt(
+    systemSettings?.purchase_status_days ?? "60",
+    10,
+  );
 
-  const computePurchaseStatus = (lastPurchaseDate: string | null | undefined) => {
+  const computePurchaseStatus = (
+    lastPurchaseDate: string | null | undefined,
+  ) => {
     if (!lastPurchaseDate) return "inativo";
     const last = new Date(lastPurchaseDate + "T00:00:00");
     const threshold = new Date();
@@ -224,16 +229,16 @@ export default function ClientsTableWithSelection({
   return (
     <div className="space-y-6">
       {selectedClientIds.length > 0 && (
-        <div className="flex items-center justify-between  mt-6 mx-3 p-4 bg-gradient-to-r dark:from-slate-900 dark:to-slate-950 from-blue-50 to-indigo-50 border border-blue-200 dark:border-slate-700 rounded-xl shadow-sm">
+        <div className="flex items-center justify-between  mt-6 mx-3 p-4 bg-gradient-to-r dark:from-slate-900 dark:to-slate-950 from-accent to-accent border border-border dark:border-slate-700 rounded-xl shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <User className="h-4 w-4 text-blue-600" />
+            <div className="p-2 bg-accent rounded-lg">
+              <User className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <span className="font-semibold text-blue-900 dark:text-blue-400">
+              <span className="font-semibold text-foreground">
                 {selectedClientIds.length} cliente(s) selecionado(s)
               </span>
-              <p className="text-xs text-blue-700 dark:text-blue-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Use as ações em lote para gerenciar os clientes selecionados
               </p>
             </div>
@@ -263,17 +268,27 @@ export default function ClientsTableWithSelection({
               <User className="h-8 w-8 text-gray-400" />
             </div>
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-1">Nenhum cliente encontrado</h3>
-              <p className="text-gray-500 dark:text-slate-400 text-sm">Tente ajustar os filtros ou adicione novos clientes</p>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-1">
+                Nenhum cliente encontrado
+              </h3>
+              <p className="text-gray-500 dark:text-slate-400 text-sm">
+                Tente ajustar os filtros ou adicione novos clientes
+              </p>
             </div>
           </div>
         ) : (
           sortedClients.map((client) => {
             const responsavelName = (() => {
               const u = users.find((u) => u.id === client.responsavelId);
-              return u ? u.name : client.responsavelId ? "Não encontrado" : "Não atribuído";
+              return u
+                ? u.name
+                : client.responsavelId
+                  ? "Não encontrado"
+                  : "Não atribuído";
             })();
-            const status = computePurchaseStatus((client as any).lastPurchaseDate);
+            const status = computePurchaseStatus(
+              (client as any).lastPurchaseDate,
+            );
             const isSelected = selectedClientIds.includes(client.id);
             return (
               <div
@@ -286,20 +301,27 @@ export default function ClientsTableWithSelection({
                 onClick={() => navigate(`/clientes/${client.id}`)}
               >
                 {/* Top accent bar based on status */}
-                <div className={`h-1 w-full ${status === "ativo" ? "bg-gradient-to-r from-green-400 to-emerald-500" : "bg-gradient-to-r from-red-400 to-rose-500"}`} />
+                <div
+                  className={`h-1 w-full ${status === "ativo" ? "bg-gradient-to-r from-green-400 to-emerald-500" : "bg-gradient-to-r from-red-400 to-rose-500"}`}
+                />
 
                 {/* Card header */}
                 <div className="flex items-center gap-3 px-4 pt-3 pb-3">
                   {/* Checkbox + Avatar */}
-                  <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="flex items-center gap-2 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Checkbox
                       checked={isSelected}
-                      onCheckedChange={(checked) => handleSelectClient(client.id, checked as boolean)}
+                      onCheckedChange={(checked) =>
+                        handleSelectClient(client.id, checked as boolean)
+                      }
                       className="border-2 border-gray-300 dark:border-slate-600 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                     />
                   </div>
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-800 shrink-0">
-                    <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 rounded-xl bg-accent border border-border shrink-0">
+                    <User className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 dark:text-slate-100 text-base leading-tight">
@@ -308,14 +330,25 @@ export default function ClientsTableWithSelection({
                     {(client.city || client.state) && (
                       <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-500 dark:text-slate-400">
                         <MapPin className="h-3 w-3 shrink-0" />
-                        <span>{[client.city, client.state].filter(Boolean).join(", ")}</span>
+                        <span>
+                          {[client.city, client.state]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </span>
                       </div>
                     )}
                   </div>
-                  <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="shrink-0"
+                  >
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -324,7 +357,9 @@ export default function ClientsTableWithSelection({
                           <DollarSign className="mr-2 h-4 w-4 text-green-600" />
                           Lançar venda
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setEditingClient(client)}>
+                        <DropdownMenuItem
+                          onClick={() => setEditingClient(client)}
+                        >
                           <Edit className="mr-2 h-4 w-4 text-blue-600" />
                           Editar
                         </DropdownMenuItem>
@@ -350,7 +385,6 @@ export default function ClientsTableWithSelection({
 
                 {/* Card body */}
                 <div className="px-4 py-3 space-y-2.5">
-
                   {/* Contact row */}
                   <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                     <div className="flex items-center gap-2 text-sm">
@@ -370,7 +404,9 @@ export default function ClientsTableWithSelection({
                         <div className="p-1 bg-slate-100 dark:bg-slate-800 rounded-md shrink-0">
                           <Mail className="h-3 w-3 text-slate-500 dark:text-slate-400" />
                         </div>
-                        <span className="text-gray-600 dark:text-slate-300 text-xs break-all">{client.email}</span>
+                        <span className="text-gray-600 dark:text-slate-300 text-xs break-all">
+                          {client.email}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -378,17 +414,21 @@ export default function ClientsTableWithSelection({
                   {/* Responsável + Aniversário */}
                   <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                     <div className="flex items-center gap-2 text-sm">
-                      <div className="p-1 bg-purple-100 dark:bg-purple-900/30 rounded-md shrink-0">
-                        <User className="h-3 w-3 text-purple-600 dark:text-purple-400" />
+                      <div className="p-1 bg-accent rounded-md shrink-0">
+                        <User className="h-3 w-3 text-primary" />
                       </div>
-                      <span className="text-gray-700 dark:text-slate-300 text-xs font-medium">{responsavelName}</span>
+                      <span className="text-gray-700 dark:text-slate-300 text-xs font-medium">
+                        {responsavelName}
+                      </span>
                     </div>
                     {client.birthday && (
                       <div className="flex items-center gap-2 text-sm">
                         <div className="p-1 bg-blue-100 dark:bg-blue-900/30 rounded-md shrink-0">
                           <Calendar className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                         </div>
-                        <span className="text-gray-600 dark:text-slate-400 text-xs">{formatDate(client.birthday)}</span>
+                        <span className="text-gray-600 dark:text-slate-400 text-xs">
+                          {formatDate(client.birthday)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -396,7 +436,10 @@ export default function ClientsTableWithSelection({
                   {/* Badges row: categoria + status */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     {client.categoria && (
-                      <Badge variant="outline" className="capitalize text-xs bg-gradient-to-r dark:from-blue-500 dark:to-blue-900 dark:text-slate-100 from-orange-50 to-amber-50 border-orange-200 text-orange-800 font-medium">
+                      <Badge
+                        variant="outline"
+                        className="capitalize text-xs bg-gradient-to-r dark:from-blue-500 dark:to-blue-900 dark:text-slate-100 from-orange-50 to-amber-50 border-orange-200 text-orange-800 font-medium"
+                      >
                         {client.categoria}
                       </Badge>
                     )}
@@ -417,13 +460,20 @@ export default function ClientsTableWithSelection({
                   {client.markers && client.markers.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {client.markers.slice(0, 3).map((marker, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs bg-gradient-to-r from-violet-100 dark:from-teal-600 dark:text-slate-50 dark:border-none dark:to-teal-800 to-purple-100 border-violet-200 text-violet-800 px-2 py-0.5">
+                        <Badge
+                          key={i}
+                          variant="secondary"
+                          className="text-xs bg-gradient-to-r from-violet-100 dark:from-teal-600 dark:text-slate-50 dark:border-none dark:to-teal-800 to-purple-100 border-violet-200 text-violet-800 px-2 py-0.5"
+                        >
                           <Tag className="h-3 w-3 mr-1" />
                           {marker}
                         </Badge>
                       ))}
                       {client.markers.length > 3 && (
-                        <Badge variant="secondary" className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300"
+                        >
                           +{client.markers.length - 3}
                         </Badge>
                       )}
@@ -434,7 +484,10 @@ export default function ClientsTableWithSelection({
                   {client.tags && client.tags.length > 0 && (
                     <div
                       className="flex flex-wrap gap-1 cursor-pointer"
-                      onClick={(e) => { e.stopPropagation(); setTagsModalClient(client); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTagsModalClient(client);
+                      }}
                     >
                       {client.tags.slice(0, 3).map((tag: any, i: number) => (
                         <Badge
@@ -442,12 +495,17 @@ export default function ClientsTableWithSelection({
                           variant="outline"
                           className="text-xs bg-gradient-to-r dark:from-blue-500 dark:to-blue-900 dark:text-slate-50 from-emerald-50 to-teal-50 border-emerald-300 text-emerald-800 px-2 py-0.5"
                         >
-                          {tag.emoji && <span className="mr-1">{tag.emoji}</span>}
+                          {tag.emoji && (
+                            <span className="mr-1">{tag.emoji}</span>
+                          )}
                           {tag.externalTagName || tag.name || "Tag"}
                         </Badge>
                       ))}
                       {client.tags.length > 3 && (
-                        <Badge variant="secondary" className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200">
+                        <Badge
+                          variant="secondary"
+                          className="text-xs bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-200"
+                        >
                           +{client.tags.length - 3}
                         </Badge>
                       )}
@@ -599,8 +657,8 @@ export default function ClientsTableWithSelection({
                   <td className="p-4">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0">
-                        <div className="p-1 rounded-md bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-sm">
-                          <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <div className="p-1 rounded-md bg-accent flex items-center justify-center border border-border shadow-sm">
+                          <User className="h-4 w-4 text-primary" />
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
@@ -678,8 +736,8 @@ export default function ClientsTableWithSelection({
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
-                      <div className="p-1 bg-purple-100 dark:bg-purple-800 rounded-md">
-                        <User className="h-3 w-3 text-purple-600 dark:text-purple-100" />
+                      <div className="p-1 bg-accent rounded-md">
+                        <User className="h-3 w-3 text-primary" />
                       </div>
                       <span className="text-sm font-medium text-gray-900 dark:text-slate-400 truncate">
                         {(() => {
@@ -793,7 +851,9 @@ export default function ClientsTableWithSelection({
                   </td>
                   <td className="p-4">
                     {(() => {
-                      const status = computePurchaseStatus((client as any).lastPurchaseDate);
+                      const status = computePurchaseStatus(
+                        (client as any).lastPurchaseDate,
+                      );
                       return status === "ativo" ? (
                         <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-300 dark:border-green-700 font-semibold">
                           <CheckCircle className="h-3 w-3 mr-1" />
@@ -820,11 +880,15 @@ export default function ClientsTableWithSelection({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setSaleClient(client)}>
+                          <DropdownMenuItem
+                            onClick={() => setSaleClient(client)}
+                          >
                             <DollarSign className="mr-2 h-4 w-4 text-green-600" />
                             Lançar venda
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setEditingClient(client)}>
+                          <DropdownMenuItem
+                            onClick={() => setEditingClient(client)}
+                          >
                             <Edit className="mr-2 h-4 w-4 text-blue-600" />
                             Editar
                           </DropdownMenuItem>
@@ -874,8 +938,8 @@ export default function ClientsTableWithSelection({
         <div className="bg-gradient-to-r from-gray-50 to-slate-50 dark:from-slate-900 dark:to-slate-800  p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
-                <User className="h-4 w-4 text-blue-600 dark:text-blue-100" />
+              <div className="p-2 bg-accent rounded-lg">
+                <User className="h-4 w-4 text-primary" />
               </div>
               <div className="text-sm">
                 <span className="font-medium text-gray-900 dark:text-slate-400">
@@ -1087,13 +1151,17 @@ export default function ClientsTableWithSelection({
 
       <AlertDialog
         open={!!deletingClient}
-        onOpenChange={(open) => { if (!open) setDeletingClient(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDeletingClient(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deletingClient?.name}</strong>? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir{" "}
+              <strong>{deletingClient?.name}</strong>? Esta ação não pode ser
+              desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

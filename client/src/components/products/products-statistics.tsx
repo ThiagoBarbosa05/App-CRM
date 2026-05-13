@@ -39,11 +39,11 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const BAR_STYLES = [
-  { bar: "from-violet-600 via-purple-500 to-fuchsia-400", glow: "bg-violet-500/15", badge: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 border-violet-200/50" },
-  { bar: "from-violet-500 via-purple-400 to-fuchsia-300", glow: "bg-purple-400/12", badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200/50" },
-  { bar: "from-indigo-500 via-violet-400 to-purple-300", glow: "bg-indigo-400/10", badge: "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300 border-indigo-200/50" },
-  { bar: "from-slate-400 via-violet-300 to-purple-200", glow: "bg-slate-300/10", badge: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300 border-slate-200/50" },
-  { bar: "from-slate-300 via-indigo-200 to-violet-100", glow: "bg-slate-300/10", badge: "bg-white text-slate-500 dark:bg-slate-900 dark:text-slate-300 border-slate-100" },
+  { bar: "from-primary via-primary/80 to-primary/60", glow: "bg-primary/15", badge: "bg-primary/10 text-primary dark:bg-primary/20 border-primary/20" },
+  { bar: "from-primary/90 via-primary/70 to-primary/50", glow: "bg-primary/10", badge: "bg-accent text-primary border-border" },
+  { bar: "from-primary/70 via-primary/50 to-primary/30", glow: "bg-primary/8", badge: "bg-accent text-primary/80 border-border" },
+  { bar: "from-slate-400 via-slate-300 to-slate-200", glow: "bg-slate-300/10", badge: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300 border-slate-200/50" },
+  { bar: "from-slate-300 via-slate-200 to-slate-100", glow: "bg-slate-200/10", badge: "bg-white text-slate-500 dark:bg-slate-900 dark:text-slate-300 border-slate-100" },
 ];
 
 const containerVariants = {
@@ -260,8 +260,8 @@ export function ProductsStatistics({
         <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group">
           <CardHeader className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 p-6 transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-800/80">
             <CardTitle className="flex items-center gap-3 text-lg font-bold text-slate-800 dark:text-slate-100">
-              <div className="p-2.5 bg-violet-100 dark:bg-violet-900/30 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
-                <DollarSign className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+              <div className="p-2.5 bg-accent rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
+                <DollarSign className="h-5 w-5 text-primary" />
               </div>
               Faturamento por Vinho
             </CardTitle>
@@ -338,7 +338,7 @@ export function ProductsStatistics({
                           </div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="text-sm font-black text-violet-700 dark:text-violet-300">
+                          <p className="text-sm font-black text-primary">
                             {formatCurrency(revenue)}
                           </p>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">

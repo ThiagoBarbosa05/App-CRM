@@ -45,16 +45,16 @@ export function CalendarView({
   };
 
   const dayModifiersClassNames = {
-    birthday: "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold relative after:content-['🎂'] after:absolute after:bottom-0 after:right-0 after:text-[10px]",
+    birthday: "bg-accent/60 text-primary font-bold relative after:content-['🎂'] after:absolute after:bottom-0 after:right-0 after:text-[10px]",
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
       {/* Calendar Card */}
       <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900">
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
           <CardTitle className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-primary">
               <CalendarIcon className="h-5 w-5" />
             </div>
             <div>
@@ -67,7 +67,7 @@ export function CalendarView({
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex justify-center p-6 bg-slate-50/50 dark:bg-slate-800/20">
+        <CardContent className="flex justify-center p-4 bg-slate-50/50 dark:bg-slate-800/20">
           <UICalendar
             mode="single"
             selected={selectedDate}
@@ -75,7 +75,7 @@ export function CalendarView({
             locale={ptBR}
             modifiers={dayModifiers}
             modifiersClassNames={dayModifiersClassNames}
-            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-sm w-full"
+            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm w-full"
             classNames={{
               months: "flex flex-col w-full",
               month: "w-full",
@@ -86,12 +86,12 @@ export function CalendarView({
               nav_button_previous: "absolute left-1",
               nav_button_next: "absolute right-1",
               table: "w-full border-collapse",
-              head_row: "flex w-full justify-between mb-2",
-              head_cell: "text-slate-500 dark:text-slate-400 font-medium text-sm text-center w-8 sm:w-10 md:w-12",
-              row: "flex w-full justify-between mt-2",
-              cell: "w-8 sm:w-10 md:w-12 h-11 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-              day: "h-11 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center justify-center",
-              day_selected: "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-600 focus:text-white rounded-lg",
+              head_row: "flex w-full",
+              head_cell: "text-slate-500 dark:text-slate-400 font-medium text-sm text-center flex-1",
+              row: "flex w-full mt-1",
+              cell: "flex-1 h-10 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+              day: "h-10 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors inline-flex items-center justify-center",
+              day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-lg",
               day_today: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold",
               day_outside: "text-slate-400 dark:text-slate-600 aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
               day_disabled: "text-slate-300 dark:text-slate-700 opacity-50",
@@ -102,10 +102,10 @@ export function CalendarView({
       </Card>
 
       {/* Selected Date Details Card */}
-      <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 flex flex-col">
+      <Card className="border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 flex flex-col lg:max-h-[560px]">
         <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
           <CardTitle className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-primary">
               <Gift className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
@@ -116,7 +116,7 @@ export function CalendarView({
                 {format(selectedDate, "yyyy", { locale: ptBR })}
               </div>
             </div>
-            <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+            <Badge variant="secondary" className="bg-accent text-primary border border-border">
               {clientsForSelectedDate.length} {clientsForSelectedDate.length === 1 ? 'Aniversariante' : 'Aniversariantes'}
             </Badge>
           </CardTitle>
@@ -178,9 +178,9 @@ function ClientBirthdayCard({
   const responsible = users.find(u => u.id === client.responsavelId)?.name || 'Não atribuído';
 
   return (
-    <div className="group relative p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:shadow-lg hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-300">
+    <div className="group relative p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl hover:shadow-lg hover:border-primary/30 transition-all duration-300">
       <div className="flex items-start gap-4">
-        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/40 dark:to-blue-800/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shadow-sm group-hover:scale-110 transition-transform">
+        <div className="h-12 w-12 rounded-xl bg-accent flex items-center justify-center text-primary shadow-sm group-hover:scale-110 transition-transform">
           <Gift className="h-6 w-6" />
         </div>
         
@@ -200,13 +200,13 @@ function ClientBirthdayCard({
           
           <div className="space-y-2">
             {client.phone && (
-              <a href={`tel:${client.phone}`} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors break-all">
+              <a href={`tel:${client.phone}`} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-primary transition-colors break-all">
                 <Phone className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 {client.phone}
               </a>
             )}
             {client.email && (
-              <a href={`mailto:${client.email}`} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors break-all">
+              <a href={`mailto:${client.email}`} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-primary transition-colors break-all">
                 <Mail className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 {client.email}
               </a>
@@ -227,7 +227,7 @@ function ClientBirthdayCard({
         <Button 
           variant="outline" 
           size="sm" 
-          className="flex-1 min-w-[110px] rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 gap-2"
+          className="flex-1 min-w-[110px] rounded-xl h-9 text-xs border-slate-200 dark:border-slate-800 hover:bg-accent hover:text-primary gap-2"
           onClick={() => window.open(`tel:${client.phone}`, '_self')}
         >
           <Phone className="h-3.5 w-3.5 mt-0.5 shrink-0" /> Ligar

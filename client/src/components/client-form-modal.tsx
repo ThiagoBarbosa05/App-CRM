@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { InputMask } from "@/components/ui/input-mask";
-import { X, Tag } from "lucide-react";
+import { X, Tag, User, Phone, MapPin, Briefcase } from "lucide-react";
 import { DuplicateWarning, type DuplicateMatch } from "@/components/duplicate-warning";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
@@ -377,11 +377,11 @@ export default function ClientFormModal({
         <div className="border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-5 shrink-0 relative z-10 shadow-sm">
           <DialogHeader className="space-y-0">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-blue-100/80 to-indigo-100/80 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-xl shadow-sm border border-blue-200/40 dark:border-blue-800/40">
+              <div className="p-3 bg-accent rounded-xl shadow-sm border border-border">
                 {client ? (
-                  <Tag className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <Tag className="h-6 w-6 text-primary" />
                 ) : (
-                  <Tag className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <Tag className="h-6 w-6 text-primary" />
                 )}
               </div>
               <div className="flex-1">
@@ -405,11 +405,11 @@ export default function ClientFormModal({
 
               {/* Seção 1: Dados Pessoais */}
               <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 dark:bg-blue-600"></div>
+                <div className="absolute top-0 left-0 w-1 h-full bg-primary"></div>
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-                  <span className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-md">
-                    👤
-                  </span> 
+                  <span className="p-1.5 bg-accent rounded-md">
+                    <User className="h-4 w-4 text-primary" />
+                  </span>
                   Dados Pessoais
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
@@ -533,8 +533,8 @@ export default function ClientFormModal({
                 <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500 dark:bg-emerald-600"></div>
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <span className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 rounded-md">
-                    📞
-                  </span> 
+                    <Phone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  </span>
                   Contato
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
@@ -602,8 +602,8 @@ export default function ClientFormModal({
                 <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 dark:bg-amber-600"></div>
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <span className="p-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-md">
-                    📍
-                  </span> 
+                    <MapPin className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </span>
                   Endereço
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
@@ -740,8 +740,8 @@ export default function ClientFormModal({
                 <div className="absolute top-0 left-0 w-1 h-full bg-purple-500 dark:bg-purple-600"></div>
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                   <span className="p-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-md">
-                    💼
-                  </span> 
+                    <Briefcase className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  </span>
                   Gestão Comercial
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
@@ -967,7 +967,7 @@ export default function ClientFormModal({
             form="client-form"
             disabled={isSubmitting || hasBlockingDuplicate}
             title={hasBlockingDuplicate ? "Resolva a duplicidade de CPF/e-mail antes de salvar" : undefined}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm px-6 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">

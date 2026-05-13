@@ -182,7 +182,7 @@ export default function ClientProfilePage() {
             </Button>
 
             {/* Avatar com iniciais */}
-            <div className="shrink-0 h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-sm select-none">
+            <div className="shrink-0 h-12 w-12 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-base shadow-sm select-none">
               {clientInitials}
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function ClientProfilePage() {
           <Button
             size="sm"
             onClick={() => setEditModalOpen(true)}
-            className="gap-1.5 bg-slate-900 hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white text-white font-medium shadow-sm w-full sm:w-auto"
+            className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm w-full sm:w-auto"
           >
             <Edit className="h-4 w-4" />
             Editar

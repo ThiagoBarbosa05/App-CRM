@@ -18,7 +18,7 @@ function PageHeaderRoot({
     >
       {/* Decorative blur isolado para não clipar o conteúdo no mobile */}
       <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-400/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
       </div>
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative z-10">
         {children}
@@ -119,7 +119,10 @@ function PageHeaderActions({
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className={cn("flex items-center gap-3 w-full md:w-auto", className)}
+      className={cn(
+        "flex flex-wrap items-center gap-3 w-full md:w-auto",
+        className,
+      )}
     >
       {children}
     </motion.div>

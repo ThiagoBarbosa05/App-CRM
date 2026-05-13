@@ -221,7 +221,7 @@ export default function CalendarPage() {
     <div className="space-y-6 md:space-y-8 pb-10">
       <PageHeader>
         <PageHeader.Info>
-          <PageHeader.Icon icon={Calendar} />
+          <PageHeader.Icon icon={Calendar} color="text-primary" bgColor="bg-accent" />
           <PageHeader.Text>
             <PageHeader.Title>Aniversários</PageHeader.Title>
             <PageHeader.Description>
@@ -233,7 +233,7 @@ export default function CalendarPage() {
           <Button
             onClick={() => createAutoRemindersMutation.mutate()}
             disabled={createAutoRemindersMutation.isPending}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-6 h-11 rounded-xl flex-1 md:flex-none"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 h-11 rounded-xl flex-1 md:flex-none"
           >
             <Bell className="h-4 w-4 mr-2" />
             {createAutoRemindersMutation.isPending ? "Criando..." : "Lembretes Automáticos"}
@@ -342,7 +342,7 @@ export default function CalendarPage() {
               <Button
                 onClick={handleCreateReminder}
                 disabled={createReminderMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-8 rounded-xl h-11"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 rounded-xl h-11"
               >
                 {createReminderMutation.isPending
                   ? "Criando..."

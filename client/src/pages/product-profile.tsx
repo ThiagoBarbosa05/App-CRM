@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency } from "@/lib/utils";
+import { PageHeader } from "@/components/page-header";
+import { AppTabs, UnderlineTabsList, UnderlineTabsTrigger, AppTabsContent } from "@/components/app-tabs";
 import {
   BarChart,
   Bar,
@@ -146,7 +147,7 @@ function CustomBarTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 shadow-xl text-sm">
       <p className="font-bold text-slate-700 dark:text-slate-200 mb-1">{label}</p>
-      <p className="text-violet-600 font-black">{formatCurrency(parseFloat(payload[0]?.value ?? "0"))}</p>
+      <p className="text-primary font-black">{formatCurrency(parseFloat(payload[0]?.value ?? "0"))}</p>
       <p className="text-slate-500 text-xs">{parseFloat(payload[1]?.value ?? "0").toFixed(0)} unid.</p>
     </div>
   );
@@ -288,59 +289,59 @@ export default function ProductProfilePage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 pb-12">
       {/* Back + header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-start gap-3">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate("/products")}
-          className="rounded-xl h-10 w-10 shrink-0"
+          className="rounded-xl h-10 w-10 shrink-0 mt-1"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
 
         {isLoadingProduct ? (
-          <div className="flex items-center gap-4 flex-1">
-            <Skeleton className="h-16 w-16 rounded-2xl" />
-            <div className="space-y-2">
+          <div className="flex items-center gap-4 flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-4 shadow-sm">
+            <Skeleton className="h-12 w-12 rounded-2xl shrink-0" />
+            <div className="space-y-2 flex-1">
               <Skeleton className="h-6 w-64" />
               <Skeleton className="h-4 w-40" />
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-violet-50 to-purple-50 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center border border-violet-100/50 dark:border-slate-700 shrink-0 overflow-hidden">
-              {product?.imageUrl ? (
-                <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain p-1" />
-              ) : (
-                <Wine className="h-8 w-8 text-violet-500 dark:text-violet-400" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white leading-tight truncate">
-                {product?.name}
-              </h1>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {product?.country && (
-                  <span className="text-sm font-semibold text-slate-500">
-                    {flag} {product.country}
-                  </span>
-                )}
-                {product?.type && (
-                  <Badge className={`text-[10px] font-black uppercase border-0 h-5 px-2 ${typeColor}`}>
-                    {product.type}
-                  </Badge>
-                )}
-                {product?.volume && (
-                  <span className="text-xs font-semibold text-slate-400">{product.volume}</span>
-                )}
-                {product?.category && (
-                  <Badge className="text-[10px] font-black uppercase border-0 h-5 px-2 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300">
-                    {product.category}
-                  </Badge>
+          <PageHeader className="flex-1">
+            <PageHeader.Info>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl flex-shrink-0 shadow-inner bg-accent border border-border overflow-hidden">
+                {product?.imageUrl ? (
+                  <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain p-1" />
+                ) : (
+                  <Wine className="h-6 w-6 text-primary" />
                 )}
               </div>
-            </div>
-          </div>
+              <PageHeader.Text>
+                <PageHeader.Title>{product?.name}</PageHeader.Title>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {product?.country && (
+                    <span className="text-sm font-semibold text-slate-500">
+                      {flag} {product.country}
+                    </span>
+                  )}
+                  {product?.type && (
+                    <Badge className={`text-[10px] font-black uppercase border-0 h-5 px-2 ${typeColor}`}>
+                      {product.type}
+                    </Badge>
+                  )}
+                  {product?.volume && (
+                    <span className="text-xs font-semibold text-slate-400">{product.volume}</span>
+                  )}
+                  {product?.category && (
+                    <Badge className="text-[10px] font-black uppercase border-0 h-5 px-2 bg-accent text-primary">
+                      {product.category}
+                    </Badge>
+                  )}
+                </div>
+              </PageHeader.Text>
+            </PageHeader.Info>
+          </PageHeader>
         )}
       </div>
 
@@ -360,16 +361,16 @@ export default function ProductProfilePage() {
             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
           >
             <SummaryCard
-              icon={<DollarSign className="h-5 w-5 text-violet-600" />}
+              icon={<DollarSign className="h-5 w-5 text-primary" />}
               label="Total faturado"
               value={formatCurrency(profile?.summary.totalRevenue ?? 0)}
-              color="bg-violet-100 dark:bg-violet-900/30"
+              color="bg-accent"
             />
             <SummaryCard
-              icon={<Package className="h-5 w-5 text-blue-600" />}
+              icon={<Package className="h-5 w-5 text-primary" />}
               label="Garrafas vendidas"
               value={`${(profile?.summary.totalQuantity ?? 0).toFixed(0)} unid.`}
-              color="bg-blue-100 dark:bg-blue-900/30"
+              color="bg-accent"
             />
             <SummaryCard
               icon={<TrendingUp className="h-5 w-5 text-emerald-600" />}
@@ -395,19 +396,19 @@ export default function ProductProfilePage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-4 w-full max-w-xl">
-          <TabsTrigger value="details">Detalhes</TabsTrigger>
-          <TabsTrigger value="ai-profile" className="flex items-center gap-1.5">
+      <AppTabs value={activeTab} onValueChange={setActiveTab}>
+        <UnderlineTabsList>
+          <UnderlineTabsTrigger value="details" color="wine">Detalhes</UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="ai-profile" color="wine" className="flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
             Perfil IA
-          </TabsTrigger>
-          <TabsTrigger value="history">Histórico</TabsTrigger>
-          <TabsTrigger value="buyers">Compradores</TabsTrigger>
-        </TabsList>
+          </UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="history" color="wine">Histórico</UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="buyers" color="wine">Compradores</UnderlineTabsTrigger>
+        </UnderlineTabsList>
 
         {/* Tab: Detalhes */}
-        <TabsContent value="details" className="mt-6">
+        <AppTabsContent value="details" className="mt-6">
           {isLoadingProduct ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {[1,2,3,4,5,6].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
@@ -502,10 +503,10 @@ export default function ProductProfilePage() {
               </div>
             </div>
           )}
-        </TabsContent>
+        </AppTabsContent>
 
         {/* Tab: Perfil IA */}
-        <TabsContent value="ai-profile" className="mt-6">
+        <AppTabsContent value="ai-profile" className="mt-6">
           <div className="max-w-2xl space-y-5">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
@@ -514,7 +515,7 @@ export default function ProductProfilePage() {
               <button
                 onClick={() => generateAIProfileMutation.mutate()}
                 disabled={generateAIProfileMutation.isPending}
-                className="flex items-center gap-1.5 text-sm font-semibold text-violet-600 hover:text-violet-700 disabled:opacity-50"
+                className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80 disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 ${generateAIProfileMutation.isPending ? "animate-spin" : ""}`} />
                 {generateAIProfileMutation.isPending ? "Gerando..." : "Regenerar"}
@@ -523,8 +524,8 @@ export default function ProductProfilePage() {
 
             {!aiProfile ? (
               <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-                <div className="p-5 bg-violet-50 dark:bg-violet-900/20 rounded-full">
-                  <Sparkles className="h-10 w-10 text-violet-400" />
+                <div className="p-5 bg-accent rounded-full">
+                  <Sparkles className="h-10 w-10 text-primary" />
                 </div>
                 <div>
                   <p className="font-semibold text-slate-700 dark:text-slate-300 text-lg">Perfil ainda não gerado</p>
@@ -535,7 +536,7 @@ export default function ProductProfilePage() {
                 <button
                   onClick={() => generateAIProfileMutation.mutate()}
                   disabled={generateAIProfileMutation.isPending}
-                  className="px-5 py-2.5 rounded-xl bg-violet-600 text-white font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors"
+                  className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
                 >
                   {generateAIProfileMutation.isPending ? "Gerando..." : "Gerar perfil IA"}
                 </button>
@@ -543,7 +544,7 @@ export default function ProductProfilePage() {
             ) : (
               <div className="space-y-4">
                 {/* Descrição */}
-                <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/20 dark:to-purple-900/20 rounded-2xl p-5 border border-violet-100/60 dark:border-violet-800/40">
+                <div className="bg-accent/50 dark:bg-accent/10 rounded-2xl p-5 border border-border">
                   <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed italic">"{aiProfile.descricao}"</p>
                 </div>
 
@@ -556,7 +557,7 @@ export default function ProductProfilePage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
                     ...(aiProfile.tanino ? [{ label: "Tanino", value: aiProfile.tanino, color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300" }] : []),
-                    { label: "Estilo", value: aiProfile.estilo, color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300" },
+                    { label: "Estilo", value: aiProfile.estilo, color: "bg-accent text-primary" },
                     { label: "Mundo", value: aiProfile.mundo, color: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" },
                   ].map((attr) => (
                     <div key={attr.label} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-200/60 dark:border-slate-700/60">
@@ -590,7 +591,7 @@ export default function ProductProfilePage() {
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Uvas</p>
                     <div className="flex flex-wrap gap-2">
                       {aiProfile.uvas.map((uva) => (
-                        <span key={uva} className="text-sm font-semibold px-3 py-1 bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300 rounded-full">{uva}</span>
+                        <span key={uva} className="text-sm font-semibold px-3 py-1 bg-accent text-primary rounded-full">{uva}</span>
                       ))}
                     </div>
                   </div>
@@ -610,10 +611,10 @@ export default function ProductProfilePage() {
               </div>
             )}
           </div>
-        </TabsContent>
+        </AppTabsContent>
 
         {/* Tab: Histórico */}
-        <TabsContent value="history" className="mt-6">
+        <AppTabsContent value="history" className="mt-6">
           {isLoadingProfile ? (
             <Skeleton className="h-96 rounded-2xl" />
           ) : chartData.length === 0 ? (
@@ -643,17 +644,17 @@ export default function ProductProfilePage() {
                           tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={36}
                         />
                         <Tooltip content={<CustomBarTooltip />} />
-                        <Bar yAxisId="receita" dataKey="receita" fill="#7c3aed" radius={[6,6,0,0]} maxBarSize={40} />
-                        <Bar yAxisId="qtd" dataKey="quantidade" fill="#c4b5fd" radius={[6,6,0,0]} maxBarSize={24} />
+                        <Bar yAxisId="receita" dataKey="receita" fill="#8b1a2c" radius={[6,6,0,0]} maxBarSize={40} />
+                        <Bar yAxisId="qtd" dataKey="quantidade" fill="#c4878f" radius={[6,6,0,0]} maxBarSize={24} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                   <div className="flex items-center gap-6 justify-center mt-4 text-xs text-slate-400 font-semibold">
                     <span className="flex items-center gap-1.5">
-                      <span className="h-3 w-3 rounded-sm bg-violet-600 inline-block" />Receita (R$)
+                      <span className="h-3 w-3 rounded-sm bg-primary inline-block" />Receita (R$)
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="h-3 w-3 rounded-sm bg-violet-300 inline-block" />Quantidade (unid.)
+                      <span className="h-3 w-3 rounded-sm bg-primary/30 inline-block" />Quantidade (unid.)
                     </span>
                   </div>
                 </CardContent>
@@ -668,7 +669,7 @@ export default function ProductProfilePage() {
                     <span className="text-sm font-bold text-slate-700 dark:text-slate-300 capitalize w-24">{m.month}</span>
                     <div className="flex items-center gap-6">
                       <span className="text-xs font-semibold text-slate-400">{m.quantidade.toFixed(0)} unid.</span>
-                      <span className="text-sm font-black text-violet-700 dark:text-violet-300 w-28 text-right">
+                      <span className="text-sm font-black text-primary w-28 text-right">
                         {formatCurrency(m.receita)}
                       </span>
                     </div>
@@ -677,10 +678,10 @@ export default function ProductProfilePage() {
               </div>
             </div>
           )}
-        </TabsContent>
+        </AppTabsContent>
 
         {/* Tab: Compradores */}
-        <TabsContent value="buyers" className="mt-6">
+        <AppTabsContent value="buyers" className="mt-6">
           {!isLoadingProfile && (profile?.buyers.length ?? 0) > 0 && (
             <div className="flex justify-end mb-4">
               <Button
@@ -760,15 +761,15 @@ export default function ProductProfilePage() {
                       </span>
                     </div>
                   </div>
-                  <span className="text-base font-black text-violet-700 dark:text-violet-300 shrink-0">
+                  <span className="text-base font-black text-primary shrink-0">
                     {formatCurrency(parseFloat(buyer.totalRevenue))}
                   </span>
                 </motion.div>
               ))}
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </AppTabsContent>
+      </AppTabs>
     </div>
   );
 }
