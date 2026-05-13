@@ -95,7 +95,7 @@ export function ProductsTable({
   const [, navigate] = useLocation();
   return (
     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 rounded-3xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            {/* Mobile Card View */}
+      {/* Mobile Card View */}
       <div className="md:hidden flex flex-col gap-4 p-4 grow">
         <AnimatePresence mode="wait">
           {isFetching ? (
@@ -133,8 +133,8 @@ export function ProductsTable({
                   Adega vazia
                 </p>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Não encontramos nenhum vinho com os filtros atuais.
-                  Tente ajustar sua busca.
+                  Não encontramos nenhum vinho com os filtros atuais. Tente
+                  ajustar sua busca.
                 </p>
               </div>
             </motion.div>
@@ -170,45 +170,65 @@ export function ProductsTable({
                       <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider mt-1">
                         REF: {product.id.slice(0, 8)}
                       </p>
-                      
+
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {isWineProduct(product.category) && (
                           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md px-1.5 py-0.5">
-                            <span className="text-sm leading-none drop-shadow-sm">{getCountryFlag(product.country)}</span>
+                            <span className="text-sm leading-none drop-shadow-sm">
+                              {getCountryFlag(product.country)}
+                            </span>
                             <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase truncate">
                               {product.country}
                             </span>
                           </div>
                         )}
                         {product.category && (
-                          <Badge variant="secondary" className="bg-accent text-primary font-bold border-0 text-[9px] uppercase tracking-widest px-1.5 py-0">
+                          <Badge
+                            variant="secondary"
+                            className="bg-accent text-primary font-bold border-0 text-[9px] uppercase tracking-widest px-1.5 py-0"
+                          >
                             {product.category}
                           </Badge>
                         )}
                         {isWineProduct(product.category) && (
-                          <Badge className={`font-black uppercase text-[9px] tracking-widest shadow-none ${getTypeColor(product.type)} border-0 px-1.5 py-0 h-4`}>
+                          <Badge
+                            className={`font-black uppercase text-[9px] tracking-widest shadow-none ${getTypeColor(product.type)} border-0 px-1.5 py-0 h-4`}
+                          >
                             {product.type}
                           </Badge>
                         )}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col gap-1 shrink-0 items-end">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-slate-600"
+                        >
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 rounded-xl">
-                        <DropdownMenuItem onClick={() => onEdit(product)} className="gap-2 cursor-pointer">
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-40 rounded-xl"
+                      >
+                        <DropdownMenuItem
+                          onClick={() => onEdit(product)}
+                          className="gap-2 cursor-pointer"
+                        >
                           <Edit className="h-4 w-4" /> Editar
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
+                            <DropdownMenuItem
+                              onSelect={(e) => e.preventDefault()}
+                              className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                            >
                               <Trash2 className="h-4 w-4" /> Excluir
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
@@ -244,15 +264,23 @@ export function ProductsTable({
 
                 <div className="grid grid-cols-2 gap-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-3 border border-slate-100 dark:border-slate-800">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Volume</span>
+                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                      Volume
+                    </span>
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                       {isWineProduct(product.category) ? product.volume : "—"}
                     </span>
                   </div>
                   <div className="flex flex-col gap-0.5 items-end">
-                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Valor UND</span>
+                    <span className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                      Valor UND
+                    </span>
                     <span className="text-emerald-700 dark:text-emerald-400 font-black text-sm">
-                      R$ {parseFloat(product.negotiatedPrice).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      R${" "}
+                      {parseFloat(product.negotiatedPrice).toLocaleString(
+                        "pt-BR",
+                        { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                      )}
                     </span>
                   </div>
                 </div>
@@ -267,7 +295,11 @@ export function ProductsTable({
                       {product.clientCount} alcance
                     </span>
                   </div>
-                  <Button variant="outline" className="rounded-xl h-auto py-2.5 px-4 text-xs font-bold" onClick={() => navigate(`/products/${product.id}`)}>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl h-auto py-2.5 px-4 text-xs font-bold"
+                    onClick={() => navigate(`/products/${product.id}`)}
+                  >
                     Detalhes
                   </Button>
                 </div>

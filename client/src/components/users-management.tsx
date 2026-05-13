@@ -72,7 +72,7 @@ export default function UsersManagement() {
   const [editingUser, setEditingUser] = useState<UserWithChannel | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithChannel | null>(
-    null
+    null,
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -99,13 +99,12 @@ export default function UsersManagement() {
     queryKey: ["/api/users"],
   });
 
-
   const filteredUsers = useMemo(() => {
     if (!debouncedSearchTerm) return users;
     return (users || []).filter(
       (user: UserWithChannel) =>
         user.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+        user.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase()),
     );
   }, [users, debouncedSearchTerm]);
 
@@ -367,7 +366,7 @@ export default function UsersManagement() {
                           <span>
                             Cadastrado em{" "}
                             {new Date(user.createdAt).toLocaleDateString(
-                              "pt-BR"
+                              "pt-BR",
                             )}
                           </span>
                         </div>
@@ -390,10 +389,15 @@ export default function UsersManagement() {
                         size="sm"
                         variant="outline"
                         onClick={() => setUserToLinkBlingVendor(user)}
-                        title={user.blingVendedorId ? `Vendedor Bling vinculado: ${user.blingVendedorId}` : "Vincular ao vendedor Bling"}
-                        className={user.blingVendedorId
-                          ? "bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100 hover:border-orange-400 dark:bg-orange-900/20 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-900/30"
-                          : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+                        title={
+                          user.blingVendedorId
+                            ? `Vendedor Bling vinculado: ${user.blingVendedorId}`
+                            : "Vincular ao vendedor Bling"
+                        }
+                        className={
+                          user.blingVendedorId
+                            ? "bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100 hover:border-orange-400 dark:bg-orange-900/20 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-900/30"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
                         }
                       >
                         <Store className="h-4 w-4 mr-1" />

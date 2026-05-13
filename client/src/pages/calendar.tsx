@@ -53,8 +53,7 @@ export default function CalendarPage() {
     queryKey: ["/api/birthdays/upcoming", "all", user?.id, user?.role],
     queryFn: async () => {
       const response = await fetch(`/api/birthdays/upcoming?days=365`, {
-        headers: {
-        },
+        headers: {},
       });
       if (!response.ok) throw new Error("Failed to fetch all birthdays");
       return response.json();
@@ -66,8 +65,7 @@ export default function CalendarPage() {
     queryKey: ["/api/birthdays/upcoming", 30, user?.id, user?.role],
     queryFn: async () => {
       const response = await fetch("/api/birthdays/upcoming?days=30", {
-        headers: {
-        },
+        headers: {},
       });
       if (!response.ok) throw new Error("Failed to fetch upcoming birthdays");
       return response.json();
@@ -221,7 +219,11 @@ export default function CalendarPage() {
     <div className="space-y-6 md:space-y-8 pb-10">
       <PageHeader>
         <PageHeader.Info>
-          <PageHeader.Icon icon={Calendar} color="text-primary" bgColor="bg-accent" />
+          <PageHeader.Icon
+            icon={Calendar}
+            color="text-primary"
+            bgColor="bg-accent"
+          />
           <PageHeader.Text>
             <PageHeader.Title>Aniversários</PageHeader.Title>
             <PageHeader.Description>
@@ -236,7 +238,9 @@ export default function CalendarPage() {
             className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 h-11 rounded-xl flex-1 md:flex-none"
           >
             <Bell className="h-4 w-4 mr-2" />
-            {createAutoRemindersMutation.isPending ? "Criando..." : "Lembretes Automáticos"}
+            {createAutoRemindersMutation.isPending
+              ? "Criando..."
+              : "Lembretes Automáticos"}
           </Button>
         </PageHeader.Actions>
       </PageHeader>

@@ -38,17 +38,21 @@ export function UpcomingBirthdays({
               <div className="h-16 w-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
                 <Gift className="h-8 w-8 text-slate-200 dark:text-slate-700" />
               </div>
-              <p className="text-slate-500 dark:text-slate-400">Nenhum aniversário nos próximos 30 dias.</p>
+              <p className="text-slate-500 dark:text-slate-400">
+                Nenhum aniversário nos próximos 30 dias.
+              </p>
             </div>
           ) : (
-            upcomingBirthdays.slice(0, 15).map((client, index) => (
-              <UpcomingBirthdayItem
-                key={client.id}
-                client={client}
-                users={users}
-                index={index}
-              />
-            ))
+            upcomingBirthdays
+              .slice(0, 15)
+              .map((client, index) => (
+                <UpcomingBirthdayItem
+                  key={client.id}
+                  client={client}
+                  users={users}
+                  index={index}
+                />
+              ))
           )}
         </div>
       </CardContent>
@@ -56,19 +60,41 @@ export function UpcomingBirthdays({
   );
 }
 
-function UpcomingBirthdayItem({ client, users, index }: { client: any; users: any[]; index: number }) {
+function UpcomingBirthdayItem({
+  client,
+  users,
+  index,
+}: {
+  client: any;
+  users: any[];
+  index: number;
+}) {
   const birthdayDate = parseISO(client.birthday);
   const age = new Date().getFullYear() - birthdayDate.getFullYear();
   const daysUntil = Math.ceil(
-    (new Date(client.nextBirthday).getTime() - new Date().getTime()) / 
-    (1000 * 60 * 60 * 24)
+    (new Date(client.nextBirthday).getTime() - new Date().getTime()) /
+      (1000 * 60 * 60 * 24),
   );
-  const responsible = users.find(u => u.id === client.responsavelId)?.name || 'Não atribuído';
+  const responsible =
+    users.find((u) => u.id === client.responsavelId)?.name || "Não atribuído";
 
   const getStatusBadge = () => {
-    if (daysUntil === 0) return { label: "🎉 Hoje!", className: "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" };
-    if (daysUntil === 1) return { label: "🎂 Amanhã", className: "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" };
-    return { label: `⏰ ${daysUntil} dias`, className: "bg-accent text-primary" };
+    if (daysUntil === 0)
+      return {
+        label: "🎉 Hoje!",
+        className:
+          "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300",
+      };
+    if (daysUntil === 1)
+      return {
+        label: "🎂 Amanhã",
+        className:
+          "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300",
+      };
+    return {
+      label: `⏰ ${daysUntil} dias`,
+      className: "bg-accent text-primary",
+    };
   };
 
   const status = getStatusBadge();
@@ -84,17 +110,19 @@ function UpcomingBirthdayItem({ client, users, index }: { client: any; users: an
         <div className="h-10 w-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 text-primary group-hover:scale-110 transition-transform">
           <Gift className="h-5 w-5" />
         </div>
-        
+
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
             <h4 className="font-bold text-slate-900 dark:text-white text-sm break-words">
               {client.name}
             </h4>
-            <Badge className={`${status.className} border-none px-2 py-0 h-5 text-[10px] whitespace-nowrap`}>
+            <Badge
+              className={`${status.className} border-none px-2 py-0 h-5 text-[10px] whitespace-nowrap`}
+            >
               {status.label}
             </Badge>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-1">
             <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
               <CalendarIcon className="h-3 w-3" />

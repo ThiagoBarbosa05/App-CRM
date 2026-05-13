@@ -110,95 +110,99 @@ export default function UmblerContactsPage() {
 
   return (
     <div className="space-y-6 pb-10">
-        <PageHeader>
-          <PageHeader.Info>
-            <PageHeader.Icon icon={Users} color="text-primary" bgColor="bg-accent" />
-            <PageHeader.Text>
-              <PageHeader.Title>Contatos Umbler</PageHeader.Title>
-              <PageHeader.Description>
-                Gerencie todos os seus contatos sincronizados do Umbler uTalk
-              </PageHeader.Description>
-            </PageHeader.Text>
-          </PageHeader.Info>
-          <PageHeader.Actions>
-            {user?.role === "admin" && (
-              <Button
-                variant="outline"
-                onClick={() => setLocation("/umbler/campaigns/create")}
-                className="gap-2"
-              >
-                <Send className="h-4 w-4" />
-                Criar Campanha
-              </Button>
-            )}
-            <UmblerContactDialog />
-          </PageHeader.Actions>
-        </PageHeader>
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={Users}
+            color="text-primary"
+            bgColor="bg-accent"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Contatos Umbler</PageHeader.Title>
+            <PageHeader.Description>
+              Gerencie todos os seus contatos sincronizados do Umbler uTalk
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        <PageHeader.Actions>
+          {user?.role === "admin" && (
+            <Button
+              variant="outline"
+              onClick={() => setLocation("/umbler/campaigns/create")}
+              className="gap-2"
+            >
+              <Send className="h-4 w-4" />
+              Criar Campanha
+            </Button>
+          )}
+          <UmblerContactDialog />
+        </PageHeader.Actions>
+      </PageHeader>
 
-        <UmblerContactsFilters
-          search={search}
-          setSearch={setSearch}
-          selectedTags={selectedTags}
-          setSelectedTags={setSelectedTags}
-          exclusiveTagFilter={exclusiveTagFilter}
-          setExclusiveTagFilter={setExclusiveTagFilter}
-          hasActiveFilters={!!hasActiveFilters}
-          clearFilters={clearFilters}
-        />
+      <UmblerContactsFilters
+        search={search}
+        setSearch={setSearch}
+        selectedTags={selectedTags}
+        setSelectedTags={setSelectedTags}
+        exclusiveTagFilter={exclusiveTagFilter}
+        setExclusiveTagFilter={setExclusiveTagFilter}
+        hasActiveFilters={!!hasActiveFilters}
+        clearFilters={clearFilters}
+      />
 
-        <UmblerContactsTable
-          contacts={contacts || []}
-          isLoading={isLoading}
-          hasActiveFilters={!!hasActiveFilters}
-          onViewDetails={handleViewDetails}
-          onEdit={handleEdit}
-          onDeleteClick={handleDeleteClick}
-        />
+      <UmblerContactsTable
+        contacts={contacts || []}
+        isLoading={isLoading}
+        hasActiveFilters={!!hasActiveFilters}
+        onViewDetails={handleViewDetails}
+        onEdit={handleEdit}
+        onDeleteClick={handleDeleteClick}
+      />
 
-        {/* Dialogs */}
-        <UmblerContactDialog
-          open={editOpen}
-          onOpenChange={setEditOpen}
-          contact={selectedContact}
-        />
+      {/* Dialogs */}
+      <UmblerContactDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        contact={selectedContact}
+      />
 
-        <UmblerContactDetails
-          open={detailsOpen}
-          onOpenChange={setDetailsOpen}
-          contact={selectedContact}
-        />
+      <UmblerContactDetails
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        contact={selectedContact}
+      />
 
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent className="border-slate-200 dark:border-slate-800 shadow-xl rounded-xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                Confirmar exclusão
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
-                Tem certeza que deseja deletar este contato? Esta ação não pode
-                ser desfeita e ele será removido das campanhas ativas.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="mt-4 gap-3">
-              <AlertDialogCancel className="mt-0 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">
-                Cancelar
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDelete}
-                className="bg-red-600 text-white hover:bg-red-700 shadow-sm border-none shadow-red-500/20 transition-all font-medium"
-              >
-                {deleteMutation.isPending ? (
-                  <span className="flex items-center gap-2">
-                    <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />
-                    Deletando...
-                  </span>
-                ) : (
-                  "Excluir Contato"
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="border-slate-200 dark:border-slate-800 shadow-xl rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              Confirmar exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
+              Tem certeza que deseja deletar este contato? Esta ação não pode
+              ser desfeita e ele será removido das campanhas ativas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 gap-3">
+            <AlertDialogCancel className="mt-0 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 text-white hover:bg-red-700 shadow-sm border-none shadow-red-500/20 transition-all font-medium"
+            >
+              {deleteMutation.isPending ? (
+                <span className="flex items-center gap-2">
+                  <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />
+                  Deletando...
+                </span>
+              ) : (
+                "Excluir Contato"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

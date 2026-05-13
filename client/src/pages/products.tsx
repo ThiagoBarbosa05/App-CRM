@@ -228,7 +228,11 @@ export default function Products() {
     <div className="space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
-          <PageHeader.Icon icon={Wine} color="text-primary" bgColor="bg-accent" />
+          <PageHeader.Icon
+            icon={Wine}
+            color="text-primary"
+            bgColor="bg-accent"
+          />
           <PageHeader.Text>
             <PageHeader.Title>Catálogo de Produtos</PageHeader.Title>
             <PageHeader.Description>

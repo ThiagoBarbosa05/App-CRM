@@ -32,7 +32,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { InputMask } from "@/components/ui/input-mask";
 import { X, Tag, User, Phone, MapPin, Briefcase } from "lucide-react";
-import { DuplicateWarning, type DuplicateMatch } from "@/components/duplicate-warning";
+import {
+  DuplicateWarning,
+  type DuplicateMatch,
+} from "@/components/duplicate-warning";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { TagSelector } from "@/components/ui/tag-selector";
@@ -188,19 +191,32 @@ export default function ClientFormModal({
     if (cleanCep.length !== 8) return;
     setIsLoadingCep(true);
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const response = await fetch(
+        `https://viacep.com.br/ws/${cleanCep}/json/`,
+      );
       const data = await response.json();
       if (data.erro) {
-        toast({ title: "CEP não encontrado", description: "O CEP informado não foi encontrado.", variant: "destructive" });
+        toast({
+          title: "CEP não encontrado",
+          description: "O CEP informado não foi encontrado.",
+          variant: "destructive",
+        });
         return;
       }
       form.setValue("address", data.logradouro || "");
       form.setValue("neighborhood", data.bairro || "");
       form.setValue("city", data.localidade || "");
       form.setValue("state", data.uf || "");
-      toast({ title: "Endereço encontrado", description: "Os dados do endereço foram preenchidos automaticamente." });
+      toast({
+        title: "Endereço encontrado",
+        description: "Os dados do endereço foram preenchidos automaticamente.",
+      });
     } catch {
-      toast({ title: "Erro ao consultar CEP", description: "Não foi possível consultar o CEP. Tente novamente.", variant: "destructive" });
+      toast({
+        title: "Erro ao consultar CEP",
+        description: "Não foi possível consultar o CEP. Tente novamente.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoadingCep(false);
     }
@@ -230,17 +246,30 @@ export default function ClientFormModal({
       const phone = watchedPhone?.replace(/\D/g, "");
       const cpf = watchedCpf?.replace(/\D/g, "");
       const email = watchedEmail?.trim();
-      if (!name && !phone && !cpf && !email) { setDuplicates([]); return; }
+      if (!name && !phone && !cpf && !email) {
+        setDuplicates([]);
+        return;
+      }
       try {
         const res = await fetch("/api/clients/check-duplicate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, phone, cpf, email, excludeId: client?.id }),
+          body: JSON.stringify({
+            name,
+            phone,
+            cpf,
+            email,
+            excludeId: client?.id,
+          }),
         });
         if (res.ok) setDuplicates(await res.json());
-      } catch { /* silencioso */ }
+      } catch {
+        /* silencioso */
+      }
     }, 700);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [watchedName, watchedPhone, watchedCpf, watchedEmail, client?.id]);
 
   const createClientMutation = useMutation({
@@ -343,8 +372,10 @@ export default function ClientFormModal({
         cpf: data.cpf?.trim() || null,
         phone: data.phone?.replace(/\D/g, "") ? data.phone?.trim() : null,
         documentType: isCnpj ? "cnpj" : "cpf",
-        nomeFantasia: isCnpj ? (data.nomeFantasia?.trim() || null) : null,
-        inscricaoEstadual: isCnpj ? (data.inscricaoEstadual?.trim() || null) : null,
+        nomeFantasia: isCnpj ? data.nomeFantasia?.trim() || null : null,
+        inscricaoEstadual: isCnpj
+          ? data.inscricaoEstadual?.trim() || null
+          : null,
         email: data.email?.trim() || null,
         cep: data.cep?.trim() || "",
         address: data.address?.trim() || "",
@@ -400,7 +431,11 @@ export default function ClientFormModal({
 
         <div className="overflow-y-auto overflow-x-hidden p-6 gap-6 relative flex flex-col h-full scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
           <Form {...form}>
-            <form id="client-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form
+              id="client-form"
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-8"
+            >
               <DuplicateWarning matches={duplicates} />
 
               {/* Seção 1: Dados Pessoais */}
@@ -418,9 +453,15 @@ export default function ClientFormModal({
                     name="name"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Nome Completo *</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Nome Completo *
+                        </FormLabel>
                         <FormControl>
-                          <Input className="dark:bg-slate-950 focus-visible:ring-blue-500" placeholder="Digite o nome completo" {...field} />
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-blue-500"
+                            placeholder="Digite o nome completo"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -443,10 +484,14 @@ export default function ClientFormModal({
                         <FormControl>
                           <Input
                             className="dark:bg-slate-950 focus-visible:ring-blue-500"
-                            placeholder={isCnpj ? "00.000.000/0000-00" : "000.000.000-00"}
+                            placeholder={
+                              isCnpj ? "00.000.000/0000-00" : "000.000.000-00"
+                            }
                             value={field.value}
                             onChange={(e) => {
-                              const digits = e.target.value.replace(/\D/g, "").slice(0, 14);
+                              const digits = e.target.value
+                                .replace(/\D/g, "")
+                                .slice(0, 14);
                               let formatted = digits;
                               if (digits.length <= 11) {
                                 // Formato CPF: 000.000.000-00
@@ -480,7 +525,9 @@ export default function ClientFormModal({
                         name="nomeFantasia"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-slate-700 dark:text-slate-300">Nome Fantasia</FormLabel>
+                            <FormLabel className="text-slate-700 dark:text-slate-300">
+                              Nome Fantasia
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 className="dark:bg-slate-950 focus-visible:ring-blue-500"
@@ -497,7 +544,9 @@ export default function ClientFormModal({
                         name="inscricaoEstadual"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-slate-700 dark:text-slate-300">Inscrição Estadual</FormLabel>
+                            <FormLabel className="text-slate-700 dark:text-slate-300">
+                              Inscrição Estadual
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 className="dark:bg-slate-950 focus-visible:ring-blue-500"
@@ -517,9 +566,15 @@ export default function ClientFormModal({
                     name="birthday"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Data de Aniversário</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Data de Aniversário
+                        </FormLabel>
                         <FormControl>
-                          <Input className="dark:bg-slate-950 focus-visible:ring-blue-500" type="date" {...field} />
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-blue-500"
+                            type="date"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -543,7 +598,9 @@ export default function ClientFormModal({
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Celular WhatsApp</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Celular WhatsApp
+                        </FormLabel>
                         <FormControl>
                           <InputMask
                             mask="(99) 99999-9999"
@@ -562,7 +619,9 @@ export default function ClientFormModal({
                     name="fixedPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Telefone Fixo</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Telefone Fixo
+                        </FormLabel>
                         <FormControl>
                           <InputMask
                             mask="(99) 9999-9999"
@@ -581,7 +640,9 @@ export default function ClientFormModal({
                     name="email"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="text-slate-700 dark:text-slate-300">E-mail</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          E-mail
+                        </FormLabel>
                         <FormControl>
                           <Input
                             className="dark:bg-slate-950 focus-visible:ring-emerald-500"
@@ -612,7 +673,9 @@ export default function ClientFormModal({
                     name="cep"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2 lg:col-span-1">
-                        <FormLabel className="text-slate-700 dark:text-slate-300">CEP</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          CEP
+                        </FormLabel>
                         <FormControl>
                           <div className="relative">
                             <InputMask
@@ -638,9 +701,15 @@ export default function ClientFormModal({
                     name="address"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2 lg:col-span-2">
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Logradouro (Rua, Av.)</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Logradouro (Rua, Av.)
+                        </FormLabel>
                         <FormControl>
-                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="Ex: Rua das Flores" {...field} />
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-amber-500"
+                            placeholder="Ex: Rua das Flores"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -652,9 +721,15 @@ export default function ClientFormModal({
                     name="number"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Número</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Número
+                        </FormLabel>
                         <FormControl>
-                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="123" {...field} />
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-amber-500"
+                            placeholder="123"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -666,9 +741,15 @@ export default function ClientFormModal({
                     name="complement"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Complemento</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Complemento
+                        </FormLabel>
                         <FormControl>
-                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="Apto, Sala, Bloco..." {...field} />
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-amber-500"
+                            placeholder="Apto, Sala, Bloco..."
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -680,9 +761,15 @@ export default function ClientFormModal({
                     name="neighborhood"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Bairro</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Bairro
+                        </FormLabel>
                         <FormControl>
-                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="Ex: Centro" {...field} />
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-amber-500"
+                            placeholder="Ex: Centro"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -694,9 +781,15 @@ export default function ClientFormModal({
                     name="city"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Cidade</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Cidade
+                        </FormLabel>
                         <FormControl>
-                          <Input className="dark:bg-slate-950 focus-visible:ring-amber-500" placeholder="Ex: São Paulo" {...field} />
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-amber-500"
+                            placeholder="Ex: São Paulo"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -708,7 +801,9 @@ export default function ClientFormModal({
                     name="state"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Estado</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Estado
+                        </FormLabel>
                         <Select
                           onValueChange={field.onChange}
                           defaultValue={field.value}
@@ -721,7 +816,10 @@ export default function ClientFormModal({
                           <SelectContent>
                             <div className="max-h-[200px] overflow-y-auto">
                               {brazilianStates.map((state) => (
-                                <SelectItem key={state.value} value={state.value}>
+                                <SelectItem
+                                  key={state.value}
+                                  value={state.value}
+                                >
                                   {state.label}
                                 </SelectItem>
                               ))}
@@ -750,7 +848,9 @@ export default function ClientFormModal({
                     name="categoria"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Categoria *</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Categoria *
+                        </FormLabel>
                         <FormControl>
                           <Select
                             onValueChange={field.onChange}
@@ -789,7 +889,9 @@ export default function ClientFormModal({
                     name="origem"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Origem Principal *</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Origem Principal *
+                        </FormLabel>
                         <FormControl>
                           <Select
                             onValueChange={field.onChange}
@@ -807,7 +909,10 @@ export default function ClientFormModal({
                                 </div>
                               ) : (
                                 (origins as any[]).map((origin: any) => (
-                                  <SelectItem key={origin.id} value={origin.name}>
+                                  <SelectItem
+                                    key={origin.id}
+                                    value={origin.name}
+                                  >
                                     {origin.name}
                                   </SelectItem>
                                 ))
@@ -826,7 +931,9 @@ export default function ClientFormModal({
                       name="responsavelId"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel className="text-slate-700 dark:text-slate-300">Responsável Atribuído *</FormLabel>
+                          <FormLabel className="text-slate-700 dark:text-slate-300">
+                            Responsável Atribuído *
+                          </FormLabel>
                           <FormControl>
                             <Select
                               onValueChange={field.onChange}
@@ -872,7 +979,8 @@ export default function ClientFormModal({
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-500">
-                        Como vendedor, este cliente será automaticamente atribuído à sua carteira.
+                        Como vendedor, este cliente será automaticamente
+                        atribuído à sua carteira.
                       </p>
                     </div>
                   )}
@@ -882,7 +990,9 @@ export default function ClientFormModal({
                     name="markers"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="text-slate-700 dark:text-slate-300">Marcadores Adicionais (Tags)</FormLabel>
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Marcadores Adicionais (Tags)
+                        </FormLabel>
                         <FormControl>
                           <Select
                             onValueChange={(value) => {
@@ -899,17 +1009,14 @@ export default function ClientFormModal({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {markers.filter(
-                                (m: any) => m.type === "marcador",
-                              ).length === 0 ? (
+                              {markers.filter((m: any) => m.type === "marcador")
+                                .length === 0 ? (
                                 <div className="p-2 text-sm text-gray-500 text-center">
                                   Nenhum marcador disponível.
                                 </div>
                               ) : (
                                 markers
-                                  .filter(
-                                    (m: any) => m.type === "marcador",
-                                  )
+                                  .filter((m: any) => m.type === "marcador")
                                   .map((m: any) => (
                                     <SelectItem key={m.id} value={m.name}>
                                       {m.name}
@@ -921,25 +1028,27 @@ export default function ClientFormModal({
                         </FormControl>
                         {field.value && field.value.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200/50 dark:border-slate-800/50">
-                            {field.value.map((marker: string, index: number) => (
-                              <Badge
-                                key={index}
-                                variant="secondary"
-                                className="flex items-center gap-1.5 px-2.5 py-1 text-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50 transition-colors"
-                              >
-                                {marker}
-                                <X
-                                  className="h-3.5 w-3.5 cursor-pointer opacity-70 hover:opacity-100"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const newMarkers = field.value.filter(
-                                      (m: string) => m !== marker,
-                                    );
-                                    field.onChange(newMarkers);
-                                  }}
-                                />
-                              </Badge>
-                            ))}
+                            {field.value.map(
+                              (marker: string, index: number) => (
+                                <Badge
+                                  key={index}
+                                  variant="secondary"
+                                  className="flex items-center gap-1.5 px-2.5 py-1 text-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-800/50 transition-colors"
+                                >
+                                  {marker}
+                                  <X
+                                    className="h-3.5 w-3.5 cursor-pointer opacity-70 hover:opacity-100"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const newMarkers = field.value.filter(
+                                        (m: string) => m !== marker,
+                                      );
+                                      field.onChange(newMarkers);
+                                    }}
+                                  />
+                                </Badge>
+                              ),
+                            )}
                           </div>
                         )}
                         <FormMessage />
@@ -966,7 +1075,11 @@ export default function ClientFormModal({
             type="submit"
             form="client-form"
             disabled={isSubmitting || hasBlockingDuplicate}
-            title={hasBlockingDuplicate ? "Resolva a duplicidade de CPF/e-mail antes de salvar" : undefined}
+            title={
+              hasBlockingDuplicate
+                ? "Resolva a duplicidade de CPF/e-mail antes de salvar"
+                : undefined
+            }
             className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm px-6 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
