@@ -16,6 +16,7 @@ import {
   LogOut,
   PhoneCall,
   Settings,
+  Share2,
   ShoppingBag,
   Sparkles,
   Target,
@@ -63,6 +64,7 @@ const navItems: NavItem[] = [
     label: "Calculadora de Vinho",
   },
   { href: "/cashback", icon: Gift, label: "Cashback" },
+  { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
   {
     href: "/configuracoes",
