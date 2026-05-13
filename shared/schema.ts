@@ -106,6 +106,8 @@ export const clients = pgTable("clients", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   wineProfile: jsonb("wine_profile"),
   wineProfileGeneratedAt: timestamp("wine_profile_generated_at"),
+  referralBenefit1At: timestamp("referral_benefit1_at"),
+  referralBenefit2At: timestamp("referral_benefit2_at"),
 });
 
 export const sectors = pgTable("sectors", {

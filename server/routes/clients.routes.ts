@@ -19,6 +19,7 @@ import { generateWineProfileController } from "../controllers/clients/generate-w
 import { getReferralsController } from "../controllers/referrals/get-referrals.controller";
 import { postReferralController } from "../controllers/referrals/post-referral.controller";
 import { getReferrerController } from "../controllers/referrals/get-referrer.controller";
+import { deliverBenefitController } from "../controllers/referrals/deliver-benefit.controller";
 import multer from "multer";
 
 /**
@@ -137,6 +138,7 @@ clientsRouter.get("/:clientId/interactions", getClientInteractionsController);
 clientsRouter.get("/:clientId/funnels", getClientFunnelsController);
 clientsRouter.get("/:clientId/referrals", getReferralsController);
 clientsRouter.post("/:clientId/referrals", postReferralController);
+clientsRouter.post("/:clientId/referrals/benefits/:level/deliver", deliverBenefitController);
 clientsRouter.get("/:clientId/referrer", getReferrerController);
 
 /**

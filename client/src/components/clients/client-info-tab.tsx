@@ -14,6 +14,8 @@ import {
   XCircle,
   ShoppingCart,
   Users,
+  UserCheck,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,6 +88,10 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
 
   const { data: referrer } = useQuery<{ id: string; name: string } | null>({
     queryKey: [`/api/clients/${client.id}/referrer`],
+  });
+
+  const { data: referralsData } = useQuery<{ referrals: { id: string }[]; stats: { totalReferred: number } }>({
+    queryKey: [`/api/clients/${client.id}/referrals`],
   });
   const purchaseStatusDays = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
   const lastPurchaseDate = (client as any).lastPurchaseDate as string | null | undefined;
@@ -220,6 +226,57 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                     ? `Última compra: ${format(new Date(lastPurchaseDate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}`
                     : "Nenhuma compra registrada"}
                 </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 border-t border-slate-100 pt-5 dark:border-slate-800">
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-2.5 dark:border-slate-800 dark:bg-slate-900/50">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
+                  <UserCheck className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                    Indicado por
+                  </p>
+                  {referrer ? (
+                    <a
+                      href={`/clientes/${referrer.id}`}
+                      className="text-sm font-bold text-indigo-600 hover:underline dark:text-indigo-400"
+                    >
+                      {referrer.name}
+                    </a>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
+                      Nenhum
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 px-4 py-2.5 dark:border-slate-800 dark:bg-slate-900/50">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                  <UserPlus className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                    Indicações feitas
+                  </p>
+                  {(referralsData?.stats.totalReferred ?? 0) > 0 ? (
+                    <a
+                      href={`/clientes/${client.id}?tab=referrals`}
+                      className="text-sm font-bold text-emerald-600 hover:underline dark:text-emerald-400"
+                    >
+                      {referralsData!.stats.totalReferred}{" "}
+                      {referralsData!.stats.totalReferred === 1 ? "cliente" : "clientes"}
+                    </a>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
+                      Nenhuma ainda
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>

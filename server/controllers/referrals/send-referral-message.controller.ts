@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
-import { referrals, users, serviceChannels, userServiceChannel } from "../../../shared/schema";
+import { referrals, clients, users, serviceChannels, userServiceChannel } from "../../../shared/schema";
 import { eq } from "drizzle-orm";
 import { syncContact, createChat, sendMessage } from "../../integrations/umbler";
 import { referralsService } from "../../services/referrals.service";
@@ -27,13 +27,20 @@ export const sendReferralMessageController = async (
       return res.status(404).json({ message: "Indicação não encontrada" });
     }
 
-    const [userRow] = await db
-      .select({ id: users.id, name: users.name, channelId: serviceChannels.id })
-      .from(users)
-      .where(eq(users.id, userId))
-      .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
-      .leftJoin(serviceChannels, eq(userServiceChannel.serviceChannelId, serviceChannels.id))
-      .limit(1);
+    const [[userRow], [referrerClient]] = await Promise.all([
+      db
+        .select({ id: users.id, name: users.name, channelId: serviceChannels.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .leftJoin(userServiceChannel, eq(users.id, userServiceChannel.userId))
+        .leftJoin(serviceChannels, eq(userServiceChannel.serviceChannelId, serviceChannels.id))
+        .limit(1),
+      db
+        .select({ name: clients.name })
+        .from(clients)
+        .where(eq(clients.id, referral.referrerId))
+        .limit(1),
+    ]);
 
     if (!userRow) {
       return res.status(404).json({ message: "Usuário não encontrado" });
@@ -64,9 +71,10 @@ export const sendReferralMessageController = async (
       return res.status(502).json({ message: "Erro ao criar chat no Umbler" });
     }
 
+    const referrerName = referrerClient?.name ?? "um de nossos clientes";
     const message =
-      `Olá ${referral.referredName}! Você foi indicado por um de nossos clientes. ` +
-      `Aproveite e entre em contato para conhecer nossos produtos! 😊`;
+      `Olá ${referral.referredName}! ${referrerName} te indicou para conhecer nossos produtos. ` +
+      `Aproveite e entre em contato para saber mais! 😊`;
 
     await sendMessage({ chatId: chat.id, message });
 

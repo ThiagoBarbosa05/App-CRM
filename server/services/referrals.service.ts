@@ -8,6 +8,8 @@ export interface ReferralStats {
   totalPurchased: number;
   benefit1Granted: boolean;
   benefit2Granted: boolean;
+  benefit1DeliveredAt: Date | null;
+  benefit2DeliveredAt: Date | null;
 }
 
 export interface ReferralWithStats {
@@ -22,7 +24,11 @@ export interface ReferrerInfo {
 
 const REFERRAL_THRESHOLD = 3;
 
-function computeStats(clientReferrals: Referral[]): ReferralStats {
+function computeStats(
+  clientReferrals: Referral[],
+  benefit1DeliveredAt: Date | null,
+  benefit2DeliveredAt: Date | null,
+): ReferralStats {
   const totalReferred = clientReferrals.length;
   const totalPurchased = clientReferrals.filter((r) => r.hasPurchased).length;
   return {
@@ -30,20 +36,35 @@ function computeStats(clientReferrals: Referral[]): ReferralStats {
     totalPurchased,
     benefit1Granted: totalReferred >= REFERRAL_THRESHOLD,
     benefit2Granted: totalPurchased >= REFERRAL_THRESHOLD,
+    benefit1DeliveredAt,
+    benefit2DeliveredAt,
   };
 }
 
 export const referralsService = {
   async getByReferrer(referrerId: string): Promise<ReferralWithStats> {
-    const clientReferrals = await db
-      .select()
-      .from(referrals)
-      .where(eq(referrals.referrerId, referrerId))
-      .orderBy(referrals.createdAt);
+    const [clientReferrals, referrerRow] = await Promise.all([
+      db
+        .select()
+        .from(referrals)
+        .where(eq(referrals.referrerId, referrerId))
+        .orderBy(referrals.createdAt),
+      db
+        .select({
+          referralBenefit1At: clients.referralBenefit1At,
+          referralBenefit2At: clients.referralBenefit2At,
+        })
+        .from(clients)
+        .where(eq(clients.id, referrerId))
+        .limit(1),
+    ]);
+
+    const b1 = referrerRow[0]?.referralBenefit1At ?? null;
+    const b2 = referrerRow[0]?.referralBenefit2At ?? null;
 
     return {
       referrals: clientReferrals,
-      stats: computeStats(clientReferrals),
+      stats: computeStats(clientReferrals, b1, b2),
     };
   },
 
@@ -132,14 +153,16 @@ export const referralsService = {
       .where(eq(referrals.id, referral.id));
   },
 
-  async linkReferralToClient(
-    referralId: string,
-    clientId: string,
-  ): Promise<void> {
-    await db
-      .update(referrals)
-      .set({ referredClientId: clientId })
-      .where(eq(referrals.id, referralId));
+  async deleteReferral(referralId: string): Promise<void> {
+    await db.delete(referrals).where(eq(referrals.id, referralId));
+  },
+
+  async markBenefitDelivered(referrerId: string, level: 1 | 2): Promise<void> {
+    const field =
+      level === 1
+        ? { referralBenefit1At: new Date() }
+        : { referralBenefit2At: new Date() };
+    await db.update(clients).set(field).where(eq(clients.id, referrerId));
   },
 
   async matchReferralByPhone(phone: string, clientId: string): Promise<void> {

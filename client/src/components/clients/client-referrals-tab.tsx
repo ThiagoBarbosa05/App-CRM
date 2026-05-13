@@ -10,6 +10,8 @@ import {
   ShoppingBag,
   Users,
   ExternalLink,
+  Trash2,
+  PackageCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,10 @@ import { InputMask } from "@/components/ui/input-mask";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import { cn, formatPhone } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Referral {
   id: string;
@@ -36,6 +41,8 @@ interface ReferralStats {
   totalPurchased: number;
   benefit1Granted: boolean;
   benefit2Granted: boolean;
+  benefit1DeliveredAt: string | null;
+  benefit2DeliveredAt: string | null;
 }
 
 interface ReferralWithStats {
@@ -62,13 +69,19 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   );
 }
 
+function formatDeliveredAt(dateStr: string) {
+  return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+}
+
 export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery<ReferralWithStats>({
     queryKey: [`/api/clients/${clientId}/referrals`],
@@ -96,6 +109,47 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (referralId: string) => {
+      const res = await fetch(`/api/referrals/${referralId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? "Erro ao remover indicação");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/referrals`] });
+      setConfirmDeleteId(null);
+      toast({ title: "Indicação removida" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao remover", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deliverBenefitMutation = useMutation({
+    mutationFn: async (level: 1 | 2) => {
+      const res = await fetch(
+        `/api/clients/${clientId}/referrals/benefits/${level}/deliver`,
+        { method: "POST", credentials: "include" },
+      );
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? "Erro ao marcar benefício");
+      }
+    },
+    onSuccess: (_data, level) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/referrals`] });
+      toast({ title: `Benefício ${level} marcado como entregue` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+  });
+
   const sendMessage = async (referralId: string) => {
     setSendingId(referralId);
     try {
@@ -108,8 +162,13 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
         throw new Error(err.message ?? "Erro ao enviar mensagem");
       }
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/referrals`] });
+      toast({ title: "Mensagem enviada com sucesso" });
     } catch (error) {
-      console.error("Erro ao enviar mensagem:", error);
+      toast({
+        title: "Erro ao enviar mensagem",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
     } finally {
       setSendingId(null);
     }
@@ -132,6 +191,7 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
     <div className="space-y-6">
       {/* Benefícios */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Benefício 1 */}
         <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -142,7 +202,12 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                 Benefício 1
               </span>
             </div>
-            {stats?.benefit1Granted ? (
+            {stats?.benefit1DeliveredAt ? (
+              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400">
+                <PackageCheck className="h-3 w-3 mr-1" />
+                Entregue em {formatDeliveredAt(stats.benefit1DeliveredAt)}
+              </Badge>
+            ) : stats?.benefit1Granted ? (
               <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400">
                 <Check className="h-3 w-3 mr-1" /> Conquistado
               </Badge>
@@ -156,11 +221,26 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
             Indique 3 amigos e ganhe um desconto especial
           </p>
           <ProgressBar value={stats?.totalReferred ?? 0} max={3} />
-          <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-            {stats?.totalReferred ?? 0} / 3 indicados
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+              {stats?.totalReferred ?? 0} / 3 indicados
+            </p>
+            {stats?.benefit1Granted && !stats.benefit1DeliveredAt && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-xs gap-1"
+                disabled={deliverBenefitMutation.isPending}
+                onClick={() => deliverBenefitMutation.mutate(1)}
+              >
+                <PackageCheck className="h-3 w-3" />
+                Marcar entregue
+              </Button>
+            )}
+          </div>
         </div>
 
+        {/* Benefício 2 */}
         <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -171,7 +251,12 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                 Benefício 2
               </span>
             </div>
-            {stats?.benefit2Granted ? (
+            {stats?.benefit2DeliveredAt ? (
+              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400">
+                <PackageCheck className="h-3 w-3 mr-1" />
+                Entregue em {formatDeliveredAt(stats.benefit2DeliveredAt)}
+              </Badge>
+            ) : stats?.benefit2Granted ? (
               <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400">
                 <Check className="h-3 w-3 mr-1" /> Conquistado
               </Badge>
@@ -185,9 +270,23 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
             3 indicados realizando uma compra — brinde especial
           </p>
           <ProgressBar value={stats?.totalPurchased ?? 0} max={3} />
-          <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-            {stats?.totalPurchased ?? 0} / 3 compraram
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+              {stats?.totalPurchased ?? 0} / 3 compraram
+            </p>
+            {stats?.benefit2Granted && !stats.benefit2DeliveredAt && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-xs gap-1"
+                disabled={deliverBenefitMutation.isPending}
+                onClick={() => deliverBenefitMutation.mutate(2)}
+              >
+                <PackageCheck className="h-3 w-3" />
+                Marcar entregue
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -324,6 +423,37 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                         ? "Reenviar"
                         : "Enviar msg"}
                   </Button>
+
+                  {confirmDeleteId === r.id ? (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-7 text-xs"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => deleteMutation.mutate(r.id)}
+                      >
+                        {deleteMutation.isPending ? "..." : "Confirmar"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs"
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-500"
+                      onClick={() => setConfirmDeleteId(r.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

@@ -29,7 +29,23 @@
       "Bash(curl -s http://localhost:5000/api/product-categories)",
       "Bash(curl -s http://localhost:5000/api/auth/me)",
       "Bash(curl -s \"http://localhost:5000/api/events\" -H \"x-user-id: $\\(curl -s http://localhost:5000/api/auth/me)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(sed -n '148,160p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '392,400p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '508,515p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '553,560p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '1650,1670p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '1695,1730p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '3350,3360p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '3425,3435p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '2025,2040p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '2415,2425p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '2580,2592p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '3151,3185p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(sed -n '3253,3275p' /home/runner/workspace/shared/schema.ts)",
+      "Bash(awk 'NR<=2420 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)",
+      "Bash(awk 'NR<=3431 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)",
+      "Bash(awk 'NR<=3356 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)"
     ]
   }
 }

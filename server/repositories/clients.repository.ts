@@ -12,6 +12,12 @@ import {
   serviceChannels,
   clientTags,
   externalTags,
+  sales,
+  clientDebts,
+  messageJobsLogs,
+  calls,
+  callNotifications,
+  blingOrders,
 } from "@shared/schema";
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -462,28 +468,18 @@ export class ClientsRepository {
 
   async deleteClient(id: string): Promise<boolean> {
     try {
-      // Primeiro, excluir usos de cashback do cliente
       await this.db.delete(cashbackUsage).where(eq(cashbackUsage.clientId, id));
-
-      // Depois, excluir saldo de cashback do cliente
-      await this.db
-        .delete(clientCashbackBalance)
-        .where(eq(clientCashbackBalance.clientId, id));
-
-      // Depois, excluir as transações de cashback do cliente
-      await this.db
-        .delete(cashbackTransactions)
-        .where(eq(cashbackTransactions.clientId, id));
-
-      // Depois, excluir os deals associados ao cliente
+      await this.db.delete(clientCashbackBalance).where(eq(clientCashbackBalance.clientId, id));
+      await this.db.delete(cashbackTransactions).where(eq(cashbackTransactions.clientId, id));
       await this.db.delete(deals).where(eq(deals.clientId, id));
+      await this.db.delete(clientInteractions).where(eq(clientInteractions.clientId, id));
+      await this.db.delete(sales).where(eq(sales.clientId, id));
+      await this.db.delete(clientDebts).where(eq(clientDebts.clientId, id));
+      await this.db.delete(messageJobsLogs).where(eq(messageJobsLogs.clientId, id));
+      await this.db.delete(callNotifications).where(eq(callNotifications.clientId, id));
+      await this.db.delete(calls).where(eq(calls.clientId, id));
+      await this.db.update(blingOrders).set({ appClientId: null }).where(eq(blingOrders.appClientId, id));
 
-      // Depois excluir as interações do cliente
-      await this.db
-        .delete(clientInteractions)
-        .where(eq(clientInteractions.clientId, id));
-
-      // Por fim, excluir o cliente
       const result = await this.db.delete(clients).where(eq(clients.id, id));
       return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
@@ -499,33 +495,19 @@ export class ClientsRepository {
    */
   async deleteClients(ids: string[]): Promise<{ deletedCount: number }> {
     try {
-      // Primeiro, excluir usos de cashback dos clientes
-      await this.db
-        .delete(cashbackUsage)
-        .where(inArray(cashbackUsage.clientId, ids));
-
-      // Depois, excluir saldos de cashback dos clientes
-      await this.db
-        .delete(clientCashbackBalance)
-        .where(inArray(clientCashbackBalance.clientId, ids));
-
-      // Depois, excluir as transações de cashback dos clientes
-      await this.db
-        .delete(cashbackTransactions)
-        .where(inArray(cashbackTransactions.clientId, ids));
-
-      // Depois, excluir os deals associados aos clientes
+      await this.db.delete(cashbackUsage).where(inArray(cashbackUsage.clientId, ids));
+      await this.db.delete(clientCashbackBalance).where(inArray(clientCashbackBalance.clientId, ids));
+      await this.db.delete(cashbackTransactions).where(inArray(cashbackTransactions.clientId, ids));
       await this.db.delete(deals).where(inArray(deals.clientId, ids));
+      await this.db.delete(clientInteractions).where(inArray(clientInteractions.clientId, ids));
+      await this.db.delete(sales).where(inArray(sales.clientId, ids));
+      await this.db.delete(clientDebts).where(inArray(clientDebts.clientId, ids));
+      await this.db.delete(messageJobsLogs).where(inArray(messageJobsLogs.clientId, ids));
+      await this.db.delete(callNotifications).where(inArray(callNotifications.clientId, ids));
+      await this.db.delete(calls).where(inArray(calls.clientId, ids));
+      await this.db.update(blingOrders).set({ appClientId: null }).where(inArray(blingOrders.appClientId, ids));
 
-      // Depois excluir as interações dos clientes
-      await this.db
-        .delete(clientInteractions)
-        .where(inArray(clientInteractions.clientId, ids));
-
-      // Por fim, excluir os clientes
-      const result = await this.db
-        .delete(clients)
-        .where(inArray(clients.id, ids));
+      const result = await this.db.delete(clients).where(inArray(clients.id, ids));
 
       return { deletedCount: result.rowCount || 0 };
     } catch (error) {

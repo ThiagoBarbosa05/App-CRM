@@ -100,6 +100,7 @@ apiRouter.use("/elevenlabs", elevenLabsRouter);
 apiRouter.use(requireAuth);
 
 // === ROTAS PROTEGIDAS ===
+apiRouter.use("/referrals", referralsRouter);
 apiRouter.use("/clients", clientsRouter);
 apiRouter.use("/files", filesRouter);
 apiRouter.use("/acompanhamento", acompanhamentoRouter);
@@ -161,4 +162,3 @@ apiRouter.use("/note-sections", noteSectionsRouter);
 apiRouter.use("/notes", notesRouter);
 apiRouter.use("/task-file-folders", taskFileFoldersRouter);
 apiRouter.use("/task-files", taskFilesRouter);
-apiRouter.use("/referrals", referralsRouter);
