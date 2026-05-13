@@ -4836,7 +4836,64 @@ export class DatabaseStorage implements IStorage {
         .groupBy(products.id, products.name, products.type)
         .orderBy(sql`SUM(${blingOrderItems.quantity}::numeric) DESC`);
 
-      return { topProductsByRevenue, revenueByType, quantityByProduct };
+      // Revenue by price range
+      const priceRangeConditions =
+        startDate && endDate
+          ? and(
+              isNull(blingOrders.deletedAt),
+              eq(products.category, "VINHO"),
+              sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`,
+            )
+          : and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO"));
+
+      const revenueByPriceRange = await this.db
+        .select({
+          priceRange: sql<string>`
+            CASE
+              WHEN ${blingOrderItems.value}::numeric < 100 THEN 'Até R$ 100'
+              WHEN ${blingOrderItems.value}::numeric < 200 THEN 'R$ 100 a R$ 200'
+              WHEN ${blingOrderItems.value}::numeric < 350 THEN 'R$ 200 a R$ 350'
+              WHEN ${blingOrderItems.value}::numeric < 500 THEN 'R$ 350 a R$ 500'
+              ELSE 'Acima de R$ 500'
+            END
+          `,
+          totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
+          totalQuantity: sql<number>`SUM(${blingOrderItems.quantity}::numeric)::int`,
+          sortOrder: sql<number>`
+            MIN(CASE
+              WHEN ${blingOrderItems.value}::numeric < 100 THEN 1
+              WHEN ${blingOrderItems.value}::numeric < 200 THEN 2
+              WHEN ${blingOrderItems.value}::numeric < 350 THEN 3
+              WHEN ${blingOrderItems.value}::numeric < 500 THEN 4
+              ELSE 5
+            END)
+          `,
+        })
+        .from(blingOrderItems)
+        .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
+        .innerJoin(
+          products,
+          eq(blingOrderItems.productId, products.blingProductId),
+        )
+        .where(priceRangeConditions)
+        .groupBy(sql`
+          CASE
+            WHEN ${blingOrderItems.value}::numeric < 100 THEN 'Até R$ 100'
+            WHEN ${blingOrderItems.value}::numeric < 200 THEN 'R$ 100 a R$ 200'
+            WHEN ${blingOrderItems.value}::numeric < 350 THEN 'R$ 200 a R$ 350'
+            WHEN ${blingOrderItems.value}::numeric < 500 THEN 'R$ 350 a R$ 500'
+            ELSE 'Acima de R$ 500'
+          END
+        `)
+        .orderBy(sql`MIN(CASE
+          WHEN ${blingOrderItems.value}::numeric < 100 THEN 1
+          WHEN ${blingOrderItems.value}::numeric < 200 THEN 2
+          WHEN ${blingOrderItems.value}::numeric < 350 THEN 3
+          WHEN ${blingOrderItems.value}::numeric < 500 THEN 4
+          ELSE 5
+        END)`);
+
+      return { topProductsByRevenue, revenueByType, quantityByProduct, revenueByPriceRange };
     } catch (error) {
       console.error("Error fetching products statistics:", error);
       throw error;

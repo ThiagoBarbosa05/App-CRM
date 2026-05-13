@@ -11,6 +11,7 @@ import {
   ChevronDown,
   BarChart3,
   Package,
+  Tag,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
@@ -161,6 +162,7 @@ export function ProductsStatistics({
   const [isOpen, setIsOpen] = useState(false);
   const [winePeriod, setWinePeriod] = useState<WinePeriod>("mes_atual");
   const [qtyPeriod, setQtyPeriod] = useState<WinePeriod>("mes_atual");
+  const [pricePeriod, setPricePeriod] = useState<WinePeriod>("mes_atual");
   const [selectedType, setSelectedType] = useState<WineType>("TODOS");
 
   const { startDate: wineStartDate, endDate: wineEndDate } = useMemo(() => {
@@ -189,6 +191,19 @@ export function ProductsStatistics({
         };
   }, [qtyPeriod]);
 
+  const { startDate: priceStartDate, endDate: priceEndDate } = useMemo(() => {
+    const now = new Date();
+    return pricePeriod === "mes_atual"
+      ? {
+          startDate: format(startOfMonth(now), "yyyy-MM-dd"),
+          endDate: format(endOfMonth(now), "yyyy-MM-dd"),
+        }
+      : {
+          startDate: format(subMonths(now, 12), "yyyy-MM-dd"),
+          endDate: format(now, "yyyy-MM-dd"),
+        };
+  }, [pricePeriod]);
+
   const {
     data: qtyStats,
     isLoading: isLoadingQty,
@@ -201,6 +216,24 @@ export function ProductsStatistics({
         { credentials: "include" },
       );
       if (!res.ok) throw new Error("Falha ao buscar quantidade por produto");
+      return res.json();
+    },
+    staleTime: 60 * 1000,
+    retry: 2,
+  });
+
+  const {
+    data: priceStats,
+    isLoading: isLoadingPrice,
+    isFetching: isFetchingPrice,
+  } = useQuery<{ revenueByPriceRange: any[] }>({
+    queryKey: ["/api/products/statistics", "price", priceStartDate, priceEndDate],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/products/statistics?startDate=${priceStartDate}&endDate=${priceEndDate}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) throw new Error("Falha ao buscar receita por faixa de preço");
       return res.json();
     },
     staleTime: 60 * 1000,
@@ -274,6 +307,24 @@ export function ProductsStatistics({
     0,
   );
 
+  const priceRangeData: any[] = priceStats?.revenueByPriceRange ?? [];
+  const totalPriceRevenue = priceRangeData.reduce(
+    (acc: number, r: any) => acc + parseFloat(r.totalRevenue || "0"),
+    0,
+  );
+  const maxPriceRevenue = Math.max(
+    ...priceRangeData.map((r: any) => parseFloat(r.totalRevenue || "0")),
+    0,
+  );
+
+  const PRICE_RANGE_COLORS: Record<string, { bar: string; badge: string; dot: string }> = {
+    "Até R$ 100":       { bar: "bg-slate-400",   badge: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",       dot: "bg-slate-400" },
+    "R$ 100 a R$ 200":  { bar: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300", dot: "bg-emerald-500" },
+    "R$ 200 a R$ 350":  { bar: "bg-blue-500",    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",         dot: "bg-blue-500" },
+    "R$ 350 a R$ 500":  { bar: "bg-amber-500",   badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",     dot: "bg-amber-500" },
+    "Acima de R$ 500":  { bar: "bg-rose-500",    badge: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",         dot: "bg-rose-500" },
+  };
+
   const pieData = wineRevenueByType.map((t: any) => {
     const rev = parseFloat(t.totalRevenue || "0");
     return {
@@ -318,6 +369,7 @@ export function ProductsStatistics({
 
       {/* Conteúdo expansível */}
       {isOpen && (
+        <>
         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
           {/* Card 1 — Faturamento por Vinho */}
           <motion.div variants={itemVariants}>
@@ -692,6 +744,111 @@ export function ProductsStatistics({
             </Card>
           </motion.div>
         </div>
+
+        {/* Card 4 — Receita por Faixa de Preço */}
+        <motion.div variants={itemVariants}>
+          <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm group">
+            <CardHeader className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/80 p-6 transition-colors group-hover:bg-slate-100/50 dark:group-hover:bg-slate-800/80">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-3 text-lg font-bold text-slate-800 dark:text-slate-100">
+                    <div className="p-2.5 bg-violet-100 dark:bg-violet-900/30 rounded-xl shadow-inner group-hover:scale-110 transition-transform duration-300">
+                      <Tag className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                    </div>
+                    Receita por Faixa de Preço
+                  </CardTitle>
+                  <CardDescription className="text-slate-500 dark:text-slate-400 mt-1 font-medium ml-[52px]">
+                    Distribuição da receita por faixa de preço unitário da garrafa
+                  </CardDescription>
+                </div>
+                <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 mt-0.5">
+                  {(["mes_atual", "ultimos_12"] as WinePeriod[]).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPricePeriod(p)}
+                      className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        pricePeriod === p
+                          ? "bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900"
+                          : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {p === "mes_atual" ? "Mês Atual" : "12 Meses"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 bg-white dark:bg-slate-900">
+              {isLoadingPrice || isFetchingPrice ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+                </div>
+              ) : priceRangeData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-full mb-3">
+                    <Tag className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                  </div>
+                  <p className="text-slate-900 dark:text-white font-semibold">Nenhum dado disponível</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 px-8">
+                    Sem vendas registradas no período selecionado
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {priceRangeData.map((range: any) => {
+                    const rev = parseFloat(range.totalRevenue || "0");
+                    const barWidth = maxPriceRevenue > 0 ? Math.max((rev / maxPriceRevenue) * 100, 3) : 0;
+                    const pct = totalPriceRevenue > 0 ? ((rev / totalPriceRevenue) * 100).toFixed(1) : "0.0";
+                    const colors = PRICE_RANGE_COLORS[range.priceRange] ?? {
+                      bar: "bg-slate-400",
+                      badge: "bg-slate-100 text-slate-600",
+                      dot: "bg-slate-400",
+                    };
+                    return (
+                      <div key={range.priceRange} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className={cn("h-3 w-3 rounded-full shrink-0", colors.dot)} />
+                            <span className={cn("text-xs font-black uppercase px-2 py-0.5 rounded-md shrink-0", colors.badge)}>
+                              {range.priceRange}
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-400 shrink-0">
+                              {range.totalQuantity} unid.
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-sm font-black text-slate-800 dark:text-slate-100">
+                              {formatCurrency(rev)}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-400 w-10 text-right">
+                              {pct}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-700", colors.bar)}
+                            style={{ width: `${barWidth}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {totalPriceRevenue > 0 && (
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-4 flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total</span>
+                      <span className="text-sm font-black text-slate-900 dark:text-white">
+                        {formatCurrency(totalPriceRevenue)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+        </>
       )}
     </motion.div>
   );
