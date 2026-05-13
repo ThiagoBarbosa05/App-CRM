@@ -54,9 +54,7 @@ export const referralsService = {
   }): Promise<Referral> {
     const phone = data.referredPhone.replace(/\D/g, "");
 
-    // Check if a client with this phone already exists
-    let referredClientId: string | null = null;
-
+    // Check if a client with this phone already exists — reject if so
     if (phone) {
       const [existingClient] = await db
         .select({ id: clients.id })
@@ -65,23 +63,30 @@ export const referralsService = {
         .limit(1);
 
       if (existingClient) {
-        referredClientId = existingClient.id;
-      } else {
-        // Create a new client for this referral
-        const [newClient] = await db
-          .insert(clients)
-          .values({
-            name: data.referredName,
-            phone: phone,
-            categoria: "Geral",
-            origem: "Indicação",
-            status: "pending",
-            markers: [],
-          })
-          .returning({ id: clients.id });
-
-        referredClientId = newClient.id;
+        throw Object.assign(
+          new Error("Este cliente já está cadastrado no sistema."),
+          { code: "ALREADY_EXISTS" },
+        );
       }
+    }
+
+    // Create a new client for this referral
+    let referredClientId: string | null = null;
+
+    if (phone) {
+      const [newClient] = await db
+        .insert(clients)
+        .values({
+          name: data.referredName,
+          phone: phone,
+          categoria: "Geral",
+          origem: "Indicação",
+          status: "pending",
+          markers: [],
+        })
+        .returning({ id: clients.id });
+
+      referredClientId = newClient.id;
     }
 
     const [created] = await db

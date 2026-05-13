@@ -23,7 +23,10 @@ export const postReferralController = async (req: Request, res: Response) => {
     });
 
     return res.status(201).json(referral);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === "ALREADY_EXISTS") {
+      return res.status(409).json({ message: error.message });
+    }
     console.error("Erro ao criar indicação:", error);
     return res.status(500).json({ message: "Erro ao criar indicação" });
   }
