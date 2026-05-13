@@ -7,18 +7,15 @@ import {
   ShoppingBag,
   TrendingUp,
   Gift,
-  Check,
   Clock,
   MessageSquare,
   Search,
   ChevronDown,
   ChevronUp,
-  PackageCheck,
   Trophy,
   Star,
   CircleHelp,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -435,12 +432,15 @@ export default function ReferralProgramPage() {
                 </div>
 
                 {/* Referrer */}
-                <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="flex items-center gap-2 min-w-0 cursor-pointer group"
+                  onClick={() => navigate(`/clientes/${r.referrerId}`)}
+                >
                   <div className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 font-medium text-slate-500 dark:text-slate-400 text-xs">
                     {r.referrerName[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm text-slate-700 dark:text-slate-300 truncate">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:underline">
                       {r.referrerName}
                     </p>
                     {(r.benefit1DeliveredAt || r.benefit2DeliveredAt) && (
@@ -506,18 +506,6 @@ export default function ReferralProgramPage() {
                   )}
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs gap-1 text-slate-500"
-                    onClick={() => navigate(`/clientes/${r.referrerId}`)}
-                  >
-                    <Users className="h-3 w-3" />
-                    <span className="hidden sm:inline">Indicador</span>
-                  </Button>
-                </div>
               </div>
             ))}
           </div>
