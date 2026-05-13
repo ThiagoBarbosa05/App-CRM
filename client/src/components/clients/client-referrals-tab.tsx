@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Gift,
@@ -8,6 +9,7 @@ import {
   Clock,
   ShoppingBag,
   Users,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +64,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 
 export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -290,6 +293,18 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                     <Badge variant="outline" className="text-slate-400 text-xs gap-1">
                       <Clock className="h-3 w-3" /> Aguardando
                     </Badge>
+                  )}
+
+                  {r.referredClientId && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => navigate(`/clients/${r.referredClientId}`)}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Ver perfil
+                    </Button>
                   )}
 
                   <Button
