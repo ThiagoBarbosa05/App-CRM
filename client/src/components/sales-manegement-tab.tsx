@@ -19,6 +19,10 @@ interface SalesStatistics {
   netValue: number;
   averageSaleValue: number;
   period: string;
+  prevMonthSalesCount?: number;
+  prevMonthTotalSales?: number;
+  sameMonthLastYearSalesCount?: number;
+  sameMonthLastYearTotalSales?: number;
 }
 
 export function SalesManagementTab({

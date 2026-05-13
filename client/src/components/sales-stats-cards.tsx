@@ -1,7 +1,8 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Receipt, DollarSign, Percent } from "lucide-react";
+import { Receipt, DollarSign, Percent, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface SalesStatistics {
   salesCount: number;
@@ -11,6 +12,15 @@ interface SalesStatistics {
   netValue: number;
   averageSaleValue: number;
   period: string;
+  prevMonthSalesCount?: number;
+  prevMonthTotalSales?: number;
+  sameMonthLastYearSalesCount?: number;
+  sameMonthLastYearTotalSales?: number;
+}
+
+interface ComparisonItem {
+  label: string;
+  value: string | number;
 }
 
 interface SalesStatsCardsProps {
@@ -28,6 +38,7 @@ const StatCard: React.FC<{
   skeletonWidth?: string;
   index: number;
   themeColor: "blue" | "emerald" | "slate" | "orange" | "teal";
+  comparisons?: ComparisonItem[];
 }> = ({
   title,
   value,
@@ -37,6 +48,7 @@ const StatCard: React.FC<{
   skeletonWidth = "w-24",
   index,
   themeColor,
+  comparisons,
 }) => {
   const themeClasses = {
     blue: {
@@ -83,7 +95,7 @@ const StatCard: React.FC<{
         className={`group relative overflow-hidden transition-all duration-300 border shadow-xl bg-white/80 dark:bg-slate-900/50 backdrop-blur-xl ${theme.border} ${theme.card} hover:-translate-y-1`}
       >
         <div className={`absolute inset-0 bg-gradient-to-br ${theme.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-        
+
         <CardHeader className="relative flex flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-[10px] font-black tracking-[0.1em] text-slate-500 dark:text-slate-400 uppercase">
             {title}
@@ -106,6 +118,20 @@ const StatCard: React.FC<{
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 {description}
               </p>
+              {comparisons && comparisons.length > 0 && (
+                <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                  {comparisons.map((c, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">
+                        {c.label}
+                      </span>
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                        {c.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -125,6 +151,10 @@ export const SalesStatsCards: React.FC<SalesStatsCardsProps> = ({
   const totalCashbackGenerated = statistics?.totalCashbackGenerated ?? 0;
   const netValue = statistics?.netValue ?? 0;
 
+  const now = new Date();
+  const prevMonthLabel = "Mês anterior";
+  const lastYearMonthLabel = `${now.toLocaleString("pt-BR", { month: "short" })}/${now.getFullYear() - 1}`;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-5">
       <StatCard
@@ -136,6 +166,10 @@ export const SalesStatsCards: React.FC<SalesStatsCardsProps> = ({
         isLoading={isLoading}
         skeletonWidth="w-16"
         themeColor="blue"
+        comparisons={[
+          { label: prevMonthLabel, value: statistics?.prevMonthSalesCount ?? 0 },
+          { label: lastYearMonthLabel, value: statistics?.sameMonthLastYearSalesCount ?? 0 },
+        ]}
       />
 
       <StatCard

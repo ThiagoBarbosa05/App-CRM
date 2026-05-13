@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { sql, gte } from "drizzle-orm";
+import { sql, gte, and, lt } from "drizzle-orm";
 import { db } from "../../db";
 import { sales } from "../../../shared/schema";
 
@@ -11,6 +11,30 @@ interface SalesStatistics {
   netValue: number;
   averageSaleValue: number;
   period: string;
+  prevMonthSalesCount: number;
+  prevMonthTotalSales: number;
+  sameMonthLastYearSalesCount: number;
+  sameMonthLastYearTotalSales: number;
+}
+
+async function fetchAggregates(startDate: Date, endDate?: Date) {
+  const conditions = endDate
+    ? and(gte(sales.date, startDate), lt(sales.date, endDate))
+    : gte(sales.date, startDate);
+
+  const result = await db
+    .select({
+      salesCount: sql<number>`count(*)::int`,
+      totalSales: sql<number>`coalesce(sum(${sales.grossValue}), 0)`,
+      totalCashbackUsed: sql<number>`coalesce(sum(${sales.cashbackUsed}), 0)`,
+      totalCashbackGenerated: sql<number>`coalesce(sum(${sales.cashbackGenerated}), 0)`,
+      netValue: sql<number>`coalesce(sum(${sales.netValue}), 0)`,
+      averageSaleValue: sql<number>`coalesce(avg(${sales.grossValue}), 0)`,
+    })
+    .from(sales)
+    .where(conditions);
+
+  return result[0];
 }
 
 export async function getSalesStatisticsController(
@@ -19,38 +43,45 @@ export async function getSalesStatisticsController(
 ) {
   try {
     const { days = "30" } = req.query;
-
-    // Calcular data de início baseada nos dias solicitados
     const daysNumber = parseInt(days as string) || 30;
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysNumber);
-    startDate.setHours(0, 0, 0, 0);
 
-    // Query otimizada para buscar estatísticas agregadas em uma única consulta
-    const statisticsQuery = await db
-      .select({
-        salesCount: sql<number>`count(*)::int`,
-        totalSales: sql<number>`coalesce(sum(${sales.grossValue}), 0)`,
-        totalCashbackUsed: sql<number>`coalesce(sum(${sales.cashbackUsed}), 0)`,
-        totalCashbackGenerated: sql<number>`coalesce(sum(${sales.cashbackGenerated}), 0)`,
-        netValue: sql<number>`coalesce(sum(${sales.netValue}), 0)`,
-        averageSaleValue: sql<number>`coalesce(avg(${sales.grossValue}), 0)`,
-      })
-      .from(sales)
-      .where(gte(sales.date, startDate));
+    const now = new Date();
 
-    const statistics = statisticsQuery[0];
+    // Período atual: últimos N dias
+    const currentStart = new Date(now);
+    currentStart.setDate(currentStart.getDate() - daysNumber);
+    currentStart.setHours(0, 0, 0, 0);
+
+    // Período anterior: N dias antes do período atual
+    const prevMonthEnd = new Date(currentStart);
+    const prevMonthStart = new Date(currentStart);
+    prevMonthStart.setDate(prevMonthStart.getDate() - daysNumber);
+    prevMonthStart.setHours(0, 0, 0, 0);
+
+    // Mesmo mês do ano anterior
+    const sameMonthLastYearStart = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+    sameMonthLastYearStart.setHours(0, 0, 0, 0);
+    const sameMonthLastYearEnd = new Date(now.getFullYear() - 1, now.getMonth() + 1, 1);
+    sameMonthLastYearEnd.setHours(0, 0, 0, 0);
+
+    const [current, prevMonth, sameMonthLastYear] = await Promise.all([
+      fetchAggregates(currentStart),
+      fetchAggregates(prevMonthStart, prevMonthEnd),
+      fetchAggregates(sameMonthLastYearStart, sameMonthLastYearEnd),
+    ]);
 
     const response: SalesStatistics = {
-      salesCount: statistics.salesCount,
-      totalSales: parseFloat(statistics.totalSales.toString()),
-      totalCashbackUsed: parseFloat(statistics.totalCashbackUsed.toString()),
-      totalCashbackGenerated: parseFloat(
-        statistics.totalCashbackGenerated.toString()
-      ),
-      netValue: parseFloat(statistics.netValue.toString()),
-      averageSaleValue: parseFloat(statistics.averageSaleValue.toString()),
+      salesCount: current.salesCount,
+      totalSales: parseFloat(current.totalSales.toString()),
+      totalCashbackUsed: parseFloat(current.totalCashbackUsed.toString()),
+      totalCashbackGenerated: parseFloat(current.totalCashbackGenerated.toString()),
+      netValue: parseFloat(current.netValue.toString()),
+      averageSaleValue: parseFloat(current.averageSaleValue.toString()),
       period: `${daysNumber} days`,
+      prevMonthSalesCount: prevMonth.salesCount,
+      prevMonthTotalSales: parseFloat(prevMonth.totalSales.toString()),
+      sameMonthLastYearSalesCount: sameMonthLastYear.salesCount,
+      sameMonthLastYearTotalSales: parseFloat(sameMonthLastYear.totalSales.toString()),
     };
 
     res.json({
