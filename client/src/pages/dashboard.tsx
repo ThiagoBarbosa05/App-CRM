@@ -118,7 +118,7 @@ export default function DashboardPage() {
     }
     if (datePreset === "periodo" && customRange?.from)
       return { from: customRange.from, to: customRange.to ?? customRange.from };
-    return { from: startOfMonth(now), to: endOfMonth(now) };
+    return { from: startOfMonth(now), to: endOfDay(now) };
   }, [datePreset, customRange]);
 
   const startDate = useMemo(

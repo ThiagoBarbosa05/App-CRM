@@ -42,6 +42,7 @@ interface ProgramReferral {
   id: string;
   referrerId: string;
   referrerName: string;
+  referrerResponsavelName: string | null;
   referredName: string;
   referredPhone: string;
   referredClientId: string | null;
@@ -346,9 +347,10 @@ export default function ReferralProgramPage() {
         </div>
 
         {/* Table header */}
-        <div className="hidden sm:grid grid-cols-[2fr_2fr_1fr_1fr_auto] gap-4 px-5 py-2.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+        <div className="hidden sm:grid grid-cols-[2fr_2fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-2.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
           <span>Indicado</span>
           <span>Quem Indicou</span>
+          <span>Responsável</span>
           <span>Status</span>
           <span>Data</span>
           <span />
@@ -374,7 +376,7 @@ export default function ReferralProgramPage() {
             {filtered.map((r) => (
               <div
                 key={r.id}
-                className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_1fr_1fr_auto] gap-2 sm:gap-4 items-center px-5 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_1.5fr_1fr_1fr_auto] gap-2 sm:gap-4 items-center px-5 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
               >
                 {/* Indicado */}
                 <div className="flex items-center gap-3 min-w-0">
@@ -413,6 +415,19 @@ export default function ReferralProgramPage() {
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* Responsável */}
+                <div className="min-w-0">
+                  {r.referrerResponsavelName ? (
+                    <span className="text-sm text-slate-600 dark:text-slate-400 truncate block">
+                      {r.referrerResponsavelName}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-300 dark:text-slate-600 italic">
+                      Sem responsável
+                    </span>
+                  )}
                 </div>
 
                 {/* Status */}

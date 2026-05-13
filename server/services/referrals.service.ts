@@ -1,6 +1,7 @@
 import { db } from "../db";
-import { referrals, clients } from "../../shared/schema";
+import { referrals, clients, users } from "../../shared/schema";
 import { eq, and, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { Referral } from "../../shared/schema";
 
 export interface ReferralStats {
@@ -196,6 +197,7 @@ export const referralsService = {
       id: string;
       referrerId: string;
       referrerName: string;
+      referrerResponsavelName: string | null;
       referredName: string;
       referredPhone: string;
       referredClientId: string | null;
@@ -214,11 +216,13 @@ export const referralsService = {
       clientsWithBenefit2: number;
     };
   }> {
+    const responsavel = alias(users, "responsavel");
     const rows = await db
       .select({
         id: referrals.id,
         referrerId: referrals.referrerId,
         referrerName: clients.name,
+        referrerResponsavelName: responsavel.name,
         referredName: referrals.referredName,
         referredPhone: referrals.referredPhone,
         referredClientId: referrals.referredClientId,
@@ -231,6 +235,7 @@ export const referralsService = {
       })
       .from(referrals)
       .innerJoin(clients, eq(referrals.referrerId, clients.id))
+      .leftJoin(responsavel, eq(clients.responsavelId, responsavel.id))
       .orderBy(referrals.createdAt);
 
     const totalReferrals = rows.length;
