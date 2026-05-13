@@ -352,7 +352,7 @@ export default function ReferralProgramPage() {
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
               <SelectItem value="purchased">Compraram</SelectItem>
-              <SelectItem value="pending">Aguardando</SelectItem>
+              <SelectItem value="pending">Ainda não comprou</SelectItem>
             </SelectContent>
           </Select>
           {user?.role !== "vendedor" && responsaveisOptions.length > 0 && (
