@@ -10,7 +10,6 @@ import {
   Check,
   Clock,
   MessageSquare,
-  ExternalLink,
   Search,
   ChevronDown,
   ChevronUp,
@@ -412,12 +411,21 @@ export default function ReferralProgramPage() {
                 className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_1.5fr_1fr_1fr_auto] gap-2 sm:gap-4 items-center px-5 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
               >
                 {/* Indicado */}
-                <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={cn(
+                    "flex items-center gap-3 min-w-0",
+                    r.referredClientId && "cursor-pointer group"
+                  )}
+                  onClick={() => r.referredClientId && navigate(`/clientes/${r.referredClientId}`)}
+                >
                   <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center shrink-0 font-semibold text-indigo-600 dark:text-indigo-400 text-sm">
                     {r.referredName[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+                    <p className={cn(
+                      "text-sm font-medium text-slate-800 dark:text-slate-200 truncate",
+                      r.referredClientId && "group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:underline"
+                    )}>
                       {r.referredName}
                     </p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
@@ -500,17 +508,6 @@ export default function ReferralProgramPage() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-1.5">
-                  {r.referredClientId && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs gap-1"
-                      onClick={() => navigate(`/clientes/${r.referredClientId}`)}
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      <span className="hidden sm:inline">Ver perfil</span>
-                    </Button>
-                  )}
                   <Button
                     size="sm"
                     variant="ghost"
