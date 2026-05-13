@@ -42,6 +42,7 @@ interface ProgramReferral {
   id: string;
   referrerId: string;
   referrerName: string;
+  referrerResponsavelId: string | null;
   referrerResponsavelName: string | null;
   referredName: string;
   referredPhone: string;
@@ -224,18 +225,32 @@ export default function ReferralProgramPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "purchased" | "pending">("all");
+  const [responsavelFilter, setResponsavelFilter] = useState<string>("all");
 
   const { data, isLoading } = useQuery<ProgramData>({
     queryKey: ["/api/referrals/program"],
   });
 
+  const responsaveisOptions = useMemo(() => {
+    if (!data) return [];
+    const map = new Map<string, string>();
+    data.referrals.forEach((r) => {
+      if (r.referrerResponsavelId && r.referrerResponsavelName) {
+        map.set(r.referrerResponsavelId, r.referrerResponsavelName);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [data]);
+
   const filtered = useMemo(() => {
     if (!data) return [];
+    const term = search.toLowerCase();
     return data.referrals.filter((r) => {
       const matchesSearch =
         !search ||
-        r.referredName.toLowerCase().includes(search.toLowerCase()) ||
-        r.referrerName.toLowerCase().includes(search.toLowerCase()) ||
+        r.referredName.toLowerCase().includes(term) ||
+        r.referrerName.toLowerCase().includes(term) ||
+        (r.referrerResponsavelName ?? "").toLowerCase().includes(term) ||
         r.referredPhone.includes(search.replace(/\D/g, ""));
 
       const matchesStatus =
@@ -243,9 +258,12 @@ export default function ReferralProgramPage() {
         (statusFilter === "purchased" && r.hasPurchased) ||
         (statusFilter === "pending" && !r.hasPurchased);
 
-      return matchesSearch && matchesStatus;
+      const matchesResponsavel =
+        responsavelFilter === "all" || r.referrerResponsavelId === responsavelFilter;
+
+      return matchesSearch && matchesStatus && matchesResponsavel;
     });
-  }, [data, search, statusFilter]);
+  }, [data, search, statusFilter, responsavelFilter]);
 
   const stats = data?.stats;
 
@@ -324,7 +342,7 @@ export default function ReferralProgramPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar indicado ou indicador..."
+              placeholder="Buscar indicado, indicador ou responsável..."
               className="pl-8 h-8 text-sm"
             />
           </div>
@@ -336,12 +354,27 @@ export default function ReferralProgramPage() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos os status</SelectItem>
               <SelectItem value="purchased">Compraram</SelectItem>
               <SelectItem value="pending">Aguardando</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-xs text-slate-400 dark:text-slate-500 shrink-0 ml-auto">
+          {user?.role !== "vendedor" && responsaveisOptions.length > 0 && (
+            <Select value={responsavelFilter} onValueChange={setResponsavelFilter}>
+              <SelectTrigger className="h-8 text-sm w-full sm:w-44">
+                <SelectValue placeholder="Responsável" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os vendedores</SelectItem>
+                {responsaveisOptions.map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <p className="text-xs text-slate-400 dark:text-slate-500 shrink-0 sm:ml-auto">
             {filtered.length} resultado{filtered.length !== 1 ? "s" : ""}
           </p>
         </div>
@@ -402,18 +435,22 @@ export default function ReferralProgramPage() {
                     <p className="text-sm text-slate-700 dark:text-slate-300 truncate">
                       {r.referrerName}
                     </p>
-                    <div className="flex gap-1.5 mt-0.5">
-                      {r.benefit1DeliveredAt && (
-                        <Badge className="h-4 px-1 text-[10px] bg-primary/10 text-primary border-primary/20">
-                          B1 entregue
-                        </Badge>
-                      )}
-                      {r.benefit2DeliveredAt && (
-                        <Badge className="h-4 px-1 text-[10px] bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400">
-                          B2 entregue
-                        </Badge>
-                      )}
-                    </div>
+                    {(r.benefit1DeliveredAt || r.benefit2DeliveredAt) && (
+                      <div className="flex gap-1 mt-0.5 flex-wrap">
+                        {r.benefit1DeliveredAt && (
+                          <span title={`Benefício 1 entregue ao indicador em ${format(new Date(r.benefit1DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
+                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20 cursor-default">
+                            <Gift className="h-2.5 w-2.5" /> B1
+                          </span>
+                        )}
+                        {r.benefit2DeliveredAt && (
+                          <span title={`Benefício 2 entregue ao indicador em ${format(new Date(r.benefit2DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
+                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 cursor-default">
+                            <Trophy className="h-2.5 w-2.5" /> B2
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

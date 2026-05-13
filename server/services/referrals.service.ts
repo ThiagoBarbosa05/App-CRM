@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { referrals, clients, users } from "../../shared/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { Referral } from "../../shared/schema";
 
@@ -197,6 +197,7 @@ export const referralsService = {
       id: string;
       referrerId: string;
       referrerName: string;
+      referrerResponsavelId: string | null;
       referrerResponsavelName: string | null;
       referredName: string;
       referredPhone: string;
@@ -217,11 +218,14 @@ export const referralsService = {
     };
   }> {
     const responsavel = alias(users, "responsavel");
+    const isVendedor = userRole === "vendedor" && !!userId;
+
     const rows = await db
       .select({
         id: referrals.id,
         referrerId: referrals.referrerId,
         referrerName: clients.name,
+        referrerResponsavelId: clients.responsavelId,
         referrerResponsavelName: responsavel.name,
         referredName: referrals.referredName,
         referredPhone: referrals.referredPhone,
@@ -236,7 +240,8 @@ export const referralsService = {
       .from(referrals)
       .innerJoin(clients, eq(referrals.referrerId, clients.id))
       .leftJoin(responsavel, eq(clients.responsavelId, responsavel.id))
-      .orderBy(referrals.createdAt);
+      .where(isVendedor ? eq(clients.responsavelId, userId) : undefined)
+      .orderBy(desc(referrals.createdAt));
 
     const totalReferrals = rows.length;
     const totalPurchased = rows.filter((r) => r.hasPurchased).length;
