@@ -38,6 +38,8 @@ export interface UnifiedSalesStatistics {
   totalOrders: number;
   totalValue: number;
   averageValue: number;
+  totalItems: number;
+  avgBottleValue: number;
 }
 
 export interface UnifiedSalesComparison {

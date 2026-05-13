@@ -554,19 +554,21 @@ export function IndividualSellerView({
     totalOrders: 0,
     avgTicket: 0,
     uniqueClients: 0,
+    avgItemValue: 0,
   };
   const pms = data?.prevMonthSummary ?? {
     totalValue: 0,
     totalOrders: 0,
     avgTicket: 0,
     uniqueClients: 0,
+    avgItemValue: 0,
   };
 
   // Mesmo período no ano anterior
   const lastYearStart = startDate ? startDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
   const lastYearEnd = endDate ? endDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
   const { data: lastYearComparison } = useUnifiedSalesComparison(lastYearStart, lastYearEnd, source);
-  const lastYearStats = lastYearComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
+  const lastYearStats = lastYearComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0, totalItems: 0, avgBottleValue: 0 };
   const lastYearLabel = startDate ? `Mesmo período ${parseInt(startDate.slice(0, 4)) - 1}` : "Ano anterior";
   return (
     <div className="space-y-6">
@@ -632,14 +634,15 @@ export function IndividualSellerView({
           previous={pms.avgTicket}
         />
         <KpiCard
-          label="Clientes Atendidos"
-          value={String(ms.uniqueClients)}
-          subValue={`vs período anterior: ${pms.uniqueClients}`}
-          icon={<Users className="h-4 w-4" />}
+          label="Preço Médio da GRF"
+          value={formatCurrency(ms.avgItemValue ?? 0)}
+          subValue={`vs período anterior: ${formatCurrency(pms.avgItemValue ?? 0)}`}
+          subValue2={`${lastYearLabel}: ${formatCurrency(lastYearStats.avgBottleValue)}`}
+          icon={<Wine className="h-4 w-4" />}
           iconBg="bg-purple-50 dark:bg-purple-900/20"
           iconColor="text-purple-600 dark:text-purple-400"
-          current={ms.uniqueClients}
-          previous={pms.uniqueClients}
+          current={ms.avgItemValue ?? 0}
+          previous={pms.avgItemValue ?? 0}
         />
         <KpiCard
           label="Total de Clientes"

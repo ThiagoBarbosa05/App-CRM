@@ -48,6 +48,8 @@ export interface UnifiedSalesStatistics {
   totalOrders: number;
   totalValue: number;
   averageValue: number;
+  totalItems: number;
+  avgBottleValue: number;
 }
 
 export interface UnifiedSalesComparison {
@@ -275,13 +277,28 @@ export const unifiedOrdersService = {
     const connectEnd = `${endDate}T23:59:59`;
 
     const blingFrag = sql`
-      SELECT total_value::numeric AS v FROM bling_orders
-      WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate}
+      SELECT
+        bo.total_value::numeric AS v,
+        COALESCE((
+          SELECT SUM(boi.quantity)
+          FROM bling_order_items boi
+          WHERE boi.order_id = bo.id
+        ), 0) AS items_qty
+      FROM bling_orders bo
+      WHERE bo.deleted_at IS NULL AND bo.situation_id = '9'
+        AND bo.sale_date >= ${startDate} AND bo.sale_date <= ${endDate}
     `;
 
     const connectFrag = sql`
-      SELECT total_value::numeric AS v FROM connect_orders
-      WHERE sale_date >= ${connectStart}::timestamp AND sale_date <= ${connectEnd}::timestamp
+      SELECT
+        co.total_value::numeric AS v,
+        COALESCE((
+          SELECT SUM(coi.quantity::numeric)
+          FROM connect_order_items coi
+          WHERE coi.order_id = co.id
+        ), 0) AS items_qty
+      FROM connect_orders co
+      WHERE co.sale_date >= ${connectStart}::timestamp AND co.sale_date <= ${connectEnd}::timestamp
     `;
 
     const unionFrag =
@@ -295,15 +312,20 @@ export const unifiedOrdersService = {
       SELECT
         COUNT(*) AS total_orders,
         COALESCE(SUM(v), 0) AS total_value,
-        COALESCE(AVG(v), 0) AS avg_value
+        COALESCE(AVG(v), 0) AS avg_value,
+        COALESCE(SUM(items_qty), 0) AS total_items
       FROM (${unionFrag}) _vals
     `);
 
     const row = result.rows[0] as Record<string, unknown>;
+    const totalItems = Number(row?.total_items ?? 0);
+    const totalValue = parseFloat(String(row?.total_value ?? "0"));
     return {
       totalOrders: Number(row?.total_orders ?? 0),
-      totalValue: parseFloat(String(row?.total_value ?? "0")),
+      totalValue,
       averageValue: parseFloat(String(row?.avg_value ?? "0")),
+      totalItems,
+      avgBottleValue: totalItems > 0 ? totalValue / totalItems : 0,
     };
   },
 

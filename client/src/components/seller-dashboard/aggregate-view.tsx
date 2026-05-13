@@ -506,11 +506,11 @@ export function AggregateView({
   const lastYearStart = startDate ? startDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
   const lastYearEnd = endDate ? endDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
   const { data: lastYearComparison } = useUnifiedSalesComparison(lastYearStart, lastYearEnd, source);
-  const lastYearStats = lastYearComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
+  const lastYearStats = lastYearComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0, totalItems: 0, avgBottleValue: 0 };
   const lastYearLabel = startDate ? `Mesmo período ${parseInt(startDate.slice(0, 4)) - 1}` : "Ano anterior";
 
-  const currentStats = salesComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
-  const previousStats = salesComparison?.previous ?? { totalValue: 0, totalOrders: 0, averageValue: 0 };
+  const currentStats = salesComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0, totalItems: 0, avgBottleValue: 0 };
+  const previousStats = salesComparison?.previous ?? { totalValue: 0, totalOrders: 0, averageValue: 0, totalItems: 0, avgBottleValue: 0 };
 
   const topProducts = topProductsData?.topProducts ?? [];
   const topClients = topClientsData?.topClients ?? [];
@@ -585,14 +585,15 @@ export function AggregateView({
           previous={previousStats.averageValue}
         />
         <KpiCard
-          label="Clientes Únicos"
-          value={isSummaryLoading ? "—" : String(uniqueClients)}
-          subValue={`vs período anterior: ${prevUniqueClients}`}
-          icon={<Users className="h-4 w-4" />}
+          label="Preço Médio da GRF"
+          value={isStatsLoading ? "—" : formatCurrency(currentStats.avgBottleValue)}
+          subValue={`vs período anterior: ${formatCurrency(previousStats.avgBottleValue)}`}
+          subValue2={`${lastYearLabel}: ${formatCurrency(lastYearStats.avgBottleValue)}`}
+          icon={<Wine className="h-4 w-4" />}
           iconBg="bg-purple-50 dark:bg-purple-900/20"
           iconColor="text-purple-600 dark:text-purple-400"
-          current={uniqueClients}
-          previous={prevUniqueClients}
+          current={currentStats.avgBottleValue}
+          previous={previousStats.avgBottleValue}
         />
       </div>
 
