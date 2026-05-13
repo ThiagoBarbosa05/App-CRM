@@ -300,7 +300,7 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                       size="sm"
                       variant="outline"
                       className="h-7 text-xs gap-1"
-                      onClick={() => navigate(`/clients/${r.referredClientId}`)}
+                      onClick={() => navigate(`/clientes/${r.referredClientId}`)}
                     >
                       <ExternalLink className="h-3 w-3" />
                       Ver perfil
