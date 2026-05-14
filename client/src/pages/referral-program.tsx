@@ -434,7 +434,9 @@ export default function ReferralProgramPage() {
               >
                 {/* Indicado */}
                 <div className="min-w-0">
-                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Indicado</p>
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                    Indicado
+                  </p>
                   <div
                     className={cn(
                       "flex items-center gap-3 min-w-0",
@@ -467,7 +469,9 @@ export default function ReferralProgramPage() {
 
                 {/* Referrer */}
                 <div className="min-w-0">
-                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Indicador</p>
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                    Indicador
+                  </p>
                   <div
                     className="flex items-center gap-2 min-w-0 cursor-pointer group"
                     onClick={() => navigate(`/clientes/${r.referrerId}`)}
@@ -505,7 +509,9 @@ export default function ReferralProgramPage() {
 
                 {/* Responsável */}
                 <div className="min-w-0">
-                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Responsável</p>
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                    Responsável
+                  </p>
                   {r.referrerResponsavelName ? (
                     <span className="text-sm text-slate-600 dark:text-slate-400 block">
                       {r.referrerResponsavelName}
@@ -519,7 +525,9 @@ export default function ReferralProgramPage() {
 
                 {/* Status */}
                 <div>
-                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Status</p>
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                    Status
+                  </p>
                   {r.hasPurchased ? (
                     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 text-xs gap-1">
                       <ShoppingBag className="h-3 w-3" /> Comprou
@@ -544,7 +552,9 @@ export default function ReferralProgramPage() {
 
                 {/* Date */}
                 <div>
-                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Data</p>
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                    Data
+                  </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {format(new Date(r.createdAt), "dd/MM/yyyy", {
                       locale: ptBR,
