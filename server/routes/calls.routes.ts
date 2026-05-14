@@ -277,13 +277,73 @@ async function transcribeWithWhisper(
     console.warn(`[whisper] Falha ao gerar resumo | Call ID: ${callId}`, e);
   }
 
+  // Detectar reclamação do cliente
+  let hasComplaint = false;
+  let complaintDescription: string | undefined;
+  try {
+    console.log(`[whisper] Analisando reclamações | Call ID: ${callId}`);
+    const complaintResult = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Analise a transcrição de ligação a seguir e responda EXCLUSIVAMENTE em JSON com o formato: " +
+            '{"hasComplaint": true/false, "description": "descrição breve da reclamação em 1 frase ou null se não houver"}. ' +
+            "Considere reclamação qualquer insatisfação explícita do cliente: atraso de entrega, produto com defeito, cobrança errada, atendimento ruim, etc. " +
+            "Comentários negativos sutis ou hesitação em comprar NÃO são reclamações. Retorne APENAS o JSON.",
+        },
+        {
+          role: "user",
+          content: formattedTranscript,
+        },
+      ],
+      temperature: 0,
+      response_format: { type: "json_object" },
+    });
+    const raw = complaintResult.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as {
+      hasComplaint?: boolean;
+      description?: string | null;
+    };
+    hasComplaint = parsed.hasComplaint === true;
+    complaintDescription = parsed.description ?? undefined;
+    if (hasComplaint) {
+      console.log(
+        `[whisper] Reclamação detectada | Call ID: ${callId} | ${complaintDescription}`,
+      );
+    }
+  } catch (e) {
+    console.warn(`[whisper] Falha na análise de reclamação | Call ID: ${callId}`, e);
+  }
+
+  // Buscar operatorId e clientId para criar a notificação
+  const [callRow] = await db
+    .select({ operatorId: calls.operatorId, clientId: calls.clientId })
+    .from(calls)
+    .where(eq(calls.id, callId));
+
   await db
     .update(calls)
     .set({
       twilioTranscription: formattedTranscript,
       ...(callSummary ? { summary: callSummary } : {}),
+      ...(hasComplaint ? { sentiment: "negativo" } : {}),
     })
     .where(eq(calls.id, callId));
+
+  // Criar notificação de reclamação se detectada
+  if (hasComplaint && callRow?.operatorId) {
+    await db.insert(callNotifications).values({
+      userId: callRow.operatorId,
+      callId,
+      clientId: callRow.clientId ?? undefined,
+      message: "Cliente fez uma reclamação nesta ligação",
+      excerpt: complaintDescription ?? null,
+    });
+    console.log(`[whisper] Notificação de reclamação criada | Call ID: ${callId}`);
+  }
+
   console.log(
     `[whisper] Transcrição salva | Call ID: ${callId} | ${formattedTranscript.length} chars`,
   );
@@ -1172,6 +1232,69 @@ router.post(
     } catch (e) {
       console.error("[calls] retranscribe error:", e);
       res.status(500).json({ message: "Erro ao iniciar re-transcrição" });
+    }
+  },
+);
+
+// ─── Notificações de reclamação ───────────────────────────────────────────────
+
+router.get(
+  "/notifications",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as { userId?: string }).userId;
+      if (!userId) return res.status(401).json({ message: "Não autenticado" });
+
+      const rows = await db
+        .select()
+        .from(callNotifications)
+        .where(eq(callNotifications.userId, userId))
+        .orderBy(desc(callNotifications.createdAt))
+        .limit(50);
+
+      res.json(rows);
+    } catch (e) {
+      console.error("[call-notifications] list error:", e);
+      res.status(500).json({ message: "Erro ao buscar notificações" });
+    }
+  },
+);
+
+router.get(
+  "/notifications/call/:callId",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const [row] = await db
+        .select()
+        .from(callNotifications)
+        .where(eq(callNotifications.callId, req.params.callId))
+        .orderBy(desc(callNotifications.createdAt))
+        .limit(1);
+
+      res.json(row ?? null);
+    } catch (e) {
+      console.error("[call-notifications] call lookup error:", e);
+      res.status(500).json({ message: "Erro ao buscar notificação" });
+    }
+  },
+);
+
+router.patch(
+  "/notifications/:id/read",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      await db
+        .update(callNotifications)
+        .set({ readAt: new Date() })
+        .where(eq(callNotifications.id, req.params.id));
+
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("[call-notifications] mark-read error:", e);
+      res.status(500).json({ message: "Erro ao marcar como lida" });
     }
   },
 );

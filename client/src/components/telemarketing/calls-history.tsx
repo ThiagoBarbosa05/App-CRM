@@ -34,6 +34,7 @@ import {
   X,
   RefreshCw,
   RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -403,6 +404,37 @@ export function CallsHistory() {
     },
   });
 
+  // Buscar notificação de reclamação para a chamada selecionada
+  const { data: complaintNotification } = useQuery<{
+    id: string;
+    message: string | null;
+    excerpt: string | null;
+    readAt: string | null;
+    createdAt: string;
+  } | null>({
+    queryKey: ["/api/calls/notifications/call", selectedCall?.id],
+    queryFn: async () => {
+      if (!selectedCall?.id) return null;
+      const res = await fetch(
+        `/api/calls/notifications/call/${selectedCall.id}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!selectedCall?.id && selectedCall.sentiment === "negativo",
+  });
+
+  // Marcar notificação como lida ao abrir o detalhe
+  useEffect(() => {
+    if (complaintNotification && !complaintNotification.readAt) {
+      fetch(`/api/calls/notifications/${complaintNotification.id}/read`, {
+        method: "PATCH",
+        credentials: "include",
+      }).catch(() => {});
+    }
+  }, [complaintNotification]);
+
   // Auto-sync ao abrir o dialog
   useEffect(() => {
     if (!selectedCall) return;
@@ -654,6 +686,15 @@ export function CallsHistory() {
                       NÃO
                     </span>
                   )}
+                  {call.sentiment === "negativo" && (
+                    <span
+                      title="Reclamação detectada pela IA"
+                      className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                    >
+                      <AlertTriangle className="size-3" />
+                      Reclamação
+                    </span>
+                  )}
                   {call.umblerMessageStatus === "enviado" && (
                     <span
                       title="Mensagem Umbler enviada"
@@ -898,6 +939,20 @@ export function CallsHistory() {
                   </p>
                 )}
               </section>
+
+              {/* Alerta de Reclamação */}
+              {selectedCall.sentiment === "negativo" && (
+                <section className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/20 p-3">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-1">
+                    <AlertTriangle className="size-3.5" />
+                    Reclamação Detectada pela IA
+                  </p>
+                  <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                    {complaintNotification?.excerpt ??
+                      "Cliente demonstrou insatisfação durante a ligação."}
+                  </p>
+                </section>
+              )}
 
               {/* Resumo */}
               {selectedCall.summary && (
