@@ -213,12 +213,44 @@ async function transcribeWithWhisper(
     return;
   }
 
+  // Reformatar como conversa de chat usando GPT
+  let formattedTranscript = result.text;
+  try {
+    console.log(`[whisper] Reformatando transcrição como chat | Call ID: ${callId}`);
+    const chatResult = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você receberá a transcrição de uma ligação telefônica entre um agente de vendas e um cliente. " +
+            "Reformate o texto como uma conversa, separando as falas linha a linha. " +
+            "Prefixe cada fala do agente com 'Agente: ' e cada fala do cliente com 'Cliente: '. " +
+            "Tente deduzir quem está falando pelo contexto (o agente normalmente cumprimenta, oferece produtos, faz perguntas comerciais; o cliente responde). " +
+            "Retorne APENAS as linhas da conversa formatadas, sem explicações ou comentários extras.",
+        },
+        {
+          role: "user",
+          content: result.text,
+        },
+      ],
+      temperature: 0.1,
+    });
+    const formatted = chatResult.choices[0]?.message?.content?.trim();
+    if (formatted) {
+      formattedTranscript = formatted;
+      console.log(`[whisper] Transcrição reformatada | Call ID: ${callId}`);
+    }
+  } catch (e) {
+    console.warn(`[whisper] Falha ao reformatar com GPT, salvando texto original | Call ID: ${callId}`, e);
+  }
+
   await db
     .update(calls)
-    .set({ twilioTranscription: result.text })
+    .set({ twilioTranscription: formattedTranscript })
     .where(eq(calls.id, callId));
   console.log(
-    `[whisper] Transcrição salva | Call ID: ${callId} | ${result.text.length} chars`,
+    `[whisper] Transcrição salva | Call ID: ${callId} | ${formattedTranscript.length} chars`,
   );
 }
 
