@@ -82,15 +82,15 @@ function StatCard({
   bg: string;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex items-start gap-4">
-      <div className={cn("h-11 w-11 rounded-xl flex items-center justify-center shrink-0", bg)}>
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex items-start gap-4 hover:shadow-md transition-shadow duration-200">
+      <div className={cn("h-11 w-11 rounded-xl flex items-center justify-center shrink-0 shadow-inner", bg)}>
         <Icon className={cn("h-5 w-5", color)} />
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide truncate">
+        <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
           {label}
         </p>
-        <p className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5">{value}</p>
+        <p className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">{value}</p>
         {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
       </div>
     </div>
@@ -109,8 +109,8 @@ function RulesSection() {
         className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
-            <CircleHelp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center">
+            <CircleHelp className="h-4 w-4 text-primary" />
           </div>
           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">
             Como funciona o Programa de Indicação
@@ -154,7 +154,7 @@ function RulesSection() {
                 },
               ].map(({ step, text }) => (
                 <li key={step} className="flex items-start gap-3">
-                  <span className="h-5 w-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  <span className="h-5 w-5 rounded-full bg-accent text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                     {step}
                   </span>
                   <p className="text-sm text-slate-600 dark:text-slate-400">{text}</p>
@@ -264,14 +264,14 @@ export default function ReferralProgramPage() {
   const stats = data?.stats;
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="space-y-6 pb-10">
       {/* Header */}
       <PageHeader>
         <PageHeader.Info>
           <PageHeader.Icon
             icon={Share2}
-            color="text-indigo-600 dark:text-indigo-400"
-            bgColor="bg-indigo-50 dark:bg-indigo-900/30"
+            color="text-primary"
+            bgColor="bg-accent"
           />
           <PageHeader.Text>
             <PageHeader.Title>Programa de Indicação</PageHeader.Title>
@@ -415,13 +415,13 @@ export default function ReferralProgramPage() {
                   )}
                   onClick={() => r.referredClientId && navigate(`/clientes/${r.referredClientId}`)}
                 >
-                  <div className="h-8 w-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center shrink-0 font-semibold text-indigo-600 dark:text-indigo-400 text-sm">
+                  <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0 font-semibold text-primary text-sm">
                     {r.referredName[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <p className={cn(
                       "text-sm font-medium text-slate-800 dark:text-slate-200 truncate",
-                      r.referredClientId && "group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:underline"
+                      r.referredClientId && "group-hover:text-primary group-hover:underline"
                     )}>
                       {r.referredName}
                     </p>
@@ -440,7 +440,7 @@ export default function ReferralProgramPage() {
                     {r.referrerName[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm text-slate-700 dark:text-slate-300 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:underline">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 truncate group-hover:text-primary group-hover:underline">
                       {r.referrerName}
                     </p>
                     {(r.benefit1DeliveredAt || r.benefit2DeliveredAt) && (
