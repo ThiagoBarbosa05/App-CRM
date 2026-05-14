@@ -404,36 +404,52 @@ export function CallsHistory() {
     },
   });
 
-  // Buscar notificação de reclamação para a chamada selecionada
-  const { data: complaintNotification } = useQuery<{
+  type CallNotif = {
     id: string;
     message: string | null;
     excerpt: string | null;
     readAt: string | null;
     createdAt: string;
-  } | null>({
+  };
+
+  // Buscar notificações (reclamação e/ou interesse) para a chamada selecionada
+  const hasAlerts =
+    selectedCall?.sentiment === "negativo" ||
+    selectedCall?.aiDecision === "sim";
+
+  const { data: callAlerts } = useQuery<CallNotif[]>({
     queryKey: ["/api/calls/notifications/call", selectedCall?.id],
     queryFn: async () => {
-      if (!selectedCall?.id) return null;
+      if (!selectedCall?.id) return [];
       const res = await fetch(
         `/api/calls/notifications/call/${selectedCall.id}`,
         { credentials: "include" },
       );
-      if (!res.ok) return null;
+      if (!res.ok) return [];
       return res.json();
     },
-    enabled: !!selectedCall?.id && selectedCall.sentiment === "negativo",
+    enabled: !!selectedCall?.id && !!hasAlerts,
   });
 
-  // Marcar notificação como lida ao abrir o detalhe
+  const complaintNotification = callAlerts?.find(
+    (n) => n.message === "reclamacao",
+  );
+  const interestNotification = callAlerts?.find(
+    (n) => n.message === "interesse",
+  );
+
+  // Marcar notificações não lidas como lidas ao abrir o detalhe
   useEffect(() => {
-    if (complaintNotification && !complaintNotification.readAt) {
-      fetch(`/api/calls/notifications/${complaintNotification.id}/read`, {
-        method: "PATCH",
-        credentials: "include",
-      }).catch(() => {});
-    }
-  }, [complaintNotification]);
+    if (!callAlerts) return;
+    callAlerts
+      .filter((n) => !n.readAt)
+      .forEach((n) => {
+        fetch(`/api/calls/notifications/${n.id}/read`, {
+          method: "PATCH",
+          credentials: "include",
+        }).catch(() => {});
+      });
+  }, [callAlerts]);
 
   // Auto-sync ao abrir o dialog
   useEffect(() => {
@@ -939,6 +955,21 @@ export function CallsHistory() {
                   </p>
                 )}
               </section>
+
+              {/* Alerta de Interesse */}
+              {selectedCall.aiDecision === "sim" &&
+                !selectedCall.elevenLabsConversationId && (
+                  <section className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-900/20 p-3">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide mb-1">
+                      <CheckCircle2 className="size-3.5" />
+                      Interesse Detectado pela IA
+                    </p>
+                    <p className="text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                      {interestNotification?.excerpt ??
+                        "Cliente demonstrou interesse durante a ligação."}
+                    </p>
+                  </section>
+                )}
 
               {/* Alerta de Reclamação */}
               {selectedCall.sentiment === "negativo" && (

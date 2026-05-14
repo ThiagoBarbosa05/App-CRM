@@ -332,16 +332,79 @@ async function transcribeWithWhisper(
     })
     .where(eq(calls.id, callId));
 
+  // Detectar interesse do cliente
+  let hasInterest = false;
+  let interestDescription: string | undefined;
+  try {
+    console.log(`[whisper] Analisando interesse do cliente | Call ID: ${callId}`);
+    const interestResult = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Analise a transcrição de ligação a seguir e responda EXCLUSIVAMENTE em JSON com o formato: " +
+            '{"hasInterest": true/false, "description": "descrição breve do interesse em 1 frase ou null se não houver"}. ' +
+            "Considere interesse real: cliente pediu preço, solicitou mais informações sobre produto específico, perguntou sobre disponibilidade, " +
+            "pediu para receber catálogo, demonstrou intenção de compra, agendou visita ou degustação, ou pediu para ser contactado novamente. " +
+            "Educação genérica ou resposta cortês NÃO é interesse. Retorne APENAS o JSON.",
+        },
+        {
+          role: "user",
+          content: formattedTranscript,
+        },
+      ],
+      temperature: 0,
+      response_format: { type: "json_object" },
+    });
+    const raw = interestResult.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw) as {
+      hasInterest?: boolean;
+      description?: string | null;
+    };
+    hasInterest = parsed.hasInterest === true;
+    interestDescription = parsed.description ?? undefined;
+    if (hasInterest) {
+      console.log(
+        `[whisper] Interesse detectado | Call ID: ${callId} | ${interestDescription}`,
+      );
+    }
+  } catch (e) {
+    console.warn(`[whisper] Falha na análise de interesse | Call ID: ${callId}`, e);
+  }
+
+  await db
+    .update(calls)
+    .set({
+      twilioTranscription: formattedTranscript,
+      ...(callSummary ? { summary: callSummary } : {}),
+      ...(hasComplaint ? { sentiment: "negativo" } : {}),
+      ...(hasInterest ? { aiDecision: "sim" } : {}),
+    })
+    .where(eq(calls.id, callId));
+
   // Criar notificação de reclamação se detectada
   if (hasComplaint && callRow?.operatorId) {
     await db.insert(callNotifications).values({
       userId: callRow.operatorId,
       callId,
       clientId: callRow.clientId ?? undefined,
-      message: "Cliente fez uma reclamação nesta ligação",
+      message: "reclamacao",
       excerpt: complaintDescription ?? null,
     });
     console.log(`[whisper] Notificação de reclamação criada | Call ID: ${callId}`);
+  }
+
+  // Criar notificação de interesse se detectado
+  if (hasInterest && callRow?.operatorId) {
+    await db.insert(callNotifications).values({
+      userId: callRow.operatorId,
+      callId,
+      clientId: callRow.clientId ?? undefined,
+      message: "interesse",
+      excerpt: interestDescription ?? null,
+    });
+    console.log(`[whisper] Notificação de interesse criada | Call ID: ${callId}`);
   }
 
   console.log(
@@ -1266,14 +1329,13 @@ router.get(
   requireAuth,
   async (req: Request, res: Response) => {
     try {
-      const [row] = await db
+      const rows = await db
         .select()
         .from(callNotifications)
         .where(eq(callNotifications.callId, req.params.callId))
-        .orderBy(desc(callNotifications.createdAt))
-        .limit(1);
+        .orderBy(desc(callNotifications.createdAt));
 
-      res.json(row ?? null);
+      res.json(rows);
     } catch (e) {
       console.error("[call-notifications] call lookup error:", e);
       res.status(500).json({ message: "Erro ao buscar notificação" });
