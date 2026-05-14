@@ -83,15 +83,26 @@ function StatCard({
 }) {
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex items-start gap-4 hover:shadow-md transition-shadow duration-200">
-      <div className={cn("h-11 w-11 rounded-xl flex items-center justify-center shrink-0 shadow-inner", bg)}>
+      <div
+        className={cn(
+          "h-11 w-11 rounded-xl flex items-center justify-center shrink-0 shadow-inner",
+          bg,
+        )}
+      >
         <Icon className={cn("h-5 w-5", color)} />
       </div>
       <div className="min-w-0">
         <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
           {label}
         </p>
-        <p className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">{value}</p>
-        {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{sub}</p>}
+        <p className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
+          {value}
+        </p>
+        {sub && (
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+            {sub}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -157,7 +168,9 @@ function RulesSection() {
                   <span className="h-5 w-5 rounded-full bg-accent text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                     {step}
                   </span>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{text}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {text}
+                  </p>
                 </li>
               ))}
             </ol>
@@ -178,8 +191,9 @@ function RulesSection() {
                     Benefício 1 — Desconto Especial
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Ao indicar <strong>3 amigos</strong> (independente de comprarem), o cliente
-                    ganha um <strong>desconto especial</strong> na próxima compra.
+                    Ao indicar <strong>3 amigos</strong> (independente de
+                    comprarem), o cliente ganha um{" "}
+                    <strong>desconto especial</strong> na próxima compra.
                   </p>
                 </div>
               </div>
@@ -193,8 +207,9 @@ function RulesSection() {
                     Benefício 2 — Brinde Especial
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Ao ter <strong>3 indicados que realizaram uma compra</strong>, o cliente
-                    ganha um <strong>brinde especial</strong> exclusivo.
+                    Ao ter{" "}
+                    <strong>3 indicados que realizaram uma compra</strong>, o
+                    cliente ganha um <strong>brinde especial</strong> exclusivo.
                   </p>
                 </div>
               </div>
@@ -202,8 +217,9 @@ function RulesSection() {
               <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
                 <Star className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Os benefícios são cumulativos — o cliente pode conquistar ambos. O vendedor
-                  responsável marca a entrega no perfil do cliente ao conceder o benefício.
+                  Os benefícios são cumulativos — o cliente pode conquistar
+                  ambos. O vendedor responsável marca a entrega no perfil do
+                  cliente ao conceder o benefício.
                 </p>
               </div>
             </div>
@@ -220,7 +236,9 @@ export default function ReferralProgramPage() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "purchased" | "pending">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "purchased" | "pending"
+  >("all");
   const [responsavelFilter, setResponsavelFilter] = useState<string>("all");
 
   const { data, isLoading } = useQuery<ProgramData>({
@@ -255,7 +273,8 @@ export default function ReferralProgramPage() {
         (statusFilter === "pending" && !r.hasPurchased);
 
       const matchesResponsavel =
-        responsavelFilter === "all" || r.referrerResponsavelId === responsavelFilter;
+        responsavelFilter === "all" ||
+        r.referrerResponsavelId === responsavelFilter;
 
       return matchesSearch && matchesStatus && matchesResponsavel;
     });
@@ -317,7 +336,10 @@ export default function ReferralProgramPage() {
           />
           <StatCard
             label="Benefícios Conquistados"
-            value={(stats?.clientsWithBenefit1 ?? 0) + (stats?.clientsWithBenefit2 ?? 0)}
+            value={
+              (stats?.clientsWithBenefit1 ?? 0) +
+              (stats?.clientsWithBenefit2 ?? 0)
+            }
             sub={`B1: ${stats?.clientsWithBenefit1 ?? 0} · B2: ${stats?.clientsWithBenefit2 ?? 0} clientes`}
             icon={Trophy}
             color="text-amber-600 dark:text-amber-400"
@@ -356,7 +378,10 @@ export default function ReferralProgramPage() {
             </SelectContent>
           </Select>
           {user?.role !== "vendedor" && responsaveisOptions.length > 0 && (
-            <Select value={responsavelFilter} onValueChange={setResponsavelFilter}>
+            <Select
+              value={responsavelFilter}
+              onValueChange={setResponsavelFilter}
+            >
               <SelectTrigger className="h-8 text-sm w-full sm:w-44">
                 <SelectValue placeholder="Responsável" />
               </SelectTrigger>
@@ -411,18 +436,24 @@ export default function ReferralProgramPage() {
                 <div
                   className={cn(
                     "flex items-center gap-3 min-w-0",
-                    r.referredClientId && "cursor-pointer group"
+                    r.referredClientId && "cursor-pointer group",
                   )}
-                  onClick={() => r.referredClientId && navigate(`/clientes/${r.referredClientId}`)}
+                  onClick={() =>
+                    r.referredClientId &&
+                    navigate(`/clientes/${r.referredClientId}`)
+                  }
                 >
                   <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0 font-semibold text-primary text-sm">
                     {r.referredName[0].toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className={cn(
-                      "text-sm font-medium text-slate-800 dark:text-slate-200 truncate",
-                      r.referredClientId && "group-hover:text-primary group-hover:underline"
-                    )}>
+                    <p
+                      className={cn(
+                        "text-sm font-medium text-slate-800 dark:text-slate-200 truncate",
+                        r.referredClientId &&
+                          "group-hover:text-primary group-hover:underline",
+                      )}
+                    >
                       {r.referredName}
                     </p>
                     <p className="text-xs text-slate-400 dark:text-slate-500">
@@ -446,14 +477,18 @@ export default function ReferralProgramPage() {
                     {(r.benefit1DeliveredAt || r.benefit2DeliveredAt) && (
                       <div className="flex gap-1 mt-0.5 flex-wrap">
                         {r.benefit1DeliveredAt && (
-                          <span title={`Benefício 1 entregue ao indicador em ${format(new Date(r.benefit1DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
-                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20 cursor-default">
+                          <span
+                            title={`Benefício 1 entregue ao indicador em ${format(new Date(r.benefit1DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
+                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20 cursor-default"
+                          >
                             <Gift className="h-2.5 w-2.5" /> B1
                           </span>
                         )}
                         {r.benefit2DeliveredAt && (
-                          <span title={`Benefício 2 entregue ao indicador em ${format(new Date(r.benefit2DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
-                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 cursor-default">
+                          <span
+                            title={`Benefício 2 entregue ao indicador em ${format(new Date(r.benefit2DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
+                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 cursor-default"
+                          >
                             <Trophy className="h-2.5 w-2.5" /> B2
                           </span>
                         )}
@@ -482,7 +517,10 @@ export default function ReferralProgramPage() {
                       <ShoppingBag className="h-3 w-3" /> Comprou
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-slate-400 text-xs gap-1">
+                    <Badge
+                      variant="outline"
+                      className="text-slate-400 text-xs gap-1"
+                    >
                       <Clock className="h-3 w-3" /> Ainda não comprou
                     </Badge>
                   )}
@@ -498,14 +536,18 @@ export default function ReferralProgramPage() {
 
                 {/* Date */}
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {format(new Date(r.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                  {format(new Date(r.createdAt), "dd/MM/yyyy", {
+                    locale: ptBR,
+                  })}
                   {r.hasPurchased && r.purchasedAt && (
                     <p className="text-emerald-500 dark:text-emerald-400 mt-0.5">
-                      Compra: {format(new Date(r.purchasedAt), "dd/MM/yyyy", { locale: ptBR })}
+                      Compra:{" "}
+                      {format(new Date(r.purchasedAt), "dd/MM/yyyy", {
+                        locale: ptBR,
+                      })}
                     </p>
                   )}
                 </div>
-
               </div>
             ))}
           </div>

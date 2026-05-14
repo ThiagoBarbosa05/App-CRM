@@ -106,7 +106,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/referrals`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/clients/${clientId}/referrals`],
+      });
       setName("");
       setPhone("");
       setShowForm(false);
@@ -125,12 +127,18 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/referrals`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/clients/${clientId}/referrals`],
+      });
       setConfirmDeleteId(null);
       toast({ title: "Indicação removida" });
     },
     onError: (err: Error) => {
-      toast({ title: "Erro ao remover", description: err.message, variant: "destructive" });
+      toast({
+        title: "Erro ao remover",
+        description: err.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -146,11 +154,17 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
       }
     },
     onSuccess: (_data, level) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/referrals`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/clients/${clientId}/referrals`],
+      });
       toast({ title: `Benefício ${level} marcado como entregue` });
     },
     onError: (err: Error) => {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -165,7 +179,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
         const err = await res.json();
         throw new Error(err.message ?? "Erro ao enviar mensagem");
       }
-      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/referrals`] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/clients/${clientId}/referrals`],
+      });
       toast({ title: "Mensagem enviada com sucesso" });
     } catch (error) {
       toast({
@@ -200,14 +216,16 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
       {/* ── Cards de Benefício ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Benefício 1 */}
-        <div className={cn(
-          "relative rounded-2xl p-5 space-y-3 border overflow-hidden transition-shadow duration-200 hover:shadow-md",
-          stats?.benefit1DeliveredAt
-            ? "border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-900/10"
-            : stats?.benefit1Granted
-              ? "border-primary/30 bg-accent/40 dark:bg-accent/20"
-              : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50"
-        )}>
+        <div
+          className={cn(
+            "relative rounded-2xl p-5 space-y-3 border overflow-hidden transition-shadow duration-200 hover:shadow-md",
+            stats?.benefit1DeliveredAt
+              ? "border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-900/10"
+              : stats?.benefit1Granted
+                ? "border-primary/30 bg-accent/40 dark:bg-accent/20"
+                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50",
+          )}
+        >
           {/* Ícone decorativo de fundo */}
           <div className="absolute top-3 right-3 opacity-[0.06] pointer-events-none">
             <Users className="h-16 w-16" />
@@ -215,15 +233,28 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
 
           <div className="flex items-center justify-between relative">
             <div className="flex items-center gap-2.5">
-              <div className={cn(
-                "h-9 w-9 rounded-xl flex items-center justify-center shadow-inner",
-                stats?.benefit1Granted ? "bg-accent" : "bg-slate-100 dark:bg-slate-800"
-              )}>
-                <Users className={cn("h-4 w-4", stats?.benefit1Granted ? "text-primary" : "text-slate-400")} />
+              <div
+                className={cn(
+                  "h-9 w-9 rounded-xl flex items-center justify-center shadow-inner",
+                  stats?.benefit1Granted
+                    ? "bg-accent"
+                    : "bg-slate-100 dark:bg-slate-800",
+                )}
+              >
+                <Users
+                  className={cn(
+                    "h-4 w-4",
+                    stats?.benefit1Granted ? "text-primary" : "text-slate-400",
+                  )}
+                />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Benefício 1</p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wide">Desconto especial</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Benefício 1
+                </p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wide">
+                  Desconto especial
+                </p>
               </div>
             </div>
             {stats?.benefit1DeliveredAt ? (
@@ -243,7 +274,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
             <ProgressBar value={stats?.totalReferred ?? 0} max={3} />
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                <span className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">{stats?.totalReferred ?? 0}</span>
+                <span className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">
+                  {stats?.totalReferred ?? 0}
+                </span>
                 <span className="text-slate-400"> / 3 indicações</span>
               </p>
               {stats?.benefit1DeliveredAt ? (
@@ -267,29 +300,46 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
         </div>
 
         {/* Benefício 2 */}
-        <div className={cn(
-          "relative rounded-2xl p-5 space-y-3 border overflow-hidden transition-shadow duration-200 hover:shadow-md",
-          stats?.benefit2DeliveredAt
-            ? "border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-900/10"
-            : stats?.benefit2Granted
-              ? "border-amber-200 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-900/10"
-              : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50"
-        )}>
+        <div
+          className={cn(
+            "relative rounded-2xl p-5 space-y-3 border overflow-hidden transition-shadow duration-200 hover:shadow-md",
+            stats?.benefit2DeliveredAt
+              ? "border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-900/10"
+              : stats?.benefit2Granted
+                ? "border-amber-200 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-900/10"
+                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50",
+          )}
+        >
           <div className="absolute top-3 right-3 opacity-[0.06] pointer-events-none">
             <Gift className="h-16 w-16" />
           </div>
 
           <div className="flex items-center justify-between relative">
             <div className="flex items-center gap-2.5">
-              <div className={cn(
-                "h-9 w-9 rounded-xl flex items-center justify-center shadow-inner",
-                stats?.benefit2Granted ? "bg-amber-100 dark:bg-amber-900/30" : "bg-slate-100 dark:bg-slate-800"
-              )}>
-                <Gift className={cn("h-4 w-4", stats?.benefit2Granted ? "text-amber-600 dark:text-amber-400" : "text-slate-400")} />
+              <div
+                className={cn(
+                  "h-9 w-9 rounded-xl flex items-center justify-center shadow-inner",
+                  stats?.benefit2Granted
+                    ? "bg-amber-100 dark:bg-amber-900/30"
+                    : "bg-slate-100 dark:bg-slate-800",
+                )}
+              >
+                <Gift
+                  className={cn(
+                    "h-4 w-4",
+                    stats?.benefit2Granted
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-slate-400",
+                  )}
+                />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Benefício 2</p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wide">Brinde exclusivo</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Benefício 2
+                </p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wide">
+                  Brinde exclusivo
+                </p>
               </div>
             </div>
             {stats?.benefit2DeliveredAt ? (
@@ -309,7 +359,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
             <ProgressBar value={stats?.totalPurchased ?? 0} max={3} />
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                <span className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">{stats?.totalPurchased ?? 0}</span>
+                <span className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">
+                  {stats?.totalPurchased ?? 0}
+                </span>
                 <span className="text-slate-400"> / 3 compraram</span>
               </p>
               {stats?.benefit2DeliveredAt ? (
@@ -360,7 +412,11 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
               setPhone("");
             }}
           >
-            {showForm ? <X className="h-3.5 w-3.5" /> : <UserPlus className="h-3.5 w-3.5" />}
+            {showForm ? (
+              <X className="h-3.5 w-3.5" />
+            ) : (
+              <UserPlus className="h-3.5 w-3.5" />
+            )}
             {showForm ? "Cancelar" : "Adicionar"}
           </Button>
         </div>
@@ -370,7 +426,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
           <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">Nome do indicado</Label>
+                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Nome do indicado
+                </Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -379,7 +437,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">WhatsApp</Label>
+                <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  WhatsApp
+                </Label>
                 <InputMask
                   mask="(99) 99999-9999"
                   value={phone}
@@ -391,7 +451,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
             </div>
             <div className="flex items-center justify-between">
               {addMutation.isError && (
-                <p className="text-xs text-red-500">{(addMutation.error as Error).message}</p>
+                <p className="text-xs text-red-500">
+                  {(addMutation.error as Error).message}
+                </p>
               )}
               <Button
                 size="sm"
@@ -413,7 +475,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
               <Users className="h-6 w-6 text-slate-400 dark:text-slate-500" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Nenhum indicado ainda</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Nenhum indicado ainda
+              </p>
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                 Clique em "Adicionar" para registrar a primeira indicação
               </p>
@@ -442,7 +506,10 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                         <ShoppingBag className="h-2.5 w-2.5" /> Comprou
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-slate-400 text-[10px] gap-1 h-4 px-1.5 shrink-0">
+                      <Badge
+                        variant="outline"
+                        className="text-slate-400 text-[10px] gap-1 h-4 px-1.5 shrink-0"
+                      >
                         <Clock className="h-2.5 w-2.5" /> Pendente
                       </Badge>
                     )}
@@ -453,15 +520,22 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                     </p>
                     {r.hasPurchased && r.purchasedAt && (
                       <>
-                        <span className="text-slate-200 dark:text-slate-700">·</span>
+                        <span className="text-slate-200 dark:text-slate-700">
+                          ·
+                        </span>
                         <p className="text-[10px] text-emerald-600 dark:text-emerald-400 shrink-0">
-                          Compra: {format(new Date(r.purchasedAt), "dd/MM/yy", { locale: ptBR })}
+                          Compra:{" "}
+                          {format(new Date(r.purchasedAt), "dd/MM/yy", {
+                            locale: ptBR,
+                          })}
                         </p>
                       </>
                     )}
                     {r.messageSent && (
                       <>
-                        <span className="text-slate-200 dark:text-slate-700">·</span>
+                        <span className="text-slate-200 dark:text-slate-700">
+                          ·
+                        </span>
                         <p className="text-[10px] text-slate-400 flex items-center gap-0.5 shrink-0">
                           <MessageSquare className="h-2.5 w-2.5" /> Msg enviada
                         </p>
@@ -478,7 +552,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                       variant="ghost"
                       className="h-7 w-7 p-0 text-slate-400 hover:text-primary"
                       title="Ver perfil do indicado"
-                      onClick={() => navigate(`/clientes/${r.referredClientId}`)}
+                      onClick={() =>
+                        navigate(`/clientes/${r.referredClientId}`)
+                      }
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Button>
@@ -493,7 +569,11 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                         ? "text-slate-300 dark:text-slate-600 hover:text-slate-500"
                         : "text-slate-400 hover:text-primary",
                     )}
-                    title={r.messageSent ? "Reenviar mensagem" : "Enviar mensagem de boas-vindas"}
+                    title={
+                      r.messageSent
+                        ? "Reenviar mensagem"
+                        : "Enviar mensagem de boas-vindas"
+                    }
                     disabled={sendingId === r.id}
                     onClick={() => sendMessage(r.id)}
                   >
