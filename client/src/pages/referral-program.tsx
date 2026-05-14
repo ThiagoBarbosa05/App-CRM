@@ -82,24 +82,24 @@ function StatCard({
   bg: string;
 }) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex items-start gap-4 hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-5 shadow-sm flex items-start gap-3 sm:gap-4 hover:shadow-md transition-shadow duration-200">
       <div
         className={cn(
-          "h-11 w-11 rounded-xl flex items-center justify-center shrink-0 shadow-inner",
+          "h-9 w-9 sm:h-11 sm:w-11 rounded-xl flex items-center justify-center shrink-0 shadow-inner mt-0.5",
           bg,
         )}
       >
-        <Icon className={cn("h-5 w-5", color)} />
+        <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", color)} />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+        <p className="text-[9px] sm:text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide sm:tracking-widest leading-tight">
           {label}
         </p>
-        <p className="text-2xl font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
+        <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-0.5 tabular-nums">
           {value}
         </p>
         {sub && (
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+          <p className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 mt-0.5 leading-tight">
             {sub}
           </p>
         )}
@@ -368,7 +368,7 @@ export default function ReferralProgramPage() {
             value={statusFilter}
             onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
           >
-            <SelectTrigger className="h-8 text-sm w-full sm:w-40">
+            <SelectTrigger className="h-8 text-sm w-full sm:w-52">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -382,7 +382,7 @@ export default function ReferralProgramPage() {
               value={responsavelFilter}
               onValueChange={setResponsavelFilter}
             >
-              <SelectTrigger className="h-8 text-sm w-full sm:w-44">
+              <SelectTrigger className="h-8 text-sm w-full sm:w-52">
                 <SelectValue placeholder="Responsável" />
               </SelectTrigger>
               <SelectContent>
@@ -430,77 +430,84 @@ export default function ReferralProgramPage() {
             {filtered.map((r) => (
               <div
                 key={r.id}
-                className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_1.5fr_1fr_1fr_auto] gap-2 sm:gap-4 items-center px-5 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_1.5fr_1fr_1fr_auto] gap-3 sm:gap-4 items-start sm:items-center px-5 py-4 sm:py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
               >
                 {/* Indicado */}
-                <div
-                  className={cn(
-                    "flex items-center gap-3 min-w-0",
-                    r.referredClientId && "cursor-pointer group",
-                  )}
-                  onClick={() =>
-                    r.referredClientId &&
-                    navigate(`/clientes/${r.referredClientId}`)
-                  }
-                >
-                  <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0 font-semibold text-primary text-sm">
-                    {r.referredName[0].toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p
-                      className={cn(
-                        "text-sm font-medium text-slate-800 dark:text-slate-200 truncate",
-                        r.referredClientId &&
-                          "group-hover:text-primary group-hover:underline",
-                      )}
-                    >
-                      {r.referredName}
-                    </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">
-                      {formatPhone(r.referredPhone)}
-                    </p>
+                <div className="min-w-0">
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Indicado</p>
+                  <div
+                    className={cn(
+                      "flex items-center gap-3 min-w-0",
+                      r.referredClientId && "cursor-pointer group",
+                    )}
+                    onClick={() =>
+                      r.referredClientId &&
+                      navigate(`/clientes/${r.referredClientId}`)
+                    }
+                  >
+                    <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0 font-semibold text-primary text-sm">
+                      {r.referredName[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p
+                        className={cn(
+                          "text-sm font-medium text-slate-800 dark:text-slate-200",
+                          r.referredClientId &&
+                            "group-hover:text-primary group-hover:underline",
+                        )}
+                      >
+                        {r.referredName}
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                        {formatPhone(r.referredPhone)}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Referrer */}
-                <div
-                  className="flex items-center gap-2 min-w-0 cursor-pointer group"
-                  onClick={() => navigate(`/clientes/${r.referrerId}`)}
-                >
-                  <div className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 font-medium text-slate-500 dark:text-slate-400 text-xs">
-                    {r.referrerName[0].toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm text-slate-700 dark:text-slate-300 truncate group-hover:text-primary group-hover:underline">
-                      {r.referrerName}
-                    </p>
-                    {(r.benefit1DeliveredAt || r.benefit2DeliveredAt) && (
-                      <div className="flex gap-1 mt-0.5 flex-wrap">
-                        {r.benefit1DeliveredAt && (
-                          <span
-                            title={`Benefício 1 entregue ao indicador em ${format(new Date(r.benefit1DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
-                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20 cursor-default"
-                          >
-                            <Gift className="h-2.5 w-2.5" /> B1
-                          </span>
-                        )}
-                        {r.benefit2DeliveredAt && (
-                          <span
-                            title={`Benefício 2 entregue ao indicador em ${format(new Date(r.benefit2DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
-                            className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 cursor-default"
-                          >
-                            <Trophy className="h-2.5 w-2.5" /> B2
-                          </span>
-                        )}
-                      </div>
-                    )}
+                <div className="min-w-0">
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Indicador</p>
+                  <div
+                    className="flex items-center gap-2 min-w-0 cursor-pointer group"
+                    onClick={() => navigate(`/clientes/${r.referrerId}`)}
+                  >
+                    <div className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 font-medium text-slate-500 dark:text-slate-400 text-xs">
+                      {r.referrerName[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-primary group-hover:underline">
+                        {r.referrerName}
+                      </p>
+                      {(r.benefit1DeliveredAt || r.benefit2DeliveredAt) && (
+                        <div className="flex gap-1 mt-0.5 flex-wrap">
+                          {r.benefit1DeliveredAt && (
+                            <span
+                              title={`Benefício 1 entregue ao indicador em ${format(new Date(r.benefit1DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
+                              className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-primary/10 text-primary border border-primary/20 cursor-default"
+                            >
+                              <Gift className="h-2.5 w-2.5" /> B1
+                            </span>
+                          )}
+                          {r.benefit2DeliveredAt && (
+                            <span
+                              title={`Benefício 2 entregue ao indicador em ${format(new Date(r.benefit2DeliveredAt), "dd/MM/yyyy", { locale: ptBR })}`}
+                              className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 cursor-default"
+                            >
+                              <Trophy className="h-2.5 w-2.5" /> B2
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {/* Responsável */}
                 <div className="min-w-0">
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Responsável</p>
                   {r.referrerResponsavelName ? (
-                    <span className="text-sm text-slate-600 dark:text-slate-400 truncate block">
+                    <span className="text-sm text-slate-600 dark:text-slate-400 block">
                       {r.referrerResponsavelName}
                     </span>
                   ) : (
@@ -512,6 +519,7 @@ export default function ReferralProgramPage() {
 
                 {/* Status */}
                 <div>
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Status</p>
                   {r.hasPurchased ? (
                     <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 text-xs gap-1">
                       <ShoppingBag className="h-3 w-3" /> Comprou
@@ -535,12 +543,15 @@ export default function ReferralProgramPage() {
                 </div>
 
                 {/* Date */}
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {format(new Date(r.createdAt), "dd/MM/yyyy", {
-                    locale: ptBR,
-                  })}
+                <div>
+                  <p className="sm:hidden text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Data</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {format(new Date(r.createdAt), "dd/MM/yyyy", {
+                      locale: ptBR,
+                    })}
+                  </p>
                   {r.hasPurchased && r.purchasedAt && (
-                    <p className="text-emerald-500 dark:text-emerald-400 mt-0.5">
+                    <p className="text-xs text-emerald-500 dark:text-emerald-400 mt-0.5">
                       Compra:{" "}
                       {format(new Date(r.purchasedAt), "dd/MM/yyyy", {
                         locale: ptBR,
