@@ -245,9 +245,44 @@ async function transcribeWithWhisper(
     console.warn(`[whisper] Falha ao reformatar com GPT, salvando texto original | Call ID: ${callId}`, e);
   }
 
+  // Gerar resumo da ligação
+  let callSummary: string | undefined;
+  try {
+    console.log(`[whisper] Gerando resumo da ligação | Call ID: ${callId}`);
+    const summaryResult = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Você é um assistente especializado em análise de ligações de vendas de vinhos. " +
+            "Gere um resumo conciso e objetivo da ligação a seguir em 2 a 4 frases, " +
+            "destacando: o motivo da ligação, o interesse do cliente, produtos mencionados (se houver) e o resultado/próximo passo. " +
+            "Escreva em português do Brasil, em terceira pessoa, de forma profissional e direta. " +
+            "Retorne APENAS o resumo, sem títulos ou explicações.",
+        },
+        {
+          role: "user",
+          content: formattedTranscript,
+        },
+      ],
+      temperature: 0.2,
+    });
+    const summary = summaryResult.choices[0]?.message?.content?.trim();
+    if (summary) {
+      callSummary = summary;
+      console.log(`[whisper] Resumo gerado | Call ID: ${callId}`);
+    }
+  } catch (e) {
+    console.warn(`[whisper] Falha ao gerar resumo | Call ID: ${callId}`, e);
+  }
+
   await db
     .update(calls)
-    .set({ twilioTranscription: formattedTranscript })
+    .set({
+      twilioTranscription: formattedTranscript,
+      ...(callSummary ? { summary: callSummary } : {}),
+    })
     .where(eq(calls.id, callId));
   console.log(
     `[whisper] Transcrição salva | Call ID: ${callId} | ${formattedTranscript.length} chars`,
