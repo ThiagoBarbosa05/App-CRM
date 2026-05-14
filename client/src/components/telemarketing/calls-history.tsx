@@ -233,6 +233,7 @@ function formatDateTime(iso: string | null | undefined): string {
 export function CallsHistory() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [interestFilter, setInterestFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [selectedCall, setSelectedCall] = useState<Call | null>(null);
   const [searchInput, setSearchInput] = useState("");
@@ -292,13 +293,14 @@ export function CallsHistory() {
     total: number;
     hasMore: boolean;
   }>({
-    queryKey: ["/api/calls", statusFilter, search, page],
+    queryKey: ["/api/calls", statusFilter, interestFilter, search, page],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: "20",
       });
       if (statusFilter !== "all") params.set("status", statusFilter);
+      if (interestFilter !== "all") params.set("interest", interestFilter);
       if (search.trim()) params.set("search", search.trim());
       const res = await fetch(`/api/calls?${params}`, {
         credentials: "include",
@@ -518,7 +520,7 @@ export function CallsHistory() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="w-full sm:w-52 rounded-2xl">
+              <SelectTrigger className="w-full sm:w-44 rounded-2xl">
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
@@ -529,6 +531,22 @@ export function CallsHistory() {
                 <SelectItem value="ocupado">Ocupado</SelectItem>
                 <SelectItem value="caixa_postal">Caixa postal</SelectItem>
                 <SelectItem value="falhou">Falhou</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={interestFilter}
+              onValueChange={(v) => {
+                setInterestFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-44 rounded-2xl">
+                <SelectValue placeholder="Filtrar por interesse" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="sim">Com interesse ✓</SelectItem>
+                <SelectItem value="nao">Sem interesse</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -573,11 +591,12 @@ export function CallsHistory() {
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
               Nenhuma chamada encontrada
             </p>
-            {(statusFilter !== "all" || search) && (
+            {(statusFilter !== "all" || interestFilter !== "all" || search) && (
               <button
                 className="text-xs text-blue-500 hover:underline mt-1"
                 onClick={() => {
                   setStatusFilter("all");
+                  setInterestFilter("all");
                   handleSearchChange("");
                 }}
               >

@@ -839,6 +839,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
       campaignId,
       clientId,
       status,
+      interest,
       search,
       page = "1",
       pageSize = "20",
@@ -868,6 +869,13 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
       } else if (statuses.length > 1) {
         conditions.push(inArray(calls.status, statuses));
       }
+    }
+    if (interest === "sim") {
+      conditions.push(eq(calls.aiDecision, "sim"));
+    } else if (interest === "nao") {
+      conditions.push(
+        or(eq(calls.aiDecision, "nao"), isNull(calls.aiDecision)),
+      );
     }
 
     if (req.user?.role === "vendedor") {
