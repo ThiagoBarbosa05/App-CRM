@@ -332,26 +332,31 @@ async function transcribeWithWhisper(
     })
     .where(eq(calls.id, callId));
 
-  // Detectar interesse do cliente
+  // Detectar interesse do cliente (usa resumo + transcript para melhor precisão)
   let hasInterest = false;
   let interestDescription: string | undefined;
   try {
     console.log(`[whisper] Analisando interesse do cliente | Call ID: ${callId}`);
+    const analysisContent = callSummary
+      ? `RESUMO DA LIGAÇÃO:\n${callSummary}\n\nTRANSCRIÇÃO:\n${formattedTranscript}`
+      : formattedTranscript;
     const interestResult = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "Analise a transcrição de ligação a seguir e responda EXCLUSIVAMENTE em JSON com o formato: " +
+            "Analise a ligação telefônica de vendas a seguir e responda EXCLUSIVAMENTE em JSON com o formato: " +
             '{"hasInterest": true/false, "description": "descrição breve do interesse em 1 frase ou null se não houver"}. ' +
-            "Considere interesse real: cliente pediu preço, solicitou mais informações sobre produto específico, perguntou sobre disponibilidade, " +
-            "pediu para receber catálogo, demonstrou intenção de compra, agendou visita ou degustação, ou pediu para ser contactado novamente. " +
-            "Educação genérica ou resposta cortês NÃO é interesse. Retorne APENAS o JSON.",
+            "Considere interesse VERDADEIRO qualquer uma destas situações: cliente perguntou sobre produto ou vinho específico, " +
+            "perguntou sobre preço ou comparação de preços, pediu informações para ser enviadas, perguntou sobre disponibilidade, " +
+            "demonstrou curiosidade sobre características de produto, agendou visita/degustação, pediu para ser contatado novamente, " +
+            "ou o agente se comprometeu a enviar informações a pedido do cliente. " +
+            "Retorne APENAS o JSON.",
         },
         {
           role: "user",
-          content: formattedTranscript,
+          content: analysisContent,
         },
       ],
       temperature: 0,
