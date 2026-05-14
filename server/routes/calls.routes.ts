@@ -140,12 +140,21 @@ async function triggerTwilioIntelligence(
 
   if (!response.ok) {
     const text = await response.text();
-    // Com Auto transcribe ON, o Twilio já cria o transcript automaticamente.
-    // Nesse caso a API retorna erro de duplicata — o transcript auto-criado
-    // dispara o webhook do serviço sem CustomerKey, usando o fallback por recordingSid.
     console.warn(
       `[voice-intelligence] Erro ${response.status} ao criar transcript (pode ser duplicata com Auto transcribe ON): ${text}`,
     );
+    // Fallback: se tiver URL de gravação, usa Whisper para garantir a transcrição
+    if (recordingUrl) {
+      console.log(
+        `[whisper] Acionando fallback após falha do Voice Intelligence | Call ID: ${callId}`,
+      );
+      transcribeWithWhisper(
+        callId,
+        recordingUrl,
+        twilioConfig.accountSid,
+        twilioConfig.authToken,
+      ).catch((e) => console.warn("[whisper] Erro na transcrição:", e));
+    }
     return;
   }
   const data = (await response.json()) as { sid?: string };
@@ -996,6 +1005,7 @@ router.post(
           call.id,
           rec.sid,
           `${syncProto}://${req.headers.host}`,
+          recordingUrl,
         ).catch((e) =>
           console.warn(
             "[sync-recording] Falha ao acionar Voice Intelligence:",
