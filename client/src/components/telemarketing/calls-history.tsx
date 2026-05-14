@@ -33,6 +33,7 @@ import {
   Search,
   X,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -371,6 +372,35 @@ export function CallsHistory() {
     },
     onSuccess: () => {},
     onError: () => {},
+  });
+
+  // Re-transcrever via Whisper + GPT
+  const retranscribeMutation = useMutation({
+    mutationFn: async (callId: string) => {
+      const res = await fetch(`/api/calls/${callId}/retranscribe`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        throw new Error(err.message ?? "Erro ao re-transcrever");
+      }
+      return res.json() as Promise<{ message: string }>;
+    },
+    onSuccess: (_, callId) => {
+      toast({
+        title: "Re-transcrição iniciada",
+        description: "A transcrição será atualizada em alguns instantes.",
+      });
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/calls"] });
+      }, 30000);
+    },
+    onError: (e: Error) => {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    },
   });
 
   // Auto-sync ao abrir o dialog
@@ -920,19 +950,37 @@ export function CallsHistory() {
                 (selectedCall.recordingSid ||
                   selectedCall.twilioTranscription) && (
                   <section>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                      <Mic className="size-3" />
-                      Transcrição
-                    </p>
-                    {syncTwilioTranscriptMutation.isPending ? (
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                        <Mic className="size-3" />
+                        Transcrição
+                      </p>
+                      {selectedCall.recordingUrl && (
+                        <button
+                          type="button"
+                          title="Refazer transcrição com IA"
+                          disabled={retranscribeMutation.isPending || syncTwilioTranscriptMutation.isPending}
+                          onClick={() => retranscribeMutation.mutate(selectedCall.id)}
+                          className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
+                        >
+                          {retranscribeMutation.isPending ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <RotateCcw className="size-3" />
+                          )}
+                          Refazer
+                        </button>
+                      )}
+                    </div>
+                    {syncTwilioTranscriptMutation.isPending || retranscribeMutation.isPending ? (
                       <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
                         <Loader2 className="size-3.5 animate-spin" />
-                        Solicitando transcrição ao Twilio…
+                        {retranscribeMutation.isPending
+                          ? "Gerando nova transcrição com IA…"
+                          : "Solicitando transcrição ao Twilio…"}
                       </div>
                     ) : selectedCall.twilioTranscription ? (
-                      <div className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
-                        {selectedCall.twilioTranscription}
-                      </div>
+                      <TranscriptView text={selectedCall.twilioTranscription} />
                     ) : (
                       <p className="text-xs text-slate-400 py-1">
                         Transcrição sendo processada pelo Twilio Voice

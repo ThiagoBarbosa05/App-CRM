@@ -1125,6 +1125,57 @@ router.post(
   },
 );
 
+// ─── Re-transcrever chamada (limpa e refaz via Whisper + GPT) ─────────────────
+
+router.post(
+  "/:id/retranscribe",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const [call] = await db
+        .select()
+        .from(calls)
+        .where(eq(calls.id, req.params.id));
+      if (!call)
+        return res.status(404).json({ message: "Chamada não encontrada" });
+      if (!call.recordingUrl) {
+        return res.status(400).json({
+          message:
+            "Chamada sem URL de gravação — sincronize a gravação primeiro",
+        });
+      }
+
+      const twilioConfig = await getTwilioConfig();
+      if (!twilioConfig?.accountSid || !twilioConfig?.authToken) {
+        return res.status(400).json({ message: "Twilio não configurado" });
+      }
+
+      // Limpar transcrição e resumo anteriores
+      await db
+        .update(calls)
+        .set({ twilioTranscription: null, summary: null })
+        .where(eq(calls.id, call.id));
+
+      // Re-transcrever em background via Whisper + GPT
+      transcribeWithWhisper(
+        call.id,
+        call.recordingUrl,
+        twilioConfig.accountSid,
+        twilioConfig.authToken,
+      ).catch((e) =>
+        console.warn("[retranscribe] Erro ao re-transcrever:", e),
+      );
+
+      res.json({
+        message: "Re-transcrição iniciada. Aguarde alguns instantes.",
+      });
+    } catch (e) {
+      console.error("[calls] retranscribe error:", e);
+      res.status(500).json({ message: "Erro ao iniciar re-transcrição" });
+    }
+  },
+);
+
 // ─── Webhook: status de chamada (público) ─────────────────────────────────────
 
 router.post("/twilio-status", async (req: Request, res: Response) => {
