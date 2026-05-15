@@ -539,7 +539,8 @@ export function Dialer() {
     queryFn: async () => {
       const res = await fetch("/api/elevenlabs/agents", { credentials: "include" });
       if (!res.ok) return [];
-      return res.json();
+      const data = (await res.json()) as { agents?: { agentId: string; name: string }[] } | { agentId: string; name: string }[];
+      return Array.isArray(data) ? data : (data.agents ?? []);
     },
     staleTime: 60_000,
   });
