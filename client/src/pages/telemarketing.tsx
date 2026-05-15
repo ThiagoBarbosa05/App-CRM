@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AppTabs,
   UnderlineTabsList,
@@ -14,6 +14,7 @@ import { CampaignsTabContent } from "@/components/telemarketing/tabs/campaigns-t
 import { HistoryTabContent } from "@/components/telemarketing/tabs/history-tab";
 import { MonitorTabContent } from "@/components/telemarketing/tabs/monitor-tab";
 import { useAuth } from "@/hooks/useAuth";
+import { useSearch } from "wouter";
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
 
@@ -37,9 +38,16 @@ export default function TelemarketingPage() {
     user?.role === "administrador" ||
     user?.role === "gerente";
 
+  const search = useSearch();
   const [activeTab, setActiveTab] = useState(
     isAdminOrManager ? "dashboard" : "dialer",
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const tabParam = params.get("tab");
+    if (tabParam) setActiveTab(tabParam);
+  }, [search]);
 
   return (
     <TwilioDeviceProvider>

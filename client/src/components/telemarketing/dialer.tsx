@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -459,9 +460,28 @@ export function Dialer() {
   }, []);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
+  const search = useSearch();
   const callButtonRef = useRef<HTMLButtonElement>(null);
   const noteFormRef = useRef<HTMLDivElement>(null);
   const prevCallStatusRef = useRef(callStatus);
+
+  // Pré-preenche o discador quando vindo da página de clientes via URL params
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const phoneParam = params.get("phone");
+    const clientIdParam = params.get("clientId");
+    const clientNameParam = params.get("clientName");
+    if (!phoneParam) return;
+    setNumber(phoneParam);
+    if (clientIdParam) setSelectedClientId(clientIdParam);
+    if (clientNameParam) {
+      setSelectedClientName(clientNameParam);
+      if (!clientIdParam) setManualClientName(clientNameParam);
+    }
+    // Limpa os params da URL sem recarregar a página
+    window.history.replaceState({}, "", "/telemarketing");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Timer durante chamada ativa
   useEffect(() => {

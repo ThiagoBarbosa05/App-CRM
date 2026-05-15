@@ -391,13 +391,23 @@ export default function ClientsTableWithSelection({
                       <div className="p-1 bg-green-100 dark:bg-green-900/30 rounded-md shrink-0">
                         <Phone className="h-3 w-3 text-green-600 dark:text-green-400" />
                       </div>
-                      <a
-                        href={`tel:${client.phone}`}
-                        className="text-blue-600 dark:text-blue-400 hover:underline font-medium text-sm"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {client.phone || "—"}
-                      </a>
+                      {client.phone ? (
+                        <button
+                          type="button"
+                          className="text-blue-600 dark:text-blue-400 hover:underline font-medium text-sm text-left"
+                          title="Abrir discador para ligar"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(
+                              `/telemarketing?tab=dialer&clientId=${client.id}&phone=${encodeURIComponent(client.phone!)}&clientName=${encodeURIComponent(client.name)}`,
+                            );
+                          }}
+                        >
+                          {client.phone}
+                        </button>
+                      ) : (
+                        <span>—</span>
+                      )}
                     </div>
                     {client.email && (
                       <div className="flex items-center gap-2 text-sm">
@@ -710,14 +720,19 @@ export default function ClientsTableWithSelection({
                         <div className="p-1 bg-green-100 dark:bg-green-800 rounded-md mr-2">
                           <Phone className="h-3 w-3 text-green-600 dark:text-green-100" />
                         </div>
-                        <a
-                          href={`tel:${client.phone}`}
-                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors"
-                          title="Clique para ligar"
-                          onClick={(e) => e.stopPropagation()}
+                        <button
+                          type="button"
+                          className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium transition-colors text-left"
+                          title="Abrir discador para ligar"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(
+                              `/telemarketing?tab=dialer&clientId=${client.id}&phone=${encodeURIComponent(client.phone!)}&clientName=${encodeURIComponent(client.name)}`,
+                            );
+                          }}
                         >
                           {client.phone}
-                        </a>
+                        </button>
                       </div>
                       {client.email && (
                         <div className="flex items-center text-sm text-gray-600">
