@@ -39,6 +39,7 @@ import {
   User,
   RefreshCw,
   PhoneCall,
+  Bot,
 } from "lucide-react";
 
 type Channel = { label: string; number: string };
@@ -423,6 +424,11 @@ export function Dialer() {
     clearError,
   } = useTwilioDeviceContext();
 
+  const [callMode, setCallMode] = useState<"humano" | "ia">("humano");
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [aiCallSid, setAiCallSid] = useState<string | null>(null);
+  const [aiCallStatus, setAiCallStatus] = useState<string | null>(null);
+
   const [number, setNumber] = useState("");
   const [callerId, setCallerId] = useState("");
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
@@ -507,6 +513,39 @@ export function Dialer() {
       return res.json();
     },
   });
+
+  const { data: agents = [] } = useQuery<{ agentId: string; name: string }[]>({
+    queryKey: ["/api/elevenlabs/agents"],
+    queryFn: async () => {
+      const res = await fetch("/api/elevenlabs/agents", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+
+  // Polling do status quando há chamada IA em andamento
+  useEffect(() => {
+    if (!aiCallSid) return;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/twilio/test-call/${aiCallSid}/status`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { status: string };
+        setAiCallStatus(data.status);
+        if (["completed", "failed", "busy", "no-answer", "canceled"].includes(data.status)) {
+          setAiCallSid(null);
+          setShowNote(true);
+        }
+      } catch {
+        // silencioso
+      }
+    };
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [aiCallSid]);
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -677,6 +716,51 @@ export function Dialer() {
       setSelectedClientName(manualClientName.trim());
     }
 
+    // ── Modo IA: chama via servidor com agente ElevenLabs ──────────────────
+    if (callMode === "ia") {
+      if (!selectedAgentId) {
+        toast({ title: "Selecione um agente IA", variant: "destructive" });
+        return;
+      }
+      const callRecordId = await createCallRecord({
+        clientId: selectedClientId ?? undefined,
+        toPhone: !selectedClientId ? number : undefined,
+        contactName: !selectedClientId ? manualClientName.trim() || undefined : undefined,
+      });
+      if (callRecordId) setActiveCallId(callRecordId);
+
+      try {
+        const res = await fetch("/api/twilio/test-call", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            phone: number,
+            elevenlabsAgentId: selectedAgentId,
+            callerId: from,
+            callRecordId: callRecordId || undefined,
+          }),
+        });
+        if (!res.ok) {
+          const err = (await res.json()) as { message?: string };
+          toast({
+            title: "Erro ao iniciar chamada IA",
+            description: err.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        const data = (await res.json()) as { callSid: string; callRecordId?: string };
+        setAiCallSid(data.callSid);
+        setAiCallStatus("iniciando");
+        if (data.callRecordId && !callRecordId) setActiveCallId(data.callRecordId);
+      } catch (e) {
+        toast({ title: "Erro de conexão ao iniciar chamada IA", variant: "destructive" });
+      }
+      return;
+    }
+
+    // ── Modo Humano: chama via SDK no navegador ────────────────────────────
     const callRecordId = await createCallRecord({
       clientId: selectedClientId ?? undefined,
       toPhone: !selectedClientId ? number : undefined,
@@ -698,7 +782,7 @@ export function Dialer() {
     }
 
     await connect(number, from, callRecordId ? { callRecordId } : undefined);
-  }, [number, callerId, channels, selectedClientId, manualClientName, connect]);
+  }, [number, callerId, channels, selectedClientId, manualClientName, callMode, selectedAgentId, connect]);
 
   const handleCallClient = useCallback(
     (client: Client) => {
@@ -716,6 +800,23 @@ export function Dialer() {
   );
 
   const handleHangup = useCallback(async () => {
+    // ── Modo IA: encerra via API Twilio (servidor) ─────────────────────────
+    if (callMode === "ia" && aiCallSid) {
+      try {
+        await fetch(`/api/twilio/test-call/${aiCallSid}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+      } catch (e) {
+        console.warn("[dialer] Falha ao encerrar chamada IA:", e);
+      }
+      setAiCallSid(null);
+      setAiCallStatus(null);
+      setShowNote(true);
+      return;
+    }
+
+    // ── Modo Humano: encerra via SDK ───────────────────────────────────────
     disconnect();
 
     let resolvedCallId = activeCallId;
@@ -747,6 +848,8 @@ export function Dialer() {
 
     setShowNote(true);
   }, [
+    callMode,
+    aiCallSid,
     disconnect,
     activeCallId,
     callSid,
@@ -786,7 +889,8 @@ export function Dialer() {
   const inCall =
     callStatus === "in-progress" ||
     callStatus === "ringing" ||
-    callStatus === "connecting";
+    callStatus === "connecting" ||
+    aiCallSid !== null;
 
   const deviceBadgeVariant =
     deviceStatus === "registered"
@@ -863,10 +967,14 @@ export function Dialer() {
                         : "text-slate-600 dark:text-slate-400",
                   )}
                 >
-                  {inCall
-                    ? `${CALL_STATUS_LABELS[callStatus]}${callStatus === "in-progress" ? ` · ${formatElapsed(elapsedSeconds)}` : ""}`
-                    : errorMessage ||
-                      `${DEVICE_STATUS_LABELS[deviceStatus]} — áudio no navegador`}
+                  {aiCallSid
+                    ? `IA · ${aiCallStatus ?? "iniciando"}…`
+                    : inCall
+                      ? `${CALL_STATUS_LABELS[callStatus]}${callStatus === "in-progress" ? ` · ${formatElapsed(elapsedSeconds)}` : ""}`
+                      : callMode === "ia"
+                        ? "Modo IA — agente ElevenLabs"
+                        : errorMessage ||
+                          `${DEVICE_STATUS_LABELS[deviceStatus]} — áudio no navegador`}
                 </span>
               </div>
               {errorMessage ? (
@@ -880,6 +988,69 @@ export function Dialer() {
                 </button>
               ) : null}
             </div>
+
+            {/* Toggle de modo: Humano / IA */}
+            <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900/70">
+              <button
+                type="button"
+                onClick={() => !inCall && setCallMode("humano")}
+                disabled={inCall}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all",
+                  callMode === "humano"
+                    ? "bg-white shadow-sm text-slate-800 dark:bg-slate-800 dark:text-slate-100"
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
+                )}
+              >
+                <Phone className="size-3.5" />
+                Humano
+              </button>
+              <button
+                type="button"
+                onClick={() => !inCall && setCallMode("ia")}
+                disabled={inCall}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all",
+                  callMode === "ia"
+                    ? "bg-white shadow-sm text-violet-700 dark:bg-slate-800 dark:text-violet-400"
+                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
+                )}
+              >
+                <Bot className="size-3.5" />
+                IA
+              </button>
+            </div>
+
+            {/* Agente ElevenLabs (apenas no modo IA) */}
+            {callMode === "ia" && (
+              <div className="space-y-1">
+                <Label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Agente IA
+                </Label>
+                <Select
+                  value={selectedAgentId}
+                  onValueChange={setSelectedAgentId}
+                  disabled={inCall}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue
+                      placeholder={
+                        agents.length === 0
+                          ? "Nenhum agente configurado"
+                          : "Selecione o agente"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agents.map((a) => (
+                      <SelectItem key={a.agentId} value={a.agentId}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {/* Canal de saída */}
             <div className="space-y-1">
@@ -994,27 +1165,40 @@ export function Dialer() {
                 onClick={handleCall}
                 disabled={
                   !number ||
-                  deviceStatus !== "registered" ||
-                  (!selectedClientId && !manualClientName.trim())
+                  (!selectedClientId && !manualClientName.trim()) ||
+                  (callMode === "humano" && deviceStatus !== "registered") ||
+                  (callMode === "ia" && !selectedAgentId)
                 }
-                className="h-12 w-full gap-2.5 rounded-xl bg-emerald-500 text-base font-semibold shadow-[0_4px_14px_-2px_rgba(16,185,129,0.4)] transition-all hover:bg-emerald-600 dark:shadow-emerald-900/40"
+                className={cn(
+                  "h-12 w-full gap-2.5 rounded-xl text-base font-semibold transition-all",
+                  callMode === "ia"
+                    ? "bg-violet-600 shadow-[0_4px_14px_-2px_rgba(124,58,237,0.4)] hover:bg-violet-700 dark:shadow-violet-900/40"
+                    : "bg-emerald-500 shadow-[0_4px_14px_-2px_rgba(16,185,129,0.4)] hover:bg-emerald-600 dark:shadow-emerald-900/40",
+                )}
               >
-                <Phone className="size-5" />
+                {callMode === "ia" ? (
+                  <Bot className="size-5" />
+                ) : (
+                  <Phone className="size-5" />
+                )}
                 Ligar
               </Button>
             ) : (
               <div className="flex gap-3">
-                <Button
-                  onClick={toggleMute}
-                  variant="outline"
-                  className="h-12 w-12 shrink-0 rounded-xl p-0 transition-all border-slate-200 dark:border-slate-800"
-                >
-                  {isMuted ? (
-                    <MicOff className="size-5 text-red-500" />
-                  ) : (
-                    <Mic className="size-5" />
-                  )}
-                </Button>
+                {/* Botão de mudo: apenas no modo humano */}
+                {callMode === "humano" && (
+                  <Button
+                    onClick={toggleMute}
+                    variant="outline"
+                    className="h-12 w-12 shrink-0 rounded-xl p-0 transition-all border-slate-200 dark:border-slate-800"
+                  >
+                    {isMuted ? (
+                      <MicOff className="size-5 text-red-500" />
+                    ) : (
+                      <Mic className="size-5" />
+                    )}
+                  </Button>
+                )}
                 <Button
                   onClick={handleHangup}
                   className="h-12 flex-1 gap-2.5 rounded-xl bg-red-500 text-base font-semibold shadow-[0_4px_14px_-2px_rgba(239,68,68,0.4)] transition-all hover:bg-red-600 dark:shadow-red-900/40"
