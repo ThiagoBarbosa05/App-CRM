@@ -1,6 +1,68 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Device, Call } from "@twilio/voice-sdk";
 
+// ─── Ringback tone (440Hz + 480Hz, padrão PSTN) ─────────────────────────────
+function createRingback() {
+  let ctx: AudioContext | null = null;
+  let osc1: OscillatorNode | null = null;
+  let osc2: OscillatorNode | null = null;
+  let gain: GainNode | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
+
+  function schedule(playing: boolean) {
+    if (stopped) return;
+    if (playing) {
+      gain!.gain.setValueAtTime(0.15, ctx!.currentTime);
+      timer = setTimeout(() => schedule(false), 2000);
+    } else {
+      gain!.gain.setValueAtTime(0, ctx!.currentTime);
+      timer = setTimeout(() => schedule(true), 4000);
+    }
+  }
+
+  function start() {
+    stopped = false;
+    ctx = new AudioContext();
+    gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(ctx.destination);
+
+    osc1 = ctx.createOscillator();
+    osc1.type = "sine";
+    osc1.frequency.value = 440;
+    osc1.connect(gain);
+    osc1.start();
+
+    osc2 = ctx.createOscillator();
+    osc2.type = "sine";
+    osc2.frequency.value = 480;
+    osc2.connect(gain);
+    osc2.start();
+
+    schedule(true);
+  }
+
+  function stop() {
+    stopped = true;
+    if (timer !== null) clearTimeout(timer);
+    try {
+      osc1?.stop();
+      osc2?.stop();
+      ctx?.close();
+    } catch {
+      // silencioso
+    }
+    osc1 = null;
+    osc2 = null;
+    gain = null;
+    ctx = null;
+    timer = null;
+  }
+
+  return { start, stop };
+}
+
 type DeviceStatus = "offline" | "registering" | "registered" | "error";
 type CallStatus =
   | "idle"
@@ -27,6 +89,7 @@ interface UseTwilioDeviceReturn {
 export function useTwilioDevice(): UseTwilioDeviceReturn {
   const deviceRef = useRef<Device | null>(null);
   const callRef = useRef<Call | null>(null);
+  const ringbackRef = useRef<ReturnType<typeof createRingback> | null>(null);
 
   const [deviceStatus, setDeviceStatus] = useState<DeviceStatus>("offline");
   const [callStatus, setCallStatus] = useState<CallStatus>("idle");
@@ -58,7 +121,7 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
         }
         const { token } = await tokenRes.json() as { token: string };
 
-        const device = new Device(token, { logLevel: 1 });
+        const device = new Device(token, { logLevel: 1, enableRingingState: true });
         deviceRef.current = device;
 
         device.on("registered", () => setDeviceStatus("registered"));
@@ -113,8 +176,14 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
       });
       callRef.current = call;
 
-      call.on("ringing", () => setCallStatus("ringing"));
+      call.on("ringing", () => {
+        setCallStatus("ringing");
+        ringbackRef.current = createRingback();
+        ringbackRef.current.start();
+      });
       call.on("accept", (acceptedCall: Call) => {
+        ringbackRef.current?.stop();
+        ringbackRef.current = null;
         setCallStatus("in-progress");
         setConnectedAt(new Date());
         const sid = acceptedCall.parameters?.CallSid ?? null;
@@ -122,6 +191,8 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
         setCallSid(sid);
       });
       call.on("disconnect", () => {
+        ringbackRef.current?.stop();
+        ringbackRef.current = null;
         setCallStatus("disconnected");
         setConnectedAt(null);
         setIsMuted(false);
@@ -129,6 +200,8 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
         callRef.current = null;
       });
       call.on("error", (err) => {
+        ringbackRef.current?.stop();
+        ringbackRef.current = null;
         setErrorMessage(err.message);
         setCallStatus("disconnected");
       });
