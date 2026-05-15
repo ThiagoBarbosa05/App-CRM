@@ -48,6 +48,7 @@ import {
   FlaskConical,
   Copy,
   Info,
+  Settings,
 } from "lucide-react";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -100,6 +101,7 @@ type BuiltInToolEntry = {
   name: string;
   description: string;
   type: string;
+  disable_interruptions?: boolean;
   params?: { system_tool_type: string };
 } | null;
 
@@ -535,6 +537,133 @@ function MockRow({
   );
 }
 
+// ─── Dialog de configuração de ferramenta de sistema ─────────────────────────
+
+function SystemToolConfigDialog({
+  open,
+  toolName,
+  toolLabel,
+  defaultDescription,
+  initial,
+  onSave,
+  onClose,
+  isSaving,
+}: {
+  open: boolean;
+  toolName: string;
+  toolLabel: string;
+  defaultDescription: string;
+  initial: NonNullable<BuiltInToolEntry>;
+  onSave: (description: string, disableInterruptions: boolean) => void;
+  onClose: () => void;
+  isSaving: boolean;
+}) {
+  const [description, setDescription] = useState(initial.description ?? "");
+  const [disableInterruptions, setDisableInterruptions] = useState(
+    initial.disable_interruptions ?? false,
+  );
+  const [showDefault, setShowDefault] = useState(false);
+
+  // Sincroniza estado quando o dialog reabre para outra tool
+  const [lastTool, setLastTool] = useState(toolName);
+  if (toolName !== lastTool) {
+    setLastTool(toolName);
+    setDescription(initial.description ?? "");
+    setDisableInterruptions(initial.disable_interruptions ?? false);
+    setShowDefault(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-md rounded-2xl">
+        <DialogHeader>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+              <Settings className="size-4 text-slate-600 dark:text-slate-300" />
+            </div>
+            <div>
+              <DialogTitle className="text-sm">Editar ferramenta sistema</DialogTitle>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Configuração</p>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-5 py-2">
+          {/* Nome (read-only) */}
+          <div className="space-y-1.5">
+            <Label className="text-sm">Nome</Label>
+            <Input value={toolName} readOnly className="font-mono bg-slate-50 dark:bg-slate-800 text-slate-500" />
+          </div>
+
+          {/* Descrição */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm">Descrição (opcional)</Label>
+              <button
+                type="button"
+                onClick={() => setShowDefault((v) => !v)}
+                className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline underline-offset-2"
+              >
+                {showDefault ? "Ocultar Padrão" : "Mostrar Padrão"}
+              </button>
+            </div>
+            {showDefault && (
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2">
+                <p className="text-xs text-slate-500 dark:text-slate-400 italic leading-relaxed">
+                  {defaultDescription}
+                </p>
+              </div>
+            )}
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Deixe em branco para usar o prompt otimizado padrão do LLM."
+              rows={3}
+              className="text-sm resize-none"
+            />
+          </div>
+
+          {/* Disable interruptions */}
+          <div className="flex items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3">
+            <input
+              id={`disable-interruptions-${toolName}`}
+              type="checkbox"
+              checked={disableInterruptions}
+              onChange={(e) => setDisableInterruptions(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-slate-700 cursor-pointer"
+            />
+            <div>
+              <Label
+                htmlFor={`disable-interruptions-${toolName}`}
+                className="text-sm cursor-pointer"
+              >
+                Disable interruptions
+              </Label>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Select this box to disable interruptions while the tool is running.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => onSave(description, disableInterruptions)}
+            disabled={isSaving}
+            className="gap-2"
+          >
+            {isSaving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Formulário de webhook ────────────────────────────────────────────────────
 
 function WebhookForm({
@@ -957,6 +1086,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
   const [addingLibraryTool, setAddingLibraryTool] = useState<string | null>(null);
   const [editingTool, setEditingTool] = useState<(WebhookTool & { tool_id: string }) | null>(null);
   const [pendingSystemTool, setPendingSystemTool] = useState<string | null>(null);
+  const [configuringSystemTool, setConfiguringSystemTool] = useState<string | null>(null);
 
   const { data: config, isLoading } = useQuery<AgentConfig>({
     queryKey: ["/api/elevenlabs/agents", agentId],
@@ -1140,11 +1270,14 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
 
     const newBuiltInTools: Record<string, BuiltInToolEntry> = { ...builtInToolsMap };
     if (enabled) {
+      const existing = builtInToolsMap[name];
       const def = ALL_SYSTEM_TOOLS.find((t) => t.name === name)!;
       newBuiltInTools[name] = {
         name,
-        description: def.description,
+        // Preserva descrição e disable_interruptions já configurados, se houver
+        description: existing?.description ?? "",
         type: "system",
+        disable_interruptions: existing?.disable_interruptions ?? false,
         params: { system_tool_type: name },
       };
     } else {
@@ -1154,6 +1287,27 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
     systemToolMutation.mutate(newBuiltInTools, {
       onSuccess: () => toast({ title: enabled ? "Ferramenta ativada" : "Ferramenta desativada" }),
       onSettled: () => setPendingSystemTool(null),
+    });
+  };
+
+  const saveSystemToolConfig = (name: string, description: string, disableInterruptions: boolean) => {
+    const existing = builtInToolsMap[name];
+    const def = ALL_SYSTEM_TOOLS.find((t) => t.name === name)!;
+    const newBuiltInTools: Record<string, BuiltInToolEntry> = {
+      ...builtInToolsMap,
+      [name]: {
+        name,
+        description,
+        type: "system",
+        disable_interruptions: disableInterruptions,
+        params: existing?.params ?? { system_tool_type: name },
+      },
+    };
+    systemToolMutation.mutate(newBuiltInTools, {
+      onSuccess: () => {
+        toast({ title: "Configuração salva" });
+        setConfiguringSystemTool(null);
+      },
     });
   };
 
@@ -1248,22 +1402,46 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                 <div className="rounded-2xl border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
                   {ALL_SYSTEM_TOOLS.map((tool) => {
                     const isActive = activeSystemNames.has(tool.name);
+                    const entry = builtInToolsMap[tool.name];
+                    const hasCustomConfig = isActive && (
+                      (entry?.description && entry.description.trim() !== "") ||
+                      entry?.disable_interruptions === true
+                    );
                     return (
-                      <div key={tool.name} className="flex items-center justify-between px-4 py-3">
-                        <div className="flex-1 min-w-0 pr-4">
+                      <div key={tool.name} className="flex items-center justify-between px-4 py-3 gap-3">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{tool.label}</span>
                             {tool.alpha && (
                               <Badge variant="outline" className="rounded-full text-[10px] px-1.5 py-0 border-amber-400 text-amber-600">Alpha</Badge>
                             )}
+                            {hasCustomConfig && (
+                              <Badge variant="outline" className="rounded-full text-[10px] px-1.5 py-0 border-blue-300 text-blue-600 dark:border-blue-700 dark:text-blue-400">
+                                configurado
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-xs text-slate-400 mt-0.5">{tool.description}</p>
                         </div>
-                        {pendingSystemTool === tool.name ? (
-                          <Loader2 className="size-4 animate-spin text-slate-400 shrink-0" />
-                        ) : (
-                          <Switch checked={isActive} disabled={systemToolMutation.isPending} onCheckedChange={(v) => toggleSystemTool(tool.name, v)} />
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isActive && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              onClick={() => setConfiguringSystemTool(tool.name)}
+                              disabled={systemToolMutation.isPending}
+                              title="Configurar ferramenta"
+                            >
+                              <Settings className="size-3.5" />
+                            </Button>
+                          )}
+                          {pendingSystemTool === tool.name ? (
+                            <Loader2 className="size-4 animate-spin text-slate-400" />
+                          ) : (
+                            <Switch checked={isActive} disabled={systemToolMutation.isPending} onCheckedChange={(v) => toggleSystemTool(tool.name, v)} />
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -1518,7 +1696,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: editar */}
+      {/* Dialog: editar webhook */}
       <Dialog open={!!editingTool} onOpenChange={(v) => !v && setEditingTool(null)}>
         <DialogContent className="flex flex-col gap-0 p-0 w-full max-w-[95vw] sm:max-w-xl md:max-w-2xl max-h-[90vh] rounded-2xl overflow-hidden">
           <DialogHeader className="px-6 pt-5 pb-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
@@ -1539,6 +1717,27 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog: configurar ferramenta de sistema */}
+      {(() => {
+        const toolDef = ALL_SYSTEM_TOOLS.find((t) => t.name === configuringSystemTool);
+        const entry = configuringSystemTool ? builtInToolsMap[configuringSystemTool] : null;
+        if (!toolDef || !entry) return null;
+        return (
+          <SystemToolConfigDialog
+            open={!!configuringSystemTool}
+            toolName={configuringSystemTool!}
+            toolLabel={toolDef.label}
+            defaultDescription={toolDef.description}
+            initial={entry}
+            onSave={(desc, disableInt) =>
+              saveSystemToolConfig(configuringSystemTool!, desc, disableInt)
+            }
+            onClose={() => setConfiguringSystemTool(null)}
+            isSaving={systemToolMutation.isPending}
+          />
+        );
+      })()}
     </>
   );
 }
