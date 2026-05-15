@@ -369,11 +369,11 @@ router.post("/test-call", requireAuth, async (req: Request, res: Response) => {
     let finalCallRecordId = callRecordId;
     if (callRecordId) {
       await db.update(calls)
-        .set({ twilioCallSid: call.sid, status: "iniciando" })
+        .set({ twilioCallSid: call.sid, status: "iniciando", type: "ia" })
         .where(eq(calls.id, callRecordId));
     } else {
       const [newCall] = await db.insert(calls)
-        .values({ operatorId: req.user!.userId, twilioCallSid: call.sid, status: "iniciando" })
+        .values({ operatorId: req.user!.userId, twilioCallSid: call.sid, status: "iniciando", type: "ia" })
         .returning({ id: calls.id });
       finalCallRecordId = newCall.id;
     }

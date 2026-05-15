@@ -45,6 +45,7 @@ type Call = {
   campaignId: string | null;
   twilioCallSid: string | null;
   elevenLabsConversationId: string | null;
+  type: "humano" | "ia" | null;
   status: string;
   outcome: string | null;
   duration: number | null;
@@ -179,7 +180,7 @@ function TranscriptView({ text }: { text: string }) {
 }
 
 function getChannel(call: Call): "elevenlabs" | "twilio" | null {
-  if (call.elevenLabsConversationId) return "elevenlabs";
+  if (call.elevenLabsConversationId || call.type === "ia") return "elevenlabs";
   if (call.twilioCallSid) return "twilio";
   return null;
 }

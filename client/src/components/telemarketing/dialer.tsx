@@ -225,6 +225,7 @@ async function createCallRecord(payload: {
   clientId?: string;
   toPhone?: string;
   contactName?: string;
+  type?: "humano" | "ia";
 }): Promise<string | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -237,6 +238,7 @@ async function createCallRecord(payload: {
           ...(payload.clientId && { clientId: payload.clientId }),
           ...(payload.toPhone && { toPhone: payload.toPhone }),
           ...(payload.contactName && { contactName: payload.contactName }),
+          type: payload.type ?? "humano",
         }),
       });
       if (res.ok) {
@@ -747,6 +749,7 @@ export function Dialer() {
         clientId: selectedClientId ?? undefined,
         toPhone: !selectedClientId ? number : undefined,
         contactName: !selectedClientId ? manualClientName.trim() || undefined : undefined,
+        type: "ia",
       });
       if (callRecordId) setActiveCallId(callRecordId);
 

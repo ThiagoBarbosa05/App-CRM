@@ -949,13 +949,14 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
 
-    const { clientId, campaignId, twilioCallSid, toPhone, contactName } =
+    const { clientId, campaignId, twilioCallSid, toPhone, contactName, type } =
       req.body as {
         clientId?: string;
         campaignId?: string;
         twilioCallSid?: string;
         toPhone?: string;
         contactName?: string;
+        type?: "humano" | "ia";
       };
 
     const [call] = await db
@@ -967,6 +968,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
         twilioCallSid,
         toPhone,
         contactName,
+        type: type ?? "humano",
         status: "iniciando",
         startedAt: new Date(),
       })
