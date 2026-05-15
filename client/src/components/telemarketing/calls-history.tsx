@@ -1031,10 +1031,26 @@ export function CallsHistory() {
               {/* Transcrição ElevenLabs */}
               {selectedCall.elevenLabsConversationId && (
                 <section>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-2">
-                    <FileText className="size-3" />
-                    Transcrição
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                      <FileText className="size-3" />
+                      Transcrição
+                    </p>
+                    <button
+                      type="button"
+                      title="Atualizar transcrição"
+                      disabled={syncElevenLabsMutation.isPending}
+                      onClick={() => syncElevenLabsMutation.mutate(selectedCall.id)}
+                      className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
+                    >
+                      {syncElevenLabsMutation.isPending ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <RotateCcw className="size-3" />
+                      )}
+                      Atualizar
+                    </button>
+                  </div>
                   {syncElevenLabsMutation.isPending ? (
                     <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
                       <Loader2 className="size-3.5 animate-spin" />

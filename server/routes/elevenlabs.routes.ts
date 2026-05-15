@@ -335,7 +335,10 @@ router.get("/conversation/:id", async (req: Request, res: Response) => {
 
     const transcriptText = (data.transcript ?? [])
       .filter((t) => t.message?.trim())
-      .map((t) => `${t.role === "agent" ? "Agent" : "Cliente"}: ${t.message}`)
+      .map(
+        (t) =>
+          `${t.role === "agent" ? "Agent" : "Cliente"}: ${t.message.replace(/\n/g, " ")}`,
+      )
       .join("\n");
 
     const summary =

@@ -1512,7 +1512,7 @@ export function AgentToolsModal({ open, onClose, agentId, campaignName }: AgentT
                 })()}
               </div>
             ) : (
-              <WebhookForm onSave={handleAddWebhook} onCancel={() => setAddOpen(false)} />
+              <WebhookForm onSave={handleAddWebhook} onCancel={() => setAddOpen(false)} isSaving={createAndAddMutation.isPending} />
             )}
           </div>
         </DialogContent>

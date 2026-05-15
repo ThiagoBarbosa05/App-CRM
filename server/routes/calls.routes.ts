@@ -1128,7 +1128,8 @@ router.post(
 
       const transcript =
         data.transcript
-          ?.map((t) => `${t.role}: ${t.message.replace(/\n/g, " ")}`)
+          ?.filter((t) => t.message?.trim())
+          .map((t) => `${t.role}: ${t.message.replace(/\n/g, " ")}`)
           .join("\n") ?? null;
 
       const sentiment = (
