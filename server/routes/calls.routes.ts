@@ -1127,8 +1127,9 @@ router.post(
       };
 
       const transcript =
-        data.transcript?.map((t) => `${t.role}: ${t.message}`).join("\n") ??
-        null;
+        data.transcript
+          ?.map((t) => `${t.role}: ${t.message.replace(/\n/g, " ")}`)
+          .join("\n") ?? null;
 
       const sentiment = (
         data.analysis?.sentiment === "positive"

@@ -208,7 +208,8 @@ router.post("/webhook", async (req: Request, res: Response) => {
       if (turns.length > 0) {
         transcriptText = turns
           .map(
-            (t) => `${t.role === "agent" ? "Agent" : "Cliente"}: ${t.message}`,
+            (t) =>
+              `${t.role === "agent" ? "Agent" : "Cliente"}: ${(t.message ?? "").replace(/\n/g, " ")}`,
           )
           .join("\n");
       }
