@@ -64,16 +64,6 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
   // Rota pública de landing pages de eventos — registrada ANTES do Vite
   // para que /lp/:slug não seja capturada pelo catch-all do SPA
   const r2Client = new S3Client({
@@ -106,27 +96,40 @@ app.use((req, res, next) => {
         Bucket: "crm-test",
         Key: event.landingPageHtmlKey,
       });
+
       const r2Response = await r2Client.send(command);
 
       if (!r2Response.Body) {
         return res.status(404).send("<h1>Página não encontrada</h1>");
       }
 
-      const chunks: Buffer[] = [];
-      for await (const chunk of r2Response.Body as AsyncIterable<Uint8Array>) {
-        chunks.push(Buffer.from(chunk));
-      }
-      const html = Buffer.concat(chunks);
-
-      setCachedPage(slug, html);
+      const bodyStream = r2Response.Body as NodeJS.ReadableStream;
+      const cacheChunks: Buffer[] = [];
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "public, max-age=300");
-      return res.send(html);
+
+      bodyStream.on("data", (chunk: Buffer) =>
+        cacheChunks.push(Buffer.from(chunk)),
+      );
+      bodyStream.on("end", () =>
+        setCachedPage(slug, Buffer.concat(cacheChunks)),
+      );
+      bodyStream.pipe(res);
+      return;
     } catch (error) {
       console.error("Error serving landing page:", error);
       return res.status(500).send("<h1>Erro ao carregar a página</h1>");
     }
+  });
+  const server = await registerRoutes(app);
+
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+
+    res.status(status).json({ message });
+    throw err;
   });
 
   // importantly only setup vite in development and after
@@ -137,13 +140,6 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
-
-  // await db.insert(users).values({
-  //   name: "Admin",
-  //   email: "admin@email.com",
-  //   password: await bcrypt.hash("admin123", 10),
-  //   role: "admin",
-  // });
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
