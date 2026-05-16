@@ -123,15 +123,18 @@ export function SalesGoalsGrid({
     );
   }
 
+  const getManualSales = (goal: UserGoal) =>
+    (goal.weeklyResults || []).reduce((s, r) => s + Number(r.salesAchieved), 0);
+  const getRealSales = (goal: UserGoal, seller: TopSeller | null) => {
+    const manual = getManualSales(goal);
+    return manual > 0 ? manual : seller ? Number(seller.totalValue) : 0;
+  };
+
   const sortedGoals = [...goals].sort((a, b) => {
     const sellerA = findSellerData(a.userName, topSellersData);
     const sellerB = findSellerData(b.userName, topSellersData);
-    const pctA = sellerA
-      ? (Number(sellerA.totalValue) / Number(a.salesGoal)) * 100
-      : 0;
-    const pctB = sellerB
-      ? (Number(sellerB.totalValue) / Number(b.salesGoal)) * 100
-      : 0;
+    const pctA = calculatePercentage(getRealSales(a, sellerA), Number(a.salesGoal));
+    const pctB = calculatePercentage(getRealSales(b, sellerB), Number(b.salesGoal));
     return pctB - pctA;
   });
 
@@ -360,9 +363,9 @@ function SalesGoalCard({
                       : "text-rose-700 dark:text-rose-300"
                 }`}
               >
-                {sellerData ? formatCurrency(realSalesValue) : "—"}
+                {(hasManualData || sellerData) ? formatCurrency(realSalesValue) : "—"}
               </span>
-              {sellerData && (
+              {(hasManualData || sellerData) && realSalesOrders > 0 && (
                 <span className="ml-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
                   {realSalesOrders} pedido{realSalesOrders !== 1 ? "s" : ""}
                 </span>
@@ -384,7 +387,7 @@ function SalesGoalCard({
             </div>
             <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1.5">
               <span>Meta: {formatCurrency(goal.salesGoal)}</span>
-              {!sellerData && (
+              {!hasManualData && !sellerData && (
                 <span className="italic">Sem pedidos no período</span>
               )}
             </div>
