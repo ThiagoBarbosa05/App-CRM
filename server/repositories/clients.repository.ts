@@ -157,6 +157,10 @@ export class ClientsRepository {
       );
     }
 
+    if (filters.rfmSegment && filters.rfmSegment !== "all") {
+      conditions.push(eq(clients.rfmSegment, filters.rfmSegment));
+    }
+
     if (filters.hasWineProfile) {
       conditions.push(sql`${clients.wineProfile} IS NOT NULL`);
     }

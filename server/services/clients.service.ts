@@ -156,6 +156,9 @@ export class ClientsService {
     if (rawFilters.hasWineProfile === true) {
       filters.hasWineProfile = true;
     }
+    if (rawFilters.rfmSegment && typeof rawFilters.rfmSegment === "string" && rawFilters.rfmSegment !== "all") {
+      filters.rfmSegment = rawFilters.rfmSegment;
+    }
 
     return filters;
   }
@@ -948,6 +951,7 @@ export class ClientsService {
       wineRegion: req.query.wineRegion,
       wineType: req.query.wineType,
       hasWineProfile: req.query.hasWineProfile === "true" ? true : undefined,
+      rfmSegment: req.query.rfmSegment as string | undefined,
     });
 
     return {

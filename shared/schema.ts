@@ -108,6 +108,11 @@ export const clients = pgTable("clients", {
   wineProfileGeneratedAt: timestamp("wine_profile_generated_at"),
   referralBenefit1At: timestamp("referral_benefit1_at"),
   referralBenefit2At: timestamp("referral_benefit2_at"),
+  rfmRecency: integer("rfm_recency"),
+  rfmFrequency: integer("rfm_frequency"),
+  rfmMonetary: integer("rfm_monetary"),
+  rfmSegment: text("rfm_segment"),
+  rfmCalculatedAt: timestamp("rfm_calculated_at"),
 });
 
 export const sectors = pgTable("sectors", {

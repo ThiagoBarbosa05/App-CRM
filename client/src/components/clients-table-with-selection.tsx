@@ -18,7 +18,42 @@ import {
   AlertCircle,
   CheckCircle,
   MoreHorizontal,
+  TrendingUp,
 } from "lucide-react";
+
+const RFM_LABELS: Record<string, string> = {
+  campiao: "Campeão",
+  fiel: "Fiel",
+  promissor: "Promissor",
+  em_risco: "Em Risco",
+  perdido: "Perdido",
+  novo: "Novo",
+  hibernando: "Hibernando",
+  sem_compra: "Sem Compra",
+};
+
+const RFM_COLORS: Record<string, string> = {
+  campiao: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+  fiel: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  promissor: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  em_risco: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  perdido: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  novo: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  hibernando: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  sem_compra: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+};
+
+function RfmBadge({ segment }: { segment: string | null | undefined }) {
+  if (!segment) return null;
+  const label = RFM_LABELS[segment] ?? segment;
+  const color = RFM_COLORS[segment] ?? "bg-gray-100 text-gray-500";
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${color}`}>
+      <TrendingUp className="h-2.5 w-2.5" />
+      {label}
+    </span>
+  );
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -324,9 +359,12 @@ export default function ClientsTableWithSelection({
                     <User className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 dark:text-slate-100 text-base leading-tight">
-                      {client.name}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-bold text-gray-900 dark:text-slate-100 text-base leading-tight">
+                        {client.name}
+                      </p>
+                      <RfmBadge segment={(client as any).rfmSegment} />
+                    </div>
                     {(client.city || client.state) && (
                       <div className="flex items-center gap-1 mt-0.5 text-xs text-gray-500 dark:text-slate-400">
                         <MapPin className="h-3 w-3 shrink-0" />
@@ -672,8 +710,11 @@ export default function ClientsTableWithSelection({
                         </div>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-gray-900 dark:text-slate-100 truncate text-base group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
-                          {client.name}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="font-semibold text-gray-900 dark:text-slate-100 truncate text-base group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+                            {client.name}
+                          </div>
+                          <RfmBadge segment={(client as any).rfmSegment} />
                         </div>
                         <div className="flex items-center text-sm text-gray-500 dark:text-slate-400 mt-1">
                           <MapPin className="h-3 w-3 mr-1 shrink-0 text-gray-400 dark:text-slate-500" />

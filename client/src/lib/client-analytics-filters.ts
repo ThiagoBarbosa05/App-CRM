@@ -10,6 +10,7 @@ export interface ClientAnalyticsFilters {
   wineGrape?: string;
   wineRegion?: string;
   wineType?: string;
+  rfmSegment?: string;
 }
 
 interface ClientAnalyticsParamsOptions {

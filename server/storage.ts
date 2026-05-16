@@ -160,6 +160,7 @@ export interface ClientFilters {
   wineRegion?: string;
   wineType?: string;
   hasWineProfile?: boolean;
+  rfmSegment?: string;
 }
 
 export interface CompanyFilters {

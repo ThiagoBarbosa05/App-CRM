@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Filter, Sparkles, X } from "lucide-react";
+import { Filter, Sparkles, X, TrendingUp } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
@@ -40,6 +40,7 @@ export interface ClientFilters {
   wineGrape: string;
   wineRegion: string;
   wineType: string;
+  rfmSegment: string;
 }
 
 export default function ClientFilters({
@@ -94,6 +95,7 @@ export default function ClientFilters({
       wineGrape: "",
       wineRegion: "",
       wineType: "all",
+      rfmSegment: "all",
     };
     setLocalFilters(emptyFilters);
     onFiltersChange(emptyFilters);
@@ -296,6 +298,32 @@ export default function ClientFilters({
           </div>
 
             <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-1.5 mb-3">
+                <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Segmento RFM</span>
+              </div>
+              <Select
+                value={localFilters.rfmSegment}
+                onValueChange={(value) => handleFilterChange("rfmSegment", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os segmentos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os segmentos</SelectItem>
+                  <SelectItem value="campiao">🏆 Campeão</SelectItem>
+                  <SelectItem value="fiel">💚 Fiel</SelectItem>
+                  <SelectItem value="promissor">🔵 Promissor</SelectItem>
+                  <SelectItem value="em_risco">⚠️ Em Risco</SelectItem>
+                  <SelectItem value="perdido">🔴 Perdido</SelectItem>
+                  <SelectItem value="novo">🆕 Novo</SelectItem>
+                  <SelectItem value="hibernando">💤 Hibernando</SelectItem>
+                  <SelectItem value="sem_compra">⚪ Sem Compra</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-1.5 mb-3">
                 <Sparkles className="h-3.5 w-3.5 text-violet-500" />
                 <span className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider">Perfil de Gosto</span>

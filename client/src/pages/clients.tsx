@@ -37,12 +37,15 @@ import {
   BarChart3,
   CalendarIcon,
   ChevronDown,
+  TrendingUp,
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/page-header";
 import { ClientsActions } from "@/components/clients/clients-actions";
 import { type Client } from "@shared/schema";
@@ -51,6 +54,40 @@ import { useClientReports } from "@/hooks/useReports";
 import { ClientReportsGrid } from "@/components/reports/client-reports-grid";
 import { ClientCommercialGrid } from "@/components/reports/client-commercial-grid";
 import { buildClientAnalyticsSearchParams } from "@/lib/client-analytics-filters";
+
+function RecalcularRfmButton() {
+  const { toast } = useToast();
+  const mutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/rfm/recalculate"),
+    onSuccess: async (res: any) => {
+      const data = await res.json().catch(() => ({}));
+      toast({
+        title: "RFM recalculado",
+        description: `${data.updated ?? ""} clientes atualizados com sucesso.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+    },
+    onError: () => {
+      toast({ title: "Erro ao recalcular RFM", variant: "destructive" });
+    },
+  });
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+      className="rounded-xl text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+    >
+      {mutation.isPending ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <TrendingUp className="h-4 w-4" />
+      )}
+      <span className="hidden sm:inline ml-2">Recalcular RFM</span>
+    </Button>
+  );
+}
 
 // Hook customizado para debouncing de valores, útil para campos de busca.
 const useDebounce = (value: any, delay: number): any => {
@@ -87,6 +124,7 @@ export default function Clients() {
     wineGrape: "",
     wineRegion: "",
     wineType: "all",
+    rfmSegment: "all",
   });
 
   const { data: systemSettings } = useQuery<Record<string, string>>({
@@ -317,6 +355,9 @@ export default function Clients() {
               <Upload className="h-4 w-4" />
               <span className="hidden sm:inline ml-2">Importar</span>
             </Button>
+          )}
+          {isAdmin && (
+            <RecalcularRfmButton />
           )}
           <Button
             size="sm"
