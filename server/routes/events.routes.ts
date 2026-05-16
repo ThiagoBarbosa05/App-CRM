@@ -15,6 +15,7 @@ import {
 import { storage } from "../storage";
 import { generateSlug } from "../lib/slug";
 import { invalidateCachedPage } from "../lib/landing-page-cache";
+import { optimizeHtml } from "../lib/html-optimizer";
 
 const LP_PUBLIC_DOMAIN = "https://eventos.grandcrub2b.com";
 
@@ -573,12 +574,14 @@ eventsRouter.post(
         return res.status(404).json({ message: "Evento não encontrado" });
       }
 
-      // Key = slug (sem extensão) — Content-Type garante renderização correta
-      // URL pública: https://eventos.grandcrub2b.com/{slug}
+      // Otimiza HTML antes do upload: resolve bundler do Claude Design,
+      // substitui assets embutidos por data URLs e garante viewport mobile.
+      const optimizedBody = optimizeHtml(req.file.buffer);
+
       await s3.send(
         new PutObjectCommand({
           Bucket: "crm-test",
-          Body: req.file.buffer,
+          Body: optimizedBody,
           Key: slug,
           ContentType: "text/html; charset=utf-8",
         }),
