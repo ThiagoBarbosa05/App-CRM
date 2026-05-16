@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+
+const LP_BASE_URL = "https://eventos.grandcrub2b.com";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -237,7 +239,7 @@ export default function EventsManagement() {
       if (!res.ok) throw new Error(data.message || "Erro no upload");
       toast({
         title: "Landing page publicada!",
-        description: `Acessível em /lp/${data.slug}`,
+        description: `Acessível em ${LP_BASE_URL}/${data.slug}`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       setLandingPageEvent(null);
@@ -268,7 +270,7 @@ export default function EventsManagement() {
       if (!res.ok) throw new Error(data.message || "Erro no upload");
       toast({
         title: "Landing page publicada!",
-        description: `Acessível em /lp/${data.slug}`,
+        description: `Acessível em ${LP_BASE_URL}/${data.slug}`,
       });
       // Atualizar editingEvent localmente para refletir o novo slug/key
       setEditingEvent((prev) =>
@@ -662,7 +664,7 @@ export default function EventsManagement() {
           } else {
             // Sucesso: manter modal aberto e exibir URL para compartilhar
             const slug = landingPageSlug.trim();
-            setCreatedLpUrl(`${window.location.origin}/lp/${slug}`);
+            setCreatedLpUrl(`${LP_BASE_URL}/${slug}`);
             queryClient.invalidateQueries({ queryKey: ["/api/events"] });
           }
         } catch (err) {
@@ -1533,13 +1535,13 @@ export default function EventsManagement() {
                               <div className="flex items-center gap-1.5 mt-1.5">
                                 <GlobeIcon className="h-3 w-3 text-emerald-500 flex-shrink-0" />
                                 <a
-                                  href={`/lp/${event.slug}`}
+                                  href={`${LP_BASE_URL}/${event.slug}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-xs font-mono text-emerald-600 dark:text-emerald-400 hover:underline truncate"
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  {window.location.origin}/lp/{event.slug}
+                                  {LP_BASE_URL}/{event.slug}
                                 </a>
                                 <button
                                   type="button"
@@ -1548,7 +1550,7 @@ export default function EventsManagement() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     navigator.clipboard.writeText(
-                                      `${window.location.origin}/lp/${event.slug}`,
+                                      `${LP_BASE_URL}/${event.slug}`,
                                     );
                                     toast({ title: "URL copiada!" });
                                   }}
@@ -2394,7 +2396,7 @@ export default function EventsManagement() {
                   <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                     <GlobeIcon className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                     <span className="text-xs font-mono text-emerald-700 dark:text-emerald-300 truncate flex-1">
-                      {window.location.origin}/lp/{editingEvent.slug}
+                      {LP_BASE_URL}/{editingEvent.slug}
                     </span>
                     <Button
                       type="button"
@@ -2404,7 +2406,7 @@ export default function EventsManagement() {
                       title="Copiar URL"
                       onClick={() => {
                         navigator.clipboard.writeText(
-                          `${window.location.origin}/lp/${editingEvent.slug}`,
+                          `${LP_BASE_URL}/${editingEvent.slug}`,
                         );
                         toast({ title: "URL copiada!" });
                       }}
@@ -2452,7 +2454,7 @@ export default function EventsManagement() {
                     />
                     {landingPageSlug && (
                       <p className="text-[11px] text-slate-400 font-mono truncate">
-                        /lp/{landingPageSlug}
+                        eventos.grandcrub2b.com/{landingPageSlug}
                       </p>
                     )}
                   </div>
@@ -2575,7 +2577,7 @@ export default function EventsManagement() {
                       <p className="text-sm text-emerald-700 dark:text-emerald-300">
                         Será publicada em{" "}
                         <span className="font-mono font-medium">
-                          /lp/{landingPageSlug}
+                          eventos.grandcrub2b.com/{landingPageSlug}
                         </span>{" "}
                         ao criar o evento.
                       </p>
@@ -2751,7 +2753,7 @@ export default function EventsManagement() {
               />
               {landingPageSlug && (
                 <p className="text-xs text-slate-400 font-mono">
-                  {window.location.origin}/lp/{landingPageSlug}
+                  eventos.grandcrub2b.com/{landingPageSlug}
                 </p>
               )}
             </div>
@@ -2800,7 +2802,7 @@ export default function EventsManagement() {
               <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
                 <GlobeIcon className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                 <span className="text-xs font-mono text-emerald-700 dark:text-emerald-300 truncate">
-                  {window.location.origin}/lp/{landingPageEvent.slug}
+                  {LP_BASE_URL}/{landingPageEvent.slug}
                 </span>
                 <Button
                   variant="ghost"
@@ -2809,7 +2811,7 @@ export default function EventsManagement() {
                   title="Copiar URL"
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `${window.location.origin}/lp/${landingPageEvent.slug}`,
+                      `${LP_BASE_URL}/${landingPageEvent.slug}`,
                     );
                     toast({ title: "URL copiada!" });
                   }}

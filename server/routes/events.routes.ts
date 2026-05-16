@@ -1,6 +1,5 @@
 import { Router } from "express";
 import multer from "multer";
-import { nanoid } from "nanoid";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import {
@@ -16,6 +15,31 @@ import {
 import { storage } from "../storage";
 import { generateSlug } from "../lib/slug";
 import { invalidateCachedPage } from "../lib/landing-page-cache";
+
+const LP_PUBLIC_DOMAIN = "https://eventos.grandcrub2b.com";
+
+async function purgeCloudflareCache(slugs: string[]): Promise<void> {
+  const zoneId = process.env.CLOUDFLARE_ZONE_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  if (!zoneId || !apiToken) return;
+  try {
+    await fetch(
+      `https://api.cloudflare.com/client/v4/zones/${zoneId}/purge_cache`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          files: slugs.map((s) => `${LP_PUBLIC_DOMAIN}/${s}`),
+        }),
+      },
+    );
+  } catch (err) {
+    console.error("Cloudflare cache purge failed:", err);
+  }
+}
 
 const upload = multer({ limits: { fileSize: 15 * 1024 * 1024 } });
 
@@ -549,24 +573,27 @@ eventsRouter.post(
         return res.status(404).json({ message: "Evento não encontrado" });
       }
 
-      const htmlKey = `landing-pages/${id}-${nanoid()}.html`;
-
+      // Key = slug (sem extensão) — Content-Type garante renderização correta
+      // URL pública: https://eventos.grandcrub2b.com/{slug}
       await s3.send(
         new PutObjectCommand({
           Bucket: "crm-test",
           Body: req.file.buffer,
-          Key: htmlKey,
+          Key: slug,
           ContentType: "text/html; charset=utf-8",
         }),
       );
 
       const updatedEvent = await storage.updateEvent(id, {
         slug,
-        landingPageHtmlKey: htmlKey,
+        landingPageHtmlKey: slug,
       });
 
-      // Remove arquivo antigo do R2 se existia outro
-      if (currentEvent.landingPageHtmlKey) {
+      // Remove arquivo antigo do R2 se existia e slug mudou
+      if (
+        currentEvent.landingPageHtmlKey &&
+        currentEvent.landingPageHtmlKey !== slug
+      ) {
         try {
           await s3.send(
             new DeleteObjectCommand({
@@ -579,15 +606,19 @@ eventsRouter.post(
         }
       }
 
-      // Invalida cache para o slug antigo (se mudou) e para o novo
+      // Invalida cache em memória (fallback Express) e purga CDN Cloudflare
+      const slugsToPurge = [slug];
       if (currentEvent.slug && currentEvent.slug !== slug) {
         invalidateCachedPage(currentEvent.slug);
+        slugsToPurge.push(currentEvent.slug);
       }
       invalidateCachedPage(slug);
+      await purgeCloudflareCache(slugsToPurge);
 
       return res.json({
         slug: updatedEvent.slug,
         landingPageHtmlKey: updatedEvent.landingPageHtmlKey,
+        landingPageUrl: `${LP_PUBLIC_DOMAIN}/${slug}`,
       });
     } catch (error) {
       console.error("Error uploading landing page:", error);
@@ -627,6 +658,7 @@ eventsRouter.delete("/:id/landing-page", async (req, res) => {
 
     if (event.slug) {
       invalidateCachedPage(event.slug);
+      await purgeCloudflareCache([event.slug]);
     }
 
     return res.json({ message: "Landing page removida com sucesso" });
