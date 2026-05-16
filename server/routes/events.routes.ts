@@ -15,6 +15,7 @@ import {
 } from "@shared/schema";
 import { storage } from "../storage";
 import { generateSlug } from "../lib/slug";
+import { invalidateCachedPage } from "../lib/landing-page-cache";
 
 const upload = multer({ limits: { fileSize: 15 * 1024 * 1024 } });
 
@@ -578,6 +579,12 @@ eventsRouter.post(
         }
       }
 
+      // Invalida cache para o slug antigo (se mudou) e para o novo
+      if (currentEvent.slug && currentEvent.slug !== slug) {
+        invalidateCachedPage(currentEvent.slug);
+      }
+      invalidateCachedPage(slug);
+
       return res.json({
         slug: updatedEvent.slug,
         landingPageHtmlKey: updatedEvent.landingPageHtmlKey,
@@ -617,6 +624,10 @@ eventsRouter.delete("/:id/landing-page", async (req, res) => {
     }
 
     await storage.updateEvent(id, { slug: null, landingPageHtmlKey: null });
+
+    if (event.slug) {
+      invalidateCachedPage(event.slug);
+    }
 
     return res.json({ message: "Landing page removida com sucesso" });
   } catch (error) {

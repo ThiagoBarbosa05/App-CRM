@@ -11,6 +11,7 @@ import { db } from "./db";
 import { users } from "@shared/schema";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
+import { getCachedPage, setCachedPage } from "./lib/landing-page-cache";
 // import "./jobs/umbler-sync-scheduler";
 
 const app = express();
@@ -87,6 +88,14 @@ app.use((req, res, next) => {
   app.get("/lp/:slug", async (req: Request, res: Response) => {
     try {
       const { slug } = req.params;
+
+      const cached = getCachedPage(slug);
+      if (cached) {
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("Cache-Control", "public, max-age=300");
+        return res.send(cached);
+      }
+
       const event = await storage.getEventBySlug(slug);
 
       if (!event || !event.landingPageHtmlKey) {
@@ -108,6 +117,8 @@ app.use((req, res, next) => {
         chunks.push(Buffer.from(chunk));
       }
       const html = Buffer.concat(chunks);
+
+      setCachedPage(slug, html);
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("Cache-Control", "public, max-age=300");
