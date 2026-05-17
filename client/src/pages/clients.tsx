@@ -356,9 +356,6 @@ export default function Clients() {
               <span className="hidden sm:inline ml-2">Importar</span>
             </Button>
           )}
-          {isAdmin && (
-            <RecalcularRfmButton />
-          )}
           <Button
             size="sm"
             onClick={() => setIsClientModalOpen(true)}
@@ -393,6 +390,9 @@ export default function Clients() {
               className={`ml-auto h-5 w-5 text-slate-400 transition-transform duration-200 ${analyticsOpen ? "rotate-180" : ""}`}
             />
           </button>
+
+          {/* Botão Recalcular RFM — sempre visível para admin/gerente */}
+          {isAdmin && <RecalcularRfmButton />}
 
           {/* Controles visíveis apenas quando aberto */}
           {analyticsOpen && (
