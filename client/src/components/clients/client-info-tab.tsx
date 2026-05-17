@@ -163,6 +163,12 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                       {client.categoria}
                     </Badge>
                   )}
+                  {(client as any).rfmSegment && (
+                    <Badge className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] shadow-sm inline-flex items-center gap-1 ${RFM_COLORS[(client as any).rfmSegment] ?? "bg-gray-100 text-gray-500 border-gray-200"}`}>
+                      <TrendingUp className="h-2.5 w-2.5" />
+                      {RFM_LABELS[(client as any).rfmSegment] ?? (client as any).rfmSegment}
+                    </Badge>
+                  )}
                 </div>
                 <CardTitle className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                   {client.name}
