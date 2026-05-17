@@ -16,7 +16,41 @@ import {
   Users,
   UserCheck,
   UserPlus,
+  TrendingUp,
 } from "lucide-react";
+
+const RFM_LABELS: Record<string, string> = {
+  campiao: "Campeão",
+  fiel: "Fiel",
+  promissor: "Promissor",
+  em_risco: "Em Risco",
+  perdido: "Perdido",
+  novo: "Novo",
+  hibernando: "Hibernando",
+  sem_compra: "Sem Compra",
+};
+
+const RFM_COLORS: Record<string, string> = {
+  campiao: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700",
+  fiel: "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-700",
+  promissor: "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700",
+  em_risco: "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-700",
+  perdido: "bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700",
+  novo: "bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-700",
+  hibernando: "bg-slate-100 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+  sem_compra: "bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600",
+};
+
+const RFM_DESCRIPTIONS: Record<string, string> = {
+  campiao: "Compra com frequência, recentemente e em alto valor",
+  fiel: "Cliente regular com bom histórico de compras",
+  promissor: "Comprou recentemente — tem potencial de crescimento",
+  em_risco: "Costumava comprar bem, mas está há muito tempo sem comprar",
+  perdido: "Fez compras no passado mas sumiu há muito tempo",
+  novo: "Realizou apenas uma compra até agora",
+  hibernando: "Compras esparsas e sem padrão definido",
+  sem_compra: "Ainda não realizou nenhuma compra",
+};
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -411,6 +445,20 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                     >
                       {referrer.name}
                     </a>
+                  </div>
+                </CommercialTile>
+              )}
+
+              {(client as any).rfmSegment && (
+                <CommercialTile label="Segmento RFM">
+                  <div className="flex flex-col gap-1.5">
+                    <span className={`inline-flex items-center gap-1.5 self-start rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${RFM_COLORS[(client as any).rfmSegment] ?? "bg-gray-100 text-gray-500 border-gray-200"}`}>
+                      <TrendingUp className="h-3 w-3" />
+                      {RFM_LABELS[(client as any).rfmSegment] ?? (client as any).rfmSegment}
+                    </span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-tight">
+                      {RFM_DESCRIPTIONS[(client as any).rfmSegment] ?? ""}
+                    </p>
                   </div>
                 </CommercialTile>
               )}
