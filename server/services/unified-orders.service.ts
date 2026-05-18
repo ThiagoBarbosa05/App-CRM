@@ -9,6 +9,8 @@ export interface UnifiedOrderFilters {
   endDate: string; // YYYY-MM-DD
   contactName?: string;
   sellerId?: string;
+  blingVendedorId?: string; // filtro específico para Bling (bling_orders.seller_id)
+  connectUserId?: string;   // filtro específico para Connect (connect_orders.seller_id = users.id)
   source?: "bling" | "connect" | "all";
   limit?: number;
   offset?: number;
@@ -116,10 +118,15 @@ export const unifiedOrdersService = {
       endDate,
       contactName,
       sellerId,
+      blingVendedorId,
+      connectUserId,
       source = "all",
       limit = 20,
       offset = 0,
     } = filters;
+
+    const effectiveBlingId = sellerId ?? blingVendedorId;
+    const effectiveConnectId = sellerId ?? connectUserId;
 
     const contactLike = contactName ? `%${contactName}%` : null;
 
@@ -147,7 +154,7 @@ export const unifiedOrdersService = {
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         ${contactLike !== null ? sql`AND bo.contact_name ILIKE ${contactLike}` : sql``}
-        ${sellerId ? sql`AND bo.seller_id = ${sellerId}` : sql``}
+        ${effectiveBlingId ? sql`AND bo.seller_id = ${effectiveBlingId}` : sql``}
     `;
 
     // ── Connect fragment (sale_date is timestamp) ─────────────────────────
@@ -177,7 +184,7 @@ export const unifiedOrdersService = {
       WHERE co.sale_date >= ${connectStart}::timestamp
         AND co.sale_date <= ${connectEnd}::timestamp
         ${contactLike !== null ? sql`AND co.contact_name ILIKE ${contactLike}` : sql``}
-        ${sellerId ? sql`AND co.seller_id = ${sellerId}` : sql``}
+        ${effectiveConnectId ? sql`AND co.seller_id = ${effectiveConnectId}` : sql``}
     `;
 
     const unionFrag =

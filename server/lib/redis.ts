@@ -197,11 +197,11 @@ export const cacheKeys = {
 
   availablePaymentMethods: () => `bling:filters:payment-methods`,
 
-  cashbackStatistics: (startDate: string, endDate: string) =>
-    `bling:stats:cashback:${startDate}:${endDate}`,
+  cashbackStatistics: (startDate: string, endDate: string, userId?: string) =>
+    `bling:stats:cashback:${startDate}:${endDate}${userId ? `:u:${userId}` : ""}`,
 
-  cohortAnalysis: (startDate: string, endDate: string) =>
-    `bling:stats:cohort:${startDate}:${endDate}`,
+  cohortAnalysis: (startDate: string, endDate: string, userId?: string) =>
+    `bling:stats:cohort:${startDate}:${endDate}${userId ? `:u:${userId}` : ""}`,
 
   // Pattern to invalidate all stats caches
   allStats: () => `bling:stats:*`,

@@ -72,11 +72,13 @@ interface UserOption {
 function CohortAnalysisContent({
   startDate,
   endDate,
+  userId,
 }: {
   startDate: string;
   endDate: string;
+  userId?: string;
 }) {
-  const { data, isLoading, isFetching } = useCohortAnalysis(startDate, endDate);
+  const { data, isLoading, isFetching } = useCohortAnalysis(startDate, endDate, userId);
   return (
     <CohortAnalysisTable
       data={data}
@@ -395,11 +397,11 @@ export default function DashboardPage() {
             </TabsContent>
 
             <TabsContent value="cohort" className="m-0 outline-none">
-              <CohortAnalysisContent startDate={startDate} endDate={endDate} />
+              <CohortAnalysisContent startDate={startDate} endDate={endDate} userId={resolvedSellerId || undefined} />
             </TabsContent>
 
             <TabsContent value="pedidos" className="m-0 outline-none">
-              <OrdersSection startDate={startDate} endDate={endDate} />
+              <OrdersSection startDate={startDate} endDate={endDate} lockedUserId={resolvedSellerId || undefined} />
             </TabsContent>
           </Tabs>
         </TabsContent>

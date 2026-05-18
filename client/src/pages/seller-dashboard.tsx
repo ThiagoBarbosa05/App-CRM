@@ -191,8 +191,17 @@ export default function SellerDashboardPage() {
       )}
 
       {/* Seções migradas do Bling Sales */}
-      <CashbackCohortSection startDate={startDate} endDate={endDate} />
-      <OrdersSection startDate={startDate} endDate={endDate} />
+      {(() => {
+        const effectiveUserId = isAdmin
+          ? (selectedSellerId === "all" ? undefined : selectedSellerId)
+          : user?.id;
+        return (
+          <>
+            <CashbackCohortSection startDate={startDate} endDate={endDate} userId={effectiveUserId} />
+            <OrdersSection startDate={startDate} endDate={endDate} lockedUserId={effectiveUserId} />
+          </>
+        );
+      })()}
     </div>
   );
 }

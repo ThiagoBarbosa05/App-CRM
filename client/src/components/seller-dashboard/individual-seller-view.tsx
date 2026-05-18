@@ -90,15 +90,23 @@ function GoalProgressBlock({ userId, source = "all" }: { userId: string; source?
   const monthlyResult = results[0] ?? null;
   const salesAchieved = monthlyResult ? Number(monthlyResult.salesAchieved) : 0;
 
-  const realValue = realSalesData?.totalValue ?? 0;
+  // Quando não há dados Bling/Connect, usa os valores lançados manualmente no weeklyResult
+  const isManualOnly = !realSalesData;
+  const realValue = realSalesData?.totalValue ?? salesAchieved;
   const realOrders = realSalesData?.totalOrders ?? 0;
-  const realItems = realSalesData?.totalItems ?? 0;
+  const realItems = realSalesData?.totalItems ?? (monthlyResult ? Number(monthlyResult.itemsAchieved ?? 0) : 0);
   const bottleGoalProgress = getBottleGoalProgress(
     { totalItems: realItems, totalOrders: realOrders },
     goal.ordersGoal ?? 0,
   );
-  const realAvgTicket = realOrders > 0 ? realValue / realOrders : 0;
-  const realAvgBottle = realItems > 0 ? realValue / realItems : 0;
+  const manualAvgTicket = monthlyResult ? Number(monthlyResult.ticketAchieved ?? 0) : 0;
+  const manualAvgBottle = monthlyResult ? Number(monthlyResult.avgGrfValue ?? 0) : 0;
+  const realAvgTicket = realSalesData
+    ? (realOrders > 0 ? realValue / realOrders : 0)
+    : manualAvgTicket;
+  const realAvgBottle = realSalesData
+    ? (realItems > 0 ? realValue / realItems : 0)
+    : manualAvgBottle;
   const salesGoalNum = Number(goal.salesGoal);
   const realPct =
     salesGoalNum > 0 ? Math.min((realValue / salesGoalNum) * 100, 100) : 0;
@@ -153,7 +161,7 @@ function GoalProgressBlock({ userId, source = "all" }: { userId: string; source?
             </div>
             <div className="flex items-center gap-2">
               <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                Bling
+                {isManualOnly ? "Manual" : "Bling"}
               </span>
               <span
                 className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${overallTone.badgeClass}`}
@@ -456,6 +464,11 @@ export function IndividualSellerView({
     positivacao: 0,
   };
 
+  // Mesmo período no ano anterior — deve ser chamado antes dos early returns para não violar Rules of Hooks
+  const lastYearStart = startDate ? startDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
+  const lastYearEnd = endDate ? endDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
+  const { data: lastYearComparison } = useUnifiedSalesComparison(lastYearStart, lastYearEnd, source);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -564,10 +577,6 @@ export function IndividualSellerView({
     avgItemValue: 0,
   };
 
-  // Mesmo período no ano anterior
-  const lastYearStart = startDate ? startDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
-  const lastYearEnd = endDate ? endDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
-  const { data: lastYearComparison } = useUnifiedSalesComparison(lastYearStart, lastYearEnd, source);
   const lastYearStats = lastYearComparison?.current ?? { totalValue: 0, totalOrders: 0, averageValue: 0, totalItems: 0, avgBottleValue: 0 };
   const lastYearLabel = startDate ? `Mesmo período ${parseInt(startDate.slice(0, 4)) - 1}` : "Ano anterior";
   return (

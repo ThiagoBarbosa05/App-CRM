@@ -71,6 +71,7 @@ export interface UnifiedOrdersFilters {
   endDate: string;
   contactName?: string;
   sellerId?: string;
+  userId?: string;
   source?: OrderSource;
   limit?: number;
   offset?: number;

@@ -6,8 +6,26 @@ import {
 import { z } from "zod";
 import { cache, cacheKeys, cacheTTL } from "../lib/redis";
 import { db } from "../db";
-import { cashbackTransactions } from "../../shared/schema";
-import { and, ne, inArray } from "drizzle-orm";
+import { cashbackTransactions, users, blingSellerMappings } from "../../shared/schema";
+import { and, ne, inArray, eq, isNotNull } from "drizzle-orm";
+
+async function resolveBlingVendedorId(userId: string): Promise<string | undefined> {
+  // 1. Tenta o campo direto na tabela users
+  const [userRow] = await db
+    .select({ blingVendedorId: users.blingVendedorId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (userRow?.blingVendedorId) return userRow.blingVendedorId;
+
+  // 2. Fallback: bling_seller_mappings (userId → blingVendedorId)
+  const [mapping] = await db
+    .select({ blingVendedorId: blingSellerMappings.blingVendedorId })
+    .from(blingSellerMappings)
+    .where(and(eq(blingSellerMappings.userId, userId), isNotNull(blingSellerMappings.blingVendedorId)))
+    .limit(1);
+  return mapping?.blingVendedorId ?? undefined;
+}
 
 /**
  * Enriquece uma lista de pedidos com o valor de cashback correspondente.
@@ -986,6 +1004,7 @@ export class BlingOrdersController {
               /^\d{4}-\d{2}-\d{2}$/,
               "Data final deve estar no formato YYYY-MM-DD",
             ),
+          userId: z.string().optional(),
         })
         .refine((data) => new Date(data.startDate) <= new Date(data.endDate), {
           message: "Data inicial deve ser anterior ou igual à data final",
@@ -994,9 +1013,29 @@ export class BlingOrdersController {
 
       const query = schema.parse(req.query);
 
+      let blingVendedorId: string | undefined;
+      if (query.userId) {
+        blingVendedorId = await resolveBlingVendedorId(query.userId);
+        // userId fornecido mas sem mapeamento Bling → retorna estatísticas zeradas (segurança)
+        if (!blingVendedorId) {
+          return res.json({
+            success: true,
+            data: {
+              totalPFOrders: 0,
+              linkedOrders: 0,
+              unlinkedOrders: 0,
+              totalCashbackGenerated: 0,
+              cashbackTransactionCount: 0,
+            },
+            cached: false,
+          });
+        }
+      }
+
       const cacheKey = cacheKeys.cashbackStatistics(
         query.startDate,
         query.endDate,
+        query.userId,
       );
       const cachedData = await cache.get(cacheKey);
 
@@ -1007,6 +1046,7 @@ export class BlingOrdersController {
       const stats = await blingOrdersRepository.getCashbackStatistics(
         query.startDate,
         query.endDate,
+        blingVendedorId,
       );
 
       await cache.set(cacheKey, stats, cacheTTL.statistics);
@@ -1092,6 +1132,7 @@ export class BlingOrdersController {
               /^\d{4}-\d{2}-\d{2}$/,
               "Data final deve estar no formato YYYY-MM-DD",
             ),
+          userId: z.string().optional(),
         })
         .refine((data) => new Date(data.startDate) <= new Date(data.endDate), {
           message: "Data inicial deve ser anterior ou igual à data final",
@@ -1100,9 +1141,23 @@ export class BlingOrdersController {
 
       const query = schema.parse(req.query);
 
+      let blingVendedorId: string | undefined;
+      if (query.userId) {
+        blingVendedorId = await resolveBlingVendedorId(query.userId);
+        // userId fornecido mas sem mapeamento Bling → retorna cohort vazio (segurança)
+        if (!blingVendedorId) {
+          return res.json({
+            success: true,
+            data: { cohorts: [], maxMonthOffset: 0 },
+            cached: false,
+          });
+        }
+      }
+
       const cacheKey = cacheKeys.cohortAnalysis(
         query.startDate,
         query.endDate,
+        query.userId,
       );
       const cachedData = await cache.get(cacheKey);
 
@@ -1117,6 +1172,7 @@ export class BlingOrdersController {
       const cohortData = await blingOrdersRepository.getCohortAnalysis(
         query.startDate,
         query.endDate,
+        blingVendedorId,
       );
 
       await cache.set(cacheKey, cohortData, cacheTTL.statistics);

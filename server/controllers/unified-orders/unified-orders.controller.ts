@@ -1,6 +1,27 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { unifiedOrdersService } from "../../services/unified-orders.service";
+import { db } from "../../db";
+import { users, blingSellerMappings } from "../../../shared/schema";
+import { and, eq, isNotNull } from "drizzle-orm";
+
+async function resolveBlingVendedorId(userId: string): Promise<string | undefined> {
+  // 1. Tenta o campo direto na tabela users
+  const [userRow] = await db
+    .select({ blingVendedorId: users.blingVendedorId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (userRow?.blingVendedorId) return userRow.blingVendedorId;
+
+  // 2. Fallback: bling_seller_mappings (userId → blingVendedorId)
+  const [mapping] = await db
+    .select({ blingVendedorId: blingSellerMappings.blingVendedorId })
+    .from(blingSellerMappings)
+    .where(and(eq(blingSellerMappings.userId, userId), isNotNull(blingSellerMappings.blingVendedorId)))
+    .limit(1);
+  return mapping?.blingVendedorId ?? undefined;
+}
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -25,6 +46,7 @@ const baseQuerySchema = z.object({
 const listQuerySchema = baseQuerySchema.extend({
   contactName: z.string().optional(),
   sellerId: z.string().optional(),
+  userId: z.string().optional(),
   limit: z.coerce.number().min(1).max(100).optional().default(20),
   offset: z.coerce.number().min(0).optional().default(0),
 });
@@ -48,12 +70,29 @@ export class UnifiedOrdersController {
   async listOrders(req: Request, res: Response) {
     try {
       const query = listQuerySchema.parse(req.query);
+
+      let blingVendedorId: string | undefined;
+      let connectUserId: string | undefined;
+      let excludeBling = false;
+      if (query.userId && !query.sellerId) {
+        blingVendedorId = await resolveBlingVendedorId(query.userId);
+        connectUserId = query.userId;
+        // Se não encontrou o blingVendedorId, exclui pedidos Bling para não vazar dados de outros vendedores
+        if (!blingVendedorId) excludeBling = true;
+      }
+
+      const effectiveSource = excludeBling
+        ? "connect"
+        : query.source;
+
       const { data, total } = await unifiedOrdersService.listOrders({
         startDate: query.startDate,
         endDate: query.endDate,
         contactName: query.contactName,
         sellerId: query.sellerId,
-        source: query.source,
+        blingVendedorId,
+        connectUserId,
+        source: effectiveSource,
         limit: query.limit,
         offset: query.offset,
       });

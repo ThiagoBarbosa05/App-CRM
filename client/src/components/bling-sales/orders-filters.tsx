@@ -19,6 +19,7 @@ interface OrdersFiltersProps {
 
   sellerId?: string;
   onSellerIdChange: (id: string | undefined) => void;
+  hideSeller?: boolean;
 
   source?: OrderSource;
   onSourceChange: (source: OrderSource) => void;
@@ -37,6 +38,7 @@ export function OrdersFilters({
   onContactNameChange,
   sellerId,
   onSellerIdChange,
+  hideSeller = false,
   source = "all",
   onSourceChange,
   minValue,
@@ -97,7 +99,7 @@ export function OrdersFilters({
           </AnimatePresence>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${hideSeller ? "lg:grid-cols-4" : "lg:grid-cols-5"}`}>
           {/* Client Name Search */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
@@ -115,20 +117,22 @@ export function OrdersFilters({
             </div>
           </div>
 
-          {/* Seller Select */}
-          <FilterSelect
-            label="Vendedor"
-            icon={<Briefcase className="h-4 w-4 text-emerald-500" />}
-            value={sellerId}
-            onValueChange={onSellerIdChange}
-            options={sellers?.map((s) => ({
-              value: s.sellerId,
-              label: s.sellerName,
-              count: s.orderCount,
-            }))}
-            placeholder="Todos os Vendedores"
-            isLoading={isSellersLoading || isLoading}
-          />
+          {/* Seller Select — oculto quando o vendedor é fixado pelo contexto */}
+          {!hideSeller && (
+            <FilterSelect
+              label="Vendedor"
+              icon={<Briefcase className="h-4 w-4 text-emerald-500" />}
+              value={sellerId}
+              onValueChange={onSellerIdChange}
+              options={sellers?.map((s) => ({
+                value: s.sellerId,
+                label: s.sellerName,
+                count: s.orderCount,
+              }))}
+              placeholder="Todos os Vendedores"
+              isLoading={isSellersLoading || isLoading}
+            />
+          )}
 
           {/* Origem Select */}
           <div className="space-y-1.5">

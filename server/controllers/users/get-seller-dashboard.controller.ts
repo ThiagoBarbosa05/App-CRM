@@ -1,9 +1,25 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
-import { users } from "../../../shared/schema";
-import { eq } from "drizzle-orm";
+import { users, blingSellerMappings } from "../../../shared/schema";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { getSellerDashboard } from "../../services/seller-dashboard.service";
 import { clientsService } from "../../services/clients.service";
+
+async function resolveBlingVendedorId(userId: string): Promise<string | null> {
+  const [userRow] = await db
+    .select({ blingVendedorId: users.blingVendedorId })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (userRow?.blingVendedorId) return userRow.blingVendedorId;
+
+  const [mapping] = await db
+    .select({ blingVendedorId: blingSellerMappings.blingVendedorId })
+    .from(blingSellerMappings)
+    .where(and(eq(blingSellerMappings.userId, userId), isNotNull(blingSellerMappings.blingVendedorId)))
+    .limit(1);
+  return mapping?.blingVendedorId ?? null;
+}
 
 /**
  * GET /api/users/:id/seller-dashboard
@@ -34,9 +50,11 @@ export async function getSellerDashboardController(req: Request, res: Response) 
     const { userId: requestUserId, userRole: requestUserRole, filters } =
       clientsService.processRequestParams(req);
 
+    const blingVendedorId = await resolveBlingVendedorId(user.id);
+
     const data = await getSellerDashboard(
       user.id,
-      user.blingVendedorId ?? null,
+      blingVendedorId,
       startDate,
       endDate,
       {

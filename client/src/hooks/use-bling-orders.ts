@@ -530,11 +530,12 @@ export function useSalesComparison(
   });
 }
 
-export function useCashbackStatistics(startDate: string, endDate: string) {
+export function useCashbackStatistics(startDate: string, endDate: string, userId?: string) {
   return useQuery({
-    queryKey: ["bling-cashback-stats", startDate, endDate],
+    queryKey: ["bling-cashback-stats", startDate, endDate, userId],
     queryFn: async () => {
       const params = new URLSearchParams({ startDate, endDate });
+      if (userId) params.set("userId", userId);
       const response = await fetch(
         `/api/bling-orders/statistics/cashback?${params.toString()}`,
       );
@@ -569,11 +570,12 @@ export interface CohortClient {
   retained: boolean;
 }
 
-export function useCohortAnalysis(startDate: string, endDate: string) {
+export function useCohortAnalysis(startDate: string, endDate: string, userId?: string) {
   return useQuery({
-    queryKey: ["bling-cohort-analysis", startDate, endDate],
+    queryKey: ["bling-cohort-analysis", startDate, endDate, userId],
     queryFn: async () => {
       const params = new URLSearchParams({ startDate, endDate });
+      if (userId) params.set("userId", userId);
       const response = await fetch(
         `/api/bling-orders/statistics/cohort?${params.toString()}`,
       );

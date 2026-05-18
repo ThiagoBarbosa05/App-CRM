@@ -532,11 +532,12 @@ export class BlingOrdersRepository {
   /**
    * Retorna estatísticas de cashback vinculadas a pedidos no período
    */
-  async getCashbackStatistics(startDate: string, endDate: string) {
+  async getCashbackStatistics(startDate: string, endDate: string, blingVendedorId?: string) {
     const dateConditions = [
       gte(blingOrders.saleDate, startDate),
       lte(blingOrders.saleDate, endDate),
       isNull(blingOrders.deletedAt),
+      ...(blingVendedorId ? [eq(blingOrders.sellerId, blingVendedorId)] : []),
     ];
 
     // Contagem de pedidos PF: total e vinculados ao app
@@ -581,7 +582,7 @@ export class BlingOrdersRepository {
   /**
    * Retorna dados de análise de cohort (retenção de clientes por mês de primeira compra)
    */
-  async getCohortAnalysis(startDate: string, endDate: string) {
+  async getCohortAnalysis(startDate: string, endDate: string, blingVendedorId?: string) {
     const result = await db.execute(sql`
       WITH customer_orders AS (
         SELECT
@@ -593,6 +594,7 @@ export class BlingOrdersRepository {
           AND ${blingOrders.contactId} IS NOT NULL
           AND ${blingOrders.saleDate} >= ${startDate}
           AND ${blingOrders.saleDate} <= ${endDate}
+          ${blingVendedorId ? sql`AND ${blingOrders.sellerId} = ${blingVendedorId}` : sql``}
       ),
       first_purchase AS (
         SELECT

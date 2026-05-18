@@ -34,15 +34,18 @@ function SectionLabel({
 export function CashbackCohortSection({
   startDate,
   endDate,
+  userId,
 }: {
   startDate: string;
   endDate: string;
+  userId?: string;
 }) {
   const { data: cashbackStats, isLoading: isCashbackStatsLoading } =
-    useCashbackStatistics(startDate, endDate);
+    useCashbackStatistics(startDate, endDate, userId);
   const { data: cohortData, isLoading: isCohortLoading } = useCohortAnalysis(
     startDate,
     endDate,
+    userId,
   );
 
   return (

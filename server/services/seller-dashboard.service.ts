@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "../db";
-import { systemSettings } from "../../shared/schema";
-import { eq, inArray } from "drizzle-orm";
+import { systemSettings, userGoals, weeklyResults } from "../../shared/schema";
+import { eq, inArray, and } from "drizzle-orm";
 import { ClientsRepository } from "../repositories/clients.repository";
 import type { ClientFilters } from "../storage";
 import {
@@ -99,6 +99,7 @@ export interface MonthlySummary {
   totalOrders: number;
   avgTicket: number;
   uniqueClients: number;
+  avgItemValue: number;
 }
 
 export interface SalesEvolutionPoint {
@@ -178,6 +179,7 @@ const EMPTY_SUMMARY: MonthlySummary = {
   totalOrders: 0,
   avgTicket: 0,
   uniqueClients: 0,
+  avgItemValue: 0,
 };
 
 interface ClientAnalyticsScope {
@@ -775,65 +777,100 @@ async function fetchMonthlySummary(
   startDate: string,
   endDate: string,
 ): Promise<MonthlySummary> {
-  const [blingResult, connectResult] = await Promise.all([
+  const refDate = new Date(startDate + "T12:00:00");
+  const month = refDate.getMonth() + 1;
+  const year = refDate.getFullYear();
+
+  const [blingResult, connectResult, manualResult] = await Promise.all([
     blingVendedorId
       ? db.execute<{
           total_orders: unknown;
           total_value: string | null;
-          avg_ticket: string | null;
           unique_clients: unknown;
+          avg_item_value: string | null;
         }>(sql`
           SELECT
-            COUNT(*)::int                                                    AS total_orders,
-            COALESCE(SUM(total_value::numeric), 0)::text                    AS total_value,
-            COALESCE(AVG(total_value::numeric), 0)::text                    AS avg_ticket,
-            COUNT(DISTINCT COALESCE(app_client_id::text, contact_id))::int  AS unique_clients
-          FROM bling_orders
-          WHERE seller_id = ${blingVendedorId}
-            AND deleted_at IS NULL
-            AND situation_id = '9'
-            AND sale_date >= ${startDate}
-            AND sale_date <= ${endDate}
+            COUNT(DISTINCT bo.id)::int                                              AS total_orders,
+            COALESCE(SUM(DISTINCT bo.total_value::numeric), 0)::text               AS total_value,
+            COUNT(DISTINCT COALESCE(bo.app_client_id::text, bo.contact_id))::int   AS unique_clients,
+            COALESCE(
+              SUM(boi.value::numeric * boi.quantity::numeric)
+              / NULLIF(SUM(boi.quantity::numeric), 0),
+              0
+            )::text                                                                 AS avg_item_value
+          FROM bling_orders bo
+          LEFT JOIN bling_order_items boi ON boi.order_id = bo.id
+          WHERE bo.seller_id = ${blingVendedorId}
+            AND bo.deleted_at IS NULL
+            AND bo.situation_id = '9'
+            AND bo.sale_date >= ${startDate}
+            AND bo.sale_date <= ${endDate}
         `)
       : Promise.resolve({ rows: [] as any[] }),
     db.execute<{
       total_orders: unknown;
       total_value: string | null;
-      avg_ticket: string | null;
     }>(sql`
       SELECT
         COUNT(*)::int                                AS total_orders,
-        COALESCE(SUM(total_value::numeric), 0)::text AS total_value,
-        COALESCE(AVG(total_value::numeric), 0)::text AS avg_ticket
+        COALESCE(SUM(total_value::numeric), 0)::text AS total_value
       FROM connect_orders
       WHERE seller_id = ${userId}
         AND sale_date::date >= ${startDate}::date
         AND sale_date::date <= ${endDate}::date
     `),
+    // Vendas lançadas manualmente via sistema de metas
+    db
+      .select({
+        salesAchieved: weeklyResults.salesAchieved,
+        avgGrfValue: weeklyResults.avgGrfValue,
+      })
+      .from(weeklyResults)
+      .innerJoin(userGoals, eq(weeklyResults.goalId, userGoals.id))
+      .where(
+        and(
+          eq(userGoals.userId, userId),
+          eq(userGoals.month, month),
+          eq(userGoals.year, year),
+        ),
+      ),
   ]);
 
-  const blingRow = blingResult.rows[0];
-  const connectRow = connectResult.rows[0];
+  const blingRow = blingResult.rows[0] as any;
+  const connectRow = connectResult.rows[0] as any;
 
-  const blingTotal = parseFloat((blingRow as any)?.total_value ?? "0");
-  const blingOrders = Number((blingRow as any)?.total_orders ?? 0);
-  const blingClients = Number((blingRow as any)?.unique_clients ?? 0);
+  const blingTotal = parseFloat(blingRow?.total_value ?? "0");
+  const blingOrders = Number(blingRow?.total_orders ?? 0);
+  const blingClients = Number(blingRow?.unique_clients ?? 0);
+  const blingAvgItem = parseFloat(blingRow?.avg_item_value ?? "0");
 
-  const connectTotal = parseFloat((connectRow as any)?.total_value ?? "0");
-  const connectOrders = Number((connectRow as any)?.total_orders ?? 0);
+  const connectTotal = parseFloat(connectRow?.total_value ?? "0");
+  const connectOrders = Number(connectRow?.total_orders ?? 0);
 
-  const totalValue = blingTotal + connectTotal;
+  const manualSales = manualResult.reduce(
+    (sum, r) => sum + parseFloat(r.salesAchieved ?? "0"),
+    0,
+  );
+  const manualAvgGrf =
+    manualResult.length > 0
+      ? parseFloat(manualResult[0].avgGrfValue ?? "0")
+      : 0;
+
+  const totalValue = blingTotal + connectTotal + manualSales;
   const totalOrders = blingOrders + connectOrders;
-  const avgTicket = totalOrders > 0 ? totalValue / totalOrders : 0;
+  const avgTicket =
+    totalOrders > 0 ? (blingTotal + connectTotal) / totalOrders : 0;
   const uniqueClients = blingClients;
+  const avgItemValue = blingAvgItem > 0 ? blingAvgItem : manualAvgGrf;
 
-  if (totalOrders === 0 && blingClients === 0) return EMPTY_SUMMARY;
+  if (totalValue === 0 && totalOrders === 0 && blingClients === 0) return EMPTY_SUMMARY;
 
   return {
     totalValue,
     totalOrders,
     avgTicket,
     uniqueClients,
+    avgItemValue,
   };
 }
 
@@ -1161,6 +1198,7 @@ async function fetchAggregateSummary(
     totalOrders,
     avgTicket,
     uniqueClients,
+    avgItemValue: 0,
   };
 }
 

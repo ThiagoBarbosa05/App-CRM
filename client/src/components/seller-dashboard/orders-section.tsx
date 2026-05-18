@@ -26,9 +26,11 @@ function SectionLabel({ label }: { label: string }) {
 export function OrdersSection({
   startDate,
   endDate,
+  lockedUserId,
 }: {
   startDate: string;
   endDate: string;
+  lockedUserId?: string;
 }) {
   const { toast } = useToast();
   const [page, setPage] = useState(1);
@@ -46,7 +48,8 @@ export function OrdersSection({
       startDate,
       endDate,
       contactName: debouncedContact || undefined,
-      sellerId,
+      sellerId: lockedUserId ? undefined : sellerId,
+      userId: lockedUserId,
       source,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
@@ -141,6 +144,7 @@ export function OrdersSection({
           setSellerId(id);
           setPage(1);
         }}
+        hideSeller={!!lockedUserId}
         source={source}
         onSourceChange={(s) => {
           setSource(s);
