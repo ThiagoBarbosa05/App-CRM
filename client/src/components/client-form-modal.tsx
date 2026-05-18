@@ -369,7 +369,13 @@ export default function ClientFormModal({
       // Converter campos vazios para null e garantir que responsavelId seja sempre o usuário atual
       const processedData = {
         ...data,
-        cpf: data.cpf?.trim() || null,
+        // CPF é opcional: limpa o valor se estiver vazio ou parcialmente preenchido
+        cpf: (() => {
+          const digits = (data.cpf || "").replace(/\D/g, "");
+          if (digits.length === 11 || digits.length === 14)
+            return data.cpf?.trim() || null;
+          return null;
+        })(),
         phone: data.phone?.replace(/\D/g, "") ? data.phone?.trim() : null,
         documentType: isCnpj ? "cnpj" : "cpf",
         nomeFantasia: isCnpj ? data.nomeFantasia?.trim() || null : null,

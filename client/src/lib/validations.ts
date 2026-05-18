@@ -68,7 +68,7 @@ export const clientValidationSchema = z.object({
     .or(z.literal(""))
     .refine(
       (val) => !val || val.replace(/\D/g, "").length >= 10,
-      "Celular deve ter pelo menos 10 dígitos"
+      "Celular deve ter pelo menos 10 dígitos",
     ),
   fixedPhone: z.string().optional().or(z.literal("")),
   documentType: z.enum(["cpf", "cnpj"]).default("cpf"),
@@ -79,8 +79,12 @@ export const clientValidationSchema = z.object({
     .refine((val) => {
       if (!val) return true;
       const digits = val.replace(/\D/g, "");
-      if (digits.length <= 11) return validateCpf(val);
-      return validateCnpj(val);
+      if (digits.length === 0) return true;
+      // Só valida quando o campo está completamente preenchido
+      if (digits.length === 11) return validateCpf(val);
+      if (digits.length === 14) return validateCnpj(val);
+      // Input parcial não bloqueia o envio (será limpo no onSubmit)
+      return true;
     }, "CPF ou CNPJ inválido"),
   nomeFantasia: z.string().optional().or(z.literal("")),
   inscricaoEstadual: z.string().optional().or(z.literal("")),
@@ -91,7 +95,7 @@ export const clientValidationSchema = z.object({
     .or(z.literal(""))
     .refine(
       (val) => !val || validateAdultAge(val),
-      "Cliente deve ser maior de idade (18 anos ou mais)"
+      "Cliente deve ser maior de idade (18 anos ou mais)",
     ),
   cep: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
