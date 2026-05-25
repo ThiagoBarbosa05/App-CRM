@@ -95,6 +95,7 @@ const CALL_STATUS_LABELS: Record<string, string> = {
   ringing: "Chamando",
   "in-progress": "Em chamada",
   disconnected: "Encerrada",
+  "permission-denied": "Microfone negado",
 };
 
 const OUTCOME_OPTIONS = [

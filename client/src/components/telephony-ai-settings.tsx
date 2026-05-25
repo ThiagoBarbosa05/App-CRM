@@ -1245,6 +1245,7 @@ const telephonySchema = z.object({
   twilio_intelligence_service_sid: z.string().optional().default(""),
   elevenlabs_api_key: z.string().optional().default(""),
   elevenlabs_voice_id: z.string().optional().default(""),
+  elevenlabs_webhook_secret: z.string().optional().default(""),
   server_base_url: z.string().optional().default(""),
 });
 
@@ -1425,6 +1426,7 @@ export function TelephonyAISettings({
             settings.twilio_intelligence_service_sid ?? "",
           elevenlabs_api_key: settings.elevenlabs_api_key ?? "",
           elevenlabs_voice_id: settings.elevenlabs_voice_id ?? "",
+          elevenlabs_webhook_secret: settings.elevenlabs_webhook_secret ?? "",
           server_base_url: settings.server_base_url ?? "",
         }
       : undefined,
@@ -1494,6 +1496,7 @@ export function TelephonyAISettings({
           data.twilio_intelligence_service_sid ?? "",
         elevenlabs_api_key: data.elevenlabs_api_key ?? "",
         elevenlabs_voice_id: data.elevenlabs_voice_id ?? "",
+        elevenlabs_webhook_secret: data.elevenlabs_webhook_secret ?? "",
         server_base_url: data.server_base_url ?? "",
       };
 
@@ -1769,6 +1772,9 @@ export function TelephonyAISettings({
   const intelligenceSid = watch("twilio_intelligence_service_sid") ?? "";
   const transcriptionWebhookUrl = serverBaseUrl
     ? `${serverBaseUrl}/api/calls/twilio-transcription`
+    : "";
+  const elevenLabsWebhookUrl = serverBaseUrl
+    ? `${serverBaseUrl}/api/elevenlabs/webhook`
     : "";
 
   const debuggerWebhookUrl = serverBaseUrl
@@ -2936,6 +2942,130 @@ export function TelephonyAISettings({
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Webhook de Pós-Chamada */}
+          <Card className="border border-teal-200/60 dark:border-teal-800/40 shadow-sm bg-white dark:bg-slate-900 rounded-3xl overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-teal-400 via-cyan-500 to-teal-400" />
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/40">
+                  <Webhook className="size-3.5 text-teal-600 dark:text-teal-400" />
+                </div>
+                Webhook de Pós-Chamada
+              </CardTitle>
+              <CardDescription>
+                O ElevenLabs envia eventos ao final de cada conversa
+                (transcrição, resultado, duração). Configure a URL abaixo no
+                painel ElevenLabs e cole o <strong>Signing Secret</strong>{" "}
+                gerado para validar a autenticidade de cada requisição via HMAC
+                SHA-256.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Instruções */}
+              <div className="flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3 dark:border-teal-900/40 dark:bg-teal-950/20">
+                <Info className="mt-0.5 size-4 shrink-0 text-teal-600 dark:text-teal-400" />
+                <div className="space-y-1 text-xs text-teal-700 dark:text-teal-300">
+                  <p className="font-semibold">Como configurar no ElevenLabs</p>
+                  <ol className="list-decimal list-inside space-y-0.5 text-teal-600 dark:text-teal-400">
+                    <li>Copie a URL do webhook abaixo</li>
+                    <li>
+                      Acesse{" "}
+                      <a
+                        href="https://elevenlabs.io/app/agents/settings"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-0.5 font-semibold underline underline-offset-2"
+                      >
+                        ElevenLabs → Settings → Webhooks
+                        <ExternalLink className="size-3" />
+                      </a>
+                    </li>
+                    <li>
+                      Clique em <strong>Criar Webhook</strong> e cole a URL
+                    </li>
+                    <li>
+                      Copie o <strong>Signing Secret</strong> gerado (
+                      <code className="font-mono">wsec_...</code>) e cole no
+                      campo abaixo
+                    </li>
+                    <li>Salve as configurações aqui</li>
+                  </ol>
+                </div>
+              </div>
+
+              {/* URL do webhook */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  URL do Webhook
+                </Label>
+                {elevenLabsWebhookUrl ? (
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={elevenLabsWebhookUrl}
+                      className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-mono text-xs truncate"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(
+                          elevenLabsWebhookUrl,
+                        );
+                        toast({ title: "URL copiada!" });
+                      }}
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      asChild
+                    >
+                      <a
+                        href="https://elevenlabs.io/app/settings"
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Abrir painel do ElevenLabs"
+                      >
+                        <ExternalLink className="size-4" />
+                      </a>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-xl border border-dashed border-slate-200 px-4 py-3 dark:border-slate-700">
+                    <Info className="size-4 shrink-0 text-slate-400" />
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Configure a <strong>Server Base URL</strong> na aba Twilio
+                      para gerar o endereço do webhook.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Signing Secret */}
+              <FieldGroup
+                label="Signing Secret (HMAC)"
+                hint="Secret gerado pelo ElevenLabs ao criar o webhook. Começa com wsec_... Usado para verificar que cada requisição é legítima. Deixe em branco para desativar a validação (não recomendado em produção)."
+                hintVariant="warning"
+              >
+                <div className="relative">
+                  <Input
+                    {...register("elevenlabs_webhook_secret")}
+                    type="password"
+                    placeholder="wsec_••••••••••••••••"
+                    autoComplete="new-password"
+                  />
+                  <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
+                </div>
+              </FieldGroup>
             </CardContent>
           </Card>
 

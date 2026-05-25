@@ -3349,6 +3349,7 @@ export const campaigns = pgTable("campaigns", {
   umblerBotTriggerName: text("umbler_bot_trigger_name"),
   umblerMessageText: text("umbler_message_text"),
   umblerTriggerDecision: text("umbler_trigger_decision"),
+  createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
@@ -3484,10 +3485,32 @@ export const campaignClients = pgTable(
     })
       .notNull()
       .default("novo"),
+    attempts: integer("attempts").notNull().default(0),
+    lastAttemptAt: timestamp("last_attempt_at"),
+    nextAttemptAt: timestamp("next_attempt_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (t) => [unique().on(t.campaignId, t.clientId)],
+  (t) => [
+    unique().on(t.campaignId, t.clientId),
+    index("campaign_clients_next_attempt_idx").on(t.nextAttemptAt),
+  ],
 );
+
+// Idempotência de webhooks externos (Twilio, ElevenLabs)
+export const webhookEvents = pgTable(
+  "webhook_events",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    provider: text("provider").notNull(),
+    eventId: text("event_id").notNull(),
+    payloadHash: text("payload_hash"),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+  },
+  (t) => [unique("webhook_events_provider_event_id_key").on(t.provider, t.eventId)],
+);
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
 
 export const insertCampaignClientSchema = createInsertSchema(
   campaignClients,

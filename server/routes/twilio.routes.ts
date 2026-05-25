@@ -13,16 +13,30 @@ import {
   getElevenLabsKey,
 } from "../lib/twilio-config";
 import { requireAuth } from "../middleware/validation";
+import { validateTwilioWebhook as validateTwilioMiddleware } from "../middleware/twilio-webhook";
+import { rateLimit } from "../middleware/rate-limit";
 
-async function validateTwilioWebhook(req: Request, res: Response): Promise<boolean> {
+/**
+ * Versão inline para o handler `/voice` (que precisa retornar TwiML XML, não JSON).
+ * Para outras rotas use o middleware `validateTwilioMiddleware` diretamente.
+ */
+async function validateTwilioWebhookInline(req: Request, res: Response): Promise<boolean> {
+  if (process.env.TWILIO_SKIP_WEBHOOK_VERIFY === "true") return true;
   const { accountSid, authToken } = await getTwilioConfig();
-  if (process.env.NODE_ENV !== "production" || !accountSid || !authToken) return true;
+  if (!accountSid || !authToken) {
+    console.error("[twilio] webhook recebido sem credenciais configuradas — rejeitando");
+    res.status(503).send("Twilio não configurado");
+    return false;
+  }
   const signatureHeader = req.headers["x-twilio-signature"] as string;
+  if (!signatureHeader) {
+    res.status(401).send("Assinatura ausente");
+    return false;
+  }
   const baseUrl = await getServerBaseUrl();
-  // req.originalUrl inclui query string — necessário para assinatura correta
   const fullUrl = `${baseUrl}${req.originalUrl}`;
   const valid = twilio.validateRequest(authToken, signatureHeader, fullUrl, req.body);
-  if (!valid) { res.status(403).send("Forbidden"); return false; }
+  if (!valid) { res.status(401).send("Assinatura inválida"); return false; }
   return true;
 }
 
@@ -30,7 +44,15 @@ const router = Router();
 
 // ─── Token JWT para Twilio Voice SDK ─────────────────────────────────────────
 
-router.get("/token", requireAuth, async (req: Request, res: Response) => {
+router.get(
+  "/token",
+  requireAuth,
+  rateLimit({
+    windowMs: 60_000,
+    max: 10,
+    keyFn: (req) => `twilio-token:${req.user?.userId ?? req.ip}`,
+  }),
+  async (req: Request, res: Response) => {
   try {
     const sdk = await getTwilioVoiceSdkConfig();
     if (!sdk.accountSid || !sdk.apiKey || !sdk.apiSecret || !sdk.twimlAppSid) {
@@ -48,7 +70,7 @@ router.get("/token", requireAuth, async (req: Request, res: Response) => {
       sdk.accountSid,
       sdk.apiKey,
       sdk.apiSecret,
-      { identity: `operator_${userId}`, ttl: 3600 }
+      { identity: `operator_${userId}`, ttl: 14400 }
     );
     token.addGrant(voiceGrant);
 
@@ -96,7 +118,7 @@ router.get("/channels", requireAuth, async (_req: Request, res: Response) => {
 
 router.post("/voice", async (req: Request, res: Response) => {
   try {
-    const isValid = await validateTwilioWebhook(req, res);
+    const isValid = await validateTwilioWebhookInline(req, res);
     if (!isValid) return;
 
     // Deriva a base URL do próprio host da requisição: como o Twilio está chamando
@@ -422,7 +444,11 @@ router.delete("/test-call/:callSid", requireAuth, async (req: Request, res: Resp
 
 // ─── Diagnóstico de agente ElevenLabs ────────────────────────────────────────
 
-router.get("/diagnose-elevenlabs/:agentId", async (req: Request, res: Response) => {
+router.get(
+  "/diagnose-elevenlabs/:agentId",
+  requireAuth,
+  rateLimit({ windowMs: 60_000, max: 10 }),
+  async (req: Request, res: Response) => {
   try {
     const { agentId } = req.params;
     const elevenLabsKey = await getElevenLabsKey();

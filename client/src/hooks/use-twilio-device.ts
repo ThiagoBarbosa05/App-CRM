@@ -69,7 +69,8 @@ type CallStatus =
   | "connecting"
   | "ringing"
   | "in-progress"
-  | "disconnected";
+  | "disconnected"
+  | "permission-denied";
 
 interface UseTwilioDeviceReturn {
   deviceStatus: DeviceStatus;
@@ -84,6 +85,37 @@ interface UseTwilioDeviceReturn {
   disconnect: () => void;
   toggleMute: () => void;
   clearError: () => void;
+  resetCall: () => void;
+}
+
+/**
+ * Solicita permissão de microfone. Retorna null se concedida, ou mensagem de erro.
+ */
+async function requestMicrophonePermission(): Promise<string | null> {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    return "Navegador não suporta captura de áudio";
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Libera imediatamente — o Twilio SDK fará sua própria captura.
+    stream.getTracks().forEach((t) => t.stop());
+    return null;
+  } catch (err: unknown) {
+    const name = (err as { name?: string })?.name;
+    if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+      return "Permissão de microfone negada. Habilite-a nas configurações do navegador.";
+    }
+    if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+      return "Nenhum microfone encontrado no dispositivo.";
+    }
+    if (name === "NotReadableError" || name === "TrackStartError") {
+      return "Microfone está em uso por outro aplicativo.";
+    }
+    if (name === "OverconstrainedError") {
+      return "Dispositivo de áudio não atende às restrições.";
+    }
+    return "Erro ao acessar o microfone.";
+  }
 }
 
 export function useTwilioDevice(): UseTwilioDeviceReturn {
@@ -167,6 +199,15 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
       setErrorMessage("Device não inicializado");
       return;
     }
+
+    // Verifica permissão de microfone antes de tentar conectar.
+    const micError = await requestMicrophonePermission();
+    if (micError) {
+      setCallStatus("permission-denied");
+      setErrorMessage(micError);
+      return;
+    }
+
     setCallStatus("connecting");
     setErrorMessage(null);
 
@@ -198,6 +239,19 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
         setIsMuted(false);
         setCallSid(null);
         callRef.current = null;
+        // Após 2s no estado "disconnected" (para o componente pai mostrar resumo / form de nota),
+        // volta a "idle" automaticamente — permitindo nova ligação sem reload.
+        setTimeout(() => {
+          setCallStatus((s) => (s === "disconnected" ? "idle" : s));
+        }, 2000);
+      });
+      call.on("cancel", () => {
+        ringbackRef.current?.stop();
+        ringbackRef.current = null;
+      });
+      call.on("reject", () => {
+        ringbackRef.current?.stop();
+        ringbackRef.current = null;
       });
       call.on("error", (err) => {
         ringbackRef.current?.stop();
@@ -231,6 +285,14 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     setErrorMessage(null);
   }, []);
 
+  const resetCall = useCallback(() => {
+    setCallStatus("idle");
+    setErrorMessage(null);
+    setCallSid(null);
+    setConnectedAt(null);
+    setIsMuted(false);
+  }, []);
+
   return {
     deviceStatus,
     callStatus,
@@ -244,5 +306,6 @@ export function useTwilioDevice(): UseTwilioDeviceReturn {
     disconnect,
     toggleMute,
     clearError,
+    resetCall,
   };
 }

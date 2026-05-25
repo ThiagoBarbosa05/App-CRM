@@ -7,6 +7,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
 import "./jobs/update-expired-events-scheduler";
 import "./jobs/bling-token-refresh-scheduler";
+import "./jobs/campaign-dispatcher";
 import { db } from "./db";
 import { users } from "@shared/schema";
 import bcrypt from "bcrypt";

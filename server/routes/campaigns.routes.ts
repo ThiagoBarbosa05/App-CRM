@@ -37,6 +37,7 @@ router.get("/", async (_req: Request, res: Response) => {
 
 router.post("/", async (req: Request, res: Response) => {
   try {
+    const userId = req.user?.userId;
     const {
       name,
       description,
@@ -87,6 +88,7 @@ router.post("/", async (req: Request, res: Response) => {
         umblerBotTriggerName: umblerBotTriggerName ?? null,
         umblerMessageText: umblerMessageText ?? null,
         umblerTriggerDecision: umblerTriggerDecision ?? null,
+        createdBy: userId ?? null,
       })
       .returning();
 
@@ -495,6 +497,28 @@ router.post("/:id/dispatch", async (req: Request, res: Response) => {
         continue;
       }
 
+      // Reserva atomicamente: marca campaignClient como 'contactado' antes
+      // de criar a call. Se outra instância já tomou (race), pula.
+      const [reserved] = await db
+        .update(campaignClients)
+        .set({
+          status: "contactado",
+          attempts: sql`${campaignClients.attempts} + 1`,
+          lastAttemptAt: new Date(),
+        })
+        .where(
+          and(
+            eq(campaignClients.id, cc.ccId),
+            eq(campaignClients.status, "novo"),
+          ),
+        )
+        .returning({ id: campaignClients.id });
+
+      if (!reserved) {
+        // Outra instância já processou este cliente
+        continue;
+      }
+
       const [callRecord] = await db
         .insert(calls)
         .values({
@@ -528,11 +552,6 @@ router.post("/:id/dispatch", async (req: Request, res: Response) => {
           .set({ twilioCallSid: call.sid })
           .where(eq(calls.id, callRecord.id));
 
-        await db
-          .update(campaignClients)
-          .set({ status: "contactado" })
-          .where(eq(campaignClients.id, cc.ccId));
-
         dispatchResults.push({
           clientId: cc.clientId,
           clientName: cc.clientName,
@@ -542,10 +561,16 @@ router.post("/:id/dispatch", async (req: Request, res: Response) => {
         });
       } catch (err) {
         console.error(`[campaigns] dispatch error for ${cc.clientId}:`, err);
+        // Rollback: marca call falhou, devolve campaign_client ao estado novo
+        // para que retry posterior (Fase 4) reprocesse.
         await db
           .update(calls)
-          .set({ status: "falhou" })
+          .set({ status: "falhou", endedAt: new Date() })
           .where(eq(calls.id, callRecord.id));
+        await db
+          .update(campaignClients)
+          .set({ status: "novo" })
+          .where(eq(campaignClients.id, cc.ccId));
 
         dispatchResults.push({
           clientId: cc.clientId,

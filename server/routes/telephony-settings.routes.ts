@@ -19,6 +19,7 @@ const TELEPHONY_KEYS = [
   "twilio_intelligence_service_sid",
   "elevenlabs_api_key",
   "elevenlabs_voice_id",
+  "elevenlabs_webhook_secret",
   "server_base_url",
 ] as const;
 
@@ -27,6 +28,7 @@ const SENSITIVE_KEYS = new Set([
   "twilio_api_key",
   "twilio_api_secret",
   "elevenlabs_api_key",
+  "elevenlabs_webhook_secret",
 ]);
 
 const MASK = "••••••••";

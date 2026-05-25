@@ -10,6 +10,10 @@ import { eq, and } from "drizzle-orm";
 import { getElevenLabsKey } from "../lib/twilio-config";
 import { requireAuth } from "../middleware/validation";
 import { sendPostCallMessage } from "../services/umbler-post-call.service";
+import { onCallTerminal } from "../services/call-interaction.service";
+import { validateElevenLabsSignature } from "../middleware/elevenlabs-webhook";
+import { recordWebhookEvent } from "../lib/webhook-idempotency";
+import { rateLimit } from "../middleware/rate-limit";
 import multer from "multer";
 import OpenAI from "openai";
 
@@ -42,7 +46,7 @@ const audioUpload = multer({
 // Chamado pelas tools "confirmar_interesse" / "recusar_convite" do agente ElevenLabs
 // Body esperado: { callSid, conversationId, decision | decisao }
 
-router.post("/decision", async (req: Request, res: Response) => {
+router.post("/decision", validateElevenLabsSignature, async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, string | undefined>;
     const callSid = body.callSid;
@@ -55,6 +59,14 @@ router.post("/decision", async (req: Request, res: Response) => {
       res
         .status(400)
         .json({ message: "decision deve ser sim|nao|sem_resposta" });
+      return;
+    }
+
+    // Idempotência: dedup por (callSid|conversationId)+decision
+    const dedupKey = `decision:${callSid ?? conversationId ?? "unknown"}:${decision}`;
+    const isFirst = await recordWebhookEvent("elevenlabs", dedupKey, body);
+    if (!isFirst) {
+      res.status(200).json({ ok: true, duplicate: true });
       return;
     }
 
@@ -137,6 +149,11 @@ router.post("/decision", async (req: Request, res: Response) => {
       ).catch((err) => console.error("[UmblerPostCall] Erro:", err));
     }
 
+    // CRM sync: decisão da IA dispara integração (especialmente para convertido)
+    onCallTerminal(call.id).catch((e) =>
+      console.warn("[onCallTerminal] erro:", e),
+    );
+
     res.status(200).json({ ok: true, decision, callSid });
   } catch (e) {
     console.error("[elevenlabs] decision error:", e);
@@ -147,7 +164,7 @@ router.post("/decision", async (req: Request, res: Response) => {
 // ─── Webhook: pós-chamada ─────────────────────────────────────────────────────
 // ElevenLabs envia { type: "post_call_transcription", data: { conversation_id, status, transcript[], analysis } }
 
-router.post("/webhook", async (req: Request, res: Response) => {
+router.post("/webhook", validateElevenLabsSignature, async (req: Request, res: Response) => {
   try {
     const raw = req.body as Record<string, unknown>;
     // Desembrulhar o envelope "data" enviado pelo ElevenLabs
@@ -160,6 +177,14 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
     if (!conversationId) {
       res.status(400).json({ message: "conversation_id obrigatório" });
+      return;
+    }
+
+    // Idempotência: dedup por conversation_id + status
+    const dedupKey = `webhook:${conversationId}:${status ?? "unknown"}`;
+    const isFirst = await recordWebhookEvent("elevenlabs", dedupKey);
+    if (!isFirst) {
+      res.status(200).json({ ok: true, duplicate: true });
       return;
     }
 
@@ -215,6 +240,12 @@ router.post("/webhook", async (req: Request, res: Response) => {
       }
     } else if (typeof rawTranscript === "string" && rawTranscript.trim()) {
       transcriptText = rawTranscript;
+    }
+
+    // Limita tamanho de transcript para evitar DoS / abuso de armazenamento
+    const MAX_TRANSCRIPT_CHARS = 100_000;
+    if (transcriptText && transcriptText.length > MAX_TRANSCRIPT_CHARS) {
+      transcriptText = transcriptText.slice(0, MAX_TRANSCRIPT_CHARS) + "\n[...truncado...]";
     }
 
     const analysis = data.analysis as Record<string, unknown> | undefined;

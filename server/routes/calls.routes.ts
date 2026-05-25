@@ -16,6 +16,10 @@ import {
   getServerBaseUrl,
 } from "../lib/twilio-config";
 import { requireAuth } from "../middleware/validation";
+import { validateTwilioWebhook } from "../middleware/twilio-webhook";
+import { recordWebhookEvent } from "../lib/webhook-idempotency";
+import { onCallTerminal } from "../services/call-interaction.service";
+import { addSseClient, publishSseEvent } from "../lib/sse-hub";
 import twilio from "twilio";
 import OpenAI from "openai";
 
@@ -165,6 +169,8 @@ async function triggerTwilioIntelligence(
 
 // ─── Fallback de transcrição via OpenAI Whisper ───────────────────────────────
 
+const whisperInFlight = new Set<string>();
+
 async function transcribeWithWhisper(
   callId: string,
   recordingUrl: string,
@@ -178,6 +184,36 @@ async function transcribeWithWhisper(
     );
     return;
   }
+
+  // Dedup: evita 2 chamadas paralelas Whisper para mesma call
+  if (whisperInFlight.has(callId)) {
+    console.log(`[whisper] já em processamento | Call ID: ${callId} — skip`);
+    return;
+  }
+  // Já transcrito? evita custo redundante
+  const [existing] = await db
+    .select({ tw: calls.twilioTranscription })
+    .from(calls)
+    .where(eq(calls.id, callId));
+  if (existing?.tw && existing.tw.trim().length > 0) {
+    console.log(`[whisper] transcrição já existe | Call ID: ${callId} — skip`);
+    return;
+  }
+  whisperInFlight.add(callId);
+  try {
+    return await whisperImpl(callId, recordingUrl, accountSid, authToken, apiKey);
+  } finally {
+    whisperInFlight.delete(callId);
+  }
+}
+
+async function whisperImpl(
+  callId: string,
+  recordingUrl: string,
+  accountSid: string,
+  authToken: string,
+  apiKey: string,
+): Promise<void> {
 
   const mp3Url = recordingUrl.endsWith(".mp3")
     ? recordingUrl
@@ -390,25 +426,27 @@ async function transcribeWithWhisper(
 
   // Criar notificação de reclamação se detectada
   if (hasComplaint && callRow?.operatorId) {
-    await db.insert(callNotifications).values({
+    const [notif] = await db.insert(callNotifications).values({
       userId: callRow.operatorId,
       callId,
       clientId: callRow.clientId ?? undefined,
       message: "reclamacao",
       excerpt: complaintDescription ?? null,
-    });
+    }).returning();
+    publishSseEvent("notification.new", notif, callRow.operatorId);
     console.log(`[whisper] Notificação de reclamação criada | Call ID: ${callId}`);
   }
 
   // Criar notificação de interesse se detectado
   if (hasInterest && callRow?.operatorId) {
-    await db.insert(callNotifications).values({
+    const [notifInt] = await db.insert(callNotifications).values({
       userId: callRow.operatorId,
       callId,
       clientId: callRow.clientId ?? undefined,
       message: "interesse",
       excerpt: interestDescription ?? null,
-    });
+    }).returning();
+    publishSseEvent("notification.new", notifInt, callRow.operatorId);
     console.log(`[whisper] Notificação de interesse criada | Call ID: ${callId}`);
   }
 
@@ -1044,6 +1082,13 @@ router.put("/:id", requireAuth, async (req: Request, res: Response) => {
       .returning();
     if (!call)
       return res.status(404).json({ message: "Chamada não encontrada" });
+
+    if (call.status && TERMINAL_STATUSES.has(call.status)) {
+      onCallTerminal(call.id).catch((e) =>
+        console.warn("[onCallTerminal] erro:", e),
+      );
+    }
+
     res.json(call);
   } catch (e) {
     res.status(500).json({ message: "Erro ao atualizar chamada" });
@@ -1080,6 +1125,12 @@ router.post("/:id/end", requireAuth, async (req: Request, res: Response) => {
       .set({ status: "encerrada", endedAt: new Date() })
       .where(eq(calls.id, req.params.id))
       .returning();
+
+    if (call) {
+      onCallTerminal(call.id).catch((e) =>
+        console.warn("[onCallTerminal] erro:", e),
+      );
+    }
 
     res.json(call);
   } catch (e) {
@@ -1378,14 +1429,39 @@ router.patch(
   },
 );
 
+// ─── SSE: notificações em tempo real para o vendedor ─────────────────────────
+
+router.get(
+  "/notifications/stream",
+  requireAuth,
+  (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+
+    const remove = addSseClient(userId, res);
+    req.on("close", remove);
+  },
+);
+
 // ─── Webhook: status de chamada (público) ─────────────────────────────────────
 
-router.post("/twilio-status", async (req: Request, res: Response) => {
+router.post("/twilio-status", validateTwilioWebhook, async (req: Request, res: Response) => {
   try {
     const { CallSid, CallStatus, CallDuration, RecordingUrl } =
       req.body as Record<string, string>;
 
     if (!CallSid) return res.sendStatus(400);
+
+    // Idempotência: dedup por (CallSid, CallStatus)
+    const isFirst = await recordWebhookEvent(
+      "twilio-status",
+      `${CallSid}:${CallStatus}`,
+    );
+    if (!isFirst) return res.sendStatus(204);
 
     const status = mapTwilioStatus(CallStatus);
     const update: Partial<typeof calls.$inferSelect> = { status };
@@ -1398,6 +1474,20 @@ router.post("/twilio-status", async (req: Request, res: Response) => {
       .set(update)
       .where(eq(calls.twilioCallSid, CallSid))
       .returning();
+
+    // CRM sync — call terminal → interaction + goals + deal
+    if (updatedCall && TERMINAL_STATUSES.has(status)) {
+      onCallTerminal(updatedCall.id).catch((e) =>
+        console.warn("[onCallTerminal] erro:", e),
+      );
+      if (updatedCall.operatorId) {
+        publishSseEvent(
+          "call.terminal",
+          { callId: updatedCall.id, status: updatedCall.status },
+          updatedCall.operatorId,
+        );
+      }
+    }
 
     // Sincronizar campaign_clients para chamadas de campanha não atendidas/ocupadas/falhas.
     // Necessário para campanhas ElevenLabs onde o webhook do ElevenLabs nunca é chamado
@@ -1433,12 +1523,21 @@ router.post("/twilio-status", async (req: Request, res: Response) => {
 
 // ─── Webhook: status de gravação (público) ────────────────────────────────────
 
-router.post("/recording-status", async (req: Request, res: Response) => {
+router.post("/recording-status", validateTwilioWebhook, async (req: Request, res: Response) => {
   try {
     const { CallSid, RecordingSid, RecordingUrl } = req.body as Record<
       string,
       string
     >;
+
+    // Idempotência: dedup por RecordingSid (Twilio retransmite em falhas)
+    if (RecordingSid) {
+      const isFirst = await recordWebhookEvent(
+        "twilio-recording",
+        RecordingSid,
+      );
+      if (!isFirst) return res.sendStatus(204);
+    }
     // callRecordId e parentCallSid passados como query params pelo voice webhook
     const { callRecordId: crId, parentCallSid } = req.query as Record<
       string,
@@ -1521,54 +1620,12 @@ router.post("/recording-status", async (req: Request, res: Response) => {
       );
     }
 
-    // Último recurso: se nenhum lookup encontrou a chamada, tenta encontrar a
-    // chamada mais recente criada nos últimos 5 minutos que ainda não tem
-    // recordingSid nem twilioCallSid vinculados.
-    if (!callRow && CallSid) {
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const [candidate] = await db
-        .select({ id: calls.id })
-        .from(calls)
-        .where(
-          and(
-            isNull(calls.recordingSid),
-            isNull(calls.twilioCallSid),
-            inArray(calls.status, ["iniciando", "em_andamento"] as const),
-            gt(calls.createdAt, fiveMinutesAgo),
-          ),
-        )
-        .orderBy(desc(calls.createdAt))
-        .limit(1);
-
-      if (candidate) {
-        const [linked] = await db
-          .update(calls)
-          .set({ ...update, twilioCallSid: CallSid })
-          .where(eq(calls.id, candidate.id))
-          .returning({ id: calls.id });
-
-        if (linked) {
-          callRow = linked;
-          console.log(
-            `[recording-status] Linked via fallback recente | callId: ${linked.id} ← CallSid: ${CallSid}`,
-          );
-          triggerTwilioIntelligence(
-            linked.id,
-            RecordingSid,
-            reqBaseUrl,
-            RecordingUrl,
-          ).catch((e) =>
-            console.warn(
-              "[recording-status] Falha ao acionar Voice Intelligence (fallback):",
-              e,
-            ),
-          );
-        }
-      } else {
-        console.warn(
-          `[recording-status] Nenhuma chamada recente sem vínculo encontrada para CallSid: ${CallSid}`,
-        );
-      }
+    // Fallback recursivo removido (vinculava recording a chamada errada em campanhas paralelas).
+    // Se nenhum lookup encontrou a chamada, registra para auditoria e segue (idempotência já bloqueia retries Twilio).
+    if (!callRow) {
+      console.error(
+        `[recording-status] Sem vínculo possível | CallSid: ${CallSid} | RecordingSid: ${RecordingSid} — gravação ignorada (audit em webhook_events)`,
+      );
     }
 
     res.sendStatus(204);
