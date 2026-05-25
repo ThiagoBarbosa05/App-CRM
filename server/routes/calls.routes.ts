@@ -110,13 +110,10 @@ async function triggerTwilioIntelligence(
     `[voice-intelligence] Solicitando transcrição | RecordingSid: ${recordingSid} | Call ID: ${callId}`,
   );
 
-  // Para gravações dual-channel (record-from-answer-dual):
-  //   canal 0 (image 0) = agente (browser SDK / operador)
-  //   canal 1 (image 1) = cliente (número discado)
-  // Especificar participants permite ao Voice Intelligence atribuir falas
-  // corretamente a cada participante na transcrição.
+  // Não especificamos participants: o Voice Intelligence aceita gravações
+  // mono (ElevenLabs/campanha) e dual-channel (chamadas humanas) sem
+  // precisar saber o canal de cada participante previamente.
   const channelPayload = {
-    participants: [{ role: "agent" }, { role: "customer" }],
     media_properties: { source_sid: recordingSid },
   };
 

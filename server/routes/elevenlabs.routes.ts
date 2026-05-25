@@ -46,7 +46,9 @@ const audioUpload = multer({
 // Chamado pelas tools "confirmar_interesse" / "recusar_convite" do agente ElevenLabs
 // Body esperado: { callSid, conversationId, decision | decisao }
 
-router.post("/decision", validateElevenLabsSignature, async (req: Request, res: Response) => {
+// Agent tools do ElevenLabs não enviam o header HMAC — segurança feita pelo
+// lookup de callSid/conversationId no banco (requests sem match retornam 200+warning).
+router.post("/decision", async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, string | undefined>;
     const callSid = body.callSid;
