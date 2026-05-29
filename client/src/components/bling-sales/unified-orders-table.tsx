@@ -42,6 +42,7 @@ interface UnifiedOrdersTableProps {
   onPageChange: (page: number) => void;
   hasMore: boolean;
   totalOrders?: number;
+  totalValueNonCancelled?: number;
 }
 
 function getSituationLabel(value: string | null | undefined) {
@@ -120,6 +121,7 @@ export function UnifiedOrdersTable({
   onPageChange,
   hasMore,
   totalOrders = 0,
+  totalValueNonCancelled = 0,
 }: UnifiedOrdersTableProps) {
   const [, navigate] = useLocation();
   const [selectedBlingOrderId, setSelectedBlingOrderId] = useState<string | null>(null);
@@ -531,6 +533,17 @@ export function UnifiedOrdersTable({
               )}
             </p>
           </div>
+
+          {totalValueNonCancelled > 0 && (
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-2xl border border-emerald-100 dark:border-emerald-800">
+              <p className="text-xs font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">
+                Total{" "}
+                <span className="text-emerald-700 dark:text-emerald-300">
+                  {formatCurrency(totalValueNonCancelled)}
+                </span>
+              </p>
+            </div>
+          )}
 
           {/* Legend */}
           <div className="hidden sm:flex items-center gap-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">

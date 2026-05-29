@@ -66,6 +66,14 @@ export interface UnifiedTopSeller {
   totalItems: number;
 }
 
+export interface SellerTotalWithGoal {
+  sellerId: string;
+  sellerName: string;
+  totalOrders: number;
+  totalValue: number;
+  salesGoal: number;
+}
+
 export interface UnifiedOrdersFilters {
   startDate: string;
   endDate: string;
@@ -97,7 +105,7 @@ export function useUnifiedOrders(filters: UnifiedOrdersFilters) {
   );
   return useQuery<{
     data: UnifiedOrder[];
-    pagination: { total: number; hasMore: boolean };
+    pagination: { total: number; totalValueNonCancelled: number; hasMore: boolean };
   }>({
     queryKey: ["/api/unified-orders", filters],
     queryFn: async () => {
@@ -190,6 +198,23 @@ export function useUnifiedSalesEvolution(
     },
     enabled: !!startDate && !!endDate,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSellerTotalsWithGoals(filters: UnifiedOrdersFilters) {
+  const qs = buildQs(
+    filters as unknown as Record<string, string | number | undefined>,
+  );
+  return useQuery<SellerTotalWithGoal[]>({
+    queryKey: ["/api/unified-orders/statistics/seller-totals", filters],
+    queryFn: async () => {
+      const res = await fetch(`/api/unified-orders/statistics/seller-totals?${qs}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      return json.data as SellerTotalWithGoal[];
+    },
+    enabled: !!filters.startDate && !!filters.endDate,
+    staleTime: 30_000,
   });
 }
 

@@ -1,8 +1,8 @@
 import { Request, Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { blingConnections } from "../../shared/schema";
-import { eq } from "drizzle-orm";
+import { blingConnections, blingOrders } from "../../shared/schema";
+import { eq, sql } from "drizzle-orm";
 import { blingConnectionsService } from "../services/bling-connections.service";
 import { requireAuth } from "../middleware/validation";
 import { getBlingVendorsController } from "../controllers/bling-accounts/get-bling-vendors.controller";
@@ -188,6 +188,113 @@ router.get("/vendors", async (req, res) => {
   }
 
   return getBlingVendorsController(req, res);
+});
+
+/**
+ * GET /api/bling-accounts/duplicates-preview
+ *
+ * Retorna os pedidos Bling duplicados agrupados por blingOrderId,
+ * indicando quais seriam mantidos e quais seriam removidos.
+ */
+router.get("/duplicates-preview", async (req, res) => {
+  try {
+    getAdminUser(req);
+
+    const rows = await db.execute<{
+      id: string;
+      bling_order_id: string;
+      order_number: string;
+      contact_name: string | null;
+      sale_date: string;
+      total_value: string;
+      connection_id: string | null;
+      situation_value: string | null;
+      created_at: string;
+      rn: string;
+    }>(sql`
+      SELECT
+        id,
+        bling_order_id,
+        order_number,
+        contact_name,
+        sale_date,
+        total_value,
+        connection_id,
+        situation_value,
+        created_at,
+        ROW_NUMBER() OVER (
+          PARTITION BY bling_order_id
+          ORDER BY connection_id NULLS LAST, created_at DESC
+        ) AS rn
+      FROM bling_orders
+      WHERE deleted_at IS NULL
+        AND bling_order_id IN (
+          SELECT bling_order_id
+          FROM bling_orders
+          WHERE deleted_at IS NULL
+          GROUP BY bling_order_id
+          HAVING COUNT(*) > 1
+        )
+      ORDER BY bling_order_id, rn
+    `);
+
+    const groups: Record<
+      string,
+      { keep: (typeof rows.rows)[0]; remove: (typeof rows.rows)[0][] }
+    > = {};
+
+    for (const row of rows.rows) {
+      if (!groups[row.bling_order_id]) {
+        groups[row.bling_order_id] = { keep: row, remove: [] };
+      } else {
+        groups[row.bling_order_id].remove.push(row);
+      }
+    }
+
+    res.json({ success: true, data: Object.values(groups) });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao buscar duplicatas";
+    const status = message.includes("administradores") ? 403 : 500;
+    res.status(status).json({ success: false, error: message });
+  }
+});
+
+/**
+ * POST /api/bling-accounts/cleanup-duplicates
+ *
+ * Faz soft-delete de pedidos Bling duplicados, mantendo o registro mais
+ * relevante (com connectionId preenchido ou o mais recente).
+ */
+router.post("/cleanup-duplicates", async (req, res) => {
+  try {
+    getAdminUser(req);
+
+    const result = await db.execute(sql`
+      UPDATE bling_orders
+      SET deleted_at = NOW()
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id,
+            ROW_NUMBER() OVER (
+              PARTITION BY bling_order_id
+              ORDER BY connection_id NULLS LAST, created_at DESC
+            ) AS rn
+          FROM bling_orders
+          WHERE deleted_at IS NULL
+        ) ranked
+        WHERE rn > 1
+      )
+    `);
+
+    const deleted = result.rowCount ?? 0;
+    res.json({ success: true, data: { deleted } });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Erro ao limpar duplicatas";
+    const status = message.includes("administradores") ? 403 : 500;
+    res.status(status).json({ success: false, error: message });
+  }
 });
 
 router.put("/:id", async (req, res) => {

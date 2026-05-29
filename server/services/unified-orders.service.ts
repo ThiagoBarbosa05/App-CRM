@@ -79,6 +79,16 @@ export interface UnifiedTopSeller {
   uniqueClients: number;
 }
 
+export interface SellerTotalWithGoal {
+  sellerId: string;
+  sellerName: string;
+  totalOrders: number;
+  /** Total vendido excluindo pedidos cancelados (situationValue = '2') */
+  totalValue: number;
+  /** Soma das metas mensais do período (user_goals.sales_goal). 0 se não cadastrado. */
+  salesGoal: number;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function calcChange(current: number, previous: number): number {
@@ -112,7 +122,7 @@ export const unifiedOrdersService = {
    */
   async listOrders(
     filters: UnifiedOrderFilters,
-  ): Promise<{ data: UnifiedOrder[]; total: number }> {
+  ): Promise<{ data: UnifiedOrder[]; total: number; totalValueNonCancelled: number }> {
     const {
       startDate,
       endDate,
@@ -195,15 +205,25 @@ export const unifiedOrdersService = {
           : sql`${blingFrag} UNION ALL ${connectFrag}`;
 
     const [countResult, dataResult] = await Promise.all([
-      db.execute(sql`SELECT COUNT(*) AS total FROM (${unionFrag}) _combined`),
+      db.execute(sql`
+        SELECT
+          COUNT(*) AS total,
+          COALESCE(SUM(
+            CASE WHEN situation_value IS DISTINCT FROM '2'
+              THEN total_value::numeric
+              ELSE 0
+            END
+          ), 0) AS total_value_non_cancelled
+        FROM (${unionFrag}) _combined
+      `),
       db.execute(
         sql`SELECT * FROM (${unionFrag}) _combined ORDER BY sale_date DESC LIMIT ${limit} OFFSET ${offset}`,
       ),
     ]);
 
-    const total = Number(
-      (countResult.rows[0] as Record<string, unknown>)?.total ?? 0,
-    );
+    const countRow = countResult.rows[0] as Record<string, unknown>;
+    const total = Number(countRow?.total ?? 0);
+    const totalValueNonCancelled = parseFloat(String(countRow?.total_value_non_cancelled ?? "0"));
 
     const data: UnifiedOrder[] = (
       dataResult.rows as Record<string, unknown>[]
@@ -268,7 +288,7 @@ export const unifiedOrdersService = {
       }
     }
 
-    return { data, total };
+    return { data, total, totalValueNonCancelled };
   },
 
   /**
@@ -424,6 +444,127 @@ export const unifiedOrdersService = {
    * Vendedores do Bling usam o nome armazenado no pedido;
    * vendedores do Connect fazem JOIN com a tabela de usuários.
    */
+  /**
+   * Totais por vendedor (Bling + Connect) respeitando os mesmos filtros da
+   * listagem principal. Inclui a meta de vendas acumulada dos meses do período
+   * para os vendedores que têm user_goals cadastrado.
+   */
+  async getSellerTotalsWithGoals(filters: {
+    startDate: string;
+    endDate: string;
+    contactName?: string;
+    blingVendedorId?: string;
+    connectUserId?: string;
+    source?: Source;
+  }): Promise<SellerTotalWithGoal[]> {
+    const {
+      startDate,
+      endDate,
+      contactName,
+      blingVendedorId,
+      connectUserId,
+      source = "all",
+    } = filters;
+
+    const contactLike = contactName ? `%${contactName}%` : null;
+    const connectStart = `${startDate}T00:00:00`;
+    const connectEnd = `${endDate}T23:59:59`;
+
+    const blingFrag = sql`
+      SELECT
+        COALESCE(u.id, bo.seller_id)     AS seller_id,
+        COALESCE(u.name, bo.seller_name) AS seller_name,
+        bo.total_value::numeric          AS net_value
+      FROM bling_orders bo
+      LEFT JOIN LATERAL (
+        SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
+      ) u ON true
+      WHERE bo.deleted_at IS NULL
+        AND bo.situation_id = '9'
+        AND bo.sale_date >= ${startDate}
+        AND bo.sale_date <= ${endDate}
+        AND bo.seller_id IS NOT NULL
+        ${contactLike !== null ? sql`AND bo.contact_name ILIKE ${contactLike}` : sql``}
+        ${blingVendedorId ? sql`AND bo.seller_id = ${blingVendedorId}` : sql``}
+    `;
+
+    const connectFrag = sql`
+      SELECT
+        co.seller_id                                  AS seller_id,
+        COALESCE(u.name, co.seller_name_raw)          AS seller_name,
+        co.total_value::numeric                       AS net_value
+      FROM connect_orders co
+      LEFT JOIN users u ON co.seller_id = u.id
+      WHERE co.sale_date >= ${connectStart}::timestamp
+        AND co.sale_date <= ${connectEnd}::timestamp
+        AND co.seller_id IS NOT NULL
+        ${contactLike !== null ? sql`AND co.contact_name ILIKE ${contactLike}` : sql``}
+        ${connectUserId ? sql`AND co.seller_id = ${connectUserId}` : sql``}
+    `;
+
+    const unionFrag =
+      source === "bling"
+        ? blingFrag
+        : source === "connect"
+          ? connectFrag
+          : sql`${blingFrag} UNION ALL ${connectFrag}`;
+
+    const result = await db.execute<{
+      seller_id: string;
+      seller_name: string;
+      total_orders: string;
+      total_value: string;
+      sales_goal: string;
+    }>(sql`
+      WITH period_goals AS (
+        SELECT
+          user_id,
+          COALESCE(SUM(sales_goal::numeric), 0) AS total_goal
+        FROM user_goals
+        WHERE MAKE_DATE(year, month, 1) >= DATE_TRUNC('month', ${startDate}::date)
+          AND MAKE_DATE(year, month, 1) <= DATE_TRUNC('month', ${endDate}::date)
+        GROUP BY user_id
+      ),
+      manual_sales AS (
+        SELECT
+          ug.user_id,
+          COALESCE(SUM(wr.sales_achieved::numeric), 0) AS total_manual
+        FROM user_goals ug
+        JOIN weekly_results wr ON wr.goal_id = ug.id
+        WHERE MAKE_DATE(ug.year, ug.month, 1) >= DATE_TRUNC('month', ${startDate}::date)
+          AND MAKE_DATE(ug.year, ug.month, 1) <= DATE_TRUNC('month', ${endDate}::date)
+        GROUP BY ug.user_id
+      ),
+      seller_totals AS (
+        SELECT
+          seller_id,
+          MAX(seller_name)       AS seller_name,
+          COUNT(*)::int          AS total_orders,
+          COALESCE(SUM(net_value), 0) AS total_value
+        FROM (${unionFrag}) _orders
+        GROUP BY seller_id
+      )
+      SELECT
+        st.seller_id,
+        st.seller_name,
+        st.total_orders,
+        st.total_value + COALESCE(ms.total_manual, 0) AS total_value,
+        COALESCE(pg.total_goal, 0) AS sales_goal
+      FROM seller_totals st
+      LEFT JOIN period_goals pg ON pg.user_id = st.seller_id
+      LEFT JOIN manual_sales ms ON ms.user_id = st.seller_id
+      ORDER BY (st.total_value + COALESCE(ms.total_manual, 0)) DESC
+    `);
+
+    return result.rows.map((row) => ({
+      sellerId: String(row.seller_id ?? ""),
+      sellerName: String(row.seller_name ?? "Desconhecido"),
+      totalOrders: Number(row.total_orders ?? 0),
+      totalValue: parseFloat(String(row.total_value ?? "0")),
+      salesGoal: parseFloat(String(row.sales_goal ?? "0")),
+    }));
+  },
+
   async getTopSellers(
     startDate: string,
     endDate: string,

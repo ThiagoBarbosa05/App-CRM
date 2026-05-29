@@ -44,6 +44,16 @@ router.get(
 );
 
 /**
+ * @route   GET /api/unified-orders/statistics/seller-totals
+ * @desc    Totais por vendedor respeitando os filtros da listagem + meta mensal de user_goals
+ * @query   startDate, endDate, contactName?, sellerId?, userId?, source?
+ */
+router.get(
+  "/statistics/seller-totals",
+  unifiedOrdersController.getSellerTotals.bind(unifiedOrdersController),
+);
+
+/**
  * @route   GET /api/unified-orders/statistics/top-sellers
  * @desc    Top vendedores por valor (Bling + Connect combinados)
  * @query   startDate, endDate, limit?, source?

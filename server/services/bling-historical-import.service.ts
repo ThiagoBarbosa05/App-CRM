@@ -14,7 +14,7 @@ import {
   blingConnections,
   type BlingConnection,
 } from "../../shared/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import {
   getBlingPedidosVendas,
   getBlingPedidoVenda,
@@ -102,7 +102,10 @@ async function orderExistsInDb(blingOrderId: number, connectionId: string): Prom
     .from(blingOrders)
     .where(
       and(
-        eq(blingOrders.connectionId, connectionId),
+        or(
+          eq(blingOrders.connectionId, connectionId),
+          isNull(blingOrders.connectionId),
+        ),
         eq(blingOrders.blingOrderId, String(blingOrderId)),
         isNull(blingOrders.deletedAt),
       ),

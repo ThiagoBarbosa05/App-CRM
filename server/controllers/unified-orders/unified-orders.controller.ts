@@ -85,7 +85,7 @@ export class UnifiedOrdersController {
         ? "connect"
         : query.source;
 
-      const { data, total } = await unifiedOrdersService.listOrders({
+      const { data, total, totalValueNonCancelled } = await unifiedOrdersService.listOrders({
         startDate: query.startDate,
         endDate: query.endDate,
         contactName: query.contactName,
@@ -102,6 +102,7 @@ export class UnifiedOrdersController {
         data,
         pagination: {
           total,
+          totalValueNonCancelled,
           limit: query.limit,
           offset: query.offset,
           hasMore: query.offset + data.length < total,
@@ -206,6 +207,50 @@ export class UnifiedOrdersController {
         "[UnifiedOrdersController] Erro em getSalesEvolution:",
         error,
       );
+      return res.status(500).json({ success: false, error: "Erro interno" });
+    }
+  }
+
+  /**
+   * GET /api/unified-orders/statistics/seller-totals
+   * Totais por vendedor respeitando os filtros da listagem (período, nome, fonte).
+   * Inclui a meta de vendas acumulada dos meses do período de user_goals.
+   */
+  async getSellerTotals(req: Request, res: Response) {
+    try {
+      const query = listQuerySchema.parse(req.query);
+
+      let blingVendedorId: string | undefined;
+      let connectUserId: string | undefined;
+      let excludeBling = false;
+
+      if (query.userId && !query.sellerId) {
+        blingVendedorId = await resolveBlingVendedorId(query.userId);
+        connectUserId = query.userId;
+        if (!blingVendedorId) excludeBling = true;
+      }
+
+      const effectiveSource = excludeBling ? "connect" : query.source;
+
+      const data = await unifiedOrdersService.getSellerTotalsWithGoals({
+        startDate: query.startDate,
+        endDate: query.endDate,
+        contactName: query.contactName,
+        blingVendedorId: query.sellerId ?? blingVendedorId,
+        connectUserId: query.sellerId ?? connectUserId,
+        source: effectiveSource,
+      });
+
+      return res.json({ success: true, data });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Parâmetros inválidos",
+          details: error.errors,
+        });
+      }
+      console.error("[UnifiedOrdersController] Erro em getSellerTotals:", error);
       return res.status(500).json({ success: false, error: "Erro interno" });
     }
   }
