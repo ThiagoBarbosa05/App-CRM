@@ -128,6 +128,8 @@ export interface WeeklyResult {
   salesAchieved: string;
   ticketAchieved: string;
   itemsAchieved: number;
+  totalGrfsMonth?: number;
+  avgGrfValue?: string;
 }
 
 export interface UserGoal {

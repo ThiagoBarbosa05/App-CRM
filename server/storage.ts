@@ -3568,7 +3568,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           gte(clients.createdAt, startDate),
-          lt(clients.createdAt, endDate),
+          lte(clients.createdAt, endDate),
           isNotNull(clients.responsavelId),
           isNotNull(clients.name),
           sql`${clients.name} <> ''`,

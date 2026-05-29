@@ -12,5 +12,4 @@ server/index.ts
 .claude/
 # *.png
 *.csv
-
-
+docs/analise-migracao-meta-api.md

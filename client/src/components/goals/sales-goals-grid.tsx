@@ -191,30 +191,23 @@ function SalesGoalCard({
   const weeklyResults = goal.weeklyResults || [];
   const monthlyResult = weeklyResults[0] ?? null;
 
-  // Dados manuais (resultado registrado pelo admin)
+  // Dados manuais (vendas fora do Bling, registradas pelo admin)
   const manualSalesValue = getTotalAchieved(weeklyResults, "salesAchieved");
   const manualTicketValue = getTotalAchieved(weeklyResults, "ticketAchieved");
   const manualItemsValue = getTotalAchieved(weeklyResults, "itemsAchieved");
-  const hasManualData = manualSalesValue > 0;
+  const manualTotalGrfs = monthlyResult?.totalGrfsMonth ?? 0;
 
-  // Se há resultado manual registrado, usa ele; caso contrário, usa dados do Bling
-  const realSalesValue = hasManualData
-    ? manualSalesValue
-    : sellerData
-      ? Number(sellerData.totalValue)
-      : 0;
-  const realSalesOrders = hasManualData
-    ? manualTicketValue > 0
-      ? Math.round(manualSalesValue / manualTicketValue)
-      : 0
-    : sellerData
-      ? Number(sellerData.totalOrders)
-      : 0;
-  const avgTicketAchieved = hasManualData
-    ? manualTicketValue
-    : realSalesOrders > 0
-      ? realSalesValue / realSalesOrders
-      : 0;
+  // Dados do Bling/Connect
+  const blingValue = sellerData ? Number(sellerData.totalValue) : 0;
+  const blingOrders = sellerData ? Number(sellerData.totalOrders) : 0;
+  const blingItems = sellerData?.totalItems ?? 0;
+
+  // Somar manual + Bling
+  const realSalesValue = manualSalesValue + blingValue;
+  const manualOrders = manualTicketValue > 0 ? Math.round(manualSalesValue / manualTicketValue) : 0;
+  const realSalesOrders = manualOrders + blingOrders;
+  const avgTicketAchieved = realSalesOrders > 0 ? realSalesValue / realSalesOrders : 0;
+
   const ticketPercentage = calculatePercentage(
     avgTicketAchieved,
     Number(goal.averageTicket),
@@ -225,18 +218,13 @@ function SalesGoalCard({
   );
 
   const ordersGoalValue = goal.ordersGoal ?? 0;
-  const manualTotalGrfs = hasManualData ? (monthlyResult?.totalGrfsMonth ?? 0) : 0;
-  const manualAvgGrfValue = hasManualData ? Number(monthlyResult?.avgGrfValue ?? 0) : 0;
-  const totalItemsSold = hasManualData
-    ? (manualTotalGrfs > 0 ? manualTotalGrfs : manualItemsValue)
-    : (sellerData?.totalItems ?? 0);
+  const manualGrfsTotal = manualTotalGrfs > 0 ? manualTotalGrfs : manualItemsValue;
+  const totalItemsSold = manualGrfsTotal + blingItems;
   const bottleGoalProgress = getBottleGoalProgress(
     { totalItems: totalItemsSold, totalOrders: realSalesOrders },
     ordersGoalValue,
   );
-  const avgBottleValue = hasManualData && manualAvgGrfValue > 0
-    ? manualAvgGrfValue
-    : (totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0);
+  const avgBottleValue = totalItemsSold > 0 ? realSalesValue / totalItemsSold : 0;
   const avgBottleGoalValue = Number(goal.avgBottleValueGoal ?? "0");
 
   // ITENS POR VENDA = total GRFs / total pedidos
@@ -363,9 +351,9 @@ function SalesGoalCard({
                       : "text-rose-700 dark:text-rose-300"
                 }`}
               >
-                {(hasManualData || sellerData) ? formatCurrency(realSalesValue) : "—"}
+                {realSalesValue > 0 ? formatCurrency(realSalesValue) : "—"}
               </span>
-              {(hasManualData || sellerData) && realSalesOrders > 0 && (
+              {realSalesOrders > 0 && (
                 <span className="ml-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
                   {realSalesOrders} pedido{realSalesOrders !== 1 ? "s" : ""}
                 </span>
@@ -387,7 +375,7 @@ function SalesGoalCard({
             </div>
             <div className="flex justify-between text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1.5">
               <span>Meta: {formatCurrency(goal.salesGoal)}</span>
-              {!hasManualData && !sellerData && (
+              {realSalesValue === 0 && (
                 <span className="italic">Sem pedidos no período</span>
               )}
             </div>

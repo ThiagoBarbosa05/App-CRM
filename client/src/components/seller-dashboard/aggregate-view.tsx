@@ -82,9 +82,24 @@ function AllSellersGoalProgress({
         const realData =
           topSellers.find((s) => namesMatch(s.sellerName, goal.userName)) ??
           null;
-        const realValue = realData?.totalValue ?? 0;
-        const realOrders = realData?.totalOrders ?? 0;
-        const realItems = realData?.totalItems ?? 0;
+
+        // Dados manuais (vendas fora do Bling, somam ao Bling)
+        const allResults = goal.weeklyResults ?? [];
+        const manualResult = allResults[0] ?? null;
+        const manualSalesAchieved = allResults.reduce((s: number, r: any) => s + Number(r.salesAchieved), 0);
+        const manualTicketAchieved = manualResult ? Number(manualResult.ticketAchieved ?? 0) : 0;
+        const manualGrfs = manualResult
+          ? (Number(manualResult.totalGrfsMonth ?? 0) || Number(manualResult.itemsAchieved ?? 0))
+          : 0;
+        const manualOrders = manualTicketAchieved > 0 ? Math.round(manualSalesAchieved / manualTicketAchieved) : 0;
+
+        const blingValue = realData?.totalValue ?? 0;
+        const blingOrders = realData?.totalOrders ?? 0;
+        const blingItems = realData?.totalItems ?? 0;
+
+        const realValue = manualSalesAchieved + blingValue;
+        const realOrders = manualOrders + blingOrders;
+        const realItems = manualGrfs + blingItems;
         const bottleGoalProgress = getBottleGoalProgress(
           { totalItems: realItems, totalOrders: realOrders },
           goal.ordersGoal ?? 0,

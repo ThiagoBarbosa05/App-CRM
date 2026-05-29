@@ -88,34 +88,32 @@ function GoalProgressBlock({ userId, source = "all" }: { userId: string; source?
 
   const results = goal.weeklyResults ?? [];
   const monthlyResult = results[0] ?? null;
-  const salesAchieved = monthlyResult ? Number(monthlyResult.salesAchieved) : 0;
 
-  // Quando não há dados Bling/Connect, usa os valores lançados manualmente no weeklyResult
-  const isManualOnly = !realSalesData;
-  const realValue = realSalesData?.totalValue ?? salesAchieved;
-
-  // GRFs manuais: usa totalGrfsMonth primeiro (igual ao cartão de metas), cai em itemsAchieved
+  // Dados manuais (vendas fora do Bling, somam ao Bling)
+  const manualSalesAchieved = results.reduce((s, r) => s + Number(r.salesAchieved), 0);
+  const manualAvgTicket = monthlyResult ? Number(monthlyResult.ticketAchieved ?? 0) : 0;
   const manualTotalGrfs = monthlyResult ? Number(monthlyResult.totalGrfsMonth ?? 0) : 0;
   const manualItemsAchieved = monthlyResult ? Number(monthlyResult.itemsAchieved ?? 0) : 0;
-  const manualItems = manualTotalGrfs > 0 ? manualTotalGrfs : manualItemsAchieved;
+  const manualItemsTotal = manualTotalGrfs > 0 ? manualTotalGrfs : manualItemsAchieved;
+  const manualOrders = manualAvgTicket > 0 ? Math.round(manualSalesAchieved / manualAvgTicket) : 0;
 
-  const manualAvgTicket = monthlyResult ? Number(monthlyResult.ticketAchieved ?? 0) : 0;
-  // Derivar número de pedidos do ticket médio quando só há dados manuais
-  const manualOrders = manualAvgTicket > 0 ? Math.round(salesAchieved / manualAvgTicket) : 0;
+  // Dados Bling/Connect
+  const blingValue = realSalesData?.totalValue ?? 0;
+  const blingOrders = realSalesData?.totalOrders ?? 0;
+  const blingItems = realSalesData?.totalItems ?? 0;
 
-  const realOrders = realSalesData?.totalOrders ?? manualOrders;
-  const realItems = realSalesData?.totalItems ?? manualItems;
+  // Somar manual + Bling
+  const realValue = manualSalesAchieved + blingValue;
+  const realOrders = manualOrders + blingOrders;
+  const realItems = manualItemsTotal + blingItems;
+
+  const isManualOnly = !realSalesData;
   const bottleGoalProgress = getBottleGoalProgress(
     { totalItems: realItems, totalOrders: realOrders },
     goal.ordersGoal ?? 0,
   );
-  const manualAvgBottle = monthlyResult ? Number(monthlyResult.avgGrfValue ?? 0) : 0;
-  const realAvgTicket = realSalesData
-    ? (realOrders > 0 ? realValue / realOrders : 0)
-    : manualAvgTicket;
-  const realAvgBottle = realSalesData
-    ? (realItems > 0 ? realValue / realItems : 0)
-    : manualAvgBottle;
+  const realAvgTicket = realOrders > 0 ? realValue / realOrders : 0;
+  const realAvgBottle = realItems > 0 ? realValue / realItems : 0;
   const salesGoalNum = Number(goal.salesGoal);
   const realPct =
     salesGoalNum > 0 ? Math.min((realValue / salesGoalNum) * 100, 100) : 0;
@@ -258,9 +256,9 @@ function GoalProgressBlock({ userId, source = "all" }: { userId: string; source?
           <GoalMetricCard
             label="Meta de Vendas (mensal)"
             icon={<TrendingUp className="h-3.5 w-3.5" />}
-            achieved={formatCurrency(salesAchieved)}
+            achieved={formatCurrency(realValue)}
             goal={formatCurrency(goal.salesGoal)}
-            percentage={pct(salesAchieved, Number(goal.salesGoal))}
+            percentage={pct(realValue, Number(goal.salesGoal))}
             colorClass="bg-emerald-500"
             bgClass="bg-emerald-50 dark:bg-emerald-900/20"
             textClass="text-emerald-600 dark:text-emerald-400"
