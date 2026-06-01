@@ -3188,6 +3188,136 @@ export type WhatsappSetting = typeof whatsappSettings.$inferSelect;
 export type WhatsappTemplate = typeof whatsappTemplates.$inferSelect;
 export type InsertWhatsappTemplate = typeof whatsappTemplates.$inferInsert;
 
+// ─── WhatsApp Bots ────────────────────────────────────────────────────────────
+
+export const whatsappBots = pgTable("whatsapp_bots", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  triggerType: text("trigger_type", {
+    enum: ["keyword", "new_conversation"],
+  }).notNull(),
+  triggerKeyword: text("trigger_keyword"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const whatsappBotNodes = pgTable("whatsapp_bot_nodes", {
+  id: varchar("id").primaryKey(),
+  botId: varchar("bot_id")
+    .references(() => whatsappBots.id, { onDelete: "cascade" })
+    .notNull(),
+  type: text("type", {
+    enum: ["start", "send_message", "question", "condition", "action", "end"],
+  }).notNull(),
+  label: text("label").notNull(),
+  positionX: integer("position_x").notNull().default(0),
+  positionY: integer("position_y").notNull().default(0),
+  data: jsonb("data").notNull().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const whatsappBotEdges = pgTable("whatsapp_bot_edges", {
+  id: varchar("id").primaryKey(),
+  botId: varchar("bot_id")
+    .references(() => whatsappBots.id, { onDelete: "cascade" })
+    .notNull(),
+  sourceNodeId: varchar("source_node_id").notNull(),
+  targetNodeId: varchar("target_node_id").notNull(),
+  sourceHandle: text("source_handle"),
+  label: text("label"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const whatsappBotSessions = pgTable(
+  "whatsapp_bot_sessions",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    botId: varchar("bot_id")
+      .references(() => whatsappBots.id)
+      .notNull(),
+    phoneNumber: text("phone_number").notNull(),
+    currentNodeId: varchar("current_node_id").notNull(),
+    status: text("status", {
+      enum: ["active", "completed", "timed_out"],
+    })
+      .notNull()
+      .default("active"),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+  },
+  (t) => [
+    index("wa_bot_sessions_phone_status_idx").on(t.phoneNumber, t.status),
+  ],
+);
+
+// Node data type definitions
+export type SendMessageNodeData = {
+  messageType: "text" | "template";
+  text?: string;
+  templateId?: string;
+};
+
+export type QuestionNodeData = {
+  messageText: string;
+  waitForResponseSeconds?: number;
+};
+
+export type ConditionBranch = {
+  handle: string;
+  label: string;
+  keywords: string[];
+};
+
+export type ConditionNodeData = {
+  branches: ConditionBranch[];
+  defaultHandle: string;
+};
+
+export type ActionNodeData = {
+  actionType: "add_tag" | "assign_agent" | "end_conversation";
+  tagId?: string;
+  agentId?: string;
+};
+
+export type BotNodeData =
+  | SendMessageNodeData
+  | QuestionNodeData
+  | ConditionNodeData
+  | ActionNodeData
+  | Record<string, never>;
+
+export const insertWhatsappBotSchema = createInsertSchema(whatsappBots).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertWhatsappBotNodeSchema = createInsertSchema(
+  whatsappBotNodes,
+).omit({ createdAt: true, updatedAt: true });
+
+export const insertWhatsappBotEdgeSchema = createInsertSchema(
+  whatsappBotEdges,
+).omit({ createdAt: true });
+
+export type WhatsappBot = typeof whatsappBots.$inferSelect;
+export type InsertWhatsappBot = z.infer<typeof insertWhatsappBotSchema>;
+export type WhatsappBotNode = typeof whatsappBotNodes.$inferSelect;
+export type InsertWhatsappBotNode = z.infer<typeof insertWhatsappBotNodeSchema>;
+export type WhatsappBotEdge = typeof whatsappBotEdges.$inferSelect;
+export type InsertWhatsappBotEdge = z.infer<typeof insertWhatsappBotEdgeSchema>;
+export type WhatsappBotSession = typeof whatsappBotSessions.$inferSelect;
+
 // Tabela de boards (quadros) do kanban de tarefas
 export const taskBoards = pgTable("task_boards", {
   id: varchar("id")

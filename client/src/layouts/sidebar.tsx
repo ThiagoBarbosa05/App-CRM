@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import {
+  Bot,
   Calculator,
   CalendarDays,
   CheckSquare,
@@ -99,6 +100,7 @@ const whatsappGroup: NavGroup = {
   hideForRoles: ["vendedor"],
   children: [
     { href: "/whatsapp/campanhas", icon: Send, label: "Campanhas" },
+    { href: "/whatsapp/bots", icon: Bot, label: "Bots" },
     { href: "/whatsapp/templates", icon: FileText, label: "Templates" },
     { href: "/whatsapp/configuracoes", icon: Settings2, label: "Configurações" },
   ],

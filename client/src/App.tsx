@@ -38,6 +38,8 @@ const WhatsAppCreateCampaign = lazy(() => import("@/pages/whatsapp/create-campai
 const WhatsAppCampaignDetails = lazy(() => import("@/pages/whatsapp/campaign-details"));
 const WhatsAppTemplates = lazy(() => import("@/pages/whatsapp/templates"));
 const WhatsAppSettings = lazy(() => import("@/pages/whatsapp/settings"));
+const WhatsAppBotsList = lazy(() => import("@/pages/whatsapp/bots-list"));
+const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -133,6 +135,18 @@ function Router() {
         component={() => (
           <MainLayout>
             <WhatsAppSettings />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/whatsapp/bots/:id/editor"
+        component={() => <WhatsAppBotEditor />}
+      />
+      <Route
+        path="/whatsapp/bots"
+        component={() => (
+          <MainLayout>
+            <WhatsAppBotsList />
           </MainLayout>
         )}
       />

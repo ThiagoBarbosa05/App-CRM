@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
+import { handleIncomingMessage as runBotEngine } from "../services/whatsapp-bot-engine.service";
 
 const router = Router();
 
@@ -72,10 +73,14 @@ async function handleIncomingMessage(
     display_phone_number: string;
   },
 ) {
+  const text = message.text?.body ?? "";
   console.log(
-    `[WA Webhook] Mensagem recebida de ${message.from} (${metadata.display_phone_number}): ${message.text?.body ?? `[${message.type}]`}`,
+    `[WA Webhook] Mensagem recebida de ${message.from} (${metadata.display_phone_number}): ${text || `[${message.type}]`}`,
   );
-  // TODO: lógica de resposta automática, CRM actions, etc.
+
+  if (message.type === "text" && text) {
+    await runBotEngine(message.from, text);
+  }
 }
 
 export default router;
