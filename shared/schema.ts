@@ -2020,6 +2020,7 @@ export const messageAutomationSettings = pgTable(
     externalChannelId: varchar("external_channel_id"), // canal de comunicação
     externalFileId: varchar("external_file_id"), // arquivo de mídia (opcional)
     externalFileUrl: text("external_file_url"), // url do arquivo de mídia (opcional)
+    waTemplateId: varchar("wa_template_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -3121,6 +3122,41 @@ export const systemSettings = pgTable("system_settings", {
   description: text("description"),
 });
 
+// ─── WhatsApp Business API ────────────────────────────────────────────────────
+
+export const whatsappSettings = pgTable("whatsapp_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  description: text("description"),
+  isSensitive: boolean("is_sensitive").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const whatsappTemplates = pgTable("whatsapp_templates", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  languageCode: text("language_code").notNull().default("pt_BR"),
+  category: text("category"),
+  useCase: text("use_case", {
+    enum: ["birthday_today", "birthday_days_before", "post_call", "campaign", "custom"],
+  }).notNull(),
+  description: text("description"),
+  headerParams: jsonb("header_params"),
+  bodyParams: jsonb("body_params"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type WhatsappSetting = typeof whatsappSettings.$inferSelect;
+export type WhatsappTemplate = typeof whatsappTemplates.$inferSelect;
+export type InsertWhatsappTemplate = typeof whatsappTemplates.$inferInsert;
+
 // Tabela de boards (quadros) do kanban de tarefas
 export const taskBoards = pgTable("task_boards", {
   id: varchar("id")
@@ -3349,6 +3385,9 @@ export const campaigns = pgTable("campaigns", {
   umblerBotTriggerName: text("umbler_bot_trigger_name"),
   umblerMessageText: text("umbler_message_text"),
   umblerTriggerDecision: text("umbler_trigger_decision"),
+  waEnabled: boolean("wa_enabled").default(false).notNull(),
+  waTemplateId: varchar("wa_template_id").references(() => whatsappTemplates.id),
+  waTriggerDecision: text("wa_trigger_decision"),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -76,6 +76,7 @@ import {
 } from "./interaction-goals.routes";
 import { referralsRouter } from "./referrals.routes";
 import rfmRouter from "./rfm.routes";
+import whatsappRouter from "./whatsapp-settings.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -156,6 +157,7 @@ apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);
 apiRouter.use("/system-settings", systemSettingsRouter);
 apiRouter.use("/telephony-settings", telephonySettingsRouter);
+apiRouter.use("/whatsapp", whatsappRouter);
 apiRouter.use("/campaigns", campaignsRouter);
 apiRouter.use("/tasks", tasksRouter);
 apiRouter.use("/task-stages", taskStagesRouter);
