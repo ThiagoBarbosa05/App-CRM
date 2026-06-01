@@ -10,7 +10,7 @@ async function setCallWaStatus(
 ) {
   await db
     .update(calls)
-    .set({ umblerMessageStatus: status })
+    .set({ waMessageStatus: status })
     .where(eq(calls.id, callId));
 }
 

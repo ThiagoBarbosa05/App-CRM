@@ -13,6 +13,7 @@ import {
   deleteLocalTemplate,
   fetchMetaTemplates,
 } from "../services/whatsapp-templates.service";
+import { executeCampaign } from "../services/whatsapp-campaign.service";
 
 const router = Router();
 
@@ -129,6 +130,18 @@ router.delete("/templates/:id", async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao deletar template";
+    res.status(500).json({ message });
+  }
+});
+
+// ── Execução de campanha ──────────────────────────────────────────────────────
+
+router.post("/campaigns/:id/execute", async (req, res) => {
+  try {
+    const result = await executeCampaign(req.params.id);
+    res.json(result);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao executar campanha";
     res.status(500).json({ message });
   }
 });

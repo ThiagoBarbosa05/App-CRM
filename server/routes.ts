@@ -2684,9 +2684,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // app.get("/api/v2/cashback-settings", getCashbackSettingsController);
   // app.put("/api/v2/cashback-settings/:id", updateCashbackSettingsController);
 
-  // Rotas de sincronização Umbler → CRM
-  const umblerSyncRoutes = await import("./routes/umbler-sync.routes");
-  app.use("/api/umbler-sync", umblerSyncRoutes.default);
+  // [DEPRECADO] Rotas de sincronização Umbler → CRM — desabilitadas na migração para WA Cloud API
+  // const umblerSyncRoutes = await import("./routes/umbler-sync.routes");
+  // app.use("/api/umbler-sync", umblerSyncRoutes.default);
 
   // Middleware de tratamento de erros deve ser o último.
   app.use(errorHandler);

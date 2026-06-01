@@ -1,3 +1,4 @@
+// @deprecated — Migração para WhatsApp Cloud API (Etapa 6). Remover após estabilização.
 import { Router } from "express";
 import { umblerSyncService } from "../services/umbler-sync.service";
 import { runSyncWorker, runCleanupWorker } from "../jobs/umbler-sync.worker";

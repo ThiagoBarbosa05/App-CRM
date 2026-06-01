@@ -1,3 +1,4 @@
+// @deprecated — Migração para WhatsApp Cloud API (Etapa 6). Remover após estabilização.
 import { getContactByPhone } from "../integrations/umbler";
 import {
   umblerSyncRepository,

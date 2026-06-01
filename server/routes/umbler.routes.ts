@@ -1,3 +1,5 @@
+// @deprecated — Migração para WhatsApp Cloud API (Etapa 8).
+// Substituído por server/routes/whatsapp.routes.ts. Remover na Etapa 14.
 import { Router } from "express";
 
 import {

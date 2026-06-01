@@ -61,7 +61,7 @@ type Call = {
   clientPhone: string | null;
   toPhone: string | null;
   contactName: string | null;
-  umblerMessageStatus: "enviado" | "falhou" | null;
+  waMessageStatus: "enviado" | "falhou" | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
@@ -731,22 +731,22 @@ export function CallsHistory() {
                       Reclamação
                     </span>
                   )}
-                  {call.umblerMessageStatus === "enviado" && (
+                  {call.waMessageStatus === "enviado" && (
                     <span
-                      title="Mensagem Umbler enviada"
+                      title="Mensagem WhatsApp enviada"
                       className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
                     >
                       <MessageSquare className="size-3" />
-                      Umbler
+                      WhatsApp
                     </span>
                   )}
-                  {call.umblerMessageStatus === "falhou" && (
+                  {call.waMessageStatus === "falhou" && (
                     <span
-                      title="Falha ao enviar mensagem Umbler"
+                      title="Falha ao enviar mensagem WhatsApp"
                       className="hidden sm:flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
                     >
                       <MessageSquare className="size-3" />
-                      Umbler falhou
+                      WA falhou
                     </span>
                   )}
                   <span
@@ -927,18 +927,18 @@ export function CallsHistory() {
                       </p>
                     </div>
                   )}
-                  {selectedCall.umblerMessageStatus && (
+                  {selectedCall.waMessageStatus && (
                     <div>
-                      <p className="text-xs text-slate-400">Mensagem Umbler</p>
+                      <p className="text-xs text-slate-400">Mensagem WhatsApp</p>
                       <p
                         className={`font-medium flex items-center gap-1 ${
-                          selectedCall.umblerMessageStatus === "enviado"
+                          selectedCall.waMessageStatus === "enviado"
                             ? "text-green-600 dark:text-green-400"
                             : "text-orange-600 dark:text-orange-400"
                         }`}
                       >
                         <MessageSquare className="size-3.5 shrink-0" />
-                        {selectedCall.umblerMessageStatus === "enviado"
+                        {selectedCall.waMessageStatus === "enviado"
                           ? "Enviada com sucesso"
                           : "Falha ao enviar"}
                       </p>

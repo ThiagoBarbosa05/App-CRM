@@ -45,7 +45,8 @@ import elevenLabsRouter from "./elevenlabs.routes";
 import { authRouter } from "./auth.routes";
 import { filesRouter } from "./files.routes";
 import { acompanhamentoRouter } from "./acompanhamento.routes";
-import { umblerRouter } from "./umbler.routes";
+import { umblerRouter } from "./umbler.routes"; // @deprecated — Etapa 14: remover após migração WA completa
+import waRouter from "./whatsapp.routes";
 import { reportsRouter } from "./reports.routes";
 import { companyProductsRouter, productsRouter } from "./products.routes";
 import { productCategoriesRouter } from "./product-categories.routes";
@@ -110,7 +111,8 @@ apiRouter.use("/rfm", rfmRouter);
 apiRouter.use("/clients", clientsRouter);
 apiRouter.use("/files", filesRouter);
 apiRouter.use("/acompanhamento", acompanhamentoRouter);
-apiRouter.use("/", umblerRouter);
+apiRouter.use("/", umblerRouter); // @deprecated — manter até Etapa 14
+apiRouter.use("/whatsapp", waRouter);
 apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/products", productsRouter);
 apiRouter.use("/product-categories", productCategoriesRouter);

@@ -518,6 +518,37 @@ export const clientTagRelations = relations(clientTags, ({ one }) => ({
   }),
 }));
 
+// Tabela de tags internas do CRM associadas a clientes (substitui clientTags/externalTags do Umbler)
+export const contactTags = pgTable(
+  "contact_tags",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    clientId: varchar("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    tagId: varchar("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+);
+
+export const contactTagsRelations = relations(contactTags, ({ one }) => ({
+  client: one(clients, {
+    fields: [contactTags.clientId],
+    references: [clients.id],
+  }),
+  tag: one(tags, {
+    fields: [contactTags.tagId],
+    references: [tags.id],
+  }),
+}));
+
+export type ContactTag = typeof contactTags.$inferSelect;
+export type InsertContactTag = typeof contactTags.$inferInsert;
+
 // Tabela de snapshot de sincronização Umbler → CRM
 export const umblerContactSnapshot = pgTable(
   "umbler_contact_snapshot",
@@ -3445,7 +3476,7 @@ export const calls = pgTable("calls", {
   nextStep: text("next_step"),
   toPhone: text("to_phone"),
   contactName: text("contact_name"),
-  umblerMessageStatus: text("umbler_message_status", {
+  waMessageStatus: text("wa_message_status", {
     enum: ["enviado", "falhou"],
   }),
   startedAt: timestamp("started_at"),
