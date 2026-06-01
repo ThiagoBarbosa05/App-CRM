@@ -86,7 +86,7 @@ export async function uploadMedia(
 ): Promise<string> {
   const cfg = await getConfig();
   const formData = new FormData();
-  formData.append("file", new Blob([file], { type: contentType }), filename);
+  formData.append("file", new Blob([new Uint8Array(file)], { type: contentType }), filename);
   formData.append("messaging_product", "whatsapp");
   formData.append("type", contentType);
 
@@ -118,6 +118,20 @@ export async function sendMediaMessage(
       [mediaType]: { id: mediaId, ...(caption ? { caption } : {}) },
     }),
   });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+export async function getApprovedTemplates() {
+  const cfg = await getConfig();
+  const raw = await getWhatsappSettingsRaw();
+  const wabaId = raw["wa_waba_id"];
+  if (!wabaId) throw new Error("WhatsApp não configurado: wa_waba_id é obrigatório");
+
+  const response = await fetch(
+    `${cfg.baseUrl}/${wabaId}/message_templates?status=APPROVED&limit=100`,
+    { headers: authHeaders(cfg.accessToken) },
+  );
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }

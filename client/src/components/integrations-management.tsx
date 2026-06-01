@@ -7,8 +7,10 @@ import {
 } from "@/components/app-tabs";
 import BlingAccountsManagement from "@/components/bling-accounts-management";
 import { TelephonyAISettings } from "@/components/telephony-ai-settings";
+import { WhatsappSettingsManagement } from "@/components/whatsapp-settings-management";
 import { useQuery } from "@tanstack/react-query";
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
+import { useWhatsappStatus } from "@/hooks/use-whatsapp-settings";
 import { cn } from "@/lib/utils";
 
 interface TelephonyStatus {
@@ -74,9 +76,12 @@ export function IntegrationsManagement() {
     },
   });
 
+  const { data: waStatus } = useWhatsappStatus();
+
   const blingConnected = blingConnections.some((c) => c.status === "connected");
   const twilioActive = telephonyStatus?.twilio ?? false;
   const elevenLabsActive = telephonyStatus?.elevenlabs ?? false;
+  const waActive = (waStatus?.enabled && waStatus?.configured) ?? false;
 
   return (
     <div className="space-y-6">
@@ -130,6 +135,21 @@ export function IntegrationsManagement() {
             />
             <StatusDot active={elevenLabsActive} />
           </PillTabsTrigger>
+
+          <PillTabsTrigger
+            value="whatsapp"
+            color="green"
+            className="gap-2.5 px-4 py-2.5"
+            title="WhatsApp"
+          >
+            <LogoImage
+              src="/whatsapp-logo.svg"
+              alt="WhatsApp"
+              className="h-4 w-auto"
+              fallbackText="WhatsApp"
+            />
+            <StatusDot active={waActive} />
+          </PillTabsTrigger>
         </PillTabsList>
 
         <AppTabsContent value="bling" className="mt-0">
@@ -142,6 +162,10 @@ export function IntegrationsManagement() {
 
         <AppTabsContent value="elevenlabs" className="mt-0">
           <TelephonyAISettings activeTab="elevenlabs" />
+        </AppTabsContent>
+
+        <AppTabsContent value="whatsapp" className="mt-0">
+          <WhatsappSettingsManagement />
         </AppTabsContent>
       </AppTabs>
     </div>

@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, ShoppingCart, Loader2, Wine, MessageSquare } from "lucide-react";
+import { Settings, ShoppingCart, Loader2, Wine } from "lucide-react";
 import UsersManagement from "./users-management";
 import CategoriesManagement from "./categories-management";
 import MarkersManagement from "./markers-management";
@@ -15,7 +15,6 @@ import OriginsManagement from "./origins-management";
 import SectorsManagement from "./sectors-management";
 import LearningImagesManagement from "./learning-images-management";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { WhatsappSettingsManagement } from "./whatsapp-settings-management";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -355,7 +354,7 @@ export default function SettingsManagement() {
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="users">Usuários</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="markers">Marcadores</TabsTrigger>
@@ -364,7 +363,6 @@ export default function SettingsManagement() {
           <TabsTrigger value="learning-images">Imagens</TabsTrigger>
           <TabsTrigger value="purchase-status">Status Compra</TabsTrigger>
           <TabsTrigger value="wine-price-tiers">Faixas de Preço</TabsTrigger>
-          <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -397,10 +395,6 @@ export default function SettingsManagement() {
 
         <TabsContent value="wine-price-tiers">
           <WinePriceTierSettings />
-        </TabsContent>
-
-        <TabsContent value="whatsapp">
-          <WhatsappSettingsManagement />
         </TabsContent>
       </Tabs>
     </div>
