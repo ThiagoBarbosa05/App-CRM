@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
+import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -21,10 +22,6 @@ import Configurations from "@/pages/configurations";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
 import ProductProfilePage from "./pages/product-profile";
-import UmblerContactsPage from "./pages/umbler-contacts";
-import CreateCampaignPage from "./pages/create-campaign-improved";
-import CampaignsDashboardPage from "./pages/campaigns-dashboard";
-import CampaignDetailsPage from "./pages/campaign-details";
 import SellerDashboardPage from "./pages/seller-dashboard";
 import SellerPerformancePage from "./pages/seller-performance";
 import ClientProfilePage from "./pages/client-profile";
@@ -35,6 +32,13 @@ import TarefasPage from "./pages/tarefas";
 import RankingPage from "./pages/ranking";
 import TelemarketingPage from "./pages/telemarketing";
 import ReferralProgramPage from "./pages/referral-program";
+
+const WhatsAppCampaignsList = lazy(() => import("@/pages/whatsapp/campaigns-list"));
+const WhatsAppCreateCampaign = lazy(() => import("@/pages/whatsapp/create-campaign"));
+const WhatsAppCampaignDetails = lazy(() => import("@/pages/whatsapp/campaign-details"));
+const WhatsAppTemplates = lazy(() => import("@/pages/whatsapp/templates"));
+const WhatsAppSettings = lazy(() => import("@/pages/whatsapp/settings"));
+
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -51,6 +55,7 @@ function Router() {
   }
 
   return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-lg text-muted-foreground">Carregando...</div></div>}>
     <Switch>
       <Route path="/" component={Home} />
       <Route
@@ -85,35 +90,49 @@ function Router() {
           </MainLayout>
         )}
       />
+      {/* Legacy /umbler/* redirects to WhatsApp section */}
+      <Route path="/umbler/campaigns/create" component={() => <Redirect to="/whatsapp/campanhas/criar" />} />
+      <Route path="/umbler/campaigns/:id" component={() => <Redirect to="/whatsapp/campanhas" />} />
+      <Route path="/umbler/campaigns" component={() => <Redirect to="/whatsapp/campanhas" />} />
+      <Route path="/umbler/contacts" component={() => <Redirect to="/whatsapp/campanhas" />} />
+      {/* WhatsApp section */}
       <Route
-        path="/umbler/contacts"
+        path="/whatsapp/campanhas/criar"
         component={() => (
           <MainLayout>
-            <UmblerContactsPage />
+            <WhatsAppCreateCampaign />
           </MainLayout>
         )}
       />
       <Route
-        path="/umbler/campaigns/create"
+        path="/whatsapp/campanhas/:id"
         component={() => (
           <MainLayout>
-            <CreateCampaignPage />
+            <WhatsAppCampaignDetails />
           </MainLayout>
         )}
       />
       <Route
-        path="/umbler/campaigns/:id"
+        path="/whatsapp/campanhas"
         component={() => (
           <MainLayout>
-            <CampaignDetailsPage />
+            <WhatsAppCampaignsList />
           </MainLayout>
         )}
       />
       <Route
-        path="/umbler/campaigns"
+        path="/whatsapp/templates"
         component={() => (
           <MainLayout>
-            <CampaignsDashboardPage />
+            <WhatsAppTemplates />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/whatsapp/configuracoes"
+        component={() => (
+          <MainLayout>
+            <WhatsAppSettings />
           </MainLayout>
         )}
       />
@@ -258,6 +277,7 @@ function Router() {
       />
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
   );
 }
 

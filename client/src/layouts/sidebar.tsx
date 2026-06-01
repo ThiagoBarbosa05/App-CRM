@@ -1,6 +1,11 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -8,14 +13,19 @@ import {
   Calculator,
   CalendarDays,
   CheckSquare,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  FileText,
   Gift,
   GitBranch,
   LayoutDashboard,
   LogOut,
+  MessageCircle,
   PhoneCall,
+  Send,
   Settings,
+  Settings2,
   Share2,
   ShoppingBag,
   Sparkles,
@@ -25,6 +35,7 @@ import {
   Video,
   X,
 } from "lucide-react";
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
 interface AppSidebarProps {
@@ -41,12 +52,19 @@ type NavItem = {
   hideForRoles?: string[];
 };
 
+type NavGroup = {
+  label: string;
+  icon: React.ElementType;
+  basePath: string;
+  hideForRoles?: string[];
+  children: NavItem[];
+};
+
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/metas", icon: Target, label: "Metas" },
   { href: "/clientes", icon: Users, label: "Clientes" },
   { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
-  { href: "/umbler/contacts", icon: Users, label: "Umbler Contatos" },
   { href: "/products", icon: ShoppingBag, label: "Produtos" },
   { href: "/eventos", icon: CalendarDays, label: "Eventos" },
   { href: "/tarefas", icon: CheckSquare, label: "Tarefas" },
@@ -74,6 +92,18 @@ const navItems: NavItem[] = [
   },
 ];
 
+const whatsappGroup: NavGroup = {
+  label: "WhatsApp",
+  icon: MessageCircle,
+  basePath: "/whatsapp",
+  hideForRoles: ["vendedor"],
+  children: [
+    { href: "/whatsapp/campanhas", icon: Send, label: "Campanhas" },
+    { href: "/whatsapp/templates", icon: FileText, label: "Templates" },
+    { href: "/whatsapp/configuracoes", icon: Settings2, label: "Configurações" },
+  ],
+};
+
 export function AppSidebar({
   onCloseSidebar,
   collapsed,
@@ -81,6 +111,22 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const [whatsappOpen, setWhatsappOpen] = useState(() => {
+    try {
+      return localStorage.getItem("whatsapp-nav-open") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleWhatsapp = (val: boolean) => {
+    setWhatsappOpen(val);
+    try {
+      localStorage.setItem("whatsapp-nav-open", String(val));
+    } catch {
+      // ignore
+    }
+  };
 
   const closeMobileMenu = () => onCloseSidebar(false);
 
@@ -208,6 +254,87 @@ export function AppSidebar({
             </Link>
           );
         })}
+
+        {/* WhatsApp collapsible group */}
+        {!(
+          whatsappGroup.hideForRoles &&
+          user &&
+          whatsappGroup.hideForRoles.includes(user.role)
+        ) && (
+          collapsed ? (
+            <Link href={whatsappGroup.children[0].href}>
+              <button
+                onClick={closeMobileMenu}
+                title={whatsappGroup.label}
+                className={cn(
+                  "w-full flex items-center justify-center p-2.5 rounded-lg font-medium transition-all duration-200 group",
+                  location.startsWith(whatsappGroup.basePath)
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                <whatsappGroup.icon className="h-[18px] w-[18px] shrink-0 group-hover:scale-110 group-hover:text-primary transition-all duration-200" />
+              </button>
+            </Link>
+          ) : (
+            <Collapsible open={whatsappOpen} onOpenChange={toggleWhatsapp}>
+              <CollapsibleTrigger asChild>
+                <button
+                  className={cn(
+                    "w-full flex items-center text-left rounded-lg font-medium transition-all duration-200 group px-3 py-2.5",
+                    location.startsWith(whatsappGroup.basePath)
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                  )}
+                >
+                  <whatsappGroup.icon
+                    className={cn(
+                      "h-[18px] w-[18px] shrink-0 mr-3 transition-all duration-200",
+                      !location.startsWith(whatsappGroup.basePath) &&
+                        "group-hover:scale-110 group-hover:text-primary",
+                    )}
+                  />
+                  <span className="text-sm flex-1">{whatsappGroup.label}</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 shrink-0 transition-transform duration-200",
+                      whatsappOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-0.5 space-y-0.5">
+                {whatsappGroup.children.map((child) => {
+                  const isChildActive =
+                    location === child.href ||
+                    location.startsWith(`${child.href}/`);
+                  return (
+                    <Link key={child.href} href={child.href}>
+                      <button
+                        onClick={closeMobileMenu}
+                        className={cn(
+                          "w-full flex items-center text-left rounded-lg font-medium transition-all duration-200 group pl-9 pr-3 py-2",
+                          isChildActive
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                      >
+                        <child.icon
+                          className={cn(
+                            "h-4 w-4 shrink-0 mr-2.5 transition-all duration-200",
+                            !isChildActive &&
+                              "group-hover:scale-110 group-hover:text-primary",
+                          )}
+                        />
+                        <span className="text-sm">{child.label}</span>
+                      </button>
+                    </Link>
+                  );
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          )
+        )}
       </nav>
 
       {/* Footer */}
