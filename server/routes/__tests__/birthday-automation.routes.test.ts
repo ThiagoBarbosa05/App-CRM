@@ -9,7 +9,7 @@ const { sendBirthdayMessagesMock, sendBirthdayMessagesScheduledMock } = vi.hoist
   sendBirthdayMessagesScheduledMock: vi.fn(),
 }));
 
-vi.mock("../../jobs/send-birthday-mensage", () => ({
+vi.mock("../../jobs/send-birthday-message", () => ({
   sendBirthdayMessages: sendBirthdayMessagesMock,
   sendBirthdayMessagesScheduled: sendBirthdayMessagesScheduledMock,
 }));

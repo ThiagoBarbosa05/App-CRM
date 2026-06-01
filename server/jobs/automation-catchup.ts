@@ -4,7 +4,7 @@ import {
   shouldExecuteNow,
   wasExecutedToday,
 } from "./automation-execution-tracker";
-import { sendBirthdayMessagesForAutomation } from "./send-birthday-mensage";
+import { sendBirthdayMessagesForAutomation } from "./send-birthday-message";
 import { messageAutomationSettings } from "../../shared/schema";
 import { AutomationExecutionService } from "../services/automation-execution.service";
 

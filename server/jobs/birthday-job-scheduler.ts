@@ -2,7 +2,7 @@ import cron from "node-cron";
 import {
   sendBirthdayMessages,
   sendBirthdayMessagesForAutomation,
-} from "./send-birthday-mensage";
+} from "./send-birthday-message";
 import { getAllMessageAutomationSettings } from "../db/functions/get-message-automation-settings";
 import {
   recordExecution,

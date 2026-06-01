@@ -9,7 +9,7 @@ import {
 import { eq, and } from "drizzle-orm";
 import { getElevenLabsKey } from "../lib/twilio-config";
 import { requireAuth } from "../middleware/validation";
-import { sendPostCallMessage } from "../services/umbler-post-call.service";
+import { sendPostCallMessage } from "../services/whatsapp-post-call.service";
 import { onCallTerminal } from "../services/call-interaction.service";
 import { validateElevenLabsSignature } from "../middleware/elevenlabs-webhook";
 import { recordWebhookEvent } from "../lib/webhook-idempotency";
@@ -148,7 +148,7 @@ router.post("/decision", async (req: Request, res: Response) => {
         call.clientId ?? null,
         decision as "sim" | "nao" | "sem_resposta",
         call.id,
-      ).catch((err) => console.error("[UmblerPostCall] Erro:", err));
+      ).catch((err) => console.error("[WaPostCall] Erro:", err));
     }
 
     // CRM sync: decisão da IA dispara integração (especialmente para convertido)

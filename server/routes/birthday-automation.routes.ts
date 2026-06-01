@@ -3,7 +3,7 @@ import { Router } from "express";
 import {
   sendBirthdayMessages,
   sendBirthdayMessagesScheduled,
-} from "../jobs/send-birthday-mensage";
+} from "../jobs/send-birthday-message";
 
 export const birthdayAutomationRouter = Router();
 

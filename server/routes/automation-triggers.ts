@@ -8,7 +8,7 @@ import {
   getLastExecution,
   cleanOldExecutions,
 } from "../jobs/automation-execution-tracker";
-import { sendBirthdayMessagesForAutomation } from "../jobs/send-birthday-mensage";
+import { sendBirthdayMessagesForAutomation } from "../jobs/send-birthday-message";
 import { getAllMessageAutomationSettings } from "../db/functions/get-message-automation-settings";
 
 const router = Router();

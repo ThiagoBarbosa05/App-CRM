@@ -7,7 +7,7 @@
  * 3. Integração com cron job
  */
 
-import { sendBirthdayMessages, sendBirthdayMessagesScheduled, shouldRunAutomation } from './send-birthday-mensage';
+import { sendBirthdayMessages, sendBirthdayMessagesScheduled, shouldRunAutomation } from './send-birthday-message';
 
 /**
  * Exemplo de execução manual do job
