@@ -77,6 +77,7 @@ import {
 import { referralsRouter } from "./referrals.routes";
 import rfmRouter from "./rfm.routes";
 import whatsappRouter from "./whatsapp-settings.routes";
+import whatsappWebhookRouter from "./whatsapp-webhook.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -94,6 +95,8 @@ apiRouter.use("/bling-accounts", blingAccountsRouter);
 // Webhooks Twilio/ElevenLabs — chamados pelos serviços externos sem JWT
 // Os handlers protegidos nesses routers verificam req.user manualmente
 apiRouter.use("/twilio", twilioRouter);
+// Webhook WhatsApp Cloud API — verificação GET e notificações POST do Meta
+apiRouter.use("/whatsapp", whatsappWebhookRouter);
 apiRouter.use("/calls", callsRouter);
 apiRouter.use("/elevenlabs", elevenLabsRouter);
 
