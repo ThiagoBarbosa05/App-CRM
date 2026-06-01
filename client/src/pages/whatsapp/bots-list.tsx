@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Bot, Plus, Pencil, Trash2, Power, PowerOff } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -128,24 +129,26 @@ export default function WhatsAppBotsList() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/30">
-            <Bot className="h-5 w-5 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Bots</h1>
-            <p className="text-sm text-muted-foreground">
-              Gerencie os fluxos de conversa automatizados
-            </p>
-          </div>
-        </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Bot
-        </Button>
-      </div>
+    <div className="space-y-6 pb-10">
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={Bot}
+            color="text-green-600 dark:text-green-400"
+            bgColor="bg-green-50 dark:bg-green-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Bots</PageHeader.Title>
+            <PageHeader.Description>Gerencie os fluxos de conversa automatizados</PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        <PageHeader.Actions>
+          <Button onClick={() => setShowCreate(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Bot
+          </Button>
+        </PageHeader.Actions>
+      </PageHeader>
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">

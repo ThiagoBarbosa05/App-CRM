@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Loader2,
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -527,17 +528,23 @@ export default function WhatsAppCreateCampaign() {
   }, [createMutation, title, description, selectedTemplateId, selectedClientIds, toast, navigate]);
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={handleBack}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Nova Campanha</h1>
-          <p className="text-sm text-muted-foreground">Disparo via WhatsApp Business API</p>
-        </div>
-      </div>
+    <div className="space-y-8 pb-10">
+      <PageHeader>
+        <PageHeader.Info>
+          <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <PageHeader.Icon
+            icon={MessageCircle}
+            color="text-green-600 dark:text-green-400"
+            bgColor="bg-green-50 dark:bg-green-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Nova Campanha</PageHeader.Title>
+            <PageHeader.Description>Disparo via WhatsApp Business API</PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+      </PageHeader>
 
       {/* Steps */}
       <div className="flex justify-center">

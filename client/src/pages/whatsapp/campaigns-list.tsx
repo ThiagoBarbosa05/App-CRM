@@ -4,6 +4,7 @@ import { Plus, Send, Clock, CheckCircle, XCircle, AlertCircle, BarChart2, Messag
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
 import {
   Select,
   SelectContent,
@@ -77,23 +78,26 @@ export default function WhatsAppCampaignsList() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
-            <MessageCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Campanhas WhatsApp</h1>
-            <p className="text-sm text-muted-foreground">Gerencie seus disparos em massa</p>
-          </div>
-        </div>
-        <Button onClick={() => navigate("/whatsapp/campanhas/criar")} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nova Campanha
-        </Button>
-      </div>
+    <div className="space-y-6 pb-10">
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={MessageCircle}
+            color="text-green-600 dark:text-green-400"
+            bgColor="bg-green-50 dark:bg-green-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Campanhas WhatsApp</PageHeader.Title>
+            <PageHeader.Description>Gerencie seus disparos em massa</PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        <PageHeader.Actions>
+          <Button onClick={() => navigate("/whatsapp/campanhas/criar")} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nova Campanha
+          </Button>
+        </PageHeader.Actions>
+      </PageHeader>
 
       {/* Not configured alert */}
       {status && !status.configured && (

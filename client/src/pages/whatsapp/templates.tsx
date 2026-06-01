@@ -9,6 +9,7 @@ import {
   XCircle,
   Globe,
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -221,23 +222,26 @@ export default function WhatsAppTemplates() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
-            <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Templates</h1>
-            <p className="text-sm text-muted-foreground">Gerencie os templates de mensagem</p>
-          </div>
-        </div>
-        <Button onClick={() => setDialogOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Template
-        </Button>
-      </div>
+    <div className="space-y-6 pb-10">
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={FileText}
+            color="text-blue-600 dark:text-blue-400"
+            bgColor="bg-blue-50 dark:bg-blue-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Templates</PageHeader.Title>
+            <PageHeader.Description>Gerencie os templates de mensagem</PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        <PageHeader.Actions>
+          <Button onClick={() => setDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Template
+          </Button>
+        </PageHeader.Actions>
+      </PageHeader>
 
       <Tabs defaultValue="local">
         <TabsList>

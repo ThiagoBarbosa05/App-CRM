@@ -1,5 +1,6 @@
 import { useRoute, useLocation } from "wouter";
 import { ArrowLeft, Send, CheckCircle, XCircle, Clock, RotateCcw, MessageCircle, Users, AlertCircle } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,7 +53,7 @@ export default function WhatsAppCampaignDetails() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="h-24 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
         ))}
@@ -62,7 +63,7 @@ export default function WhatsAppCampaignDetails() {
 
   if (!campaign) {
     return (
-      <div className="p-6 flex flex-col items-center gap-4 py-20">
+      <div className="flex flex-col items-center gap-4 py-20">
         <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full">
           <MessageCircle className="h-8 w-8 text-slate-400" />
         </div>
@@ -82,34 +83,41 @@ export default function WhatsAppCampaignDetails() {
   const pendingMessages = campaign.messages?.filter((m) => m.status === "scheduled").length ?? 0;
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/whatsapp/campanhas")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-foreground">{campaign.title}</h1>
-          <p className="text-sm text-muted-foreground">
-            Iniciada em {formatDate(campaign.startDate)}
-          </p>
-        </div>
-        {pendingMessages > 0 && (
+    <div className="space-y-6 pb-10">
+      <PageHeader>
+        <PageHeader.Info>
           <Button
-            variant="outline"
-            className="gap-2"
-            disabled={executeMutation.isPending}
-            onClick={() => id && executeMutation.mutate(id)}
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/whatsapp/campanhas")}
+            className="shrink-0"
           >
-            <RotateCcw className={`h-4 w-4 ${executeMutation.isPending ? "animate-spin" : ""}`} />
-            Re-executar pendentes ({pendingMessages})
+            <ArrowLeft className="h-4 w-4" />
           </Button>
+          <PageHeader.Icon
+            icon={MessageCircle}
+            color="text-green-600 dark:text-green-400"
+            bgColor="bg-green-50 dark:bg-green-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>{campaign.title}</PageHeader.Title>
+            <PageHeader.Description>Iniciada em {formatDate(campaign.startDate)}</PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        {pendingMessages > 0 && (
+          <PageHeader.Actions>
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={executeMutation.isPending}
+              onClick={() => id && executeMutation.mutate(id)}
+            >
+              <RotateCcw className={`h-4 w-4 ${executeMutation.isPending ? "animate-spin" : ""}`} />
+              Re-executar pendentes ({pendingMessages})
+            </Button>
+          </PageHeader.Actions>
         )}
-      </div>
+      </PageHeader>
 
       {/* Stats cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

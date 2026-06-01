@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Settings2, CheckCircle, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,7 +98,7 @@ export default function WhatsAppSettings() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="space-y-4">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-32 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
         ))}
@@ -106,32 +107,35 @@ export default function WhatsAppSettings() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
-            <Settings2 className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Configurações WhatsApp</h1>
-            <p className="text-sm text-muted-foreground">Credenciais da WhatsApp Business API</p>
-          </div>
-        </div>
-        {status ? (
-          status.configured ? (
-            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-0 gap-1.5 px-3 py-1.5">
-              <CheckCircle className="h-3.5 w-3.5" />
-              {status.enabled ? "Conectado" : "Configurado (desabilitado)"}
-            </Badge>
-          ) : (
-            <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-0 gap-1.5 px-3 py-1.5">
-              <AlertCircle className="h-3.5 w-3.5" />
-              Não configurado
-            </Badge>
-          )
-        ) : null}
-      </div>
+    <div className="space-y-6 pb-10 max-w-2xl">
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={Settings2}
+            color="text-slate-600 dark:text-slate-400"
+            bgColor="bg-slate-100 dark:bg-slate-800"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Configurações WhatsApp</PageHeader.Title>
+            <PageHeader.Description>Credenciais da WhatsApp Business API</PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        {status && (
+          <PageHeader.Actions>
+            {status.configured ? (
+              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-0 gap-1.5 px-3 py-1.5">
+                <CheckCircle className="h-3.5 w-3.5" />
+                {status.enabled ? "Conectado" : "Configurado (desabilitado)"}
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-0 gap-1.5 px-3 py-1.5">
+                <AlertCircle className="h-3.5 w-3.5" />
+                Não configurado
+              </Badge>
+            )}
+          </PageHeader.Actions>
+        )}
+      </PageHeader>
 
       {/* Credentials card */}
       <Card>
