@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Filter, Sparkles, X, TrendingUp, CalendarDays } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
@@ -52,6 +53,22 @@ export default function ClientFilters({
   const [localFilters, setLocalFilters] =
     useState<ClientFilters>(currentFilters);
   const [isOpen, setIsOpen] = useState(false);
+  const [eventSearch, setEventSearch] = useState("");
+
+  const selectedEventIds = useMemo(() => {
+    if (!localFilters.eventId || localFilters.eventId === "all") return [];
+    return localFilters.eventId.split(",").filter(Boolean);
+  }, [localFilters.eventId]);
+
+  const toggleEventId = (id: string) => {
+    const next = selectedEventIds.includes(id)
+      ? selectedEventIds.filter((e) => e !== id)
+      : [...selectedEventIds, id];
+    setLocalFilters((prev) => ({
+      ...prev,
+      eventId: next.length > 0 ? next.join(",") : "all",
+    }));
+  };
 
   // Buscar usuários para o dropdown
   const { data: users = [] } = useQuery<
@@ -379,26 +396,52 @@ export default function ClientFilters({
             </div>
 
           <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-            <div className="flex items-center gap-1.5 mb-3">
-              <CalendarDays className="h-3.5 w-3.5 text-indigo-500" />
-              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Evento</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Evento</span>
+              </div>
+              {selectedEventIds.length > 0 && (
+                <span className="text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded-full font-medium">
+                  {selectedEventIds.length} selecionado{selectedEventIds.length > 1 ? "s" : ""}
+                </span>
+              )}
             </div>
-            <Select
-              value={localFilters.eventId}
-              onValueChange={(value) => handleFilterChange("eventId", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todos os eventos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os eventos</SelectItem>
-                {(events as any[]).map((event: any) => (
-                  <SelectItem key={event.id} value={event.id}>
-                    {event.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              placeholder="Buscar evento..."
+              value={eventSearch}
+              onChange={(e) => setEventSearch(e.target.value)}
+              className="h-7 text-xs mb-2"
+            />
+            <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+              {(events as any[])
+                .filter((ev: any) =>
+                  ev.name.toLowerCase().includes(eventSearch.toLowerCase()),
+                )
+                .map((event: any) => {
+                  const checked = selectedEventIds.includes(event.id);
+                  return (
+                    <label
+                      key={event.id}
+                      className="flex items-center gap-2 px-1.5 py-1 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggleEventId(event.id)}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span className="text-xs text-slate-700 dark:text-slate-300 truncate">
+                        {event.name}
+                      </span>
+                    </label>
+                  );
+                })}
+              {(events as any[]).filter((ev: any) =>
+                ev.name.toLowerCase().includes(eventSearch.toLowerCase()),
+              ).length === 0 && (
+                <p className="text-xs text-slate-400 text-center py-2">Nenhum evento encontrado</p>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-2 pt-2">

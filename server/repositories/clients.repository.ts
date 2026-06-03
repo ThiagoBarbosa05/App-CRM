@@ -167,13 +167,24 @@ export class ClientsRepository {
     }
 
     if (filters.eventId && filters.eventId !== "all") {
-      conditions.push(
-        sql`EXISTS (
-          SELECT 1 FROM ${eventParticipants}
-          WHERE ${eventParticipants.clientId} = ${clients.id}
-            AND ${eventParticipants.eventId} = ${filters.eventId}
-        )`,
-      );
+      const ids = filters.eventId.split(",").map((id) => id.trim()).filter(Boolean);
+      if (ids.length === 1) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${eventParticipants}
+            WHERE ${eventParticipants.clientId} = ${clients.id}
+              AND ${eventParticipants.eventId} = ${ids[0]}
+          )`,
+        );
+      } else if (ids.length > 1) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${eventParticipants}
+            WHERE ${eventParticipants.clientId} = ${clients.id}
+              AND ${eventParticipants.eventId} = ANY(ARRAY[${sql.join(ids.map((id) => sql`${id}`), sql`, `)}])
+          )`,
+        );
+      }
     }
 
     if (filters.isEventParticipant) {
