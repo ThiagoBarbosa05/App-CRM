@@ -413,6 +413,31 @@ export default function ClientFilters({
               onChange={(e) => setEventSearch(e.target.value)}
               className="h-7 text-xs mb-2"
             />
+            {(events as any[]).length > 0 && (
+              <label className="flex items-center gap-2 px-1.5 py-1 mb-1 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-100 dark:border-slate-700">
+                <Checkbox
+                  checked={
+                    (events as any[]).every((ev: any) =>
+                      selectedEventIds.includes(ev.id),
+                    )
+                  }
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setLocalFilters((prev) => ({
+                        ...prev,
+                        eventId: (events as any[]).map((ev: any) => ev.id).join(","),
+                      }));
+                    } else {
+                      setLocalFilters((prev) => ({ ...prev, eventId: "all" }));
+                    }
+                  }}
+                  className="h-3.5 w-3.5"
+                />
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  Selecionar todos
+                </span>
+              </label>
+            )}
             <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
               {(events as any[])
                 .filter((ev: any) =>
