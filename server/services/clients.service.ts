@@ -162,6 +162,9 @@ export class ClientsService {
     if (rawFilters.eventId && typeof rawFilters.eventId === "string" && rawFilters.eventId !== "all") {
       filters.eventId = rawFilters.eventId;
     }
+    if (rawFilters.isEventParticipant === "true" || rawFilters.isEventParticipant === true) {
+      filters.isEventParticipant = true;
+    }
 
     return filters;
   }

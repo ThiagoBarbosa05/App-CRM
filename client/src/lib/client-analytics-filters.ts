@@ -12,6 +12,7 @@ export interface ClientAnalyticsFilters {
   wineType?: string;
   rfmSegment?: string;
   eventId?: string;
+  isEventParticipant?: boolean;
 }
 
 interface ClientAnalyticsParamsOptions {
@@ -50,11 +51,11 @@ export function buildClientAnalyticsSearchParams(
   }
 
   for (const [key, value] of Object.entries(filters)) {
-    if (!value || value === "all") {
+    if (value === undefined || value === null || value === "" || value === "all" || value === false) {
       continue;
     }
 
-    params.set(key, value);
+    params.set(key, String(value));
   }
 
   if (

@@ -1369,21 +1369,24 @@ export default function EventsManagement() {
                           Confirmada + potencial
                         </p>
                       </div>
-                      <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+                      <button
+                        type="button"
+                        onClick={() => navigate("/clientes?isEventParticipant=true")}
+                        className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 text-left w-full hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-150 cursor-pointer group"
+                      >
                         <div className="flex items-center gap-2 mb-1">
-                          <UsersIcon className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                          <span className="text-xs font-medium text-slate-700 dark:text-slate-400">
+                          <UsersIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                          <span className="text-xs font-medium text-indigo-700 dark:text-indigo-400">
                             Participantes
                           </span>
                         </div>
-                        <p className="text-lg font-bold text-slate-800 dark:text-slate-200">
+                        <p className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
                           {totalPeople}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-500 mt-0.5">
-                          {activeEvents} evento{activeEvents !== 1 ? "s" : ""}{" "}
-                          ativo{activeEvents !== 1 ? "s" : ""}
+                        <p className="text-xs text-indigo-500 dark:text-indigo-500 mt-0.5 group-hover:underline">
+                          Ver clientes →
                         </p>
-                      </div>
+                      </button>
                     </div>
                   );
                 })()}

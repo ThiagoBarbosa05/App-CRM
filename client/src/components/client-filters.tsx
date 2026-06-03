@@ -42,6 +42,7 @@ export interface ClientFilters {
   wineType: string;
   rfmSegment: string;
   eventId: string;
+  isEventParticipant?: boolean;
 }
 
 export default function ClientFilters({

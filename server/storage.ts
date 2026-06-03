@@ -162,6 +162,7 @@ export interface ClientFilters {
   hasWineProfile?: boolean;
   rfmSegment?: string;
   eventId?: string;
+  isEventParticipant?: boolean;
 }
 
 export interface CompanyFilters {

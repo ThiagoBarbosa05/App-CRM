@@ -176,6 +176,15 @@ export class ClientsRepository {
       );
     }
 
+    if (filters.isEventParticipant) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${eventParticipants}
+          WHERE ${eventParticipants.clientId} = ${clients.id}
+        )`,
+      );
+    }
+
     return conditions;
   }
 

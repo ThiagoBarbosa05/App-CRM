@@ -117,6 +117,7 @@ export default function Clients() {
   const [clientFilters, setClientFilters] = useState<ClientFiltersType>(() => {
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get("eventId") || "all";
+    const isEventParticipant = params.get("isEventParticipant") === "true" || undefined;
     return {
       name: "",
       phone: "",
@@ -131,6 +132,7 @@ export default function Clients() {
       wineType: "all",
       rfmSegment: "all",
       eventId,
+      isEventParticipant,
     };
   });
 
