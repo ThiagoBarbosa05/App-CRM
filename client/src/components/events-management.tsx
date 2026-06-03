@@ -1657,7 +1657,7 @@ export default function EventsManagement() {
                           })()}
 
                         {/* ── RODAPÉ: thumbnails + ações ── */}
-                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex items-center justify-between gap-2">
+                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-2">
                           {/* Thumbnails */}
                           <div className="flex items-center gap-1.5">
                             {event.attachments &&
@@ -1694,7 +1694,7 @@ export default function EventsManagement() {
                           </div>
 
                           {/* Botões de ação */}
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <Button
                               variant="outline"
                               size="sm"
