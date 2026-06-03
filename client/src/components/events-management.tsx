@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
 
 const LP_BASE_URL = "https://eventos.grandcrub2b.com";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -170,6 +171,7 @@ export default function EventsManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const [activeView, setActiveView] = useState<"eventos" | "analises">(
     "eventos",
@@ -1701,6 +1703,15 @@ export default function EventsManagement() {
                             >
                               <UserCheckIcon className="h-3.5 w-3.5" />
                               Participantes
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/clientes?eventId=${event.id}`)}
+                              className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 dark:border-indigo-800/60 dark:hover:bg-indigo-900/20 gap-1.5 h-8 text-xs rounded-lg"
+                            >
+                              <UsersIcon className="h-3.5 w-3.5" />
+                              Ver clientes
                             </Button>
                             <Button
                               variant="ghost"

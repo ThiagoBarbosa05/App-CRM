@@ -114,19 +114,24 @@ export default function Clients() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedClients, setSelectedClients] = useState<Client[]>([]); // Tipagem melhorada
-  const [clientFilters, setClientFilters] = useState<ClientFiltersType>({
-    name: "",
-    phone: "",
-    cpf: "",
-    responsavelId: "all",
-    categoria: "",
-    origem: "",
-    markers: "",
-    purchaseStatus: "all",
-    wineGrape: "",
-    wineRegion: "",
-    wineType: "all",
-    rfmSegment: "all",
+  const [clientFilters, setClientFilters] = useState<ClientFiltersType>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get("eventId") || "all";
+    return {
+      name: "",
+      phone: "",
+      cpf: "",
+      responsavelId: "all",
+      categoria: "",
+      origem: "",
+      markers: "",
+      purchaseStatus: "all",
+      wineGrape: "",
+      wineRegion: "",
+      wineType: "all",
+      rfmSegment: "all",
+      eventId,
+    };
   });
 
   const { data: systemSettings } = useQuery<Record<string, string>>({

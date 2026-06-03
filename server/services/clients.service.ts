@@ -159,6 +159,9 @@ export class ClientsService {
     if (rawFilters.rfmSegment && typeof rawFilters.rfmSegment === "string" && rawFilters.rfmSegment !== "all") {
       filters.rfmSegment = rawFilters.rfmSegment;
     }
+    if (rawFilters.eventId && typeof rawFilters.eventId === "string" && rawFilters.eventId !== "all") {
+      filters.eventId = rawFilters.eventId;
+    }
 
     return filters;
   }
@@ -952,6 +955,7 @@ export class ClientsService {
       wineType: req.query.wineType,
       hasWineProfile: req.query.hasWineProfile === "true" ? true : undefined,
       rfmSegment: req.query.rfmSegment as string | undefined,
+      eventId: req.query.eventId as string | undefined,
     });
 
     return {

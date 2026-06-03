@@ -161,6 +161,7 @@ export interface ClientFilters {
   wineType?: string;
   hasWineProfile?: boolean;
   rfmSegment?: string;
+  eventId?: string;
 }
 
 export interface CompanyFilters {

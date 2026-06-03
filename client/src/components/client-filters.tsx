@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Filter, Sparkles, X, TrendingUp } from "lucide-react";
+import { Filter, Sparkles, X, TrendingUp, CalendarDays } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
@@ -41,6 +41,7 @@ export interface ClientFilters {
   wineRegion: string;
   wineType: string;
   rfmSegment: string;
+  eventId: string;
 }
 
 export default function ClientFilters({
@@ -73,6 +74,11 @@ export default function ClientFilters({
     queryKey: ["/api/tags/markers"],
   });
 
+  // Buscar eventos para o dropdown
+  const { data: events = [] } = useQuery<{ id: string; name: string; eventDate: string }[]>({
+    queryKey: ["/api/events"],
+  });
+
   const handleFilterChange = (key: keyof ClientFilters, value: string) => {
     setLocalFilters((prev) => ({ ...prev, [key]: value }));
   };
@@ -96,6 +102,7 @@ export default function ClientFilters({
       wineRegion: "",
       wineType: "all",
       rfmSegment: "all",
+      eventId: "all",
     };
     setLocalFilters(emptyFilters);
     onFiltersChange(emptyFilters);
@@ -369,6 +376,29 @@ export default function ClientFilters({
                 </div>
               </div>
             </div>
+
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-1.5 mb-3">
+              <CalendarDays className="h-3.5 w-3.5 text-indigo-500" />
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Evento</span>
+            </div>
+            <Select
+              value={localFilters.eventId}
+              onValueChange={(value) => handleFilterChange("eventId", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os eventos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os eventos</SelectItem>
+                {(events as any[]).map((event: any) => (
+                  <SelectItem key={event.id} value={event.id}>
+                    {event.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="flex gap-2 pt-2">
             <Button onClick={applyFilters} className="flex-1">

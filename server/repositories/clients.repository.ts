@@ -18,6 +18,7 @@ import {
   calls,
   callNotifications,
   blingOrders,
+  eventParticipants,
 } from "@shared/schema";
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -163,6 +164,16 @@ export class ClientsRepository {
 
     if (filters.hasWineProfile) {
       conditions.push(sql`${clients.wineProfile} IS NOT NULL`);
+    }
+
+    if (filters.eventId && filters.eventId !== "all") {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${eventParticipants}
+          WHERE ${eventParticipants.clientId} = ${clients.id}
+            AND ${eventParticipants.eventId} = ${filters.eventId}
+        )`,
+      );
     }
 
     return conditions;

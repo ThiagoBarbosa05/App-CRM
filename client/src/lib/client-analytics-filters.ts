@@ -11,6 +11,7 @@ export interface ClientAnalyticsFilters {
   wineRegion?: string;
   wineType?: string;
   rfmSegment?: string;
+  eventId?: string;
 }
 
 interface ClientAnalyticsParamsOptions {
