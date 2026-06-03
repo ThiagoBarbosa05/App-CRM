@@ -1,4 +1,4 @@
-import { Search, Briefcase, Download, Users } from "lucide-react";
+import { Search, Briefcase, Download, Users, Merge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +18,7 @@ interface ClientsActionsProps {
   selectedCount: number;
   onClearSelection: () => void;
   onBulkDealClick: () => void;
+  onMergeClick: () => void;
   onExportClick: () => void;
   isExporting: boolean;
   isAdmin?: boolean;
@@ -32,6 +33,7 @@ export function ClientsActions({
   selectedCount,
   onClearSelection,
   onBulkDealClick,
+  onMergeClick,
   onExportClick,
   isExporting,
   isAdmin,
@@ -114,6 +116,19 @@ export function ClientsActions({
               <Briefcase className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Criar Negócios em Lote ({selectedCount})</span>
               <span className="sm:hidden">Lote ({selectedCount})</span>
+            </Button>
+          )}
+
+          {selectedCount >= 2 && (
+            <Button
+              variant="outline"
+              onClick={onMergeClick}
+              size="sm"
+              className="bg-violet-600 hover:bg-violet-700 dark:bg-violet-700 dark:hover:bg-violet-800 text-white border-violet-600 dark:border-violet-700 rounded-xl"
+            >
+              <Merge className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Fundir Cadastros ({selectedCount})</span>
+              <span className="sm:hidden">Fundir ({selectedCount})</span>
             </Button>
           )}
 

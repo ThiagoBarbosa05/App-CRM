@@ -7,6 +7,7 @@ import ClientFilters, {
 import ClientImportModal from "@/components/client-import-modal";
 import ClientExportModal from "@/components/client-export-modal";
 import BulkDealCreationModalForClients from "@/components/bulk-deal-creation-modal-for-clients";
+import { MergeClientsModal } from "@/components/clients/merge-clients-modal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -109,6 +110,7 @@ export default function Clients() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isBulkDealModalOpen, setIsBulkDealModalOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedClients, setSelectedClients] = useState<Client[]>([]); // Tipagem melhorada
@@ -502,6 +504,7 @@ export default function Clients() {
         selectedCount={selectedClients.length}
         onClearSelection={clearSelection}
         onBulkDealClick={() => setIsBulkDealModalOpen(true)}
+        onMergeClick={() => setIsMergeModalOpen(true)}
         onExportClick={() => setIsExportModalOpen(true)}
         isExporting={
           isExportModalOpen &&
@@ -858,6 +861,15 @@ export default function Clients() {
         onOpenChange={setIsBulkDealModalOpen}
         clients={selectedClients}
       />
+
+      {isMergeModalOpen && selectedClients.length >= 2 && (
+        <MergeClientsModal
+          open={isMergeModalOpen}
+          onOpenChange={setIsMergeModalOpen}
+          clients={selectedClients}
+          onSuccess={clearSelection}
+        />
+      )}
     </div>
   );
 }
