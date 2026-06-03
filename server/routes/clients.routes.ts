@@ -21,6 +21,8 @@ import { postReferralController } from "../controllers/referrals/post-referral.c
 import { getReferrerController } from "../controllers/referrals/get-referrer.controller";
 import { deliverBenefitController } from "../controllers/referrals/deliver-benefit.controller";
 import multer from "multer";
+import { syncClientToBling } from "../services/bling-clients-export.service";
+import { requireAuth } from "../middleware/validation";
 
 /**
  * Router específico para endpoints relacionados a clientes
@@ -235,6 +237,21 @@ clientsRouter.delete("/:id", deleteClientController);
  *   - Operação irreversível
  */
 clientsRouter.delete("/", deleteClientsBulkController);
+
+/**
+ * @route POST /api/clients/:id/sync-bling
+ * @description Sincroniza manualmente um cliente do CRM com o Bling
+ */
+clientsRouter.post("/:id/sync-bling", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await syncClientToBling(id);
+    return res.json({ ok: true, message: "Cliente sincronizado com o Bling com sucesso." });
+  } catch (err) {
+    console.error("[sync-bling]", err);
+    return res.status(500).json({ message: "Erro ao sincronizar com o Bling." });
+  }
+});
 
 // TODO: Migrar outras rotas de clientes para este arquivo:
 // - ✅ GET /clients/by-phone/:phone (MIGRADO)

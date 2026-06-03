@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import {
   AppTabs,
   UnderlineTabsList,
@@ -24,6 +26,8 @@ import {
   GitBranch,
   ShoppingBag,
   Users,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -50,6 +54,17 @@ export default function ClientProfilePage() {
     return currentTab || "compras";
   });
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const { toast } = useToast();
+
+  const syncBlingMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/clients/${id}/sync-bling`),
+    onSuccess: () => {
+      toast({ title: "Sincronizado com sucesso", description: "Cliente enviado para o Bling." });
+    },
+    onError: () => {
+      toast({ title: "Erro ao sincronizar", description: "Verifique a conexão com o Bling.", variant: "destructive" });
+    },
+  });
 
   useEffect(() => {
     const nextTab =
@@ -223,6 +238,20 @@ export default function ClientProfilePage() {
               </a>
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncBlingMutation.mutate()}
+            disabled={syncBlingMutation.isPending}
+            className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-900/20 font-medium w-full sm:w-auto"
+          >
+            {syncBlingMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Sincronizar Bling
+          </Button>
           <Button
             size="sm"
             onClick={() => setEditModalOpen(true)}
