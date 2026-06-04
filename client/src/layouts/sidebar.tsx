@@ -97,12 +97,12 @@ const whatsappGroup: NavGroup = {
   label: "WhatsApp",
   icon: MessageCircle,
   basePath: "/whatsapp",
-  hideForRoles: ["vendedor"],
   children: [
-    { href: "/whatsapp/campanhas", icon: Send, label: "Campanhas" },
-    { href: "/whatsapp/bots", icon: Bot, label: "Bots" },
-    { href: "/whatsapp/templates", icon: FileText, label: "Templates" },
-    { href: "/whatsapp/configuracoes", icon: Settings2, label: "Configurações" },
+    { href: "/whatsapp/conversas", icon: MessageCircle, label: "Conversas" },
+    { href: "/whatsapp/campanhas", icon: Send, label: "Campanhas", hideForRoles: ["vendedor"] },
+    { href: "/whatsapp/bots", icon: Bot, label: "Bots", hideForRoles: ["vendedor"] },
+    { href: "/whatsapp/templates", icon: FileText, label: "Templates", hideForRoles: ["vendedor"] },
+    { href: "/whatsapp/configuracoes", icon: Settings2, label: "Configurações", hideForRoles: ["vendedor"] },
   ],
 };
 
@@ -307,6 +307,7 @@ export function AppSidebar({
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-0.5 space-y-0.5">
                 {whatsappGroup.children.map((child) => {
+                  if (child.hideForRoles && user && child.hideForRoles.includes(user.role)) return null;
                   const isChildActive =
                     location === child.href ||
                     location.startsWith(`${child.href}/`);

@@ -33,7 +33,12 @@ function authHeaders(accessToken: string) {
 }
 
 function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, "");
+  const digits = phone.replace(/\D/g, "");
+  // Números brasileiros sem DDI: 10 dígitos (fixo) ou 11 dígitos (celular)
+  if (digits.length === 10 || digits.length === 11) {
+    return `55${digits}`;
+  }
+  return digits;
 }
 
 export async function sendTextMessage(to: string, text: string) {

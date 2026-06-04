@@ -3727,4 +3727,21 @@ export type InsertCallNotification = z.infer<
   typeof insertCallNotificationSchema
 >;
 export type CampaignClient = typeof campaignClients.$inferSelect;
+
+// Histórico de mensagens WhatsApp (Cloud API)
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").references(() => clients.id),
+  phone: text("phone").notNull(),
+  direction: text("direction", { enum: ["inbound", "outbound"] }).notNull(),
+  type: text("type").notNull().default("text"),
+  content: text("content"),
+  waMessageId: text("wa_message_id"),
+  status: text("status", { enum: ["sent", "delivered", "read", "failed"] }),
+  sentByUserId: varchar("sent_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
 export type InsertCampaignClient = z.infer<typeof insertCampaignClientSchema>;

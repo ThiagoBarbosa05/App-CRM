@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { handleIncomingMessage as runBotEngine } from "../services/whatsapp-bot-engine.service";
+import { saveInboundMessage } from "../services/whatsapp-conversations.service";
 
 const router = Router();
 
@@ -77,6 +78,13 @@ async function handleIncomingMessage(
   console.log(
     `[WA Webhook] Mensagem recebida de ${message.from} (${metadata.display_phone_number}): ${text || `[${message.type}]`}`,
   );
+
+  await saveInboundMessage({
+    phone: message.from,
+    content: text || null,
+    type: message.type,
+    waMessageId: message.id,
+  }).catch((err) => console.error("[WA Webhook] Erro ao salvar mensagem:", err));
 
   if (message.type === "text" && text) {
     await runBotEngine(message.from, text);
