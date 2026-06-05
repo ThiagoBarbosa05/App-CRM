@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BlingStatusBanner } from "@/components/bling-status-banner";
+import { WhatsAppFloatingButton } from "@/components/whatsapp-floating-button";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -82,6 +83,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </AnimatePresence>
         </main>
       </div>
+
+      <WhatsAppFloatingButton />
     </div>
   );
 }
