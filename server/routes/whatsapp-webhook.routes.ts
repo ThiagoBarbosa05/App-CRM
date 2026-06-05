@@ -62,19 +62,29 @@ async function handleMessageStatus(status: {
   // TODO: atualizar waMessageStatus na tabela calls onde waMessageId = status.id
 }
 
+type IncomingMessage = {
+  from: string;
+  type: string;
+  id: string;
+  timestamp?: string;
+  text?: { body: string };
+  image?: { id: string; mime_type: string; sha256?: string; caption?: string };
+  audio?: { id: string; mime_type: string };
+  video?: { id: string; mime_type: string; sha256?: string; caption?: string };
+  document?: { id: string; mime_type: string; filename?: string; caption?: string };
+  sticker?: { id: string; mime_type: string };
+};
+
 async function handleIncomingMessage(
-  message: {
-    from: string;
-    type: string;
-    text?: { body: string };
-    id: string;
-  },
+  message: IncomingMessage,
   metadata: {
     phone_number_id: string;
     display_phone_number: string;
   },
 ) {
   const text = message.text?.body ?? "";
+  const mediaObj = message.image ?? message.audio ?? message.video ?? message.document ?? message.sticker;
+
   console.log(
     `[WA Webhook] Mensagem recebida de ${message.from} (${metadata.display_phone_number}): ${text || `[${message.type}]`}`,
   );
@@ -84,6 +94,11 @@ async function handleIncomingMessage(
     content: text || null,
     type: message.type,
     waMessageId: message.id,
+    timestamp: message.timestamp,
+    mediaId: mediaObj?.id,
+    mimeType: mediaObj?.mime_type,
+    caption: (message.image?.caption ?? message.video?.caption ?? message.document?.caption) || undefined,
+    mediaFilename: message.document?.filename,
   }).catch((err) => console.error("[WA Webhook] Erro ao salvar mensagem:", err));
 
   if (message.type === "text" && text) {

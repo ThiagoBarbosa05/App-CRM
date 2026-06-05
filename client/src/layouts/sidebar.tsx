@@ -1,32 +1,22 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import {
-  Bot,
   Calculator,
   CalendarDays,
   CheckSquare,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  FileText,
   Gift,
   GitBranch,
   LayoutDashboard,
   LogOut,
   MessageCircle,
   PhoneCall,
-  Send,
   Settings,
-  Settings2,
   Share2,
   ShoppingBag,
   Sparkles,
@@ -36,7 +26,6 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
 interface AppSidebarProps {
@@ -51,15 +40,9 @@ type NavItem = {
   label: string;
   roles?: string[];
   hideForRoles?: string[];
+  activeBasePath?: string;
 };
 
-type NavGroup = {
-  label: string;
-  icon: React.ElementType;
-  basePath: string;
-  hideForRoles?: string[];
-  children: NavItem[];
-};
 
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -86,6 +69,12 @@ const navItems: NavItem[] = [
   { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
   {
+    href: "/whatsapp/conversas",
+    icon: MessageCircle,
+    label: "WhatsApp",
+    activeBasePath: "/whatsapp",
+  },
+  {
     href: "/configuracoes",
     icon: Settings,
     label: "Configurações",
@@ -93,18 +82,6 @@ const navItems: NavItem[] = [
   },
 ];
 
-const whatsappGroup: NavGroup = {
-  label: "WhatsApp",
-  icon: MessageCircle,
-  basePath: "/whatsapp",
-  children: [
-    { href: "/whatsapp/conversas", icon: MessageCircle, label: "Conversas" },
-    { href: "/whatsapp/campanhas", icon: Send, label: "Campanhas", hideForRoles: ["vendedor"] },
-    { href: "/whatsapp/bots", icon: Bot, label: "Bots", hideForRoles: ["vendedor"] },
-    { href: "/whatsapp/templates", icon: FileText, label: "Templates", hideForRoles: ["vendedor"] },
-    { href: "/whatsapp/configuracoes", icon: Settings2, label: "Configurações", hideForRoles: ["vendedor"] },
-  ],
-};
 
 export function AppSidebar({
   onCloseSidebar,
@@ -113,22 +90,6 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
-  const [whatsappOpen, setWhatsappOpen] = useState(() => {
-    try {
-      return localStorage.getItem("whatsapp-nav-open") === "true";
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleWhatsapp = (val: boolean) => {
-    setWhatsappOpen(val);
-    try {
-      localStorage.setItem("whatsapp-nav-open", String(val));
-    } catch {
-      // ignore
-    }
-  };
 
   const closeMobileMenu = () => onCloseSidebar(false);
 
@@ -228,7 +189,8 @@ export function AppSidebar({
             return null;
 
           const isActive =
-            location === item.href || location.startsWith(`${item.href}/`);
+            location === item.href ||
+            location.startsWith(item.activeBasePath ? item.activeBasePath : `${item.href}/`);
 
           return (
             <Link key={item.href} href={item.href}>
@@ -257,87 +219,7 @@ export function AppSidebar({
           );
         })}
 
-        {/* WhatsApp collapsible group */}
-        {!(
-          whatsappGroup.hideForRoles &&
-          user &&
-          whatsappGroup.hideForRoles.includes(user.role)
-        ) && (
-          collapsed ? (
-            <Link href={whatsappGroup.children[0].href}>
-              <button
-                onClick={closeMobileMenu}
-                title={whatsappGroup.label}
-                className={cn(
-                  "w-full flex items-center justify-center p-2.5 rounded-lg font-medium transition-all duration-200 group",
-                  location.startsWith(whatsappGroup.basePath)
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                <whatsappGroup.icon className="h-[18px] w-[18px] shrink-0 group-hover:scale-110 group-hover:text-primary transition-all duration-200" />
-              </button>
-            </Link>
-          ) : (
-            <Collapsible open={whatsappOpen} onOpenChange={toggleWhatsapp}>
-              <CollapsibleTrigger asChild>
-                <button
-                  className={cn(
-                    "w-full flex items-center text-left rounded-lg font-medium transition-all duration-200 group px-3 py-2.5",
-                    location.startsWith(whatsappGroup.basePath)
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                  )}
-                >
-                  <whatsappGroup.icon
-                    className={cn(
-                      "h-[18px] w-[18px] shrink-0 mr-3 transition-all duration-200",
-                      !location.startsWith(whatsappGroup.basePath) &&
-                        "group-hover:scale-110 group-hover:text-primary",
-                    )}
-                  />
-                  <span className="text-sm flex-1">{whatsappGroup.label}</span>
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 shrink-0 transition-transform duration-200",
-                      whatsappOpen && "rotate-180",
-                    )}
-                  />
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-0.5 space-y-0.5">
-                {whatsappGroup.children.map((child) => {
-                  if (child.hideForRoles && user && child.hideForRoles.includes(user.role)) return null;
-                  const isChildActive =
-                    location === child.href ||
-                    location.startsWith(`${child.href}/`);
-                  return (
-                    <Link key={child.href} href={child.href}>
-                      <button
-                        onClick={closeMobileMenu}
-                        className={cn(
-                          "w-full flex items-center text-left rounded-lg font-medium transition-all duration-200 group pl-9 pr-3 py-2",
-                          isChildActive
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                        )}
-                      >
-                        <child.icon
-                          className={cn(
-                            "h-4 w-4 shrink-0 mr-2.5 transition-all duration-200",
-                            !isChildActive &&
-                              "group-hover:scale-110 group-hover:text-primary",
-                          )}
-                        />
-                        <span className="text-sm">{child.label}</span>
-                      </button>
-                    </Link>
-                  );
-                })}
-              </CollapsibleContent>
-            </Collapsible>
-          )
-        )}
+
       </nav>
 
       {/* Footer */}

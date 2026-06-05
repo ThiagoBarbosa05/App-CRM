@@ -528,6 +528,7 @@ export default function WhatsAppCreateCampaign() {
   }, [createMutation, title, description, selectedTemplateId, selectedClientIds, toast, navigate]);
 
   return (
+    <div className="overflow-y-auto h-full p-5 lg:p-6">
     <div className="space-y-8 pb-10">
       <PageHeader>
         <PageHeader.Info>
@@ -613,6 +614,7 @@ export default function WhatsAppCreateCampaign() {
           </Button>
         )}
       </div>
+    </div>
     </div>
   );
 }

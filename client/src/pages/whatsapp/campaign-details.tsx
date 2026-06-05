@@ -83,6 +83,7 @@ export default function WhatsAppCampaignDetails() {
   const pendingMessages = campaign.messages?.filter((m) => m.status === "scheduled").length ?? 0;
 
   return (
+    <div className="overflow-y-auto h-full p-5 lg:p-6">
     <div className="space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
@@ -236,6 +237,7 @@ export default function WhatsAppCampaignDetails() {
           </Table>
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 }

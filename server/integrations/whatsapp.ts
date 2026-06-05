@@ -127,6 +127,35 @@ export async function sendMediaMessage(
   return response.json();
 }
 
+export async function fetchMediaStream(mediaId: string): Promise<{ stream: ReadableStream; contentType: string; contentLength?: string }> {
+  const cfg = await getConfig();
+
+  // Step 1: resolve the temporary download URL
+  // phone_number_id is required by Meta API for media retrieval
+  const metaRes = await fetch(`${cfg.baseUrl}/${mediaId}?phone_number_id=${cfg.phoneNumberId}`, {
+    headers: { Authorization: `Bearer ${cfg.accessToken}` },
+  });
+  if (!metaRes.ok) {
+    const errBody = await metaRes.text().catch(() => "(sem body)");
+    throw new Error(`Meta API erro ao buscar mídia ${mediaId}: ${metaRes.status} — ${errBody}`);
+  }
+  const meta = await metaRes.json() as { url: string; mime_type: string; file_size?: number };
+
+  // Step 2: download the actual file
+  const fileRes = await fetch(meta.url, {
+    headers: { Authorization: `Bearer ${cfg.accessToken}` },
+  });
+  if (!fileRes.ok || !fileRes.body) {
+    throw new Error(`Erro ao baixar mídia ${mediaId}: ${fileRes.status}`);
+  }
+
+  return {
+    stream: fileRes.body,
+    contentType: meta.mime_type,
+    contentLength: meta.file_size != null ? String(meta.file_size) : fileRes.headers.get("content-length") ?? undefined,
+  };
+}
+
 export async function getApprovedTemplates() {
   const cfg = await getConfig();
   const raw = await getWhatsappSettingsRaw();

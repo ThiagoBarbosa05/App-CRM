@@ -33,6 +33,7 @@ import RankingPage from "./pages/ranking";
 import TelemarketingPage from "./pages/telemarketing";
 import ReferralProgramPage from "./pages/referral-program";
 
+const WhatsAppHub = lazy(() => import("@/pages/whatsapp/whatsapp-hub"));
 const WhatsAppCampaignsList = lazy(() => import("@/pages/whatsapp/campaigns-list"));
 const WhatsAppCreateCampaign = lazy(() => import("@/pages/whatsapp/create-campaign"));
 const WhatsAppCampaignDetails = lazy(() => import("@/pages/whatsapp/campaign-details"));
@@ -102,41 +103,41 @@ function Router() {
       <Route
         path="/whatsapp/campanhas/criar"
         component={() => (
-          <MainLayout>
+          <WhatsAppHub>
             <WhatsAppCreateCampaign />
-          </MainLayout>
+          </WhatsAppHub>
         )}
       />
       <Route
         path="/whatsapp/campanhas/:id"
         component={() => (
-          <MainLayout>
+          <WhatsAppHub>
             <WhatsAppCampaignDetails />
-          </MainLayout>
+          </WhatsAppHub>
         )}
       />
       <Route
         path="/whatsapp/campanhas"
         component={() => (
-          <MainLayout>
+          <WhatsAppHub>
             <WhatsAppCampaignsList />
-          </MainLayout>
+          </WhatsAppHub>
         )}
       />
       <Route
         path="/whatsapp/templates"
         component={() => (
-          <MainLayout>
+          <WhatsAppHub>
             <WhatsAppTemplates />
-          </MainLayout>
+          </WhatsAppHub>
         )}
       />
       <Route
         path="/whatsapp/configuracoes"
         component={() => (
-          <MainLayout>
+          <WhatsAppHub>
             <WhatsAppSettings />
-          </MainLayout>
+          </WhatsAppHub>
         )}
       />
       <Route
@@ -146,17 +147,17 @@ function Router() {
       <Route
         path="/whatsapp/bots"
         component={() => (
-          <MainLayout>
+          <WhatsAppHub>
             <WhatsAppBotsList />
-          </MainLayout>
+          </WhatsAppHub>
         )}
       />
       <Route
         path="/whatsapp/conversas"
         component={() => (
-          <MainLayout>
+          <WhatsAppHub>
             <WhatsAppConversations />
-          </MainLayout>
+          </WhatsAppHub>
         )}
       />
 

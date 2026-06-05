@@ -1,7 +1,8 @@
 import { db } from "../db";
-import { clients, whatsappMessages } from "../../shared/schema";
-import { eq, and, ilike, isNotNull, or, desc, sql } from "drizzle-orm";
+import { clients, whatsappMessages, whatsappConversationReads } from "../../shared/schema";
+import { eq, and, ilike, isNotNull, or, desc, sql, asc } from "drizzle-orm";
 import { sendTextMessage } from "../integrations/whatsapp";
+import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 
 export async function listClientsForChat(
   userId: string,
@@ -25,15 +26,65 @@ export async function listClientsForChat(
     );
   }
 
+  const effectiveAt = sql<Date>`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`.as("last_at");
+
+  const readsSub = db.$with("reads").as(
+    db
+      .select({
+        clientId: whatsappConversationReads.clientId,
+        lastReadAt: whatsappConversationReads.lastReadAt,
+      })
+      .from(whatsappConversationReads)
+      .where(eq(whatsappConversationReads.userId, userId)),
+  );
+
+  const unreadSub = db.$with("unread").as(
+    db
+      .select({
+        clientId: whatsappMessages.clientId,
+        unreadCount: sql<number>`cast(count(*) as int)`.as("unread_count"),
+      })
+      .from(whatsappMessages)
+      .leftJoin(readsSub, eq(whatsappMessages.clientId, readsSub.clientId))
+      .where(
+        and(
+          isNotNull(whatsappMessages.clientId),
+          eq(whatsappMessages.direction, "inbound"),
+          sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${readsSub.lastReadAt}, '1970-01-01'::timestamp)`,
+        ),
+      )
+      .groupBy(whatsappMessages.clientId),
+  );
+
+  const lastMsgSub = db.$with("last_msg").as(
+    db
+      .selectDistinctOn([whatsappMessages.clientId], {
+        clientId: whatsappMessages.clientId,
+        lastAt: effectiveAt,
+        lastContent: whatsappMessages.content,
+        lastDirection: whatsappMessages.direction,
+      })
+      .from(whatsappMessages)
+      .where(isNotNull(whatsappMessages.clientId))
+      .orderBy(whatsappMessages.clientId, desc(effectiveAt)),
+  );
+
   return db
+    .with(readsSub, unreadSub, lastMsgSub)
     .select({
       id: clients.id,
       name: clients.name,
       phone: clients.phone,
+      lastMessageAt: lastMsgSub.lastAt,
+      lastMessageContent: lastMsgSub.lastContent,
+      lastMessageDirection: lastMsgSub.lastDirection,
+      unreadCount: sql<number>`coalesce(${unreadSub.unreadCount}, 0)`,
     })
     .from(clients)
+    .leftJoin(lastMsgSub, eq(clients.id, lastMsgSub.clientId))
+    .leftJoin(unreadSub, eq(clients.id, unreadSub.clientId))
     .where(and(...conditions))
-    .orderBy(clients.name)
+    .orderBy(sql`${lastMsgSub.lastAt} DESC NULLS LAST`, asc(clients.name))
     .limit(100);
 }
 
@@ -81,10 +132,10 @@ export async function getConversation(
         sql`regexp_replace(${whatsappMessages.phone}, '\\D', '', 'g') = ${clientWithCountry}`,
       ),
     )
-    .orderBy(desc(whatsappMessages.createdAt))
+    .orderBy(asc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`))
     .limit(50);
 
-  return messages.reverse();
+  return messages;
 }
 
 export async function sendConversationMessage(
@@ -138,7 +189,24 @@ export async function saveInboundMessage(data: {
   content: string | null;
   type: string;
   waMessageId: string;
+  timestamp?: string;
+  mediaId?: string;
+  mimeType?: string;
+  caption?: string;
+  mediaFilename?: string;
 }) {
+  // Deduplication: skip if this waMessageId was already saved (retry from WhatsApp API)
+  const [existing] = await db
+    .select({ id: whatsappMessages.id })
+    .from(whatsappMessages)
+    .where(eq(whatsappMessages.waMessageId, data.waMessageId))
+    .limit(1);
+
+  if (existing) {
+    console.log(`[WA Webhook] Mensagem duplicada ignorada: ${data.waMessageId}`);
+    return;
+  }
+
   const digits = data.phone.replace(/\D/g, "");
   // Se vier com DDI 55 (13 dígitos), também tenta sem o DDI
   const withoutCountry =
@@ -160,13 +228,37 @@ export async function saveInboundMessage(data: {
     `[WA Webhook] Inbound de ${data.phone} (digits: ${digits}) → cliente: ${matchedClient?.id ?? "não encontrado"}`,
   );
 
+  const sentAt = data.timestamp ? new Date(Number(data.timestamp) * 1000) : undefined;
+
   await db.insert(whatsappMessages).values({
     clientId: matchedClient?.id ?? null,
     phone: data.phone,
     direction: "inbound",
     type: data.type,
     content: data.content,
+    mediaId: data.mediaId ?? null,
+    mimeType: data.mimeType ?? null,
+    caption: data.caption ?? null,
+    mediaFilename: data.mediaFilename ?? null,
     waMessageId: data.waMessageId,
     status: null,
+    sentAt,
   });
+
+  if (matchedClient?.id) {
+    publishConversationEvent(matchedClient.id, "new_message", { clientId: matchedClient.id });
+  }
+
+  // Broadcast global para atualizar badges em tempo real para todos os usuários conectados
+  publishSseEvent("new_whatsapp_inbound", { clientId: matchedClient?.id ?? null });
+}
+
+export async function markConversationRead(userId: string, clientId: string) {
+  await db
+    .insert(whatsappConversationReads)
+    .values({ userId, clientId, lastReadAt: new Date() })
+    .onConflictDoUpdate({
+      target: [whatsappConversationReads.userId, whatsappConversationReads.clientId],
+      set: { lastReadAt: new Date() },
+    });
 }

@@ -107,6 +107,7 @@ export default function WhatsAppSettings() {
   }
 
   return (
+    <div className="overflow-y-auto h-full p-5 lg:p-6">
     <div className="space-y-6 pb-10 max-w-2xl">
       <PageHeader>
         <PageHeader.Info>
@@ -248,6 +249,7 @@ export default function WhatsAppSettings() {
           {updateMutation.isPending ? "Salvando..." : "Salvar configurações"}
         </Button>
       </div>
+    </div>
     </div>
   );
 }

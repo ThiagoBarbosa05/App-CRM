@@ -4,9 +4,30 @@ import {
   listClientsForChat,
   getConversation,
   sendConversationMessage,
+  markConversationRead,
 } from "../services/whatsapp-conversations.service";
+import { fetchMediaStream } from "../integrations/whatsapp";
+import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
 
 const router = Router();
+
+router.get("/media/:mediaId", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).end();
+
+    const { stream, contentType, contentLength } = await fetchMediaStream(req.params.mediaId);
+    res.setHeader("Content-Type", contentType);
+    if (contentLength) res.setHeader("Content-Length", contentLength);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+
+    const { Readable } = await import("stream");
+    Readable.fromWeb(stream as any).pipe(res);
+  } catch (err) {
+    console.error("[WA Media] Erro ao buscar mídia:", err);
+    res.status(502).json({ message: "Erro ao buscar mídia" });
+  }
+});
 
 router.get("/conversations", async (req, res) => {
   try {
@@ -16,7 +37,8 @@ router.get("/conversations", async (req, res) => {
     const search = typeof req.query.search === "string" ? req.query.search : undefined;
     const result = await listClientsForChat(user.userId, user.role, search);
     res.json(result);
-  } catch {
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao listar clientes:", err);
     res.status(500).json({ message: "Erro ao listar clientes" });
   }
 });
@@ -32,6 +54,44 @@ router.get("/conversations/:clientId", async (req, res) => {
     res.json(Array.isArray(messages) ? messages : []);
   } catch {
     res.status(500).json({ message: "Erro ao buscar conversa" });
+  }
+});
+
+router.get("/notifications/stream", (req, res) => {
+  const user = (req as any).user;
+  if (!user?.userId) return res.status(401).end();
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  const cleanup = addSseClient(user.userId, res);
+  req.on("close", cleanup);
+});
+
+router.get("/conversations/:clientId/stream", (req, res) => {
+  const user = (req as any).user;
+  if (!user?.userId) return res.status(401).end();
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  const cleanup = addConversationSseClient(req.params.clientId, res);
+  req.on("close", cleanup);
+});
+
+router.post("/conversations/:clientId/read", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    await markConversationRead(user.userId, req.params.clientId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao marcar como lido:", err);
+    res.status(500).json({ message: "Erro ao marcar como lido" });
   }
 });
 

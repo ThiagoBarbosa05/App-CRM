@@ -78,6 +78,7 @@ export default function WhatsAppCampaignsList() {
   };
 
   return (
+    <div className="overflow-y-auto h-full p-5 lg:p-6">
     <div className="space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
@@ -256,6 +257,7 @@ export default function WhatsAppCampaignsList() {
           </Table>
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 }

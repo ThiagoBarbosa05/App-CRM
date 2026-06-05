@@ -3738,10 +3738,27 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   direction: text("direction", { enum: ["inbound", "outbound"] }).notNull(),
   type: text("type").notNull().default("text"),
   content: text("content"),
+  mediaId: text("media_id"),
+  mimeType: text("mime_type"),
+  caption: text("caption"),
+  mediaFilename: text("media_filename"),
   waMessageId: text("wa_message_id"),
   status: text("status", { enum: ["sent", "delivered", "read", "failed"] }),
   sentByUserId: varchar("sent_by_user_id").references(() => users.id),
+  sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
+
+export const whatsappConversationReads = pgTable(
+  "whatsapp_conversation_reads",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull().references(() => users.id),
+    clientId: varchar("client_id").notNull().references(() => clients.id),
+    lastReadAt: timestamp("last_read_at").defaultNow().notNull(),
+  },
+  (t) => ({ userClientUnique: unique().on(t.userId, t.clientId) }),
+);
+
 export type InsertCampaignClient = z.infer<typeof insertCampaignClientSchema>;
