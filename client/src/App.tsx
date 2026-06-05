@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { MainLayout } from "./layouts/main-layout";
+import { LoadingScreen } from "@/components/loading-screen";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Clients from "@/pages/clients";
@@ -47,11 +48,7 @@ function Router() {
   const { user, login, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Carregando...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) {
@@ -59,7 +56,7 @@ function Router() {
   }
 
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-lg text-muted-foreground">Carregando...</div></div>}>
+    <Suspense fallback={<LoadingScreen />}>
     <Switch>
       <Route path="/" component={Home} />
       <Route
