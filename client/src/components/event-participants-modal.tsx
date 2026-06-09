@@ -1008,10 +1008,12 @@ export default function EventParticipantsModal({
                   <FileText className="h-3.5 w-3.5" />
                   Lista
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleExportFinancial} className="h-7 px-2.5 text-xs gap-1.5">
-                  <DollarSign className="h-3.5 w-3.5" />
-                  Financeiro
-                </Button>
+                {(user?.role === "admin" || user?.role === "gerente") && (
+                  <Button variant="outline" size="sm" onClick={handleExportFinancial} className="h-7 px-2.5 text-xs gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5" />
+                    Financeiro
+                  </Button>
+                )}
                 {user?.role === "admin" && (
                   <Button size="sm" onClick={() => setIsAddModalOpen(true)} className="h-7 px-2.5 text-xs gap-1.5">
                     <PlusIcon className="h-3.5 w-3.5" />

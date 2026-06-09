@@ -1716,15 +1716,6 @@ export default function EventsManagement() {
                               <UsersIcon className="h-3.5 w-3.5" />
                               Ver clientes
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handlePrintParticipants(event)}
-                              title="Imprimir lista"
-                              className="h-8 w-8 p-0 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                            >
-                              <PrinterIcon className="h-4 w-4" />
-                            </Button>
                             {(user?.role === "admin" ||
                               user?.role === "gerente") && (
                               <>
