@@ -5435,6 +5435,8 @@ export class DatabaseStorage implements IStorage {
           customPrice: eventParticipants.customPrice,
           notes: eventParticipants.notes,
           attended: eventParticipants.attended,
+          paymentMethod: eventParticipants.paymentMethod,
+          paymentDate: eventParticipants.paymentDate,
           registeredBy: eventParticipants.registeredBy,
           client: clients,
           user: users,
@@ -5460,6 +5462,8 @@ export class DatabaseStorage implements IStorage {
         clientPhone: row.client?.phone || null,
         clientEmail: row.client?.email || null,
         clientBirthDate: row.client?.birthday || null,
+        paymentMethod: row.paymentMethod || null,
+        paymentDate: row.paymentDate || null,
         registeredByName: row.user?.name || null,
       }));
     } catch (error) {

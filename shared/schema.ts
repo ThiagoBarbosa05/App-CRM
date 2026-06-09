@@ -2171,6 +2171,8 @@ export const eventParticipants = pgTable("event_participants", {
   customPrice: numeric("custom_price"),
   notes: text("notes"),
   attended: boolean("attended"),
+  paymentMethod: text("payment_method"),
+  paymentDate: timestamp("payment_date"),
   registeredBy: varchar("registered_by")
     .references(() => users.id)
     .notNull(),
@@ -2288,6 +2290,10 @@ export const insertEventParticipantSchema = createInsertSchema(
       .enum(["pago", "convidado", "pendente", "pagar_na_hora", "cancelado"])
       .default("pago"),
     attended: z.boolean().nullable().optional(),
+    paymentDate: z
+      .union([z.date(), z.string().transform((s) => (s ? new Date(s) : null))])
+      .nullable()
+      .optional(),
   });
 
 // Tipos para eventos

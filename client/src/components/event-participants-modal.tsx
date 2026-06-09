@@ -41,6 +41,8 @@ import {
   CheckCircle2,
   XCircle,
   MinusCircle,
+  FileText,
+  DollarSign,
 } from "lucide-react";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import ClientFormModal from "./client-form-modal";
@@ -55,10 +57,13 @@ interface EventParticipant {
   customPrice: string | null;
   notes: string | null;
   attended: boolean | null;
+  paymentMethod: string | null;
+  paymentDate: string | null;
   registeredBy: string;
   clientName: string;
   clientPhone: string;
   clientEmail: string | null;
+  clientBirthDate: string | null;
   registeredByName: string;
 }
 
@@ -126,6 +131,9 @@ export default function EventParticipantsModal({
     clientId: "",
     status: "pago",
     numberOfParticipants: 1,
+    customPrice: "",
+    paymentMethod: "",
+    paymentDate: "",
     notes: "",
   });
 
@@ -247,6 +255,9 @@ export default function EventParticipantsModal({
         clientId: "",
         status: "pago",
         numberOfParticipants: 1,
+        customPrice: "",
+        paymentMethod: "",
+        paymentDate: "",
         notes: "",
       });
       setClientSearchTerm("");
@@ -298,7 +309,7 @@ export default function EventParticipantsModal({
 
   // Mutation para atualizar participante
   const updateParticipantMutation = useMutation({
-    mutationFn: async (data: { status: string; notes: string; numberOfParticipants: number; customPrice: string | null }) => {
+    mutationFn: async (data: { status: string; notes: string; numberOfParticipants: number; customPrice: string | null; paymentMethod: string | null; paymentDate: string | null }) => {
       const response = await fetch(
         `/api/events/${event?.id}/participants/${editingParticipant?.id}`,
         {
@@ -421,8 +432,521 @@ export default function EventParticipantsModal({
     addParticipantMutation.mutate(newParticipant);
   };
 
-  const handleUpdateParticipant = (status: string, notes: string, numberOfParticipants: number, customPrice: string | null) => {
-    updateParticipantMutation.mutate({ status, notes, numberOfParticipants, customPrice });
+  const handleUpdateParticipant = (status: string, notes: string, numberOfParticipants: number, customPrice: string | null, paymentMethod: string | null, paymentDate: string | null) => {
+    updateParticipantMutation.mutate({ status, notes, numberOfParticipants, customPrice, paymentMethod, paymentDate });
+  };
+
+  const escapeHtml = (text: string) => {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  };
+
+  const openPrintWindow = (html: string) => {
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    } else {
+      toast({
+        title: "Erro",
+        description: "Não foi possível abrir a janela. Verifique se pop-ups estão bloqueados.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const STATUS_LABELS: Record<string, string> = {
+    pago: "PAGO",
+    convidado: "CONVIDADO",
+    pendente: "PENDENTE",
+    pagar_na_hora: "PAGAR NA HORA",
+    cancelado: "CANCELADO",
+  };
+
+  const STATUS_COLORS: Record<string, string> = {
+    pago: "background:#dbeafe;color:#1e40af",
+    convidado: "background:#dcfce7;color:#15803d",
+    pendente: "background:#d1fae5;color:#047857",
+    pagar_na_hora: "background:#fed7aa;color:#ea580c",
+    cancelado: "background:#fee2e2;color:#dc2626",
+  };
+
+  const formatBirthDate = (birthday: string | null) => {
+    if (!birthday) return "—";
+    const parts = birthday.split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return birthday;
+  };
+
+  const handleExportParticipants = () => {
+    if (participants.length === 0) {
+      toast({ title: "Aviso", description: "Nenhum participante para exportar." });
+      return;
+    }
+
+    const totalParticipants = participants.reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
+    const totalPresentes   = participants.filter((p) => p.attended === true ).reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
+    const totalAusentes    = participants.filter((p) => p.attended === false).reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
+    const naoConfirmados   = totalParticipants - totalPresentes - totalAusentes;
+
+    const logoUrl = `${window.location.origin}/logo-grand-cru-red%20(1).webp`;
+
+    const rows = participants.map((p, i) => {
+      const presencaText  = p.attended === true ? "Presente" : p.attended === false ? "Ausente" : "—";
+      const presencaColor = p.attended === true ? "#15803d" : p.attended === false ? "#b91c1c" : "#94a3b8";
+      const rowBg = i % 2 === 0 ? "#ffffff" : "#fdf6f7";
+      return `
+      <tr style="background:${rowBg};">
+        <td class="col-name">${escapeHtml(p.clientName || "N/A")}</td>
+        <td>${escapeHtml(p.clientPhone || "N/A")}</td>
+        <td class="center">${formatBirthDate(p.clientBirthDate)}</td>
+        <td class="center fw6">${p.numberOfParticipants || 1}</td>
+        <td class="center" style="color:${presencaColor};font-weight:600;">${presencaText}</td>
+        <td class="center"><span class="badge-status s-${p.status}">${STATUS_LABELS[p.status] || p.status}</span></td>
+        <td>${escapeHtml(p.paymentMethod || p.notes || "—")}</td>
+      </tr>`;
+    }).join("");
+
+    const now = new Date();
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Lista de Convidados — ${escapeHtml(event.name)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    *  { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      font-size: 12px;
+      color: #1e293b;
+      background: #fff;
+      line-height: 1.5;
+    }
+
+    /* ─── Cabeçalho ─────────────────────────── */
+    header {
+      background: #8b1a2c;
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header img   { height: 36px; object-fit: contain; filter: brightness(0) invert(1); }
+    header .doc-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #faf7f5;
+      letter-spacing: .3px;
+    }
+
+    /* ─── Faixa do evento ────────────────────── */
+    .event-bar {
+      border-bottom: 1px solid #f4cdd3;
+      padding: 14px 28px;
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      background: #fdf6f7;
+    }
+    .event-bar h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #6b1428;
+      width: 100%;
+      margin-bottom: 6px;
+    }
+    .info-pill { font-size: 12px; color: #475569; }
+    .info-pill span { font-weight: 600; color: #1e293b; }
+
+    /* ─── Cards de resumo ────────────────────── */
+    .summary-row {
+      display: flex;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .summary-card {
+      flex: 1;
+      padding: 14px 0;
+      text-align: center;
+      border-right: 1px solid #e2e8f0;
+    }
+    .summary-card:last-child { border-right: none; }
+    .summary-card .s-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #64748b; }
+    .summary-card .s-value { font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 700; color: #0f172a; line-height: 1.1; margin-top: 3px; }
+    .summary-card.wine  .s-value { color: #8b1a2c; }
+    .summary-card.green .s-value { color: #15803d; }
+    .summary-card.red   .s-value { color: #b91c1c; }
+
+    /* ─── Tabela ─────────────────────────────── */
+    .table-wrap { padding: 20px 28px 28px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #8b1a2c; }
+    th {
+      color: #faf7f5;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      padding: 9px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+      color: #334155;
+    }
+    tr:last-child td { border-bottom: none; }
+    .col-name { font-weight: 600; color: #0f172a; }
+    .center    { text-align: center; }
+    .fw6       { font-weight: 600; }
+
+    /* badges de status */
+    .badge-status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      white-space: nowrap;
+    }
+    .s-pago         { background:#dbeafe; color:#1e40af; }
+    .s-convidado    { background:#dcfce7; color:#15803d; }
+    .s-pendente     { background:#fef9c3; color:#854d0e; }
+    .s-pagar_na_hora{ background:#ffedd5; color:#c2410c; }
+    .s-cancelado    { background:#fee2e2; color:#991b1b; }
+
+    /* ─── Rodapé ─────────────────────────────── */
+    footer {
+      border-top: 1px solid #e2e8f0;
+      padding: 9px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 0; size: A4 portrait; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="${logoUrl}" alt="Grand Cru" />
+    <span class="doc-label">Lista de Convidados</span>
+  </header>
+
+  <div class="event-bar">
+    <h2>${escapeHtml(event.name)}</h2>
+    <div class="info-pill">Data &nbsp;<span>${formatDate(event.eventDate)}</span></div>
+    <div class="info-pill">Local &nbsp;<span>${escapeHtml(event.location)}</span></div>
+    ${event.maxCapacity ? `<div class="info-pill">Capacidade &nbsp;<span>${totalParticipants} / ${event.maxCapacity}</span></div>` : ""}
+  </div>
+
+  <div class="summary-row">
+    <div class="summary-card wine">
+      <div class="s-label">Total Convidados</div>
+      <div class="s-value">${totalParticipants}</div>
+    </div>
+    <div class="summary-card green">
+      <div class="s-label">Presentes</div>
+      <div class="s-value">${totalPresentes}</div>
+    </div>
+    <div class="summary-card red">
+      <div class="s-label">Ausentes</div>
+      <div class="s-value">${totalAusentes}</div>
+    </div>
+    <div class="summary-card">
+      <div class="s-label">Não Confirmados</div>
+      <div class="s-value">${naoConfirmados}</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Telefone</th>
+          <th class="center">Aniversário</th>
+          <th class="center">Nº Pessoas</th>
+          <th class="center">Presença</th>
+          <th class="center">Status</th>
+          <th>Forma de Pgto.</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span>Gerado em ${now.toLocaleDateString("pt-BR")} às ${now.toLocaleTimeString("pt-BR")}</span>
+    <span>${escapeHtml(event.name)} · Lista de Convidados · Uso interno</span>
+  </footer>
+
+  <script>window.onload = function() { setTimeout(function() { window.print(); }, 800); };</script>
+</body>
+</html>`;
+
+    openPrintWindow(html);
+  };
+
+  const handleExportFinancial = () => {
+    if (participants.length === 0) {
+      toast({ title: "Aviso", description: "Nenhum participante para exportar." });
+      return;
+    }
+
+    let totalPago = 0;
+    let totalPendente = 0;
+    let totalGeral = 0;
+
+    const logoUrl = `${window.location.origin}/logo-grand-cru-red%20(1).webp`;
+
+    const rows = participants
+      .map((p, i) => {
+        const basePrice = parseFloat(p.customPrice ?? event.pricePerPerson ?? "0") || 0;
+        const total = basePrice * (p.numberOfParticipants || 1);
+        if (p.status === "pago") totalPago += total;
+        else if (p.status === "pendente" || p.status === "pagar_na_hora") totalPendente += total;
+        if (p.status !== "cancelado") totalGeral += total;
+        const paymentDateStr = p.paymentDate
+          ? new Date(p.paymentDate).toLocaleDateString("pt-BR")
+          : "—";
+        const rowBg = i % 2 === 0 ? "#ffffff" : "#fdf6f7";
+        const isCustomPrice = !!p.customPrice;
+        return `
+        <tr style="background:${rowBg};">
+          <td class="col-name">${escapeHtml(p.clientName || "N/A")}</td>
+          <td>${escapeHtml(p.clientPhone || "N/A")}</td>
+          <td class="center fw6">${p.numberOfParticipants || 1}</td>
+          <td><span class="badge-status s-${p.status}">${STATUS_LABELS[p.status] || p.status}</span></td>
+          <td>${escapeHtml(p.paymentMethod || "—")}</td>
+          <td class="center">${paymentDateStr}</td>
+          <td class="right">${formatCurrency(basePrice)}</td>
+          <td class="right fw6 wine">${formatCurrency(total)}</td>
+          <td class="obs">${escapeHtml(p.notes || "")}</td>
+        </tr>`;
+      })
+      .join("");
+
+    const now = new Date();
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório Financeiro — ${escapeHtml(event.name)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    *  { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      font-size: 11.5px;
+      color: #1e293b;
+      background: #fff;
+      line-height: 1.5;
+    }
+
+    /* ─── Cabeçalho ─────────────────────────── */
+    header {
+      background: #8b1a2c;
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header img { height: 36px; object-fit: contain; filter: brightness(0) invert(1); }
+    header .doc-label {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #faf7f5;
+      letter-spacing: .3px;
+    }
+
+    /* ─── Faixa do evento ────────────────────── */
+    .event-bar {
+      border-bottom: 1px solid #f4cdd3;
+      padding: 12px 28px;
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      align-items: baseline;
+      background: #fdf6f7;
+    }
+    .event-bar h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #6b1428;
+      width: 100%;
+      margin-bottom: 4px;
+    }
+    .info-pill { font-size: 11.5px; color: #475569; }
+    .info-pill span { font-weight: 600; color: #1e293b; }
+
+    /* ─── Cards de resumo ────────────────────── */
+    .summary-row { display:flex; border-bottom: 2px solid #e2e8f0; }
+    .summary-card {
+      flex: 1;
+      padding: 14px 0;
+      text-align: center;
+      border-right: 1px solid #e2e8f0;
+    }
+    .summary-card:last-child { border-right: none; }
+    .summary-card .s-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #64748b; }
+    .summary-card .s-value { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 700; color: #0f172a; line-height: 1.1; margin-top: 3px; }
+    .summary-card.wine  .s-value { color: #8b1a2c; }
+    .summary-card.amber .s-value { color: #b45309; }
+
+    /* ─── Tabela ─────────────────────────────── */
+    .table-wrap { padding: 18px 28px 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: #8b1a2c; }
+    th {
+      color: #faf7f5;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      padding: 9px 10px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+      color: #334155;
+    }
+    .totals-row td {
+      background: #fdf6f7;
+      border-top: 2px solid #f4cdd3;
+      border-bottom: none;
+      font-weight: 700;
+      color: #0f172a;
+      padding: 10px 10px;
+    }
+
+    /* helpers */
+    .col-name  { font-weight: 600; color: #0f172a; }
+    .center    { text-align: center; }
+    .right     { text-align: right; }
+    .fw6       { font-weight: 600; }
+    .wine      { color: #8b1a2c; }
+    .obs       { color: #64748b; font-size: 11px; }
+    .custom-tag{ font-size: 9px; font-weight: 700; color: #b45309; background:#fef3c7; padding:1px 4px; border-radius:3px; vertical-align:middle; }
+
+    /* badges */
+    .badge-status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      white-space: nowrap;
+    }
+    .s-pago          { background:#dbeafe; color:#1e40af; }
+    .s-convidado     { background:#dcfce7; color:#15803d; }
+    .s-pendente      { background:#fef9c3; color:#854d0e; }
+    .s-pagar_na_hora { background:#ffedd5; color:#c2410c; }
+    .s-cancelado     { background:#fee2e2; color:#991b1b; }
+
+    /* ─── Rodapé ─────────────────────────────── */
+    footer {
+      border-top: 1px solid #e2e8f0;
+      padding: 9px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: #94a3b8;
+    }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 0; size: A4 landscape; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <img src="${logoUrl}" alt="Grand Cru" />
+    <span class="doc-label">Relatório Financeiro</span>
+  </header>
+
+  <div class="event-bar">
+    <h2>${escapeHtml(event.name)}</h2>
+    <div class="info-pill">Data &nbsp;<span>${formatDate(event.eventDate)}</span></div>
+    <div class="info-pill">Local &nbsp;<span>${escapeHtml(event.location)}</span></div>
+    ${event.pricePerPerson ? `<div class="info-pill">Valor por Pessoa &nbsp;<span>${formatCurrency(parseFloat(event.pricePerPerson))}</span></div>` : ""}
+    <div class="info-pill">Inscrições &nbsp;<span>${participants.length}</span></div>
+  </div>
+
+  <div class="summary-row">
+    <div class="summary-card wine">
+      <div class="s-label">Total Recebido</div>
+      <div class="s-value">${formatCurrency(totalPago)}</div>
+    </div>
+    <div class="summary-card amber">
+      <div class="s-label">Total Pendente</div>
+      <div class="s-value">${formatCurrency(totalPendente)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="s-label">Total Geral</div>
+      <div class="s-value">${formatCurrency(totalGeral)}</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Telefone</th>
+          <th class="center">Nº Pessoas</th>
+          <th>Status</th>
+          <th>Forma de Pgto.</th>
+          <th class="center">Data Pgto.</th>
+          <th class="right">Preço / Pessoa</th>
+          <th class="right">Valor Total</th>
+          <th>Observações</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+        <tr class="totals-row">
+          <td colspan="7" style="text-align:right;">Total geral (excl. cancelados)</td>
+          <td class="right wine" style="font-size:13px;">${formatCurrency(totalGeral)}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <span>Gerado em ${now.toLocaleDateString("pt-BR")} às ${now.toLocaleTimeString("pt-BR")}</span>
+    <span>${escapeHtml(event.name)} · Relatório Financeiro · Uso restrito ao setor financeiro</span>
+  </footer>
+
+  <script>window.onload = function() { setTimeout(function() { window.print(); }, 800); };</script>
+</body>
+</html>`;
+
+    openPrintWindow(html);
   };
 
   if (!event) return null;
@@ -430,101 +954,113 @@ export default function EventParticipantsModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UsersIcon className="h-5 w-5" />
-              Participantes - {event.name}
+        <DialogContent className="max-w-4xl w-full max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-3 shrink-0 border-b bg-slate-50/60">
+            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+              <UsersIcon className="h-4 w-4 shrink-0 text-slate-500" />
+              <span className="truncate">Participantes — {event.name}</span>
             </DialogTitle>
-            <DialogDescription>
-              Gerencie os participantes do evento ({formatDate(event.eventDate)}{" "}
-              - {event.location})
+            <DialogDescription className="text-xs text-slate-500 truncate mt-0.5">
+              {formatDate(event.eventDate)} · {event.location}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Cabeçalho com filtros e botão adicionar */}
-            <div className="flex justify-between items-center">
-              <div className="flex gap-4 flex-1">
-                <div className="relative flex-1 max-w-sm">
-                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Buscar participantes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Filtrar por status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os status</SelectItem>
-                    {PARTICIPANT_STATUS.map((status) => (
-                      <SelectItem key={status.value} value={status.value}>
-                        {status.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {/* Barra de ferramentas */}
+          <div className="px-4 py-2.5 shrink-0 space-y-2 border-b bg-white">
+            {/* Linha 1: busca + filtro */}
+            <div className="flex flex-wrap gap-2">
+              <div className="relative w-56 shrink-0">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-3.5 w-3.5 pointer-events-none" />
+                <Input
+                  placeholder="Buscar participantes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-8 text-sm"
+                />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">
-                  {participants.reduce(
-                    (total, p) => total + (p.numberOfParticipants || 1),
-                    0
-                  )}
-                  {event.maxCapacity && ` / ${event.maxCapacity}`} participantes
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-36 h-8 text-xs shrink-0">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  {PARTICIPANT_STATUS.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Linha 2: contagem + ações */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-gray-500 shrink-0">
+                <span className="font-semibold text-gray-700">
+                  {participants.reduce((t, p) => t + (p.numberOfParticipants || 1), 0)}
                 </span>
+                {event.maxCapacity && (
+                  <span className="text-gray-400"> / {event.maxCapacity}</span>
+                )}{" "}
+                participantes
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button variant="outline" size="sm" onClick={handleExportParticipants} className="h-7 px-2.5 text-xs gap-1.5">
+                  <FileText className="h-3.5 w-3.5" />
+                  Lista
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportFinancial} className="h-7 px-2.5 text-xs gap-1.5">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Financeiro
+                </Button>
                 {user?.role === "admin" && (
-                  <Button onClick={() => setIsAddModalOpen(true)}>
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Adicionar Participante
+                  <Button size="sm" onClick={() => setIsAddModalOpen(true)} className="h-7 px-2.5 text-xs gap-1.5">
+                    <PlusIcon className="h-3.5 w-3.5" />
+                    Adicionar
                   </Button>
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="flex-1 overflow-auto min-h-0">
 
             {/* Tabela de participantes */}
             {isLoadingParticipants ? (
-              <div className="space-y-2">
+              <div className="space-y-2 px-4 py-3">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 p-3 border rounded-lg">
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-4 w-8 ml-auto" />
-                    <Skeleton className="h-5 w-20" />
+                  <div key={i} className="flex items-center gap-3 p-3 border rounded-lg">
+                    <Skeleton className="h-4 w-32" />
                     <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-8 w-16" />
+                    <Skeleton className="h-4 w-8 ml-auto" />
+                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="h-8 w-14" />
                   </div>
                 ))}
               </div>
             ) : filteredParticipants.length === 0 ? (
-              <div className="text-center py-10 text-gray-500">
-                <UsersIcon className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                <p className="font-medium">Nenhum participante encontrado</p>
-                <p className="text-sm mt-1">
+              <div className="text-center py-12 text-gray-500 px-4">
+                <UsersIcon className="h-12 w-12 mx-auto mb-3 text-gray-200" />
+                <p className="font-medium text-sm">Nenhum participante encontrado</p>
+                <p className="text-xs mt-1 text-gray-400">
                   {searchTerm || statusFilter !== "all"
                     ? "Ajuste os filtros para ver os participantes."
                     : "Ainda não há participantes neste evento."}
                 </p>
               </div>
             ) : (
-              <Table>
+              <div className="overflow-x-auto">
+              <Table className="text-sm min-w-[640px]">
                 <TableHeader>
                   <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                    <TableHead className="font-semibold">Cliente</TableHead>
-                    <TableHead className="font-semibold">Contato</TableHead>
-                    <TableHead className="font-semibold text-center">Nº Pessoas</TableHead>
-                    <TableHead className="font-semibold text-right">Valor</TableHead>
-                    <TableHead className="font-semibold">Status Pgto.</TableHead>
-                    <TableHead className="font-semibold text-center">Presença</TableHead>
-                    <TableHead className="font-semibold">Inscrição</TableHead>
-                    <TableHead className="font-semibold">Responsável</TableHead>
+                    <TableHead className="font-semibold py-2 w-[180px]">Cliente</TableHead>
+                    <TableHead className="font-semibold py-2 w-[120px]">Contato</TableHead>
+                    <TableHead className="font-semibold py-2 text-center w-[50px]">Pax</TableHead>
+                    <TableHead className="font-semibold py-2 text-right w-[100px]">Valor</TableHead>
+                    <TableHead className="font-semibold py-2 w-[100px]">Status</TableHead>
+                    <TableHead className="font-semibold py-2 text-center w-[70px]">Presença</TableHead>
+                    <TableHead className="font-semibold py-2 w-[140px]">Inscrição / Resp.</TableHead>
                     {user?.role === "admin" && (
-                      <TableHead className="font-semibold">Ações</TableHead>
+                      <TableHead className="font-semibold py-2 w-[80px]">Ações</TableHead>
                     )}
                   </TableRow>
                 </TableHeader>
@@ -534,32 +1070,30 @@ export default function EventParticipantsModal({
                       key={participant.id}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                     >
-                      <TableCell>
-                        <div className="font-medium text-slate-900 dark:text-slate-100">
+                      <TableCell className="py-2">
+                        <div className="font-medium text-slate-900 dark:text-slate-100 leading-tight">
                           {participant.clientName || (
-                            <span className="text-gray-400 italic">
-                              Cliente removido
-                            </span>
+                            <span className="text-gray-400 italic text-xs">Cliente removido</span>
                           )}
                         </div>
                         {participant.notes && (
-                          <div className="text-xs text-gray-500 mt-0.5">
+                          <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[180px]" title={participant.notes}>
                             {participant.notes}
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div className="text-slate-700 dark:text-slate-300">{participant.clientPhone || "—"}</div>
-                          {participant.clientEmail && (
-                            <div className="text-gray-500 text-xs">
-                              {participant.clientEmail}
-                            </div>
-                          )}
+                      <TableCell className="py-2">
+                        <div className="text-slate-700 dark:text-slate-300 text-xs leading-tight">
+                          {participant.clientPhone || "—"}
                         </div>
+                        {participant.clientEmail && (
+                          <div className="text-gray-400 text-xs truncate max-w-[120px]" title={participant.clientEmail}>
+                            {participant.clientEmail}
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <span className="font-semibold text-base text-slate-800 dark:text-slate-200">
+                      <TableCell className="py-2 text-center">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
                           {participant.numberOfParticipants}
                         </span>
                       </TableCell>
@@ -615,12 +1149,12 @@ export default function EventParticipantsModal({
                           </div>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-2">
                         {getStatusBadge(participant.status, participant.attended)}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="py-2 text-center">
                         {user?.role === "admin" ? (
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-0.5">
                             <button
                               onClick={() => updateAttendanceMutation.mutate({
                                 participantId: participant.id,
@@ -633,7 +1167,7 @@ export default function EventParticipantsModal({
                                   : "text-slate-300 hover:text-green-500 dark:text-slate-600 hover:bg-green-50 dark:hover:bg-green-900/20"
                               }`}
                             >
-                              <CheckCircle2 className="h-5 w-5" />
+                              <CheckCircle2 className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => updateAttendanceMutation.mutate({
@@ -647,47 +1181,50 @@ export default function EventParticipantsModal({
                                   : "text-slate-300 hover:text-red-500 dark:text-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                               }`}
                             >
-                              <XCircle className="h-5 w-5" />
+                              <XCircle className="h-4 w-4" />
                             </button>
                           </div>
                         ) : (
                           <span className="flex justify-center">
                             {participant.attended === true ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
                             ) : participant.attended === false ? (
-                              <XCircle className="h-5 w-5 text-red-500" />
+                              <XCircle className="h-4 w-4 text-red-500" />
                             ) : (
-                              <MinusCircle className="h-5 w-5 text-slate-300" />
+                              <MinusCircle className="h-4 w-4 text-slate-300" />
                             )}
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-600 dark:text-slate-400">
-                        {formatDate(participant.registrationDate)}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600 dark:text-slate-400">
-                        {participant.registeredByName}
+                      {/* Inscrição + Responsável numa única célula */}
+                      <TableCell className="py-2">
+                        <div className="text-xs text-slate-600 dark:text-slate-400 leading-tight">
+                          {formatDate(participant.registrationDate)}
+                        </div>
+                        <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                          {participant.registeredByName}
+                        </div>
                       </TableCell>
                       {user?.role === "admin" && (
-                        <TableCell>
-                          <div className="flex gap-2">
+                        <TableCell className="py-2">
+                          <div className="flex gap-1">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => setEditingParticipant(participant)}
-                              className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 gap-1.5"
+                              className="h-7 w-7 p-0 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                              title="Editar"
                             >
                               <EditIcon className="h-3.5 w-3.5" />
-                              Editar
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => setParticipantToDelete(participant)}
-                              className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 gap-1.5"
+                              className="h-7 w-7 p-0 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                              title="Remover"
                             >
                               <TrashIcon className="h-3.5 w-3.5" />
-                              Remover
                             </Button>
                           </div>
                         </TableCell>
@@ -696,6 +1233,7 @@ export default function EventParticipantsModal({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </div>
         </DialogContent>
@@ -703,7 +1241,7 @@ export default function EventParticipantsModal({
 
       {/* Modal para adicionar participante */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Adicionar Participante</DialogTitle>
             <DialogDescription>
@@ -831,7 +1369,7 @@ export default function EventParticipantsModal({
               <Select
                 value={newParticipant.status}
                 onValueChange={(value) =>
-                  setNewParticipant((prev) => ({ ...prev, status: value }))
+                  setNewParticipant((prev) => ({ ...prev, status: value, customPrice: "" }))
                 }
               >
                 <SelectTrigger>
@@ -845,6 +1383,56 @@ export default function EventParticipantsModal({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {newParticipant.status === "pago" && (
+              <div>
+                <Label>Valor pago (R$)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={newParticipant.customPrice}
+                  onChange={(e) =>
+                    setNewParticipant((prev) => ({ ...prev, customPrice: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Forma de Pagamento</Label>
+                <Select
+                  value={newParticipant.paymentMethod}
+                  onValueChange={(value) =>
+                    setNewParticipant((prev) => ({ ...prev, paymentMethod: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="PIX">PIX</SelectItem>
+                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                    <SelectItem value="Transferência Bancária">Transferência Bancária</SelectItem>
+                    <SelectItem value="Boleto">Boleto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Data de Pagamento</Label>
+                <Input
+                  type="date"
+                  value={newParticipant.paymentDate}
+                  onChange={(e) =>
+                    setNewParticipant((prev) => ({ ...prev, paymentDate: e.target.value }))
+                  }
+                />
+              </div>
             </div>
 
             <div>
@@ -882,7 +1470,7 @@ export default function EventParticipantsModal({
         open={!!editingParticipant}
         onOpenChange={() => setEditingParticipant(null)}
       >
-        <DialogContent>
+        <DialogContent className="max-w-md w-full max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Participante</DialogTitle>
             <DialogDescription>
@@ -920,6 +1508,24 @@ export default function EventParticipantsModal({
                 </Select>
               </div>
 
+              {editingParticipant.status === "pago" && (
+                <div>
+                  <Label>Valor pago (R$)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0,00"
+                    value={editingParticipant.customPrice ?? ""}
+                    onChange={(e) =>
+                      setEditingParticipant((prev) =>
+                        prev ? { ...prev, customPrice: e.target.value || null } : null
+                      )
+                    }
+                  />
+                </div>
+              )}
+
               <div>
                 <Label>Número de Participantes</Label>
                 <Input
@@ -937,6 +1543,50 @@ export default function EventParticipantsModal({
                   placeholder="Quantos participantes..."
                   data-testid="input-edit-number-participants"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Forma de Pagamento</Label>
+                  <Select
+                    value={editingParticipant.paymentMethod || ""}
+                    onValueChange={(value) =>
+                      setEditingParticipant((prev) =>
+                        prev ? { ...prev, paymentMethod: value || null } : null
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="PIX">PIX</SelectItem>
+                      <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                      <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                      <SelectItem value="Transferência Bancária">Transferência Bancária</SelectItem>
+                      <SelectItem value="Boleto">Boleto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Data de Pagamento</Label>
+                  <Input
+                    type="date"
+                    value={
+                      editingParticipant.paymentDate
+                        ? new Date(editingParticipant.paymentDate).toISOString().split("T")[0]
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setEditingParticipant((prev) =>
+                        prev
+                          ? { ...prev, paymentDate: e.target.value || null }
+                          : null
+                      )
+                    }
+                  />
+                </div>
               </div>
 
               <div>
@@ -969,7 +1619,9 @@ export default function EventParticipantsModal({
                   editingParticipant.status,
                   editingParticipant.notes || "",
                   editingParticipant.numberOfParticipants,
-                  editingParticipant.customPrice || null
+                  editingParticipant.customPrice || null,
+                  editingParticipant.paymentMethod || null,
+                  editingParticipant.paymentDate || null
                 )
               }
               disabled={updateParticipantMutation.isPending}

@@ -43,7 +43,6 @@ type NavItem = {
   activeBasePath?: string;
 };
 
-
 const navItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/metas", icon: Target, label: "Metas" },
@@ -68,12 +67,12 @@ const navItems: NavItem[] = [
   { href: "/cashback", icon: Gift, label: "Cashback" },
   { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
-  {
-    href: "/whatsapp/conversas",
-    icon: MessageCircle,
-    label: "WhatsApp",
-    activeBasePath: "/whatsapp",
-  },
+  // {
+  //   href: "/whatsapp/conversas",
+  //   icon: MessageCircle,
+  //   label: "WhatsApp",
+  //   activeBasePath: "/whatsapp",
+  // },
   {
     href: "/configuracoes",
     icon: Settings,
@@ -81,7 +80,6 @@ const navItems: NavItem[] = [
     hideForRoles: ["vendedor"],
   },
 ];
-
 
 export function AppSidebar({
   onCloseSidebar,
@@ -190,7 +188,9 @@ export function AppSidebar({
 
           const isActive =
             location === item.href ||
-            location.startsWith(item.activeBasePath ? item.activeBasePath : `${item.href}/`);
+            location.startsWith(
+              item.activeBasePath ? item.activeBasePath : `${item.href}/`,
+            );
 
           return (
             <Link key={item.href} href={item.href}>
@@ -218,8 +218,6 @@ export function AppSidebar({
             </Link>
           );
         })}
-
-
       </nav>
 
       {/* Footer */}
