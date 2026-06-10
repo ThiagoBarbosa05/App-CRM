@@ -539,6 +539,279 @@ export async function getBlingCategoriaProduto(
   };
 }
 
+/**
+ * Lista as categorias de produto cadastradas no Bling com suporte a paginação.
+ *
+ * O Bling retorna no máximo 100 categorias por página. Para a listagem
+ * completa, continue incrementando `pagina` até receber um array vazio ou com
+ * menos de `limite` itens. Categorias raiz vêm com `categoriaPai: { id: 0 }`,
+ * normalizado aqui para `null`.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param pagina         - Página de resultados (opcional, default 1).
+ * @param limite         - Quantidade de itens por página (opcional, default 100).
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function getBlingCategoriasProdutos(
+  accessToken: string,
+  pagina?: number,
+  limite?: number,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingCategoriaProduto[]> {
+  let token = accessToken;
+
+  const params: Record<string, string> = {};
+  if (pagina !== undefined) params.pagina = String(pagina);
+  if (limite !== undefined) params.limite = String(limite);
+
+  let response = await fetchBlingApi(token, "/categorias/produtos", params);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, "/categorias/produtos", params);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao listar categorias de produto do Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as {
+    data: Array<{
+      id: number;
+      descricao: string;
+      categoriaPai?: { id: number } | null;
+    }>;
+  };
+
+  return (body.data ?? []).map((item) => ({
+    id: item.id,
+    descricao: item.descricao,
+    categoriaPai:
+      item.categoriaPai && item.categoriaPai.id > 0 ? item.categoriaPai : null,
+  }));
+}
+
+export interface BlingCategoriaProdutoPayload {
+  descricao: string;
+  categoriaPai?: { id: number };
+}
+
+interface BlingApiErrorField {
+  code?: number;
+  msg?: string;
+  element?: string;
+  namespace?: string;
+  collection?: Array<{
+    index?: number;
+    code?: number;
+    msg?: string;
+    element?: string;
+    namespace?: string;
+  }>;
+}
+
+/**
+ * Converte o corpo de erro padrão da API do Bling
+ * (`{ error: { type, message, description, fields: [...] } }`) em uma mensagem
+ * legível, incluindo as mensagens de validação por campo. Retorna o corpo cru
+ * (ou o fallback) quando o JSON não segue esse formato.
+ */
+function formatBlingApiError(rawBody: string, fallback: string): string {
+  try {
+    const parsed = JSON.parse(rawBody) as {
+      error?: {
+        type?: string;
+        message?: string;
+        description?: string;
+        fields?: BlingApiErrorField[];
+      };
+    };
+
+    const apiError = parsed.error;
+    if (!apiError) return rawBody || fallback;
+
+    const parts: string[] = [];
+    if (apiError.message) parts.push(apiError.message);
+    if (apiError.description && apiError.description !== apiError.message) {
+      parts.push(apiError.description);
+    }
+
+    for (const field of apiError.fields ?? []) {
+      if (field.msg) {
+        parts.push(field.element ? `${field.element}: ${field.msg}` : field.msg);
+      }
+      for (const item of field.collection ?? []) {
+        if (item.msg) {
+          parts.push(item.element ? `${item.element}: ${item.msg}` : item.msg);
+        }
+      }
+    }
+
+    return parts.length > 0 ? parts.join(" | ") : rawBody || fallback;
+  } catch {
+    return rawBody || fallback;
+  }
+}
+
+/**
+ * Cria uma categoria de produto no Bling.
+ *
+ * Para criar uma subcategoria, informe `categoriaPai.id`. Categorias raiz
+ * (ex: país do vinho) são criadas sem `categoriaPai`.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param payload        - Dados da categoria (descricao e categoriaPai opcional).
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function createBlingCategoriaProduto(
+  accessToken: string,
+  payload: BlingCategoriaProdutoPayload,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<{ id: number }> {
+  let token = accessToken;
+
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  };
+
+  let response = await fetchBlingApi(
+    token,
+    "/categorias/produtos",
+    undefined,
+    requestInit,
+  );
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(
+      token,
+      "/categorias/produtos",
+      undefined,
+      requestInit,
+    );
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao criar categoria de produto no Bling: ${formatBlingApiError(errorText, response.statusText)}`,
+    );
+  }
+
+  const body = (await response.json()) as { data: { id: number } };
+  return { id: body.data.id };
+}
+
+export interface BlingProdutoPayloadMidia {
+  video?: { url: string };
+  /** No POST as imagens vão em `imagens.imagensURL[].link` (diferente do GET, que retorna `externas`/`internas`). */
+  imagens?: { imagensURL: Array<{ link: string }> };
+}
+
+export interface BlingProdutoPayload {
+  nome: string;
+  /** "P" = produto, "S" = serviço, "N" = nota de entrada */
+  tipo: string;
+  /** "S" = simples, "V" = com variações, "E" = com composição */
+  formato: string;
+  /** Código/SKU — chave de deduplicação na replicação entre contas (quando ausente, a deduplicação é feita pelo nome) */
+  codigo?: string;
+  preco?: number;
+  /** "A" = ativo, "I" = inativo */
+  situacao?: string;
+  descricaoCurta?: string;
+  descricaoComplementar?: string;
+  observacoes?: string;
+  unidade?: string;
+  pesoLiquido?: number;
+  pesoBruto?: number;
+  volumes?: number;
+  itensPorCaixa?: number;
+  gtin?: string;
+  gtinEmbalagem?: string;
+  marca?: string;
+  freteGratis?: boolean;
+  categoria?: { id: number };
+  estoque?: {
+    minimo?: number;
+    maximo?: number;
+    crossdocking?: number;
+    localizacao?: string;
+  };
+  dimensoes?: {
+    largura?: number;
+    altura?: number;
+    profundidade?: number;
+    unidadeMedida?: number;
+  };
+  tributacao?: {
+    origem?: number;
+    ncm?: string;
+    cest?: string;
+    percentualTributos?: number;
+  };
+  midia?: BlingProdutoPayloadMidia;
+}
+
+interface BlingCreateProdutoResponse {
+  data: {
+    id: number;
+    warnings?: string[];
+  };
+}
+
+/**
+ * Cria um produto no Bling (POST /produtos).
+ *
+ * Em caso de sucesso (201) o Bling retorna `{ data: { id, warnings? } }` —
+ * os avisos são repassados ao chamador. Erros de validação (400/403) chegam
+ * no formato `{ error: { fields: [...] } }` e são convertidos em mensagem
+ * legível por `formatBlingApiError`.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param payload        - Dados do produto.
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function createBlingProduto(
+  accessToken: string,
+  payload: BlingProdutoPayload,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<{ id: number; warnings: string[] }> {
+  let token = accessToken;
+
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  };
+
+  let response = await fetchBlingApi(token, "/produtos", undefined, requestInit);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, "/produtos", undefined, requestInit);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao criar produto no Bling: ${formatBlingApiError(errorText, response.statusText)}`,
+    );
+  }
+
+  const body = (await response.json()) as BlingCreateProdutoResponse;
+  return { id: body.data.id, warnings: body.data.warnings ?? [] };
+}
+
 // ---------------------------------------------------------------------------
 // Mapeamento de categorias de produto para enums locais
 // ---------------------------------------------------------------------------
@@ -565,9 +838,10 @@ export type BlingWineCountry =
 /**
  * Normaliza uma string removendo acentos e convertendo para maiúsculas,
  * facilitando comparações case-insensitive sem dependência de locale.
- * (uso interno dos mappers abaixo)
+ * Usada pelos mappers abaixo e pelo matching de categorias na replicação
+ * de produtos entre contas Bling.
  */
-function normalizeBlingCategoryStr(str: string): string {
+export function normalizeBlingCategoryStr(str: string): string {
   return str
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
