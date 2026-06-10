@@ -2289,7 +2289,10 @@ export const insertEventParticipantSchema = createInsertSchema(
     status: z
       .enum(["pago", "convidado", "pendente", "pagar_na_hora", "cancelado"])
       .default("pago"),
+    customPrice: z.string().nullable().optional().transform((v) => (v === "" ? null : v)),
+    notes: z.string().nullable().optional(),
     attended: z.boolean().nullable().optional(),
+    paymentMethod: z.string().nullable().optional(),
     paymentDate: z
       .union([z.date(), z.string().transform((s) => (s ? new Date(s) : null))])
       .nullable()
