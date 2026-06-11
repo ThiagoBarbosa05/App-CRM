@@ -8,6 +8,16 @@ export type ExportStatus =
   | "cancelled"
   | "failed";
 
+export type RecentExportItemStatus = "created" | "updated" | "failed";
+
+export interface RecentExportItem {
+  clientId: string;
+  clientName: string;
+  status: RecentExportItemStatus;
+  vendorName: string | null;
+  errorMessage?: string;
+}
+
 export interface ExportProgress {
   status: ExportStatus;
   connectionId: string;
@@ -21,6 +31,9 @@ export interface ExportProgress {
   updated: number;
   skipped: number;
   failed: number;
+  vendorLinksCreated: number;
+  currentClient: string | null;
+  recentItems: RecentExportItem[];
   errors: Array<{ clientId: string; clientName: string; error: string }>;
   cancelRequested: boolean;
 }

@@ -15,6 +15,8 @@ import {
   Trash2,
   Unplug,
   Upload,
+  UserCheck,
+  XCircle,
 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -47,6 +49,7 @@ import {
   useStartExport,
   useCancelExport,
   type ExportProgress,
+  type RecentExportItem,
 } from "@/hooks/use-bling-export";
 import {
   useImportStatus,
@@ -77,6 +80,54 @@ function getExportStatusBadge(status: ExportProgress["status"]) {
     default:
       return null;
   }
+}
+
+function ExportFeedItem({ item }: { item: RecentExportItem }) {
+  const statusConfig = {
+    created: {
+      icon: <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />,
+      label: "Criado",
+      labelClass: "text-emerald-700 dark:text-emerald-400",
+    },
+    updated: {
+      icon: <RefreshCcw className="h-3 w-3 text-blue-500 shrink-0" />,
+      label: "Atualizado",
+      labelClass: "text-blue-700 dark:text-blue-400",
+    },
+    failed: {
+      icon: <XCircle className="h-3 w-3 text-red-500 shrink-0" />,
+      label: "Falha",
+      labelClass: "text-red-700 dark:text-red-400",
+    },
+  } as const;
+
+  const cfg = statusConfig[item.status];
+
+  return (
+    <div className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+      {cfg.icon}
+      <span className="flex-1 text-xs text-slate-700 dark:text-slate-200 truncate min-w-0">
+        {item.clientName}
+      </span>
+      <span className={`text-[10px] font-medium shrink-0 ${cfg.labelClass}`}>
+        {cfg.label}
+      </span>
+      {item.vendorName && (
+        <span className="flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 shrink-0 max-w-[90px] truncate">
+          <UserCheck className="h-2.5 w-2.5 shrink-0" />
+          {item.vendorName}
+        </span>
+      )}
+      {item.status === "failed" && item.errorMessage && (
+        <span
+          className="text-[10px] text-red-500 dark:text-red-400 truncate max-w-[120px] shrink-0"
+          title={item.errorMessage}
+        >
+          {item.errorMessage}
+        </span>
+      )}
+    </div>
+  );
 }
 
 type UserOption = { id: string; name: string; role: string; isActive: string };
@@ -219,7 +270,8 @@ function ClientExportSection({ connectionId }: { connectionId: string }) {
 
       {hasActivity && exportStatus && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-900 sm:grid-cols-4">
+          {/* Contadores resumo */}
+          <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-900 sm:grid-cols-5">
             <div className="text-center">
               <p className="text-xs text-slate-500 dark:text-slate-400">Processados</p>
               <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -249,8 +301,42 @@ function ClientExportSection({ connectionId }: { connectionId: string }) {
                 {exportStatus.failed}
               </p>
             </div>
+            <div className="text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400">C/ Vendedor</p>
+              <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                {exportStatus.vendorLinksCreated}
+              </p>
+            </div>
           </div>
 
+          {/* Cliente sendo processado agora */}
+          {isRunning && exportStatus.currentClient && (
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-800">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400 shrink-0" />
+              <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">Processando:</span>
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
+                {exportStatus.currentClient}
+              </span>
+            </div>
+          )}
+
+          {/* Feed de itens processados */}
+          {exportStatus.recentItems.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                Últimos {exportStatus.recentItems.length} itens processados:
+              </p>
+              <ScrollArea className="h-48 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="space-y-0.5 p-2">
+                  {[...exportStatus.recentItems].reverse().map((item: RecentExportItem, idx: number) => (
+                    <ExportFeedItem key={`${item.clientId}-${idx}`} item={item} />
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+
+          {/* Erros detalhados */}
           {exportStatus.errors.length > 0 && (
             <div className="space-y-1">
               <p className="text-xs font-medium text-red-600 dark:text-red-400">

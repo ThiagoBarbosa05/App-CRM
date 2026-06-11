@@ -43,6 +43,17 @@ export type ExportStatus =
   | "cancelled"
   | "failed";
 
+export type RecentExportItemStatus = "created" | "updated" | "failed";
+
+export interface RecentExportItem {
+  clientId: string;
+  clientName: string;
+  status: RecentExportItemStatus;
+  /** Nome do vendedor Bling vinculado ao contato, ou null se sem vínculo */
+  vendorName: string | null;
+  errorMessage?: string;
+}
+
 export interface ExportProgress {
   status: ExportStatus;
   connectionId: string;
@@ -56,6 +67,12 @@ export interface ExportProgress {
   updated: number;
   skipped: number;
   failed: number;
+  /** Total de contatos exportados com vínculo de vendedor */
+  vendorLinksCreated: number;
+  /** Nome do cliente sendo processado no momento */
+  currentClient: string | null;
+  /** Feed dos últimos 30 itens processados */
+  recentItems: RecentExportItem[];
   /** Até 50 erros individuais */
   errors: Array<{ clientId: string; clientName: string; error: string }>;
   cancelRequested: boolean;
@@ -68,6 +85,7 @@ export interface ExportProgress {
 const RATE_LIMIT_DELAY_MS = 350;
 const PAGE_SIZE = 100;
 const MAX_STORED_ERRORS = 50;
+const MAX_RECENT_ITEMS = 30;
 
 // ---------------------------------------------------------------------------
 // In-memory store de progresso (uma entrada por connectionId)
@@ -119,6 +137,9 @@ export function getExportStatus(connectionId: string): ExportProgress {
       updated: 0,
       skipped: 0,
       failed: 0,
+      vendorLinksCreated: 0,
+      currentClient: null,
+      recentItems: [],
       errors: [],
       cancelRequested: false,
     }
@@ -163,6 +184,9 @@ export async function startExport(
     updated: 0,
     skipped: 0,
     failed: 0,
+    vendorLinksCreated: 0,
+    currentClient: null,
+    recentItems: [],
     errors: [],
     cancelRequested: false,
   };
@@ -225,8 +249,9 @@ async function runExport(
           state: clients.state,
           // blingContactId desta conexão específica
           blingContactId: blingContactMappings.blingContactId,
-          // blingVendedorId do responsável nesta conexão (multi-conta)
+          // blingVendedorId e nome do responsável nesta conexão (multi-conta)
           blingVendedorId: blingSellerMappings.blingVendedorId,
+          blingVendedorName: blingSellerMappings.blingVendedorName,
         })
         .from(clients)
         .leftJoin(users, eq(clients.responsavelId, users.id))
@@ -274,8 +299,10 @@ async function runExport(
 
         const client = batch[i];
 
+        progress.currentClient = client.name;
+
         try {
-          await processClient(
+          const action = await processClient(
             client,
             accessToken,
             onTokenRefresh,
@@ -283,6 +310,19 @@ async function runExport(
             connection.id,
           );
           await markSynced(client.id);
+
+          const vendorName = client.blingVendedorName ?? null;
+          if (vendorName) progress.vendorLinksCreated++;
+
+          if (progress.recentItems.length >= MAX_RECENT_ITEMS) {
+            progress.recentItems.shift();
+          }
+          progress.recentItems.push({
+            clientId: client.id,
+            clientName: client.name,
+            status: action,
+            vendorName,
+          });
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : String(error);
           progress.failed++;
@@ -293,6 +333,16 @@ async function runExport(
               error: errMsg,
             });
           }
+          if (progress.recentItems.length >= MAX_RECENT_ITEMS) {
+            progress.recentItems.shift();
+          }
+          progress.recentItems.push({
+            clientId: client.id,
+            clientName: client.name,
+            status: "failed",
+            vendorName: client.blingVendedorName ?? null,
+            errorMessage: errMsg,
+          });
           await markSyncError(client.id, errMsg);
           console.error(
             `[BlingClientsExport] Erro ao exportar cliente ${client.id} (${client.name}):`,
@@ -314,6 +364,7 @@ async function runExport(
       await sleep(RATE_LIMIT_DELAY_MS);
     }
 
+    progress.currentClient = null;
     progress.status = "completed";
     progress.finishedAt = new Date().toISOString();
 
@@ -407,8 +458,10 @@ type ClientBatch = {
   state: string | null;
   /** blingContactId desta conexão (blingContactMappings); null se ainda não sincronizado */
   blingContactId: string | null;
-  /** blingVendedorId do responsável nesta conexão (blingSellerMappings); fallback para users.blingVendedorId */
+  /** blingVendedorId do responsável nesta conexão (blingSellerMappings) */
   blingVendedorId: string | null;
+  /** Nome do vendedor Bling para exibição no feedback */
+  blingVendedorName: string | null;
 };
 
 async function processClient(
@@ -417,7 +470,7 @@ async function processClient(
   onTokenRefresh: () => Promise<string>,
   progress: ExportProgress,
   connectionId: string,
-): Promise<void> {
+): Promise<"created" | "updated"> {
   let blingContactId = client.blingContactId;
 
   // ── 1. Detectar duplicata no Bling (se ainda não temos o ID) ─────────────
@@ -497,6 +550,8 @@ async function processClient(
   };
 
   // ── 3. Criar ou atualizar no Bling ────────────────────────────────────────
+  let action: "created" | "updated";
+
   if (blingContactId) {
     await updateBlingContato(
       accessToken,
@@ -505,6 +560,7 @@ async function processClient(
       onTokenRefresh,
     );
     progress.updated++;
+    action = "updated";
   } else {
     const { id } = await createBlingContato(accessToken, payload, onTokenRefresh);
     blingContactId = String(id);
@@ -522,9 +578,11 @@ async function processClient(
       .where(eq(clients.id, client.id));
 
     progress.created++;
+    action = "created";
   }
 
   progress.processed++;
+  return action;
 }
 
 // ---------------------------------------------------------------------------
@@ -564,6 +622,7 @@ export async function syncClientToBling(clientId: string): Promise<void> {
       state: clients.state,
       blingContactId: blingContactMappings.blingContactId,
       blingVendedorId: blingSellerMappings.blingVendedorId,
+      blingVendedorName: blingSellerMappings.blingVendedorName,
     })
     .from(clients)
     .leftJoin(users, eq(clients.responsavelId, users.id))
@@ -601,6 +660,9 @@ export async function syncClientToBling(clientId: string): Promise<void> {
     updated: 0,
     skipped: 0,
     failed: 0,
+    vendorLinksCreated: 0,
+    currentClient: null,
+    recentItems: [],
     errors: [],
     cancelRequested: false,
   };
