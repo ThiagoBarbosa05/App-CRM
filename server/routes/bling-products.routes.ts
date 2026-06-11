@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import { syncBlingProducts, type SyncProgressEvent, type ProductDefaults } from "../services/bling-products-sync.service";
+import { replicateBlingProducts, type ReplicateProgressEvent } from "../services/bling-products-replicate.service";
 
 const router = Router();
 
@@ -17,7 +18,7 @@ function getAdminUser(req: Request): { userId: string } {
   return { userId };
 }
 
-function sendSseEvent(res: Response, event: SyncProgressEvent): void {
+function sendSseEvent(res: Response, event: SyncProgressEvent | ReplicateProgressEvent): void {
   res.write(`data: ${JSON.stringify(event)}\n\n`);
 }
 
@@ -86,6 +87,77 @@ router.get("/sync", async (req: Request, res: Response) => {
     await syncBlingProducts(connectionId, userId, defaults, (event) => sendSseEvent(res, event), controller.signal);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao sincronizar produtos do Bling";
+    sendSseEvent(res, { type: "error", message });
+  } finally {
+    res.end();
+  }
+});
+
+/**
+ * GET /api/bling-products/replicate
+ *
+ * Replica produtos de uma conta Bling (origem) para outra (destino),
+ * criando o link local (blingProductMappings) automaticamente.
+ * Resposta via SSE com eventos de progresso.
+ *
+ * Query params:
+ *   sourceConnectionId - ID da conexao Bling de origem (obrigatorio)
+ *   targetConnectionId - ID da conexao Bling de destino (obrigatorio)
+ *   dryRun             - "false" para criar de verdade no destino; qualquer
+ *                        outro valor (ou ausente) roda em modo simulacao
+ *
+ * Requer headers: x-user-id, x-user-role: admin
+ */
+router.get("/replicate", async (req: Request, res: Response) => {
+  let userId: string;
+
+  try {
+    ({ userId } = getAdminUser(req));
+  } catch (error) {
+    res.status(401).json({ message: error instanceof Error ? error.message : "Nao autorizado" });
+    return;
+  }
+
+  const { sourceConnectionId, targetConnectionId, dryRun } = req.query as Record<string, string | undefined>;
+
+  if (!sourceConnectionId) {
+    res.status(400).json({ message: "sourceConnectionId e obrigatorio" });
+    return;
+  }
+
+  if (!targetConnectionId) {
+    res.status(400).json({ message: "targetConnectionId e obrigatorio" });
+    return;
+  }
+
+  if (sourceConnectionId === targetConnectionId) {
+    res.status(400).json({ message: "Conta de origem e destino devem ser diferentes" });
+    return;
+  }
+
+  // SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const controller = new AbortController();
+
+  req.on("close", () => controller.abort());
+
+  try {
+    await replicateBlingProducts(
+      sourceConnectionId,
+      targetConnectionId,
+      userId,
+      // Simulacao por padrao — modo real somente com dryRun=false explicito
+      { dryRun: dryRun !== "false" },
+      (event) => sendSseEvent(res, event),
+      controller.signal,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao replicar produtos do Bling";
     sendSseEvent(res, { type: "error", message });
   } finally {
     res.end();

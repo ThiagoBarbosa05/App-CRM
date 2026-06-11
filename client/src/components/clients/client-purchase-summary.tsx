@@ -79,7 +79,7 @@ export function ClientPurchaseSummary({
         summary.avgItemsPerOrder === null
           ? "\u2014"
           : `${summary.avgItemsPerOrder.toLocaleString("pt-BR")} itens`,
-      subtitle: `Total: ${summary.totalItems.toLocaleString("pt-BR")} itens`,
+      subtitle: summary.totalItems == null ? "Total: — itens" : `Total: ${summary.totalItems.toLocaleString("pt-BR")} itens`,
     },
     {
       label: "Preco medio por item",

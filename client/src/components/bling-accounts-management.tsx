@@ -62,6 +62,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { BlingProductReplicateSection } from "@/components/bling-product-replicate-section";
 
 function getExportStatusBadge(status: ExportProgress["status"]) {
   switch (status) {
@@ -1035,6 +1036,14 @@ export default function BlingAccountsManagement() {
             onConfirm={handleConfirmCleanup}
             isDeleting={cleanupMutation.isPending}
           />
+
+          {connections.filter((c) => c.status === "connected").length >= 2 ? (
+            <BlingProductReplicateSection />
+          ) : connections.length > 0 ? (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Conecte pelo menos duas contas para replicar produtos entre elas.
+            </p>
+          ) : null}
 
           <div className="grid gap-4 xl:grid-cols-2">
             {isLoading && (
