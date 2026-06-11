@@ -6,6 +6,7 @@ import { eq, sql } from "drizzle-orm";
 import { blingConnectionsService } from "../services/bling-connections.service";
 import { requireAuth } from "../middleware/validation";
 import { getBlingVendorsController } from "../controllers/bling-accounts/get-bling-vendors.controller";
+import { getSellerMappingsController } from "../controllers/bling-accounts/get-seller-mappings.controller";
 import {
   startImport,
   cancelImport,
@@ -189,6 +190,8 @@ router.get("/vendors", async (req, res) => {
 
   return getBlingVendorsController(req, res);
 });
+
+router.get("/seller-mappings", (req, res) => getSellerMappingsController(req, res));
 
 /**
  * GET /api/bling-accounts/duplicates-preview

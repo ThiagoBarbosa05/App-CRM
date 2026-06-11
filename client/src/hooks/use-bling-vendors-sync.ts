@@ -21,6 +21,25 @@ export interface UserForSync {
   blingVendedorId: string | null;
 }
 
+export interface BlingConnection {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export interface UserSellerMapping {
+  connectionId: string;
+  connectionName: string;
+  blingVendedorId: string;
+  blingVendedorName: string | null;
+}
+
+export interface ConnectionMapping {
+  connectionId: string;
+  blingVendedorId: string | null;
+  blingVendedorName?: string | null;
+}
+
 export function useBlingVendedores() {
   return useQuery<BlingVendedor[], Error>({
     queryKey: ["/api/bling-accounts/vendors"],
@@ -40,6 +59,72 @@ export function useBlingVendedores() {
       }
     },
     retry: false,
+  });
+}
+
+export function useBlingVendedoresByConnection(connectionId: string | null) {
+  return useQuery<BlingVendedor[], Error>({
+    queryKey: ["/api/bling-accounts/vendors", connectionId],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest("GET", `/api/bling-accounts/vendors?connectionId=${connectionId}`);
+        const data = (await res.json()) as { success: boolean; data: BlingVendedor[] };
+        return data.data;
+      } catch (err) {
+        if (err instanceof Error) {
+          const match = err.message.match(/^(\d+):/);
+          if (match) {
+            throw Object.assign(err, { status: parseInt(match[1], 10) });
+          }
+        }
+        throw err;
+      }
+    },
+    enabled: !!connectionId,
+    retry: false,
+  });
+}
+
+export function useBlingConnections() {
+  return useQuery<BlingConnection[], Error>({
+    queryKey: ["/api/bling-accounts"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/bling-accounts");
+      const data = (await res.json()) as { success: boolean; data: BlingConnection[] };
+      return (data.data ?? []).filter((c) => c.status === "connected");
+    },
+  });
+}
+
+export function useUserSellerMappings(userId: string | null) {
+  return useQuery<UserSellerMapping[], Error>({
+    queryKey: ["/api/bling-accounts/seller-mappings", userId],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/bling-accounts/seller-mappings?userId=${userId}`);
+      const data = (await res.json()) as { success: boolean; data: UserSellerMapping[] };
+      return data.data;
+    },
+    enabled: !!userId,
+  });
+}
+
+export function useSetUserBlingMappings(userId: string) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation<{ success: boolean }, Error, ConnectionMapping[]>({
+    mutationFn: async (connectionMappings) => {
+      const res = await apiRequest("PUT", `/api/users/${userId}/bling-seller-mappings`, { connectionMappings });
+      return res.json() as Promise<{ success: boolean }>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bling-accounts/seller-mappings", userId] });
+      toast({ title: "Mapeamento salvo", description: "Vínculos com o Bling atualizados com sucesso." });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao salvar mapeamento", description: error.message, variant: "destructive" });
+    },
   });
 }
 

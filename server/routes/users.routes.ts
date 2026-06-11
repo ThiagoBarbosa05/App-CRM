@@ -17,6 +17,7 @@ import { updateUserController } from "server/controllers/users/put-user.controll
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
 import { syncBlingVendorsController } from "server/controllers/users/post-sync-bling-vendors.controller";
+import { putBlingSellerMappingsController } from "server/controllers/users/put-bling-seller-mappings.controller";
 import { getSellerSalesController } from "server/controllers/users/get-seller-sales.controller";
 
 import { getChannels } from "../integrations/umbler";
@@ -363,6 +364,17 @@ usersRouter.post(
   "/sync-bling-vendors",
   validateBody(syncBlingVendorsSchema),
   syncBlingVendorsController,
+);
+
+/**
+ * @route PUT /api/users/:id/bling-seller-mappings
+ * @description Define os mapeamentos de vendedor Bling para um usuário (multi-conta)
+ * @access Admin only
+ */
+usersRouter.put(
+  "/:id/bling-seller-mappings",
+  validateParams(userParamsSchema),
+  putBlingSellerMappingsController,
 );
 
 /**

@@ -81,6 +81,8 @@ interface Event {
   location: string;
   maxCapacity: number | null;
   pricePerPerson?: string | null;
+  category?: string;
+  status?: string;
 }
 
 interface EventParticipantsModalProps {
@@ -486,212 +488,185 @@ export default function EventParticipantsModal({
     }
 
     const totalParticipants = participants.reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
-    const totalPresentes   = participants.filter((p) => p.attended === true ).reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
-    const totalAusentes    = participants.filter((p) => p.attended === false).reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
-    const naoConfirmados   = totalParticipants - totalPresentes - totalAusentes;
 
     const logoUrl = `${window.location.origin}/logo-grand-cru-red%20(1).webp`;
 
+    const formatRegistrationDate = (date: string | null) => {
+      if (!date) return "";
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    };
+
     const rows = participants.map((p, i) => {
-      const presencaText  = p.attended === true ? "Presente" : p.attended === false ? "Ausente" : "—";
-      const presencaColor = p.attended === true ? "#15803d" : p.attended === false ? "#b91c1c" : "#94a3b8";
+      const displayStatus = p.status === "convidado" ? "pago" : p.status;
       const rowBg = i % 2 === 0 ? "#ffffff" : "#fdf6f7";
       return `
       <tr style="background:${rowBg};">
-        <td class="col-name">${escapeHtml(p.clientName || "N/A")}</td>
-        <td>${escapeHtml(p.clientPhone || "N/A")}</td>
-        <td class="center">${formatBirthDate(p.clientBirthDate)}</td>
+        <td class="col-name">${escapeHtml(p.clientName || "")}</td>
+        <td>${escapeHtml(p.clientPhone || "")}</td>
+        <td class="center">${formatBirthDate(p.clientBirthDate) === "—" ? "" : formatBirthDate(p.clientBirthDate)}</td>
         <td class="center fw6">${p.numberOfParticipants || 1}</td>
-        <td class="center" style="color:${presencaColor};font-weight:600;">${presencaText}</td>
-        <td class="center"><span class="badge-status s-${p.status}">${STATUS_LABELS[p.status] || p.status}</span></td>
-        <td>${escapeHtml(p.paymentMethod || p.notes || "—")}</td>
+        <td class="center"><span class="badge b-${displayStatus}">${STATUS_LABELS[displayStatus] || displayStatus.toUpperCase()}</span></td>
+        <td class="center">${formatRegistrationDate(p.registrationDate)}</td>
       </tr>`;
     }).join("");
 
     const now = new Date();
+    const eventStatusLabels: Record<string, string> = {
+      planejado: "Planejado",
+      ativo: "Ativo",
+      finalizado: "Finalizado",
+      cancelado: "Cancelado",
+    };
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Lista de Convidados — ${escapeHtml(event.name)}</title>
+  <title>Lista de Participantes — ${escapeHtml(event.name)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
   <style>
-    *  { margin:0; padding:0; box-sizing:border-box; }
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-      font-size: 12px;
-      color: #1e293b;
+      font-family: 'Inter', Arial, sans-serif;
+      font-size: 13px;
+      color: #111;
       background: #fff;
+      padding: 28px 36px;
       line-height: 1.5;
     }
 
-    /* ─── Cabeçalho ─────────────────────────── */
-    header {
-      background: #8b1a2c;
-      padding: 16px 28px;
+    /* ─── Topo: logo + título ─── */
+    .page-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      margin-bottom: 6px;
     }
-    header img   { height: 36px; object-fit: contain; filter: brightness(0) invert(1); }
-    header .doc-label {
+    .page-header img { height: 36px; object-fit: contain; }
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #8b1a2c;
+      text-align: center;
+      flex: 1;
+    }
+    .title-rule {
+      border: none;
+      border-top: 2px solid #8b1a2c;
+      margin-bottom: 18px;
+    }
+
+    /* ─── Info do evento ─── */
+    .event-name {
       font-family: 'Outfit', sans-serif;
       font-size: 15px;
       font-weight: 700;
-      color: #faf7f5;
-      letter-spacing: .3px;
-    }
-
-    /* ─── Faixa do evento ────────────────────── */
-    .event-bar {
-      border-bottom: 1px solid #f4cdd3;
-      padding: 14px 28px;
-      display: flex;
-      gap: 32px;
-      flex-wrap: wrap;
-      background: #fdf6f7;
-    }
-    .event-bar h2 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 16px;
-      font-weight: 700;
       color: #6b1428;
-      width: 100%;
-      margin-bottom: 6px;
+      margin-bottom: 10px;
     }
-    .info-pill { font-size: 12px; color: #475569; }
-    .info-pill span { font-weight: 600; color: #1e293b; }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 40px;
+      margin-bottom: 18px;
+    }
+    .info-row { font-size: 12px; color: #374151; }
+    .info-row strong { font-weight: 700; color: #111; }
 
-    /* ─── Cards de resumo ────────────────────── */
-    .summary-row {
-      display: flex;
-      border-bottom: 2px solid #e2e8f0;
-    }
-    .summary-card {
-      flex: 1;
-      padding: 14px 0;
-      text-align: center;
-      border-right: 1px solid #e2e8f0;
-    }
-    .summary-card:last-child { border-right: none; }
-    .summary-card .s-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #64748b; }
-    .summary-card .s-value { font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 700; color: #0f172a; line-height: 1.1; margin-top: 3px; }
-    .summary-card.wine  .s-value { color: #8b1a2c; }
-    .summary-card.green .s-value { color: #15803d; }
-    .summary-card.red   .s-value { color: #b91c1c; }
-
-    /* ─── Tabela ─────────────────────────────── */
-    .table-wrap { padding: 20px 28px 28px; }
-    table { width: 100%; border-collapse: collapse; }
-    thead tr { background: #8b1a2c; }
+    /* ─── Tabela ─── */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
     th {
-      color: #faf7f5;
-      font-size: 10px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      padding: 9px 10px;
+      border: 1px solid #6b1428;
+      background: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 7px 10px;
       text-align: left;
-      white-space: nowrap;
+      vertical-align: bottom;
+      color: #111;
     }
     td {
+      border: 1px solid #d1d5db;
+      font-size: 12px;
       padding: 8px 10px;
-      border-bottom: 1px solid #f1f5f9;
       vertical-align: middle;
-      color: #334155;
+      color: #111;
     }
-    tr:last-child td { border-bottom: none; }
-    .col-name { font-weight: 600; color: #0f172a; }
-    .center    { text-align: center; }
-    .fw6       { font-weight: 600; }
+    tr:nth-child(odd)  td { background: #fff; }
+    tr:nth-child(even) td { background: #fdf6f7; }
+    .col-name { font-weight: 600; }
+    .center { text-align: center; }
+    .fw6    { font-weight: 600; }
 
-    /* badges de status */
-    .badge-status {
+    .badge {
       display: inline-block;
-      padding: 2px 8px;
-      border-radius: 99px;
+      padding: 2px 9px;
+      border-radius: 4px;
       font-size: 10px;
       font-weight: 700;
-      letter-spacing: .3px;
+      letter-spacing: .2px;
       white-space: nowrap;
     }
-    .s-pago         { background:#dbeafe; color:#1e40af; }
-    .s-convidado    { background:#dcfce7; color:#15803d; }
-    .s-pendente     { background:#fef9c3; color:#854d0e; }
-    .s-pagar_na_hora{ background:#ffedd5; color:#c2410c; }
-    .s-cancelado    { background:#fee2e2; color:#991b1b; }
+    .b-pago         { background:#dbeafe; color:#1e40af; }
+    .b-pendente     { background:#fef9c3; color:#854d0e; }
+    .b-pagar_na_hora{ background:#ffedd5; color:#c2410c; }
+    .b-cancelado    { background:#fee2e2; color:#991b1b; }
 
-    /* ─── Rodapé ─────────────────────────────── */
+    /* ─── Rodapé ─── */
     footer {
-      border-top: 1px solid #e2e8f0;
-      padding: 9px 28px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      text-align: center;
       font-size: 10px;
-      color: #94a3b8;
+      color: #6b7280;
+      border-top: 1px solid #d1d5db;
+      padding-top: 8px;
     }
 
     @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 18px 28px; }
       @page { margin: 0; size: A4 portrait; }
     }
   </style>
 </head>
 <body>
 
-  <header>
+  <div class="page-header">
     <img src="${logoUrl}" alt="Grand Cru" />
-    <span class="doc-label">Lista de Convidados</span>
-  </header>
+    <h1>Lista de Participantes</h1>
+    <div style="width:80px"></div>
+  </div>
+  <hr class="title-rule" />
 
-  <div class="event-bar">
-    <h2>${escapeHtml(event.name)}</h2>
-    <div class="info-pill">Data &nbsp;<span>${formatDate(event.eventDate)}</span></div>
-    <div class="info-pill">Local &nbsp;<span>${escapeHtml(event.location)}</span></div>
-    ${event.maxCapacity ? `<div class="info-pill">Capacidade &nbsp;<span>${totalParticipants} / ${event.maxCapacity}</span></div>` : ""}
+  <div class="event-name">${escapeHtml(event.name)}</div>
+
+  <div class="info-grid">
+    <div class="info-row"><strong>Data:</strong> ${formatDate(event.eventDate)}</div>
+    ${event.pricePerPerson ? `<div class="info-row"><strong>Valor por Pessoa:</strong> ${formatCurrency(parseFloat(event.pricePerPerson))}</div>` : "<div></div>"}
+    <div class="info-row"><strong>Local:</strong> ${escapeHtml(event.location)}</div>
+    ${event.maxCapacity ? `<div class="info-row"><strong>Capacidade:</strong> ${totalParticipants} / ${event.maxCapacity}</div>` : "<div></div>"}
+    ${event.category ? `<div class="info-row"><strong>Categoria:</strong> ${escapeHtml(event.category)}</div>` : "<div></div>"}
+    ${event.status ? `<div class="info-row"><strong>Status:</strong> ${eventStatusLabels[event.status] || event.status}</div>` : "<div></div>"}
   </div>
 
-  <div class="summary-row">
-    <div class="summary-card wine">
-      <div class="s-label">Total Convidados</div>
-      <div class="s-value">${totalParticipants}</div>
-    </div>
-    <div class="summary-card green">
-      <div class="s-label">Presentes</div>
-      <div class="s-value">${totalPresentes}</div>
-    </div>
-    <div class="summary-card red">
-      <div class="s-label">Ausentes</div>
-      <div class="s-value">${totalAusentes}</div>
-    </div>
-    <div class="summary-card">
-      <div class="s-label">Não Confirmados</div>
-      <div class="s-value">${naoConfirmados}</div>
-    </div>
-  </div>
-
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Telefone</th>
-          <th class="center">Aniversário</th>
-          <th class="center">Nº Pessoas</th>
-          <th class="center">Presença</th>
-          <th class="center">Status</th>
-          <th>Forma de Pgto.</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:18%">Nome do<br>Cliente</th>
+        <th style="width:13%">Telefone</th>
+        <th style="width:13%" class="center">Data de Aniversário</th>
+        <th style="width:7%"  class="center">Nº<br>Participantes</th>
+        <th style="width:9%"  class="center">Status</th>
+        <th style="width:13%" class="center">Data de<br>Inscrição</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
 
   <footer>
-    <span>Gerado em ${now.toLocaleDateString("pt-BR")} às ${now.toLocaleTimeString("pt-BR")}</span>
-    <span>${escapeHtml(event.name)} · Lista de Convidados · Uso interno</span>
+    <div>Lista gerada em: ${now.toLocaleDateString("pt-BR")} às ${now.toLocaleTimeString("pt-BR")}</div>
+    <div>Total de participantes: ${totalParticipants}</div>
   </footer>
 
   <script>window.onload = function() { setTimeout(function() { window.print(); }, 800); };</script>
@@ -713,27 +688,37 @@ export default function EventParticipantsModal({
 
     const logoUrl = `${window.location.origin}/logo-grand-cru-red%20(1).webp`;
 
+    const totalPessoas = participants.reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
+
     const rows = participants
       .map((p, i) => {
-        const basePrice = parseFloat(p.customPrice ?? event.pricePerPerson ?? "0") || 0;
-        const total = basePrice * (p.numberOfParticipants || 1);
-        if (p.status === "pago") totalPago += total;
+        const pricePerPerson = parseFloat(event.pricePerPerson ?? "0") || 0;
+        const qty = p.numberOfParticipants || 1;
+        // customPrice é o valor total já calculado; quando ausente, multiplica preço por pessoa × quantidade
+        const total = p.customPrice
+          ? parseFloat(p.customPrice)
+          : pricePerPerson * qty;
+        const displayPricePerPerson = p.customPrice
+          ? total / qty
+          : pricePerPerson;
+        if (p.status === "pago" || p.status === "convidado") totalPago += total;
         else if (p.status === "pendente" || p.status === "pagar_na_hora") totalPendente += total;
         if (p.status !== "cancelado") totalGeral += total;
         const paymentDateStr = p.paymentDate
           ? new Date(p.paymentDate).toLocaleDateString("pt-BR")
           : "—";
+        const presencaText  = p.attended === true ? "Presente" : p.attended === false ? "Ausente" : "—";
+        const presencaColor = p.attended === true ? "#15803d" : p.attended === false ? "#b91c1c" : "#94a3b8";
         const rowBg = i % 2 === 0 ? "#ffffff" : "#fdf6f7";
-        const isCustomPrice = !!p.customPrice;
         return `
         <tr style="background:${rowBg};">
-          <td class="col-name">${escapeHtml(p.clientName || "N/A")}</td>
-          <td>${escapeHtml(p.clientPhone || "N/A")}</td>
-          <td class="center fw6">${p.numberOfParticipants || 1}</td>
+          <td class="col-name">${escapeHtml(p.clientName || "")}</td>
+          <td class="center fw6">${qty}</td>
+          <td class="center" style="color:${presencaColor};font-weight:600;">${presencaText}</td>
           <td><span class="badge-status s-${p.status}">${STATUS_LABELS[p.status] || p.status}</span></td>
           <td>${escapeHtml(p.paymentMethod || "—")}</td>
           <td class="center">${paymentDateStr}</td>
-          <td class="right">${formatCurrency(basePrice)}</td>
+          <td class="right">${formatCurrency(displayPricePerPerson)}</td>
           <td class="right fw6 wine">${formatCurrency(total)}</td>
           <td class="obs">${escapeHtml(p.notes || "")}</td>
         </tr>`;
@@ -892,8 +877,8 @@ export default function EventParticipantsModal({
     <h2>${escapeHtml(event.name)}</h2>
     <div class="info-pill">Data &nbsp;<span>${formatDate(event.eventDate)}</span></div>
     <div class="info-pill">Local &nbsp;<span>${escapeHtml(event.location)}</span></div>
-    ${event.pricePerPerson ? `<div class="info-pill">Valor por Pessoa &nbsp;<span>${formatCurrency(parseFloat(event.pricePerPerson))}</span></div>` : ""}
     <div class="info-pill">Inscrições &nbsp;<span>${participants.length}</span></div>
+    <div class="info-pill">Total de Pessoas &nbsp;<span>${totalPessoas}</span></div>
   </div>
 
   <div class="summary-row">
@@ -916,12 +901,12 @@ export default function EventParticipantsModal({
       <thead>
         <tr>
           <th>Nome</th>
-          <th>Telefone</th>
           <th class="center">Nº Pessoas</th>
+          <th class="center">Presença</th>
           <th>Status</th>
           <th>Forma de Pgto.</th>
           <th class="center">Data Pgto.</th>
-          <th class="right">Preço / Pessoa</th>
+          <th class="right">Valor</th>
           <th class="right">Valor Total</th>
           <th>Observações</th>
         </tr>
@@ -929,7 +914,7 @@ export default function EventParticipantsModal({
       <tbody>
         ${rows}
         <tr class="totals-row">
-          <td colspan="7" style="text-align:right;">Total geral (excl. cancelados)</td>
+          <td colspan="7" style="text-align:right; padding-right:10px;">Total geral (excl. cancelados)</td>
           <td class="right wine" style="font-size:13px;">${formatCurrency(totalGeral)}</td>
           <td></td>
         </tr>
