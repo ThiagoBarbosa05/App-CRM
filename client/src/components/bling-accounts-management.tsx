@@ -134,7 +134,7 @@ type UserOption = { id: string; name: string; role: string; isActive: string };
 
 function ClientExportSection({ connectionId }: { connectionId: string }) {
   const [includeBlingSourced, setIncludeBlingSourced] = useState(false);
-  const [responsavelId, setResponsavelId] = useState("");
+  const [responsavelId, setResponsavelId] = useState("all");
   const [showAllErrors, setShowAllErrors] = useState(false);
   const { toast } = useToast();
 
@@ -160,7 +160,7 @@ function ClientExportSection({ connectionId }: { connectionId: string }) {
       await startExportMutation.mutateAsync({
         connectionId,
         includeBlingSourced,
-        responsavelId: responsavelId || undefined,
+        responsavelId: responsavelId === "all" ? undefined : responsavelId,
       });
     } catch (error) {
       toast({
@@ -216,7 +216,7 @@ function ClientExportSection({ connectionId }: { connectionId: string }) {
             <SelectValue placeholder="Todos os clientes" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os clientes</SelectItem>
+            <SelectItem value="all">Todos os clientes</SelectItem>
             {activeUsers.map((u) => (
               <SelectItem key={u.id} value={u.id}>
                 {u.name}
