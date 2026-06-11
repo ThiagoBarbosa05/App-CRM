@@ -55,6 +55,13 @@ import {
   type ImportProgress,
 } from "@/hooks/use-bling-import";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function getExportStatusBadge(status: ExportProgress["status"]) {
   switch (status) {
@@ -71,10 +78,23 @@ function getExportStatusBadge(status: ExportProgress["status"]) {
   }
 }
 
+type UserOption = { id: string; name: string; role: string; isActive: string };
+
 function ClientExportSection({ connectionId }: { connectionId: string }) {
   const [includeBlingSourced, setIncludeBlingSourced] = useState(false);
+  const [responsavelId, setResponsavelId] = useState("");
   const [showAllErrors, setShowAllErrors] = useState(false);
   const { toast } = useToast();
+
+  const { data: users = [] } = useQuery<UserOption[]>({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/users");
+      return res.json();
+    },
+  });
+
+  const activeUsers = users.filter((u) => u.isActive === "true");
 
   const { data: exportStatus } = useExportStatus(connectionId);
   const startExportMutation = useStartExport();
@@ -85,7 +105,11 @@ function ClientExportSection({ connectionId }: { connectionId: string }) {
 
   const handleStart = async () => {
     try {
-      await startExportMutation.mutateAsync({ connectionId, includeBlingSourced });
+      await startExportMutation.mutateAsync({
+        connectionId,
+        includeBlingSourced,
+        responsavelId: responsavelId || undefined,
+      });
     } catch (error) {
       toast({
         title: "Erro ao iniciar exportação",
@@ -125,6 +149,29 @@ function ClientExportSection({ connectionId }: { connectionId: string }) {
             {exportBadge.label}
           </Badge>
         )}
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs text-slate-600 dark:text-slate-400">
+          Filtrar por vendedor
+        </Label>
+        <Select
+          value={responsavelId}
+          onValueChange={setResponsavelId}
+          disabled={isRunning}
+        >
+          <SelectTrigger className="h-8 text-sm">
+            <SelectValue placeholder="Todos os clientes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Todos os clientes</SelectItem>
+            {activeUsers.map((u) => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex items-center gap-2">

@@ -13,7 +13,7 @@ export interface ExportProgress {
   connectionId: string;
   startedAt: string | null;
   finishedAt: string | null;
-  params: { includeBlingSourced?: boolean } | null;
+  params: { includeBlingSourced?: boolean; responsavelId?: string } | null;
   currentPage: number;
   totalFetched: number;
   processed: number;
@@ -53,11 +53,15 @@ export function useStartExport() {
     mutationFn: async (payload: {
       connectionId: string;
       includeBlingSourced?: boolean;
+      responsavelId?: string;
     }) => {
       const response = await apiRequest(
         "POST",
         `/api/bling-accounts/${payload.connectionId}/export-clients`,
-        { includeBlingSourced: payload.includeBlingSourced },
+        {
+          includeBlingSourced: payload.includeBlingSourced,
+          responsavelId: payload.responsavelId,
+        },
       );
       return response.json();
     },

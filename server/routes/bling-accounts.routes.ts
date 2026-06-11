@@ -551,6 +551,7 @@ router.post("/:id/import-cancel", async (req, res) => {
 
 const exportClientsBodySchema = z.object({
   includeBlingSourced: z.boolean().optional(),
+  responsavelId: z.string().optional(),
 });
 
 /**

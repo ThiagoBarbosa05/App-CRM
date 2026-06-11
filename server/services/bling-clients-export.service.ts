@@ -32,6 +32,8 @@ import { getAccessTokenAndRefresher } from "./bling-webhook.service";
 export interface ExportClientsParams {
   /** Quando true, inclui clientes com categoria="Bling" (vindos do webhook). Default: false */
   includeBlingSourced?: boolean;
+  /** Quando informado, exporta apenas clientes com esse responsavelId */
+  responsavelId?: string;
 }
 
 export type ExportStatus =
@@ -184,6 +186,7 @@ async function runExport(
 ): Promise<void> {
   let { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
   const includeBlingSourced = params.includeBlingSourced ?? false;
+  const responsavelId = params.responsavelId ?? null;
 
   console.info(
     `[BlingClientsExport] Iniciando exportação para conexão ${connection.id} ` +
@@ -241,7 +244,12 @@ async function runExport(
             eq(blingSellerMappings.connectionId, connection.id),
           ),
         )
-        .where(includeBlingSourced ? undefined : ne(clients.categoria, "Bling"))
+        .where(
+          and(
+            includeBlingSourced ? undefined : ne(clients.categoria, "Bling"),
+            responsavelId ? eq(clients.responsavelId, responsavelId) : undefined,
+          ),
+        )
         .orderBy(asc(clients.createdAt))
         .limit(PAGE_SIZE)
         .offset((page - 1) * PAGE_SIZE);
