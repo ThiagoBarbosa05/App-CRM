@@ -5,6 +5,9 @@ import {
   getConversation,
   sendConversationMessage,
   markConversationRead,
+  resolveConversationIdByClientId,
+  startConversationByClientId,
+  retryFailedMessage,
 } from "../services/whatsapp-conversations.service";
 import { fetchMediaStream } from "../integrations/whatsapp";
 import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
@@ -38,8 +41,8 @@ router.get("/conversations", async (req, res) => {
     const result = await listClientsForChat(user.userId, user.role, search);
     res.json(result);
   } catch (err) {
-    console.error("[WA Conversations] Erro ao listar clientes:", err);
-    res.status(500).json({ message: "Erro ao listar clientes" });
+    console.error("[WA Conversations] Erro ao listar conversas:", err);
+    res.status(500).json({ message: "Erro ao listar conversas" });
   }
 });
 
@@ -48,10 +51,13 @@ router.get("/conversations/:clientId", async (req, res) => {
     const user = (req as any).user;
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
 
-    const messages = await getConversation(req.params.clientId, user.userId, user.role);
-    if (messages === null) return res.status(404).json({ message: "Cliente não encontrado" });
+    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
-    res.json(Array.isArray(messages) ? messages : []);
+    const result = await getConversation(conversationId, user.userId, user.role);
+    if (result === null) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    res.json(result);
   } catch {
     res.status(500).json({ message: "Erro ao buscar conversa" });
   }
@@ -87,11 +93,41 @@ router.post("/conversations/:clientId/read", async (req, res) => {
   try {
     const user = (req as any).user;
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
-    await markConversationRead(user.userId, req.params.clientId);
+
+    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    await markConversationRead(user.userId, conversationId);
     res.json({ ok: true });
   } catch (err) {
     console.error("[WA Conversations] Erro ao marcar como lido:", err);
     res.status(500).json({ message: "Erro ao marcar como lido" });
+  }
+});
+
+const startConversationSchema = z.object({
+  clientId: z.string().min(1),
+});
+
+router.post("/conversations/start", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = startConversationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ errors: parsed.error.flatten() });
+    }
+
+    const result = await startConversationByClientId(parsed.data.clientId);
+    if (!result) {
+      return res.status(400).json({ message: "Cliente não encontrado ou sem telefone" });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao iniciar conversa:", err);
+    res.status(500).json({ message: "Erro ao iniciar conversa" });
   }
 });
 
@@ -109,25 +145,45 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
       return res.status(400).json({ errors: parsed.error.flatten() });
     }
 
-    console.log(`[WA Conversations] Enviando mensagem para cliente ${req.params.clientId} por usuário ${user.userId}`);
+    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
     const result = await sendConversationMessage(
-      req.params.clientId,
+      conversationId,
       parsed.data.message,
       user.userId,
       user.role,
     );
 
     if (result === null) {
-      console.warn(`[WA Conversations] sendConversationMessage retornou null para cliente ${req.params.clientId}`);
       return res.status(400).json({ message: "Não foi possível enviar a mensagem" });
     }
 
-    console.log(`[WA Conversations] Mensagem enviada com sucesso:`, JSON.stringify(result));
     res.json(result);
   } catch (err) {
     console.error(`[WA Conversations] Erro ao enviar mensagem:`, err);
     res.status(500).json({ message: "Erro ao enviar mensagem", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.post("/conversations/:clientId/messages/:messageId/retry", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const result = await retryFailedMessage(
+      req.params.messageId,
+      req.params.clientId,
+      user.userId,
+      user.role,
+    );
+
+    if (!result) return res.status(404).json({ message: "Mensagem não encontrada ou já enviada" });
+
+    res.json({ status: result });
+  } catch (err) {
+    console.error(`[WA Conversations] Erro ao reenviar mensagem:`, err);
+    res.status(500).json({ message: "Erro ao reenviar mensagem" });
   }
 });
 

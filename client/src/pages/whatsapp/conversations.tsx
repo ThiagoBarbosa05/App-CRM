@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -8,7 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -18,44 +23,62 @@ import {
   Phone,
   ArrowLeft,
   CheckCheck,
-  Clock,
+  AlertCircle,
+  RotateCcw,
   FileText,
   Download,
   ZoomIn,
   Play,
   Pause,
   Mic,
+  PlusCircle,
+  Loader2,
 } from "lucide-react";
 
 interface ChatClient {
-  id: string;
-  name: string;
-  phone: string | null;
+  conversationId: string;
+  clientId: string | null;
+  phone: string;
+  clientName: string | null;
   lastMessageAt?: string | null;
   lastMessageContent?: string | null;
   lastMessageDirection?: "inbound" | "outbound" | null;
   unreadCount?: number | null;
 }
 
+interface WaMedia {
+  id: string;
+  whatsappMediaId: string | null;
+  storageKey: string | null;
+  mimeType: string | null;
+  filename: string | null;
+  size: number | null;
+}
+
 interface WaMessage {
   id: string;
-  clientId: string | null;
-  phone: string;
+  conversationId: string;
+  waMessageId: string | null;
   direction: "inbound" | "outbound";
   type: string;
   content: string | null;
-  mediaId: string | null;
-  mimeType: string | null;
   caption: string | null;
-  mediaFilename: string | null;
-  waMessageId: string | null;
   status: string | null;
+  replyToMessageId: string | null;
   sentByUserId: string | null;
   sentAt: string | null;
   createdAt: string;
+  media: WaMedia | null;
 }
 
-function getInitials(name: string) {
+interface LocalMessage {
+  localId: string;
+  content: string;
+  createdAt: string;
+}
+
+function getInitials(name: string | null, phone: string) {
+  if (!name) return phone.replace(/\D/g, "").slice(-2);
   return name
     .split(" ")
     .slice(0, 2)
@@ -88,6 +111,7 @@ function ClientListItem({
   onClick: () => void;
 }) {
   const hasUnread = (client.unreadCount ?? 0) > 0;
+  const displayName = client.clientName ?? client.phone;
 
   return (
     <button
@@ -104,7 +128,7 @@ function ClientListItem({
     >
       <div className="relative shrink-0">
         <div className="h-11 w-11 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-sm font-bold text-white shadow-sm">
-          {getInitials(client.name)}
+          {getInitials(client.clientName, client.phone)}
         </div>
         {hasUnread && !selected && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-green-500 flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-sm">
@@ -119,7 +143,7 @@ function ClientListItem({
             "text-sm truncate",
             hasUnread && !selected ? "font-bold text-slate-900 dark:text-white" : "font-medium text-slate-800 dark:text-slate-100",
           )}>
-            {client.name}
+            {displayName}
           </p>
           {client.lastMessageAt && (
             <span className={cn(
@@ -149,7 +173,7 @@ function ClientListItem({
           ) : (
             <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1 truncate flex-1">
               <Phone className="h-3 w-3 shrink-0" />
-              {client.phone ?? "Sem telefone"}
+              {client.phone}
             </p>
           )}
         </div>
@@ -196,7 +220,6 @@ function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) 
         preload="metadata"
       />
 
-      {/* Play/Pause */}
       <button
         onClick={toggle}
         className={cn(
@@ -209,7 +232,6 @@ function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) 
         {playing ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current translate-x-0.5" />}
       </button>
 
-      {/* Waveform / progress */}
       <div className="flex-1 flex flex-col gap-1">
         <div
           className={cn(
@@ -240,7 +262,6 @@ function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) 
         </span>
       </div>
 
-      {/* Mic icon */}
       <Mic className={cn(
         "h-4 w-4 shrink-0",
         isOutbound ? "text-primary-foreground/50" : "text-slate-400 dark:text-slate-500",
@@ -251,7 +272,9 @@ function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) 
 
 function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boolean }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const mediaUrl = msg.mediaId ? `/api/whatsapp/media/${msg.mediaId}` : null;
+  const mediaUrl = msg.media?.whatsappMediaId
+    ? `/api/whatsapp/media/${msg.media.whatsappMediaId}`
+    : null;
 
   if (msg.type === "image" || msg.type === "sticker") {
     return (
@@ -328,12 +351,12 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
       <div className="flex items-center gap-2">
         <FileText className="h-5 w-5 shrink-0 opacity-70" />
         <span className="text-sm truncate flex-1">
-          {msg.mediaFilename ?? msg.caption ?? "documento"}
+          {msg.media?.filename ?? msg.caption ?? "documento"}
         </span>
         {mediaUrl && (
           <a
             href={mediaUrl}
-            download={msg.mediaFilename ?? true}
+            download={msg.media?.filename ?? true}
             className={cn(
               "shrink-0 p-1 rounded hover:opacity-70 transition-opacity",
               isOutbound ? "text-primary-foreground" : "text-slate-500 dark:text-slate-400",
@@ -366,8 +389,9 @@ function ConversationMessages({
   client: ChatClient;
 }) {
   const [message, setMessage] = useState("");
+  const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
-  const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -377,7 +401,7 @@ function ConversationMessages({
       const res = await fetch(`/api/whatsapp/conversations/${clientId}`);
       if (!res.ok) return [];
       const data = await res.json();
-      return Array.isArray(data) ? data : [];
+      return data?.messages ?? (Array.isArray(data) ? data : []);
     },
     refetchInterval: 30_000,
   });
@@ -388,10 +412,11 @@ function ConversationMessages({
       new Date(b.sentAt ?? b.createdAt).getTime(),
   );
 
-  // Auto-scroll to bottom when messages change
+  const hasPending = localMessages.length > 0;
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  }, [messages.length, localMessages.length]);
 
   useEffect(() => {
     const es = new EventSource(`/api/whatsapp/conversations/${clientId}/stream`);
@@ -402,33 +427,51 @@ function ConversationMessages({
     return () => es.close();
   }, [clientId, queryClient]);
 
-  const sendMutation = useMutation({
-    mutationFn: async (text: string) => {
+  const attemptSend = useCallback(async (text: string, localId: string) => {
+    try {
       const res = await fetch(`/api/whatsapp/conversations/${clientId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? "Erro ao enviar mensagem");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      setMessage("");
-      textareaRef.current?.focus();
+      if (!res.ok) throw new Error();
+    } catch {
+      // Erro já persistido no banco como "failed" pelo backend
+    } finally {
+      setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
-    },
-    onError: (err: Error) => {
-      toast({ title: err.message, variant: "destructive" });
-    },
-  });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+    }
+  }, [clientId, queryClient]);
+
+  const handleRetry = useCallback(async (messageId: string) => {
+    setRetryingIds((prev) => new Set([...prev, messageId]));
+    try {
+      await fetch(`/api/whatsapp/conversations/${clientId}/messages/${messageId}/retry`, {
+        method: "POST",
+      });
+    } finally {
+      setRetryingIds((prev) => {
+        const s = new Set(prev);
+        s.delete(messageId);
+        return s;
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+    }
+  }, [clientId, queryClient]);
 
   const handleSend = () => {
     const text = message.trim();
-    if (!text || sendMutation.isPending) return;
-    sendMutation.mutate(text);
+    if (!text || hasPending) return;
+    const localId = crypto.randomUUID();
+    setLocalMessages((prev) => [
+      ...prev,
+      { localId, content: text, createdAt: new Date().toISOString() },
+    ]);
+    setMessage("");
+    textareaRef.current?.focus();
+    attemptSend(text, localId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -438,7 +481,6 @@ function ConversationMessages({
     }
   };
 
-  // Group messages by date
   const grouped: { date: string; msgs: WaMessage[] }[] = [];
   for (const msg of messages) {
     const day = format(new Date(msg.sentAt ?? msg.createdAt), "yyyy-MM-dd");
@@ -449,6 +491,8 @@ function ConversationMessages({
       grouped.push({ date: day, msgs: [msg] });
     }
   }
+
+  const displayName = client.clientName ?? client.phone;
 
   return (
     <div className="flex flex-col h-full">
@@ -463,13 +507,13 @@ function ConversationMessages({
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
-          {getInitials(client.name)}
+          {getInitials(client.clientName, client.phone)}
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-            {client.name}
+            {displayName}
           </p>
-          {client.phone && (
+          {client.clientName && (
             <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
               <Phone className="h-3 w-3" />
               {client.phone}
@@ -488,7 +532,7 @@ function ConversationMessages({
               </div>
             ))}
           </div>
-        ) : messages.length === 0 ? (
+        ) : messages.length === 0 && localMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
             <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-700/50 mb-4">
               <MessageSquare className="h-8 w-8 text-slate-300 dark:text-slate-600" />
@@ -501,67 +545,110 @@ function ConversationMessages({
             </p>
           </div>
         ) : (
-          grouped.map(({ date, msgs }) => (
-            <div key={date} className="space-y-1.5">
-              {/* Date separator */}
-              <div className="flex items-center gap-3 py-2">
-                <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
-                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50">
-                  {formatSectionDate(msgs[0].sentAt ?? msgs[0].createdAt)}
-                </span>
-                <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
-              </div>
+          <>
+            {grouped.map(({ date, msgs }) => (
+              <div key={date} className="space-y-1.5">
+                <div className="flex items-center gap-3 py-2">
+                  <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
+                  <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/50">
+                    {formatSectionDate(msgs[0].sentAt ?? msgs[0].createdAt)}
+                  </span>
+                  <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
+                </div>
 
-              {msgs.map((msg) => {
-                const isOutbound = msg.direction === "outbound";
-                const time = format(new Date(msg.sentAt ?? msg.createdAt), "HH:mm");
-                return (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex w-full",
-                      isOutbound ? "justify-end" : "justify-start",
-                    )}
-                  >
+                {msgs.map((msg) => {
+                  const isOutbound = msg.direction === "outbound";
+                  const isFailed = isOutbound && msg.status === "failed";
+                  const isRetrying = retryingIds.has(msg.id);
+                  const isMedia = msg.type === "image" || msg.type === "video" || msg.type === "sticker";
+                  const time = format(new Date(msg.sentAt ?? msg.createdAt), "HH:mm");
+                  return (
                     <div
+                      key={msg.id}
                       className={cn(
-                        "max-w-[82%] sm:max-w-[70%] rounded-2xl shadow-sm overflow-hidden",
-                        msg.type === "image" || msg.type === "video" || msg.type === "sticker"
-                          ? "p-0"
-                          : "px-3.5 py-2.5",
-                        isOutbound
-                          ? "bg-primary text-primary-foreground rounded-tr-[4px]"
-                          : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-tl-[4px]",
+                        "flex w-full items-end gap-2",
+                        isOutbound ? "justify-end" : "justify-start",
                       )}
                     >
-                      <MessageContent msg={msg} isOutbound={isOutbound} />
-                      <div className={cn(
-                        "flex items-center gap-1 mt-1",
-                        msg.type === "image" || msg.type === "video" || msg.type === "sticker"
-                          ? "px-3 pb-2 justify-end"
-                          : "justify-end",
-                      )}>
-                        <span className={cn(
-                          "text-[10px]",
-                          isOutbound ? "text-primary-foreground/70" : "text-slate-400 dark:text-slate-500",
-                        )}>
-                          {time}
-                        </span>
-                        {isOutbound && (
-                          <CheckCheck className={cn(
-                            "h-3 w-3",
-                            msg.status === "delivered" || msg.status === "read"
-                              ? "text-blue-300"
-                              : "text-primary-foreground/60",
-                          )} />
+                      {/* Botão de reenvio à esquerda da bolha (só para falhas) */}
+                      {isFailed && (
+                        <button
+                          onClick={() => handleRetry(msg.id)}
+                          disabled={isRetrying}
+                          className="shrink-0 mb-1 flex items-center gap-1 text-[11px] text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50"
+                        >
+                          {isRetrying
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <RotateCcw className="h-3.5 w-3.5" />
+                          }
+                          <span className="whitespace-nowrap">
+                            {isRetrying ? "Reenviando…" : "Reenviar"}
+                          </span>
+                        </button>
+                      )}
+
+                      {/* Bolha */}
+                      <div
+                        className={cn(
+                          "max-w-[72%] sm:max-w-[65%] rounded-2xl shadow-sm overflow-hidden",
+                          isMedia ? "p-0" : "px-3.5 py-2.5",
+                          isFailed
+                            ? "bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-200 rounded-tr-[4px]"
+                            : isOutbound
+                              ? "bg-primary text-primary-foreground rounded-tr-[4px]"
+                              : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-tl-[4px]",
                         )}
+                      >
+                        <MessageContent msg={msg} isOutbound={isOutbound} />
+                        <div className={cn(
+                          "flex items-center gap-1 mt-1",
+                          isMedia ? "px-3 pb-2 justify-end" : "justify-end",
+                        )}>
+                          <span className={cn(
+                            "text-[10px]",
+                            isFailed
+                              ? "text-red-400 dark:text-red-500"
+                              : isOutbound
+                                ? "text-primary-foreground/70"
+                                : "text-slate-400 dark:text-slate-500",
+                          )}>
+                            {time}
+                          </span>
+                          {isFailed ? (
+                            <AlertCircle className="h-3 w-3 text-red-400 dark:text-red-500" />
+                          ) : isOutbound ? (
+                            <CheckCheck className={cn(
+                              "h-3 w-3",
+                              msg.status === "delivered" || msg.status === "read"
+                                ? "text-blue-300"
+                                : "text-primary-foreground/60",
+                            )} />
+                          ) : null}
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            ))}
+
+            {/* Mensagens locais em trânsito (pending) */}
+            {localMessages.map((lm) => (
+              <div key={lm.localId} className="flex w-full justify-end">
+                <div className="max-w-[82%] sm:max-w-[70%] rounded-2xl shadow-sm px-3.5 py-2.5 rounded-tr-[4px] bg-primary/60 text-primary-foreground">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
+                    {lm.content}
+                  </p>
+                  <div className="flex items-center justify-end gap-1 mt-1">
+                    <span className="text-[10px] text-primary-foreground/70">
+                      {format(new Date(lm.createdAt), "HH:mm")}
+                    </span>
+                    <Loader2 className="h-3 w-3 text-primary-foreground/60 animate-spin" />
                   </div>
-                );
-              })}
-            </div>
-          ))
+                </div>
+              </div>
+            ))}
+          </>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -580,12 +667,12 @@ function ConversationMessages({
           />
           <Button
             onClick={handleSend}
-            disabled={!message.trim() || sendMutation.isPending}
+            disabled={!message.trim() || hasPending}
             size="icon"
             className="shrink-0 h-10 w-10"
           >
-            {sendMutation.isPending ? (
-              <Clock className="h-4 w-4 animate-spin" />
+            {hasPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
             )}
@@ -599,10 +686,134 @@ function ConversationMessages({
   );
 }
 
+function NewConversationDialog({
+  open,
+  onOpenChange,
+  onSelect,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onSelect: (clientId: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/clients", "wa-new-conv", debouncedSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ pageSize: "20" });
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      const res = await fetch(`/api/clients?${params}`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json?.data ?? json) as Array<{ id: string; name: string; phone: string | null }>;
+    },
+    enabled: open,
+  });
+
+  const clientResults = Array.isArray(data) ? data : [];
+
+  const startMutation = useMutation({
+    mutationFn: async (clientId: string) => {
+      const res = await fetch("/api/whatsapp/conversations/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? "Erro ao iniciar conversa");
+      }
+      return res.json() as Promise<{ clientId: string }>;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+      onOpenChange(false);
+      onSelect(result.clientId);
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nova conversa</DialogTitle>
+        </DialogHeader>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar cliente por nome ou telefone..."
+            className="pl-9 text-sm"
+            autoFocus
+          />
+        </div>
+
+        <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+          {isLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-3.5 w-28" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : clientResults.length === 0 ? (
+            <div className="p-6 text-center">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                {debouncedSearch ? "Nenhum cliente encontrado" : "Digite para buscar um cliente"}
+              </p>
+            </div>
+          ) : (
+            clientResults.map((c) => (
+              <button
+                key={c.id}
+                disabled={startMutation.isPending}
+                onClick={() => startMutation.mutate(c.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
+              >
+                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                  {getInitials(c.name, c.phone ?? "")}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                    {c.name}
+                  </p>
+                  {c.phone && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      {c.phone}
+                    </p>
+                  )}
+                </div>
+                {startMutation.isPending && startMutation.variables === c.id && (
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
+                )}
+              </button>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function WhatsAppConversationsPage() {
   const { user } = useAuth();
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [newConvOpen, setNewConvOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
   const queryClient = useQueryClient();
 
@@ -650,7 +861,7 @@ export default function WhatsAppConversationsPage() {
 
   const handleBack = () => setSelectedClientId(null);
 
-  const selectedClient = clientList.find((c) => c.id === selectedClientId) ?? null;
+  const selectedClient = clientList.find((c) => c.clientId === selectedClientId) ?? null;
 
   const showList = !selectedClientId;
 
@@ -659,21 +870,30 @@ export default function WhatsAppConversationsPage() {
       {/* Left panel — contact list */}
       <div className={cn(
         "flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900",
-        // Mobile: full width when no client selected, hidden otherwise
-        // Desktop: always visible, fixed width
         showList ? "flex w-full md:w-72 lg:w-80 md:flex" : "hidden md:flex md:w-72 lg:w-80",
       )}>
         {/* Search header */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-3">
-            Conversas
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              Conversas
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-slate-500 hover:text-primary"
+              onClick={() => setNewConvOpen(true)}
+              title="Nova conversa"
+            >
+              <PlusCircle className="h-4 w-4" />
+            </Button>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar cliente..."
+              placeholder="Buscar conversa..."
               className="pl-9 text-sm h-9"
             />
           </div>
@@ -697,21 +917,28 @@ export default function WhatsAppConversationsPage() {
             <div className="flex flex-col items-center justify-center p-8 text-center h-full">
               <MessageSquare className="h-8 w-8 text-slate-300 dark:text-slate-600 mb-3" />
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
-                Nenhum cliente encontrado
+                Nenhuma conversa
               </p>
-              {search && (
+              {search ? (
                 <p className="text-xs text-slate-400 dark:text-slate-500">
                   Tente outro nome ou número
                 </p>
+              ) : (
+                <button
+                  onClick={() => setNewConvOpen(true)}
+                  className="text-xs text-primary hover:underline mt-1"
+                >
+                  Iniciar nova conversa
+                </button>
               )}
             </div>
           ) : (
             clientList.map((client) => (
               <ClientListItem
-                key={client.id}
+                key={client.conversationId}
                 client={client}
-                selected={client.id === selectedClientId}
-                onClick={() => handleSelectClient(client.id)}
+                selected={client.clientId === selectedClientId}
+                onClick={() => client.clientId && handleSelectClient(client.clientId)}
               />
             ))
           )}
@@ -721,13 +948,12 @@ export default function WhatsAppConversationsPage() {
       {/* Right panel — conversation */}
       <div className={cn(
         "flex-1 flex-col overflow-hidden",
-        // Mobile: only show when a client is selected
         selectedClientId ? "flex" : "hidden md:flex",
       )}>
         {selectedClient ? (
           <ConversationMessages
-            key={selectedClient.id}
-            clientId={selectedClient.id}
+            key={selectedClient.conversationId}
+            clientId={selectedClient.clientId!}
             client={selectedClient}
             onBack={handleBack}
           />
@@ -745,6 +971,12 @@ export default function WhatsAppConversationsPage() {
           </div>
         )}
       </div>
+
+      <NewConversationDialog
+        open={newConvOpen}
+        onOpenChange={setNewConvOpen}
+        onSelect={handleSelectClient}
+      />
     </div>
   );
 }

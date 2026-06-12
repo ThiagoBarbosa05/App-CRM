@@ -3737,37 +3737,62 @@ export type InsertCallNotification = z.infer<
 >;
 export type CampaignClient = typeof campaignClients.$inferSelect;
 
-// Histórico de mensagens WhatsApp (Cloud API)
-export const whatsappMessages = pgTable("whatsapp_messages", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
+// WhatsApp Business API — modelo normalizado
+export const whatsappConversations = pgTable("whatsapp_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").references(() => clients.id),
   phone: text("phone").notNull(),
+  lastMessageAt: timestamp("last_message_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id")
+    .references(() => whatsappConversations.id)
+    .notNull(),
+  waMessageId: text("wa_message_id").unique(),
   direction: text("direction", { enum: ["inbound", "outbound"] }).notNull(),
   type: text("type").notNull().default("text"),
   content: text("content"),
-  mediaId: text("media_id"),
-  mimeType: text("mime_type"),
   caption: text("caption"),
-  mediaFilename: text("media_filename"),
-  waMessageId: text("wa_message_id"),
   status: text("status", { enum: ["sent", "delivered", "read", "failed"] }),
+  replyToMessageId: text("reply_to_message_id"),
+  rawPayload: jsonb("raw_payload"),
   sentByUserId: varchar("sent_by_user_id").references(() => users.id),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
-export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
+
+export const whatsappMedia = pgTable("whatsapp_media", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id")
+    .references(() => whatsappMessages.id)
+    .notNull(),
+  whatsappMediaId: text("whatsapp_media_id"),
+  storageKey: text("storage_key"),
+  mimeType: text("mime_type"),
+  filename: text("filename"),
+  size: integer("size"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 export const whatsappConversationReads = pgTable(
   "whatsapp_conversation_reads",
   {
     id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
     userId: varchar("user_id").notNull().references(() => users.id),
-    clientId: varchar("client_id").notNull().references(() => clients.id),
+    conversationId: varchar("conversation_id")
+      .notNull()
+      .references(() => whatsappConversations.id),
     lastReadAt: timestamp("last_read_at").defaultNow().notNull(),
   },
-  (t) => ({ userClientUnique: unique().on(t.userId, t.clientId) }),
+  (t) => ({ userConversationUnique: unique().on(t.userId, t.conversationId) }),
 );
+
+export type WhatsappConversation = typeof whatsappConversations.$inferSelect;
+export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
+export type WhatsappMedia = typeof whatsappMedia.$inferSelect;
 
 export type InsertCampaignClient = z.infer<typeof insertCampaignClientSchema>;

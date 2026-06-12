@@ -1,216 +1,37 @@
 import { db } from "../db";
-import { clients, whatsappMessages, whatsappConversationReads } from "../../shared/schema";
-import { eq, and, ilike, isNotNull, or, desc, sql, asc } from "drizzle-orm";
+import {
+  clients,
+  whatsappConversations,
+  whatsappMessages,
+  whatsappMedia,
+  whatsappConversationReads,
+} from "../../shared/schema";
+import { eq, and, ilike, or, desc, sql, asc } from "drizzle-orm";
 import { sendTextMessage } from "../integrations/whatsapp";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 
-export async function listClientsForChat(
-  userId: string,
-  userRole: string,
-  search?: string,
-) {
-  const conditions: ReturnType<typeof eq>[] = [];
-
-  if (userRole === "vendedor" && userId) {
-    conditions.push(eq(clients.responsavelId, userId));
-  }
-
-  conditions.push(isNotNull(clients.phone));
-
-  if (search) {
-    conditions.push(
-      or(
-        ilike(clients.name, `%${search}%`),
-        ilike(clients.phone, `%${search}%`),
-      ) as ReturnType<typeof eq>,
-    );
-  }
-
-  const effectiveAt = sql<Date>`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`.as("last_at");
-
-  const readsSub = db.$with("reads").as(
-    db
-      .select({
-        clientId: whatsappConversationReads.clientId,
-        lastReadAt: whatsappConversationReads.lastReadAt,
-      })
-      .from(whatsappConversationReads)
-      .where(eq(whatsappConversationReads.userId, userId)),
-  );
-
-  const unreadSub = db.$with("unread").as(
-    db
-      .select({
-        clientId: whatsappMessages.clientId,
-        unreadCount: sql<number>`cast(count(*) as int)`.as("unread_count"),
-      })
-      .from(whatsappMessages)
-      .leftJoin(readsSub, eq(whatsappMessages.clientId, readsSub.clientId))
-      .where(
-        and(
-          isNotNull(whatsappMessages.clientId),
-          eq(whatsappMessages.direction, "inbound"),
-          sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${readsSub.lastReadAt}, '1970-01-01'::timestamp)`,
-        ),
-      )
-      .groupBy(whatsappMessages.clientId),
-  );
-
-  const lastMsgSub = db.$with("last_msg").as(
-    db
-      .selectDistinctOn([whatsappMessages.clientId], {
-        clientId: whatsappMessages.clientId,
-        lastAt: effectiveAt,
-        lastContent: whatsappMessages.content,
-        lastDirection: whatsappMessages.direction,
-      })
-      .from(whatsappMessages)
-      .where(isNotNull(whatsappMessages.clientId))
-      .orderBy(whatsappMessages.clientId, desc(effectiveAt)),
-  );
-
-  return db
-    .with(readsSub, unreadSub, lastMsgSub)
-    .select({
-      id: clients.id,
-      name: clients.name,
-      phone: clients.phone,
-      lastMessageAt: lastMsgSub.lastAt,
-      lastMessageContent: lastMsgSub.lastContent,
-      lastMessageDirection: lastMsgSub.lastDirection,
-      unreadCount: sql<number>`coalesce(${unreadSub.unreadCount}, 0)`,
-    })
-    .from(clients)
-    .leftJoin(lastMsgSub, eq(clients.id, lastMsgSub.clientId))
-    .leftJoin(unreadSub, eq(clients.id, unreadSub.clientId))
-    .where(and(...conditions))
-    .orderBy(sql`${lastMsgSub.lastAt} DESC NULLS LAST`, asc(clients.name))
-    .limit(100);
-}
-
-async function fetchClientWithOwnership(
-  clientId: string,
-  userId: string,
-  userRole: string,
-) {
-  const conditions: ReturnType<typeof eq>[] = [eq(clients.id, clientId)];
-
-  if (userRole === "vendedor") {
-    conditions.push(eq(clients.responsavelId, userId));
-  }
-
-  const [client] = await db
-    .select({ id: clients.id, phone: clients.phone })
-    .from(clients)
-    .where(and(...conditions))
-    .limit(1);
-
-  return client ?? null;
-}
-
-export async function getConversation(
-  clientId: string,
-  userId: string,
-  userRole: string,
-) {
-  const client = await fetchClientWithOwnership(clientId, userId, userRole);
-  if (!client) return null;
-
-  // Normaliza o telefone do cliente para comparar com o campo phone das mensagens
-  // Mensagens inbound chegam com DDI (ex: 5522988523633), outbound com formato do CRM
-  const clientDigits = (client.phone ?? "").replace(/\D/g, "");
-  const clientWithCountry =
-    clientDigits.length <= 11 ? `55${clientDigits}` : clientDigits;
-
-  const messages = await db
-    .select()
-    .from(whatsappMessages)
-    .where(
-      or(
-        eq(whatsappMessages.clientId, clientId),
-        sql`regexp_replace(${whatsappMessages.phone}, '\\D', '', 'g') = ${clientDigits}`,
-        sql`regexp_replace(${whatsappMessages.phone}, '\\D', '', 'g') = ${clientWithCountry}`,
-      ),
-    )
-    .orderBy(asc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`))
-    .limit(50);
-
-  return messages;
-}
-
-export async function sendConversationMessage(
-  clientId: string,
-  message: string,
-  userId: string,
-  userRole: string,
-) {
-  const client = await fetchClientWithOwnership(clientId, userId, userRole);
-  if (!client) {
-    console.warn(`[WA Conversations Service] Cliente ${clientId} não encontrado ou sem permissão para usuário ${userId} (${userRole})`);
-    return null;
-  }
-  if (!client.phone) {
-    console.warn(`[WA Conversations Service] Cliente ${clientId} não tem telefone`);
-    return null;
-  }
-
-  console.log(`[WA Conversations Service] Enviando via WhatsApp Cloud API para ${client.phone}`);
-
-  let result: any;
-  try {
-    result = await sendTextMessage(client.phone, message);
-    console.log(`[WA Conversations Service] Resposta da Cloud API:`, JSON.stringify(result));
-  } catch (err) {
-    console.error(`[WA Conversations Service] Erro na Cloud API:`, err);
-    throw err;
-  }
-
-  try {
-    await db.insert(whatsappMessages).values({
-      clientId,
-      phone: client.phone,
-      direction: "outbound",
-      type: "text",
-      content: message,
-      waMessageId: result?.messages?.[0]?.id ?? null,
-      status: "sent",
-      sentByUserId: userId,
-    });
-  } catch (err) {
-    console.error(`[WA Conversations Service] Erro ao salvar mensagem no banco:`, err);
-    throw err;
-  }
-
-  return result;
-}
-
-export async function saveInboundMessage(data: {
-  phone: string;
-  content: string | null;
-  type: string;
-  waMessageId: string;
-  timestamp?: string;
-  mediaId?: string;
-  mimeType?: string;
-  caption?: string;
-  mediaFilename?: string;
-}) {
-  // Deduplication: skip if this waMessageId was already saved (retry from WhatsApp API)
-  const [existing] = await db
-    .select({ id: whatsappMessages.id })
-    .from(whatsappMessages)
-    .where(eq(whatsappMessages.waMessageId, data.waMessageId))
-    .limit(1);
-
-  if (existing) {
-    console.log(`[WA Webhook] Mensagem duplicada ignorada: ${data.waMessageId}`);
-    return;
-  }
-
-  const digits = data.phone.replace(/\D/g, "");
-  // Se vier com DDI 55 (13 dígitos), também tenta sem o DDI
+function normalizePhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
   const withoutCountry =
     digits.startsWith("55") && digits.length >= 12 ? digits.slice(2) : digits;
+  return { digits, withoutCountry };
+}
+
+async function findOrCreateConversation(phone: string) {
+  const { digits, withoutCountry } = normalizePhone(phone);
+
+  const [existing] = await db
+    .select()
+    .from(whatsappConversations)
+    .where(
+      or(
+        sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${digits}`,
+        sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
+      ),
+    )
+    .limit(1);
+
+  if (existing) return existing;
 
   const [matchedClient] = await db
     .select({ id: clients.id })
@@ -224,41 +45,401 @@ export async function saveInboundMessage(data: {
     )
     .limit(1);
 
-  console.log(
-    `[WA Webhook] Inbound de ${data.phone} (digits: ${digits}) → cliente: ${matchedClient?.id ?? "não encontrado"}`,
-  );
+  const [created] = await db
+    .insert(whatsappConversations)
+    .values({ phone, clientId: matchedClient?.id ?? null })
+    .returning();
 
-  const sentAt = data.timestamp ? new Date(Number(data.timestamp) * 1000) : undefined;
-
-  await db.insert(whatsappMessages).values({
-    clientId: matchedClient?.id ?? null,
-    phone: data.phone,
-    direction: "inbound",
-    type: data.type,
-    content: data.content,
-    mediaId: data.mediaId ?? null,
-    mimeType: data.mimeType ?? null,
-    caption: data.caption ?? null,
-    mediaFilename: data.mediaFilename ?? null,
-    waMessageId: data.waMessageId,
-    status: null,
-    sentAt,
-  });
-
-  if (matchedClient?.id) {
-    publishConversationEvent(matchedClient.id, "new_message", { clientId: matchedClient.id });
-  }
-
-  // Broadcast global para atualizar badges em tempo real para todos os usuários conectados
-  publishSseEvent("new_whatsapp_inbound", { clientId: matchedClient?.id ?? null });
+  return created;
 }
 
-export async function markConversationRead(userId: string, clientId: string) {
+export async function resolveConversationIdByClientId(clientId: string) {
+  const [conv] = await db
+    .select({ id: whatsappConversations.id })
+    .from(whatsappConversations)
+    .where(eq(whatsappConversations.clientId, clientId))
+    .limit(1);
+  return conv?.id ?? null;
+}
+
+export async function listClientsForChat(
+  userId: string,
+  userRole: string,
+  search?: string,
+) {
+  const effectiveAt = sql<Date>`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`.as("last_at");
+
+  const readsSub = db.$with("reads").as(
+    db
+      .select({
+        conversationId: whatsappConversationReads.conversationId,
+        lastReadAt: whatsappConversationReads.lastReadAt,
+      })
+      .from(whatsappConversationReads)
+      .where(eq(whatsappConversationReads.userId, userId)),
+  );
+
+  const unreadSub = db.$with("unread").as(
+    db
+      .select({
+        conversationId: whatsappMessages.conversationId,
+        unreadCount: sql<number>`cast(count(*) as int)`.as("unread_count"),
+      })
+      .from(whatsappMessages)
+      .leftJoin(readsSub, eq(whatsappMessages.conversationId, readsSub.conversationId))
+      .where(
+        and(
+          eq(whatsappMessages.direction, "inbound"),
+          sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${readsSub.lastReadAt}, '1970-01-01'::timestamp)`,
+        ),
+      )
+      .groupBy(whatsappMessages.conversationId),
+  );
+
+  const lastMsgSub = db.$with("last_msg").as(
+    db
+      .selectDistinctOn([whatsappMessages.conversationId], {
+        conversationId: whatsappMessages.conversationId,
+        lastAt: effectiveAt,
+        lastContent: whatsappMessages.content,
+        lastDirection: whatsappMessages.direction,
+      })
+      .from(whatsappMessages)
+      .orderBy(whatsappMessages.conversationId, desc(effectiveAt)),
+  );
+
+  const conditions: ReturnType<typeof eq>[] = [];
+
+  if (userRole === "vendedor" && userId) {
+    conditions.push(eq(clients.responsavelId, userId));
+  }
+
+  if (search) {
+    conditions.push(
+      or(
+        ilike(clients.name, `%${search}%`),
+        ilike(whatsappConversations.phone, `%${search}%`),
+      ) as ReturnType<typeof eq>,
+    );
+  }
+
+  return db
+    .with(readsSub, unreadSub, lastMsgSub)
+    .select({
+      conversationId: whatsappConversations.id,
+      clientId: whatsappConversations.clientId,
+      phone: whatsappConversations.phone,
+      clientName: clients.name,
+      lastMessageAt: lastMsgSub.lastAt,
+      lastMessageContent: lastMsgSub.lastContent,
+      lastMessageDirection: lastMsgSub.lastDirection,
+      unreadCount: sql<number>`coalesce(${unreadSub.unreadCount}, 0)`,
+    })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .leftJoin(lastMsgSub, eq(whatsappConversations.id, lastMsgSub.conversationId))
+    .leftJoin(unreadSub, eq(whatsappConversations.id, unreadSub.conversationId))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(sql`${lastMsgSub.lastAt} DESC NULLS LAST`)
+    .limit(100);
+}
+
+export async function getConversation(
+  conversationId: string,
+  userId: string,
+  userRole: string,
+) {
+  const whereConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappConversations.id, conversationId),
+  ];
+  if (userRole === "vendedor") {
+    whereConditions.push(eq(clients.responsavelId, userId));
+  }
+
+  const [conv] = await db
+    .select({
+      id: whatsappConversations.id,
+      clientId: whatsappConversations.clientId,
+      phone: whatsappConversations.phone,
+    })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (!conv) return null;
+
+  const messages = await db
+    .select({
+      id: whatsappMessages.id,
+      conversationId: whatsappMessages.conversationId,
+      waMessageId: whatsappMessages.waMessageId,
+      direction: whatsappMessages.direction,
+      type: whatsappMessages.type,
+      content: whatsappMessages.content,
+      caption: whatsappMessages.caption,
+      status: whatsappMessages.status,
+      replyToMessageId: whatsappMessages.replyToMessageId,
+      sentByUserId: whatsappMessages.sentByUserId,
+      sentAt: whatsappMessages.sentAt,
+      createdAt: whatsappMessages.createdAt,
+      media: {
+        id: whatsappMedia.id,
+        whatsappMediaId: whatsappMedia.whatsappMediaId,
+        storageKey: whatsappMedia.storageKey,
+        mimeType: whatsappMedia.mimeType,
+        filename: whatsappMedia.filename,
+        size: whatsappMedia.size,
+      },
+    })
+    .from(whatsappMessages)
+    .leftJoin(whatsappMedia, eq(whatsappMessages.id, whatsappMedia.messageId))
+    .where(eq(whatsappMessages.conversationId, conversationId))
+    .orderBy(
+      asc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`),
+    )
+    .limit(50);
+
+  return { conversation: conv, messages };
+}
+
+export async function sendConversationMessage(
+  conversationId: string,
+  message: string,
+  userId: string,
+  userRole: string,
+) {
+  const whereConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappConversations.id, conversationId),
+  ];
+  if (userRole === "vendedor") {
+    whereConditions.push(eq(clients.responsavelId, userId));
+  }
+
+  const [conv] = await db
+    .select({
+      id: whatsappConversations.id,
+      phone: whatsappConversations.phone,
+      clientId: whatsappConversations.clientId,
+    })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (!conv) {
+    console.warn(
+      `[WA Conversations Service] Conversa ${conversationId} não encontrada ou sem permissão para usuário ${userId} (${userRole})`,
+    );
+    return null;
+  }
+
+  // Persiste a mensagem imediatamente como "failed" — atualiza para "sent" se a API responder ok
+  const [savedMessage] = await db
+    .insert(whatsappMessages)
+    .values({
+      conversationId,
+      direction: "outbound",
+      type: "text",
+      content: message,
+      status: "failed",
+      sentByUserId: userId,
+      sentAt: new Date(),
+    })
+    .returning({ id: whatsappMessages.id });
+
+  await db
+    .update(whatsappConversations)
+    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId));
+
+  if (conv.clientId) {
+    publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+  }
+
+  try {
+    const result = await sendTextMessage(conv.phone, message);
+    const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+
+    await db
+      .update(whatsappMessages)
+      .set({ status: "sent", waMessageId })
+      .where(eq(whatsappMessages.id, savedMessage.id));
+
+    return result;
+  } catch (err) {
+    console.error(`[WA Conversations Service] Erro na Cloud API:`, err);
+    throw err;
+  }
+}
+
+export async function retryFailedMessage(
+  messageId: string,
+  clientId: string,
+  userId: string,
+  userRole: string,
+) {
+  const conversationId = await resolveConversationIdByClientId(clientId);
+  if (!conversationId) return null;
+
+  const [msg] = await db
+    .select({ id: whatsappMessages.id, content: whatsappMessages.content })
+    .from(whatsappMessages)
+    .where(
+      and(
+        eq(whatsappMessages.id, messageId),
+        eq(whatsappMessages.conversationId, conversationId),
+        eq(whatsappMessages.status, "failed"),
+      ),
+    )
+    .limit(1);
+
+  if (!msg) return null;
+
+  const whereConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappConversations.id, conversationId),
+  ];
+  if (userRole === "vendedor") {
+    whereConditions.push(eq(clients.responsavelId, userId));
+  }
+
+  const [conv] = await db
+    .select({ phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (!conv) return null;
+
+  try {
+    const result = await sendTextMessage(conv.phone, msg.content!);
+    const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+
+    await db
+      .update(whatsappMessages)
+      .set({ status: "sent", waMessageId, sentAt: new Date() })
+      .where(eq(whatsappMessages.id, messageId));
+
+    if (conv.clientId) {
+      publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+    }
+
+    return "sent";
+  } catch (err) {
+    console.error(`[WA Conversations Service] Erro ao reenviar mensagem ${messageId}:`, err);
+    throw err;
+  }
+}
+
+export async function saveInboundMessage(data: {
+  phone: string;
+  content: string | null;
+  type: string;
+  waMessageId: string;
+  timestamp?: string;
+  caption?: string;
+  rawPayload?: unknown;
+  mediaData?: {
+    whatsappMediaId: string;
+    mimeType?: string;
+    filename?: string;
+    caption?: string;
+  };
+}) {
+  const [existing] = await db
+    .select({ id: whatsappMessages.id })
+    .from(whatsappMessages)
+    .where(eq(whatsappMessages.waMessageId, data.waMessageId))
+    .limit(1);
+
+  if (existing) {
+    console.log(`[WA Webhook] Mensagem duplicada ignorada: ${data.waMessageId}`);
+    return;
+  }
+
+  const conv = await findOrCreateConversation(data.phone);
+
+  const sentAt = data.timestamp
+    ? new Date(Number(data.timestamp) * 1000)
+    : undefined;
+
+  const [savedMessage] = await db
+    .insert(whatsappMessages)
+    .values({
+      conversationId: conv.id,
+      direction: "inbound",
+      type: data.type,
+      content: data.content,
+      caption: data.caption ?? null,
+      waMessageId: data.waMessageId,
+      rawPayload: data.rawPayload ?? null,
+      sentAt,
+    })
+    .returning({ id: whatsappMessages.id });
+
+  if (data.mediaData) {
+    await db.insert(whatsappMedia).values({
+      messageId: savedMessage.id,
+      whatsappMediaId: data.mediaData.whatsappMediaId,
+      mimeType: data.mediaData.mimeType ?? null,
+      filename: data.mediaData.filename ?? null,
+    });
+  }
+
+  await db
+    .update(whatsappConversations)
+    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conv.id));
+
+  console.log(
+    `[WA Webhook] Inbound de ${data.phone} → conversa: ${conv.id} (cliente: ${conv.clientId ?? "não encontrado"})`,
+  );
+
+  if (conv.clientId) {
+    publishConversationEvent(conv.clientId, "new_message", {
+      clientId: conv.clientId,
+    });
+  }
+
+  publishSseEvent("new_whatsapp_inbound", { conversationId: conv.id, clientId: conv.clientId ?? null });
+}
+
+export async function startConversationByClientId(clientId: string) {
+  const [client] = await db
+    .select({ id: clients.id, phone: clients.phone, name: clients.name })
+    .from(clients)
+    .where(eq(clients.id, clientId))
+    .limit(1);
+
+  if (!client?.phone) return null;
+
+  const conv = await findOrCreateConversation(client.phone);
+
+  if (!conv.clientId) {
+    await db
+      .update(whatsappConversations)
+      .set({ clientId })
+      .where(eq(whatsappConversations.id, conv.id));
+  }
+
+  return {
+    conversationId: conv.id,
+    clientId: client.id,
+    clientName: client.name,
+    phone: client.phone,
+  };
+}
+
+export async function markConversationRead(userId: string, conversationId: string) {
   await db
     .insert(whatsappConversationReads)
-    .values({ userId, clientId, lastReadAt: new Date() })
+    .values({ userId, conversationId, lastReadAt: new Date() })
     .onConflictDoUpdate({
-      target: [whatsappConversationReads.userId, whatsappConversationReads.clientId],
+      target: [
+        whatsappConversationReads.userId,
+        whatsappConversationReads.conversationId,
+      ],
       set: { lastReadAt: new Date() },
     });
 }

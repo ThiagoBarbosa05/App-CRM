@@ -95,10 +95,15 @@ async function handleIncomingMessage(
     type: message.type,
     waMessageId: message.id,
     timestamp: message.timestamp,
-    mediaId: mediaObj?.id,
-    mimeType: mediaObj?.mime_type,
     caption: (message.image?.caption ?? message.video?.caption ?? message.document?.caption) || undefined,
-    mediaFilename: message.document?.filename,
+    rawPayload: message,
+    mediaData: mediaObj
+      ? {
+          whatsappMediaId: mediaObj.id,
+          mimeType: mediaObj.mime_type,
+          filename: message.document?.filename,
+        }
+      : undefined,
   }).catch((err) => console.error("[WA Webhook] Erro ao salvar mensagem:", err));
 
   if (message.type === "text" && text) {
