@@ -67,12 +67,12 @@ const navItems: NavItem[] = [
   { href: "/cashback", icon: Gift, label: "Cashback" },
   { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
-  {
-    href: "/whatsapp/conversas",
-    icon: MessageCircle,
-    label: "WhatsApp",
-    activeBasePath: "/whatsapp",
-  },
+  // {
+  //   href: "/whatsapp/conversas",
+  //   icon: MessageCircle,
+  //   label: "WhatsApp",
+  //   activeBasePath: "/whatsapp",
+  // },
   {
     href: "/configuracoes",
     icon: Settings,
