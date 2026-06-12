@@ -692,15 +692,8 @@ export default function EventParticipantsModal({
 
     const rows = participants
       .map((p, i) => {
-        const pricePerPerson = parseFloat(event.pricePerPerson ?? "0") || 0;
         const qty = p.numberOfParticipants || 1;
-        // customPrice é o valor total já calculado; quando ausente, multiplica preço por pessoa × quantidade
-        const total = p.customPrice
-          ? parseFloat(p.customPrice)
-          : pricePerPerson * qty;
-        const displayPricePerPerson = p.customPrice
-          ? total / qty
-          : pricePerPerson;
+        const total = p.customPrice ? parseFloat(p.customPrice) : 0;
         if (p.status === "pago" || p.status === "convidado") totalPago += total;
         else if (p.status === "pendente" || p.status === "pagar_na_hora") totalPendente += total;
         if (p.status !== "cancelado") totalGeral += total;
@@ -718,7 +711,6 @@ export default function EventParticipantsModal({
           <td><span class="badge-status s-${p.status}">${STATUS_LABELS[p.status] || p.status}</span></td>
           <td>${escapeHtml(p.paymentMethod || "—")}</td>
           <td class="center">${paymentDateStr}</td>
-          <td class="right">${formatCurrency(displayPricePerPerson)}</td>
           <td class="right fw6 wine">${formatCurrency(total)}</td>
           <td class="obs">${escapeHtml(p.notes || "")}</td>
         </tr>`;
@@ -906,7 +898,6 @@ export default function EventParticipantsModal({
           <th>Status</th>
           <th>Forma de Pgto.</th>
           <th class="center">Data Pgto.</th>
-          <th class="right">Valor</th>
           <th class="right">Valor Total</th>
           <th>Observações</th>
         </tr>
@@ -1108,29 +1099,19 @@ export default function EventParticipantsModal({
                             title={user?.role === "admin" ? "Clique para editar o valor" : undefined}
                             onClick={() => {
                               if (user?.role !== "admin") return;
-                              const eventPrice = parseFloat(event.pricePerPerson || "0") || 0;
                               const displayed = participant.customPrice
                                 ? parseFloat(participant.customPrice).toFixed(2)
-                                : (eventPrice * participant.numberOfParticipants).toFixed(2);
+                                : "";
                               setEditingValue(displayed);
                               setEditingValueId(participant.id);
                             }}
                           >
                             {(() => {
-                              const eventPrice = parseFloat(event.pricePerPerson || "0") || 0;
-                              const defaultTotal = eventPrice * participant.numberOfParticipants;
                               const customTotal = participant.customPrice ? parseFloat(participant.customPrice) : null;
                               return (
-                                <>
-                                  <span className={`font-semibold ${customTotal !== null ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"}`}>
-                                    {formatCurrency(customTotal !== null ? customTotal : defaultTotal)}
-                                  </span>
-                                  {customTotal !== null && (
-                                    <div className="text-xs text-slate-400 line-through">
-                                      {formatCurrency(defaultTotal)}
-                                    </div>
-                                  )}
-                                </>
+                                <span className={`font-semibold ${customTotal !== null ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"}`}>
+                                  {formatCurrency(customTotal ?? 0)}
+                                </span>
                               );
                             })()}
                           </div>
