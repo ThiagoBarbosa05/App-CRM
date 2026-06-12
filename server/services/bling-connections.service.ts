@@ -25,7 +25,6 @@ interface CreateConnectionParams {
 
 interface UpdateConnectionSettingsParams {
   connectionId: string;
-  userId: string;
   name: string;
   oauthClientId: string;
   oauthClientSecret?: string;
@@ -109,25 +108,16 @@ function getOAuthCredentials(connection: BlingConnection) {
 }
 
 export class BlingConnectionsService {
-  async listByUser(userId: string) {
-    const connections = await db
-      .select()
-      .from(blingConnections)
-      .where(eq(blingConnections.userId, userId));
-
+  async listAll() {
+    const connections = await db.select().from(blingConnections);
     return connections.map(sanitizeConnection);
   }
 
-  async getById(connectionId: string, userId: string) {
+  async getById(connectionId: string) {
     const [connection] = await db
       .select()
       .from(blingConnections)
-      .where(
-        and(
-          eq(blingConnections.id, connectionId),
-          eq(blingConnections.userId, userId),
-        ),
-      )
+      .where(eq(blingConnections.id, connectionId))
       .limit(1);
 
     return connection ?? null;
@@ -137,12 +127,7 @@ export class BlingConnectionsService {
     const existingConnection = await db
       .select({ id: blingConnections.id })
       .from(blingConnections)
-      .where(
-        and(
-          eq(blingConnections.userId, params.userId),
-          eq(blingConnections.name, params.name),
-        ),
-      )
+      .where(eq(blingConnections.name, params.name))
       .limit(1);
 
     if (existingConnection.length > 0) {
@@ -164,7 +149,7 @@ export class BlingConnectionsService {
   }
 
   async updateConnectionSettings(params: UpdateConnectionSettingsParams) {
-    const connection = await this.getById(params.connectionId, params.userId);
+    const connection = await this.getById(params.connectionId);
 
     if (!connection) {
       throw new Error("Conexao Bling nao encontrada");
@@ -173,12 +158,7 @@ export class BlingConnectionsService {
     const [sameNameConnection] = await db
       .select({ id: blingConnections.id })
       .from(blingConnections)
-      .where(
-        and(
-          eq(blingConnections.userId, params.userId),
-          eq(blingConnections.name, params.name),
-        ),
-      )
+      .where(eq(blingConnections.name, params.name))
       .limit(1);
 
     if (sameNameConnection && sameNameConnection.id !== connection.id) {
@@ -217,7 +197,7 @@ export class BlingConnectionsService {
       })
       .where(eq(blingConnections.id, connection.id));
 
-    const updatedConnection = await this.getById(connection.id, params.userId);
+    const updatedConnection = await this.getById(connection.id);
 
     if (!updatedConnection) {
       throw new Error("Conexao Bling nao encontrada apos atualizacao");
@@ -226,8 +206,8 @@ export class BlingConnectionsService {
     return sanitizeConnection(updatedConnection);
   }
 
-  async createAuthorizationUrl(connectionId: string, userId: string) {
-    const connection = await this.getById(connectionId, userId);
+  async createAuthorizationUrl(connectionId: string) {
+    const connection = await this.getById(connectionId);
 
     if (!connection) {
       throw new Error("Conexao Bling nao encontrada");
@@ -239,7 +219,7 @@ export class BlingConnectionsService {
 
     await db.insert(blingOAuthStates).values({
       state,
-      userId,
+      userId: connection.userId,
       connectionId: connection.id,
       redirectUri,
       expiresAt,
@@ -324,8 +304,8 @@ export class BlingConnectionsService {
     };
   }
 
-  async refreshConnection(connectionId: string, userId: string) {
-    const connection = await this.getById(connectionId, userId);
+  async refreshConnection(connectionId: string) {
+    const connection = await this.getById(connectionId);
 
     if (!connection) {
       throw new Error("Conexao Bling nao encontrada");
@@ -382,7 +362,7 @@ export class BlingConnectionsService {
       throw error;
     }
 
-    const refreshedConnection = await this.getById(connection.id, userId);
+    const refreshedConnection = await this.getById(connection.id);
 
     if (!refreshedConnection) {
       throw new Error("Conexao Bling nao encontrada apos refresh");
@@ -391,8 +371,8 @@ export class BlingConnectionsService {
     return sanitizeConnection(refreshedConnection);
   }
 
-  async disconnectConnection(connectionId: string, userId: string) {
-    const connection = await this.getById(connectionId, userId);
+  async disconnectConnection(connectionId: string) {
+    const connection = await this.getById(connectionId);
 
     if (!connection) {
       throw new Error("Conexao Bling nao encontrada");
@@ -426,8 +406,8 @@ export class BlingConnectionsService {
       .where(eq(blingConnections.id, connection.id));
   }
 
-  async getConnectionStatus(connectionId: string, userId: string) {
-    const connection = await this.getById(connectionId, userId);
+  async getConnectionStatus(connectionId: string) {
+    const connection = await this.getById(connectionId);
 
     if (!connection) {
       throw new Error("Conexao Bling nao encontrada");
@@ -453,7 +433,7 @@ export class BlingConnectionsService {
 
     for (const connection of candidates) {
       try {
-        await this.refreshConnection(connection.id, connection.userId);
+        await this.refreshConnection(connection.id);
       } catch (error) {
         console.error(
           `[BlingConnectionsService] Erro ao renovar conexao ${connection.id}:`,
@@ -465,10 +445,10 @@ export class BlingConnectionsService {
     return candidates.length;
   }
 
-  async getAccessTokenByConnectionId(connectionId: string, userId: string): Promise<string> {
-    const connection = await this.getById(connectionId, userId);
+  async getAccessTokenByConnectionId(connectionId: string): Promise<string> {
+    const connection = await this.getById(connectionId);
     if (!connection) {
-      throw new Error("Conexão não encontrada ou não pertence ao usuário.");
+      throw new Error("Conexão Bling não encontrada.");
     }
     if (connection.status !== "connected" || !connection.accessTokenEncrypted) {
       throw new Error("Conexão Bling não está ativa. Reconecte a conta antes de continuar.");

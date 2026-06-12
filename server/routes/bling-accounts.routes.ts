@@ -126,8 +126,8 @@ router.use(requireAuth);
 // 3. ROTAS PROTEGIDAS
 router.get("/", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
-    const connections = await blingConnectionsService.listByUser(userId);
+    getAdminUser(req);
+    const connections = await blingConnectionsService.listAll();
 
     res.json({ success: true, data: connections });
   } catch (error) {
@@ -150,7 +150,6 @@ router.post("/connect", async (req, res) => {
     });
     const payload = await blingConnectionsService.createAuthorizationUrl(
       connection.id,
-      userId,
     );
 
     res.json({ success: true, data: payload });
@@ -302,11 +301,10 @@ router.post("/cleanup-duplicates", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
     const body = updateConnectionSchema.parse(req.body);
     const connection = await blingConnectionsService.updateConnectionSettings({
       connectionId: req.params.id,
-      userId,
       name: body.name,
       oauthClientId: body.oauthClientId,
       oauthClientSecret:
@@ -335,10 +333,9 @@ router.put("/:id", async (req, res) => {
 
 router.post("/:id/refresh", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
     const connection = await blingConnectionsService.refreshConnection(
       req.params.id,
-      userId,
     );
     res.json({ success: true, data: connection });
   } catch (error) {
@@ -351,11 +348,8 @@ router.post("/:id/refresh", async (req, res) => {
 
 router.post("/:id/reconnect", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
-    const connection = await blingConnectionsService.getById(
-      req.params.id,
-      userId,
-    );
+    getAdminUser(req);
+    const connection = await blingConnectionsService.getById(req.params.id);
 
     if (!connection) {
       return res
@@ -365,7 +359,6 @@ router.post("/:id/reconnect", async (req, res) => {
 
     const payload = await blingConnectionsService.createAuthorizationUrl(
       connection.id,
-      userId,
     );
 
     return res.json({ success: true, data: payload });
@@ -379,8 +372,8 @@ router.post("/:id/reconnect", async (req, res) => {
 
 router.post("/:id/disconnect", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
-    await blingConnectionsService.disconnectConnection(req.params.id, userId);
+    getAdminUser(req);
+    await blingConnectionsService.disconnectConnection(req.params.id);
     res.json({
       success: true,
       message: "Conta Bling desconectada com sucesso",
@@ -397,10 +390,9 @@ router.post("/:id/disconnect", async (req, res) => {
 
 router.get("/:id/status", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
     const connection = await blingConnectionsService.getConnectionStatus(
       req.params.id,
-      userId,
     );
     res.json({ success: true, data: connection });
   } catch (error) {
@@ -437,7 +429,7 @@ const importOrdersSchema = z.object({
  */
 router.post("/:id/import-orders", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
 
     const parsed = importOrdersSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -449,7 +441,7 @@ router.post("/:id/import-orders", async (req, res) => {
       return;
     }
 
-    const connection = await loadValidatedConnection(req.params.id, userId);
+    const connection = await loadValidatedConnection(req.params.id);
     if (!connection) {
       res.status(404).json({
         success: false,
@@ -493,9 +485,9 @@ router.post("/:id/import-orders", async (req, res) => {
  */
 router.get("/:id/import-status", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
 
-    const connection = await loadValidatedConnection(req.params.id, userId);
+    const connection = await loadValidatedConnection(req.params.id);
     if (!connection) {
       res.status(404).json({
         success: false,
@@ -520,9 +512,9 @@ router.get("/:id/import-status", async (req, res) => {
  */
 router.post("/:id/import-cancel", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
 
-    const connection = await loadValidatedConnection(req.params.id, userId);
+    const connection = await loadValidatedConnection(req.params.id);
     if (!connection) {
       res.status(404).json({
         success: false,
@@ -564,9 +556,9 @@ const exportClientsBodySchema = z.object({
  */
 router.post("/:id/export-clients", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
 
-    const connection = await loadValidatedConnection(req.params.id, userId);
+    const connection = await loadValidatedConnection(req.params.id);
     if (!connection) {
       res.status(404).json({
         success: false,
@@ -605,9 +597,9 @@ router.post("/:id/export-clients", async (req, res) => {
  */
 router.get("/:id/export-status", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
 
-    const connection = await loadValidatedConnection(req.params.id, userId);
+    const connection = await loadValidatedConnection(req.params.id);
     if (!connection) {
       res.status(404).json({
         success: false,
@@ -632,9 +624,9 @@ router.get("/:id/export-status", async (req, res) => {
  */
 router.post("/:id/export-cancel", async (req, res) => {
   try {
-    const { userId } = getAdminUser(req);
+    getAdminUser(req);
 
-    const connection = await loadValidatedConnection(req.params.id, userId);
+    const connection = await loadValidatedConnection(req.params.id);
     if (!connection) {
       res.status(404).json({
         success: false,

@@ -9,11 +9,7 @@ export async function getBlingVendorsController(req: Request, res: Response) {
     let accessToken: string;
 
     if (connectionId) {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return res.status(401).json({ success: false, error: "Usuário não autenticado" });
-      }
-      accessToken = await blingConnectionsService.getAccessTokenByConnectionId(connectionId, userId);
+      accessToken = await blingConnectionsService.getAccessTokenByConnectionId(connectionId);
     } else {
       accessToken = await blingConnectionsService.getFirstConnectedAccessToken();
     }

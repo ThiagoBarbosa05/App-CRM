@@ -31,12 +31,11 @@ type ProductType = "ESPUMANTE" | "BRANCO" | "ROSE" | "TINTO" | "PÓS-REFEIÇÃO"
 
 export async function syncBlingProducts(
   connectionId: string,
-  userId: string,
   defaults: ProductDefaults,
   onProgress: (event: SyncProgressEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const connection = await blingConnectionsService.getById(connectionId, userId);
+  const connection = await blingConnectionsService.getById(connectionId);
 
   if (!connection) {
     throw new Error("Conexao Bling nao encontrada");
@@ -53,8 +52,8 @@ export async function syncBlingProducts(
   let accessToken = decryptToken(connection.accessTokenEncrypted);
 
   const onTokenRefresh = async (): Promise<string> => {
-    await blingConnectionsService.refreshConnection(connectionId, userId);
-    const refreshed = await blingConnectionsService.getById(connectionId, userId);
+    await blingConnectionsService.refreshConnection(connectionId);
+    const refreshed = await blingConnectionsService.getById(connectionId);
     if (!refreshed?.accessTokenEncrypted) {
       throw new Error("Nao foi possivel obter o novo token apos refresh");
     }

@@ -84,7 +84,7 @@ router.get("/sync", async (req: Request, res: Response) => {
   req.on("close", () => controller.abort());
 
   try {
-    await syncBlingProducts(connectionId, userId, defaults, (event) => sendSseEvent(res, event), controller.signal);
+    await syncBlingProducts(connectionId, defaults, (event) => sendSseEvent(res, event), controller.signal);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erro ao sincronizar produtos do Bling";
     sendSseEvent(res, { type: "error", message });
@@ -150,7 +150,6 @@ router.get("/replicate", async (req: Request, res: Response) => {
     await replicateBlingProducts(
       sourceConnectionId,
       targetConnectionId,
-      userId,
       // Simulacao por padrao — modo real somente com dryRun=false explicito
       { dryRun: dryRun !== "false" },
       (event) => sendSseEvent(res, event),

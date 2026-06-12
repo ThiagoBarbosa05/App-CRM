@@ -411,7 +411,6 @@ async function processOrder(
  */
 export async function loadValidatedConnection(
   connectionId: string,
-  userId: string,
 ): Promise<BlingConnection | null> {
   const [connection] = await db
     .select()
@@ -419,7 +418,7 @@ export async function loadValidatedConnection(
     .where(eq(blingConnections.id, connectionId))
     .limit(1);
 
-  if (!connection || connection.userId !== userId) return null;
+  if (!connection) return null;
   if (!connection.accessTokenEncrypted) return null;
 
   return connection;

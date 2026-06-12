@@ -79,10 +79,9 @@ interface AccountContext {
 
 async function makeAccountContext(
   connectionId: string,
-  userId: string,
   label: "origem" | "destino",
 ): Promise<AccountContext> {
-  const connection = await blingConnectionsService.getById(connectionId, userId);
+  const connection = await blingConnectionsService.getById(connectionId);
 
   if (!connection) {
     throw new Error(`Conexao Bling de ${label} nao encontrada`);
@@ -101,8 +100,8 @@ async function makeAccountContext(
   let accessToken = decryptToken(connection.accessTokenEncrypted);
 
   const onTokenRefresh = async (): Promise<string> => {
-    await blingConnectionsService.refreshConnection(connectionId, userId);
-    const refreshed = await blingConnectionsService.getById(connectionId, userId);
+    await blingConnectionsService.refreshConnection(connectionId);
+    const refreshed = await blingConnectionsService.getById(connectionId);
     if (!refreshed?.accessTokenEncrypted) {
       throw new Error(
         `Nao foi possivel obter o novo token da conta de ${label} apos refresh`,
@@ -137,7 +136,6 @@ async function makeAccountContext(
 export async function replicateBlingProducts(
   sourceConnectionId: string,
   targetConnectionId: string,
-  userId: string,
   options: { dryRun: boolean },
   onProgress: (event: ReplicateProgressEvent) => void,
   signal?: AbortSignal,
@@ -148,8 +146,8 @@ export async function replicateBlingProducts(
 
   const { dryRun } = options;
 
-  const source = await makeAccountContext(sourceConnectionId, userId, "origem");
-  const target = await makeAccountContext(targetConnectionId, userId, "destino");
+  const source = await makeAccountContext(sourceConnectionId, "origem");
+  const target = await makeAccountContext(targetConnectionId, "destino");
 
   onProgress({ type: "start", dryRun });
 
