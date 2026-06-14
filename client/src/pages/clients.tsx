@@ -538,7 +538,23 @@ export default function Clients() {
                   Lista de Clientes
                 </h3>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-slate-400 mt-0.5">
-                  {clientsArray.length} de {itemsPerPage} por página
+                  {isFetching ? (
+                    "Carregando..."
+                  ) : totalItems > 0 ? (
+                    <>
+                      <span className="font-semibold text-gray-800 dark:text-slate-200">
+                        {totalItems.toLocaleString("pt-BR")}
+                      </span>{" "}
+                      cliente{totalItems !== 1 ? "s" : ""} encontrado{totalItems !== 1 ? "s" : ""}
+                      {totalPages && totalPages > 1 && (
+                        <span className="ml-1 text-gray-400 dark:text-slate-500">
+                          • pág. {currentPage}/{totalPages}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    "Nenhum cliente encontrado"
+                  )}
                 </p>
               </div>
             </div>
@@ -578,6 +594,8 @@ export default function Clients() {
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             hasNextPage={hasNextPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
           />
 
           {/* Loading overlay aprimorado */}
