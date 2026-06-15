@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { handleIncomingMessage as runBotEngine } from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage } from "../services/whatsapp-conversations.service";
+import { getChannelByPhoneNumberId } from "../services/whatsapp-channels.service";
 
 const router = Router();
 
@@ -89,6 +90,8 @@ async function handleIncomingMessage(
     `[WA Webhook] Mensagem recebida de ${message.from} (${metadata.display_phone_number}): ${text || `[${message.type}]`}`,
   );
 
+  const channel = await getChannelByPhoneNumberId(metadata.phone_number_id).catch(() => null);
+
   await saveInboundMessage({
     phone: message.from,
     content: text || null,
@@ -97,6 +100,7 @@ async function handleIncomingMessage(
     timestamp: message.timestamp,
     caption: (message.image?.caption ?? message.video?.caption ?? message.document?.caption) || undefined,
     rawPayload: message,
+    channelId: channel?.id ?? null,
     mediaData: mediaObj
       ? {
           whatsappMediaId: mediaObj.id,

@@ -10,6 +10,7 @@ import { eq, and, ilike, or, desc, sql, asc } from "drizzle-orm";
 import { sendTextMessage, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { uploadWhatsappMedia } from "../lib/r2";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
+import { getChannelForConversation } from "./whatsapp-channels.service";
 
 function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
@@ -18,18 +19,24 @@ function normalizePhone(phone: string) {
   return { digits, withoutCountry };
 }
 
-async function findOrCreateConversation(phone: string) {
+async function findOrCreateConversation(phone: string, channelId?: number | null) {
   const { digits, withoutCountry } = normalizePhone(phone);
+
+  const phoneCondition = or(
+    sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${digits}`,
+    sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
+  );
+
+  // When a channelId is provided, scope the lookup to that specific channel so
+  // the same client number can have separate conversations per vendor.
+  const whereClause = channelId != null
+    ? and(phoneCondition, eq(whatsappConversations.channelId, channelId))
+    : phoneCondition;
 
   const [existing] = await db
     .select()
     .from(whatsappConversations)
-    .where(
-      or(
-        sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${digits}`,
-        sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
-      ),
-    )
+    .where(whereClause)
     .limit(1);
 
   if (existing) return existing;
@@ -48,7 +55,7 @@ async function findOrCreateConversation(phone: string) {
 
   const [created] = await db
     .insert(whatsappConversations)
-    .values({ phone, clientId: matchedClient?.id ?? null })
+    .values({ phone, clientId: matchedClient?.id ?? null, channelId: channelId ?? null })
     .returning();
 
   return created;
@@ -258,8 +265,10 @@ export async function sendConversationMessage(
     publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
   }
 
+  const channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+
   try {
-    const result = await sendTextMessage(conv.phone, message);
+    const result = await sendTextMessage(conv.phone, message, channelOverride ?? undefined);
     const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
 
     await db
@@ -313,8 +322,10 @@ export async function retryFailedMessage(
 
   if (!conv) return null;
 
+  const channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+
   try {
-    const result = await sendTextMessage(conv.phone, msg.content!);
+    const result = await sendTextMessage(conv.phone, msg.content!, channelOverride ?? undefined);
     const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
 
     await db
@@ -341,6 +352,7 @@ export async function saveInboundMessage(data: {
   timestamp?: string;
   caption?: string;
   rawPayload?: unknown;
+  channelId?: number | null;
   mediaData?: {
     whatsappMediaId: string;
     mimeType?: string;
@@ -359,7 +371,7 @@ export async function saveInboundMessage(data: {
     return;
   }
 
-  const conv = await findOrCreateConversation(data.phone);
+  const conv = await findOrCreateConversation(data.phone, data.channelId);
 
   const sentAt = data.timestamp
     ? new Date(Number(data.timestamp) * 1000)

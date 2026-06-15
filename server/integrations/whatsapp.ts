@@ -7,7 +7,23 @@ interface WaConfig {
   baseUrl: string;
 }
 
-async function getConfig(): Promise<WaConfig> {
+export interface ChannelOverride {
+  phoneNumberId: string;
+  accessToken: string;
+  apiVersion?: string;
+}
+
+async function getConfig(channel?: ChannelOverride): Promise<WaConfig> {
+  if (channel) {
+    const apiVersion = channel.apiVersion ?? "v21.0";
+    return {
+      phoneNumberId: channel.phoneNumberId,
+      accessToken: channel.accessToken,
+      apiVersion,
+      baseUrl: `https://graph.facebook.com/${apiVersion}`,
+    };
+  }
+
   const raw = await getWhatsappSettingsRaw();
   const phoneNumberId = raw["wa_phone_number_id"];
   const accessToken = raw["wa_access_token"];
@@ -41,8 +57,8 @@ function normalizePhone(phone: string): string {
   return digits;
 }
 
-export async function sendTextMessage(to: string, text: string) {
-  const cfg = await getConfig();
+export async function sendTextMessage(to: string, text: string, channel?: ChannelOverride) {
+  const cfg = await getConfig(channel);
   const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
     method: "POST",
     headers: authHeaders(cfg.accessToken),
@@ -63,8 +79,9 @@ export async function sendTemplateMessage(
   templateName: string,
   languageCode: string = "pt_BR",
   components?: object[],
+  channel?: ChannelOverride,
 ) {
-  const cfg = await getConfig();
+  const cfg = await getConfig(channel);
   const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
     method: "POST",
     headers: authHeaders(cfg.accessToken),
@@ -88,8 +105,9 @@ export async function uploadMedia(
   file: Buffer,
   filename: string,
   contentType: string,
+  channel?: ChannelOverride,
 ): Promise<string> {
-  const cfg = await getConfig();
+  const cfg = await getConfig(channel);
   const formData = new FormData();
   formData.append("file", new Blob([new Uint8Array(file)], { type: contentType }), filename);
   formData.append("messaging_product", "whatsapp");
@@ -110,8 +128,9 @@ export async function sendMediaMessage(
   mediaId: string,
   mediaType: "image" | "document" | "video" | "audio",
   caption?: string,
+  channel?: ChannelOverride,
 ) {
-  const cfg = await getConfig();
+  const cfg = await getConfig(channel);
   const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
     method: "POST",
     headers: authHeaders(cfg.accessToken),
@@ -127,8 +146,8 @@ export async function sendMediaMessage(
   return response.json();
 }
 
-export async function fetchMediaStream(mediaId: string): Promise<{ stream: ReadableStream; contentType: string; contentLength?: string }> {
-  const cfg = await getConfig();
+export async function fetchMediaStream(mediaId: string, channel?: ChannelOverride): Promise<{ stream: ReadableStream; contentType: string; contentLength?: string }> {
+  const cfg = await getConfig(channel);
 
   // Step 1: resolve the temporary download URL
   // phone_number_id is required by Meta API for media retrieval
@@ -156,9 +175,8 @@ export async function fetchMediaStream(mediaId: string): Promise<{ stream: Reada
   };
 }
 
-// Baixa a mídia da Meta inteira para um Buffer (para persistir no R2 enquanto o ID ainda é válido).
-export async function downloadMediaToBuffer(mediaId: string): Promise<{ buffer: Buffer; contentType: string; size: number }> {
-  const cfg = await getConfig();
+export async function downloadMediaToBuffer(mediaId: string, channel?: ChannelOverride): Promise<{ buffer: Buffer; contentType: string; size: number }> {
+  const cfg = await getConfig(channel);
 
   const metaRes = await fetch(`${cfg.baseUrl}/${mediaId}?phone_number_id=${cfg.phoneNumberId}`, {
     headers: { Authorization: `Bearer ${cfg.accessToken}` },

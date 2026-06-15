@@ -86,6 +86,27 @@ export interface WhatsappSettings {
   wa_message_delay_ms: string;
 }
 
+export interface WhatsappChannel {
+  id: number;
+  name: string;
+  phoneNumberId: string;
+  wabaId: string;
+  displayPhone: string | null;
+  userId: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateWhatsappChannelPayload {
+  name: string;
+  phoneNumberId: string;
+  accessToken?: string;
+  wabaId: string;
+  displayPhone?: string;
+  userId?: string | null;
+  isActive?: boolean;
+}
+
 export interface WhatsappStatus {
   enabled: boolean;
   configured: boolean;
@@ -331,6 +352,69 @@ export function useUpdateWhatsappSettings() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao salvar configurações", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// ---- Channels ----
+
+export function useWhatsappChannels() {
+  return useQuery<WhatsappChannel[]>({
+    queryKey: ["whatsapp", "channels"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/channels");
+      if (!res.ok) throw new Error("Erro ao buscar canais");
+      return res.json();
+    },
+  });
+}
+
+export function useCreateWhatsappChannel() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (data: CreateWhatsappChannelPayload) => {
+      const res = await apiRequest("POST", "/api/whatsapp/channels", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Canal criado com sucesso" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao criar canal", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUpdateWhatsappChannel() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<CreateWhatsappChannelPayload> }) => {
+      const res = await apiRequest("PATCH", `/api/whatsapp/channels/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Canal atualizado com sucesso" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao atualizar canal", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteWhatsappChannel() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/whatsapp/channels/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Canal removido com sucesso" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao remover canal", description: error.message, variant: "destructive" });
     },
   });
 }

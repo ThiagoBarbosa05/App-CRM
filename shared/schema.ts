@@ -6,6 +6,7 @@ import {
   decimal,
   timestamp,
   integer,
+  serial,
   boolean,
   real,
   numeric,
@@ -3746,10 +3747,27 @@ export type InsertCallNotification = z.infer<
 export type CampaignClient = typeof campaignClients.$inferSelect;
 
 // WhatsApp Business API — modelo normalizado
+
+export const whatsappChannels = pgTable("whatsapp_channels", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  phoneNumberId: text("phone_number_id").notNull().unique(),
+  accessToken: text("access_token").notNull(),
+  wabaId: text("waba_id").notNull(),
+  displayPhone: text("display_phone"),
+  userId: varchar("user_id").references(() => users.id),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type WhatsappChannel = typeof whatsappChannels.$inferSelect;
+export type InsertWhatsappChannel = typeof whatsappChannels.$inferInsert;
+
 export const whatsappConversations = pgTable("whatsapp_conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").references(() => clients.id),
   phone: text("phone").notNull(),
+  channelId: integer("channel_id").references(() => whatsappChannels.id),
   lastMessageAt: timestamp("last_message_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
