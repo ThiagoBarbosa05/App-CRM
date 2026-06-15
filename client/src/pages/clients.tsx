@@ -143,13 +143,21 @@ export default function Clients() {
     systemSettings?.purchase_status_days ?? "60",
     10,
   );
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(() => {
+    const saved = sessionStorage.getItem("clients_page");
+    return saved ? parseInt(saved, 10) : 1;
+  });
   const itemsPerPage = 50;
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
+    sessionStorage.setItem("clients_page", String(currentPage));
+  }, [currentPage]);
+
+  useEffect(() => {
     setCurrentPage(1);
+    sessionStorage.setItem("clients_page", "1");
   }, [debouncedSearchQuery, clientFilters]);
 
   const handleFiltersChange = useCallback((filters: ClientFiltersType) => {
