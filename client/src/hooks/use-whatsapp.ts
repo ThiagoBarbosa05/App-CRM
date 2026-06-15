@@ -68,6 +68,14 @@ export interface MetaTemplate {
   components: unknown[];
 }
 
+export interface MetaTemplateCreatePayload {
+  name: string;
+  language: string;
+  category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
+  parameter_format?: "NAMED" | "POSITIONAL";
+  components: unknown[];
+}
+
 export interface WhatsappSettings {
   wa_phone_number_id: string;
   wa_access_token: string;
@@ -264,6 +272,23 @@ export function useDeleteTemplate() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao excluir template", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useSubmitMetaTemplate() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (data: MetaTemplateCreatePayload) => {
+      const res = await apiRequest("POST", "/api/whatsapp/templates/meta", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Template enviado para aprovação da Meta" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates", "meta"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao enviar template", description: error.message, variant: "destructive" });
     },
   });
 }

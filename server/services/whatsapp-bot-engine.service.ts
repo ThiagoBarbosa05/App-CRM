@@ -97,14 +97,23 @@ async function executeNode(
 
     case "send_message": {
       const d = data as SendMessageNodeData;
-      if (d.messageType === "template" && d.templateId) {
-        const [tpl] = await db
-          .select()
-          .from(whatsappTemplates)
-          .where(eq(whatsappTemplates.id, d.templateId))
-          .limit(1);
-        if (tpl) {
-          await sendTemplateMessage(phone, tpl.name, tpl.languageCode, []);
+      if (d.messageType === "template") {
+        if (d.metaTemplateName) {
+          await sendTemplateMessage(
+            phone,
+            d.metaTemplateName,
+            d.metaTemplateLanguage ?? "pt_BR",
+            (d.templateParams ?? []) as object[],
+          );
+        } else if (d.templateId) {
+          const [tpl] = await db
+            .select()
+            .from(whatsappTemplates)
+            .where(eq(whatsappTemplates.id, d.templateId))
+            .limit(1);
+          if (tpl) {
+            await sendTemplateMessage(phone, tpl.name, tpl.languageCode, []);
+          }
         }
       } else if (d.text) {
         await sendTextMessage(phone, d.text);

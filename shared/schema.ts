@@ -3270,10 +3270,18 @@ export const whatsappBotSessions = pgTable(
 );
 
 // Node data type definitions
+export type TemplateParamComponent = {
+  type: "body" | "header";
+  parameters: Array<{ type: "text"; text: string }>;
+};
+
 export type SendMessageNodeData = {
   messageType: "text" | "template";
   text?: string;
-  templateId?: string;
+  templateId?: string;             // legado: FK para whatsappTemplates local
+  metaTemplateName?: string;       // nome do template aprovado no Meta
+  metaTemplateLanguage?: string;   // idioma do template (ex: "pt_BR")
+  templateParams?: TemplateParamComponent[]; // valores das variáveis {{1}}, {{nome}}
 };
 
 export type QuestionNodeData = {

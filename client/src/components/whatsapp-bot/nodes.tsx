@@ -63,7 +63,14 @@ export function SendMessageNode({ data, selected }: NodeProps) {
         color="bg-blue-500"
         icon={MessageCircle}
         title={d.label || "Enviar Mensagem"}
-        preview={d.text ?? (d.templateId ? `Template: ${d.templateId}` : undefined)}
+        preview={
+          d.text ??
+          (d.metaTemplateName
+            ? `Template: ${d.metaTemplateName}`
+            : d.templateId
+            ? "Template: (legado)"
+            : undefined)
+        }
         selected={selected}
       />
       <Handle type="source" position={Position.Bottom} />

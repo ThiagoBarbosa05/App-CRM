@@ -8,7 +8,9 @@ import {
   CheckCircle,
   XCircle,
   Globe,
+  Search,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +51,7 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useWhatsappTemplates,
   useWhatsappMetaTemplates,
@@ -56,7 +59,10 @@ import {
   useUpdateTemplate,
   useDeleteTemplate,
   type WhatsappTemplate,
+  type MetaTemplate,
 } from "@/hooks/use-whatsapp";
+import { useAuth } from "@/hooks/useAuth";
+import { MetaTemplateFormDialog } from "./meta-template-dialog";
 
 const USE_CASE_LABELS: Record<WhatsappTemplate["useCase"], string> = {
   birthday_today: "Aniversário (hoje)",
@@ -70,8 +76,6 @@ type TemplateForm = {
   name: string;
   useCase: WhatsappTemplate["useCase"];
   languageCode: string;
-  category: string;
-  description: string;
   isActive: boolean;
 };
 
@@ -79,8 +83,6 @@ const EMPTY_FORM: TemplateForm = {
   name: "",
   useCase: "campaign",
   languageCode: "pt_BR",
-  category: "",
-  description: "",
   isActive: true,
 };
 
@@ -98,25 +100,90 @@ function TemplateFormDialog({
   isPending: boolean;
 }) {
   const [form, setForm] = useState<TemplateForm>(initial ?? EMPTY_FORM);
+  const [search, setSearch] = useState(initial?.name ?? "");
+
+  const { data: metaTemplates = [], isLoading: loadingMeta } = useWhatsappMetaTemplates();
+
+  const filtered = metaTemplates.filter((t) =>
+    t.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const selectedMeta = metaTemplates.find((t) => t.name === form.name);
 
   const set = (key: keyof TemplateForm, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const selectTemplate = (t: MetaTemplate) => {
+    setForm((prev) => ({ ...prev, name: t.name, languageCode: t.language }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{initial ? "Editar template" : "Novo template"}</DialogTitle>
+          <DialogTitle>{initial ? "Editar vínculo" : "Vincular template"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          {/* Meta template picker */}
           <div className="space-y-1.5">
-            <Label>Nome</Label>
-            <Input
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="meu_template"
-            />
+            <Label>Template aprovado no Meta</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                className="pl-8"
+                placeholder="Buscar pelo nome do template..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <ScrollArea className="h-52 border rounded-md">
+              {loadingMeta ? (
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-10 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  {metaTemplates.length === 0
+                    ? "Nenhum template aprovado encontrado. Atualize a lista na aba Meta."
+                    : "Nenhum template corresponde à busca."}
+                </div>
+              ) : (
+                <div className="p-1">
+                  {filtered.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => selectTemplate(t)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-sm text-sm hover:bg-accent transition-colors",
+                        form.name === t.name && "bg-accent",
+                      )}
+                    >
+                      <div className="font-mono font-medium">{t.name}</div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant="outline" className="text-xs py-0 h-4">
+                          {t.category}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                          <Globe className="h-3 w-3" />
+                          {t.language}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+            {form.name && !selectedMeta && !loadingMeta && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Template <span className="font-mono">"{form.name}"</span> não está na lista de aprovados — pode não estar mais disponível.
+              </p>
+            )}
           </div>
+
+          {/* Use case */}
           <div className="space-y-1.5">
             <Label>Caso de uso</Label>
             <Select value={form.useCase} onValueChange={(v) => set("useCase", v)}>
@@ -132,32 +199,8 @@ function TemplateFormDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Idioma</Label>
-              <Input
-                value={form.languageCode}
-                onChange={(e) => set("languageCode", e.target.value)}
-                placeholder="pt_BR"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Categoria</Label>
-              <Input
-                value={form.category}
-                onChange={(e) => set("category", e.target.value)}
-                placeholder="MARKETING"
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Descrição</Label>
-            <Input
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              placeholder="Descrição opcional"
-            />
-          </div>
+
+          {/* Active */}
           <div className="flex items-center gap-3">
             <Switch
               checked={form.isActive}
@@ -171,10 +214,7 @@ function TemplateFormDialog({
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button
-            disabled={!form.name || isPending}
-            onClick={() => onSubmit(form)}
-          >
+          <Button disabled={!form.name || isPending} onClick={() => onSubmit(form)}>
             {isPending ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>
@@ -185,8 +225,12 @@ function TemplateFormDialog({
 
 export default function WhatsAppTemplates() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [metaDialogOpen, setMetaDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<WhatsappTemplate | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const { user } = useAuth();
+  const canManageMeta = user?.role === "admin" || user?.role === "gerente";
 
   const { data: localTemplates = [], isLoading: loadingLocal } = useWhatsappTemplates();
   const {
@@ -237,16 +281,22 @@ export default function WhatsAppTemplates() {
           </PageHeader.Text>
         </PageHeader.Info>
         <PageHeader.Actions>
+          {canManageMeta && (
+            <Button variant="outline" onClick={() => setMetaDialogOpen(true)} className="gap-2">
+              <Globe className="h-4 w-4" />
+              Criar no Meta
+            </Button>
+          )}
           <Button onClick={() => setDialogOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Novo Template
+            Vincular template
           </Button>
         </PageHeader.Actions>
       </PageHeader>
 
       <Tabs defaultValue="local">
         <TabsList>
-          <TabsTrigger value="local">Locais ({localTemplates.length})</TabsTrigger>
+          <TabsTrigger value="local">Vínculos locais ({localTemplates.length})</TabsTrigger>
           <TabsTrigger value="meta">Meta — aprovados</TabsTrigger>
         </TabsList>
 
@@ -257,10 +307,9 @@ export default function WhatsAppTemplates() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome</TableHead>
+                    <TableHead>Template (Meta)</TableHead>
                     <TableHead>Caso de uso</TableHead>
                     <TableHead className="hidden md:table-cell">Idioma</TableHead>
-                    <TableHead className="hidden md:table-cell">Categoria</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-24" />
                   </TableRow>
@@ -269,7 +318,7 @@ export default function WhatsAppTemplates() {
                   {loadingLocal &&
                     Array.from({ length: 3 }).map((_, i) => (
                       <TableRow key={i}>
-                        {Array.from({ length: 6 }).map((_, j) => (
+                        {Array.from({ length: 5 }).map((_, j) => (
                           <TableCell key={j}>
                             <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
                           </TableCell>
@@ -278,14 +327,14 @@ export default function WhatsAppTemplates() {
                     ))}
                   {!loadingLocal && localTemplates.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                        Nenhum template local criado ainda
+                      <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                        Nenhum vínculo criado. Use "Vincular template" para associar um template aprovado a um caso de uso.
                       </TableCell>
                     </TableRow>
                   )}
                   {localTemplates.map((t) => (
                     <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.name}</TableCell>
+                      <TableCell className="font-mono font-medium text-sm">{t.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{USE_CASE_LABELS[t.useCase]}</Badge>
                       </TableCell>
@@ -294,9 +343,6 @@ export default function WhatsAppTemplates() {
                           <Globe className="h-3 w-3" />
                           {t.languageCode}
                         </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-                        {t.category || "—"}
                       </TableCell>
                       <TableCell>
                         {t.isActive ? (
@@ -385,7 +431,7 @@ export default function WhatsAppTemplates() {
                   )}
                   {metaTemplates.map((t) => (
                     <TableRow key={t.id}>
-                      <TableCell className="font-medium">{t.name}</TableCell>
+                      <TableCell className="font-mono font-medium text-sm">{t.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{t.category}</Badge>
                       </TableCell>
@@ -409,7 +455,10 @@ export default function WhatsAppTemplates() {
         </TabsContent>
       </Tabs>
 
-      {/* Create / Edit dialog */}
+      {/* Create Meta template dialog */}
+      <MetaTemplateFormDialog open={metaDialogOpen} onClose={() => setMetaDialogOpen(false)} />
+
+      {/* Link / Edit dialog */}
       {dialogOpen && (
         <TemplateFormDialog
           open={dialogOpen}
@@ -420,8 +469,6 @@ export default function WhatsAppTemplates() {
                   name: editingTemplate.name,
                   useCase: editingTemplate.useCase,
                   languageCode: editingTemplate.languageCode,
-                  category: editingTemplate.category ?? "",
-                  description: editingTemplate.description ?? "",
                   isActive: editingTemplate.isActive,
                 }
               : undefined
@@ -435,7 +482,7 @@ export default function WhatsAppTemplates() {
       <AlertDialog open={!!deletingId} onOpenChange={(v) => !v && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir template</AlertDialogTitle>
+            <AlertDialogTitle>Excluir vínculo</AlertDialogTitle>
             <AlertDialogDescription>
               Esta ação não pode ser desfeita.
             </AlertDialogDescription>

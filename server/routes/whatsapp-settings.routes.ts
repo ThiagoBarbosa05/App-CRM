@@ -14,6 +14,7 @@ import {
   fetchMetaTemplates,
 } from "../services/whatsapp-templates.service";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
+import { createMetaTemplate, type MetaTemplateCreatePayload } from "../integrations/whatsapp";
 
 const router = Router();
 
@@ -67,6 +68,32 @@ router.get("/templates", async (req, res) => {
     res.json(templates);
   } catch {
     res.status(500).json({ message: "Erro ao buscar templates" });
+  }
+});
+
+const metaTemplateCreateSchema = z.object({
+  name: z.string().min(1, "Nome é obrigatório").regex(/^[a-z0-9_]+$/, "Apenas letras minúsculas, números e _"),
+  language: z.string().min(2, "Idioma é obrigatório"),
+  category: z.enum(["MARKETING", "UTILITY", "AUTHENTICATION"]),
+  parameter_format: z.enum(["NAMED", "POSITIONAL"]).optional(),
+  components: z.array(z.unknown()).min(1, "Ao menos um componente é obrigatório"),
+});
+
+router.post("/templates/meta", async (req, res) => {
+  try {
+    const role = (req as any).user?.role;
+    if (role !== "admin" && role !== "gerente") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    const parsed = metaTemplateCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ errors: parsed.error.flatten() });
+    }
+    const result = await createMetaTemplate(parsed.data as MetaTemplateCreatePayload);
+    res.status(201).json(result);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao enviar template para o Meta";
+    res.status(500).json({ message });
   }
 });
 

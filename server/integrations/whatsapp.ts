@@ -180,6 +180,29 @@ export async function downloadMediaToBuffer(mediaId: string): Promise<{ buffer: 
   return { buffer, contentType: meta.mime_type, size: buffer.length };
 }
 
+export interface MetaTemplateCreatePayload {
+  name: string;
+  language: string;
+  category: "MARKETING" | "UTILITY" | "AUTHENTICATION";
+  parameter_format?: "NAMED" | "POSITIONAL";
+  components: Record<string, unknown>[];
+}
+
+export async function createMetaTemplate(payload: MetaTemplateCreatePayload): Promise<{ id: string; status: string }> {
+  const cfg = await getConfig();
+  const raw = await getWhatsappSettingsRaw();
+  const wabaId = raw["wa_waba_id"];
+  if (!wabaId) throw new Error("WhatsApp não configurado: wa_waba_id é obrigatório");
+
+  const res = await fetch(`${cfg.baseUrl}/${wabaId}/message_templates`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 export async function getApprovedTemplates() {
   const cfg = await getConfig();
   const raw = await getWhatsappSettingsRaw();

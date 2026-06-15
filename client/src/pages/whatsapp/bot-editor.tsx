@@ -25,6 +25,7 @@ import {
   StopCircle,
   Plus,
   Trash2,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,9 +38,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useWhatsappBotFlow, useSaveFlow } from "@/hooks/use-whatsapp-bots";
-import { useWhatsappTemplates } from "@/hooks/use-whatsapp";
+import { useWhatsappMetaTemplates, type MetaTemplate } from "@/hooks/use-whatsapp";
 import {
   StartNode,
   SendMessageNode,
@@ -55,6 +58,7 @@ import type {
   ConditionNodeData,
   ConditionBranch,
   ActionNodeData,
+  TemplateParamComponent,
 } from "@shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -81,6 +85,39 @@ const PALETTE = [
   { type: "end", label: "Fim", icon: StopCircle, color: "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" },
 ];
 
+// ─── Template variable helpers ────────────────────────────────────────────────
+
+function parseTemplateVars(template: MetaTemplate) {
+  const components = template.components as Array<{ type: string; text?: string }>;
+  return components
+    .filter((c) => c.text && /\{\{/.test(c.text))
+    .map((c) => ({
+      componentType: c.type.toLowerCase() as "body" | "header",
+      vars: (c.text!.match(/\{\{([^}]+)\}\}/g) ?? []).map((m) => m.slice(2, -2).trim()),
+    }))
+    .filter((c) => c.vars.length > 0);
+}
+
+function getParamValue(params: TemplateParamComponent[], compType: string, idx: number) {
+  return params.find((p) => p.type === compType)?.parameters[idx]?.text ?? "";
+}
+
+function setParamValue(
+  params: TemplateParamComponent[],
+  compType: "body" | "header",
+  idx: number,
+  value: string,
+): TemplateParamComponent[] {
+  const next = params.map((p) => ({ ...p, parameters: [...p.parameters] }));
+  let comp = next.find((p) => p.type === compType);
+  if (!comp) {
+    comp = { type: compType, parameters: [] };
+    next.push(comp);
+  }
+  comp.parameters[idx] = { type: "text", text: value };
+  return next;
+}
+
 // ─── Properties Panel ─────────────────────────────────────────────────────────
 
 function PropertiesPanel({
@@ -90,7 +127,8 @@ function PropertiesPanel({
   node: FlowNode | null;
   onChange: (id: string, data: Partial<BotNodeData & { label: string }>) => void;
 }) {
-  const { data: templates = [] } = useWhatsappTemplates();
+  const { data: metaTemplates = [], isLoading: loadingMeta } = useWhatsappMetaTemplates();
+  const [templateSearch, setTemplateSearch] = useState("");
 
   if (!node) {
     return (
@@ -137,23 +175,96 @@ function PropertiesPanel({
             </Select>
           </div>
           {(d as SendMessageNodeData).messageType === "template" ? (
-            <div className="space-y-1">
-              <Label className="text-xs">Template</Label>
-              <Select
-                value={(d as SendMessageNodeData).templateId ?? ""}
-                onValueChange={(v) => update({ templateId: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Template (Meta)</Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <Input
+                    className="pl-7 h-7 text-sm"
+                    placeholder="Buscar..."
+                    value={templateSearch}
+                    onChange={(e) => setTemplateSearch(e.target.value)}
+                  />
+                </div>
+                <ScrollArea className="h-40 border rounded-md">
+                  {loadingMeta ? (
+                    <div className="p-3 text-xs text-muted-foreground">Carregando...</div>
+                  ) : (
+                    <div className="p-1">
+                      {metaTemplates
+                        .filter((t) =>
+                          t.name.toLowerCase().includes(templateSearch.toLowerCase()),
+                        )
+                        .map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() =>
+                              update({
+                                metaTemplateName: t.name,
+                                metaTemplateLanguage: t.language,
+                                templateParams: [],
+                              })
+                            }
+                            className={cn(
+                              "w-full text-left px-2 py-1.5 rounded-sm text-xs hover:bg-accent transition-colors",
+                              (d as SendMessageNodeData).metaTemplateName === t.name &&
+                                "bg-accent font-medium",
+                            )}
+                          >
+                            <div className="font-mono truncate">{t.name}</div>
+                            <span className="text-muted-foreground">
+                              {t.category} · {t.language}
+                            </span>
+                          </button>
+                        ))}
+                      {metaTemplates.length === 0 && (
+                        <p className="text-xs text-muted-foreground p-2">
+                          Nenhum template aprovado. Atualize na aba Meta.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </ScrollArea>
+              </div>
+
+              {(() => {
+                const selected = metaTemplates.find(
+                  (t) => t.name === (d as SendMessageNodeData).metaTemplateName,
+                );
+                if (!selected) return null;
+                const varGroups = parseTemplateVars(selected);
+                if (!varGroups.length) return null;
+                const params = (d as SendMessageNodeData).templateParams ?? [];
+                return (
+                  <div className="space-y-2 pl-2 border-l-2 border-muted">
+                    <Label className="text-xs text-muted-foreground">Parâmetros</Label>
+                    {varGroups.map((group) =>
+                      group.vars.map((varName, i) => (
+                        <div key={`${group.componentType}-${i}`} className="space-y-0.5">
+                          <Label className="text-xs font-mono">{`{{${varName}}}`}</Label>
+                          <Input
+                            className="h-7 text-sm"
+                            placeholder="Valor fixo"
+                            value={getParamValue(params, group.componentType, i)}
+                            onChange={(e) =>
+                              update({
+                                templateParams: setParamValue(
+                                  params,
+                                  group.componentType,
+                                  i,
+                                  e.target.value,
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                      )),
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div className="space-y-1">
@@ -511,6 +622,7 @@ export default function BotEditor() {
             </p>
           </div>
           <PropertiesPanel
+            key={selectedNode?.id ?? "none"}
             node={selectedNode}
             onChange={updateNodeData}
           />

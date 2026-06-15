@@ -1,5 +1,6 @@
 import { Switch, Route, Redirect } from "wouter";
 import { lazy, Suspense } from "react";
+import WhatsAppHub from "@/pages/whatsapp/whatsapp-hub";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -34,7 +35,6 @@ import RankingPage from "./pages/ranking";
 import TelemarketingPage from "./pages/telemarketing";
 import ReferralProgramPage from "./pages/referral-program";
 
-const WhatsAppHub = lazy(() => import("@/pages/whatsapp/whatsapp-hub"));
 const WhatsAppCampaignsList = lazy(() => import("@/pages/whatsapp/campaigns-list"));
 const WhatsAppCreateCampaign = lazy(() => import("@/pages/whatsapp/create-campaign"));
 const WhatsAppCampaignDetails = lazy(() => import("@/pages/whatsapp/campaign-details"));
@@ -43,6 +43,24 @@ const WhatsAppSettings = lazy(() => import("@/pages/whatsapp/settings"));
 const WhatsAppBotsList = lazy(() => import("@/pages/whatsapp/bots-list"));
 const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
 const WhatsAppConversations = lazy(() => import("@/pages/whatsapp/conversations"));
+
+function WhatsAppSection() {
+  return (
+    <WhatsAppHub>
+      <Suspense fallback={null}>
+        <Switch>
+          <Route path="/whatsapp/campanhas/criar" component={WhatsAppCreateCampaign} />
+          <Route path="/whatsapp/campanhas/:id" component={WhatsAppCampaignDetails} />
+          <Route path="/whatsapp/campanhas" component={WhatsAppCampaignsList} />
+          <Route path="/whatsapp/templates" component={WhatsAppTemplates} />
+          <Route path="/whatsapp/configuracoes" component={WhatsAppSettings} />
+          <Route path="/whatsapp/bots" component={WhatsAppBotsList} />
+          <Route path="/whatsapp/conversas" component={WhatsAppConversations} />
+        </Switch>
+      </Suspense>
+    </WhatsAppHub>
+  );
+}
 
 function Router() {
   const { user, login, isLoading } = useAuth();
@@ -97,66 +115,8 @@ function Router() {
       <Route path="/umbler/campaigns" component={() => <Redirect to="/whatsapp/campanhas" />} />
       <Route path="/umbler/contacts" component={() => <Redirect to="/whatsapp/campanhas" />} />
       {/* WhatsApp section */}
-      <Route
-        path="/whatsapp/campanhas/criar"
-        component={() => (
-          <WhatsAppHub>
-            <WhatsAppCreateCampaign />
-          </WhatsAppHub>
-        )}
-      />
-      <Route
-        path="/whatsapp/campanhas/:id"
-        component={() => (
-          <WhatsAppHub>
-            <WhatsAppCampaignDetails />
-          </WhatsAppHub>
-        )}
-      />
-      <Route
-        path="/whatsapp/campanhas"
-        component={() => (
-          <WhatsAppHub>
-            <WhatsAppCampaignsList />
-          </WhatsAppHub>
-        )}
-      />
-      <Route
-        path="/whatsapp/templates"
-        component={() => (
-          <WhatsAppHub>
-            <WhatsAppTemplates />
-          </WhatsAppHub>
-        )}
-      />
-      <Route
-        path="/whatsapp/configuracoes"
-        component={() => (
-          <WhatsAppHub>
-            <WhatsAppSettings />
-          </WhatsAppHub>
-        )}
-      />
-      <Route
-        path="/whatsapp/bots/:id/editor"
-        component={() => <WhatsAppBotEditor />}
-      />
-      <Route
-        path="/whatsapp/bots"
-        component={() => (
-          <WhatsAppHub>
-            <WhatsAppBotsList />
-          </WhatsAppHub>
-        )}
-      />
-      <Route
-        path="/whatsapp/conversas"
-        component={() => (
-          <WhatsAppHub>
-            <WhatsAppConversations />
-          </WhatsAppHub>
-        )}
-      />
+      <Route path="/whatsapp/bots/:id/editor" component={WhatsAppBotEditor} />
+      <Route path="/whatsapp/:rest*" component={WhatsAppSection} />
 
       <Route
         path="/funil"
