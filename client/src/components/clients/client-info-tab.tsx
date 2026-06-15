@@ -88,7 +88,8 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
     }
   };
 
-  const formatPhone = (phone: string) => {
+  const formatPhone = (phone: string | null | undefined) => {
+    if (!phone) return "—";
     const cleanPhone = phone.replace(/\D/g, "");
     if (cleanPhone.length === 11) {
       return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
