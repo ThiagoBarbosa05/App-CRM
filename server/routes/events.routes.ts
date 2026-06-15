@@ -16,6 +16,7 @@ import { storage } from "../storage";
 import { generateSlug } from "../lib/slug";
 import { invalidateCachedPage } from "../lib/landing-page-cache";
 import { optimizeHtml } from "../lib/html-optimizer";
+import { nanoid } from "nanoid";
 
 const LP_PUBLIC_DOMAIN = "https://eventos.grandcrub2b.com";
 
@@ -553,11 +554,9 @@ eventsRouter.post(
 
       const slug = generateSlug(slugInput.trim());
       if (!slug) {
-        return res
-          .status(400)
-          .json({
-            message: "Slug inválido. Use apenas letras, números e hífens",
-          });
+        return res.status(400).json({
+          message: "Slug inválido. Use apenas letras, números e hífens",
+        });
       }
 
       // Verifica unicidade do slug (excluindo o próprio evento)
