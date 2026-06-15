@@ -1511,11 +1511,11 @@ export default function EventsManagement() {
                         {/* ── HEADER ── */}
                         <div className="flex items-start gap-3">
                           {event.imageUrl && (
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-700 ring-1 ring-slate-200 dark:ring-slate-600">
+                            <div className="w-28 sm:w-36 flex-shrink-0 rounded-lg overflow-hidden ring-1 ring-slate-200 dark:ring-slate-600">
                               <img
                                 src={event.imageUrl}
                                 alt={event.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                className="w-full h-auto block group-hover:scale-105 transition-transform duration-300"
                               />
                             </div>
                           )}
