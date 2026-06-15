@@ -1371,13 +1371,20 @@ export default function EventsManagement() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => navigate("/clientes?isEventParticipant=true")}
+                        onClick={() => {
+                          const ids = filteredEvents.map((e) => e.id).join(",");
+                          if (ids) {
+                            navigate(`/clientes?eventId=${ids}`);
+                          } else {
+                            navigate("/clientes?isEventParticipant=true");
+                          }
+                        }}
                         className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-4 text-left w-full hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-150 cursor-pointer group"
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <UsersIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                           <span className="text-xs font-medium text-indigo-700 dark:text-indigo-400">
-                            Participantes
+                            Inscrições
                           </span>
                         </div>
                         <p className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
