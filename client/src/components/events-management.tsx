@@ -594,6 +594,27 @@ export default function EventsManagement() {
     });
   }, [events, searchTerm, statusFilter]);
 
+  const filteredEventIds = useMemo(
+    () => filteredEvents.map((e) => e.id).join(","),
+    [filteredEvents],
+  );
+
+  const { data: uniqueClientsData } = useQuery<{ totalItems: number }>({
+    queryKey: ["/api/clients", "event-unique-count", filteredEventIds],
+    queryFn: async () => {
+      if (!filteredEventIds) return { totalItems: 0 };
+      const params = new URLSearchParams({
+        eventId: filteredEventIds,
+        pageSize: "1",
+        page: "1",
+      });
+      const res = await fetch(`/api/clients?${params}`);
+      if (!res.ok) return { totalItems: 0 };
+      return res.json();
+    },
+    enabled: filteredEvents.length > 0,
+  });
+
   const createEventMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
       try {
@@ -1372,9 +1393,8 @@ export default function EventsManagement() {
                       <button
                         type="button"
                         onClick={() => {
-                          const ids = filteredEvents.map((e) => e.id).join(",");
-                          if (ids) {
-                            navigate(`/clientes?eventId=${ids}`);
+                          if (filteredEventIds) {
+                            navigate(`/clientes?eventId=${filteredEventIds}`);
                           } else {
                             navigate("/clientes?isEventParticipant=true");
                           }
@@ -1384,11 +1404,11 @@ export default function EventsManagement() {
                         <div className="flex items-center gap-2 mb-1">
                           <UsersIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                           <span className="text-xs font-medium text-indigo-700 dark:text-indigo-400">
-                            Inscrições
+                            Clientes de Eventos
                           </span>
                         </div>
                         <p className="text-lg font-bold text-indigo-800 dark:text-indigo-200">
-                          {totalPeople}
+                          {uniqueClientsData?.totalItems ?? "—"}
                         </p>
                         <p className="text-xs text-indigo-500 dark:text-indigo-500 mt-0.5 group-hover:underline">
                           Ver clientes →
