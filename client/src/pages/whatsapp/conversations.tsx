@@ -272,8 +272,8 @@ function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) 
 
 function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boolean }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const mediaUrl = msg.media?.whatsappMediaId
-    ? `/api/whatsapp/media/${msg.media.whatsappMediaId}`
+  const mediaUrl = msg.media?.id
+    ? `/api/whatsapp/media/${msg.media.id}`
     : null;
 
   if (msg.type === "image" || msg.type === "sticker") {

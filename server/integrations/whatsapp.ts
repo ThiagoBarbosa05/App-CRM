@@ -156,6 +156,30 @@ export async function fetchMediaStream(mediaId: string): Promise<{ stream: Reada
   };
 }
 
+// Baixa a mídia da Meta inteira para um Buffer (para persistir no R2 enquanto o ID ainda é válido).
+export async function downloadMediaToBuffer(mediaId: string): Promise<{ buffer: Buffer; contentType: string; size: number }> {
+  const cfg = await getConfig();
+
+  const metaRes = await fetch(`${cfg.baseUrl}/${mediaId}?phone_number_id=${cfg.phoneNumberId}`, {
+    headers: { Authorization: `Bearer ${cfg.accessToken}` },
+  });
+  if (!metaRes.ok) {
+    const errBody = await metaRes.text().catch(() => "(sem body)");
+    throw new Error(`Meta API erro ao buscar mídia ${mediaId}: ${metaRes.status} — ${errBody}`);
+  }
+  const meta = await metaRes.json() as { url: string; mime_type: string; file_size?: number };
+
+  const fileRes = await fetch(meta.url, {
+    headers: { Authorization: `Bearer ${cfg.accessToken}` },
+  });
+  if (!fileRes.ok) {
+    throw new Error(`Erro ao baixar mídia ${mediaId}: ${fileRes.status}`);
+  }
+
+  const buffer = Buffer.from(await fileRes.arrayBuffer());
+  return { buffer, contentType: meta.mime_type, size: buffer.length };
+}
+
 export async function getApprovedTemplates() {
   const cfg = await getConfig();
   const raw = await getWhatsappSettingsRaw();

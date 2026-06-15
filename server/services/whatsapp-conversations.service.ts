@@ -7,7 +7,8 @@ import {
   whatsappConversationReads,
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc } from "drizzle-orm";
-import { sendTextMessage } from "../integrations/whatsapp";
+import { sendTextMessage, downloadMediaToBuffer } from "../integrations/whatsapp";
+import { uploadWhatsappMedia } from "../lib/r2";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 
 function normalizePhone(phone: string) {
@@ -379,12 +380,22 @@ export async function saveInboundMessage(data: {
     .returning({ id: whatsappMessages.id });
 
   if (data.mediaData) {
-    await db.insert(whatsappMedia).values({
-      messageId: savedMessage.id,
-      whatsappMediaId: data.mediaData.whatsappMediaId,
-      mimeType: data.mediaData.mimeType ?? null,
-      filename: data.mediaData.filename ?? null,
-    });
+    const [savedMedia] = await db
+      .insert(whatsappMedia)
+      .values({
+        messageId: savedMessage.id,
+        whatsappMediaId: data.mediaData.whatsappMediaId,
+        mimeType: data.mediaData.mimeType ?? null,
+        filename: data.mediaData.filename ?? null,
+      })
+      .returning({ id: whatsappMedia.id });
+
+    // Persiste a mídia no R2 enquanto o ID da Meta ainda é válido (ela expira após uma janela curta).
+    await persistInboundMedia(
+      savedMedia.id,
+      data.mediaData.whatsappMediaId,
+      data.mediaData.mimeType,
+    );
   }
 
   await db
@@ -403,6 +414,39 @@ export async function saveInboundMessage(data: {
   }
 
   publishSseEvent("new_whatsapp_inbound", { conversationId: conv.id, clientId: conv.clientId ?? null });
+}
+
+export async function getMediaById(id: string) {
+  const [media] = await db
+    .select()
+    .from(whatsappMedia)
+    .where(eq(whatsappMedia.id, id))
+    .limit(1);
+  return media ?? null;
+}
+
+export async function updateMediaStorageKey(id: string, storageKey: string, size: number) {
+  await db
+    .update(whatsappMedia)
+    .set({ storageKey, size })
+    .where(eq(whatsappMedia.id, id));
+}
+
+// Baixa a mídia da Meta e a persiste no R2, gravando o storageKey. Falhas apenas logam —
+// não podem quebrar o salvamento da mensagem.
+export async function persistInboundMedia(
+  mediaRowId: string,
+  whatsappMediaId: string,
+  mimeType?: string,
+) {
+  try {
+    const { buffer, contentType, size } = await downloadMediaToBuffer(whatsappMediaId);
+    const storageKey = await uploadWhatsappMedia(buffer, mimeType ?? contentType);
+    await updateMediaStorageKey(mediaRowId, storageKey, size);
+    console.log(`[WA Media] Mídia ${whatsappMediaId} persistida no R2: ${storageKey}`);
+  } catch (err) {
+    console.error(`[WA Media] Falha ao persistir mídia ${whatsappMediaId}:`, err);
+  }
 }
 
 export async function startConversationByClientId(clientId: string) {

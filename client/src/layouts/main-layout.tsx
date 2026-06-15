@@ -84,7 +84,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      {/* <WhatsAppFloatingButton /> */}
+      <WhatsAppFloatingButton />
     </div>
   );
 }

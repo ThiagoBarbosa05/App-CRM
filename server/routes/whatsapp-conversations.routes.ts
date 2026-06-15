@@ -8,24 +8,51 @@ import {
   resolveConversationIdByClientId,
   startConversationByClientId,
   retryFailedMessage,
+  getMediaById,
+  updateMediaStorageKey,
 } from "../services/whatsapp-conversations.service";
-import { fetchMediaStream } from "../integrations/whatsapp";
+import { downloadMediaToBuffer } from "../integrations/whatsapp";
+import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
 import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
 
 const router = Router();
 
+// :mediaId é o id da linha whatsapp_media. Serve do R2 quando já persistido;
+// caso contrário busca na Meta, persiste (cache-on-read) e devolve.
 router.get("/media/:mediaId", async (req, res) => {
   try {
     const user = (req as any).user;
     if (!user?.userId) return res.status(401).end();
 
-    const { stream, contentType, contentLength } = await fetchMediaStream(req.params.mediaId);
-    res.setHeader("Content-Type", contentType);
-    if (contentLength) res.setHeader("Content-Length", contentLength);
-    res.setHeader("Cache-Control", "private, max-age=3600");
+    const media = await getMediaById(req.params.mediaId);
+    if (!media) return res.status(404).json({ message: "Mídia não encontrada" });
 
-    const { Readable } = await import("stream");
-    Readable.fromWeb(stream as any).pipe(res);
+    if (media.storageKey) {
+      try {
+        const obj = await getWhatsappMediaObject(media.storageKey);
+        res.setHeader("Content-Type", media.mimeType ?? obj.ContentType ?? "application/octet-stream");
+        if (obj.ContentLength != null) res.setHeader("Content-Length", String(obj.ContentLength));
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        (obj.Body as NodeJS.ReadableStream).pipe(res);
+        return;
+      } catch (err) {
+        console.error("[WA Media] Falha ao servir do R2, tentando Meta:", err);
+      }
+    }
+
+    if (!media.whatsappMediaId) return res.status(404).json({ message: "Mídia indisponível" });
+
+    const { buffer, contentType, size } = await downloadMediaToBuffer(media.whatsappMediaId);
+
+    // Persiste em background (cache-on-read) — não bloqueia a resposta.
+    uploadWhatsappMedia(buffer, media.mimeType ?? contentType)
+      .then((storageKey) => updateMediaStorageKey(media.id, storageKey, size))
+      .catch((err) => console.error("[WA Media] Falha ao cachear mídia no R2:", err));
+
+    res.setHeader("Content-Type", media.mimeType ?? contentType);
+    res.setHeader("Content-Length", String(size));
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(buffer);
   } catch (err) {
     console.error("[WA Media] Erro ao buscar mídia:", err);
     res.status(502).json({ message: "Erro ao buscar mídia" });
