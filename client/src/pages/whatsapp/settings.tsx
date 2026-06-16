@@ -330,7 +330,7 @@ export default function WhatsAppSettings() {
       wa_message_delay_ms: form.wa_message_delay_ms,
     };
     SENSITIVE_KEYS.forEach((key) => {
-      if (editing[key] && form[key] !== MASKED) {
+      if (editing[key] && form[key] !== MASKED && form[key].trim() !== "") {
         payload[key] = form[key];
       }
     });

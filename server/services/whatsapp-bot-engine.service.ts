@@ -179,6 +179,36 @@ async function resolveConditionHandle(
   return data.defaultHandle ?? "default";
 }
 
+export async function startBotSession(botId: string, phone: string): Promise<void> {
+  const [startNode] = await db
+    .select()
+    .from(whatsappBotNodes)
+    .where(
+      and(
+        eq(whatsappBotNodes.botId, botId),
+        eq(whatsappBotNodes.type, "start"),
+      ),
+    )
+    .limit(1);
+
+  if (!startNode) return;
+
+  const existingSession = await getActiveSession(phone);
+  if (existingSession) return;
+
+  const [newSession] = await db
+    .insert(whatsappBotSessions)
+    .values({
+      botId,
+      phoneNumber: phone,
+      currentNodeId: startNode.id,
+      status: "active",
+    })
+    .returning();
+
+  await executeNode(startNode, phone, newSession.id, botId);
+}
+
 export async function handleIncomingMessage(
   phone: string,
   messageText: string,

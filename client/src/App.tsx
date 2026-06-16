@@ -116,6 +116,8 @@ function Router() {
       <Route path="/umbler/contacts" component={() => <Redirect to="/whatsapp/campanhas" />} />
       {/* WhatsApp section */}
       <Route path="/whatsapp/bots/:id/editor" component={WhatsAppBotEditor} />
+      <Route path="/whatsapp/campanhas/criar" component={WhatsAppSection} />
+      <Route path="/whatsapp/campanhas/:id" component={WhatsAppSection} />
       <Route path="/whatsapp/:rest*" component={WhatsAppSection} />
 
       <Route

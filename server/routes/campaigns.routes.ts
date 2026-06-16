@@ -52,6 +52,9 @@ router.post("/", async (req: Request, res: Response) => {
       umblerBotTriggerName,
       umblerMessageText,
       umblerTriggerDecision,
+      waEnabled,
+      waTemplateId,
+      waBotId,
     } = req.body as {
       name: string;
       description?: string;
@@ -66,6 +69,9 @@ router.post("/", async (req: Request, res: Response) => {
       umblerBotTriggerName?: string;
       umblerMessageText?: string;
       umblerTriggerDecision?: string;
+      waEnabled?: boolean;
+      waTemplateId?: string;
+      waBotId?: string;
     };
 
     if (!name || !type) {
@@ -88,6 +94,9 @@ router.post("/", async (req: Request, res: Response) => {
         umblerBotTriggerName: umblerBotTriggerName ?? null,
         umblerMessageText: umblerMessageText ?? null,
         umblerTriggerDecision: umblerTriggerDecision ?? null,
+        waEnabled: waEnabled ?? false,
+        waTemplateId: waTemplateId ?? null,
+        waBotId: waBotId ?? null,
         createdBy: userId ?? null,
       })
       .returning();

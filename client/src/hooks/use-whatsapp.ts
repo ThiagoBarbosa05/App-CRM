@@ -59,6 +59,15 @@ export interface WhatsappTemplate {
   updatedAt: string;
 }
 
+export interface WhatsappBot {
+  id: string;
+  name: string;
+  triggerType: "keyword" | "new_conversation";
+  triggerKeyword?: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface MetaTemplate {
   id: string;
   name: string;
@@ -172,13 +181,25 @@ export function useExecuteCampaign() {
 }
 
 // Creates a campaign (POST /api/campaigns) then dispatches (POST /api/whatsapp/campaigns)
+export function useWhatsappBots() {
+  return useQuery<WhatsappBot[]>({
+    queryKey: ["whatsapp", "bots"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/bots");
+      if (!res.ok) throw new Error("Erro ao buscar bots");
+      return res.json();
+    },
+  });
+}
+
 export function useCreateCampaignWithDispatch() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: {
       name: string;
       description?: string;
-      waTemplateId: string;
+      waTemplateId?: string;
+      waBotId?: string;
       clientIds: string[];
     }) => {
       const campaignRes = await apiRequest("POST", "/api/campaigns", {
@@ -186,7 +207,8 @@ export function useCreateCampaignWithDispatch() {
         description: data.description,
         type: "humano",
         waEnabled: true,
-        waTemplateId: data.waTemplateId,
+        waTemplateId: data.waTemplateId ?? null,
+        waBotId: data.waBotId ?? null,
       });
       const campaign = await campaignRes.json();
 

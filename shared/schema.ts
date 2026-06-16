@@ -3566,6 +3566,7 @@ export const campaigns = pgTable("campaigns", {
   umblerTriggerDecision: text("umbler_trigger_decision"),
   waEnabled: boolean("wa_enabled").default(false).notNull(),
   waTemplateId: varchar("wa_template_id").references(() => whatsappTemplates.id),
+  waBotId: varchar("wa_bot_id").references(() => whatsappBots.id),
   waTriggerDecision: text("wa_trigger_decision"),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),

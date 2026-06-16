@@ -96,8 +96,8 @@ router.post("/campaigns", async (req, res) => {
     if (!campaign.waEnabled) {
       return res.status(400).json({ message: "Campanha não está habilitada para WhatsApp (waEnabled = false)" });
     }
-    if (!campaign.waTemplateId) {
-      return res.status(400).json({ message: "Campanha não possui waTemplateId configurado" });
+    if (!campaign.waTemplateId && !campaign.waBotId) {
+      return res.status(400).json({ message: "Campanha não possui template ou bot configurado" });
     }
 
     // 2. Buscar clientes
@@ -122,7 +122,7 @@ router.post("/campaigns", async (req, res) => {
         totalContacts: validClients.length,
         scheduledMessages: validClients.length,
         startDate: new Date(),
-        botId: campaign.waTemplateId,       // armazena templateId para rastreabilidade
+        botId: campaign.waBotId ?? campaign.waTemplateId ?? "",
         botTriggerName: "whatsapp",
         channelId: "whatsapp",
         fromPhone: "",

@@ -46,7 +46,7 @@ export async function getWhatsappSettingsRaw(): Promise<Record<string, string>> 
 }
 
 export async function upsertWhatsappSetting(key: string, value: string): Promise<void> {
-  if (SENSITIVE_KEYS.has(key as WaKey) && value === MASK) return;
+  if (SENSITIVE_KEYS.has(key as WaKey) && (value === MASK || value.trim() === "")) return;
   await db
     .insert(whatsappSettings)
     .values({ key, value })

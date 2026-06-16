@@ -30,7 +30,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { useWhatsappTemplates, useCreateCampaignWithDispatch, type WhatsappTemplate } from "@/hooks/use-whatsapp";
+import { useWhatsappTemplates, useWhatsappBots, useCreateCampaignWithDispatch, type WhatsappTemplate, type WhatsappBot } from "@/hooks/use-whatsapp";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -350,84 +352,162 @@ function StepClients({
   );
 }
 
+const TRIGGER_LABELS: Record<WhatsappBot["triggerType"], string> = {
+  keyword: "Palavra-chave",
+  new_conversation: "Nova conversa",
+};
+
 // Step 3
-function StepTemplate({
-  selectedId,
-  onChange,
+function StepTemplateOrBot({
+  selectedTemplateId,
+  selectedBotId,
+  onSelectTemplate,
+  onSelectBot,
 }: {
-  selectedId: string;
-  onChange: (id: string) => void;
+  selectedTemplateId: string;
+  selectedBotId: string;
+  onSelectTemplate: (id: string) => void;
+  onSelectBot: (id: string) => void;
 }) {
-  const { data: templates = [], isLoading } = useWhatsappTemplates();
-  const active = templates.filter((t) => t.isActive);
+  const { data: templates = [], isLoading: templatesLoading } = useWhatsappTemplates();
+  const { data: bots = [], isLoading: botsLoading } = useWhatsappBots();
+  const activeTemplates = templates.filter((t) => t.isActive);
+  const activeBots = bots.filter((b) => b.isActive);
 
-  if (isLoading) {
-    return (
-      <div className="grid gap-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
-        ))}
-      </div>
-    );
-  }
-
-  if (active.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
-          <FileText className="h-7 w-7 text-slate-400" />
-        </div>
-        <p className="mt-4 font-medium text-foreground">Nenhum template ativo</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Crie um template em{" "}
-          <a href="/whatsapp/templates" className="text-primary underline">
-            WhatsApp → Templates
-          </a>{" "}
-          antes de criar uma campanha.
-        </p>
-      </div>
-    );
-  }
+  const defaultTab = selectedBotId ? "bot" : "template";
 
   return (
-    <div className="grid gap-3">
-      {active.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => onChange(t.id)}
-          className={cn(
-            "w-full text-left p-4 rounded-xl border-2 transition-all",
-            selectedId === t.id
-              ? "border-primary bg-primary/5"
-              : "border-border hover:border-muted-foreground",
-          )}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="font-semibold text-foreground">{t.name}</p>
-              {t.description && (
-                <p className="text-sm text-muted-foreground mt-0.5">{t.description}</p>
-              )}
-            </div>
-            <div className="flex gap-1.5 shrink-0 flex-wrap">
-              <Badge variant="outline" className="text-xs">
-                {USE_CASE_LABELS[t.useCase]}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {t.languageCode}
-              </Badge>
-            </div>
+    <Tabs defaultValue={defaultTab} className="w-full">
+      <TabsList className="w-full mb-4">
+        <TabsTrigger value="template" className="flex-1 gap-1.5">
+          <FileText className="h-3.5 w-3.5" />
+          Template
+        </TabsTrigger>
+        <TabsTrigger value="bot" className="flex-1 gap-1.5">
+          <Bot className="h-3.5 w-3.5" />
+          Bot
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="template">
+        {templatesLoading ? (
+          <div className="grid gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+            ))}
           </div>
-          {selectedId === t.id && (
-            <div className="flex items-center gap-1.5 mt-2 text-primary text-sm font-medium">
-              <Check className="h-4 w-4" />
-              Selecionado
+        ) : activeTemplates.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
+              <FileText className="h-7 w-7 text-slate-400" />
             </div>
-          )}
-        </button>
-      ))}
-    </div>
+            <p className="mt-4 font-medium text-foreground">Nenhum template ativo</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Crie um template em{" "}
+              <a href="/whatsapp/templates" className="text-primary underline">
+                WhatsApp → Templates
+              </a>{" "}
+              antes de criar uma campanha.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {activeTemplates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => { onSelectTemplate(t.id); onSelectBot(""); }}
+                className={cn(
+                  "w-full text-left p-4 rounded-xl border-2 transition-all",
+                  selectedTemplateId === t.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-foreground">{t.name}</p>
+                    {t.description && (
+                      <p className="text-sm text-muted-foreground mt-0.5">{t.description}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-1.5 shrink-0 flex-wrap">
+                    <Badge variant="outline" className="text-xs">
+                      {USE_CASE_LABELS[t.useCase]}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {t.languageCode}
+                    </Badge>
+                  </div>
+                </div>
+                {selectedTemplateId === t.id && (
+                  <div className="flex items-center gap-1.5 mt-2 text-primary text-sm font-medium">
+                    <Check className="h-4 w-4" />
+                    Selecionado
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </TabsContent>
+
+      <TabsContent value="bot">
+        {botsLoading ? (
+          <div className="grid gap-3">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-20 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : activeBots.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
+              <Bot className="h-7 w-7 text-slate-400" />
+            </div>
+            <p className="mt-4 font-medium text-foreground">Nenhum bot ativo</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Crie um bot em{" "}
+              <a href="/whatsapp/bots" className="text-primary underline">
+                WhatsApp → Bots
+              </a>{" "}
+              antes de criar uma campanha.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {activeBots.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => { onSelectBot(b.id); onSelectTemplate(""); }}
+                className={cn(
+                  "w-full text-left p-4 rounded-xl border-2 transition-all",
+                  selectedBotId === b.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-muted-foreground",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-foreground">{b.name}</p>
+                  </div>
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {TRIGGER_LABELS[b.triggerType]}
+                    {b.triggerKeyword ? `: "${b.triggerKeyword}"` : ""}
+                  </Badge>
+                </div>
+                {selectedBotId === b.id && (
+                  <div className="flex items-center gap-1.5 mt-2 text-primary text-sm font-medium">
+                    <Check className="h-4 w-4" />
+                    Selecionado
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -437,14 +517,18 @@ function StepConfirm({
   description,
   clientCount,
   templateId,
+  botId,
 }: {
   title: string;
   description: string;
   clientCount: number;
   templateId: string;
+  botId: string;
 }) {
   const { data: templates = [] } = useWhatsappTemplates();
+  const { data: bots = [] } = useWhatsappBots();
   const template = templates.find((t) => t.id === templateId);
+  const bot = bots.find((b) => b.id === botId);
 
   return (
     <div className="space-y-4">
@@ -464,12 +548,18 @@ function StepConfirm({
             <span className="text-muted-foreground">Clientes selecionados</span>
             <span className="font-medium">{clientCount}</span>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Template</span>
-            <span className="font-medium text-right max-w-[60%] truncate">
-              {template?.name ?? "—"}
-            </span>
-          </div>
+          {template && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Template</span>
+              <span className="font-medium text-right max-w-[60%] truncate">{template.name}</span>
+            </div>
+          )}
+          {bot && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Bot</span>
+              <span className="font-medium text-right max-w-[60%] truncate">{bot.name}</span>
+            </div>
+          )}
         </CardContent>
       </Card>
       <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
@@ -491,15 +581,16 @@ export default function WhatsAppCreateCampaign() {
   const [description, setDescription] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [selectedBotId, setSelectedBotId] = useState("");
 
   const createMutation = useCreateCampaignWithDispatch();
 
   const canNext = useMemo(() => {
     if (step === 1) return title.trim().length > 0;
     if (step === 2) return selectedClientIds.length > 0;
-    if (step === 3) return selectedTemplateId.length > 0;
+    if (step === 3) return selectedTemplateId.length > 0 || selectedBotId.length > 0;
     return true;
-  }, [step, title, selectedClientIds, selectedTemplateId]);
+  }, [step, title, selectedClientIds, selectedTemplateId, selectedBotId]);
 
   const handleNext = () => {
     if (step < 4) setStep((s) => s + 1);
@@ -515,7 +606,8 @@ export default function WhatsAppCreateCampaign() {
       {
         name: title,
         description,
-        waTemplateId: selectedTemplateId,
+        waTemplateId: selectedTemplateId || undefined,
+        waBotId: selectedBotId || undefined,
         clientIds: selectedClientIds,
       },
       {
@@ -525,7 +617,7 @@ export default function WhatsAppCreateCampaign() {
         },
       },
     );
-  }, [createMutation, title, description, selectedTemplateId, selectedClientIds, toast, navigate]);
+  }, [createMutation, title, description, selectedTemplateId, selectedBotId, selectedClientIds, toast, navigate]);
 
   return (
     <div className="overflow-y-auto h-full p-5 lg:p-6">
@@ -568,9 +660,11 @@ export default function WhatsAppCreateCampaign() {
           />
         )}
         {step === 3 && (
-          <StepTemplate
-            selectedId={selectedTemplateId}
-            onChange={setSelectedTemplateId}
+          <StepTemplateOrBot
+            selectedTemplateId={selectedTemplateId}
+            selectedBotId={selectedBotId}
+            onSelectTemplate={setSelectedTemplateId}
+            onSelectBot={setSelectedBotId}
           />
         )}
         {step === 4 && (
@@ -579,6 +673,7 @@ export default function WhatsAppCreateCampaign() {
             description={description}
             clientCount={selectedClientIds.length}
             templateId={selectedTemplateId}
+            botId={selectedBotId}
           />
         )}
       </div>
