@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 export interface WhatsappCampaign {
   id: string;
   title: string;
-  status: "created" | "in_progress" | "completed" | "failed" | "cancelled";
+  status: "created" | "in_progress" | "paused" | "completed" | "failed" | "cancelled";
   totalContacts: number;
   scheduledMessages: number;
   sentMessages: number;
@@ -23,9 +23,11 @@ export interface WhatsappCampaignMessage {
   campaignId: string;
   contactName: string;
   phoneNumber: string;
-  status: "scheduled" | "sent" | "failed" | "cancelled";
+  status: "scheduled" | "sent" | "delivered" | "read" | "failed" | "cancelled";
   scheduledAt: string;
   sentAt?: string;
+  deliveredAt?: string;
+  readAt?: string;
   errorMessage?: string;
 }
 
@@ -38,6 +40,8 @@ export interface WhatsappCampaignStats {
   stats: {
     total: number;
     sent: number;
+    delivered: number;
+    read: number;
     failed: number;
     pending: number;
   };
@@ -147,6 +151,11 @@ export function useWhatsappCampaignDetails(id: string | undefined) {
       return res.json();
     },
     enabled: !!id,
+    // Atualiza ao vivo somente enquanto o disparo está efetivamente em andamento.
+    refetchInterval: (query) => {
+      const data = query.state.data as WhatsappCampaignDetails | undefined;
+      return data?.status === "in_progress" ? 4000 : false;
+    },
   });
 }
 
@@ -159,6 +168,11 @@ export function useWhatsappCampaignStats(id: string | undefined) {
       return res.json();
     },
     enabled: !!id,
+    refetchInterval: (query) => {
+      const data = query.state.data as WhatsappCampaignStats | undefined;
+      if (!data) return false;
+      return data.stats.pending > 0 ? 4000 : false;
+    },
   });
 }
 
@@ -180,18 +194,56 @@ export function useExecuteCampaign() {
   });
 }
 
-// Creates a campaign (POST /api/campaigns) then dispatches (POST /api/whatsapp/campaigns)
-export function useWhatsappBots() {
-  return useQuery<WhatsappBot[]>({
-    queryKey: ["whatsapp", "bots"],
-    queryFn: async () => {
-      const res = await fetch("/api/whatsapp/bots");
-      if (!res.ok) throw new Error("Erro ao buscar bots");
-      return res.json();
+export function useRetryFailedCampaign() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (campaignId: string) => {
+      const res = await apiRequest("POST", `/api/whatsapp/campaigns/${campaignId}/retry-failed`);
+      return res.json() as Promise<{ campaignId: string; requeued: number }>;
+    },
+    onSuccess: (data, campaignId) => {
+      toast({
+        title: data.requeued > 0
+          ? `${data.requeued} mensagem(ns) reenfileirada(s)`
+          : "Nenhuma falha para reprocessar",
+      });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao reprocessar falhas", description: error.message, variant: "destructive" });
     },
   });
 }
 
+function useCampaignControl(action: "pause" | "resume" | "cancel", successTitle: string) {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (campaignId: string) => {
+      const res = await apiRequest("POST", `/api/whatsapp/campaigns/${campaignId}/${action}`);
+      return res.json();
+    },
+    onSuccess: (_data, campaignId) => {
+      toast({ title: successTitle });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export const usePauseCampaign = () => useCampaignControl("pause", "Campanha pausada");
+export const useResumeCampaign = () => useCampaignControl("resume", "Campanha retomada");
+export const useCancelCampaign = () => useCampaignControl("cancel", "Campanha cancelada");
+
+// Fonte única do hook de bots (envia o header x-user-id). Reexportado aqui por
+// conveniência para quem já importa de "use-whatsapp".
+export { useWhatsappBots } from "./use-whatsapp-bots";
+
+// Creates a campaign (POST /api/campaigns) then dispatches (POST /api/whatsapp/campaigns)
 export function useCreateCampaignWithDispatch() {
   const { toast } = useToast();
   return useMutation({
@@ -201,6 +253,7 @@ export function useCreateCampaignWithDispatch() {
       waTemplateId?: string;
       waBotId?: string;
       clientIds: string[];
+      scheduledAt?: string; // ISO; se no futuro, a campanha fica agendada
     }) => {
       const campaignRes = await apiRequest("POST", "/api/campaigns", {
         name: data.name,
@@ -215,6 +268,7 @@ export function useCreateCampaignWithDispatch() {
       const dispatchRes = await apiRequest("POST", "/api/whatsapp/campaigns", {
         campaignId: campaign.id,
         clientIds: data.clientIds,
+        scheduledAt: data.scheduledAt,
       });
       return dispatchRes.json();
     },

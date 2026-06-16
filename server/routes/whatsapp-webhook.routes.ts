@@ -1,10 +1,21 @@
 import { Router, Request, Response } from "express";
+import { eq } from "drizzle-orm";
+import { db } from "../db";
+import { umblerCampaignMessages, whatsappMessages } from "@shared/schema";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { handleIncomingMessage as runBotEngine } from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage } from "../services/whatsapp-conversations.service";
 import { getChannelByPhoneNumberId } from "../services/whatsapp-channels.service";
 
 const router = Router();
+
+// Ordem das transições de status (não permite regredir: read não volta a delivered).
+const STATUS_RANK: Record<string, number> = {
+  scheduled: 0,
+  sent: 1,
+  delivered: 2,
+  read: 3,
+};
 
 // GET — verificação inicial do webhook pelo Meta
 router.get("/webhook", async (req: Request, res: Response) => {
@@ -57,10 +68,71 @@ async function handleMessageStatus(status: {
   status: "sent" | "delivered" | "read" | "failed";
   recipient_id: string;
   timestamp: string;
-  errors?: unknown[];
+  errors?: Array<{ title?: string; message?: string; code?: number }>;
 }) {
   console.log(`[WA Webhook] Mensagem ${status.id} → ${status.status}`);
-  // TODO: atualizar waMessageStatus na tabela calls onde waMessageId = status.id
+
+  const now = new Date();
+
+  // 1. Mensagem de campanha (umbler_campaign_messages.message_id = waMessageId)
+  await updateCampaignMessageStatus(status, now).catch((err) =>
+    console.error("[WA Webhook] Erro ao atualizar status de campanha:", err),
+  );
+
+  // 2. Mensagem de conversa (whatsapp_messages.wa_message_id = waMessageId)
+  await db
+    .update(whatsappMessages)
+    .set({ status: status.status })
+    .where(eq(whatsappMessages.waMessageId, status.id))
+    .catch((err) =>
+      console.error("[WA Webhook] Erro ao atualizar status de conversa:", err),
+    );
+}
+
+async function updateCampaignMessageStatus(
+  status: {
+    id: string;
+    status: "sent" | "delivered" | "read" | "failed";
+    errors?: Array<{ title?: string; message?: string; code?: number }>;
+  },
+  now: Date,
+): Promise<void> {
+  const [msg] = await db
+    .select()
+    .from(umblerCampaignMessages)
+    .where(eq(umblerCampaignMessages.messageId, status.id))
+    .limit(1);
+
+  if (!msg) return;
+
+  // Estados terminais (failed/cancelled) não são sobrescritos por progresso.
+  if (msg.status === "failed" || msg.status === "cancelled") return;
+
+  if (status.status === "failed") {
+    const err = status.errors?.[0];
+    const errorMessage =
+      err?.message || err?.title || "Falha reportada pela Meta";
+    await db
+      .update(umblerCampaignMessages)
+      .set({ status: "failed", errorMessage, updatedAt: now })
+      .where(eq(umblerCampaignMessages.id, msg.id));
+    return;
+  }
+
+  // Só avança para frente (sent → delivered → read), nunca regride.
+  const currentRank = STATUS_RANK[msg.status] ?? 0;
+  const nextRank = STATUS_RANK[status.status] ?? 0;
+  if (nextRank <= currentRank) return;
+
+  await db
+    .update(umblerCampaignMessages)
+    .set({
+      status: status.status,
+      ...(status.status === "delivered" ? { deliveredAt: now } : {}),
+      ...(status.status === "read" ? { readAt: now } : {}),
+      updatedAt: now,
+    })
+    .where(eq(umblerCampaignMessages.id, msg.id));
 }
 
 type IncomingMessage = {

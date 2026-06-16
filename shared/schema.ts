@@ -3015,7 +3015,8 @@ export const umblerCampaigns = pgTable("umbler_campaigns", {
   id: varchar("id").primaryKey(),
   title: text("title").notNull(),
   status: text("status", {
-    enum: ["created", "in_progress", "completed", "failed", "cancelled"],
+    // created = agendada (aguardando startDate); paused = pausada manualmente.
+    enum: ["created", "in_progress", "paused", "completed", "failed", "cancelled"],
   })
     .notNull()
     .default("created"),
@@ -3049,14 +3050,19 @@ export const umblerCampaignMessages = pgTable("umbler_campaign_messages", {
   contactName: text("contact_name").notNull(),
   phoneNumber: text("phone_number").notNull(),
   status: text("status", {
-    enum: ["scheduled", "sent", "failed", "cancelled"],
+    // scheduled→sent (API aceitou)→delivered→read; failed/cancelled são terminais.
+    enum: ["scheduled", "sent", "delivered", "read", "failed", "cancelled"],
   })
     .notNull()
     .default("scheduled"),
   scheduledAt: timestamp("scheduled_at").notNull(),
   sentAt: timestamp("sent_at"),
+  deliveredAt: timestamp("delivered_at"),
+  readAt: timestamp("read_at"),
   errorMessage: text("error_message"),
-  messageId: text("message_id"),
+  messageId: text("message_id"), // waMessageId retornado pela Meta (para casar status do webhook)
+  attempts: integer("attempts").default(0).notNull(),
+  nextAttemptAt: timestamp("next_attempt_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -3288,6 +3294,7 @@ export type SendMessageNodeData = {
 export type QuestionNodeData = {
   messageText: string;
   waitForResponseSeconds?: number;
+  captureVariable?: string; // nome da variável onde a resposta do usuário é guardada
 };
 
 export type ConditionBranch = {

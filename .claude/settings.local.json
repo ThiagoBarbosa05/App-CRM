@@ -47,7 +47,9 @@
       "Bash(awk 'NR<=3431 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)",
       "Bash(awk 'NR<=3356 && /^export const.*pgTable/' /home/runner/workspace/shared/schema.ts)",
       "Bash(xargs ls -la)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\thiag\\\\dev\\\\App-CRM\\\\server\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }

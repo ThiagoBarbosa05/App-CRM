@@ -205,6 +205,7 @@ export default function WhatsAppBotsList() {
                           navigate(`/whatsapp/bots/${bot.id}/editor`)
                         }
                         title="Editar fluxo"
+                        aria-label={`Editar fluxo do bot ${bot.name}`}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -212,7 +213,9 @@ export default function WhatsAppBotsList() {
                         variant="ghost"
                         size="icon"
                         onClick={() => onToggle(bot)}
+                        disabled={toggleActive.isPending}
                         title={bot.isActive ? "Desativar" : "Ativar"}
+                        aria-label={`${bot.isActive ? "Desativar" : "Ativar"} o bot ${bot.name}`}
                       >
                         {bot.isActive ? (
                           <PowerOff className="h-4 w-4 text-yellow-500" />
@@ -225,6 +228,7 @@ export default function WhatsAppBotsList() {
                         size="icon"
                         onClick={() => setDeleteTarget(bot)}
                         title="Excluir"
+                        aria-label={`Excluir o bot ${bot.name}`}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

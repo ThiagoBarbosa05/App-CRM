@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Plus, Send, Clock, CheckCircle, XCircle, AlertCircle, BarChart2, MessageCircle } from "lucide-react";
+import { Plus, Send, Clock, Pause, CheckCircle, XCircle, AlertCircle, BarChart2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,8 +28,9 @@ const STATUS_CONFIG: Record<
   WhatsappCampaign["status"],
   { label: string; icon: React.ElementType; className: string }
 > = {
-  created: { label: "Criada", icon: Clock, className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  created: { label: "Agendada", icon: Clock, className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" },
   in_progress: { label: "Em andamento", icon: Send, className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300" },
+  paused: { label: "Pausada", icon: Pause, className: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
   completed: { label: "Concluída", icon: CheckCircle, className: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
   failed: { label: "Falhou", icon: XCircle, className: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
   cancelled: { label: "Cancelada", icon: AlertCircle, className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
@@ -155,8 +156,9 @@ export default function WhatsAppCampaignsList() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
-              <SelectItem value="created">Criadas</SelectItem>
+              <SelectItem value="created">Agendadas</SelectItem>
               <SelectItem value="in_progress">Em andamento</SelectItem>
+              <SelectItem value="paused">Pausadas</SelectItem>
               <SelectItem value="completed">Concluídas</SelectItem>
               <SelectItem value="failed">Falhou</SelectItem>
               <SelectItem value="cancelled">Canceladas</SelectItem>

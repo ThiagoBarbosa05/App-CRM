@@ -9,7 +9,6 @@ import {
 } from "@shared/schema";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { sendTextMessage, sendTemplateMessage } from "../integrations/whatsapp";
-import { executeCampaign } from "../services/whatsapp-campaign.service";
 import {
   listCampaigns,
   getCampaignDetails,
@@ -74,6 +73,7 @@ router.post("/campaigns", async (req, res) => {
   const schema = z.object({
     campaignId: z.string().uuid(),
     clientIds: z.array(z.string()).min(1),
+    scheduledAt: z.string().datetime().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -81,7 +81,12 @@ router.post("/campaigns", async (req, res) => {
     return res.status(400).json({ message: "Parâmetros inválidos", errors: parsed.error.errors });
   }
 
-  const { campaignId, clientIds } = parsed.data;
+  const { campaignId, clientIds, scheduledAt } = parsed.data;
+
+  // Se a data de agendamento estiver no futuro, a campanha fica "created"
+  // (agendada) e o job só inicia quando startDate <= agora.
+  const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
+  const isScheduled = !!scheduledDate && scheduledDate.getTime() > Date.now();
 
   try {
     // 1. Validar campanha
@@ -118,10 +123,10 @@ router.post("/campaigns", async (req, res) => {
       .values({
         id: campaignId,
         title: campaign.name,
-        status: "in_progress",
+        status: isScheduled ? "created" : "in_progress",
         totalContacts: validClients.length,
         scheduledMessages: validClients.length,
-        startDate: new Date(),
+        startDate: scheduledDate ?? new Date(),
         botId: campaign.waBotId ?? campaign.waTemplateId ?? "",
         botTriggerName: "whatsapp",
         channelId: "whatsapp",
@@ -134,9 +139,10 @@ router.post("/campaigns", async (req, res) => {
       .onConflictDoUpdate({
         target: umblerCampaigns.id,
         set: {
-          status: "in_progress",
+          status: isScheduled ? "created" : "in_progress",
           totalContacts: validClients.length,
           scheduledMessages: validClients.length,
+          startDate: scheduledDate ?? new Date(),
           updatedAt: new Date(),
         },
       });
@@ -155,29 +161,114 @@ router.post("/campaigns", async (req, res) => {
 
     await db.insert(umblerCampaignMessages).values(messageValues).onConflictDoNothing();
 
-    // 5. Executar campanha imediatamente
-    const result = await executeCampaign(campaignId);
-
-    // 6. Atualizar status da entrada em umblerCampaigns
-    await db
-      .update(umblerCampaigns)
-      .set({
-        status: result.failed === validClients.length ? "failed" : "completed",
-        sentMessages: result.sent,
-        failedMessages: result.failed,
-        updatedAt: new Date(),
-      })
-      .where(eq(umblerCampaigns.id, campaignId));
-
-    res.status(201).json({
+    // 5. NÃO dispara inline — apenas enfileira. O job whatsapp-campaign-dispatcher
+    //    processa as mensagens "scheduled" em lotes (evita timeout em disparo em massa).
+    res.status(202).json({
       campaignId,
-      totalClients: validClients.length,
+      queued: validClients.length,
       skippedNoPhone: clientRows.length - validClients.length,
-      ...result,
+      scheduledAt: isScheduled ? scheduledDate?.toISOString() : null,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Erro ao executar campanha";
+    const message = e instanceof Error ? e.message : "Erro ao enfileirar campanha";
     console.error("[WA campaigns] erro:", e);
+    res.status(500).json({ message });
+  }
+});
+
+// ── Reprocessar mensagens com falha ───────────────────────────────────────────
+// Reenfileira (failed → scheduled) e marca a campanha como in_progress para que
+// o job whatsapp-campaign-dispatcher retente o envio em segundo plano.
+
+router.post("/campaigns/:id/retry-failed", async (req, res) => {
+  const campaignId = req.params.id;
+  try {
+    const failed = await db
+      .update(umblerCampaignMessages)
+      .set({ status: "scheduled", errorMessage: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(umblerCampaignMessages.campaignId, campaignId),
+          eq(umblerCampaignMessages.status, "failed"),
+        ),
+      )
+      .returning({ id: umblerCampaignMessages.id });
+
+    if (failed.length > 0) {
+      await db
+        .update(umblerCampaigns)
+        .set({ status: "in_progress", completedAt: null, updatedAt: new Date() })
+        .where(eq(umblerCampaigns.id, campaignId));
+    }
+
+    res.json({ campaignId, requeued: failed.length });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao reprocessar falhas";
+    res.status(500).json({ message });
+  }
+});
+
+// ── Pausar / Retomar / Cancelar campanha ──────────────────────────────────────
+
+router.post("/campaigns/:id/pause", async (req, res) => {
+  try {
+    await db
+      .update(umblerCampaigns)
+      .set({ status: "paused", updatedAt: new Date() })
+      .where(
+        and(
+          eq(umblerCampaigns.id, req.params.id),
+          inArray(umblerCampaigns.status, ["in_progress", "created"]),
+        ),
+      );
+    res.json({ campaignId: req.params.id, status: "paused" });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao pausar campanha";
+    res.status(500).json({ message });
+  }
+});
+
+router.post("/campaigns/:id/resume", async (req, res) => {
+  try {
+    await db
+      .update(umblerCampaigns)
+      .set({ status: "in_progress", updatedAt: new Date() })
+      .where(
+        and(
+          eq(umblerCampaigns.id, req.params.id),
+          eq(umblerCampaigns.status, "paused"),
+        ),
+      );
+    res.json({ campaignId: req.params.id, status: "in_progress" });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao retomar campanha";
+    res.status(500).json({ message });
+  }
+});
+
+router.post("/campaigns/:id/cancel", async (req, res) => {
+  const campaignId = req.params.id;
+  try {
+    // Cancela as mensagens ainda na fila e a campanha.
+    const cancelled = await db
+      .update(umblerCampaignMessages)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(
+        and(
+          eq(umblerCampaignMessages.campaignId, campaignId),
+          eq(umblerCampaignMessages.status, "scheduled"),
+        ),
+      )
+      .returning({ id: umblerCampaignMessages.id });
+
+    await db
+      .update(umblerCampaigns)
+      .set({ status: "cancelled", completedAt: new Date(), updatedAt: new Date() })
+      .where(eq(umblerCampaigns.id, campaignId));
+
+    res.json({ campaignId, cancelledMessages: cancelled.length });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao cancelar campanha";
     res.status(500).json({ message });
   }
 });

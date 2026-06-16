@@ -1,11 +1,13 @@
 import { db } from "server/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, desc, sql } from "drizzle-orm";
 import {
   whatsappBots,
   whatsappBotNodes,
   whatsappBotEdges,
   whatsappBotSessions,
   whatsappTemplates,
+  whatsappConversations,
+  whatsappMessages,
   type WhatsappBotNode,
   type WhatsappBotSession,
   type SendMessageNodeData,
@@ -16,6 +18,60 @@ import {
 } from "@shared/schema";
 import { sendTextMessage, sendTemplateMessage } from "../integrations/whatsapp";
 import { getActiveBots } from "./whatsapp-bot.service";
+
+const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Verifica se o contato está dentro da janela de atendimento de 24h da Meta —
+ * ou seja, se houve uma mensagem RECEBIDA dele nas últimas 24h. Fora dessa
+ * janela a Meta só aceita templates aprovados, não texto livre.
+ */
+async function isWithinCustomerWindow(phone: string): Promise<boolean> {
+  const digits = phone.replace(/\D+/g, "");
+  const withoutCountry = digits.startsWith("55") ? digits.slice(2) : digits;
+
+  const [row] = await db
+    .select({
+      at: sql<Date>`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`,
+    })
+    .from(whatsappMessages)
+    .innerJoin(
+      whatsappConversations,
+      eq(whatsappMessages.conversationId, whatsappConversations.id),
+    )
+    .where(
+      and(
+        eq(whatsappMessages.direction, "inbound"),
+        or(
+          sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${digits}`,
+          sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
+        ),
+      ),
+    )
+    .orderBy(
+      desc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`),
+    )
+    .limit(1);
+
+  if (!row?.at) return false;
+  return Date.now() - new Date(row.at).getTime() < CUSTOMER_WINDOW_MS;
+}
+
+/**
+ * Envia texto livre apenas se a janela de 24h estiver aberta. Caso contrário,
+ * lança erro descritivo (a Meta rejeitaria o envio) — o primeiro contato a frio
+ * precisa ser feito por template aprovado.
+ */
+async function sendFreeText(phone: string, text: string): Promise<void> {
+  const windowOpen = await isWithinCustomerWindow(phone);
+  if (!windowOpen) {
+    throw new Error(
+      "Janela de 24h fechada: a Meta não permite enviar texto livre para este contato. " +
+        "Configure o primeiro nó do fluxo como um template aprovado.",
+    );
+  }
+  await sendTextMessage(phone, text);
+}
 
 async function getActiveSession(
   phone: string,
@@ -116,7 +172,7 @@ async function executeNode(
           }
         }
       } else if (d.text) {
-        await sendTextMessage(phone, d.text);
+        await sendFreeText(phone, d.text);
       }
       const next = await getNextNode(botId, node.id);
       if (next) await executeNode(next, phone, sessionId, botId);
@@ -126,7 +182,7 @@ async function executeNode(
     case "question": {
       const d = data as QuestionNodeData;
       if (d.messageText) {
-        await sendTextMessage(phone, d.messageText);
+        await sendFreeText(phone, d.messageText);
       }
       await updateSession(sessionId, { currentNodeId: node.id });
       break;

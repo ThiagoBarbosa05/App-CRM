@@ -1,5 +1,5 @@
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Send, CheckCircle, XCircle, Clock, RotateCcw, MessageCircle, Users, AlertCircle } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle, CheckCheck, Eye, XCircle, Clock, RotateCcw, MessageCircle, Users, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +16,37 @@ import {
   useWhatsappCampaignDetails,
   useWhatsappCampaignStats,
   useExecuteCampaign,
+  useRetryFailedCampaign,
+  usePauseCampaign,
+  useResumeCampaign,
+  useCancelCampaign,
+  type WhatsappCampaign,
   type WhatsappCampaignMessage,
 } from "@/hooks/use-whatsapp";
+import { Pause, Play, Ban } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+const CAMPAIGN_STATUS_CONFIG: Record<
+  WhatsappCampaign["status"],
+  { label: string; className: string }
+> = {
+  created: { label: "Agendada", className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" },
+  in_progress: { label: "Em andamento", className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  paused: { label: "Pausada", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
+  completed: { label: "Concluída", className: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
+  failed: { label: "Falhou", className: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
+  cancelled: { label: "Cancelada", className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
+};
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -25,8 +54,10 @@ const MSG_STATUS_CONFIG: Record<
   WhatsappCampaignMessage["status"],
   { label: string; icon: React.ElementType; className: string }
 > = {
-  scheduled: { label: "Agendado", icon: Clock, className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  scheduled: { label: "Na fila", icon: Clock, className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
   sent: { label: "Enviado", icon: CheckCircle, className: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
+  delivered: { label: "Entregue", icon: CheckCheck, className: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300" },
+  read: { label: "Lido", icon: Eye, className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
   failed: { label: "Falhou", icon: XCircle, className: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
   cancelled: { label: "Cancelado", icon: AlertCircle, className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
 };
@@ -48,6 +79,10 @@ export default function WhatsAppCampaignDetails() {
   const { data: campaign, isLoading } = useWhatsappCampaignDetails(id);
   const { data: statsData } = useWhatsappCampaignStats(id);
   const executeMutation = useExecuteCampaign();
+  const retryMutation = useRetryFailedCampaign();
+  const pauseMutation = usePauseCampaign();
+  const resumeMutation = useResumeCampaign();
+  const cancelMutation = useCancelCampaign();
 
   const stats = statsData?.stats;
 
@@ -75,12 +110,21 @@ export default function WhatsAppCampaignDetails() {
     );
   }
 
+  // Funil cumulativo: lido ⊂ entregue ⊂ enviado.
+  const readCount = stats?.read ?? 0;
+  const deliveredCount = (stats?.delivered ?? 0) + readCount;
+  const sentCount = (stats?.sent ?? 0) + deliveredCount;
+  const failedCount = stats?.failed ?? campaign.failedMessages;
+  const processed = sentCount + failedCount;
+
   const pct =
     campaign.totalContacts > 0
-      ? Math.round((campaign.sentMessages / campaign.totalContacts) * 100)
+      ? Math.round((processed / campaign.totalContacts) * 100)
       : 0;
 
-  const pendingMessages = campaign.messages?.filter((m) => m.status === "scheduled").length ?? 0;
+  const pendingMessages =
+    stats?.pending ??
+    (campaign.messages?.filter((m) => m.status === "scheduled").length ?? 0);
 
   return (
     <div className="overflow-y-auto h-full p-5 lg:p-6">
@@ -102,11 +146,20 @@ export default function WhatsAppCampaignDetails() {
           />
           <PageHeader.Text>
             <PageHeader.Title>{campaign.title}</PageHeader.Title>
-            <PageHeader.Description>Iniciada em {formatDate(campaign.startDate)}</PageHeader.Description>
+            <PageHeader.Description>
+              <span className="inline-flex items-center gap-2">
+                <Badge className={`${CAMPAIGN_STATUS_CONFIG[campaign.status].className} border-0`}>
+                  {CAMPAIGN_STATUS_CONFIG[campaign.status].label}
+                </Badge>
+                {campaign.status === "created"
+                  ? `Agendada para ${formatDate(campaign.startDate)}`
+                  : `Iniciada em ${formatDate(campaign.startDate)}`}
+              </span>
+            </PageHeader.Description>
           </PageHeader.Text>
         </PageHeader.Info>
-        {pendingMessages > 0 && (
-          <PageHeader.Actions>
+        <PageHeader.Actions>
+          {pendingMessages > 0 && campaign.status === "in_progress" && (
             <Button
               variant="outline"
               className="gap-2"
@@ -114,14 +167,75 @@ export default function WhatsAppCampaignDetails() {
               onClick={() => id && executeMutation.mutate(id)}
             >
               <RotateCcw className={`h-4 w-4 ${executeMutation.isPending ? "animate-spin" : ""}`} />
-              Re-executar pendentes ({pendingMessages})
+              Processar agora ({pendingMessages})
             </Button>
-          </PageHeader.Actions>
-        )}
+          )}
+          {failedCount > 0 && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={retryMutation.isPending}
+              onClick={() => id && retryMutation.mutate(id)}
+            >
+              <RotateCcw className={`h-4 w-4 ${retryMutation.isPending ? "animate-spin" : ""}`} />
+              Reprocessar falhas ({failedCount})
+            </Button>
+          )}
+          {(campaign.status === "in_progress" || campaign.status === "created") && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={pauseMutation.isPending}
+              onClick={() => id && pauseMutation.mutate(id)}
+            >
+              <Pause className="h-4 w-4" />
+              Pausar
+            </Button>
+          )}
+          {campaign.status === "paused" && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              disabled={resumeMutation.isPending}
+              onClick={() => id && resumeMutation.mutate(id)}
+            >
+              <Play className="h-4 w-4" />
+              Retomar
+            </Button>
+          )}
+          {["in_progress", "created", "paused"].includes(campaign.status) && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+                  <Ban className="h-4 w-4" />
+                  Cancelar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancelar campanha</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    As mensagens ainda na fila não serão enviadas. As já enviadas
+                    não são afetadas. Esta ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => id && cancelMutation.mutate(id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Cancelar campanha
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </PageHeader.Actions>
       </PageHeader>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Stats cards — funil de entrega */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           {
             label: "Total de contatos",
@@ -131,21 +245,27 @@ export default function WhatsAppCampaignDetails() {
           },
           {
             label: "Enviadas",
-            value: stats?.sent ?? campaign.sentMessages,
+            value: sentCount,
             icon: Send,
             color: "text-green-600",
           },
           {
-            label: "Falhas",
-            value: stats?.failed ?? campaign.failedMessages,
-            icon: XCircle,
-            color: "text-red-500",
+            label: "Entregues",
+            value: deliveredCount,
+            icon: CheckCheck,
+            color: "text-teal-600",
           },
           {
-            label: "Progresso",
-            value: `${pct}%`,
-            icon: CheckCircle,
-            color: "text-purple-600",
+            label: "Lidas",
+            value: readCount,
+            icon: Eye,
+            color: "text-emerald-600",
+          },
+          {
+            label: "Falhas",
+            value: failedCount,
+            icon: XCircle,
+            color: "text-red-500",
           },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label}>

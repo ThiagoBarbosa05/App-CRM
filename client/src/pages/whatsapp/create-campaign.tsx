@@ -30,11 +30,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { useWhatsappTemplates, useWhatsappBots, useCreateCampaignWithDispatch, type WhatsappTemplate, type WhatsappBot } from "@/hooks/use-whatsapp";
+import { useWhatsappTemplates, useWhatsappBots, useWhatsappMetaTemplates, useCreateCampaignWithDispatch, type WhatsappTemplate, type WhatsappBot } from "@/hooks/use-whatsapp";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Bot } from "lucide-react";
+import { Bot, AlertTriangle, PhoneOff, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { getTemplateBodyText, getTemplateHeaderText, renderTemplateText } from "@/lib/whatsapp-template";
 
 type Marker = { id: string; name: string; color?: string; type?: string };
 type Client = { id: string; name: string; phone?: string | null };
@@ -166,7 +167,7 @@ function StepClients({
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (selectedMarkers.length > 0) params.set("markers", selectedMarkers[0]);
+      if (selectedMarkers.length > 0) params.set("markers", selectedMarkers.join(","));
       params.set("page", String(currentPage));
       params.set("pageSize", String(PAGE_SIZE));
       const res = await fetch(`/api/clients?${params.toString()}`);
@@ -181,6 +182,8 @@ function StepClients({
   );
   const hasNextPage = clientsResponse?.hasNextPage ?? false;
 
+  const hasPhone = (c: Client) => Boolean(c.phone?.trim());
+
   const toggleMarker = (name: string) => {
     setSelectedMarkers((prev) =>
       prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name],
@@ -188,28 +191,37 @@ function StepClients({
     setCurrentPage(1);
   };
 
-  const toggleClient = (id: string) => {
+  const toggleClient = (client: Client) => {
+    if (!hasPhone(client)) return; // não permite selecionar contatos sem telefone
     onChange(
-      selectedIds.includes(id)
-        ? selectedIds.filter((s) => s !== id)
-        : [...selectedIds, id],
+      selectedIds.includes(client.id)
+        ? selectedIds.filter((s) => s !== client.id)
+        : [...selectedIds, client.id],
     );
   };
 
+  // Apenas contatos com telefone são selecionáveis (a API do WhatsApp exige número).
+  const selectableIds = useMemo(
+    () => clients.filter(hasPhone).map((c) => c.id),
+    [clients],
+  );
+
   const togglePageAll = () => {
-    const pageIds = clients.map((c) => c.id);
-    const allSelected = pageIds.every((id) => selectedIds.includes(id));
+    const allSelected =
+      selectableIds.length > 0 &&
+      selectableIds.every((id) => selectedIds.includes(id));
     if (allSelected) {
-      onChange(selectedIds.filter((id) => !pageIds.includes(id)));
+      onChange(selectedIds.filter((id) => !selectableIds.includes(id)));
     } else {
       const newIds = [...selectedIds];
-      pageIds.forEach((id) => { if (!newIds.includes(id)) newIds.push(id); });
+      selectableIds.forEach((id) => { if (!newIds.includes(id)) newIds.push(id); });
       onChange(newIds);
     }
   };
 
   const allOnPageSelected =
-    clients.length > 0 && clients.every((c) => selectedIds.includes(c.id));
+    selectableIds.length > 0 &&
+    selectableIds.every((id) => selectedIds.includes(id));
 
   return (
     <div className="space-y-4">
@@ -278,7 +290,7 @@ function StepClients({
                 <Checkbox
                   checked={allOnPageSelected}
                   onCheckedChange={togglePageAll}
-                  disabled={clients.length === 0}
+                  disabled={selectableIds.length === 0}
                 />
               </TableHead>
               <TableHead>Nome</TableHead>
@@ -301,27 +313,42 @@ function StepClients({
               </TableRow>
             )}
             {!isFetching &&
-              clients.map((client) => (
-                <TableRow
-                  key={client.id}
-                  className={cn(
-                    "cursor-pointer",
-                    selectedIds.includes(client.id) && "bg-primary/5",
-                  )}
-                  onClick={() => toggleClient(client.id)}
-                >
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selectedIds.includes(client.id)}
-                      onCheckedChange={() => toggleClient(client.id)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
-                    {(client as any).phone ?? "Sem telefone"}
-                  </TableCell>
-                </TableRow>
-              ))}
+              clients.map((client) => {
+                const selectable = hasPhone(client);
+                return (
+                  <TableRow
+                    key={client.id}
+                    className={cn(
+                      selectable ? "cursor-pointer" : "opacity-60",
+                      selectedIds.includes(client.id) && "bg-primary/5",
+                    )}
+                    onClick={() => toggleClient(client)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedIds.includes(client.id)}
+                        onCheckedChange={() => toggleClient(client)}
+                        disabled={!selectable}
+                        aria-label={`Selecionar ${client.name}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{client.name}</TableCell>
+                    <TableCell className="hidden sm:table-cell text-sm">
+                      {selectable ? (
+                        <span className="text-muted-foreground">{client.phone}</span>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 text-muted-foreground border-dashed font-normal"
+                        >
+                          <PhoneOff className="h-3 w-3" />
+                          Sem telefone
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
           </TableBody>
         </Table>
       </div>
@@ -357,6 +384,53 @@ const TRIGGER_LABELS: Record<WhatsappBot["triggerType"], string> = {
   new_conversation: "Nova conversa",
 };
 
+// Pré-visualização do template aprovado (corpo + variáveis) — estilo bolha do WhatsApp.
+function TemplatePreview({ template }: { template: WhatsappTemplate }) {
+  const { data: metaTemplates = [], isLoading } = useWhatsappMetaTemplates();
+  const meta = metaTemplates.find((m) => m.name === template.name);
+
+  if (isLoading) {
+    return (
+      <div className="mt-4 h-24 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+    );
+  }
+
+  if (!meta) {
+    return (
+      <div className="mt-4 flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-sm text-amber-800 dark:text-amber-300">
+          O template <strong>{template.name}</strong> não foi encontrado entre os
+          aprovados pela Meta. Verifique em WhatsApp → Templates.
+        </p>
+      </div>
+    );
+  }
+
+  // {{nome}} é preenchido automaticamente no disparo com o primeiro nome do contato.
+  const replacements: Record<string, string> = { nome: "[primeiro nome]" };
+  const fallback = (v: string) => `[${v}]`;
+  const header = renderTemplateText(getTemplateHeaderText(meta), replacements, fallback);
+  const body = renderTemplateText(getTemplateBodyText(meta), replacements, fallback);
+
+  return (
+    <div className="mt-4 space-y-2">
+      <Label className="text-xs text-muted-foreground">Pré-visualização da mensagem</Label>
+      <div className="rounded-xl bg-[#e7ffdb] dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 p-3 max-w-md">
+        {header && (
+          <p className="text-sm font-semibold text-foreground whitespace-pre-wrap">{header}</p>
+        )}
+        <p className="text-sm text-foreground whitespace-pre-wrap">
+          {body || "(Sem corpo de texto neste template.)"}
+        </p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Campos entre colchetes são substituídos por dados do contato no momento do disparo.
+      </p>
+    </div>
+  );
+}
+
 // Step 3
 function StepTemplateOrBot({
   selectedTemplateId,
@@ -373,6 +447,8 @@ function StepTemplateOrBot({
   const { data: bots = [], isLoading: botsLoading } = useWhatsappBots();
   const activeTemplates = templates.filter((t) => t.isActive);
   const activeBots = bots.filter((b) => b.isActive);
+
+  const selectedTemplate = activeTemplates.find((t) => t.id === selectedTemplateId);
 
   const defaultTab = selectedBotId ? "bot" : "template";
 
@@ -450,9 +526,19 @@ function StepTemplateOrBot({
             ))}
           </div>
         )}
+
+        {selectedTemplate && <TemplatePreview template={selectedTemplate} />}
       </TabsContent>
 
       <TabsContent value="bot">
+        <div className="flex items-start gap-2 p-3 mb-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            Para iniciar uma conversa com contatos fora da janela de 24h, a Meta
+            exige que a primeira mensagem do bot seja um <strong>template aprovado</strong>.
+            Garanta que o fluxo do bot comece por um nó de mensagem do tipo template.
+          </p>
+        </div>
         {botsLoading ? (
           <div className="grid gap-3">
             {Array.from({ length: 2 }).map((_, i) => (
@@ -518,17 +604,27 @@ function StepConfirm({
   clientCount,
   templateId,
   botId,
+  scheduledAt,
+  onScheduleChange,
 }: {
   title: string;
   description: string;
   clientCount: number;
   templateId: string;
   botId: string;
+  scheduledAt: string;
+  onScheduleChange: (value: string) => void;
 }) {
   const { data: templates = [] } = useWhatsappTemplates();
   const { data: bots = [] } = useWhatsappBots();
   const template = templates.find((t) => t.id === templateId);
   const bot = bots.find((b) => b.id === botId);
+
+  const mode = scheduledAt ? "schedule" : "now";
+  // valor mínimo do seletor = agora (em horário local, formato datetime-local)
+  const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
 
   return (
     <div className="space-y-4">
@@ -562,10 +658,55 @@ function StepConfirm({
           )}
         </CardContent>
       </Card>
+      {/* Agendamento */}
+      <Card>
+        <CardContent className="pt-5 space-y-3">
+          <Label className="text-sm font-medium">Quando disparar?</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => onScheduleChange("")}
+              className={cn(
+                "flex items-center justify-center gap-2 p-2.5 rounded-lg border-2 text-sm font-medium transition-all",
+                mode === "now"
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border text-muted-foreground hover:border-muted-foreground",
+              )}
+            >
+              <Send className="h-4 w-4" />
+              Agora
+            </button>
+            <button
+              type="button"
+              onClick={() => onScheduleChange(scheduledAt || minDateTime)}
+              className={cn(
+                "flex items-center justify-center gap-2 p-2.5 rounded-lg border-2 text-sm font-medium transition-all",
+                mode === "schedule"
+                  ? "border-primary bg-primary/5 text-primary"
+                  : "border-border text-muted-foreground hover:border-muted-foreground",
+              )}
+            >
+              <Clock className="h-4 w-4" />
+              Agendar
+            </button>
+          </div>
+          {mode === "schedule" && (
+            <Input
+              type="datetime-local"
+              value={scheduledAt}
+              min={minDateTime}
+              onChange={(e) => onScheduleChange(e.target.value)}
+            />
+          )}
+        </CardContent>
+      </Card>
+
       <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
         <MessageCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
         <p className="text-sm text-amber-800 dark:text-amber-300">
-          A campanha será criada e as mensagens disparadas imediatamente para {clientCount} contato(s).
+          {mode === "schedule"
+            ? `A campanha ficará agendada e ${clientCount} mensagem(ns) serão disparadas automaticamente no horário escolhido.`
+            : `A campanha será criada e ${clientCount} mensagem(ns) entrarão na fila de disparo. O envio acontece em segundo plano — acompanhe o progresso na tela da campanha.`}
         </p>
       </div>
     </div>
@@ -582,6 +723,7 @@ export default function WhatsAppCreateCampaign() {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [selectedBotId, setSelectedBotId] = useState("");
+  const [scheduledAt, setScheduledAt] = useState(""); // "" = disparar agora
 
   const createMutation = useCreateCampaignWithDispatch();
 
@@ -602,6 +744,12 @@ export default function WhatsAppCreateCampaign() {
   };
 
   const handleSubmit = useCallback(() => {
+    // datetime-local → ISO; só envia se estiver no futuro.
+    const scheduledIso =
+      scheduledAt && new Date(scheduledAt).getTime() > Date.now()
+        ? new Date(scheduledAt).toISOString()
+        : undefined;
+
     createMutation.mutate(
       {
         name: title,
@@ -609,15 +757,23 @@ export default function WhatsAppCreateCampaign() {
         waTemplateId: selectedTemplateId || undefined,
         waBotId: selectedBotId || undefined,
         clientIds: selectedClientIds,
+        scheduledAt: scheduledIso,
       },
       {
         onSuccess: (data) => {
-          toast({ title: "Campanha criada e disparada com sucesso!" });
+          toast({
+            title: scheduledIso
+              ? "Campanha agendada com sucesso!"
+              : "Campanha enfileirada com sucesso!",
+            description: scheduledIso
+              ? "Será disparada automaticamente no horário escolhido."
+              : "O disparo será processado em segundo plano.",
+          });
           navigate(`/whatsapp/campanhas/${data.campaignId}`);
         },
       },
     );
-  }, [createMutation, title, description, selectedTemplateId, selectedBotId, selectedClientIds, toast, navigate]);
+  }, [createMutation, title, description, selectedTemplateId, selectedBotId, selectedClientIds, scheduledAt, toast, navigate]);
 
   return (
     <div className="overflow-y-auto h-full p-5 lg:p-6">
@@ -674,6 +830,8 @@ export default function WhatsAppCreateCampaign() {
             clientCount={selectedClientIds.length}
             templateId={selectedTemplateId}
             botId={selectedBotId}
+            scheduledAt={scheduledAt}
+            onScheduleChange={setScheduledAt}
           />
         )}
       </div>
@@ -698,12 +856,12 @@ export default function WhatsAppCreateCampaign() {
             {createMutation.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Disparando...
+                {scheduledAt ? "Agendando..." : "Enfileirando..."}
               </>
             ) : (
               <>
-                <Send className="h-4 w-4" />
-                Disparar campanha
+                {scheduledAt ? <Clock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                {scheduledAt ? "Agendar campanha" : "Disparar campanha"}
               </>
             )}
           </Button>

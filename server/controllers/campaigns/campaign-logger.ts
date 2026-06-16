@@ -169,6 +169,8 @@ export async function updateCampaignStatus(
 export async function getCampaignStats(campaignId: string): Promise<{
   total: number;
   sent: number;
+  delivered: number;
+  read: number;
   failed: number;
   pending: number;
 } | null> {
@@ -181,9 +183,14 @@ export async function getCampaignStats(campaignId: string): Promise<{
       .from(umblerCampaignMessages)
       .where(eq(umblerCampaignMessages.campaignId, campaignId));
 
+    // Contagens por estado terminal/intermediário. "delivered" e "read" são
+    // estados posteriores a "sent" (a mensagem saiu), então o funil cumulativo
+    // é calculado no frontend.
     const stats = {
       total: messages.length,
       sent: messages.filter((m) => m.status === "sent").length,
+      delivered: messages.filter((m) => m.status === "delivered").length,
+      read: messages.filter((m) => m.status === "read").length,
       failed: messages.filter((m) => m.status === "failed").length,
       pending: messages.filter((m) => m.status === "scheduled").length,
     };

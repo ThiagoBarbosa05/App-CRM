@@ -79,7 +79,18 @@ export class ClientsRepository {
     }
 
     if (filters.markers) {
-      conditions.push(sql`${filters.markers} = ANY(${clients.markers})`);
+      // Aceita um ou mais marcadores separados por vírgula (semântica OR).
+      const markerList = filters.markers
+        .split(",")
+        .map((m) => m.trim())
+        .filter(Boolean);
+      if (markerList.length === 1) {
+        conditions.push(sql`${markerList[0]} = ANY(${clients.markers})`);
+      } else if (markerList.length > 1) {
+        conditions.push(
+          or(...markerList.map((m) => sql`${m} = ANY(${clients.markers})`)),
+        );
+      }
     }
 
     if (filters.search) {

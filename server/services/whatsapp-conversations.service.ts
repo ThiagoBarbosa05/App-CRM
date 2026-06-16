@@ -261,10 +261,6 @@ export async function sendConversationMessage(
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
 
-  if (conv.clientId) {
-    publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
-  }
-
   const channelOverride = await getChannelForConversation(conversationId).catch(() => null);
 
   try {
@@ -275,6 +271,12 @@ export async function sendConversationMessage(
       .update(whatsappMessages)
       .set({ status: "sent", waMessageId })
       .where(eq(whatsappMessages.id, savedMessage.id));
+
+    // Publica o evento SSE somente após o status "sent" estar gravado no banco,
+    // evitando que o frontend refaça a query e veja status "failed" prematuramente
+    if (conv.clientId) {
+      publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+    }
 
     return result;
   } catch (err) {

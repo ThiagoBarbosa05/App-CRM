@@ -395,6 +395,8 @@ function ConversationMessages({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const { toast } = useToast();
+
   const { data: rawMessages = [], isLoading } = useQuery<WaMessage[]>({
     queryKey: ["/api/whatsapp/conversations", clientId],
     queryFn: async () => {
@@ -412,8 +414,6 @@ function ConversationMessages({
       new Date(b.sentAt ?? b.createdAt).getTime(),
   );
 
-  const hasPending = localMessages.length > 0;
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, localMessages.length]);
@@ -421,6 +421,9 @@ function ConversationMessages({
   useEffect(() => {
     const es = new EventSource(`/api/whatsapp/conversations/${clientId}/stream`);
     es.addEventListener("new_message", () => {
+      // Clear local pending messages before refetch to avoid duplicate display (race condition:
+      // SSE fires after backend confirms send, but attemptSend promise hasn't resolved yet)
+      setLocalMessages([]);
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     });
@@ -435,17 +438,21 @@ function ConversationMessages({
         body: JSON.stringify({ message: text }),
       });
       if (!res.ok) throw new Error();
-    } catch {
-      // Erro já persistido no banco como "failed" pelo backend
+    } catch (err) {
+      if (err instanceof TypeError) {
+        // TypeError = network error: request never reached the backend, no DB record created
+        toast({ title: "Erro de conexão. Verifique sua internet e tente novamente.", variant: "destructive" });
+      }
+      // Non-network errors: backend persisted the message as "failed" — retry button will appear
     } finally {
       setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     }
-  }, [clientId, queryClient]);
+  }, [clientId, queryClient, toast]);
 
   const handleRetry = useCallback(async (messageId: string) => {
-    setRetryingIds((prev) => new Set([...prev, messageId]));
+    setRetryingIds((prev) => { const s = new Set(prev); s.add(messageId); return s; });
     try {
       await fetch(`/api/whatsapp/conversations/${clientId}/messages/${messageId}/retry`, {
         method: "POST",
@@ -463,7 +470,7 @@ function ConversationMessages({
 
   const handleSend = () => {
     const text = message.trim();
-    if (!text || hasPending) return;
+    if (!text) return;
     const localId = crypto.randomUUID();
     setLocalMessages((prev) => [
       ...prev,
@@ -667,15 +674,11 @@ function ConversationMessages({
           />
           <Button
             onClick={handleSend}
-            disabled={!message.trim() || hasPending}
+            disabled={!message.trim()}
             size="icon"
             className="shrink-0 h-10 w-10"
           >
-            {hasPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <Send className="h-4 w-4" />
           </Button>
         </div>
         <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1.5 text-right hidden sm:block">
@@ -829,14 +832,14 @@ export default function WhatsAppConversationsPage() {
     refetchInterval: 15_000,
   });
 
-  const markRead = async (clientId: string) => {
+  const markRead = useCallback(async (clientId: string) => {
     try {
       await fetch(`/api/whatsapp/conversations/${clientId}/read`, { method: "POST" });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     } catch {
       // silently ignore
     }
-  };
+  }, [queryClient]);
 
   const selectedClientIdRef = useRef(selectedClientId);
   selectedClientIdRef.current = selectedClientId;
@@ -851,8 +854,7 @@ export default function WhatsAppConversationsPage() {
       }
     });
     return () => es.close();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryClient]);
+  }, [queryClient, markRead]);
 
   const handleSelectClient = (clientId: string) => {
     setSelectedClientId(clientId);

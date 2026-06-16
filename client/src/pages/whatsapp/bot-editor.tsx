@@ -26,11 +26,19 @@ import {
   Plus,
   Trash2,
   Search,
+  Send,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -42,7 +50,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useWhatsappBotFlow, useSaveFlow } from "@/hooks/use-whatsapp-bots";
-import { useWhatsappMetaTemplates, type MetaTemplate } from "@/hooks/use-whatsapp";
+import { useWhatsappMetaTemplates } from "@/hooks/use-whatsapp";
+import {
+  parseTemplateVars,
+  getParamValue,
+  setParamValue,
+} from "@/lib/whatsapp-template";
 import {
   StartNode,
   SendMessageNode,
@@ -58,7 +71,6 @@ import type {
   ConditionNodeData,
   ConditionBranch,
   ActionNodeData,
-  TemplateParamComponent,
 } from "@shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -85,47 +97,16 @@ const PALETTE = [
   { type: "end", label: "Fim", icon: StopCircle, color: "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" },
 ];
 
-// ─── Template variable helpers ────────────────────────────────────────────────
-
-function parseTemplateVars(template: MetaTemplate) {
-  const components = template.components as Array<{ type: string; text?: string }>;
-  return components
-    .filter((c) => c.text && /\{\{/.test(c.text))
-    .map((c) => ({
-      componentType: c.type.toLowerCase() as "body" | "header",
-      vars: (c.text!.match(/\{\{([^}]+)\}\}/g) ?? []).map((m) => m.slice(2, -2).trim()),
-    }))
-    .filter((c) => c.vars.length > 0);
-}
-
-function getParamValue(params: TemplateParamComponent[], compType: string, idx: number) {
-  return params.find((p) => p.type === compType)?.parameters[idx]?.text ?? "";
-}
-
-function setParamValue(
-  params: TemplateParamComponent[],
-  compType: "body" | "header",
-  idx: number,
-  value: string,
-): TemplateParamComponent[] {
-  const next = params.map((p) => ({ ...p, parameters: [...p.parameters] }));
-  let comp = next.find((p) => p.type === compType);
-  if (!comp) {
-    comp = { type: compType, parameters: [] };
-    next.push(comp);
-  }
-  comp.parameters[idx] = { type: "text", text: value };
-  return next;
-}
-
 // ─── Properties Panel ─────────────────────────────────────────────────────────
 
 function PropertiesPanel({
   node,
   onChange,
+  onDelete,
 }: {
   node: FlowNode | null;
   onChange: (id: string, data: Partial<BotNodeData & { label: string }>) => void;
+  onDelete: (id: string) => void;
 }) {
   const { data: metaTemplates = [], isLoading: loadingMeta } = useWhatsappMetaTemplates();
   const [templateSearch, setTemplateSearch] = useState("");
@@ -281,15 +262,40 @@ function PropertiesPanel({
       )}
 
       {node.type === "question" && (
-        <div className="space-y-1">
-          <Label className="text-xs">Texto da pergunta</Label>
-          <Textarea
-            value={(d as QuestionNodeData).messageText ?? ""}
-            onChange={(e) => update({ messageText: e.target.value })}
-            placeholder="Digite a pergunta..."
-            rows={4}
-          />
-        </div>
+        <>
+          <div className="space-y-1">
+            <Label className="text-xs">Texto da pergunta</Label>
+            <Textarea
+              value={(d as QuestionNodeData).messageText ?? ""}
+              onChange={(e) => update({ messageText: e.target.value })}
+              placeholder="Digite a pergunta..."
+              rows={4}
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Deixe em branco para apenas <strong>aguardar a resposta</strong> sem
+              enviar texto (ideal após um template de abertura, fora da janela de 24h).
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Salvar resposta em (opcional)</Label>
+            <Input
+              value={(d as QuestionNodeData).captureVariable ?? ""}
+              onChange={(e) =>
+                update({
+                  captureVariable: e.target.value
+                    .trim()
+                    .replace(/[^a-zA-Z0-9_]/g, "_"),
+                })
+              }
+              placeholder="ex: nome_cliente"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              A resposta do contato fica disponível como{" "}
+              <code className="font-mono">{`{{${(d as QuestionNodeData).captureVariable || "variavel"}}}`}</code>{" "}
+              em nós seguintes.
+            </p>
+          </div>
+        </>
       )}
 
       {node.type === "condition" && (
@@ -324,6 +330,20 @@ function PropertiesPanel({
         <p className="text-xs text-muted-foreground">
           Este nó não possui propriedades configuráveis.
         </p>
+      )}
+
+      {node.type !== "start" && (
+        <div className="pt-4 mt-2 border-t">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => onDelete(node.id)}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+            Excluir nó
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -421,6 +441,219 @@ function ConditionEditor({
   );
 }
 
+// ─── Bot Simulator ────────────────────────────────────────────────────────────
+
+type SimMessage = { role: "bot" | "user" | "system"; text: string };
+
+function nodePreview(node: FlowNode): string {
+  if (node.type === "send_message") {
+    const d = node.data as SendMessageNodeData;
+    if (d.messageType === "template") return `[Template: ${d.metaTemplateName ?? "—"}]`;
+    return d.text ?? "(mensagem vazia)";
+  }
+  if (node.type === "question") {
+    return (node.data as QuestionNodeData).messageText ?? "(pergunta vazia)";
+  }
+  return "";
+}
+
+function resolveSimHandle(node: FlowNode, text: string): string {
+  const d = node.data as ConditionNodeData;
+  const t = text.toLowerCase().trim();
+  for (const branch of d.branches ?? []) {
+    for (const kw of branch.keywords ?? []) {
+      if (kw && t.includes(kw.toLowerCase().trim())) return branch.handle;
+    }
+  }
+  return d.defaultHandle ?? "default";
+}
+
+const ACTION_SIM_LABELS: Record<string, string> = {
+  add_tag: "Adicionar tag",
+  assign_agent: "Atribuir agente",
+  end_conversation: "Encerrar conversa",
+};
+
+function BotSimulator({
+  open,
+  onOpenChange,
+  nodes,
+  edges,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+}) {
+  const [messages, setMessages] = useState<SimMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [waitingNodeId, setWaitingNodeId] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const nodeById = useMemo(
+    () => new Map(nodes.map((n) => [n.id, n])),
+    [nodes],
+  );
+
+  const nextNode = useCallback(
+    (nodeId: string, handle?: string): FlowNode | null => {
+      const outgoing = edges.filter((e) => e.source === nodeId);
+      const edge =
+        (handle && outgoing.find((e) => e.sourceHandle === handle)) ||
+        outgoing[0];
+      if (!edge) return null;
+      return nodeById.get(edge.target) ?? null;
+    },
+    [edges, nodeById],
+  );
+
+  // Avança o fluxo a partir de um nó até parar numa pergunta ou no fim.
+  const runFrom = useCallback(
+    (start: FlowNode | null, userText: string | undefined, acc: SimMessage[]) => {
+      let current = start;
+      let guard = 0;
+      while (current && guard++ < 100) {
+        if (current.type === "start") {
+          current = nextNode(current.id);
+        } else if (current.type === "send_message") {
+          acc.push({ role: "bot", text: nodePreview(current) });
+          current = nextNode(current.id);
+        } else if (current.type === "question") {
+          acc.push({ role: "bot", text: nodePreview(current) });
+          setMessages([...acc]);
+          setWaitingNodeId(current.id);
+          return;
+        } else if (current.type === "condition") {
+          const handle = resolveSimHandle(current, userText ?? "");
+          current = nextNode(current.id, handle);
+        } else if (current.type === "action") {
+          const at = (current.data as ActionNodeData).actionType;
+          acc.push({ role: "system", text: `Ação: ${ACTION_SIM_LABELS[at] ?? at}` });
+          if (at === "end_conversation") {
+            setMessages([...acc]);
+            setWaitingNodeId(null);
+            setDone(true);
+            return;
+          }
+          current = nextNode(current.id);
+        } else if (current.type === "end") {
+          acc.push({ role: "system", text: "— Conversa encerrada —" });
+          setMessages([...acc]);
+          setWaitingNodeId(null);
+          setDone(true);
+          return;
+        } else {
+          current = nextNode(current.id);
+        }
+      }
+      // Sem mais nós conectados.
+      setMessages([...acc]);
+      setWaitingNodeId(null);
+      setDone(true);
+    },
+    [nextNode],
+  );
+
+  const restart = useCallback(() => {
+    setInput("");
+    setDone(false);
+    setWaitingNodeId(null);
+    const startNode = nodes.find((n) => n.type === "start");
+    if (!startNode) {
+      setMessages([{ role: "system", text: "Nenhum nó de início encontrado." }]);
+      setDone(true);
+      return;
+    }
+    runFrom(startNode, undefined, []);
+  }, [nodes, runFrom]);
+
+  // Reinicia a simulação sempre que o diálogo abre.
+  useEffect(() => {
+    if (open) restart();
+  }, [open, restart]);
+
+  function handleSend() {
+    const text = input.trim();
+    if (!text || !waitingNodeId) return;
+    const acc = [...messages, { role: "user" as const, text }];
+    setMessages(acc);
+    setInput("");
+    const afterQuestion = nextNode(waitingNodeId);
+    setWaitingNodeId(null);
+    runFrom(afterQuestion, text, acc);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PlayCircle className="h-4 w-4 text-green-500" />
+            Testar fluxo
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex flex-col h-[420px] rounded-lg border bg-muted/30">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex",
+                  m.role === "user" ? "justify-end" : m.role === "system" ? "justify-center" : "justify-start",
+                )}
+              >
+                {m.role === "system" ? (
+                  <span className="text-[11px] text-muted-foreground italic px-2 py-1">
+                    {m.text}
+                  </span>
+                ) : (
+                  <div
+                    className={cn(
+                      "max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-br-sm"
+                        : "bg-white dark:bg-slate-800 border rounded-bl-sm",
+                    )}
+                  >
+                    {m.text}
+                  </div>
+                )}
+              </div>
+            ))}
+            {done && (
+              <div className="flex justify-center pt-2">
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={restart}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reiniciar
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 border-t p-2">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              placeholder={
+                waitingNodeId ? "Digite a resposta do contato..." : done ? "Conversa encerrada" : "Aguardando..."
+              }
+              disabled={!waitingNodeId}
+            />
+            <Button size="icon" onClick={handleSend} disabled={!waitingNodeId || !input.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Simulação local — nenhuma mensagem é enviada de verdade. Reflete o fluxo atual (salvo ou não).
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Editor ──────────────────────────────────────────────────────────────
 
 export default function BotEditor() {
@@ -436,6 +669,7 @@ export default function BotEditor() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [showSimulator, setShowSimulator] = useState(false);
 
   useEffect(() => {
     if (flow && !initialized) {
@@ -444,6 +678,7 @@ export default function BotEditor() {
         type: n.type,
         position: { x: n.positionX, y: n.positionY },
         data: { ...(n.data as BotNodeData), label: n.label },
+        deletable: n.type !== "start", // o nó de início não pode ser removido
       })) as FlowNode[];
 
       const initialEdges: FlowEdge[] = flow.edges.map((e) => ({
@@ -493,14 +728,69 @@ export default function BotEditor() {
       (defaultData as Partial<SendMessageNodeData>).messageType = "text";
     }
 
+    // Posiciona em cascata para não sobrepor nós existentes.
+    const offset = nodes.length;
     const newNode: FlowNode = {
       id,
       type,
-      position: { x: 250, y: 200 + nodes.length * 20 },
+      position: {
+        x: 200 + (offset % 3) * 260,
+        y: 140 + Math.floor(offset / 3) * 160 + (offset % 3) * 24,
+      },
       data: defaultData as BotNodeData & { label: string },
     };
     setNodes((nds) => [...nds, newNode]);
     setSelectedNodeId(id);
+  }
+
+  function deleteNode(id: string) {
+    setNodes((nds) => nds.filter((n) => n.id !== id));
+    setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+    setSelectedNodeId((cur) => (cur === id ? null : cur));
+  }
+
+  /** Valida o fluxo antes de salvar. Retorna lista de problemas (vazia = ok). */
+  function validateFlow(): string[] {
+    const problems: string[] = [];
+    const startNode = nodes.find((n) => n.type === "start");
+    if (!startNode) {
+      problems.push("O fluxo precisa de um nó de início.");
+    } else if (!edges.some((e) => e.source === startNode.id)) {
+      problems.push("O nó de início não está conectado a nenhum nó.");
+    }
+
+    const connectedIds = new Set<string>();
+    edges.forEach((e) => {
+      connectedIds.add(e.source);
+      connectedIds.add(e.target);
+    });
+    const orphans = nodes.filter(
+      (n) => n.type !== "start" && !connectedIds.has(n.id),
+    );
+    if (orphans.length > 0) {
+      problems.push(
+        `Existem nós desconectados: ${orphans
+          .map((n) => n.data.label)
+          .join(", ")}.`,
+      );
+    }
+
+    // Condições: cada ramo precisa de uma aresta saindo do seu handle.
+    for (const n of nodes) {
+      if (n.type !== "condition") continue;
+      const branches = (n.data as ConditionNodeData).branches ?? [];
+      for (const b of branches) {
+        const hasEdge = edges.some(
+          (e) => e.source === n.id && e.sourceHandle === b.handle,
+        );
+        if (!hasEdge) {
+          problems.push(
+            `No nó "${n.data.label}", o ramo "${b.label || b.handle}" não está conectado.`,
+          );
+        }
+      }
+    }
+    return problems;
   }
 
   function updateNodeData(
@@ -517,6 +807,16 @@ export default function BotEditor() {
   }
 
   async function handleSave() {
+    const problems = validateFlow();
+    if (problems.length > 0) {
+      toast({
+        title: "Não foi possível salvar o fluxo",
+        description: problems[0] + (problems.length > 1 ? ` (+${problems.length - 1} problema(s))` : ""),
+        variant: "destructive",
+      });
+      return;
+    }
+
     const dbNodes = nodes.map((n) => ({
       id: n.id,
       botId,
@@ -561,15 +861,32 @@ export default function BotEditor() {
           </Button>
           <span className="text-sm font-semibold">{botName}</span>
         </div>
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={saveFlowMutation.isPending}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {saveFlowMutation.isPending ? "Salvando..." : "Salvar"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowSimulator(true)}
+          >
+            <PlayCircle className="h-4 w-4 mr-2" />
+            Testar
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saveFlowMutation.isPending}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {saveFlowMutation.isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
       </div>
+
+      <BotSimulator
+        open={showSimulator}
+        onOpenChange={setShowSimulator}
+        nodes={nodes}
+        edges={edges}
+      />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left palette */}
@@ -604,12 +921,22 @@ export default function BotEditor() {
               onConnect={onConnect}
               nodeTypes={NODE_TYPES}
               onNodeClick={(_e, node) => setSelectedNodeId(node.id)}
+              onNodesDelete={(deleted) =>
+                setSelectedNodeId((cur) =>
+                  deleted.some((n) => n.id === cur) ? null : cur,
+                )
+              }
               onPaneClick={() => setSelectedNodeId(null)}
+              deleteKeyCode={["Backspace", "Delete"]}
               fitView
             >
-              <Background />
-              <Controls />
-              <MiniMap />
+              <Background className="bg-muted/20" />
+              <Controls className="!shadow-md [&_button]:!bg-background [&_button]:!border-border [&_button]:!text-foreground" />
+              <MiniMap
+                className="!bg-muted"
+                nodeColor="hsl(var(--muted-foreground))"
+                maskColor="hsl(var(--background) / 0.6)"
+              />
             </ReactFlow>
           )}
         </div>
@@ -625,6 +952,7 @@ export default function BotEditor() {
             key={selectedNode?.id ?? "none"}
             node={selectedNode}
             onChange={updateNodeData}
+            onDelete={deleteNode}
           />
         </div>
       </div>

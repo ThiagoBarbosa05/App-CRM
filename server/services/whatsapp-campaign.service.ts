@@ -18,7 +18,10 @@ async function getDelayMs(): Promise<number> {
   }
 }
 
-export async function executeCampaign(campaignId: string): Promise<{
+export async function executeCampaign(
+  campaignId: string,
+  opts?: { limit?: number },
+): Promise<{
   sent: number;
   failed: number;
   skipped: number;
@@ -39,7 +42,7 @@ export async function executeCampaign(campaignId: string): Promise<{
     throw new Error(`Campanha ${campaignId} não possui template ou bot configurado`);
   }
 
-  const pendingMessages = await db
+  const pendingQuery = db
     .select()
     .from(umblerCampaignMessages)
     .where(
@@ -48,6 +51,11 @@ export async function executeCampaign(campaignId: string): Promise<{
         eq(umblerCampaignMessages.status, "scheduled"),
       ),
     );
+
+  const pendingMessages =
+    opts?.limit && opts.limit > 0
+      ? await pendingQuery.limit(opts.limit)
+      : await pendingQuery;
 
   if (pendingMessages.length === 0) {
     console.log(`[WaCampaign] Nenhuma mensagem pendente para campanha ${campaignId}`);
