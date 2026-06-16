@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { umblerCampaignMessages, whatsappMessages } from "@shared/schema";
+import { whatsappCampaignMessages, whatsappMessages } from "@shared/schema";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { handleIncomingMessage as runBotEngine } from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage } from "../services/whatsapp-conversations.service";
@@ -99,8 +99,8 @@ async function updateCampaignMessageStatus(
 ): Promise<void> {
   const [msg] = await db
     .select()
-    .from(umblerCampaignMessages)
-    .where(eq(umblerCampaignMessages.messageId, status.id))
+    .from(whatsappCampaignMessages)
+    .where(eq(whatsappCampaignMessages.messageId, status.id))
     .limit(1);
 
   if (!msg) return;
@@ -113,9 +113,9 @@ async function updateCampaignMessageStatus(
     const errorMessage =
       err?.message || err?.title || "Falha reportada pela Meta";
     await db
-      .update(umblerCampaignMessages)
+      .update(whatsappCampaignMessages)
       .set({ status: "failed", errorMessage, updatedAt: now })
-      .where(eq(umblerCampaignMessages.id, msg.id));
+      .where(eq(whatsappCampaignMessages.id, msg.id));
     return;
   }
 
@@ -125,14 +125,14 @@ async function updateCampaignMessageStatus(
   if (nextRank <= currentRank) return;
 
   await db
-    .update(umblerCampaignMessages)
+    .update(whatsappCampaignMessages)
     .set({
       status: status.status,
       ...(status.status === "delivered" ? { deliveredAt: now } : {}),
       ...(status.status === "read" ? { readAt: now } : {}),
       updatedAt: now,
     })
-    .where(eq(umblerCampaignMessages.id, msg.id));
+    .where(eq(whatsappCampaignMessages.id, msg.id));
 }
 
 type IncomingMessage = {

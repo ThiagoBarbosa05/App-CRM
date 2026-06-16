@@ -3010,8 +3010,8 @@ export const blingContactMappingsRelations = relations(blingContactMappings, ({ 
   }),
 }));
 
-// Tabela de campanhas Umbler
-export const umblerCampaigns = pgTable("umbler_campaigns", {
+// Tabela de campanhas WhatsApp
+export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
   id: varchar("id").primaryKey(),
   title: text("title").notNull(),
   status: text("status", {
@@ -3041,10 +3041,10 @@ export const umblerCampaigns = pgTable("umbler_campaigns", {
 });
 
 // Tabela de mensagens de campanhas
-export const umblerCampaignMessages = pgTable("umbler_campaign_messages", {
+export const whatsappCampaignMessages = pgTable("whatsapp_campaign_messages", {
   id: varchar("id").primaryKey(),
   campaignId: varchar("campaign_id")
-    .references(() => umblerCampaigns.id)
+    .references(() => whatsappCampaigns.id)
     .notNull(),
   contactId: text("contact_id"),
   contactName: text("contact_name").notNull(),
@@ -3068,37 +3068,37 @@ export const umblerCampaignMessages = pgTable("umbler_campaign_messages", {
 });
 
 // Schemas de inserção
-export const insertUmblerCampaignSchema = createInsertSchema(umblerCampaigns);
-export const insertUmblerCampaignMessageSchema = createInsertSchema(
-  umblerCampaignMessages,
+export const insertWhatsappCampaignSchema = createInsertSchema(whatsappCampaigns);
+export const insertWhatsappCampaignMessageSchema = createInsertSchema(
+  whatsappCampaignMessages,
 );
 
 // Tipos
-export type UmblerCampaign = typeof umblerCampaigns.$inferSelect;
-export type InsertUmblerCampaign = z.infer<typeof insertUmblerCampaignSchema>;
-export type UmblerCampaignMessage = typeof umblerCampaignMessages.$inferSelect;
-export type InsertUmblerCampaignMessage = z.infer<
-  typeof insertUmblerCampaignMessageSchema
+export type WhatsappCampaign = typeof whatsappCampaigns.$inferSelect;
+export type InsertWhatsappCampaign = z.infer<typeof insertWhatsappCampaignSchema>;
+export type WhatsappCampaignMessage = typeof whatsappCampaignMessages.$inferSelect;
+export type InsertWhatsappCampaignMessage = z.infer<
+  typeof insertWhatsappCampaignMessageSchema
 >;
 
 // Relações
-export const umblerCampaignsRelations = relations(
-  umblerCampaigns,
+export const whatsappCampaignsRelations = relations(
+  whatsappCampaigns,
   ({ many, one }) => ({
-    messages: many(umblerCampaignMessages),
+    messages: many(whatsappCampaignMessages),
     createdByUser: one(users, {
-      fields: [umblerCampaigns.createdBy],
+      fields: [whatsappCampaigns.createdBy],
       references: [users.id],
     }),
   }),
 );
 
-export const umblerCampaignMessagesRelations = relations(
-  umblerCampaignMessages,
+export const whatsappCampaignMessagesRelations = relations(
+  whatsappCampaignMessages,
   ({ one }) => ({
-    campaign: one(umblerCampaigns, {
-      fields: [umblerCampaignMessages.campaignId],
-      references: [umblerCampaigns.id],
+    campaign: one(whatsappCampaigns, {
+      fields: [whatsappCampaignMessages.campaignId],
+      references: [whatsappCampaigns.id],
     }),
   }),
 );
@@ -3795,6 +3795,9 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   replyToMessageId: text("reply_to_message_id"),
   rawPayload: jsonb("raw_payload"),
   sentByUserId: varchar("sent_by_user_id").references(() => users.id),
+  campaignMessageId: varchar("campaign_message_id").references(
+    () => whatsappCampaignMessages.id,
+  ),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

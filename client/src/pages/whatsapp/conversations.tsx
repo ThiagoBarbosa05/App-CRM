@@ -66,6 +66,7 @@ interface WaMessage {
   status: string | null;
   replyToMessageId: string | null;
   sentByUserId: string | null;
+  campaignMessageId: string | null;
   sentAt: string | null;
   createdAt: string;
   media: WaMedia | null;
@@ -606,6 +607,12 @@ function ConversationMessages({
                               : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-tl-[4px]",
                         )}
                       >
+                        {msg.campaignMessageId && (
+                          <div className="text-[10px] font-medium mb-1 opacity-70 flex items-center gap-0.5">
+                            <span>📢</span>
+                            <span>Campanha</span>
+                          </div>
+                        )}
                         <MessageContent msg={msg} isOutbound={isOutbound} />
                         <div className={cn(
                           "flex items-center gap-1 mt-1",

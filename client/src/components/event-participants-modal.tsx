@@ -180,7 +180,7 @@ export default function EventParticipantsModal({
     queryKey: ["/api/clients", { search: debouncedClientSearchTerm }],
     queryFn: async () => {
       const response = await fetch(
-        `/api/clients?search=${encodeURIComponent(debouncedClientSearchTerm)}`
+        `/api/clients?search=${encodeURIComponent(debouncedClientSearchTerm)}`,
       );
       if (!response.ok) {
         throw new Error("Erro ao buscar clientes");
@@ -222,10 +222,10 @@ export default function EventParticipantsModal({
   const availableClients = useMemo(() => {
     if (!clients) return [];
     const participantClientIds = new Set(
-      participants.map((p: EventParticipant) => p.clientId)
+      participants.map((p: EventParticipant) => p.clientId),
     );
     return clients.filter(
-      (client: Client) => !participantClientIds.has(client.id)
+      (client: Client) => !participantClientIds.has(client.id),
     );
   }, [clients, participants]);
 
@@ -279,25 +279,37 @@ export default function EventParticipantsModal({
 
   // Mutation para salvar preço customizado inline
   const updatePriceMutation = useMutation({
-    mutationFn: async ({ participantId, customPrice }: { participantId: string; customPrice: string | null }) => {
+    mutationFn: async ({
+      participantId,
+      customPrice,
+    }: {
+      participantId: string;
+      customPrice: string | null;
+    }) => {
       const response = await fetch(
         `/api/events/${event?.id}/participants/${participantId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ customPrice }),
-        }
+        },
       );
       if (!response.ok) throw new Error("Erro ao salvar valor");
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/events", event?.id, "participants"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
       setEditingValueId(null);
     },
     onError: () => {
-      toast({ title: "Erro", description: "Não foi possível salvar o valor.", variant: "destructive" });
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar o valor.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -311,7 +323,14 @@ export default function EventParticipantsModal({
 
   // Mutation para atualizar participante
   const updateParticipantMutation = useMutation({
-    mutationFn: async (data: { status: string; notes: string; numberOfParticipants: number; customPrice: string | null; paymentMethod: string | null; paymentDate: string | null }) => {
+    mutationFn: async (data: {
+      status: string;
+      notes: string;
+      numberOfParticipants: number;
+      customPrice: string | null;
+      paymentMethod: string | null;
+      paymentDate: string | null;
+    }) => {
       const response = await fetch(
         `/api/events/${event?.id}/participants/${editingParticipant?.id}`,
         {
@@ -320,7 +339,7 @@ export default function EventParticipantsModal({
             "Content-Type": "application/json",
           },
           body: JSON.stringify(data),
-        }
+        },
       );
 
       if (!response.ok) {
@@ -356,9 +375,8 @@ export default function EventParticipantsModal({
         `/api/events/${event?.id}/participants/${participantId}`,
         {
           method: "DELETE",
-          headers: {
-          },
-        }
+          headers: {},
+        },
       );
 
       if (!response.ok) {
@@ -390,14 +408,20 @@ export default function EventParticipantsModal({
 
   // Mutation para confirmar/negar presença
   const updateAttendanceMutation = useMutation({
-    mutationFn: async ({ participantId, attended }: { participantId: string; attended: boolean | null }) => {
+    mutationFn: async ({
+      participantId,
+      attended,
+    }: {
+      participantId: string;
+      attended: boolean | null;
+    }) => {
       const response = await fetch(
         `/api/events/${event?.id}/participants/${participantId}/attendance`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ attended }),
-        }
+        },
       );
       if (!response.ok) {
         const error = await response.json();
@@ -406,10 +430,16 @@ export default function EventParticipantsModal({
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/events", event?.id, "participants"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/events", event?.id, "participants"],
+      });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -434,8 +464,22 @@ export default function EventParticipantsModal({
     addParticipantMutation.mutate(newParticipant);
   };
 
-  const handleUpdateParticipant = (status: string, notes: string, numberOfParticipants: number, customPrice: string | null, paymentMethod: string | null, paymentDate: string | null) => {
-    updateParticipantMutation.mutate({ status, notes, numberOfParticipants, customPrice, paymentMethod, paymentDate });
+  const handleUpdateParticipant = (
+    status: string,
+    notes: string,
+    numberOfParticipants: number,
+    customPrice: string | null,
+    paymentMethod: string | null,
+    paymentDate: string | null,
+  ) => {
+    updateParticipantMutation.mutate({
+      status,
+      notes,
+      numberOfParticipants,
+      customPrice,
+      paymentMethod,
+      paymentDate,
+    });
   };
 
   const escapeHtml = (text: string) => {
@@ -452,7 +496,8 @@ export default function EventParticipantsModal({
     } else {
       toast({
         title: "Erro",
-        description: "Não foi possível abrir a janela. Verifique se pop-ups estão bloqueados.",
+        description:
+          "Não foi possível abrir a janela. Verifique se pop-ups estão bloqueados.",
         variant: "destructive",
       });
     }
@@ -483,11 +528,17 @@ export default function EventParticipantsModal({
 
   const handleExportParticipants = () => {
     if (participants.length === 0) {
-      toast({ title: "Aviso", description: "Nenhum participante para exportar." });
+      toast({
+        title: "Aviso",
+        description: "Nenhum participante para exportar.",
+      });
       return;
     }
 
-    const totalParticipants = participants.reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
+    const totalParticipants = participants.reduce(
+      (sum, p) => sum + (p.numberOfParticipants || 1),
+      0,
+    );
 
     const logoUrl = `${window.location.origin}/logo-grand-cru-red%20(1).webp`;
 
@@ -495,13 +546,21 @@ export default function EventParticipantsModal({
       if (!date) return "";
       const d = new Date(date);
       if (isNaN(d.getTime())) return "";
-      return d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     };
 
-    const rows = participants.map((p, i) => {
-      const displayStatus = p.status === "convidado" ? "pago" : p.status;
-      const rowBg = i % 2 === 0 ? "#ffffff" : "#fdf6f7";
-      return `
+    const rows = participants
+      .map((p, i) => {
+        const displayStatus = p.status === "convidado" ? "pago" : p.status;
+        const rowBg = i % 2 === 0 ? "#ffffff" : "#fdf6f7";
+        return `
       <tr style="background:${rowBg};">
         <td class="col-name">${escapeHtml(p.clientName || "")}</td>
         <td>${escapeHtml(p.clientPhone || "")}</td>
@@ -510,7 +569,8 @@ export default function EventParticipantsModal({
         <td class="center"><span class="badge b-${displayStatus}">${STATUS_LABELS[displayStatus] || displayStatus.toUpperCase()}</span></td>
         <td class="center">${formatRegistrationDate(p.registrationDate)}</td>
       </tr>`;
-    }).join("");
+      })
+      .join("");
 
     const now = new Date();
     const eventStatusLabels: Record<string, string> = {
@@ -678,7 +738,10 @@ export default function EventParticipantsModal({
 
   const handleExportFinancial = () => {
     if (participants.length === 0) {
-      toast({ title: "Aviso", description: "Nenhum participante para exportar." });
+      toast({
+        title: "Aviso",
+        description: "Nenhum participante para exportar.",
+      });
       return;
     }
 
@@ -688,20 +751,36 @@ export default function EventParticipantsModal({
 
     const logoUrl = `${window.location.origin}/logo-grand-cru-red%20(1).webp`;
 
-    const totalPessoas = participants.reduce((sum, p) => sum + (p.numberOfParticipants || 1), 0);
+    const totalPessoas = participants.reduce(
+      (sum, p) => sum + (p.numberOfParticipants || 1),
+      0,
+    );
 
     const rows = participants
       .map((p, i) => {
         const qty = p.numberOfParticipants || 1;
         const total = p.customPrice ? parseFloat(p.customPrice) : 0;
         if (p.status === "pago" || p.status === "convidado") totalPago += total;
-        else if (p.status === "pendente" || p.status === "pagar_na_hora") totalPendente += total;
+        else if (p.status === "pendente" || p.status === "pagar_na_hora")
+          totalPendente += total;
         if (p.status !== "cancelado") totalGeral += total;
         const paymentDateStr = p.paymentDate
-          ? new Date(p.paymentDate).toLocaleDateString("pt-BR")
+          ? new Date(p.paymentDate).toLocaleDateString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+            })
           : "—";
-        const presencaText  = p.attended === true ? "Presente" : p.attended === false ? "Ausente" : "—";
-        const presencaColor = p.attended === true ? "#15803d" : p.attended === false ? "#b91c1c" : "#94a3b8";
+        const presencaText =
+          p.attended === true
+            ? "Presente"
+            : p.attended === false
+              ? "Ausente"
+              : "—";
+        const presencaColor =
+          p.attended === true
+            ? "#15803d"
+            : p.attended === false
+              ? "#b91c1c"
+              : "#94a3b8";
         const rowBg = i % 2 === 0 ? "#ffffff" : "#fdf6f7";
         return `
         <tr style="background:${rowBg};">
@@ -972,7 +1051,10 @@ export default function EventParticipantsModal({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs text-gray-500 shrink-0">
                 <span className="font-semibold text-gray-700">
-                  {participants.reduce((t, p) => t + (p.numberOfParticipants || 1), 0)}
+                  {participants.reduce(
+                    (t, p) => t + (p.numberOfParticipants || 1),
+                    0,
+                  )}
                 </span>
                 {event.maxCapacity && (
                   <span className="text-gray-400"> / {event.maxCapacity}</span>
@@ -980,18 +1062,32 @@ export default function EventParticipantsModal({
                 participantes
               </span>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <Button variant="outline" size="sm" onClick={handleExportParticipants} className="h-7 px-2.5 text-xs gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportParticipants}
+                  className="h-7 px-2.5 text-xs gap-1.5"
+                >
                   <FileText className="h-3.5 w-3.5" />
                   Lista
                 </Button>
                 {(user?.role === "admin" || user?.role === "gerente") && (
-                  <Button variant="outline" size="sm" onClick={handleExportFinancial} className="h-7 px-2.5 text-xs gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportFinancial}
+                    className="h-7 px-2.5 text-xs gap-1.5"
+                  >
                     <DollarSign className="h-3.5 w-3.5" />
                     Financeiro
                   </Button>
                 )}
                 {user?.role === "admin" && (
-                  <Button size="sm" onClick={() => setIsAddModalOpen(true)} className="h-7 px-2.5 text-xs gap-1.5">
+                  <Button
+                    size="sm"
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="h-7 px-2.5 text-xs gap-1.5"
+                  >
                     <PlusIcon className="h-3.5 w-3.5" />
                     Adicionar
                   </Button>
@@ -1001,12 +1097,14 @@ export default function EventParticipantsModal({
           </div>
 
           <div className="flex-1 overflow-auto min-h-0">
-
             {/* Tabela de participantes */}
             {isLoadingParticipants ? (
               <div className="space-y-2 px-4 py-3">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 border rounded-lg">
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 p-3 border rounded-lg"
+                  >
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-4 w-8 ml-auto" />
@@ -1018,7 +1116,9 @@ export default function EventParticipantsModal({
             ) : filteredParticipants.length === 0 ? (
               <div className="text-center py-12 text-gray-500 px-4">
                 <UsersIcon className="h-12 w-12 mx-auto mb-3 text-gray-200" />
-                <p className="font-medium text-sm">Nenhum participante encontrado</p>
+                <p className="font-medium text-sm">
+                  Nenhum participante encontrado
+                </p>
                 <p className="text-xs mt-1 text-gray-400">
                   {searchTerm || statusFilter !== "all"
                     ? "Ajuste os filtros para ver os participantes."
@@ -1027,180 +1127,236 @@ export default function EventParticipantsModal({
               </div>
             ) : (
               <div className="overflow-x-auto">
-              <Table className="text-sm min-w-[640px]">
-                <TableHeader>
-                  <TableRow className="bg-slate-50 dark:bg-slate-800/50">
-                    <TableHead className="font-semibold py-2 w-[180px]">Cliente</TableHead>
-                    <TableHead className="font-semibold py-2 w-[120px]">Contato</TableHead>
-                    <TableHead className="font-semibold py-2 text-center w-[50px]">Pax</TableHead>
-                    <TableHead className="font-semibold py-2 text-right w-[100px]">Valor</TableHead>
-                    <TableHead className="font-semibold py-2 w-[100px]">Status</TableHead>
-                    <TableHead className="font-semibold py-2 text-center w-[70px]">Presença</TableHead>
-                    <TableHead className="font-semibold py-2 w-[140px]">Inscrição / Resp.</TableHead>
-                    {user?.role === "admin" && (
-                      <TableHead className="font-semibold py-2 w-[80px]">Ações</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredParticipants.map((participant) => (
-                    <TableRow
-                      key={participant.id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
-                    >
-                      <TableCell className="py-2">
-                        <div className="font-medium text-slate-900 dark:text-slate-100 leading-tight">
-                          {participant.clientName || (
-                            <span className="text-gray-400 italic text-xs">Cliente removido</span>
-                          )}
-                        </div>
-                        {participant.notes && (
-                          <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[180px]" title={participant.notes}>
-                            {participant.notes}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-2">
-                        <div className="text-slate-700 dark:text-slate-300 text-xs leading-tight">
-                          {participant.clientPhone || "—"}
-                        </div>
-                        {participant.clientEmail && (
-                          <div className="text-gray-400 text-xs truncate max-w-[120px]" title={participant.clientEmail}>
-                            {participant.clientEmail}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-2 text-center">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {participant.numberOfParticipants}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {user?.role === "admin" && editingValueId === participant.id ? (
-                          <div className="flex items-center gap-1 justify-end">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              autoFocus
-                              value={editingValue}
-                              onChange={(e) => setEditingValue(e.target.value)}
-                              onBlur={() => commitPrice(participant.id)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") commitPrice(participant.id);
-                                if (e.key === "Escape") setEditingValueId(null);
-                              }}
-                              className="w-24 text-right text-sm border border-blue-400 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white dark:bg-slate-800 dark:text-slate-100"
-                            />
-                          </div>
-                        ) : (
-                          <div
-                            className={`text-sm cursor-pointer group ${user?.role === "admin" ? "hover:bg-slate-100 dark:hover:bg-slate-700 rounded px-1 py-0.5" : ""}`}
-                            title={user?.role === "admin" ? "Clique para editar o valor" : undefined}
-                            onClick={() => {
-                              if (user?.role !== "admin") return;
-                              const displayed = participant.customPrice
-                                ? parseFloat(participant.customPrice).toFixed(2)
-                                : "";
-                              setEditingValue(displayed);
-                              setEditingValueId(participant.id);
-                            }}
-                          >
-                            {(() => {
-                              const customTotal = participant.customPrice ? parseFloat(participant.customPrice) : null;
-                              return (
-                                <span className={`font-semibold ${customTotal !== null ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"}`}>
-                                  {formatCurrency(customTotal ?? 0)}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="py-2">
-                        {getStatusBadge(participant.status, participant.attended)}
-                      </TableCell>
-                      <TableCell className="py-2 text-center">
-                        {user?.role === "admin" ? (
-                          <div className="flex items-center justify-center gap-0.5">
-                            <button
-                              onClick={() => updateAttendanceMutation.mutate({
-                                participantId: participant.id,
-                                attended: participant.attended === true ? null : true,
-                              })}
-                              title="Marcar como presente"
-                              className={`p-1 rounded-full transition-colors ${
-                                participant.attended === true
-                                  ? "text-green-600 bg-green-100 dark:bg-green-900/30"
-                                  : "text-slate-300 hover:text-green-500 dark:text-slate-600 hover:bg-green-50 dark:hover:bg-green-900/20"
-                              }`}
-                            >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => updateAttendanceMutation.mutate({
-                                participantId: participant.id,
-                                attended: participant.attended === false ? null : false,
-                              })}
-                              title="Marcar como ausente"
-                              className={`p-1 rounded-full transition-colors ${
-                                participant.attended === false
-                                  ? "text-red-600 bg-red-100 dark:bg-red-900/30"
-                                  : "text-slate-300 hover:text-red-500 dark:text-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              }`}
-                            >
-                              <XCircle className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="flex justify-center">
-                            {participant.attended === true ? (
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                            ) : participant.attended === false ? (
-                              <XCircle className="h-4 w-4 text-red-500" />
-                            ) : (
-                              <MinusCircle className="h-4 w-4 text-slate-300" />
-                            )}
-                          </span>
-                        )}
-                      </TableCell>
-                      {/* Inscrição + Responsável numa única célula */}
-                      <TableCell className="py-2">
-                        <div className="text-xs text-slate-600 dark:text-slate-400 leading-tight">
-                          {formatDate(participant.registrationDate)}
-                        </div>
-                        <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                          {participant.registeredByName}
-                        </div>
-                      </TableCell>
+                <Table className="text-sm min-w-[640px]">
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 dark:bg-slate-800/50">
+                      <TableHead className="font-semibold py-2 w-[180px]">
+                        Cliente
+                      </TableHead>
+                      <TableHead className="font-semibold py-2 w-[120px]">
+                        Contato
+                      </TableHead>
+                      <TableHead className="font-semibold py-2 text-center w-[50px]">
+                        Pax
+                      </TableHead>
+                      <TableHead className="font-semibold py-2 text-right w-[100px]">
+                        Valor
+                      </TableHead>
+                      <TableHead className="font-semibold py-2 w-[100px]">
+                        Status
+                      </TableHead>
+                      <TableHead className="font-semibold py-2 text-center w-[70px]">
+                        Presença
+                      </TableHead>
+                      <TableHead className="font-semibold py-2 w-[140px]">
+                        Inscrição / Resp.
+                      </TableHead>
                       {user?.role === "admin" && (
-                        <TableCell className="py-2">
-                          <div className="flex gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingParticipant(participant)}
-                              className="h-7 w-7 p-0 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
-                              title="Editar"
-                            >
-                              <EditIcon className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setParticipantToDelete(participant)}
-                              className="h-7 w-7 p-0 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
-                              title="Remover"
-                            >
-                              <TrashIcon className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                        <TableHead className="font-semibold py-2 w-[80px]">
+                          Ações
+                        </TableHead>
                       )}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredParticipants.map((participant) => (
+                      <TableRow
+                        key={participant.id}
+                        className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <TableCell className="py-2">
+                          <div className="font-medium text-slate-900 dark:text-slate-100 leading-tight">
+                            {participant.clientName || (
+                              <span className="text-gray-400 italic text-xs">
+                                Cliente removido
+                              </span>
+                            )}
+                          </div>
+                          {participant.notes && (
+                            <div
+                              className="text-xs text-gray-400 mt-0.5 truncate max-w-[180px]"
+                              title={participant.notes}
+                            >
+                              {participant.notes}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-2">
+                          <div className="text-slate-700 dark:text-slate-300 text-xs leading-tight">
+                            {participant.clientPhone || "—"}
+                          </div>
+                          {participant.clientEmail && (
+                            <div
+                              className="text-gray-400 text-xs truncate max-w-[120px]"
+                              title={participant.clientEmail}
+                            >
+                              {participant.clientEmail}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-2 text-center">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {participant.numberOfParticipants}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {user?.role === "admin" &&
+                          editingValueId === participant.id ? (
+                            <div className="flex items-center gap-1 justify-end">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                autoFocus
+                                value={editingValue}
+                                onChange={(e) =>
+                                  setEditingValue(e.target.value)
+                                }
+                                onBlur={() => commitPrice(participant.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter")
+                                    commitPrice(participant.id);
+                                  if (e.key === "Escape")
+                                    setEditingValueId(null);
+                                }}
+                                className="w-24 text-right text-sm border border-blue-400 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white dark:bg-slate-800 dark:text-slate-100"
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className={`text-sm cursor-pointer group ${user?.role === "admin" ? "hover:bg-slate-100 dark:hover:bg-slate-700 rounded px-1 py-0.5" : ""}`}
+                              title={
+                                user?.role === "admin"
+                                  ? "Clique para editar o valor"
+                                  : undefined
+                              }
+                              onClick={() => {
+                                if (user?.role !== "admin") return;
+                                const displayed = participant.customPrice
+                                  ? parseFloat(participant.customPrice).toFixed(
+                                      2,
+                                    )
+                                  : "";
+                                setEditingValue(displayed);
+                                setEditingValueId(participant.id);
+                              }}
+                            >
+                              {(() => {
+                                const customTotal = participant.customPrice
+                                  ? parseFloat(participant.customPrice)
+                                  : null;
+                                return (
+                                  <span
+                                    className={`font-semibold ${customTotal !== null ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-300"}`}
+                                  >
+                                    {formatCurrency(customTotal ?? 0)}
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-2">
+                          {getStatusBadge(
+                            participant.status,
+                            participant.attended,
+                          )}
+                        </TableCell>
+                        <TableCell className="py-2 text-center">
+                          {user?.role === "admin" ? (
+                            <div className="flex items-center justify-center gap-0.5">
+                              <button
+                                onClick={() =>
+                                  updateAttendanceMutation.mutate({
+                                    participantId: participant.id,
+                                    attended:
+                                      participant.attended === true
+                                        ? null
+                                        : true,
+                                  })
+                                }
+                                title="Marcar como presente"
+                                className={`p-1 rounded-full transition-colors ${
+                                  participant.attended === true
+                                    ? "text-green-600 bg-green-100 dark:bg-green-900/30"
+                                    : "text-slate-300 hover:text-green-500 dark:text-slate-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                }`}
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() =>
+                                  updateAttendanceMutation.mutate({
+                                    participantId: participant.id,
+                                    attended:
+                                      participant.attended === false
+                                        ? null
+                                        : false,
+                                  })
+                                }
+                                title="Marcar como ausente"
+                                className={`p-1 rounded-full transition-colors ${
+                                  participant.attended === false
+                                    ? "text-red-600 bg-red-100 dark:bg-red-900/30"
+                                    : "text-slate-300 hover:text-red-500 dark:text-slate-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                }`}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="flex justify-center">
+                              {participant.attended === true ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              ) : participant.attended === false ? (
+                                <XCircle className="h-4 w-4 text-red-500" />
+                              ) : (
+                                <MinusCircle className="h-4 w-4 text-slate-300" />
+                              )}
+                            </span>
+                          )}
+                        </TableCell>
+                        {/* Inscrição + Responsável numa única célula */}
+                        <TableCell className="py-2">
+                          <div className="text-xs text-slate-600 dark:text-slate-400 leading-tight">
+                            {formatDate(participant.registrationDate)}
+                          </div>
+                          <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                            {participant.registeredByName}
+                          </div>
+                        </TableCell>
+                        {user?.role === "admin" && (
+                          <TableCell className="py-2">
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setEditingParticipant(participant)
+                                }
+                                className="h-7 w-7 p-0 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                                title="Editar"
+                              >
+                                <EditIcon className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setParticipantToDelete(participant)
+                                }
+                                className="h-7 w-7 p-0 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                                title="Remover"
+                              >
+                                <TrashIcon className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </div>
@@ -1291,9 +1447,9 @@ export default function EventParticipantsModal({
                             {debouncedClientSearchTerm.trim().length < 2
                               ? "Digite ao menos 2 caracteres para buscar."
                               : clients.length > 0 &&
-                                availableClients.length === 0
-                              ? "Todos os clientes encontrados já participam do evento."
-                              : "Nenhum cliente encontrado."}
+                                  availableClients.length === 0
+                                ? "Todos os clientes encontrados já participam do evento."
+                                : "Nenhum cliente encontrado."}
                           </div>
 
                           <Button
@@ -1323,7 +1479,7 @@ export default function EventParticipantsModal({
                     ...prev,
                     numberOfParticipants: Math.max(
                       1,
-                      parseInt(e.target.value) || 1
+                      parseInt(e.target.value) || 1,
                     ),
                   }))
                 }
@@ -1337,7 +1493,11 @@ export default function EventParticipantsModal({
               <Select
                 value={newParticipant.status}
                 onValueChange={(value) =>
-                  setNewParticipant((prev) => ({ ...prev, status: value, customPrice: "" }))
+                  setNewParticipant((prev) => ({
+                    ...prev,
+                    status: value,
+                    customPrice: "",
+                  }))
                 }
               >
                 <SelectTrigger>
@@ -1363,7 +1523,10 @@ export default function EventParticipantsModal({
                   placeholder="0,00"
                   value={newParticipant.customPrice}
                   onChange={(e) =>
-                    setNewParticipant((prev) => ({ ...prev, customPrice: e.target.value }))
+                    setNewParticipant((prev) => ({
+                      ...prev,
+                      customPrice: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -1375,7 +1538,10 @@ export default function EventParticipantsModal({
                 <Select
                   value={newParticipant.paymentMethod}
                   onValueChange={(value) =>
-                    setNewParticipant((prev) => ({ ...prev, paymentMethod: value }))
+                    setNewParticipant((prev) => ({
+                      ...prev,
+                      paymentMethod: value,
+                    }))
                   }
                 >
                   <SelectTrigger>
@@ -1384,9 +1550,16 @@ export default function EventParticipantsModal({
                   <SelectContent>
                     <SelectItem value="Dinheiro">Dinheiro</SelectItem>
                     <SelectItem value="PIX">PIX</SelectItem>
-                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                    <SelectItem value="Transferência Bancária">Transferência Bancária</SelectItem>
+                    <SelectItem value="Link">Link</SelectItem>
+                    <SelectItem value="Cartão de Crédito">
+                      Cartão de Crédito
+                    </SelectItem>
+                    <SelectItem value="Cartão de Débito">
+                      Cartão de Débito
+                    </SelectItem>
+                    <SelectItem value="Transferência Bancária">
+                      Transferência Bancária
+                    </SelectItem>
                     <SelectItem value="Boleto">Boleto</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1397,7 +1570,10 @@ export default function EventParticipantsModal({
                   type="date"
                   value={newParticipant.paymentDate}
                   onChange={(e) =>
-                    setNewParticipant((prev) => ({ ...prev, paymentDate: e.target.value }))
+                    setNewParticipant((prev) => ({
+                      ...prev,
+                      paymentDate: e.target.value,
+                    }))
                   }
                 />
               </div>
@@ -1459,7 +1635,7 @@ export default function EventParticipantsModal({
                   value={editingParticipant.status}
                   onValueChange={(value) =>
                     setEditingParticipant((prev) =>
-                      prev ? { ...prev, status: value as any } : null
+                      prev ? { ...prev, status: value as any } : null,
                     )
                   }
                 >
@@ -1487,7 +1663,9 @@ export default function EventParticipantsModal({
                     value={editingParticipant.customPrice ?? ""}
                     onChange={(e) =>
                       setEditingParticipant((prev) =>
-                        prev ? { ...prev, customPrice: e.target.value || null } : null
+                        prev
+                          ? { ...prev, customPrice: e.target.value || null }
+                          : null,
                       )
                     }
                   />
@@ -1502,10 +1680,15 @@ export default function EventParticipantsModal({
                   value={editingParticipant.numberOfParticipants}
                   onChange={(e) =>
                     setEditingParticipant((prev) =>
-                      prev ? { 
-                        ...prev, 
-                        numberOfParticipants: Math.max(1, parseInt(e.target.value) || 1) 
-                      } : null
+                      prev
+                        ? {
+                            ...prev,
+                            numberOfParticipants: Math.max(
+                              1,
+                              parseInt(e.target.value) || 1,
+                            ),
+                          }
+                        : null,
                     )
                   }
                   placeholder="Quantos participantes..."
@@ -1520,7 +1703,7 @@ export default function EventParticipantsModal({
                     value={editingParticipant.paymentMethod || ""}
                     onValueChange={(value) =>
                       setEditingParticipant((prev) =>
-                        prev ? { ...prev, paymentMethod: value || null } : null
+                        prev ? { ...prev, paymentMethod: value || null } : null,
                       )
                     }
                   >
@@ -1530,9 +1713,16 @@ export default function EventParticipantsModal({
                     <SelectContent>
                       <SelectItem value="Dinheiro">Dinheiro</SelectItem>
                       <SelectItem value="PIX">PIX</SelectItem>
-                      <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                      <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                      <SelectItem value="Transferência Bancária">Transferência Bancária</SelectItem>
+                      <SelectItem value="Link">Link</SelectItem>
+                      <SelectItem value="Cartão de Crédito">
+                        Cartão de Crédito
+                      </SelectItem>
+                      <SelectItem value="Cartão de Débito">
+                        Cartão de Débito
+                      </SelectItem>
+                      <SelectItem value="Transferência Bancária">
+                        Transferência Bancária
+                      </SelectItem>
                       <SelectItem value="Boleto">Boleto</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1543,14 +1733,18 @@ export default function EventParticipantsModal({
                     type="date"
                     value={
                       editingParticipant.paymentDate
-                        ? new Date(editingParticipant.paymentDate).toISOString().split("T")[0]
+                        ? new Date(
+                            editingParticipant.paymentDate,
+                          ).toLocaleDateString("en-CA", {
+                            timeZone: "America/Sao_Paulo",
+                          })
                         : ""
                     }
                     onChange={(e) =>
                       setEditingParticipant((prev) =>
                         prev
                           ? { ...prev, paymentDate: e.target.value || null }
-                          : null
+                          : null,
                       )
                     }
                   />
@@ -1563,7 +1757,7 @@ export default function EventParticipantsModal({
                   value={editingParticipant.notes || ""}
                   onChange={(e) =>
                     setEditingParticipant((prev) =>
-                      prev ? { ...prev, notes: e.target.value } : null
+                      prev ? { ...prev, notes: e.target.value } : null,
                     )
                   }
                   placeholder="Observações sobre a participação..."
@@ -1589,7 +1783,7 @@ export default function EventParticipantsModal({
                   editingParticipant.numberOfParticipants,
                   editingParticipant.customPrice || null,
                   editingParticipant.paymentMethod || null,
-                  editingParticipant.paymentDate || null
+                  editingParticipant.paymentDate || null,
                 )
               }
               disabled={updateParticipantMutation.isPending}

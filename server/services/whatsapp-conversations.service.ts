@@ -19,7 +19,7 @@ function normalizePhone(phone: string) {
   return { digits, withoutCountry };
 }
 
-async function findOrCreateConversation(phone: string, channelId?: number | null) {
+export async function findOrCreateConversation(phone: string, channelId?: number | null) {
   const { digits, withoutCountry } = normalizePhone(phone);
 
   const phoneCondition = or(
@@ -189,6 +189,7 @@ export async function getConversation(
       status: whatsappMessages.status,
       replyToMessageId: whatsappMessages.replyToMessageId,
       sentByUserId: whatsappMessages.sentByUserId,
+      campaignMessageId: whatsappMessages.campaignMessageId,
       sentAt: whatsappMessages.sentAt,
       createdAt: whatsappMessages.createdAt,
       media: {

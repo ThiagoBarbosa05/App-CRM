@@ -1,10 +1,10 @@
 import { db } from "../../db";
 import { sql, eq, and } from "drizzle-orm";
 import {
-  umblerCampaigns,
-  umblerCampaignMessages,
-  InsertUmblerCampaign,
-  InsertUmblerCampaignMessage,
+  whatsappCampaigns,
+  whatsappCampaignMessages,
+  InsertWhatsappCampaign,
+  InsertWhatsappCampaignMessage,
 } from "@shared/schema";
 
 interface CampaignLog {
@@ -49,7 +49,7 @@ export async function logCampaignCreation(
 
     // Salva campanha no banco de dados
     const metadata = campaign.metadata || {};
-    await db.insert(umblerCampaigns).values({
+    await db.insert(whatsappCampaigns).values({
       id: campaign.campaignId,
       title: campaign.title,
       status: campaign.status,
@@ -96,7 +96,7 @@ export async function logMessageStatus(message: MessageLog): Promise<void> {
     }-${Date.now()}`;
 
     // Salva mensagem no banco de dados
-    await db.insert(umblerCampaignMessages).values({
+    await db.insert(whatsappCampaignMessages).values({
       id: messageId,
       campaignId: message.campaignId,
       contactId: message.contactId,
@@ -153,9 +153,9 @@ export async function updateCampaignStatus(
     }
 
     await db
-      .update(umblerCampaigns)
+      .update(whatsappCampaigns)
       .set(updateData)
-      .where(eq(umblerCampaigns.id, campaignId));
+      .where(eq(whatsappCampaigns.id, campaignId));
 
     console.log("✅ Campaign status updated in database");
   } catch (error) {
@@ -180,8 +180,8 @@ export async function getCampaignStats(campaignId: string): Promise<{
     // Busca estatísticas do banco de dados
     const messages = await db
       .select()
-      .from(umblerCampaignMessages)
-      .where(eq(umblerCampaignMessages.campaignId, campaignId));
+      .from(whatsappCampaignMessages)
+      .where(eq(whatsappCampaignMessages.campaignId, campaignId));
 
     // Contagens por estado terminal/intermediário. "delivered" e "read" são
     // estados posteriores a "sent" (a mensagem saiu), então o funil cumulativo
@@ -213,18 +213,18 @@ export async function listCampaigns(params?: {
   offset?: number;
 }) {
   try {
-    const baseQuery = db.select().from(umblerCampaigns);
+    const baseQuery = db.select().from(whatsappCampaigns);
 
     const campaigns = params?.status
       ? await baseQuery
-          .where(eq(umblerCampaigns.status, params.status as any))
+          .where(eq(whatsappCampaigns.status, params.status as any))
           .limit(params?.limit || 50)
           .offset(params?.offset || 0)
-          .orderBy(sql`${umblerCampaigns.createdAt} DESC`)
+          .orderBy(sql`${whatsappCampaigns.createdAt} DESC`)
       : await baseQuery
           .limit(params?.limit || 50)
           .offset(params?.offset || 0)
-          .orderBy(sql`${umblerCampaigns.createdAt} DESC`);
+          .orderBy(sql`${whatsappCampaigns.createdAt} DESC`);
 
     return campaigns;
   } catch (error) {
@@ -240,8 +240,8 @@ export async function getCampaignDetails(campaignId: string) {
   try {
     const [campaign] = await db
       .select()
-      .from(umblerCampaigns)
-      .where(eq(umblerCampaigns.id, campaignId));
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.id, campaignId));
 
     if (!campaign) {
       return null;
@@ -249,9 +249,9 @@ export async function getCampaignDetails(campaignId: string) {
 
     const messages = await db
       .select()
-      .from(umblerCampaignMessages)
-      .where(eq(umblerCampaignMessages.campaignId, campaignId))
-      .orderBy(sql`${umblerCampaignMessages.scheduledAt} ASC`);
+      .from(whatsappCampaignMessages)
+      .where(eq(whatsappCampaignMessages.campaignId, campaignId))
+      .orderBy(sql`${whatsappCampaignMessages.scheduledAt} ASC`);
 
     return {
       ...campaign,

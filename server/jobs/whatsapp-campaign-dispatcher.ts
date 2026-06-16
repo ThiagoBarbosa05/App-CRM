@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import { db } from "server/db";
-import { umblerCampaigns, umblerCampaignMessages } from "@shared/schema";
+import { whatsappCampaigns, whatsappCampaignMessages } from "@shared/schema";
 import { and, eq, count, inArray, lte } from "drizzle-orm";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
 
@@ -13,31 +13,31 @@ const SENT_LIKE = ["sent", "delivered", "read"] as const;
 async function finalizeIfDone(campaignId: string): Promise<void> {
   const [{ remaining }] = await db
     .select({ remaining: count() })
-    .from(umblerCampaignMessages)
+    .from(whatsappCampaignMessages)
     .where(
       and(
-        eq(umblerCampaignMessages.campaignId, campaignId),
-        eq(umblerCampaignMessages.status, "scheduled"),
+        eq(whatsappCampaignMessages.campaignId, campaignId),
+        eq(whatsappCampaignMessages.status, "scheduled"),
       ),
     );
 
   const [{ sent }] = await db
     .select({ sent: count() })
-    .from(umblerCampaignMessages)
+    .from(whatsappCampaignMessages)
     .where(
       and(
-        eq(umblerCampaignMessages.campaignId, campaignId),
-        inArray(umblerCampaignMessages.status, [...SENT_LIKE]),
+        eq(whatsappCampaignMessages.campaignId, campaignId),
+        inArray(whatsappCampaignMessages.status, [...SENT_LIKE]),
       ),
     );
 
   const [{ failed }] = await db
     .select({ failed: count() })
-    .from(umblerCampaignMessages)
+    .from(whatsappCampaignMessages)
     .where(
       and(
-        eq(umblerCampaignMessages.campaignId, campaignId),
-        eq(umblerCampaignMessages.status, "failed"),
+        eq(whatsappCampaignMessages.campaignId, campaignId),
+        eq(whatsappCampaignMessages.status, "failed"),
       ),
     );
 
@@ -47,7 +47,7 @@ async function finalizeIfDone(campaignId: string): Promise<void> {
   if (Number(remaining) === 0) {
     // Campanha concluída: failed se nada saiu, completed caso contrário.
     await db
-      .update(umblerCampaigns)
+      .update(whatsappCampaigns)
       .set({
         status: sentNum === 0 && failedNum > 0 ? "failed" : "completed",
         sentMessages: sentNum,
@@ -55,18 +55,18 @@ async function finalizeIfDone(campaignId: string): Promise<void> {
         completedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(umblerCampaigns.id, campaignId));
+      .where(eq(whatsappCampaigns.id, campaignId));
   } else {
     // Ainda em andamento: atualiza contadores para o monitoramento ao vivo.
     await db
-      .update(umblerCampaigns)
+      .update(whatsappCampaigns)
       .set({
         status: "in_progress",
         sentMessages: sentNum,
         failedMessages: failedNum,
         updatedAt: new Date(),
       })
-      .where(eq(umblerCampaigns.id, campaignId));
+      .where(eq(whatsappCampaigns.id, campaignId));
   }
 }
 
@@ -76,20 +76,20 @@ async function runTick(): Promise<void> {
 
     // Promove campanhas agendadas (created) cujo horário já chegou → in_progress.
     await db
-      .update(umblerCampaigns)
+      .update(whatsappCampaigns)
       .set({ status: "in_progress", updatedAt: now })
       .where(
         and(
-          eq(umblerCampaigns.status, "created"),
-          lte(umblerCampaigns.startDate, now),
+          eq(whatsappCampaigns.status, "created"),
+          lte(whatsappCampaigns.startDate, now),
         ),
       );
 
     // Processa apenas campanhas em andamento (pausadas/canceladas ficam de fora).
     const active = await db
       .select()
-      .from(umblerCampaigns)
-      .where(eq(umblerCampaigns.status, "in_progress"));
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.status, "in_progress"));
 
     if (active.length === 0) return;
 

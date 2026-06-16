@@ -4,8 +4,8 @@ import { db } from "../db";
 import {
   campaigns,
   clients,
-  umblerCampaigns,
-  umblerCampaignMessages,
+  whatsappCampaigns,
+  whatsappCampaignMessages,
 } from "@shared/schema";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { sendTextMessage, sendTemplateMessage } from "../integrations/whatsapp";
@@ -117,9 +117,9 @@ router.post("/campaigns", async (req, res) => {
       return res.status(400).json({ message: "Nenhum dos clientes fornecidos possui telefone válido" });
     }
 
-    // 3. Garantir entrada em umblerCampaigns (satisfaz FK de umblerCampaignMessages)
+    // 3. Garantir entrada em whatsappCampaigns (satisfaz FK de whatsappCampaignMessages)
     await db
-      .insert(umblerCampaigns)
+      .insert(whatsappCampaigns)
       .values({
         id: campaignId,
         title: campaign.name,
@@ -137,7 +137,7 @@ router.post("/campaigns", async (req, res) => {
         organizationId: "",
       })
       .onConflictDoUpdate({
-        target: umblerCampaigns.id,
+        target: whatsappCampaigns.id,
         set: {
           status: isScheduled ? "created" : "in_progress",
           totalContacts: validClients.length,
@@ -147,7 +147,7 @@ router.post("/campaigns", async (req, res) => {
         },
       });
 
-    // 4. Criar mensagens agendadas em umblerCampaignMessages
+    // 4. Criar mensagens agendadas em whatsappCampaignMessages
     const now = new Date();
     const messageValues = validClients.map((client) => ({
       id: `${campaignId}-${client.id}-${now.getTime()}`,
@@ -159,7 +159,7 @@ router.post("/campaigns", async (req, res) => {
       scheduledAt: now,
     }));
 
-    await db.insert(umblerCampaignMessages).values(messageValues).onConflictDoNothing();
+    await db.insert(whatsappCampaignMessages).values(messageValues).onConflictDoNothing();
 
     // 5. NÃO dispara inline — apenas enfileira. O job whatsapp-campaign-dispatcher
     //    processa as mensagens "scheduled" em lotes (evita timeout em disparo em massa).
@@ -184,21 +184,21 @@ router.post("/campaigns/:id/retry-failed", async (req, res) => {
   const campaignId = req.params.id;
   try {
     const failed = await db
-      .update(umblerCampaignMessages)
+      .update(whatsappCampaignMessages)
       .set({ status: "scheduled", errorMessage: null, updatedAt: new Date() })
       .where(
         and(
-          eq(umblerCampaignMessages.campaignId, campaignId),
-          eq(umblerCampaignMessages.status, "failed"),
+          eq(whatsappCampaignMessages.campaignId, campaignId),
+          eq(whatsappCampaignMessages.status, "failed"),
         ),
       )
-      .returning({ id: umblerCampaignMessages.id });
+      .returning({ id: whatsappCampaignMessages.id });
 
     if (failed.length > 0) {
       await db
-        .update(umblerCampaigns)
+        .update(whatsappCampaigns)
         .set({ status: "in_progress", completedAt: null, updatedAt: new Date() })
-        .where(eq(umblerCampaigns.id, campaignId));
+        .where(eq(whatsappCampaigns.id, campaignId));
     }
 
     res.json({ campaignId, requeued: failed.length });
@@ -213,12 +213,12 @@ router.post("/campaigns/:id/retry-failed", async (req, res) => {
 router.post("/campaigns/:id/pause", async (req, res) => {
   try {
     await db
-      .update(umblerCampaigns)
+      .update(whatsappCampaigns)
       .set({ status: "paused", updatedAt: new Date() })
       .where(
         and(
-          eq(umblerCampaigns.id, req.params.id),
-          inArray(umblerCampaigns.status, ["in_progress", "created"]),
+          eq(whatsappCampaigns.id, req.params.id),
+          inArray(whatsappCampaigns.status, ["in_progress", "created"]),
         ),
       );
     res.json({ campaignId: req.params.id, status: "paused" });
@@ -231,12 +231,12 @@ router.post("/campaigns/:id/pause", async (req, res) => {
 router.post("/campaigns/:id/resume", async (req, res) => {
   try {
     await db
-      .update(umblerCampaigns)
+      .update(whatsappCampaigns)
       .set({ status: "in_progress", updatedAt: new Date() })
       .where(
         and(
-          eq(umblerCampaigns.id, req.params.id),
-          eq(umblerCampaigns.status, "paused"),
+          eq(whatsappCampaigns.id, req.params.id),
+          eq(whatsappCampaigns.status, "paused"),
         ),
       );
     res.json({ campaignId: req.params.id, status: "in_progress" });
@@ -251,20 +251,20 @@ router.post("/campaigns/:id/cancel", async (req, res) => {
   try {
     // Cancela as mensagens ainda na fila e a campanha.
     const cancelled = await db
-      .update(umblerCampaignMessages)
+      .update(whatsappCampaignMessages)
       .set({ status: "cancelled", updatedAt: new Date() })
       .where(
         and(
-          eq(umblerCampaignMessages.campaignId, campaignId),
-          eq(umblerCampaignMessages.status, "scheduled"),
+          eq(whatsappCampaignMessages.campaignId, campaignId),
+          eq(whatsappCampaignMessages.status, "scheduled"),
         ),
       )
-      .returning({ id: umblerCampaignMessages.id });
+      .returning({ id: whatsappCampaignMessages.id });
 
     await db
-      .update(umblerCampaigns)
+      .update(whatsappCampaigns)
       .set({ status: "cancelled", completedAt: new Date(), updatedAt: new Date() })
-      .where(eq(umblerCampaigns.id, campaignId));
+      .where(eq(whatsappCampaigns.id, campaignId));
 
     res.json({ campaignId, cancelledMessages: cancelled.length });
   } catch (e) {

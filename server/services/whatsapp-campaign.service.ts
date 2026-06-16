@@ -1,10 +1,11 @@
 import { db } from "server/db";
-import { campaigns, umblerCampaignMessages, whatsappTemplates, whatsappBots } from "@shared/schema";
+import { campaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappMessages } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { sendTemplateMessage } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 import { formatPhoneToDigits } from "../lib/format-phone";
 import { startBotSession } from "./whatsapp-bot-engine.service";
+import { findOrCreateConversation } from "./whatsapp-conversations.service";
 
 const DEFAULT_DELAY_MS = 1000;
 
@@ -44,11 +45,11 @@ export async function executeCampaign(
 
   const pendingQuery = db
     .select()
-    .from(umblerCampaignMessages)
+    .from(whatsappCampaignMessages)
     .where(
       and(
-        eq(umblerCampaignMessages.campaignId, campaignId),
-        eq(umblerCampaignMessages.status, "scheduled"),
+        eq(whatsappCampaignMessages.campaignId, campaignId),
+        eq(whatsappCampaignMessages.status, "scheduled"),
       ),
     );
 
@@ -87,17 +88,18 @@ export async function executeCampaign(
       try {
         await startBotSession(campaign.waBotId, phoneE164);
         await db
-          .update(umblerCampaignMessages)
+          .update(whatsappCampaignMessages)
           .set({ status: "sent", sentAt: new Date(), updatedAt: new Date() })
-          .where(eq(umblerCampaignMessages.id, msg.id));
+          .where(eq(whatsappCampaignMessages.id, msg.id));
+        await persistCampaignMessageToConversation(phoneE164, null, "Disparo via bot", msg.id);
         sent++;
         console.log(`[WaCampaign] Bot ✓ ${msg.contactName} (${msg.phoneNumber})`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         await db
-          .update(umblerCampaignMessages)
+          .update(whatsappCampaignMessages)
           .set({ status: "failed", errorMessage, updatedAt: new Date() })
-          .where(eq(umblerCampaignMessages.id, msg.id));
+          .where(eq(whatsappCampaignMessages.id, msg.id));
         failed++;
         console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${msg.phoneNumber}):`, errorMessage);
       }
@@ -130,23 +132,25 @@ export async function executeCampaign(
           template.languageCode,
           components,
         );
+        const waMessageId = result?.messages?.[0]?.id ?? null;
         await db
-          .update(umblerCampaignMessages)
+          .update(whatsappCampaignMessages)
           .set({
             status: "sent",
             sentAt: new Date(),
-            messageId: result?.messages?.[0]?.id ?? null,
+            messageId: waMessageId,
             updatedAt: new Date(),
           })
-          .where(eq(umblerCampaignMessages.id, msg.id));
+          .where(eq(whatsappCampaignMessages.id, msg.id));
+        await persistCampaignMessageToConversation(phoneE164, waMessageId, `Template: ${template.name}`, msg.id);
         sent++;
         console.log(`[WaCampaign] ✓ ${msg.contactName} (${msg.phoneNumber})`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         await db
-          .update(umblerCampaignMessages)
+          .update(whatsappCampaignMessages)
           .set({ status: "failed", errorMessage, updatedAt: new Date() })
-          .where(eq(umblerCampaignMessages.id, msg.id));
+          .where(eq(whatsappCampaignMessages.id, msg.id));
         failed++;
         console.error(`[WaCampaign] ✗ ${msg.contactName} (${msg.phoneNumber}):`, errorMessage);
       }
@@ -156,6 +160,29 @@ export async function executeCampaign(
 
   console.log(`[WaCampaign] Campanha ${campaignId} concluída — enviadas: ${sent}, falhas: ${failed}, puladas: ${skipped}`);
   return { sent, failed, skipped };
+}
+
+async function persistCampaignMessageToConversation(
+  phone: string,
+  waMessageId: string | null,
+  content: string,
+  campaignMessageId: string,
+): Promise<void> {
+  try {
+    const conversation = await findOrCreateConversation(phone);
+    await db.insert(whatsappMessages).values({
+      conversationId: conversation.id,
+      waMessageId: waMessageId ?? undefined,
+      direction: "outbound",
+      type: "text",
+      content,
+      status: "sent",
+      campaignMessageId,
+      sentAt: new Date(),
+    });
+  } catch (err) {
+    console.error("[WaCampaign] Erro ao persistir mensagem na conversa:", err);
+  }
 }
 
 function buildBodyParams(
