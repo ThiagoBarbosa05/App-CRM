@@ -766,7 +766,7 @@ export default function EventParticipantsModal({
         if (p.status !== "cancelado") totalGeral += total;
         const paymentDateStr = p.paymentDate
           ? new Date(p.paymentDate).toLocaleDateString("pt-BR", {
-              timeZone: "America/Sao_Paulo",
+              timeZone: "UTC",
             })
           : "—";
         const presencaText =
@@ -1736,7 +1736,7 @@ export default function EventParticipantsModal({
                         ? new Date(
                             editingParticipant.paymentDate,
                           ).toLocaleDateString("en-CA", {
-                            timeZone: "America/Sao_Paulo",
+                            timeZone: "UTC",
                           })
                         : ""
                     }
