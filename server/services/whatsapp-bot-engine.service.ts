@@ -18,6 +18,7 @@ import {
 } from "@shared/schema";
 import { sendTextMessage, sendTemplateMessage } from "../integrations/whatsapp";
 import { getActiveBots } from "./whatsapp-bot.service";
+import { findOrCreateConversation } from "./whatsapp-conversations.service";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -62,7 +63,7 @@ async function isWithinCustomerWindow(phone: string): Promise<boolean> {
  * lança erro descritivo (a Meta rejeitaria o envio) — o primeiro contato a frio
  * precisa ser feito por template aprovado.
  */
-async function sendFreeText(phone: string, text: string): Promise<void> {
+async function sendFreeText(phone: string, text: string): Promise<string | null> {
   const windowOpen = await isWithinCustomerWindow(phone);
   if (!windowOpen) {
     throw new Error(
@@ -70,7 +71,29 @@ async function sendFreeText(phone: string, text: string): Promise<void> {
         "Configure o primeiro nó do fluxo como um template aprovado.",
     );
   }
-  await sendTextMessage(phone, text);
+  const result = await sendTextMessage(phone, text);
+  return (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+}
+
+async function persistBotMessage(
+  phone: string,
+  content: string,
+  waMessageId: string | null,
+): Promise<void> {
+  try {
+    const conversation = await findOrCreateConversation(phone);
+    await db.insert(whatsappMessages).values({
+      conversationId: conversation.id,
+      waMessageId: waMessageId ?? undefined,
+      direction: "outbound",
+      type: "text",
+      content,
+      status: "sent",
+      sentAt: new Date(),
+    });
+  } catch (err) {
+    console.error("[WaBot] Erro ao persistir mensagem do bot:", err);
+  }
 }
 
 async function getActiveSession(
@@ -155,12 +178,14 @@ async function executeNode(
       const d = data as SendMessageNodeData;
       if (d.messageType === "template") {
         if (d.metaTemplateName) {
-          await sendTemplateMessage(
+          const result = await sendTemplateMessage(
             phone,
             d.metaTemplateName,
             d.metaTemplateLanguage ?? "pt_BR",
             (d.templateParams ?? []) as object[],
           );
+          const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+          await persistBotMessage(phone, `Template: ${d.metaTemplateName}`, waId);
         } else if (d.templateId) {
           const [tpl] = await db
             .select()
@@ -168,11 +193,14 @@ async function executeNode(
             .where(eq(whatsappTemplates.id, d.templateId))
             .limit(1);
           if (tpl) {
-            await sendTemplateMessage(phone, tpl.name, tpl.languageCode, []);
+            const result = await sendTemplateMessage(phone, tpl.name, tpl.languageCode, []);
+            const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+            await persistBotMessage(phone, `Template: ${tpl.name}`, waId);
           }
         }
       } else if (d.text) {
-        await sendFreeText(phone, d.text);
+        const waId = await sendFreeText(phone, d.text);
+        await persistBotMessage(phone, d.text, waId);
       }
       const next = await getNextNode(botId, node.id);
       if (next) await executeNode(next, phone, sessionId, botId);
@@ -182,7 +210,8 @@ async function executeNode(
     case "question": {
       const d = data as QuestionNodeData;
       if (d.messageText) {
-        await sendFreeText(phone, d.messageText);
+        const waId = await sendFreeText(phone, d.messageText);
+        await persistBotMessage(phone, d.messageText, waId);
       }
       await updateSession(sessionId, { currentNodeId: node.id });
       break;

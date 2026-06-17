@@ -110,6 +110,16 @@ export interface WhatsappChannel {
   createdAt: string;
 }
 
+export interface MetaPhoneNumber {
+  id: string;
+  display_phone_number: string;
+  verified_name: string;
+  code_verification_status: "VERIFIED" | "PENDING" | "EXPIRED" | "NOT_VERIFIED";
+  quality_rating: "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+  status: "CONNECTED" | "DISCONNECTED" | "PENDING" | "FLAGGED" | "RESTRICTED";
+  platform_type?: string;
+}
+
 export interface CreateWhatsappChannelPayload {
   name: string;
   phoneNumberId: string;
@@ -491,6 +501,72 @@ export function useDeleteWhatsappChannel() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao remover canal", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useWabaPhoneNumbers(enabled: boolean) {
+  return useQuery<MetaPhoneNumber[]>({
+    queryKey: ["whatsapp", "channels", "from-waba"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/channels/from-waba");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(body.message ?? "Erro ao buscar números da WABA");
+      }
+      return res.json();
+    },
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useChannelStatus(id: number | null) {
+  return useQuery<MetaPhoneNumber>({
+    queryKey: ["whatsapp", "channels", id, "status"],
+    queryFn: async () => {
+      const res = await fetch(`/api/whatsapp/channels/${id}/status`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(body.message ?? "Erro ao buscar status");
+      }
+      return res.json();
+    },
+    enabled: id !== null,
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+export function useRequestVerificationCode() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, codeMethod }: { id: number; codeMethod: "SMS" | "VOICE" }) => {
+      const res = await apiRequest("POST", `/api/whatsapp/channels/${id}/request-code`, { codeMethod });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Código enviado", description: "Verifique seu telefone." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao solicitar código", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useVerifyPhoneNumber() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, code }: { id: number; code: string }) => {
+      const res = await apiRequest("POST", `/api/whatsapp/channels/${id}/verify-code`, { code });
+      return res.json();
+    },
+    onSuccess: (_data, { id }) => {
+      toast({ title: "Número verificado com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels", id, "status"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Código inválido", description: error.message, variant: "destructive" });
     },
   });
 }

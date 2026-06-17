@@ -234,3 +234,70 @@ export async function getApprovedTemplates() {
   if (!response.ok) throw new Error(await response.text());
   return response.json();
 }
+
+// ── Gerenciamento de números ───────────────────────────────────────────────────
+
+export interface MetaPhoneNumber {
+  id: string;
+  display_phone_number: string;
+  verified_name: string;
+  code_verification_status: "VERIFIED" | "PENDING" | "EXPIRED" | "NOT_VERIFIED";
+  quality_rating: "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+  status: "CONNECTED" | "DISCONNECTED" | "PENDING" | "FLAGGED" | "RESTRICTED";
+  platform_type?: string;
+}
+
+const PHONE_FIELDS = "id,display_phone_number,verified_name,code_verification_status,quality_rating,status,platform_type";
+
+export async function listWabaPhoneNumbers(): Promise<MetaPhoneNumber[]> {
+  const cfg = await getConfig();
+  const raw = await getWhatsappSettingsRaw();
+  const wabaId = raw["wa_waba_id"];
+  if (!wabaId) throw new Error("WhatsApp não configurado: wa_waba_id é obrigatório");
+
+  const res = await fetch(
+    `${cfg.baseUrl}/${wabaId}/phone_numbers?fields=${PHONE_FIELDS}&limit=100`,
+    { headers: authHeaders(cfg.accessToken) },
+  );
+  if (!res.ok) throw new Error(await res.text());
+  const json = await res.json() as { data: MetaPhoneNumber[] };
+  return json.data ?? [];
+}
+
+export async function getPhoneNumberDetails(phoneNumberId: string, channel?: ChannelOverride): Promise<MetaPhoneNumber> {
+  const cfg = await getConfig(channel);
+  const res = await fetch(
+    `${cfg.baseUrl}/${phoneNumberId}?fields=${PHONE_FIELDS}`,
+    { headers: authHeaders(cfg.accessToken) },
+  );
+  if (!res.ok) throw new Error(await res.text());
+  return res.json() as Promise<MetaPhoneNumber>;
+}
+
+export async function requestVerificationCode(
+  phoneNumberId: string,
+  codeMethod: "SMS" | "VOICE",
+  channel?: ChannelOverride,
+): Promise<void> {
+  const cfg = await getConfig(channel);
+  const res = await fetch(`${cfg.baseUrl}/${phoneNumberId}/request_code`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify({ code_method: codeMethod, language: "pt_BR" }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
+export async function verifyPhoneNumber(
+  phoneNumberId: string,
+  code: string,
+  channel?: ChannelOverride,
+): Promise<void> {
+  const cfg = await getConfig(channel);
+  const res = await fetch(`${cfg.baseUrl}/${phoneNumberId}/verify_code`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
