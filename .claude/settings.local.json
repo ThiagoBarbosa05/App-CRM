@@ -53,7 +53,8 @@
       "Bash(grep -r \"umblerCampaign\" \"C:\\\\Users\\\\thiag\\\\dev\\\\App-CRM\\\\server\\\\controllers\" \"C:\\\\Users\\\\thiag\\\\dev\\\\App-CRM\\\\server\\\\routes\" -l 2>nul)",
       "Bash(grep -r \"umblerCampaign\" \"C:\\\\Users\\\\thiag\\\\dev\\\\App-CRM\\\\client\\\\src\" -l 2>nul)",
       "WebSearch",
-      "WebFetch(domain:developers.facebook.com)"
+      "WebFetch(domain:developers.facebook.com)",
+      "Bash(ls -la '/mnt/c/Users/thiag/dev/App-CRM/client/src/pages/')"
     ]
   }
 }

@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import { Bot, FileText, MessageCircle, Send, Settings2, ArrowLeft, ChevronDown } from "lucide-react";
+import { Activity, Bot, FileText, MessageCircle, Send, Settings2, ArrowLeft, ChevronDown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -18,6 +18,7 @@ const ALL_TABS = [
   { href: "/whatsapp/bots",          label: "Bots",         icon: Bot,           hideForRoles: ["vendedor"] },
   { href: "/whatsapp/templates",     label: "Templates",    icon: FileText,      hideForRoles: ["vendedor"] },
   { href: "/whatsapp/configuracoes", label: "Configurações",icon: Settings2,     hideForRoles: ["vendedor"] },
+  { href: "/whatsapp/monitor",      label: "Monitor Meta", icon: Activity,      hideForRoles: ["vendedor"] },
 ];
 
 export default function WhatsAppHub({ children }: { children: ReactNode }) {

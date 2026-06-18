@@ -58,7 +58,20 @@ export interface WhatsappTemplate {
   headerParams: unknown;
   bodyParams: unknown;
   isActive: boolean;
+  metaTemplateId?: string | null;
+  metaStatus?: string | null;
+  qualityScore?: string | null;
   createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WhatsappFlow {
+  id: string;
+  metaFlowId: string;
+  name: string;
+  status: "DRAFT" | "PUBLISHED" | "DEPRECATED" | "BLOCKED";
+  categories: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -568,5 +581,73 @@ export function useVerifyPhoneNumber() {
     onError: (error: Error) => {
       toast({ title: "Código inválido", description: error.message, variant: "destructive" });
     },
+  });
+}
+
+// ---- Flows ----
+
+export function useWhatsappFlows() {
+  return useQuery<WhatsappFlow[]>({
+    queryKey: ["whatsapp", "flows"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/flows");
+      if (!res.ok) throw new Error("Erro ao buscar flows");
+      return res.json();
+    },
+  });
+}
+
+// ---- Monitor Meta ----
+
+export interface WaAccountEvent {
+  id: string;
+  field: string;
+  eventType: string;
+  severity: string | null;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface WaMonitorHealth {
+  throughputTier: string | null;
+  templatesWithIssues: number;
+  flowsBlocked: number;
+  lastCriticalEvent: WaAccountEvent | null;
+  totalEvents: number;
+}
+
+export interface WaMonitorEventsResult {
+  events: WaAccountEvent[];
+  total: number;
+}
+
+export function useWaMonitorHealth() {
+  return useQuery<WaMonitorHealth>({
+    queryKey: ["whatsapp", "monitor", "health"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/monitor/health");
+      if (!res.ok) throw new Error("Erro ao buscar dados de saúde");
+      return res.json();
+    },
+    refetchInterval: 60_000,
+  });
+}
+
+export function useWaMonitorEvents(params?: { severity?: string; field?: string; limit?: number; offset?: number }) {
+  return useQuery<WaMonitorEventsResult>({
+    queryKey: ["whatsapp", "monitor", "events", params],
+    queryFn: async () => {
+      const qs = new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(params ?? {})
+            .filter(([, v]) => v !== undefined && v !== "")
+            .map(([k, v]) => [k, String(v)]),
+        ),
+      ).toString();
+      const res = await fetch(`/api/whatsapp/monitor/events${qs ? `?${qs}` : ""}`);
+      if (!res.ok) throw new Error("Erro ao buscar eventos");
+      return res.json();
+    },
+    refetchInterval: 60_000,
   });
 }

@@ -43,6 +43,39 @@ export interface MetaTemplate {
   components: unknown[];
 }
 
+const INACTIVE_META_STATUSES = new Set(["REJECTED", "PAUSED", "DISABLED", "PENDING_DELETION"]);
+
+export async function updateTemplateMetaStatus(
+  templateName: string,
+  metaStatus: string,
+  metaTemplateId?: number,
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    metaStatus,
+    updatedAt: new Date(),
+  };
+  if (metaTemplateId !== undefined) {
+    patch.metaTemplateId = String(metaTemplateId);
+  }
+  if (INACTIVE_META_STATUSES.has(metaStatus)) {
+    patch.isActive = false;
+  }
+  await db
+    .update(whatsappTemplates)
+    .set(patch)
+    .where(eq(whatsappTemplates.name, templateName));
+}
+
+export async function updateTemplateQualityScore(
+  templateName: string,
+  qualityScore: string,
+): Promise<void> {
+  await db
+    .update(whatsappTemplates)
+    .set({ qualityScore, updatedAt: new Date() })
+    .where(eq(whatsappTemplates.name, templateName));
+}
+
 export async function fetchMetaTemplates(): Promise<MetaTemplate[]> {
   const raw = await getWhatsappSettingsRaw();
   const accessToken = raw["wa_access_token"];

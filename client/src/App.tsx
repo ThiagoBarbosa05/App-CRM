@@ -43,6 +43,7 @@ const WhatsAppSettings = lazy(() => import("@/pages/whatsapp/settings"));
 const WhatsAppBotsList = lazy(() => import("@/pages/whatsapp/bots-list"));
 const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
 const WhatsAppConversations = lazy(() => import("@/pages/whatsapp/conversations"));
+const WhatsAppMetaMonitor = lazy(() => import("@/pages/whatsapp/meta-monitor"));
 
 function WhatsAppSection() {
   return (
@@ -56,6 +57,7 @@ function WhatsAppSection() {
           <Route path="/whatsapp/configuracoes" component={WhatsAppSettings} />
           <Route path="/whatsapp/bots" component={WhatsAppBotsList} />
           <Route path="/whatsapp/conversas" component={WhatsAppConversations} />
+          <Route path="/whatsapp/monitor" component={WhatsAppMetaMonitor} />
         </Switch>
       </Suspense>
     </WhatsAppHub>

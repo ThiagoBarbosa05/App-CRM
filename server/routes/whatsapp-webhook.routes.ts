@@ -1,11 +1,17 @@
 import { Router, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { whatsappCampaignMessages, whatsappMessages } from "@shared/schema";
+import { whatsappCampaignMessages, whatsappFlows, whatsappMessages } from "@shared/schema";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
+import { upsertWhatsappSetting } from "../services/whatsapp-settings.service";
 import { handleIncomingMessage as runBotEngine, handleFlowResponse } from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage } from "../services/whatsapp-conversations.service";
 import { getChannelByPhoneNumberId } from "../services/whatsapp-channels.service";
+import { logAccountEvent } from "../services/whatsapp-account-events.service";
+import {
+  updateTemplateMetaStatus,
+  updateTemplateQualityScore,
+} from "../services/whatsapp-templates.service";
 
 const router = Router();
 
@@ -43,25 +49,99 @@ router.post("/webhook", (req: Request, res: Response) => {
   }
 
   for (const entry of body.entry ?? []) {
+    const wabaId = entry.id as string | undefined;
+
     for (const change of entry.changes ?? []) {
+      const field = change.field as string;
       const value = change.value;
 
-      for (const status of value.statuses ?? []) {
-        handleMessageStatus(status).catch((err) =>
-          console.error("[WA Webhook] Erro ao processar status:", err),
-        );
-      }
+      switch (field) {
+        case "messages":
+          for (const status of value.statuses ?? []) {
+            handleMessageStatus(status).catch((err) =>
+              console.error("[WA Webhook] Erro ao processar status:", err),
+            );
+          }
+          for (const message of value.messages ?? []) {
+            handleIncomingMessage(message, value.metadata).catch((err) =>
+              console.error("[WA Webhook] Erro ao processar mensagem:", err),
+            );
+          }
+          break;
 
-      for (const message of value.messages ?? []) {
-        handleIncomingMessage(message, value.metadata).catch((err) =>
-          console.error("[WA Webhook] Erro ao processar mensagem:", err),
-        );
+        // ── Alta prioridade ─────────────────────────────────────────────────────
+        case "message_template_status_update":
+          handleTemplateStatusUpdate(value).catch((err) =>
+            console.error("[WA Webhook] Erro em message_template_status_update:", err),
+          );
+          break;
+
+        case "message_template_quality_update":
+          handleTemplateQualityUpdate(value).catch((err) =>
+            console.error("[WA Webhook] Erro em message_template_quality_update:", err),
+          );
+          break;
+
+        case "account_alerts":
+          handleAccountAlert(value, wabaId).catch((err) =>
+            console.error("[WA Webhook] Erro em account_alerts:", err),
+          );
+          break;
+
+        case "account_update":
+          handleAccountUpdate(value, wabaId).catch((err) =>
+            console.error("[WA Webhook] Erro em account_update:", err),
+          );
+          break;
+
+        // ── Média prioridade ────────────────────────────────────────────────────
+        case "phone_number_quality_update":
+          handlePhoneNumberQualityUpdate(value).catch((err) =>
+            console.error("[WA Webhook] Erro em phone_number_quality_update:", err),
+          );
+          break;
+
+        case "message_template_components_update":
+          handleTemplateComponentsUpdate(value).catch((err) =>
+            console.error("[WA Webhook] Erro em message_template_components_update:", err),
+          );
+          break;
+
+        case "account_review_update":
+          handleAccountReviewUpdate(value, wabaId).catch((err) =>
+            console.error("[WA Webhook] Erro em account_review_update:", err),
+          );
+          break;
+
+        // ── Baixa prioridade ────────────────────────────────────────────────────
+        case "phone_number_name_update":
+          handlePhoneNumberNameUpdate(value, wabaId).catch((err) =>
+            console.error("[WA Webhook] Erro em phone_number_name_update:", err),
+          );
+          break;
+
+        case "account_settings_update":
+          handleAccountSettingsUpdate(value, wabaId).catch((err) =>
+            console.error("[WA Webhook] Erro em account_settings_update:", err),
+          );
+          break;
+
+        case "flows":
+          handleFlowStatusUpdate(value).catch((err) =>
+            console.error("[WA Webhook] Erro em flows:", err),
+          );
+          break;
+
+        default:
+          console.info(`[WA Webhook] Campo não tratado recebido: ${field}`);
       }
     }
   }
 
   res.sendStatus(200);
 });
+
+// ── Handler: messages (status de entrega) ──────────────────────────────────────
 
 async function handleMessageStatus(status: {
   id: string;
@@ -74,12 +154,10 @@ async function handleMessageStatus(status: {
 
   const now = new Date();
 
-  // 1. Mensagem de campanha (umbler_campaign_messages.message_id = waMessageId)
   await updateCampaignMessageStatus(status, now).catch((err) =>
     console.error("[WA Webhook] Erro ao atualizar status de campanha:", err),
   );
 
-  // 2. Mensagem de conversa (whatsapp_messages.wa_message_id = waMessageId)
   await db
     .update(whatsappMessages)
     .set({ status: status.status })
@@ -105,7 +183,6 @@ async function updateCampaignMessageStatus(
 
   if (!msg) return;
 
-  // Estados terminais (failed/cancelled) não são sobrescritos por progresso.
   if (msg.status === "failed" || msg.status === "cancelled") return;
 
   if (status.status === "failed") {
@@ -119,7 +196,6 @@ async function updateCampaignMessageStatus(
     return;
   }
 
-  // Só avança para frente (sent → delivered → read), nunca regride.
   const currentRank = STATUS_RANK[msg.status] ?? 0;
   const nextRank = STATUS_RANK[status.status] ?? 0;
   if (nextRank <= currentRank) return;
@@ -134,6 +210,8 @@ async function updateCampaignMessageStatus(
     })
     .where(eq(whatsappCampaignMessages.id, msg.id));
 }
+
+// ── Handler: messages (mensagens recebidas) ────────────────────────────────────
 
 type IncomingMessage = {
   from: string;
@@ -198,6 +276,170 @@ async function handleIncomingMessage(
       }
     }
   }
+}
+
+// ── Alta prioridade ────────────────────────────────────────────────────────────
+
+async function handleTemplateStatusUpdate(value: {
+  message_template_id?: number;
+  message_template_name?: string;
+  message_template_language?: string;
+  event?: string;
+}) {
+  const name = value.message_template_name;
+  const event = value.event;
+  if (!name || !event) return;
+
+  console.log(`[WA Webhook] Template "${name}" → status: ${event}`);
+  await updateTemplateMetaStatus(name, event, value.message_template_id);
+}
+
+async function handleTemplateQualityUpdate(value: {
+  message_template_id?: number;
+  message_template_name?: string;
+  message_template_language?: string;
+  previous_quality_score?: string;
+  new_quality_score?: string;
+}) {
+  const name = value.message_template_name;
+  const score = value.new_quality_score;
+  if (!name || !score) return;
+
+  console.log(
+    `[WA Webhook] Template "${name}" quality: ${value.previous_quality_score} → ${score}`,
+  );
+  await updateTemplateQualityScore(name, score);
+}
+
+async function handleAccountAlert(value: unknown, wabaId: string | undefined) {
+  const v = value as {
+    entity_type?: string;
+    entity_id?: string;
+    alert_info?: {
+      alert_severity?: string;
+      alert_status?: string;
+      alert_type?: string;
+      alert_description?: string;
+    };
+  };
+
+  const severity = v.alert_info?.alert_severity;
+  const alertType = v.alert_info?.alert_type ?? "UNKNOWN";
+
+  if (severity === "CRITICAL") {
+    console.error(`[WA Webhook] CRITICAL account alert (${alertType}):`, value);
+  } else if (severity === "HIGH") {
+    console.warn(`[WA Webhook] HIGH account alert (${alertType}):`, value);
+  } else {
+    console.info(`[WA Webhook] Account alert (${alertType}):`, value);
+  }
+
+  await logAccountEvent("account_alerts", alertType, { wabaId, ...v }, severity);
+}
+
+async function handleAccountUpdate(value: unknown, wabaId: string | undefined) {
+  const v = value as {
+    phone_number?: string;
+    event?: string;
+    violation_info?: { violation_type?: string };
+  };
+
+  const event = v.event ?? "UNKNOWN";
+
+  if (event === "ACCOUNT_VIOLATION") {
+    console.error(
+      `[WA Webhook] ACCOUNT_VIOLATION detectada — tipo: ${v.violation_info?.violation_type}`,
+      value,
+    );
+  } else {
+    console.info(`[WA Webhook] Account update (${event}):`, value);
+  }
+
+  await logAccountEvent("account_update", event, { wabaId, ...v });
+}
+
+// ── Média prioridade ───────────────────────────────────────────────────────────
+
+async function handlePhoneNumberQualityUpdate(value: {
+  display_phone_number?: string;
+  event?: string;
+  current_limit?: string;
+  max_daily_conversations_per_business?: string;
+}) {
+  const tier = value.max_daily_conversations_per_business ?? value.current_limit;
+  if (!tier) return;
+
+  console.info(
+    `[WA Webhook] Throughput tier atualizado: ${tier} (evento: ${value.event}, número: ${value.display_phone_number})`,
+  );
+  await upsertWhatsappSetting("wa_throughput_tier", tier);
+}
+
+async function handleTemplateComponentsUpdate(value: unknown) {
+  const v = value as {
+    message_template_id?: number;
+    message_template_name?: string;
+    message_template_language?: string;
+  };
+
+  console.warn(
+    `[WA Webhook] Template "${v.message_template_name}" foi modificado pela Meta. Considere re-sincronizar.`,
+  );
+  await logAccountEvent("message_template_components_update", "TEMPLATE_MODIFIED", v);
+}
+
+async function handleAccountReviewUpdate(value: unknown, wabaId: string | undefined) {
+  const v = value as { decision?: string };
+  const decision = v.decision ?? "UNKNOWN";
+
+  console.info(`[WA Webhook] Account review update: ${decision} (WABA: ${wabaId})`);
+  await logAccountEvent("account_review_update", decision, { wabaId, ...v });
+}
+
+// ── Baixa prioridade ───────────────────────────────────────────────────────────
+
+async function handlePhoneNumberNameUpdate(value: unknown, wabaId: string | undefined) {
+  const v = value as {
+    display_phone_number?: string;
+    decision?: string;
+    requested_verified_name?: string;
+    rejection_reason?: string | null;
+  };
+
+  if (v.decision === "REJECTED") {
+    console.warn(
+      `[WA Webhook] Nome de exibição rejeitado — motivo: ${v.rejection_reason ?? "não informado"}`,
+    );
+  } else {
+    console.info(`[WA Webhook] Nome de exibição: ${v.decision} ("${v.requested_verified_name}")`);
+  }
+
+  await logAccountEvent("phone_number_name_update", v.decision ?? "UNKNOWN", { wabaId, ...v });
+}
+
+async function handleAccountSettingsUpdate(value: unknown, wabaId: string | undefined) {
+  console.info("[WA Webhook] Account settings update:", value);
+  await logAccountEvent("account_settings_update", "SETTINGS_CHANGED", { wabaId, ...(value as object) });
+}
+
+async function handleFlowStatusUpdate(value: unknown) {
+  const v = value as { flow_id?: string; event?: string };
+  if (!v.flow_id || !v.event) return;
+
+  console.info(`[WA Webhook] Flow ${v.flow_id} → ${v.event}`);
+
+  const validStatuses = ["DRAFT", "PUBLISHED", "DEPRECATED", "BLOCKED"] as const;
+  const newStatus = v.event as (typeof validStatuses)[number];
+
+  if (!validStatuses.includes(newStatus)) {
+    console.warn(`[WA Webhook] Status de flow desconhecido: ${v.event}`);
+    return;
+  }
+
+  await db
+    .update(whatsappFlows)
+    .set({ status: newStatus, updatedAt: new Date() })
+    .where(eq(whatsappFlows.metaFlowId, v.flow_id));
 }
 
 export default router;

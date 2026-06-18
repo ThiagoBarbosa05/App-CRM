@@ -3241,6 +3241,9 @@ export const whatsappTemplates = pgTable("whatsapp_templates", {
   headerParams: jsonb("header_params"),
   bodyParams: jsonb("body_params"),
   isActive: boolean("is_active").notNull().default(true),
+  metaTemplateId: text("meta_template_id"),
+  metaStatus: text("meta_status"),
+  qualityScore: text("quality_score"),
   createdBy: varchar("created_by")
     .references(() => users.id)
     .notNull(),
@@ -3390,7 +3393,7 @@ export const whatsappFlows = pgTable("whatsapp_flows", {
     .default(sql`gen_random_uuid()`),
   metaFlowId: text("meta_flow_id").notNull().unique(),
   name: text("name").notNull(),
-  status: text("status", { enum: ["DRAFT", "PUBLISHED", "DEPRECATED"] }).notNull().default("DRAFT"),
+  status: text("status", { enum: ["DRAFT", "PUBLISHED", "DEPRECATED", "BLOCKED"] }).notNull().default("DRAFT"),
   categories: jsonb("categories").$type<string[]>().default([]),
   createdBy: varchar("created_by").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -3399,6 +3402,21 @@ export const whatsappFlows = pgTable("whatsapp_flows", {
 
 export type WhatsappFlow = typeof whatsappFlows.$inferSelect;
 export type InsertWhatsappFlow = typeof whatsappFlows.$inferInsert;
+
+// ─── WhatsApp Account Events (log de eventos de conta/template vindos de webhooks) ──
+
+export const whatsappAccountEvents = pgTable("whatsapp_account_events", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  field: text("field").notNull(),
+  eventType: text("event_type").notNull(),
+  severity: text("severity"),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type WhatsappAccountEvent = typeof whatsappAccountEvents.$inferSelect;
 
 export const insertWhatsappBotSchema = createInsertSchema(whatsappBots).omit({
   id: true,
