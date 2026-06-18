@@ -12,6 +12,7 @@ import {
   requestVerificationCode,
   verifyPhoneNumber,
 } from "../integrations/whatsapp";
+import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 
 const router = Router();
 
@@ -97,19 +98,36 @@ router.post("/channels", async (req: Request, res: Response) => {
   const { name, phoneNumberId, accessToken, wabaId, displayPhone, userId, isActive } = req.body as {
     name: string;
     phoneNumberId: string;
-    accessToken: string;
-    wabaId: string;
+    accessToken?: string;
+    wabaId?: string;
     displayPhone?: string;
     userId?: string;
     isActive?: boolean;
   };
 
-  if (!name || !phoneNumberId || !accessToken || !wabaId) {
-    res.status(400).json({ error: "name, phoneNumberId, accessToken e wabaId são obrigatórios" });
+  if (!name || !phoneNumberId) {
+    res.status(400).json({ error: "name e phoneNumberId são obrigatórios" });
     return;
   }
 
-  const channel = await createChannel({ name, phoneNumberId, accessToken, wabaId, displayPhone, userId, isActive });
+  let resolvedToken = accessToken ?? "";
+  let resolvedWabaId = wabaId ?? "";
+
+  if (!resolvedToken || !resolvedWabaId) {
+    const settings = await getWhatsappSettingsRaw();
+    if (!resolvedToken) resolvedToken = settings["wa_access_token"] ?? "";
+    if (!resolvedWabaId) resolvedWabaId = settings["wa_waba_id"] ?? "";
+  }
+
+  const channel = await createChannel({
+    name,
+    phoneNumberId,
+    accessToken: resolvedToken,
+    wabaId: resolvedWabaId,
+    displayPhone,
+    userId,
+    isActive,
+  });
   res.status(201).json(channel);
 });
 
