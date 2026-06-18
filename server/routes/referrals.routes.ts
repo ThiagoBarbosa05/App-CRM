@@ -80,6 +80,7 @@ referralsRouter.post("/benefits/deliver", async (req, res) => {
   try {
     const { referrerId, benefitCatalogId, notes } = req.body;
     const deliveredByUserId = req.user?.userId;
+    console.log("[deliver] req.user:", JSON.stringify(req.user), "deliveredByUserId:", deliveredByUserId);
     if (!referrerId || !benefitCatalogId) {
       return res.status(400).json({ message: "referrerId e benefitCatalogId são obrigatórios" });
     }
