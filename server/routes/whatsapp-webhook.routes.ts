@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { whatsappCampaignMessages, whatsappMessages } from "@shared/schema";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
-import { handleIncomingMessage as runBotEngine } from "../services/whatsapp-bot-engine.service";
+import { handleIncomingMessage as runBotEngine, handleFlowResponse } from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage } from "../services/whatsapp-conversations.service";
 import { getChannelByPhoneNumberId } from "../services/whatsapp-channels.service";
 
@@ -146,6 +146,7 @@ type IncomingMessage = {
   video?: { id: string; mime_type: string; sha256?: string; caption?: string };
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
   sticker?: { id: string; mime_type: string };
+  interactive?: { type: string; nfm_reply?: { response_json: string; name: string; body: string } };
 };
 
 async function handleIncomingMessage(
@@ -184,6 +185,18 @@ async function handleIncomingMessage(
 
   if (message.type === "text" && text) {
     await runBotEngine(message.from, text);
+  }
+
+  if (message.type === "interactive" && message.interactive?.type === "nfm_reply") {
+    const nfmReply = message.interactive.nfm_reply;
+    if (nfmReply?.response_json) {
+      try {
+        const responseJson = JSON.parse(nfmReply.response_json) as Record<string, unknown>;
+        await handleFlowResponse(message.from, responseJson);
+      } catch (err) {
+        console.error("[WA Webhook] Erro ao processar resposta de Flow:", err);
+      }
+    }
   }
 }
 

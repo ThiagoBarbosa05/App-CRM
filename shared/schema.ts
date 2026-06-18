@@ -3212,9 +3212,11 @@ export const whatsappBots = pgTable("whatsapp_bots", {
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   triggerType: text("trigger_type", {
-    enum: ["keyword", "new_conversation"],
+    enum: ["keyword", "new_conversation", "ai_intent"],
   }).notNull(),
   triggerKeyword: text("trigger_keyword"),
+  triggerKeywords: jsonb("trigger_keywords").$type<string[]>().default([]),
+  triggerPrompt: text("trigger_prompt"),
   isActive: boolean("is_active").notNull().default(true),
   createdBy: varchar("created_by")
     .references(() => users.id)
@@ -3229,7 +3231,7 @@ export const whatsappBotNodes = pgTable("whatsapp_bot_nodes", {
     .references(() => whatsappBots.id, { onDelete: "cascade" })
     .notNull(),
   type: text("type", {
-    enum: ["start", "send_message", "question", "condition", "action", "end"],
+    enum: ["start", "send_message", "question", "condition", "action", "flow_form", "end"],
   }).notNull(),
   label: text("label").notNull(),
   positionX: integer("position_x").notNull().default(0),
@@ -3267,6 +3269,7 @@ export const whatsappBotSessions = pgTable(
     })
       .notNull()
       .default("active"),
+    sessionData: jsonb("session_data").$type<Record<string, string>>().default({}).notNull(),
     startedAt: timestamp("started_at").defaultNow().notNull(),
     lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),
@@ -3306,6 +3309,7 @@ export type ConditionBranch = {
 export type ConditionNodeData = {
   branches: ConditionBranch[];
   defaultHandle: string;
+  useAI?: boolean;
 };
 
 export type ActionNodeData = {
@@ -3314,12 +3318,39 @@ export type ActionNodeData = {
   agentId?: string;
 };
 
+export type FlowFormNodeData = {
+  flowId: string;
+  flowName?: string;
+  ctaText: string;
+  bodyText?: string;
+  flowToken?: string;
+};
+
 export type BotNodeData =
   | SendMessageNodeData
   | QuestionNodeData
   | ConditionNodeData
   | ActionNodeData
+  | FlowFormNodeData
   | Record<string, never>;
+
+// ─── WhatsApp Flows (formulários nativos Meta) ────────────────────────────────
+
+export const whatsappFlows = pgTable("whatsapp_flows", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  metaFlowId: text("meta_flow_id").notNull().unique(),
+  name: text("name").notNull(),
+  status: text("status", { enum: ["DRAFT", "PUBLISHED", "DEPRECATED"] }).notNull().default("DRAFT"),
+  categories: jsonb("categories").$type<string[]>().default([]),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type WhatsappFlow = typeof whatsappFlows.$inferSelect;
+export type InsertWhatsappFlow = typeof whatsappFlows.$inferInsert;
 
 export const insertWhatsappBotSchema = createInsertSchema(whatsappBots).omit({
   id: true,
@@ -3776,6 +3807,7 @@ export const whatsappConversations = pgTable("whatsapp_conversations", {
   clientId: varchar("client_id").references(() => clients.id),
   phone: text("phone").notNull(),
   channelId: integer("channel_id").references(() => whatsappChannels.id),
+  assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
   lastMessageAt: timestamp("last_message_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

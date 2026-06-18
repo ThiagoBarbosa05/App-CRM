@@ -63,8 +63,10 @@ export function useCreateBot() {
   return useMutation({
     mutationFn: async (data: {
       name: string;
-      triggerType: "keyword" | "new_conversation";
+      triggerType: "keyword" | "new_conversation" | "ai_intent";
       triggerKeyword?: string;
+      triggerKeywords?: string[];
+      triggerPrompt?: string;
       isActive?: boolean;
     }) => {
       const res = await fetch("/api/whatsapp/bots", {
@@ -94,8 +96,10 @@ export function useUpdateBot() {
       botId: string;
       data: Partial<{
         name: string;
-        triggerType: "keyword" | "new_conversation";
+        triggerType: "keyword" | "new_conversation" | "ai_intent";
         triggerKeyword: string;
+        triggerKeywords: string[];
+        triggerPrompt: string;
         isActive: boolean;
       }>;
     }) => {

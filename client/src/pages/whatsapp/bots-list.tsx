@@ -62,19 +62,26 @@ import type { WhatsappBot } from "@shared/schema";
 const createBotSchema = z
   .object({
     name: z.string().min(1, "Nome é obrigatório"),
-    triggerType: z.enum(["keyword", "new_conversation"]),
+    triggerType: z.enum(["keyword", "new_conversation", "ai_intent"]),
     triggerKeyword: z.string().optional(),
+    triggerPrompt: z.string().optional(),
   })
   .refine(
     (d) =>
       d.triggerType !== "keyword" || (d.triggerKeyword?.trim() ?? "").length > 0,
     { message: "Palavra-chave é obrigatória", path: ["triggerKeyword"] },
+  )
+  .refine(
+    (d) =>
+      d.triggerType !== "ai_intent" || (d.triggerPrompt?.trim() ?? "").length > 0,
+    { message: "Descreva o critério de ativação por IA", path: ["triggerPrompt"] },
   );
 
 type CreateBotForm = z.infer<typeof createBotSchema>;
 
 function triggerLabel(bot: WhatsappBot) {
   if (bot.triggerType === "keyword") return `Palavra: "${bot.triggerKeyword}"`;
+  if (bot.triggerType === "ai_intent") return "Intenção (IA)";
   return "Nova conversa";
 }
 
@@ -282,6 +289,9 @@ export default function WhatsAppBotsList() {
                         <SelectItem value="new_conversation">
                           Nova conversa
                         </SelectItem>
+                        <SelectItem value="ai_intent">
+                          Intenção por IA
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -298,6 +308,27 @@ export default function WhatsAppBotsList() {
                       <FormControl>
                         <Input placeholder="Ex: oi, olá, menu" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              {triggerType === "ai_intent" && (
+                <FormField
+                  control={form.control}
+                  name="triggerPrompt"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Critério de ativação (IA)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ex: cliente quer agendar uma consulta"
+                          {...field}
+                        />
+                      </FormControl>
+                      <p className="text-[11px] text-muted-foreground">
+                        A IA usará esse critério para decidir se a mensagem deve ativar este bot.
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}

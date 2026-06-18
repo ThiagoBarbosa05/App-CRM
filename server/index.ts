@@ -9,6 +9,7 @@ import "./jobs/update-expired-events-scheduler";
 import "./jobs/bling-token-refresh-scheduler";
 import "./jobs/campaign-dispatcher";
 import "./jobs/whatsapp-campaign-dispatcher";
+import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
 import { db } from "./db";
 import { users } from "@shared/schema";
 import bcrypt from "bcrypt";
@@ -125,6 +126,7 @@ app.use((req, res, next) => {
     }
   });
   const server = await registerRoutes(app);
+  startExpireBotSessionsJob();
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

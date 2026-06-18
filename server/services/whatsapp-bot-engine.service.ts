@@ -1,5 +1,5 @@
 import { db } from "server/db";
-import { eq, and, or, desc, sql } from "drizzle-orm";
+import { eq, and, or, desc, sql, lt } from "drizzle-orm";
 import {
   whatsappBots,
   whatsappBotNodes,
@@ -14,13 +14,16 @@ import {
   type QuestionNodeData,
   type ConditionNodeData,
   type ActionNodeData,
+  type FlowFormNodeData,
   type BotNodeData,
 } from "@shared/schema";
-import { sendTextMessage, sendTemplateMessage } from "../integrations/whatsapp";
+import { sendTextMessage, sendTemplateMessage, sendFlowMessage } from "../integrations/whatsapp";
 import { getActiveBots } from "./whatsapp-bot.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
+import { classifyMessageIntent, classifyBotTriggerIntent } from "../ai-helpers";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
+const SESSION_TIMEOUT_MINUTES = 30;
 
 /**
  * Verifica se o contato está dentro da janela de atendimento de 24h da Meta —
@@ -151,6 +154,7 @@ async function updateSession(
     currentNodeId?: string;
     status?: "active" | "completed" | "timed_out";
     completedAt?: Date;
+    sessionData?: Record<string, string>;
   },
 ): Promise<void> {
   await db
@@ -159,18 +163,23 @@ async function updateSession(
     .where(eq(whatsappBotSessions.id, sessionId));
 }
 
+function interpolate(text: string, variables: Record<string, string>): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`);
+}
+
 async function executeNode(
   node: WhatsappBotNode,
   phone: string,
   sessionId: string,
   botId: string,
+  variables: Record<string, string> = {},
 ): Promise<void> {
   const data = node.data as BotNodeData;
 
   switch (node.type) {
     case "start": {
       const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId);
+      if (next) await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 
@@ -199,27 +208,44 @@ async function executeNode(
           }
         }
       } else if (d.text) {
-        const waId = await sendFreeText(phone, d.text);
-        await persistBotMessage(phone, d.text, waId);
+        const text = interpolate(d.text, variables);
+        const waId = await sendFreeText(phone, text);
+        await persistBotMessage(phone, text, waId);
       }
       const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId);
+      if (next) await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 
     case "question": {
       const d = data as QuestionNodeData;
       if (d.messageText) {
-        const waId = await sendFreeText(phone, d.messageText);
-        await persistBotMessage(phone, d.messageText, waId);
+        const text = interpolate(d.messageText, variables);
+        const waId = await sendFreeText(phone, text);
+        await persistBotMessage(phone, text, waId);
       }
-      await updateSession(sessionId, { currentNodeId: node.id });
+      await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       break;
     }
 
     case "condition": {
       const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId);
+      if (next) await executeNode(next, phone, sessionId, botId, variables);
+      break;
+    }
+
+    case "flow_form": {
+      const d = data as FlowFormNodeData;
+      if (d.flowId) {
+        const result = await sendFlowMessage(phone, d.flowId, d.ctaText || "Abrir formulário", {
+          bodyText: d.bodyText,
+          flowToken: d.flowToken,
+        });
+        const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+        await persistBotMessage(phone, `[Formulário: ${d.flowName || d.flowId}]`, waId);
+        // Aguarda a resposta do Flow — o session fica no nó atual
+        await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
+      }
       break;
     }
 
@@ -232,8 +258,15 @@ async function executeNode(
         });
         return;
       }
+      if (d.actionType === "assign_agent" && d.agentId) {
+        const conversation = await findOrCreateConversation(phone);
+        await db
+          .update(whatsappConversations)
+          .set({ assignedAgentId: d.agentId, updatedAt: new Date() })
+          .where(eq(whatsappConversations.id, conversation.id));
+      }
       const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId);
+      if (next) await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 
@@ -253,6 +286,15 @@ async function resolveConditionHandle(
 ): Promise<string> {
   const data = node.data as ConditionNodeData;
   const text = messageText.toLowerCase().trim();
+
+  if (data.useAI && data.branches?.length) {
+    try {
+      const handle = await classifyMessageIntent(messageText, data.branches);
+      if (handle) return handle;
+    } catch (err) {
+      console.error("[WaBot] Erro na classificação por IA, usando keywords:", err);
+    }
+  }
 
   for (const branch of data.branches ?? []) {
     for (const kw of branch.keywords ?? []) {
@@ -288,10 +330,47 @@ export async function startBotSession(botId: string, phone: string): Promise<voi
       phoneNumber: phone,
       currentNodeId: startNode.id,
       status: "active",
+      sessionData: {},
     })
     .returning();
 
-  await executeNode(startNode, phone, newSession.id, botId);
+  await executeNode(startNode, phone, newSession.id, botId, {});
+}
+
+/**
+ * Chamado quando o webhook recebe uma resposta de WhatsApp Flow (nfm_reply).
+ * Mapeia os campos do formulário para variáveis de sessão e avança o fluxo.
+ */
+export async function handleFlowResponse(
+  phone: string,
+  responseJson: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const session = await getActiveSession(phone);
+    if (!session) return;
+
+    const currentNode = await getNode(session.currentNodeId);
+    if (!currentNode || currentNode.type !== "flow_form") return;
+
+    const variables: Record<string, string> = { ...(session.sessionData ?? {}) };
+
+    // Mapear todos os campos da resposta do Flow para variáveis de sessão
+    for (const [key, value] of Object.entries(responseJson)) {
+      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+        variables[key] = String(value);
+      }
+    }
+
+    const next = await getNextNode(session.botId, currentNode.id);
+    if (!next) {
+      await updateSession(session.id, { status: "completed", completedAt: new Date(), sessionData: variables });
+      return;
+    }
+    await updateSession(session.id, { sessionData: variables });
+    await executeNode(next, phone, session.id, session.botId, variables);
+  } catch (err) {
+    console.error("[BotEngine] Erro ao processar resposta de Flow:", err);
+  }
 }
 
 export async function handleIncomingMessage(
@@ -305,21 +384,31 @@ export async function handleIncomingMessage(
       const currentNode = await getNode(session.currentNodeId);
       if (!currentNode) return;
 
+      const variables: Record<string, string> = { ...(session.sessionData ?? {}) };
+
       if (currentNode.type === "question") {
+        const d = currentNode.data as QuestionNodeData;
+        // Capturar variável se configurada
+        if (d.captureVariable) {
+          variables[d.captureVariable] = messageText;
+        }
+
         const next = await getNextNode(session.botId, currentNode.id);
         if (!next) {
           await updateSession(session.id, {
             status: "completed",
             completedAt: new Date(),
+            sessionData: variables,
           });
           return;
         }
-        await executeNode(next, phone, session.id, session.botId);
+        await updateSession(session.id, { sessionData: variables });
+        await executeNode(next, phone, session.id, session.botId, variables);
       } else if (currentNode.type === "condition") {
         const handle = await resolveConditionHandle(currentNode, messageText);
         const next = await getNextNode(session.botId, currentNode.id, handle);
         if (next) {
-          await executeNode(next, phone, session.id, session.botId);
+          await executeNode(next, phone, session.id, session.botId, variables);
         } else {
           await updateSession(session.id, {
             status: "completed",
@@ -333,19 +422,43 @@ export async function handleIncomingMessage(
     // No active session — find a matching bot trigger
     const bots = await getActiveBots();
 
-    // keyword bots first, then new_conversation bots
+    // keyword bots first, then ai_intent, then new_conversation
     const sorted = [
       ...bots.filter((b) => b.triggerType === "keyword"),
+      ...bots.filter((b) => b.triggerType === "ai_intent"),
       ...bots.filter((b) => b.triggerType === "new_conversation"),
     ];
 
     const text = messageText.toLowerCase().trim();
+
     let matchedBot = sorted.find((b) => {
-      if (b.triggerType === "keyword" && b.triggerKeyword) {
-        return text.includes(b.triggerKeyword.toLowerCase().trim());
+      if (b.triggerType === "keyword") {
+        const keywords: string[] = [
+          ...(b.triggerKeywords ?? []),
+          ...(b.triggerKeyword ? [b.triggerKeyword] : []),
+        ];
+        return keywords.some((kw) => kw && text.includes(kw.toLowerCase().trim()));
       }
       return false;
     });
+
+    if (!matchedBot) {
+      const aiIntentBots = sorted.filter((b) => b.triggerType === "ai_intent");
+      if (aiIntentBots.length > 0) {
+        for (const bot of aiIntentBots) {
+          if (!bot.triggerPrompt) continue;
+          try {
+            const matched = await classifyBotTriggerIntent(messageText, bot.triggerPrompt);
+            if (matched) {
+              matchedBot = bot;
+              break;
+            }
+          } catch {
+            // Silently fallback — AI unavailable
+          }
+        }
+      }
+    }
 
     if (!matchedBot) {
       matchedBot = sorted.find((b) => b.triggerType === "new_conversation");
@@ -373,11 +486,31 @@ export async function handleIncomingMessage(
         phoneNumber: phone,
         currentNodeId: startNode.id,
         status: "active",
+        sessionData: {},
       })
       .returning();
 
-    await executeNode(startNode, phone, newSession.id, matchedBot.id);
+    await executeNode(startNode, phone, newSession.id, matchedBot.id, {});
   } catch (err) {
     console.error("[BotEngine] Error handling message:", err);
   }
+}
+
+/**
+ * Marca como timed_out todas as sessões ativas sem atividade por SESSION_TIMEOUT_MINUTES.
+ * Chamado pelo job periódico expire-bot-sessions.
+ */
+export async function expireInactiveSessions(): Promise<number> {
+  const cutoff = new Date(Date.now() - SESSION_TIMEOUT_MINUTES * 60 * 1000);
+  const result = await db
+    .update(whatsappBotSessions)
+    .set({ status: "timed_out", completedAt: new Date() })
+    .where(
+      and(
+        eq(whatsappBotSessions.status, "active"),
+        lt(whatsappBotSessions.lastActivityAt, cutoff),
+      ),
+    )
+    .returning({ id: whatsappBotSessions.id });
+  return result.length;
 }

@@ -28,11 +28,15 @@ import {
   Search,
   Send,
   RotateCcw,
+  LayoutTemplate,
+  Brain,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -51,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useWhatsappBotFlow, useSaveFlow } from "@/hooks/use-whatsapp-bots";
 import { useWhatsappMetaTemplates } from "@/hooks/use-whatsapp";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   parseTemplateVars,
   getParamValue,
@@ -63,6 +68,7 @@ import {
   ConditionNode,
   ActionNode,
   EndNode,
+  FlowFormNode,
 } from "@/components/whatsapp-bot/nodes";
 import type {
   BotNodeData,
@@ -71,6 +77,8 @@ import type {
   ConditionNodeData,
   ConditionBranch,
   ActionNodeData,
+  FlowFormNodeData,
+  WhatsappFlow,
 } from "@shared/schema";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,6 +92,7 @@ const NODE_TYPES = {
   question: QuestionNode,
   condition: ConditionNode,
   action: ActionNode,
+  flow_form: FlowFormNode,
   end: EndNode,
 };
 
@@ -94,10 +103,25 @@ const PALETTE = [
   { type: "question", label: "Pergunta", icon: HelpCircle, color: "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100" },
   { type: "condition", label: "Condição", icon: GitBranch, color: "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100" },
   { type: "action", label: "Ação", icon: Zap, color: "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" },
+  { type: "flow_form", label: "Formulário WA", icon: LayoutTemplate, color: "bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100" },
   { type: "end", label: "Fim", icon: StopCircle, color: "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" },
 ];
 
 // ─── Properties Panel ─────────────────────────────────────────────────────────
+
+function useWhatsappFlows() {
+  return useQuery<WhatsappFlow[]>({
+    queryKey: ["/api/whatsapp/flows"],
+    queryFn: () => fetch("/api/whatsapp/flows").then((r) => r.json()),
+  });
+}
+
+function useSyncFlows() {
+  return useMutation({
+    mutationFn: () =>
+      fetch("/api/whatsapp/flows/sync", { method: "POST" }).then((r) => r.json()),
+  });
+}
 
 function PropertiesPanel({
   node,
@@ -109,6 +133,8 @@ function PropertiesPanel({
   onDelete: (id: string) => void;
 }) {
   const { data: metaTemplates = [], isLoading: loadingMeta } = useWhatsappMetaTemplates();
+  const { data: waFlows = [], refetch: refetchFlows } = useWhatsappFlows();
+  const syncFlowsMutation = useSyncFlows();
   const [templateSearch, setTemplateSearch] = useState("");
 
   if (!node) {
@@ -155,6 +181,11 @@ function PropertiesPanel({
               </SelectContent>
             </Select>
           </div>
+          {(d as SendMessageNodeData).messageType === "text" && (
+            <p className="text-[11px] text-muted-foreground">
+              Use <code className="font-mono">{"{{variavel}}"}</code> para inserir valores capturados em nós de Pergunta.
+            </p>
+          )}
           {(d as SendMessageNodeData).messageType === "template" ? (
             <div className="space-y-3">
               <div className="space-y-1">
@@ -305,6 +336,73 @@ function PropertiesPanel({
         />
       )}
 
+      {node.type === "flow_form" && (
+        <>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">WhatsApp Flow</Label>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={async () => {
+                  await syncFlowsMutation.mutateAsync();
+                  refetchFlows();
+                }}
+                title="Sincronizar flows da Meta"
+              >
+                <RefreshCw className={cn("h-3 w-3", syncFlowsMutation.isPending && "animate-spin")} />
+              </Button>
+            </div>
+            <Select
+              value={(d as FlowFormNodeData).flowId ?? ""}
+              onValueChange={(v) => {
+                const selected = waFlows.find((f) => f.metaFlowId === v);
+                update({ flowId: v, flowName: selected?.name ?? v });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um Flow publicado..." />
+              </SelectTrigger>
+              <SelectContent>
+                {waFlows.filter((f) => f.status === "PUBLISHED").map((f) => (
+                  <SelectItem key={f.metaFlowId} value={f.metaFlowId}>
+                    {f.name}
+                  </SelectItem>
+                ))}
+                {waFlows.filter((f) => f.status === "PUBLISHED").length === 0 && (
+                  <div className="px-2 py-2 text-xs text-muted-foreground">
+                    Nenhum flow publicado. Clique em ↺ para sincronizar.
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Texto do botão CTA</Label>
+            <Input
+              value={(d as FlowFormNodeData).ctaText ?? ""}
+              onChange={(e) => update({ ctaText: e.target.value })}
+              placeholder="Ex: Preencher formulário"
+              maxLength={30}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Corpo da mensagem (opcional)</Label>
+            <Textarea
+              value={(d as FlowFormNodeData).bodyText ?? ""}
+              onChange={(e) => update({ bodyText: e.target.value })}
+              placeholder="Texto exibido acima do botão..."
+              rows={3}
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            As respostas do formulário ficam disponíveis como variáveis{" "}
+            <code className="font-mono">{"{{campo}}"}</code> nos nós seguintes.
+          </p>
+        </>
+      )}
+
       {node.type === "action" && (
         <div className="space-y-1">
           <Label className="text-xs">Tipo de ação</Label>
@@ -331,6 +429,7 @@ function PropertiesPanel({
           Este nó não possui propriedades configuráveis.
         </p>
       )}
+
 
       {node.type !== "start" && (
         <div className="pt-4 mt-2 border-t">
@@ -382,6 +481,19 @@ function ConditionEditor({
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between rounded-md border p-2.5 bg-muted/30">
+        <div className="flex items-center gap-2">
+          <Brain className="h-3.5 w-3.5 text-purple-600" />
+          <div>
+            <p className="text-xs font-medium">Classificação por IA</p>
+            <p className="text-[10px] text-muted-foreground">Usa OpenAI para entender intenção</p>
+          </div>
+        </div>
+        <Switch
+          checked={!!data.useAI}
+          onCheckedChange={(v) => onChange({ useAI: v })}
+        />
+      </div>
       {branches.map((branch, i) => (
         <div
           key={branch.handle}
@@ -454,6 +566,10 @@ function nodePreview(node: FlowNode): string {
   if (node.type === "question") {
     return (node.data as QuestionNodeData).messageText ?? "(pergunta vazia)";
   }
+  if (node.type === "flow_form") {
+    const d = node.data as FlowFormNodeData;
+    return `[Formulário: ${d.flowName || d.flowId || "—"}] ${d.ctaText ? `— "${d.ctaText}"` : ""}`;
+  }
   return "";
 }
 
@@ -518,7 +634,7 @@ function BotSimulator({
         } else if (current.type === "send_message") {
           acc.push({ role: "bot", text: nodePreview(current) });
           current = nextNode(current.id);
-        } else if (current.type === "question") {
+        } else if (current.type === "question" || current.type === "flow_form") {
           acc.push({ role: "bot", text: nodePreview(current) });
           setMessages([...acc]);
           setWaitingNodeId(current.id);
@@ -715,6 +831,7 @@ export default function BotEditor() {
       question: "Pergunta",
       condition: "Condição",
       action: "Ação",
+      flow_form: "Formulário WA",
       end: "Fim",
     };
     const defaultData: Partial<BotNodeData & { label: string }> = {
@@ -726,6 +843,9 @@ export default function BotEditor() {
     }
     if (type === "send_message") {
       (defaultData as Partial<SendMessageNodeData>).messageType = "text";
+    }
+    if (type === "flow_form") {
+      (defaultData as Partial<FlowFormNodeData>).ctaText = "Preencher formulário";
     }
 
     // Posiciona em cascata para não sobrepor nós existentes.

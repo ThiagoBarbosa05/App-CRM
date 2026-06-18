@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle } from "lucide-react";
+import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BotNodeData, SendMessageNodeData, QuestionNodeData, ConditionNodeData, ActionNodeData } from "@shared/schema";
+import type { BotNodeData, SendMessageNodeData, QuestionNodeData, ConditionNodeData, ActionNodeData, FlowFormNodeData } from "@shared/schema";
 
 interface NodeData extends Record<string, unknown> {
   label: string;
@@ -182,6 +182,23 @@ export function EndNode({ data, selected }: NodeProps) {
         title={(data as NodeData).label || "Fim"}
         selected={selected}
       />
+    </>
+  );
+}
+
+export function FlowFormNode({ data, selected }: NodeProps) {
+  const d = data as NodeData & FlowFormNodeData;
+  return (
+    <>
+      <Handle type="target" position={Position.Top} />
+      <NodeCard
+        color="bg-teal-600"
+        icon={LayoutTemplate}
+        title={d.label || "Formulário"}
+        preview={d.flowName || d.flowId || "Selecione um Flow"}
+        selected={selected}
+      />
+      <Handle type="source" position={Position.Bottom} />
     </>
   );
 }

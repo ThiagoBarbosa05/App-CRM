@@ -175,6 +175,42 @@ export async function fetchMediaStream(mediaId: string, channel?: ChannelOverrid
   };
 }
 
+export async function sendFlowMessage(
+  to: string,
+  flowId: string,
+  ctaText: string,
+  options: { bodyText?: string; flowToken?: string } = {},
+  channel?: ChannelOverride,
+) {
+  const cfg = await getConfig(channel);
+  const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizePhone(to),
+      type: "interactive",
+      interactive: {
+        type: "flow",
+        ...(options.bodyText ? { body: { text: options.bodyText } } : {}),
+        action: {
+          name: "flow",
+          parameters: {
+            flow_message_version: "3",
+            flow_id: flowId,
+            flow_cta: ctaText,
+            flow_action: "navigate",
+            ...(options.flowToken ? { flow_token: options.flowToken } : {}),
+          },
+        },
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
 export async function downloadMediaToBuffer(mediaId: string, channel?: ChannelOverride): Promise<{ buffer: Buffer; contentType: string; size: number }> {
   const cfg = await getConfig(channel);
 

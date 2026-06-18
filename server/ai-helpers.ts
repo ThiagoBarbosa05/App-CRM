@@ -1,5 +1,6 @@
 // Funções auxiliares para integração com IA
 import OpenAI from 'openai';
+import type { ConditionBranch } from '@shared/schema';
 
 export interface WineAIProfile {
   corpo: string;
@@ -286,4 +287,71 @@ Retorne APENAS um JSON válido com exatamente estas chaves:
 
   const content = completion.choices[0]?.message?.content ?? '{}';
   return JSON.parse(content) as ClientWineProfile;
+}
+
+/**
+ * Classifica uma mensagem de cliente contra os ramos de um nó Condição.
+ * Retorna o `handle` do ramo correspondente, ou null se nenhum for adequado.
+ */
+export async function classifyMessageIntent(
+  messageText: string,
+  branches: ConditionBranch[],
+): Promise<string | null> {
+  const branchList = branches
+    .map((b, i) => `${i + 1}. handle="${b.handle}" label="${b.label}" keywords=[${b.keywords.join(', ')}]`)
+    .join('\n');
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Você é um classificador de intenção para um chatbot de WhatsApp. ' +
+          'Dada uma mensagem do cliente e uma lista de ramos de condição, ' +
+          'retorne APENAS o valor do handle do ramo mais adequado, ou "none" se nenhum se aplicar. ' +
+          'Responda somente com o handle, sem explicações.',
+      },
+      {
+        role: 'user',
+        content: `Mensagem do cliente: "${messageText}"\n\nRamos disponíveis:\n${branchList}\n\nQual é o handle mais adequado?`,
+      },
+    ],
+    temperature: 0,
+    max_tokens: 50,
+  });
+
+  const answer = completion.choices[0]?.message?.content?.trim() ?? 'none';
+  if (answer === 'none' || !branches.find((b) => b.handle === answer)) return null;
+  return answer;
+}
+
+/**
+ * Verifica se uma mensagem de cliente corresponde à intenção descrita no prompt do trigger.
+ * Retorna true se a mensagem deve ativar o bot.
+ */
+export async function classifyBotTriggerIntent(
+  messageText: string,
+  triggerPrompt: string,
+): Promise<boolean> {
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content:
+          'Você é um classificador binário de intenção para um chatbot de WhatsApp. ' +
+          'Responda apenas com "sim" ou "nao" (sem acento), sem qualquer outra palavra.',
+      },
+      {
+        role: 'user',
+        content: `Mensagem do cliente: "${messageText}"\n\nCritério de ativação: ${triggerPrompt}\n\nA mensagem corresponde ao critério?`,
+      },
+    ],
+    temperature: 0,
+    max_tokens: 5,
+  });
+
+  const answer = completion.choices[0]?.message?.content?.trim().toLowerCase() ?? 'nao';
+  return answer === 'sim';
 }

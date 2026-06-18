@@ -82,6 +82,7 @@ import whatsappWebhookRouter from "./whatsapp-webhook.routes";
 import whatsappBotsRouter from "./whatsapp-bots.routes";
 import whatsappConversationsRouter from "./whatsapp-conversations.routes";
 import whatsappChannelsRouter from "./whatsapp-channels.routes";
+import whatsappFlowsRouter from "./whatsapp-flows.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -169,6 +170,7 @@ apiRouter.use("/whatsapp", whatsappRouter);
 apiRouter.use("/whatsapp", whatsappBotsRouter);
 apiRouter.use("/whatsapp", whatsappConversationsRouter);
 apiRouter.use("/whatsapp", whatsappChannelsRouter);
+apiRouter.use("/whatsapp", whatsappFlowsRouter);
 apiRouter.use("/campaigns", campaignsRouter);
 apiRouter.use("/tasks", tasksRouter);
 apiRouter.use("/task-stages", taskStagesRouter);

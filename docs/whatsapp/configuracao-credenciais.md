@@ -32,6 +32,7 @@ O **Phone Number ID** identifica o número de telefone específico que enviará 
 4. O número exibirá ao lado o **Phone Number ID** (um número de 15–16 dígitos)
 
 Também pode ser encontrado em:
+
 - **Meta Business Suite → WhatsApp Manager → Números de telefone → (ícone de configurações do número)**
 
 ---
@@ -66,10 +67,12 @@ O **WABA ID** é o identificador da sua conta WhatsApp Business. Todos os númer
 **Como encontrar:**
 
 **Opção A — Developer Portal:**
+
 1. Acesse **Meta Developer Portal → seu app → WhatsApp → Configuração da API**
 2. Na seção **"WhatsApp Business Account"**, o ID da conta é exibido logo abaixo do nome da conta
 
 **Opção B — Meta Business Suite:**
+
 1. Acesse [business.facebook.com](https://business.facebook.com)
 2. Clique em **Configurações** (ícone de engrenagem) → **Contas do WhatsApp Business**
 3. Selecione a conta — o **ID da conta** aparece na barra lateral direita
@@ -131,14 +134,14 @@ Os **canais** representam números de telefone individuais dentro da mesma WABA.
 
 ### Campos do canal
 
-| Campo | Descrição |
-|-------|-----------|
-| **Nome do canal** | Nome interno para identificação (ex: `João – Vendas SP`) |
-| **Phone Number ID** | ID do número específico deste canal (ver seção 1) |
-| **Access Token** | Token para este número (pode ser o mesmo da conta ou específico) |
-| **WABA ID** | Mesmo WABA ID da conta principal (ver seção 3) |
-| **Número exibido** | Formato legível para exibição, ex: `+55 11 99999-0001` (opcional) |
-| **Vendedor responsável** | Usuário do CRM que receberá as conversas deste número |
+| Campo                    | Descrição                                                         |
+| ------------------------ | ----------------------------------------------------------------- |
+| **Nome do canal**        | Nome interno para identificação (ex: `João – Vendas SP`)          |
+| **Phone Number ID**      | ID do número específico deste canal (ver seção 1)                 |
+| **Access Token**         | Token para este número (pode ser o mesmo da conta ou específico)  |
+| **WABA ID**              | Mesmo WABA ID da conta principal (ver seção 3)                    |
+| **Número exibido**       | Formato legível para exibição, ex: `+55 11 99999-0001` (opcional) |
+| **Vendedor responsável** | Usuário do CRM que receberá as conversas deste número             |
 
 ### Adicionando múltiplos números
 
@@ -159,11 +162,11 @@ Para verificar: **Developer Portal → seu app → Análise do aplicativo → Pe
 
 ## Resumo rápido
 
-| Campo | Onde encontrar |
-|-------|---------------|
-| Phone Number ID | Developer Portal → WhatsApp → API Setup → seção "De" |
-| Access Token | Developer Portal → API Setup (temporário) ou Business Suite → Usuários do Sistema (permanente) |
-| WABA ID | Developer Portal → WhatsApp → API Setup → "WhatsApp Business Account" |
-| Webhook Verify Token | Você define — deve ser o mesmo configurado no webhook do Developer Portal |
-| Versão da API | Manter `v20.0` (padrão) |
-| Delay | Manter `1000` ms (padrão) |
+| Campo                | Onde encontrar                                                                                 |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| Phone Number ID      | Developer Portal → WhatsApp → API Setup → seção "De"                                           |
+| Access Token         | Developer Portal → API Setup (temporário) ou Business Suite → Usuários do Sistema (permanente) |
+| WABA ID              | Developer Portal → WhatsApp → API Setup → "WhatsApp Business Account"                          |
+| Webhook Verify Token | Você define — deve ser o mesmo configurado no webhook do Developer Portal                      |
+| Versão da API        | Manter `v20.0` (padrão)                                                                        |
+| Delay                | Manter `1000` ms (padrão)                                                                      |

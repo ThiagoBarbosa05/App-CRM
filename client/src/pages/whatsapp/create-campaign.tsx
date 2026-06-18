@@ -400,9 +400,10 @@ function StepClients({
   );
 }
 
-const TRIGGER_LABELS: Record<WhatsappBot["triggerType"], string> = {
+const TRIGGER_LABELS: Record<string, string> = {
   keyword: "Palavra-chave",
   new_conversation: "Nova conversa",
+  ai_intent: "Intenção (IA)",
 };
 
 // Pré-visualização estilo bolha WhatsApp
