@@ -5,7 +5,6 @@ import {
   Gift,
   MessageSquare,
   Plus,
-  Check,
   Clock,
   ShoppingBag,
   Users,
@@ -23,6 +22,13 @@ import { InputMask } from "@/components/ui/input-mask";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatPhone } from "@/lib/utils";
 import { format } from "date-fns";
@@ -52,6 +58,15 @@ interface ReferralStats {
 interface ReferralWithStats {
   referrals: Referral[];
   stats: ReferralStats;
+}
+
+interface CatalogBenefit {
+  id: string;
+  name: string;
+  description: string | null;
+  type: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 interface ClientReferralsTabProps {
@@ -86,9 +101,15 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
   const [phone, setPhone] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deliveryDialogLevel, setDeliveryDialogLevel] = useState<1 | 2 | null>(null);
+  const [selectedBenefitId, setSelectedBenefitId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery<ReferralWithStats>({
     queryKey: [`/api/clients/${clientId}/referrals`],
+  });
+
+  const { data: catalogData } = useQuery<CatalogBenefit[]>({
+    queryKey: ["/api/referrals/benefits/catalog"],
   });
 
   const addMutation = useMutation({
@@ -142,26 +163,36 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
     },
   });
 
-  const deliverBenefitMutation = useMutation({
-    mutationFn: async (level: 1 | 2) => {
-      const res = await fetch(
-        `/api/clients/${clientId}/referrals/benefits/${level}/deliver`,
-        { method: "POST", credentials: "include" },
-      );
+  const deliverFromCatalogMutation = useMutation({
+    mutationFn: async ({ benefitCatalogId }: { benefitCatalogId: string }) => {
+      const res = await fetch("/api/referrals/benefits/deliver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ referrerId: clientId, benefitCatalogId }),
+      });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.message ?? "Erro ao marcar benefício");
+        throw new Error(err.message ?? "Erro ao entregar benefício");
       }
     },
-    onSuccess: (_data, level) => {
+    onSuccess: (_data, { benefitCatalogId }) => {
       queryClient.invalidateQueries({
         queryKey: [`/api/clients/${clientId}/referrals`],
       });
-      toast({ title: `Benefício ${level} marcado como entregue` });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/referrals/benefits/deliveries"],
+      });
+      const benefitName =
+        catalogData?.find((b) => b.id === benefitCatalogId)?.name ??
+        "Benefício";
+      toast({ title: `${benefitName} entregue com sucesso!` });
+      setDeliveryDialogLevel(null);
+      setSelectedBenefitId(null);
     },
     onError: (err: Error) => {
       toast({
-        title: "Erro",
+        title: "Erro ao entregar benefício",
         description: err.message,
         variant: "destructive",
       });
@@ -288,11 +319,13 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                   size="sm"
                   variant="outline"
                   className="h-6 text-[10px] gap-1 px-2 border-primary/30 text-primary hover:bg-accent"
-                  disabled={deliverBenefitMutation.isPending}
-                  onClick={() => deliverBenefitMutation.mutate(1)}
+                  onClick={() => {
+                    setDeliveryDialogLevel(1);
+                    setSelectedBenefitId(null);
+                  }}
                 >
                   <PackageCheck className="h-3 w-3" />
-                  Marcar entregue
+                  Entregar benefício
                 </Button>
               ) : null}
             </div>
@@ -373,11 +406,13 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
                   size="sm"
                   variant="outline"
                   className="h-6 text-[10px] gap-1 px-2 border-amber-300 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-                  disabled={deliverBenefitMutation.isPending}
-                  onClick={() => deliverBenefitMutation.mutate(2)}
+                  onClick={() => {
+                    setDeliveryDialogLevel(2);
+                    setSelectedBenefitId(null);
+                  }}
                 >
                   <PackageCheck className="h-3 w-3" />
-                  Marcar entregue
+                  Entregar benefício
                 </Button>
               ) : null}
             </div>
@@ -617,6 +652,117 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
           </div>
         )}
       </div>
+
+      {/* ── Dialog de Seleção de Benefício ── */}
+      <Dialog
+        open={deliveryDialogLevel !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeliveryDialogLevel(null);
+            setSelectedBenefitId(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="h-4 w-4 text-primary" />
+              Entregar Benefício{" "}
+              {deliveryDialogLevel === 1 ? "1 (B1)" : "2 (B2)"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Selecione qual benefício será entregue ao cliente:
+            </p>
+            {(() => {
+              const typeKey = deliveryDialogLevel === 1 ? "B1" : "B2";
+              const options =
+                catalogData?.filter(
+                  (b) => b.type === typeKey && b.isActive,
+                ) ?? [];
+
+              if (!catalogData) {
+                return (
+                  <div className="text-center py-6 text-slate-400 text-sm">
+                    Carregando benefícios...
+                  </div>
+                );
+              }
+
+              if (options.length === 0) {
+                return (
+                  <div className="text-center py-6 space-y-1">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Nenhum benefício {typeKey} cadastrado no catálogo.
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
+                      Peça ao administrador para configurar na aba Benefícios.
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-2">
+                  {options.map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => setSelectedBenefitId(b.id)}
+                      className={cn(
+                        "w-full text-left p-3 rounded-xl border transition-all",
+                        selectedBenefitId === b.id
+                          ? "border-primary bg-accent"
+                          : "border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-800",
+                      )}
+                    >
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        {b.name}
+                      </p>
+                      {b.description && (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                          {b.description}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDeliveryDialogLevel(null);
+                setSelectedBenefitId(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={
+                !selectedBenefitId || deliverFromCatalogMutation.isPending
+              }
+              onClick={() =>
+                selectedBenefitId &&
+                deliverFromCatalogMutation.mutate({
+                  benefitCatalogId: selectedBenefitId,
+                })
+              }
+            >
+              <PackageCheck className="h-3.5 w-3.5 mr-1.5" />
+              {deliverFromCatalogMutation.isPending
+                ? "Entregando..."
+                : "Confirmar entrega"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

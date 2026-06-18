@@ -1,8 +1,18 @@
 import { db } from "../db";
-import { referrals, clients, users } from "../../shared/schema";
+import {
+  referrals,
+  clients,
+  users,
+  referralBenefitCatalog,
+  referralBenefitDeliveries,
+} from "../../shared/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import type { Referral } from "../../shared/schema";
+import type {
+  Referral,
+  ReferralBenefitCatalog,
+  InsertReferralBenefitCatalog,
+} from "../../shared/schema";
 
 export interface ReferralStats {
   totalReferred: number;
@@ -283,5 +293,135 @@ export const referralsService = {
       .limit(1);
 
     return referrer ?? null;
+  },
+
+  // ─── Catálogo de Benefícios ───────────────────────────────────────────────
+
+  async getBenefitCatalog(
+    includeInactive = false,
+  ): Promise<ReferralBenefitCatalog[]> {
+    const results = await db
+      .select()
+      .from(referralBenefitCatalog)
+      .where(
+        includeInactive ? undefined : eq(referralBenefitCatalog.isActive, true),
+      )
+      .orderBy(referralBenefitCatalog.type, referralBenefitCatalog.name);
+    return results;
+  },
+
+  async createBenefit(
+    data: InsertReferralBenefitCatalog,
+  ): Promise<ReferralBenefitCatalog> {
+    const [created] = await db
+      .insert(referralBenefitCatalog)
+      .values(data)
+      .returning();
+    return created;
+  },
+
+  async updateBenefit(
+    id: string,
+    data: Partial<InsertReferralBenefitCatalog>,
+  ): Promise<ReferralBenefitCatalog | null> {
+    const [updated] = await db
+      .update(referralBenefitCatalog)
+      .set(data)
+      .where(eq(referralBenefitCatalog.id, id))
+      .returning();
+    return updated ?? null;
+  },
+
+  async deleteBenefit(id: string): Promise<void> {
+    await db
+      .delete(referralBenefitCatalog)
+      .where(eq(referralBenefitCatalog.id, id));
+  },
+
+  // ─── Entrega de Benefícios ─────────────────────────────────────────────────
+
+  async deliverBenefitFromCatalog(
+    referrerId: string,
+    benefitCatalogId: string,
+    deliveredByUserId: string,
+    notes?: string,
+  ): Promise<void> {
+    const [benefit] = await db
+      .select({ type: referralBenefitCatalog.type })
+      .from(referralBenefitCatalog)
+      .where(eq(referralBenefitCatalog.id, benefitCatalogId))
+      .limit(1);
+
+    if (!benefit) throw new Error("Benefício não encontrado no catálogo");
+
+    await db.insert(referralBenefitDeliveries).values({
+      referrerId,
+      benefitCatalogId,
+      deliveredByUserId,
+      notes: notes ?? null,
+    });
+
+    const field =
+      benefit.type === "B1"
+        ? { referralBenefit1At: new Date() }
+        : { referralBenefit2At: new Date() };
+    await db.update(clients).set(field).where(eq(clients.id, referrerId));
+  },
+
+  async getDeliveries(
+    userId?: string,
+    userRole?: string,
+  ): Promise<
+    Array<{
+      id: string;
+      referrerId: string;
+      referrerName: string;
+      benefitCatalogId: string;
+      benefitName: string;
+      benefitType: string;
+      benefitDescription: string | null;
+      deliveredByUserId: string;
+      deliveredByName: string;
+      deliveredAt: Date;
+      notes: string | null;
+    }>
+  > {
+    const deliverer = alias(users, "deliverer");
+    const isVendedor = userRole === "vendedor" && !!userId;
+
+    const rows = await db
+      .select({
+        id: referralBenefitDeliveries.id,
+        referrerId: referralBenefitDeliveries.referrerId,
+        referrerName: clients.name,
+        benefitCatalogId: referralBenefitDeliveries.benefitCatalogId,
+        benefitName: referralBenefitCatalog.name,
+        benefitType: referralBenefitCatalog.type,
+        benefitDescription: referralBenefitCatalog.description,
+        deliveredByUserId: referralBenefitDeliveries.deliveredByUserId,
+        deliveredByName: deliverer.name,
+        deliveredAt: referralBenefitDeliveries.deliveredAt,
+        notes: referralBenefitDeliveries.notes,
+      })
+      .from(referralBenefitDeliveries)
+      .innerJoin(
+        clients,
+        eq(referralBenefitDeliveries.referrerId, clients.id),
+      )
+      .innerJoin(
+        referralBenefitCatalog,
+        eq(
+          referralBenefitDeliveries.benefitCatalogId,
+          referralBenefitCatalog.id,
+        ),
+      )
+      .innerJoin(
+        deliverer,
+        eq(referralBenefitDeliveries.deliveredByUserId, deliverer.id),
+      )
+      .where(isVendedor ? eq(clients.responsavelId, userId) : undefined)
+      .orderBy(desc(referralBenefitDeliveries.deliveredAt));
+
+    return rows;
   },
 };
