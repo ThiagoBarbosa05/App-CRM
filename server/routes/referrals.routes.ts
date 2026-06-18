@@ -79,14 +79,17 @@ referralsRouter.delete("/benefits/catalog/:id", async (req, res) => {
 referralsRouter.post("/benefits/deliver", async (req, res) => {
   try {
     const { referrerId, benefitCatalogId, notes } = req.body;
-    const user = (req as any).user;
+    const deliveredByUserId = req.user?.userId;
     if (!referrerId || !benefitCatalogId) {
       return res.status(400).json({ message: "referrerId e benefitCatalogId são obrigatórios" });
+    }
+    if (!deliveredByUserId) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
     }
     await referralsService.deliverBenefitFromCatalog(
       referrerId,
       benefitCatalogId,
-      user?.id ?? "",
+      deliveredByUserId,
       notes,
     );
     return res.json({ message: "Benefício entregue com sucesso" });
@@ -98,8 +101,8 @@ referralsRouter.post("/benefits/deliver", async (req, res) => {
 
 referralsRouter.get("/benefits/deliveries", async (req, res) => {
   try {
-    const user = (req as any).user;
-    const deliveries = await referralsService.getDeliveries(user?.id, user?.role);
+    const user = req.user;
+    const deliveries = await referralsService.getDeliveries(user?.userId, user?.role);
     return res.json(deliveries);
   } catch (error) {
     console.error("Erro ao buscar entregas:", error);
