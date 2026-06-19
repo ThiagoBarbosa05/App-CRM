@@ -160,6 +160,7 @@ router.post("/conversations/start", async (req, res) => {
 
 const sendMessageSchema = z.object({
   message: z.string().min(1),
+  channelId: z.number().int().positive().optional(),
 });
 
 router.post("/conversations/:clientId/messages", async (req, res) => {
@@ -180,6 +181,7 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
       parsed.data.message,
       user.userId,
       user.role,
+      parsed.data.channelId,
     );
 
     if (result === null) {

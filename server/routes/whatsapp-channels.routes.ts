@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
 import {
   listChannels,
+  listActiveChannels,
+  listChannelsByUserId,
   getChannelById,
   createChannel,
   updateChannel,
@@ -21,7 +23,23 @@ router.get("/channels", async (_req: Request, res: Response) => {
   res.json(channels);
 });
 
-// Deve ficar antes de /channels/:id para não ser capturado como id="from-waba"
+// Deve ficar antes de /channels/:id para não ser capturado como id
+router.get("/channels/mine", async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    if (user.role === "vendedor") {
+      const channels = await listChannelsByUserId(user.userId);
+      return res.json(channels);
+    }
+    res.json(await listActiveChannels());
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao buscar canais";
+    res.status(500).json({ message });
+  }
+});
+
 router.get("/channels/from-waba", async (_req: Request, res: Response) => {
   try {
     const numbers = await listWabaPhoneNumbers();

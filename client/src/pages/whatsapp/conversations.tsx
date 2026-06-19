@@ -14,6 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -35,6 +42,12 @@ import {
   Loader2,
 } from "lucide-react";
 
+interface Channel {
+  id: number;
+  name: string;
+  displayPhone: string | null;
+}
+
 interface ChatClient {
   conversationId: string;
   clientId: string | null;
@@ -44,6 +57,9 @@ interface ChatClient {
   lastMessageContent?: string | null;
   lastMessageDirection?: "inbound" | "outbound" | null;
   unreadCount?: number | null;
+  channelId?: number | null;
+  channelName?: string | null;
+  channelDisplayPhone?: string | null;
 }
 
 interface WaMedia {
@@ -384,14 +400,21 @@ function ConversationMessages({
   clientId,
   onBack,
   client,
+  channels,
+  userRole,
 }: {
   clientId: string;
   onBack: () => void;
   client: ChatClient;
+  channels: Channel[];
+  userRole: string;
 }) {
   const [message, setMessage] = useState("");
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+  const [selectedChannelId, setSelectedChannelId] = useState<number | undefined>(
+    client.channelId ?? undefined,
+  );
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -431,12 +454,16 @@ function ConversationMessages({
     return () => es.close();
   }, [clientId, queryClient]);
 
-  const attemptSend = useCallback(async (text: string, localId: string) => {
+  const attemptSend = useCallback(async (text: string, localId: string, channelId?: number) => {
     try {
+      const body: { message: string; channelId?: number } = { message: text };
+      if ((userRole === "admin" || userRole === "gerente") && channelId != null) {
+        body.channelId = channelId;
+      }
       const res = await fetch(`/api/whatsapp/conversations/${clientId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error();
     } catch (err) {
@@ -450,7 +477,7 @@ function ConversationMessages({
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     }
-  }, [clientId, queryClient, toast]);
+  }, [clientId, queryClient, toast, userRole]);
 
   const handleRetry = useCallback(async (messageId: string) => {
     setRetryingIds((prev) => { const s = new Set(prev); s.add(messageId); return s; });
@@ -479,7 +506,7 @@ function ConversationMessages({
     ]);
     setMessage("");
     textareaRef.current?.focus();
-    attemptSend(text, localId);
+    attemptSend(text, localId, selectedChannelId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -528,6 +555,7 @@ function ConversationMessages({
             </p>
           )}
         </div>
+
       </div>
 
       {/* Messages area */}
@@ -564,12 +592,19 @@ function ConversationMessages({
                   <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1" />
                 </div>
 
-                {msgs.map((msg) => {
+                {msgs.map((msg, msgIndex) => {
                   const isOutbound = msg.direction === "outbound";
                   const isFailed = isOutbound && msg.status === "failed";
                   const isRetrying = retryingIds.has(msg.id);
                   const isMedia = msg.type === "image" || msg.type === "video" || msg.type === "sticker";
                   const time = format(new Date(msg.sentAt ?? msg.createdAt), "HH:mm");
+                  const channelLabel = (client.channelName ?? client.channelDisplayPhone ?? "")
+                    .split(" ")[0].slice(0, 5).toUpperCase();
+                  const showChannelBadge =
+                    isOutbound &&
+                    !isFailed &&
+                    channelLabel.length > 0 &&
+                    (msgIndex === 0 || msgs[msgIndex - 1].direction !== "outbound");
                   return (
                     <div
                       key={msg.id}
@@ -578,6 +613,28 @@ function ConversationMessages({
                         isOutbound ? "justify-end" : "justify-start",
                       )}
                     >
+                      {/* Badge do canal — primeiro outbound de cada sequência */}
+                      {showChannelBadge && (
+                        <div className="shrink-0 flex flex-col items-center gap-1 self-end">
+                          <div
+                            title={`Canal: ${client.channelName ?? client.channelDisplayPhone}`}
+                            className="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center shadow-sm"
+                          >
+                            <span className="text-[11px] font-bold text-white uppercase leading-none text-center">
+                              {(client.channelName ?? client.channelDisplayPhone ?? "")
+                                .split(" ")
+                                .slice(0, 2)
+                                .map((w) => w[0])
+                                .join("")
+                                .toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="text-[9px] font-semibold text-green-600 dark:text-green-500 text-center leading-tight w-14 break-words">
+                            {client.channelName ?? client.channelDisplayPhone}
+                          </span>
+                        </div>
+                      )}
+
                       {/* Botão de reenvio à esquerda da bolha (só para falhas) */}
                       {isFailed && (
                         <button
@@ -669,6 +726,28 @@ function ConversationMessages({
 
       {/* Input */}
       <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+        {(userRole === "admin" || userRole === "gerente") && channels.length > 0 && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
+              Canal:
+            </span>
+            <Select
+              value={selectedChannelId != null ? String(selectedChannelId) : ""}
+              onValueChange={(v) => setSelectedChannelId(v ? Number(v) : undefined)}
+            >
+              <SelectTrigger className="h-7 text-xs flex-1 min-w-0">
+                <SelectValue placeholder="Selecionar canal…" />
+              </SelectTrigger>
+              <SelectContent>
+                {channels.map((ch) => (
+                  <SelectItem key={ch.id} value={String(ch.id)}>
+                    {ch.name}{ch.displayPhone ? ` · ${ch.displayPhone}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <Textarea
             ref={textareaRef}
@@ -827,6 +906,18 @@ export default function WhatsAppConversationsPage() {
   const debouncedSearch = useDebounce(search, 300);
   const queryClient = useQueryClient();
 
+  const isAdminOrGerente = user?.role === "admin" || user?.role === "gerente";
+
+  const { data: availableChannels = [] } = useQuery<Channel[]>({
+    queryKey: ["/api/whatsapp/channels/mine"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/channels/mine");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isAdminOrGerente,
+  });
+
   const { data: clientList = [], isLoading: isLoadingClients } = useQuery<ChatClient[]>({
     queryKey: ["/api/whatsapp/conversations-list", debouncedSearch, user?.id],
     queryFn: async () => {
@@ -965,6 +1056,8 @@ export default function WhatsAppConversationsPage() {
             clientId={selectedClient.clientId!}
             client={selectedClient}
             onBack={handleBack}
+            channels={availableChannels}
+            userRole={user?.role ?? "vendedor"}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">

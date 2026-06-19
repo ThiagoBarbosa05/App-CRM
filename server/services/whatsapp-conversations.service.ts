@@ -1,6 +1,7 @@
 import { db } from "../db";
 import {
   clients,
+  whatsappChannels,
   whatsappConversations,
   whatsappMessages,
   whatsappMedia,
@@ -10,7 +11,7 @@ import { eq, and, ilike, or, desc, sql, asc } from "drizzle-orm";
 import { sendTextMessage, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { uploadWhatsappMedia } from "../lib/r2";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { getChannelForConversation } from "./whatsapp-channels.service";
+import { getChannelByUserId, getChannelById, getChannelForConversation } from "./whatsapp-channels.service";
 
 function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
@@ -142,9 +143,13 @@ export async function listClientsForChat(
       lastMessageContent: lastMsgSub.lastContent,
       lastMessageDirection: lastMsgSub.lastDirection,
       unreadCount: sql<number>`coalesce(${unreadSub.unreadCount}, 0)`,
+      channelId: whatsappConversations.channelId,
+      channelName: whatsappChannels.name,
+      channelDisplayPhone: whatsappChannels.displayPhone,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .leftJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
     .leftJoin(lastMsgSub, eq(whatsappConversations.id, lastMsgSub.conversationId))
     .leftJoin(unreadSub, eq(whatsappConversations.id, unreadSub.conversationId))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -217,6 +222,7 @@ export async function sendConversationMessage(
   message: string,
   userId: string,
   userRole: string,
+  channelId?: number,
 ) {
   const whereConditions: ReturnType<typeof eq>[] = [
     eq(whatsappConversations.id, conversationId),
@@ -262,7 +268,22 @@ export async function sendConversationMessage(
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
 
-  const channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+  let channelOverride = null;
+  if (userRole === "vendedor") {
+    channelOverride = await getChannelByUserId(userId).catch(() => null)
+      ?? await getChannelForConversation(conversationId).catch(() => null);
+  } else if (channelId != null) {
+    const ch = await getChannelById(channelId).catch(() => null);
+    if (ch) {
+      channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+      await db
+        .update(whatsappConversations)
+        .set({ channelId })
+        .where(eq(whatsappConversations.id, conversationId));
+    }
+  } else {
+    channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+  }
 
   try {
     const result = await sendTextMessage(conv.phone, message, channelOverride ?? undefined);

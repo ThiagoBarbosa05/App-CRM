@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { whatsappChannels, whatsappConversations } from "../../shared/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
 
@@ -74,4 +74,29 @@ export async function updateChannel(
 
 export async function deleteChannel(id: number) {
   await db.delete(whatsappChannels).where(eq(whatsappChannels.id, id));
+}
+
+export async function getChannelByUserId(userId: string): Promise<ChannelOverride | null> {
+  const [row] = await db
+    .select({ phoneNumberId: whatsappChannels.phoneNumberId, accessToken: whatsappChannels.accessToken })
+    .from(whatsappChannels)
+    .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true)))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function listChannelsByUserId(userId: string): Promise<{ id: number; name: string; displayPhone: string | null }[]> {
+  return db
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone })
+    .from(whatsappChannels)
+    .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true)))
+    .orderBy(whatsappChannels.createdAt);
+}
+
+export async function listActiveChannels(): Promise<{ id: number; name: string; displayPhone: string | null }[]> {
+  return db
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone })
+    .from(whatsappChannels)
+    .where(eq(whatsappChannels.isActive, true))
+    .orderBy(whatsappChannels.createdAt);
 }
