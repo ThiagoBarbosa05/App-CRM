@@ -8,6 +8,7 @@ import {
   whatsappTemplates,
   whatsappConversations,
   whatsappMessages,
+  whatsappMedia,
   type WhatsappBotNode,
   type WhatsappBotSession,
   type SendMessageNodeData,
@@ -17,7 +18,10 @@ import {
   type FlowFormNodeData,
   type BotNodeData,
 } from "@shared/schema";
-import { sendTextMessage, sendTemplateMessage, sendFlowMessage } from "../integrations/whatsapp";
+import { publishConversationEvent } from "../lib/sse-hub";
+import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage } from "../integrations/whatsapp";
+import { r2 } from "../lib/r2";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getActiveBots } from "./whatsapp-bot.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
 import { classifyMessageIntent, classifyBotTriggerIntent } from "../ai-helpers";
@@ -78,22 +82,55 @@ async function sendFreeText(phone: string, text: string): Promise<string | null>
   return (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
 }
 
+interface PersistBotMessageOptions {
+  waMessageId: string | null;
+  type?: "text" | "image" | "document";
+  content?: string | null;
+  caption?: string | null;
+  media?: {
+    storageKey: string;
+    waMediaId?: string | null;
+    mimeType?: string;
+    filename?: string;
+  };
+}
+
 async function persistBotMessage(
   phone: string,
-  content: string,
-  waMessageId: string | null,
+  options: PersistBotMessageOptions,
 ): Promise<void> {
   try {
     const conversation = await findOrCreateConversation(phone);
-    await db.insert(whatsappMessages).values({
+    const msgType = options.type ?? "text";
+    const [saved] = await db.insert(whatsappMessages).values({
       conversationId: conversation.id,
-      waMessageId: waMessageId ?? undefined,
+      waMessageId: options.waMessageId ?? undefined,
       direction: "outbound",
-      type: "text",
-      content,
+      type: msgType,
+      content: msgType === "text" ? (options.content ?? null) : null,
+      caption: msgType !== "text" ? (options.caption ?? null) : null,
       status: "sent",
       sentAt: new Date(),
-    });
+    }).returning({ id: whatsappMessages.id });
+
+    if (options.media) {
+      await db.insert(whatsappMedia).values({
+        messageId: saved.id,
+        whatsappMediaId: options.media.waMediaId ?? null,
+        storageKey: options.media.storageKey,
+        mimeType: options.media.mimeType ?? null,
+        filename: options.media.filename ?? null,
+      });
+    }
+
+    await db
+      .update(whatsappConversations)
+      .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+      .where(eq(whatsappConversations.id, conversation.id));
+
+    if (conversation.clientId) {
+      publishConversationEvent(conversation.clientId, "new_message", { clientId: conversation.clientId });
+    }
   } catch (err) {
     console.error("[WaBot] Erro ao persistir mensagem do bot:", err);
   }
@@ -186,31 +223,87 @@ async function executeNode(
     case "send_message": {
       const d = data as SendMessageNodeData;
       if (d.messageType === "template") {
-        if (d.metaTemplateName) {
-          const result = await sendTemplateMessage(
-            phone,
-            d.metaTemplateName,
-            d.metaTemplateLanguage ?? "pt_BR",
-            (d.templateParams ?? []) as object[],
-          );
-          const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
-          await persistBotMessage(phone, `Template: ${d.metaTemplateName}`, waId);
-        } else if (d.templateId) {
-          const [tpl] = await db
-            .select()
-            .from(whatsappTemplates)
-            .where(eq(whatsappTemplates.id, d.templateId))
-            .limit(1);
-          if (tpl) {
-            const result = await sendTemplateMessage(phone, tpl.name, tpl.languageCode, []);
+        try {
+          if (d.metaTemplateName) {
+            const interpolatedParams = (d.templateParams ?? []).map((component) => ({
+              ...component,
+              parameters: component.parameters.map((param) => ({
+                ...param,
+                text: interpolate(param.text, variables),
+              })),
+            }));
+            const result = await sendTemplateMessage(
+              phone,
+              d.metaTemplateName,
+              d.metaTemplateLanguage ?? "pt_BR",
+              interpolatedParams,
+            );
             const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
-            await persistBotMessage(phone, `Template: ${tpl.name}`, waId);
+            await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `Template: ${d.metaTemplateName}` });
+          } else if (d.templateId) {
+            const [tpl] = await db
+              .select()
+              .from(whatsappTemplates)
+              .where(eq(whatsappTemplates.id, d.templateId))
+              .limit(1);
+            if (tpl) {
+              const bodyParams = Array.isArray(tpl.bodyParams) ? tpl.bodyParams as string[] : [];
+              const components = bodyParams.length > 0
+                ? [{
+                    type: "body",
+                    parameters: bodyParams.map((p) => ({ type: "text", text: interpolate(p, variables) })),
+                  }]
+                : [];
+              const result = await sendTemplateMessage(phone, tpl.name, tpl.languageCode, components);
+              const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+              await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `Template: ${tpl.name}` });
+            }
           }
+        } catch (err) {
+          const templateName = d.metaTemplateName ?? d.templateId ?? "desconhecido";
+          console.error(`[BotEngine] Falha ao enviar template "${templateName}" para ${phone}:`, err);
+          throw new Error(`Falha ao enviar template "${templateName}": verifique se os parâmetros do nó estão configurados corretamente no editor do bot.`);
         }
-      } else if (d.text) {
-        const text = interpolate(d.text, variables);
-        const waId = await sendFreeText(phone, text);
-        await persistBotMessage(phone, text, waId);
+      } else {
+        const text = d.text ? interpolate(d.text, variables) : undefined;
+        if (d.attachment?.storageKey) {
+          const windowOpen = await isWithinCustomerWindow(phone);
+          if (!windowOpen) {
+            throw new Error(
+              "Janela de 24h fechada: a Meta não permite enviar mídia para este contato sem template.",
+            );
+          }
+          const BUCKET = process.env.CLOUDFLARE_BUCKET_NAME || "crm-test";
+          const obj = await r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: d.attachment.storageKey }));
+          if (!obj.Body) {
+            throw new Error(`[BotEngine] Arquivo não encontrado no storage: ${d.attachment.storageKey}`);
+          }
+          const chunks: Buffer[] = [];
+          for await (const chunk of obj.Body as NodeJS.ReadableStream) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as unknown as Uint8Array));
+          }
+          const buffer = Buffer.concat(chunks);
+          const mimeType = d.attachment.mimeType ?? (d.attachment.type === "image" ? "image/jpeg" : "application/octet-stream");
+          const filename = d.attachment.name ?? d.attachment.storageKey.split("/").pop() ?? "file";
+          const mediaId = await uploadMedia(buffer, filename, mimeType);
+          const result = await sendMediaMessage(phone, mediaId, d.attachment.type, text, filename);
+          const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+          await persistBotMessage(phone, {
+            waMessageId: waId,
+            type: d.attachment.type,
+            caption: text ?? null,
+            media: {
+              storageKey: d.attachment.storageKey,
+              waMediaId: mediaId,
+              mimeType,
+              filename,
+            },
+          });
+          // Se há texto E anexo, o texto virou legenda. Não enviar mensagem separada.
+        } else if (text) {
+          const waId = await sendFreeText(phone, text);
+          await persistBotMessage(phone, { waMessageId: waId, type: "text", content: text });
+        }
       }
       const next = await getNextNode(botId, node.id);
       if (next) await executeNode(next, phone, sessionId, botId, variables);
@@ -222,7 +315,7 @@ async function executeNode(
       if (d.messageText) {
         const text = interpolate(d.messageText, variables);
         const waId = await sendFreeText(phone, text);
-        await persistBotMessage(phone, text, waId);
+        await persistBotMessage(phone, { waMessageId: waId, type: "text", content: text });
       }
       await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       break;
@@ -242,7 +335,7 @@ async function executeNode(
           flowToken: d.flowToken,
         });
         const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
-        await persistBotMessage(phone, `[Formulário: ${d.flowName || d.flowId}]`, waId);
+        await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `[Formulário: ${d.flowName || d.flowId}]` });
         // Aguarda a resposta do Flow — o session fica no nó atual
         await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       }
@@ -323,6 +416,9 @@ export async function startBotSession(botId: string, phone: string): Promise<"st
   const existingSession = await getActiveSession(phone);
   if (existingSession) return "already_active";
 
+  const [bot] = await db.select({ name: whatsappBots.name }).from(whatsappBots).where(eq(whatsappBots.id, botId)).limit(1);
+  const botName = bot?.name ?? "Bot";
+
   const [newSession] = await db
     .insert(whatsappBotSessions)
     .values({
@@ -333,6 +429,28 @@ export async function startBotSession(botId: string, phone: string): Promise<"st
       sessionData: {},
     })
     .returning();
+
+  // Registra no histórico da conversa que o bot foi iniciado
+  try {
+    const conversation = await findOrCreateConversation(phone);
+    await db.insert(whatsappMessages).values({
+      conversationId: conversation.id,
+      direction: "outbound",
+      type: "system",
+      content: `🤖 Chatbot "${botName}" iniciado`,
+      status: "sent",
+      sentAt: new Date(),
+    });
+    await db
+      .update(whatsappConversations)
+      .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+      .where(eq(whatsappConversations.id, conversation.id));
+    if (conversation.clientId) {
+      publishConversationEvent(conversation.clientId, "new_message", { clientId: conversation.clientId });
+    }
+  } catch (err) {
+    console.error("[WaBot] Erro ao registrar início do bot:", err);
+  }
 
   await executeNode(startNode, phone, newSession.id, botId, {});
   return "started";

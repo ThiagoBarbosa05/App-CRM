@@ -129,13 +129,18 @@ export async function sendMediaMessage(
   mediaId: string,
   mediaType: "image" | "document" | "video" | "audio" | "sticker",
   caption?: string,
+  filename?: string,
   channel?: ChannelOverride,
 ) {
   const cfg = await getConfig(channel);
   const mediaKey = mediaType === "sticker" ? "sticker" : mediaType;
   const mediaBody = mediaType === "sticker"
     ? { id: mediaId }
-    : { id: mediaId, ...(caption ? { caption } : {}) };
+    : {
+        id: mediaId,
+        ...(caption ? { caption } : {}),
+        ...(mediaType === "document" && filename ? { filename } : {}),
+      };
   const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
     method: "POST",
     headers: authHeaders(cfg.accessToken),
@@ -145,6 +150,33 @@ export async function sendMediaMessage(
       to: normalizePhone(to),
       type: mediaType,
       [mediaKey]: mediaBody,
+    }),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+export async function sendMediaByUrl(
+  to: string,
+  mediaUrl: string,
+  mediaType: "image" | "document",
+  caption?: string,
+  filename?: string,
+  channel?: ChannelOverride,
+) {
+  const cfg = await getConfig(channel);
+  const mediaBody: Record<string, string> = { link: mediaUrl };
+  if (caption) mediaBody.caption = caption;
+  if (mediaType === "document" && filename) mediaBody.filename = filename;
+  const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizePhone(to),
+      type: mediaType,
+      [mediaType]: mediaBody,
     }),
   });
   if (!response.ok) throw new Error(await response.text());

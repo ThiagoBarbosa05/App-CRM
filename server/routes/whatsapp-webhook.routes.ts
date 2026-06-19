@@ -150,7 +150,11 @@ async function handleMessageStatus(status: {
   timestamp: string;
   errors?: Array<{ title?: string; message?: string; code?: number }>;
 }) {
-  console.log(`[WA Webhook] Mensagem ${status.id} → ${status.status}`);
+  if (status.status === "failed" && status.errors?.length) {
+    console.error(`[WA Webhook] Mensagem ${status.id} → failed | errors:`, JSON.stringify(status.errors));
+  } else {
+    console.log(`[WA Webhook] Mensagem ${status.id} → ${status.status}`);
+  }
 
   const now = new Date();
 

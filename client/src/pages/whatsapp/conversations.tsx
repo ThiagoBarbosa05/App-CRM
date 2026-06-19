@@ -51,7 +51,7 @@ import {
   Trash2,
   Zap,
   Bot,
-  ChevronDown,
+  Check,
 } from "lucide-react";
 import {
   Popover,
@@ -73,6 +73,7 @@ interface ChatClient {
   lastMessageAt?: string | null;
   lastMessageContent?: string | null;
   lastMessageDirection?: "inbound" | "outbound" | null;
+  lastMessageType?: string | null;
   unreadCount?: number | null;
   channelId?: number | null;
   channelName?: string | null;
@@ -263,7 +264,7 @@ function ClientListItem({
                 ? "text-slate-700 dark:text-slate-200 font-medium"
                 : "text-slate-400 dark:text-slate-500",
             )}>
-              {client.lastMessageDirection === "outbound" && (
+              {client.lastMessageDirection === "outbound" && client.lastMessageType !== "system" && (
                 <span className="text-slate-400 dark:text-slate-500 mr-0.5">Você: </span>
               )}
               {client.lastMessageContent}
@@ -976,6 +977,7 @@ function ConversationMessages({
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [pendingAudio, setPendingAudio] = useState<{ blob: Blob; url: string; file: File } | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [reactingToId, setReactingToId] = useState<string | null>(null);
   const cursorPosRef = useRef<number>(0);
@@ -1242,8 +1244,13 @@ function ConversationMessages({
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")
-        ? "audio/ogg; codecs=opus"
+      // Firefox supports ogg/opus natively; Chrome always produces webm/opus
+      // (audio/mp4 on Chrome Windows reports as supported but produces invalid output)
+      // The server remuxes webm/opus → ogg/opus transparently.
+      const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
+        ? "audio/ogg;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
         : "audio/webm";
       const recorder = new MediaRecorder(stream, { mimeType });
       recordingChunksRef.current = [];
@@ -1258,7 +1265,8 @@ function ConversationMessages({
         const blob = new Blob(recordingChunksRef.current, { type: mimeType });
         const ext = mimeType.includes("ogg") ? "ogg" : "webm";
         const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType });
-        sendMedia(file);
+        const url = URL.createObjectURL(blob);
+        setPendingAudio({ blob, url, file });
         recordingChunksRef.current = [];
       };
 
@@ -1270,7 +1278,7 @@ function ConversationMessages({
     } catch {
       toast({ title: "Não foi possível acessar o microfone", variant: "destructive" });
     }
-  }, [sendMedia, toast]);
+  }, [toast]);
 
   const handleSend = () => {
     const text = message.trim();
@@ -1357,45 +1365,6 @@ function ConversationMessages({
           </div>
         )}
 
-        {activeBots.length > 0 && (
-          <Popover open={botPickerOpen} onOpenChange={setBotPickerOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isTriggeringBot}
-                className="h-7 text-xs gap-1.5 shrink-0 px-2"
-                title="Disparar bot"
-              >
-                {isTriggeringBot ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Bot className="h-3.5 w-3.5" />
-                )}
-                <span className="hidden sm:inline">Bot</span>
-                <ChevronDown className="h-3 w-3 text-slate-400" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent side="bottom" align="end" className="p-0 w-56">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                <Bot className="h-3.5 w-3.5 text-slate-400" />
-                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Disparar bot</span>
-              </div>
-              <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-60 overflow-y-auto">
-                {activeBots.map((bot) => (
-                  <button
-                    key={bot.id}
-                    className="flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                    onClick={() => handleTriggerBot(bot.id)}
-                  >
-                    <Bot className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="text-xs text-slate-700 dark:text-slate-200 truncate">{bot.name}</span>
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
       </div>
 
       {/* Banner de contato desconhecido */}
@@ -1461,8 +1430,21 @@ function ConversationMessages({
                   const showChannelBadge =
                     isOutbound &&
                     !isFailed &&
+                    msg.type !== "system" &&
                     channelLabel.length > 0 &&
                     (msgIndex === 0 || msgs[msgIndex - 1].direction !== "outbound");
+
+                  // Mensagens de sistema (ex: bot iniciado) — banner centralizado
+                  if (msg.type === "system") {
+                    return (
+                      <div key={msg.id} className="flex justify-center py-1">
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 italic bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+                          {msg.content}
+                        </span>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={msg.id}
@@ -1738,7 +1720,42 @@ function ConversationMessages({
           </div>
         )}
 
-        {isRecording ? (
+        {pendingAudio ? (
+          <div className="p-3 sm:p-4 flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Mic className="h-4 w-4 text-green-500 shrink-0" />
+              <audio
+                src={pendingAudio.url}
+                controls
+                className="flex-1 h-9 min-w-0"
+                style={{ maxWidth: "100%" }}
+              />
+            </div>
+            <button
+              onClick={() => {
+                URL.revokeObjectURL(pendingAudio.url);
+                setPendingAudio(null);
+              }}
+              className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800"
+              title="Descartar áudio"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <Button
+              onClick={() => {
+                sendMedia(pendingAudio.file);
+                URL.revokeObjectURL(pendingAudio.url);
+                setPendingAudio(null);
+              }}
+              disabled={isUploading}
+              size="icon"
+              className="shrink-0 h-10 w-10 bg-green-500 hover:bg-green-600"
+              title="Enviar áudio"
+            >
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            </Button>
+          </div>
+        ) : isRecording ? (
           <div className="p-3 sm:p-4 flex items-center gap-3">
             <div className="flex items-center gap-2 flex-1">
               <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
@@ -1758,7 +1775,7 @@ function ConversationMessages({
               onClick={stopRecording}
               size="icon"
               className="shrink-0 h-10 w-10 bg-red-500 hover:bg-red-600"
-              title="Parar e enviar"
+              title="Parar gravação"
             >
               <Square className="h-4 w-4 fill-current" />
             </Button>
@@ -1893,6 +1910,37 @@ function ConversationMessages({
                   />
                 </PopoverContent>
               </Popover>
+              {activeBots.length > 0 && (
+                <Popover open={botPickerOpen} onOpenChange={setBotPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      disabled={isTriggeringBot}
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                      title="Disparar bot"
+                    >
+                      {isTriggeringBot ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="start" className="p-0 w-56">
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                      <Bot className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Disparar bot</span>
+                    </div>
+                    <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-60 overflow-y-auto">
+                      {activeBots.map((bot) => (
+                        <button
+                          key={bot.id}
+                          className="flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                          onClick={() => handleTriggerBot(bot.id)}
+                        >
+                          <Bot className="h-3.5 w-3.5 text-primary shrink-0" />
+                          <span className="text-xs text-slate-700 dark:text-slate-200 truncate">{bot.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
               <p className="text-[10px] text-slate-400 dark:text-slate-600 ml-auto hidden sm:block">
                 Enter para enviar · Shift+Enter para nova linha
               </p>

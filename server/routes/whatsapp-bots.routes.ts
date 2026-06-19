@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
+import multer from "multer";
+import { randomUUID } from "crypto";
 import {
   listBots,
   getBot,
@@ -8,6 +10,27 @@ import {
   deleteBot,
   saveFlow,
 } from "../services/whatsapp-bot.service";
+import { r2 } from "../lib/r2";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+
+const BUCKET = process.env.CLOUDFLARE_BUCKET_NAME || "crm-test";
+
+const attachmentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 16 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = new Set([
+      "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ]);
+    if (allowed.has(file.mimetype)) cb(null, true);
+    else cb(new Error(`Tipo não permitido: ${file.mimetype}`));
+  },
+});
 
 const router = Router();
 
@@ -139,6 +162,55 @@ router.post("/bots/:id/deactivate", async (req, res) => {
     res.json(bot);
   } catch {
     res.status(500).json({ message: "Erro ao desativar bot" });
+  }
+});
+
+// ─── Bot attachment upload / preview ─────────────────────────────────────────
+
+router.post("/bots/attachments", attachmentUpload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: "Nenhum arquivo enviado" });
+    const ext = req.file.originalname.includes(".")
+      ? req.file.originalname.slice(req.file.originalname.lastIndexOf("."))
+      : "";
+    const storageKey = `bot-attachments/${randomUUID()}${ext}`;
+    await r2.send(
+      new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: storageKey,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      }),
+    );
+    const isImage = req.file.mimetype.startsWith("image/");
+    return res.status(201).json({
+      storageKey,
+      name: req.file.originalname,
+      mimeType: req.file.mimetype,
+      type: isImage ? "image" : "document",
+    });
+  } catch (err) {
+    console.error("[BotAttachment] upload error:", err);
+    return res.status(500).json({ message: "Erro ao fazer upload do arquivo" });
+  }
+});
+
+router.get("/bots/attachments/:key(*)", async (req, res) => {
+  try {
+    const storageKey = req.params.key;
+    if (!storageKey.startsWith("bot-attachments/")) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    const obj = await r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: storageKey }));
+    res.setHeader("Content-Type", obj.ContentType ?? "application/octet-stream");
+    if (obj.ContentLength != null) res.setHeader("Content-Length", String(obj.ContentLength));
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    (obj.Body as NodeJS.ReadableStream).pipe(res);
+  } catch (err: unknown) {
+    const code = (err as { Code?: string; name?: string }).Code ?? (err as { name?: string }).name;
+    if (code === "NoSuchKey" || code === "NotFound") return res.status(404).end();
+    console.error("[BotAttachment] preview error:", err);
+    return res.status(500).json({ message: "Erro ao buscar arquivo" });
   }
 });
 

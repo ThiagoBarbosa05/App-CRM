@@ -3336,9 +3336,17 @@ export type TemplateParamComponent = {
   parameters: Array<{ type: "text"; text: string }>;
 };
 
+export type SendMessageAttachment = {
+  storageKey: string;
+  type: "image" | "document";
+  name?: string;
+  mimeType?: string;
+};
+
 export type SendMessageNodeData = {
   messageType: "text" | "template";
   text?: string;
+  attachment?: SendMessageAttachment;
   templateId?: string;             // legado: FK para whatsappTemplates local
   metaTemplateName?: string;       // nome do template aprovado no Meta
   metaTemplateLanguage?: string;   // idioma do template (ex: "pt_BR")

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import {
   ReactFlow,
@@ -31,6 +31,10 @@ import {
   LayoutTemplate,
   Brain,
   RefreshCw,
+  Paperclip,
+  FileText,
+  X,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +77,7 @@ import {
 import type {
   BotNodeData,
   SendMessageNodeData,
+  SendMessageAttachment,
   QuestionNodeData,
   ConditionNodeData,
   ConditionBranch,
@@ -107,6 +112,49 @@ const PALETTE = [
   { type: "end", label: "Fim", icon: StopCircle, color: "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" },
 ];
 
+// ─── Attachment Preview ───────────────────────────────────────────────────────
+
+function AttachmentPreview({
+  attachment,
+  onRemove,
+}: {
+  attachment: SendMessageAttachment;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="relative rounded-md border bg-muted/30 overflow-hidden">
+      {attachment.type === "image" ? (
+        <div className="relative">
+          <img
+            src={`/api/whatsapp/bots/attachments/${attachment.storageKey}`}
+            alt={attachment.name ?? "imagem"}
+            className="w-full max-h-40 object-cover rounded-md"
+          />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+          <span className="text-xs truncate flex-1">{attachment.name ?? "documento"}</span>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Properties Panel ─────────────────────────────────────────────────────────
 
 function useWhatsappFlows() {
@@ -136,6 +184,9 @@ function PropertiesPanel({
   const { data: waFlows = [], refetch: refetchFlows } = useWhatsappFlows();
   const syncFlowsMutation = useSyncFlows();
   const [templateSearch, setTemplateSearch] = useState("");
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!node) {
     return (
@@ -279,14 +330,81 @@ function PropertiesPanel({
               })()}
             </div>
           ) : (
-            <div className="space-y-1">
-              <Label className="text-xs">Mensagem</Label>
-              <Textarea
-                value={(d as SendMessageNodeData).text ?? ""}
-                onChange={(e) => update({ text: e.target.value })}
-                placeholder="Digite a mensagem..."
-                rows={4}
-              />
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Mensagem</Label>
+                <Textarea
+                  value={(d as SendMessageNodeData).text ?? ""}
+                  onChange={(e) => update({ text: e.target.value })}
+                  placeholder="Digite a mensagem..."
+                  rows={4}
+                />
+              </div>
+
+              {/* Attachment section */}
+              <div className="space-y-2">
+                <Label className="text-xs">Anexo (opcional)</Label>
+                {(d as SendMessageNodeData).attachment ? (
+                  <AttachmentPreview
+                    attachment={(d as SendMessageNodeData).attachment!}
+                    onRemove={() => update({ attachment: undefined })}
+                  />
+                ) : (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setIsUploading(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append("file", file);
+                          const res = await fetch("/api/whatsapp/bots/attachments", {
+                            method: "POST",
+                            body: formData,
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error((err as { message?: string }).message ?? "Erro no upload");
+                          }
+                          const data = await res.json() as { storageKey: string; name: string; mimeType: string; type: "image" | "document" };
+                          const attachment: SendMessageAttachment = {
+                            storageKey: data.storageKey,
+                            type: data.type,
+                            name: data.name,
+                            mimeType: data.mimeType,
+                          };
+                          update({ attachment });
+                        } catch (err) {
+                          toast({ title: "Erro ao fazer upload", description: (err as Error).message, variant: "destructive" });
+                        } finally {
+                          setIsUploading(false);
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      disabled={isUploading}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Paperclip className="h-3.5 w-3.5" />
+                      )}
+                      {isUploading ? "Enviando..." : "Adicionar arquivo"}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </>
@@ -561,6 +679,11 @@ function nodePreview(node: FlowNode): string {
   if (node.type === "send_message") {
     const d = node.data as SendMessageNodeData;
     if (d.messageType === "template") return `[Template: ${d.metaTemplateName ?? "—"}]`;
+    const attachLabel = d.attachment
+      ? `[${d.attachment.type === "image" ? "Imagem" : "Documento"}: ${d.attachment.name ?? ""}]`
+      : "";
+    if (attachLabel && !d.text) return attachLabel;
+    if (attachLabel && d.text) return `${d.text}\n${attachLabel}`;
     return d.text ?? "(mensagem vazia)";
   }
   if (node.type === "question") {

@@ -16,6 +16,7 @@ import { sendTextMessage, uploadMedia, sendMediaMessage, sendReaction, downloadM
 import { uploadWhatsappMedia } from "../lib/r2";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { getChannelByUserId, getChannelById, getChannelForConversation } from "./whatsapp-channels.service";
+import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 
 function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
@@ -219,8 +220,18 @@ export async function listClientsForChat(
       .selectDistinctOn([whatsappMessages.conversationId], {
         conversationId: whatsappMessages.conversationId,
         lastAt: effectiveAt,
-        lastContent: whatsappMessages.content,
+        lastContent: sql<string | null>`
+          CASE ${whatsappMessages.type}
+            WHEN 'image'    THEN COALESCE('📷 ' || ${whatsappMessages.caption}, '📷 Imagem')
+            WHEN 'document' THEN COALESCE('📄 ' || ${whatsappMessages.caption}, '📄 Documento')
+            WHEN 'video'    THEN COALESCE('🎥 ' || ${whatsappMessages.caption}, '🎥 Vídeo')
+            WHEN 'audio'    THEN '🎵 Áudio'
+            WHEN 'sticker'  THEN '🎭 Figurinha'
+            ELSE ${whatsappMessages.content}
+          END
+        `.as("last_content"),
         lastDirection: whatsappMessages.direction,
+        lastType: whatsappMessages.type,
       })
       .from(whatsappMessages)
       .orderBy(whatsappMessages.conversationId, desc(effectiveAt)),
@@ -251,6 +262,7 @@ export async function listClientsForChat(
       lastMessageAt: lastMsgSub.lastAt,
       lastMessageContent: lastMsgSub.lastContent,
       lastMessageDirection: lastMsgSub.lastDirection,
+      lastMessageType: lastMsgSub.lastType,
       unreadCount: sql<number>`coalesce(${unreadSub.unreadCount}, 0)`,
       channelId: whatsappConversations.channelId,
       channelName: whatsappChannels.name,
@@ -473,7 +485,7 @@ const ALLOWED_MEDIA_TYPES: Record<string, "image" | "video" | "audio" | "documen
   "audio/opus": "audio",
   "audio/aac": "audio",
   "audio/mp4": "audio",
-  "audio/webm": "audio",
+  "audio/webm": "audio", // remuxed to audio/ogg before upload — see sendConversationMedia
   "application/pdf": "document",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "document",
@@ -490,8 +502,25 @@ export async function sendConversationMedia(
   caption?: string,
   replyToMessageId?: string,
 ) {
-  const mediaType = ALLOWED_MEDIA_TYPES[file.mimetype];
-  if (!mediaType) throw new Error(`Tipo de arquivo não suportado: ${file.mimetype}`);
+  console.log(`[sendConversationMedia] mimetype=${file.mimetype} size=${file.size} name=${file.originalname}`);
+
+  // Chrome records audio/webm;codecs=opus which WhatsApp rejects.
+  // Remux to OGG (same Opus bitstream, different container) transparently.
+  let effectiveBuffer = file.buffer;
+  let effectiveMime = file.mimetype;
+  let effectiveName = file.originalname;
+  if (file.mimetype === "audio/webm" || file.mimetype.startsWith("audio/webm;")) {
+    console.log(`[sendConversationMedia] remuxing audio/webm → audio/ogg`);
+    effectiveBuffer = remuxWebmOpusToOgg(file.buffer);
+    effectiveMime = "audio/ogg";
+    effectiveName = file.originalname.replace(/\.webm$/, ".ogg");
+    console.log(`[sendConversationMedia] remux OK: ${effectiveBuffer.length} bytes`);
+  }
+
+  const mediaType = ALLOWED_MEDIA_TYPES[effectiveMime];
+  if (!mediaType) throw new Error(`Tipo de arquivo não suportado: ${effectiveMime}`);
+
+  console.log(`[sendConversationMedia] mediaType resolvido: ${mediaType}`);
 
   const whereConditions: ReturnType<typeof eq>[] = [
     eq(whatsappConversations.id, conversationId),
@@ -507,7 +536,12 @@ export async function sendConversationMedia(
     .where(and(...whereConditions))
     .limit(1);
 
-  if (!conv) return null;
+  if (!conv) {
+    console.warn(`[sendConversationMedia] conversa não encontrada: ${conversationId}`);
+    return null;
+  }
+
+  console.log(`[sendConversationMedia] conversa: id=${conv.id} phone=${conv.phone}`);
 
   let replyToWaMessageId: string | null = null;
   if (replyToMessageId) {
@@ -536,20 +570,40 @@ export async function sendConversationMedia(
     channelOverride = await getChannelForConversation(conversationId).catch(() => null);
   }
 
-  const waMediaId = await uploadMedia(
-    file.buffer,
-    file.originalname,
-    file.mimetype,
-    channelOverride ?? undefined,
-  );
+  console.log(`[sendConversationMedia] channelOverride=${channelOverride ? `phoneNumberId=${channelOverride.phoneNumberId}` : "null (default)"}`);
+  console.log(`[sendConversationMedia] uploadMedia → mimetype=${effectiveMime} filename=${effectiveName}`);
 
-  const result = await sendMediaMessage(
-    conv.phone,
-    waMediaId,
-    mediaType,
-    caption ?? undefined,
-    channelOverride ?? undefined,
-  );
+  let waMediaId: string;
+  try {
+    waMediaId = await uploadMedia(
+      effectiveBuffer,
+      effectiveName,
+      effectiveMime,
+      channelOverride ?? undefined,
+    );
+  } catch (err) {
+    console.error(`[sendConversationMedia] uploadMedia falhou:`, err);
+    throw err;
+  }
+
+  console.log(`[sendConversationMedia] waMediaId=${waMediaId} → sendMediaMessage type=${mediaType}`);
+
+  let result: Awaited<ReturnType<typeof sendMediaMessage>>;
+  try {
+    result = await sendMediaMessage(
+      conv.phone,
+      waMediaId,
+      mediaType,
+      caption ?? undefined,
+      undefined,
+      channelOverride ?? undefined,
+    );
+  } catch (err) {
+    console.error(`[sendConversationMedia] sendMediaMessage falhou:`, err);
+    throw err;
+  }
+
+  console.log(`[sendConversationMedia] sendMediaMessage OK:`, JSON.stringify(result));
 
   const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
 
@@ -601,8 +655,18 @@ export async function retryFailedMessage(
   if (!conversationId) return null;
 
   const [msg] = await db
-    .select({ id: whatsappMessages.id, content: whatsappMessages.content })
+    .select({
+      id: whatsappMessages.id,
+      content: whatsappMessages.content,
+      type: whatsappMessages.type,
+      caption: whatsappMessages.caption,
+      mediaId: whatsappMedia.id,
+      waMediaId: whatsappMedia.whatsappMediaId,
+      mimeType: whatsappMedia.mimeType,
+      filename: whatsappMedia.filename,
+    })
     .from(whatsappMessages)
+    .leftJoin(whatsappMedia, eq(whatsappMedia.messageId, whatsappMessages.id))
     .where(
       and(
         eq(whatsappMessages.id, messageId),
@@ -612,7 +676,12 @@ export async function retryFailedMessage(
     )
     .limit(1);
 
-  if (!msg) return null;
+  if (!msg) {
+    console.warn(`[retryFailedMessage] mensagem ${messageId} não encontrada ou não está com status=failed`);
+    return null;
+  }
+
+  console.log(`[retryFailedMessage] msg: id=${msg.id} type=${msg.type} content=${msg.content} caption=${msg.caption} waMediaId=${msg.waMediaId} mimeType=${msg.mimeType} filename=${msg.filename}`);
 
   const whereConditions: ReturnType<typeof eq>[] = [
     eq(whatsappConversations.id, conversationId),
@@ -628,13 +697,45 @@ export async function retryFailedMessage(
     .where(and(...whereConditions))
     .limit(1);
 
-  if (!conv) return null;
+  if (!conv) {
+    console.warn(`[retryFailedMessage] conversa ${conversationId} não encontrada`);
+    return null;
+  }
 
   const channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+  console.log(`[retryFailedMessage] phone=${conv.phone} channelOverride=${channelOverride ? `phoneNumberId=${channelOverride.phoneNumberId}` : "null"}`);
 
   try {
-    const result = await sendTextMessage(conv.phone, msg.content!, channelOverride ?? undefined);
-    const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+    let result: unknown;
+    const isMedia = msg.type === "image" || msg.type === "document" || msg.type === "video" || msg.type === "audio";
+
+    console.log(`[retryFailedMessage] isMedia=${isMedia} waMediaId=${msg.waMediaId}`);
+
+    if (isMedia && msg.waMediaId) {
+      const mediaTypeMap: Record<string, "image" | "document" | "video" | "audio"> = {
+        image: "image", document: "document", video: "video", audio: "audio",
+      };
+      const mediaType = mediaTypeMap[msg.type!] ?? "document";
+      console.log(`[retryFailedMessage] sendMediaMessage type=${mediaType} waMediaId=${msg.waMediaId}`);
+      result = await sendMediaMessage(
+        conv.phone,
+        msg.waMediaId,
+        mediaType,
+        msg.caption ?? undefined,
+        msg.filename ?? undefined,
+        channelOverride ?? undefined,
+      );
+    } else if (isMedia && !msg.waMediaId) {
+      console.error(`[retryFailedMessage] mensagem de mídia sem waMediaId — não é possível reenviar automaticamente`);
+      throw new Error("Não foi possível reenviar: ID de mídia do WhatsApp ausente. Envie o arquivo novamente.");
+    } else {
+      if (!msg.content) throw new Error("Conteúdo da mensagem ausente para reenvio");
+      console.log(`[retryFailedMessage] sendTextMessage content="${msg.content}"`);
+      result = await sendTextMessage(conv.phone, msg.content, channelOverride ?? undefined);
+    }
+
+    console.log(`[retryFailedMessage] envio OK:`, JSON.stringify(result));
+    const waMessageId = ((result as { messages?: Array<{ id?: string }> })?.messages)?.[0]?.id ?? null;
 
     await db
       .update(whatsappMessages)
@@ -647,7 +748,7 @@ export async function retryFailedMessage(
 
     return "sent";
   } catch (err) {
-    console.error(`[WA Conversations Service] Erro ao reenviar mensagem ${messageId}:`, err);
+    console.error(`[retryFailedMessage] FALHOU messageId=${messageId}:`, err);
     throw err;
   }
 }

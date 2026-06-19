@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate } from "lucide-react";
+import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BotNodeData, SendMessageNodeData, QuestionNodeData, ConditionNodeData, ActionNodeData, FlowFormNodeData } from "@shared/schema";
+import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, QuestionNodeData, ConditionNodeData, ActionNodeData, FlowFormNodeData } from "@shared/schema";
 
 interface NodeData extends Record<string, unknown> {
   label: string;
@@ -12,14 +12,17 @@ function NodeCard({
   icon: Icon,
   title,
   preview,
+  attachment,
   selected,
 }: {
   color: string;
   icon: React.ElementType;
   title: string;
   preview?: string;
+  attachment?: SendMessageAttachment;
   selected?: boolean;
 }) {
+  const hasBody = preview || attachment;
   return (
     <div
       className={cn(
@@ -31,9 +34,25 @@ function NodeCard({
         <Icon className="h-4 w-4 text-white" />
         <span className="text-xs font-semibold text-white truncate">{title}</span>
       </div>
-      {preview && (
-        <div className="px-3 py-2">
-          <p className="text-xs text-gray-500 line-clamp-2">{preview}</p>
+      {hasBody && (
+        <div className="px-3 py-2 space-y-1.5">
+          {attachment && attachment.type === "image" && (
+            <img
+              src={`/api/whatsapp/bots/attachments/${attachment.storageKey}`}
+              alt={attachment.name ?? "imagem"}
+              className="w-full rounded object-cover"
+              style={{ maxHeight: 80 }}
+            />
+          )}
+          {attachment && attachment.type === "document" && (
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1">
+              <FileText className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+              <span className="text-[11px] text-gray-600 truncate">{attachment.name ?? "documento"}</span>
+            </div>
+          )}
+          {preview && (
+            <p className="text-xs text-gray-500 line-clamp-2">{preview}</p>
+          )}
         </div>
       )}
     </div>
@@ -56,6 +75,7 @@ export function StartNode({ data, selected }: NodeProps) {
 
 export function SendMessageNode({ data, selected }: NodeProps) {
   const d = data as NodeData & SendMessageNodeData;
+  const isTemplate = d.messageType === "template";
   return (
     <>
       <Handle type="target" position={Position.Top} />
@@ -64,13 +84,11 @@ export function SendMessageNode({ data, selected }: NodeProps) {
         icon={MessageCircle}
         title={d.label || "Enviar Mensagem"}
         preview={
-          d.text ??
-          (d.metaTemplateName
-            ? `Template: ${d.metaTemplateName}`
-            : d.templateId
-            ? "Template: (legado)"
-            : undefined)
+          isTemplate
+            ? (d.metaTemplateName ? `Template: ${d.metaTemplateName}` : d.templateId ? "Template: (legado)" : undefined)
+            : d.text || undefined
         }
+        attachment={!isTemplate ? d.attachment : undefined}
         selected={selected}
       />
       <Handle type="source" position={Position.Bottom} />
