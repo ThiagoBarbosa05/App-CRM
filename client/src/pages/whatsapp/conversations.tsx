@@ -46,6 +46,9 @@ import {
   Square,
   Smile,
   Sticker,
+  Bookmark,
+  BookmarkCheck,
+  Trash2,
 } from "lucide-react";
 import {
   Popover,
@@ -368,7 +371,21 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
     ? `/api/whatsapp/media/${msg.media.id}`
     : null;
 
-  if (msg.type === "image" || msg.type === "sticker") {
+  if (msg.type === "sticker") {
+    if (!mediaUrl) return <p className="px-3.5 py-2.5 text-sm italic opacity-60">🎭 Figurinha não disponível</p>;
+    return (
+      <div className="p-1.5">
+        <img
+          src={mediaUrl}
+          alt="figurinha"
+          className="object-contain"
+          style={{ width: 120, height: 120 }}
+        />
+      </div>
+    );
+  }
+
+  if (msg.type === "image") {
     return (
       <>
         <div>
@@ -468,33 +485,188 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
     );
   }
 
+  // Fallback para mensagens salvas como "unsupported" que têm mídia — infere o tipo pelo mimeType.
+  if (msg.media?.mimeType) {
+    const mime = msg.media.mimeType;
+    const inferredMsg = { ...msg, type: mime.startsWith("video/") ? "video" : mime.startsWith("audio/") ? "audio" : "sticker" };
+    return <MessageContent msg={inferredMsg} isOutbound={isOutbound} />;
+  }
+
+  if (msg.type === "unsupported") {
+    return <p className="px-3.5 py-2.5 text-sm italic opacity-60">🎭 Figurinha animada não suportada</p>;
+  }
+
   return <p className="text-sm italic opacity-60">[{msg.type}]</p>;
+}
+
+interface SavedSticker {
+  id: string;
+  mediaId: string;
+  createdAt: string;
+}
+
+function StickerPicker({
+  onPickFromDevice,
+  onPickSaved,
+}: {
+  onPickFromDevice: () => void;
+  onPickSaved: (mediaId: string) => void;
+}) {
+  const { data: stickers = [], isLoading, refetch } = useQuery<SavedSticker[]>({
+    queryKey: ["/api/whatsapp/stickers"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/stickers");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/whatsapp/stickers/${id}`, { method: "DELETE" });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/stickers"] });
+    } catch {
+      toast({ title: "Erro ao remover figurinha", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="w-72 flex flex-col">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+        <Sticker className="h-3.5 w-3.5 text-slate-400" />
+        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Figurinhas salvas</span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+        </div>
+      ) : stickers.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 text-center gap-2">
+          <Sticker className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            Nenhuma figurinha salva ainda.<br />Salve figurinhas recebidas no chat.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-1.5 p-2 max-h-56 overflow-y-auto">
+          {stickers.map((s) => (
+            <div
+              key={s.id}
+              className="relative group cursor-pointer rounded-lg overflow-hidden border border-transparent hover:border-primary/40 transition-colors bg-slate-50 dark:bg-slate-800/50 aspect-square"
+              onClick={() => onPickSaved(s.mediaId)}
+            >
+              <img
+                src={`/api/whatsapp/media/${s.mediaId}`}
+                alt="figurinha"
+                className="w-full h-full object-contain p-1"
+              />
+              <button
+                onClick={(e) => handleDelete(e, s.id)}
+                className="absolute top-0.5 right-0.5 h-5 w-5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                title="Remover"
+              >
+                <Trash2 className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="border-t border-slate-100 dark:border-slate-800 p-2">
+        <button
+          onClick={onPickFromDevice}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        >
+          <Paperclip className="h-3.5 w-3.5 shrink-0" />
+          Enviar do dispositivo (.webp)
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function CreateClientFromConversationDialog({
   open,
   onOpenChange,
   client,
+  userRole,
   onSuccess,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   client: ChatClient;
+  userRole: string;
   onSuccess: (clientId: string) => void;
 }) {
-  const [name, setName] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    cpf: "",
+    birthday: "",
+    categoria: "",
+    origem: "WhatsApp",
+    responsavelId: "",
+  });
   const [isPending, setIsPending] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const isAdminOrGerente = userRole === "admin" || userRole === "gerente";
+
+  const { data: categories = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/tags/categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/tags/categories");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open,
+  });
+
+  const { data: origins = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/tags/origins"],
+    queryFn: async () => {
+      const res = await fetch("/api/tags/origins");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open,
+  });
+
+  const { data: users = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/users"],
+    queryFn: async () => {
+      const res = await fetch("/api/users");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && isAdminOrGerente,
+  });
+
+  const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!form.name.trim()) return;
     setIsPending(true);
     try {
+      const body: Record<string, string> = { action: "create", name: form.name.trim() };
+      if (form.email.trim()) body.email = form.email.trim();
+      if (form.cpf.trim()) body.cpf = form.cpf.trim();
+      if (form.birthday) body.birthday = form.birthday;
+      if (form.categoria) body.categoria = form.categoria;
+      if (form.origem) body.origem = form.origem;
+      if (form.responsavelId) body.responsavelId = form.responsavelId;
+
       const res = await fetch(`/api/whatsapp/conversations/${client.conversationId}/link-client`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create", name: name.trim() }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -503,7 +675,7 @@ function CreateClientFromConversationDialog({
       }
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
       onOpenChange(false);
-      setName("");
+      setForm({ name: "", email: "", cpf: "", birthday: "", categoria: "", origem: "WhatsApp", responsavelId: "" });
       onSuccess(data.clientId);
     } catch {
       toast({ title: "Erro de conexão", variant: "destructive" });
@@ -512,37 +684,111 @@ function CreateClientFromConversationDialog({
     }
   };
 
+  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div>
+      <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">{label}</label>
+      {children}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Criar cliente</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 pt-1">
-          <div>
-            <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">
-              Nome
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nome do cliente"
-              autoFocus
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            />
+        <div className="space-y-3 pt-1">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Nome *">
+              <Input
+                value={form.name}
+                onChange={set("name")}
+                placeholder="Nome completo"
+                autoFocus
+              />
+            </Field>
+            <Field label="Telefone">
+              <Input value={client.phone} readOnly className="bg-slate-50 dark:bg-slate-800/50 text-slate-500" />
+            </Field>
           </div>
-          <div>
-            <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">
-              Telefone
-            </label>
-            <Input value={client.phone} readOnly className="bg-slate-50 dark:bg-slate-800/50 text-slate-500" />
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="E-mail">
+              <Input
+                type="email"
+                value={form.email}
+                onChange={set("email")}
+                placeholder="email@exemplo.com"
+              />
+            </Field>
+            <Field label="CPF">
+              <Input
+                value={form.cpf}
+                onChange={set("cpf")}
+                placeholder="000.000.000-00"
+              />
+            </Field>
           </div>
-          <div className="flex gap-2 pt-1">
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Data de nascimento">
+              <Input
+                type="date"
+                value={form.birthday}
+                onChange={set("birthday")}
+              />
+            </Field>
+            <Field label="Categoria">
+              <Select value={form.categoria} onValueChange={(v) => setForm((p) => ({ ...p, categoria: v }))}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecionar…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Geral">Geral</SelectItem>
+                  {(categories as { id: string; name: string }[]).map((c) => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Origem">
+              <Select value={form.origem} onValueChange={(v) => setForm((p) => ({ ...p, origem: v }))}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Selecionar…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                  {(origins as { id: string; name: string }[]).filter((o) => o.name !== "WhatsApp").map((o) => (
+                    <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {isAdminOrGerente && (
+              <Field label="Responsável">
+                <Select value={form.responsavelId} onValueChange={(v) => setForm((p) => ({ ...p, responsavelId: v }))}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Selecionar…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(users as { id: string; name: string }[]).map((u) => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={isPending}>
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleCreate} disabled={isPending || !name.trim()}>
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            <Button className="flex-1" onClick={handleCreate} disabled={isPending || !form.name.trim()}>
+              {isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               Criar cliente
             </Button>
           </div>
@@ -591,10 +837,48 @@ function ConversationMessages({
 
   const { toast } = useToast();
 
+  const [createClientOpen, setCreateClientOpen] = useState(false);
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
+  const isUnknownContact = !client.clientId;
+
+  const handleSaveSticker = async (mediaId: string) => {
+    if (savingStickers.has(mediaId)) return;
+    setSavingStickers((prev) => new Set(prev).add(mediaId));
+    try {
+      await fetch("/api/whatsapp/stickers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaId }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/stickers"] });
+      toast({ title: "Figurinha salva!" });
+    } catch {
+      toast({ title: "Erro ao salvar figurinha", variant: "destructive" });
+    } finally {
+      setSavingStickers((prev) => { const s = new Set(prev); s.delete(mediaId); return s; });
+    }
+  };
+
+  const sendSavedSticker = async (mediaId: string) => {
+    setStickerPickerOpen(false);
+    setIsUploading(true);
+    try {
+      const res = await fetch(`/api/whatsapp/media/${mediaId}`);
+      if (!res.ok) throw new Error("Falha ao buscar figurinha");
+      const blob = await res.blob();
+      const file = new File([blob], `sticker-${Date.now()}.webp`, { type: blob.type || "image/webp" });
+      await sendMedia(file);
+    } catch {
+      toast({ title: "Erro ao enviar figurinha", variant: "destructive" });
+      setIsUploading(false);
+    }
+  };
+
   const { data: rawMessages = [], isLoading } = useQuery<WaMessage[]>({
-    queryKey: ["/api/whatsapp/conversations", clientId],
+    queryKey: ["/api/whatsapp/conversations", conversationKey],
     queryFn: async () => {
-      const res = await fetch(`/api/whatsapp/conversations/${clientId}`);
+      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data?.messages ?? (Array.isArray(data) ? data : []);
@@ -613,16 +897,16 @@ function ConversationMessages({
   }, [messages.length, localMessages.length]);
 
   useEffect(() => {
-    const es = new EventSource(`/api/whatsapp/conversations/${clientId}/stream`);
+    const es = new EventSource(`/api/whatsapp/conversations/${conversationKey}/stream`);
     es.addEventListener("new_message", () => {
       // Clear local pending messages before refetch to avoid duplicate display (race condition:
       // SSE fires after backend confirms send, but attemptSend promise hasn't resolved yet)
       setLocalMessages([]);
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     });
     return () => es.close();
-  }, [clientId, queryClient]);
+  }, [conversationKey, queryClient]);
 
   const attemptSend = useCallback(async (text: string, localId: string, channelId?: number, replyToMessageId?: string) => {
     try {
@@ -633,7 +917,7 @@ function ConversationMessages({
       if (replyToMessageId) {
         body.replyToMessageId = replyToMessageId;
       }
-      const res = await fetch(`/api/whatsapp/conversations/${clientId}/messages`, {
+      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -647,15 +931,15 @@ function ConversationMessages({
       // Non-network errors: backend persisted the message as "failed" — retry button will appear
     } finally {
       setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     }
-  }, [clientId, queryClient, toast, userRole]);
+  }, [conversationKey, queryClient, toast, userRole]);
 
   const handleRetry = useCallback(async (messageId: string) => {
     setRetryingIds((prev) => { const s = new Set(prev); s.add(messageId); return s; });
     try {
-      await fetch(`/api/whatsapp/conversations/${clientId}/messages/${messageId}/retry`, {
+      await fetch(`/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/retry`, {
         method: "POST",
       });
     } finally {
@@ -664,10 +948,10 @@ function ConversationMessages({
         s.delete(messageId);
         return s;
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     }
-  }, [clientId, queryClient]);
+  }, [conversationKey, queryClient]);
 
   const sendMedia = useCallback(async (file: File, caption?: string) => {
     setIsUploading(true);
@@ -682,7 +966,7 @@ function ConversationMessages({
         form.append("replyToMessageId", replyingTo.id);
         setReplyingTo(null);
       }
-      const res = await fetch(`/api/whatsapp/conversations/${clientId}/messages/media`, {
+      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}/messages/media`, {
         method: "POST",
         body: form,
       });
@@ -694,10 +978,10 @@ function ConversationMessages({
       toast({ title: "Erro de conexão ao enviar arquivo", variant: "destructive" });
     } finally {
       setIsUploading(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     }
-  }, [clientId, queryClient, replyingTo, selectedChannelId, toast, userRole]);
+  }, [conversationKey, queryClient, replyingTo, selectedChannelId, toast, userRole]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -720,16 +1004,16 @@ function ConversationMessages({
       if ((userRole === "admin" || userRole === "gerente") && selectedChannelId != null) {
         body.channelId = selectedChannelId;
       }
-      await fetch(`/api/whatsapp/conversations/${clientId}/messages/${messageId}/reaction`, {
+      await fetch(`/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/reaction`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
     } catch {
       toast({ title: "Erro ao reagir à mensagem", variant: "destructive" });
     }
-  }, [clientId, queryClient, selectedChannelId, toast, userRole]);
+  }, [conversationKey, queryClient, selectedChannelId, toast, userRole]);
 
   const stopRecording = useCallback(() => {
     if (recordingTimerRef.current) {
@@ -871,6 +1155,24 @@ function ConversationMessages({
         )}
       </div>
 
+      {/* Banner de contato desconhecido */}
+      {isUnknownContact && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 shrink-0">
+          <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-400 flex-1">
+            Contato desconhecido — crie um cliente para registrar esta conversa.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 shrink-0"
+            onClick={() => setCreateClientOpen(true)}
+          >
+            Criar cliente
+          </Button>
+        </div>
+      )}
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-1 bg-slate-50 dark:bg-slate-950/30">
         {isLoading ? (
@@ -965,7 +1267,7 @@ function ConversationMessages({
                         </button>
                       )}
 
-                      {/* Botões hover: reply + reação */}
+                      {/* Botões hover: reply + reação + salvar figurinha */}
                       {!isFailed && (
                         <div className={cn(
                           "shrink-0 mb-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
@@ -982,6 +1284,23 @@ function ConversationMessages({
                           >
                             <Reply className="h-3.5 w-3.5" />
                           </button>
+                          {msg.type === "sticker" && msg.media?.id && (
+                            <button
+                              onClick={() => handleSaveSticker(msg.media!.id)}
+                              disabled={savingStickers.has(msg.media!.id)}
+                              className={cn(
+                                "h-7 w-7 rounded-full flex items-center justify-center",
+                                "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
+                                "text-slate-500 dark:text-slate-400 disabled:opacity-50",
+                              )}
+                              title="Salvar figurinha"
+                            >
+                              {savingStickers.has(msg.media!.id)
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Bookmark className="h-3.5 w-3.5" />
+                              }
+                            </button>
+                          )}
                           <Popover open={reactingToId === msg.id} onOpenChange={(o) => setReactingToId(o ? msg.id : null)}>
                             <PopoverTrigger asChild>
                               <button
@@ -1202,89 +1521,40 @@ function ConversationMessages({
             </Button>
           </div>
         ) : (
-          <div className="p-3 sm:p-4">
-            <div className="flex items-end gap-1.5">
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,audio/aac,audio/mp4,application/pdf,.docx,.xlsx,.pptx,text/plain"
-                onChange={handleFileChange}
-              />
-              <input
-                ref={stickerInputRef}
-                type="file"
-                className="hidden"
-                accept="image/webp"
-                onChange={handleStickerChange}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
+          <div className="px-3 sm:px-4 pt-3 pb-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,audio/aac,audio/mp4,application/pdf,.docx,.xlsx,.pptx,text/plain"
+              onChange={handleFileChange}
+            />
+            <input
+              ref={stickerInputRef}
+              type="file"
+              className="hidden"
+              accept="image/webp"
+              onChange={handleStickerChange}
+            />
+
+            {/* Textarea + botão enviar */}
+            <div className="flex items-end gap-2">
+              <Textarea
+                ref={textareaRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Digite uma mensagem…"
+                className="flex-1 resize-none min-h-[90px] max-h-[200px] text-sm"
+                rows={3}
                 disabled={isUploading}
-                className="shrink-0 mb-0.5 h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
-                title="Enviar arquivo"
-              >
-                {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-              </button>
-              <button
-                onClick={() => stickerInputRef.current?.click()}
-                disabled={isUploading}
-                className="shrink-0 mb-0.5 h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
-                title="Enviar figurinha (.webp)"
-              >
-                <Sticker className="h-4 w-4" />
-              </button>
-              <div className="flex-1 relative">
-                <Textarea
-                  ref={textareaRef}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Digite uma mensagem…"
-                  className="resize-none min-h-[40px] max-h-[120px] text-sm pr-9"
-                  rows={1}
-                  disabled={isUploading}
-                />
-                <Popover
-                  open={emojiOpen}
-                  onOpenChange={(o) => {
-                    if (o) cursorPosRef.current = textareaRef.current?.selectionStart ?? message.length;
-                    setEmojiOpen(o);
-                  }}
-                >
-                  <PopoverTrigger asChild>
-                    <button
-                      className="absolute right-2 bottom-2 h-6 w-6 flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
-                      title="Emoji"
-                    >
-                      <Smile className="h-4 w-4" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent side="top" align="end" className="p-0 w-auto">
-                    <EmojiPicker
-                      onPick={(e) => {
-                        const pos = cursorPosRef.current;
-                        setMessage((prev) => prev.slice(0, pos) + e + prev.slice(pos));
-                        cursorPosRef.current = pos + e.length;
-                        setEmojiOpen(false);
-                        setTimeout(() => {
-                          const ta = textareaRef.current;
-                          if (ta) {
-                            ta.focus();
-                            ta.setSelectionRange(cursorPosRef.current, cursorPosRef.current);
-                          }
-                        }, 0);
-                      }}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              />
               {message.trim() ? (
                 <Button
                   onClick={handleSend}
                   disabled={isUploading}
                   size="icon"
-                  className="shrink-0 h-10 w-10"
+                  className="shrink-0 h-10 w-10 mb-0.5"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -1292,19 +1562,89 @@ function ConversationMessages({
                 <button
                   onClick={startRecording}
                   disabled={isUploading}
-                  className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  className="shrink-0 h-10 w-10 mb-0.5 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                   title="Gravar áudio"
                 >
                   <Mic className="h-4 w-4" />
                 </button>
               )}
             </div>
-            <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1.5 text-right hidden sm:block">
-              Enter para enviar · Shift+Enter para nova linha
-            </p>
+
+            {/* Toolbar inferior: anexo, figurinha, emoji + dica */}
+            <div className="flex items-center gap-1 mt-1.5">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                title="Enviar arquivo"
+              >
+                {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </button>
+              <Popover open={stickerPickerOpen} onOpenChange={setStickerPickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    disabled={isUploading}
+                    className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                    title="Figurinhas"
+                  >
+                    <Sticker className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="p-0 w-auto">
+                  <StickerPicker
+                    onPickFromDevice={() => { setStickerPickerOpen(false); stickerInputRef.current?.click(); }}
+                    onPickSaved={sendSavedSticker}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Popover
+                open={emojiOpen}
+                onOpenChange={(o) => {
+                  if (o) cursorPosRef.current = textareaRef.current?.selectionStart ?? message.length;
+                  setEmojiOpen(o);
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
+                    title="Emoji"
+                  >
+                    <Smile className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="p-0 w-auto">
+                  <EmojiPicker
+                    onPick={(e) => {
+                      const pos = cursorPosRef.current;
+                      setMessage((prev) => prev.slice(0, pos) + e + prev.slice(pos));
+                      cursorPosRef.current = pos + e.length;
+                      setEmojiOpen(false);
+                      setTimeout(() => {
+                        const ta = textareaRef.current;
+                        if (ta) {
+                          ta.focus();
+                          ta.setSelectionRange(cursorPosRef.current, cursorPosRef.current);
+                        }
+                      }, 0);
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+              <p className="text-[10px] text-slate-400 dark:text-slate-600 ml-auto hidden sm:block">
+                Enter para enviar · Shift+Enter para nova linha
+              </p>
+            </div>
           </div>
         )}
       </div>
+
+      <CreateClientFromConversationDialog
+        open={createClientOpen}
+        onOpenChange={setCreateClientOpen}
+        client={client}
+        userRole={userRole}
+        onSuccess={onClientLinked}
+      />
     </div>
   );
 }
@@ -1434,7 +1774,8 @@ function NewConversationDialog({
 
 export default function WhatsAppConversationsPage() {
   const { user } = useAuth();
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  // selectedId holds either a clientId or a conversationId (for unknown contacts)
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [newConvOpen, setNewConvOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
@@ -1464,42 +1805,54 @@ export default function WhatsAppConversationsPage() {
     refetchInterval: 15_000,
   });
 
-  const markRead = useCallback(async (clientId: string) => {
+  const markRead = useCallback(async (id: string) => {
     try {
-      await fetch(`/api/whatsapp/conversations/${clientId}/read`, { method: "POST" });
+      await fetch(`/api/whatsapp/conversations/${id}/read`, { method: "POST" });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     } catch {
       // silently ignore
     }
   }, [queryClient]);
 
-  const selectedClientIdRef = useRef(selectedClientId);
-  selectedClientIdRef.current = selectedClientId;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
 
   useEffect(() => {
     const es = new EventSource("/api/whatsapp/notifications/stream");
     es.addEventListener("new_whatsapp_inbound", (e) => {
-      const data = JSON.parse(e.data) as { clientId: string | null };
+      const data = JSON.parse(e.data) as { clientId: string | null; conversationId?: string | null };
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
-      if (data.clientId && data.clientId === selectedClientIdRef.current) {
-        markRead(data.clientId);
-        queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", data.clientId] });
+      const isSelected =
+        (data.clientId && data.clientId === selectedIdRef.current) ||
+        (data.conversationId && data.conversationId === selectedIdRef.current);
+      if (isSelected) {
+        markRead(selectedIdRef.current!);
+        queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", selectedIdRef.current] });
       }
     });
     return () => es.close();
   }, [queryClient, markRead]);
 
-  const handleSelectClient = (clientId: string) => {
-    queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
-    setSelectedClientId(clientId);
-    markRead(clientId);
+  const handleSelectConversation = (id: string) => {
+    queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", id] });
+    setSelectedId(id);
+    markRead(id);
   };
 
-  const handleBack = () => setSelectedClientId(null);
+  // After creating a client from an unknown conversation, switch to clientId-based selection
+  const handleClientLinked = (clientId: string) => {
+    setSelectedId(clientId);
+    queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+    queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+  };
 
-  const selectedClient = clientList.find((c) => c.clientId === selectedClientId) ?? null;
+  const handleBack = () => setSelectedId(null);
 
-  const showList = !selectedClientId;
+  const selectedClient = clientList.find(
+    (c) => c.clientId === selectedId || c.conversationId === selectedId,
+  ) ?? null;
+
+  const showList = !selectedId;
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -1573,8 +1926,8 @@ export default function WhatsAppConversationsPage() {
               <ClientListItem
                 key={client.conversationId}
                 client={client}
-                selected={client.clientId === selectedClientId}
-                onClick={() => client.clientId && handleSelectClient(client.clientId)}
+                selected={client.clientId === selectedId || client.conversationId === selectedId}
+                onClick={() => handleSelectConversation(client.clientId ?? client.conversationId)}
               />
             ))
           )}
@@ -1584,16 +1937,17 @@ export default function WhatsAppConversationsPage() {
       {/* Right panel — conversation */}
       <div className={cn(
         "flex-1 flex-col overflow-hidden",
-        selectedClientId ? "flex" : "hidden md:flex",
+        selectedId ? "flex" : "hidden md:flex",
       )}>
         {selectedClient ? (
           <ConversationMessages
             key={selectedClient.conversationId}
-            clientId={selectedClient.clientId!}
+            conversationKey={selectedClient.clientId ?? selectedClient.conversationId}
             client={selectedClient}
             onBack={handleBack}
             channels={availableChannels}
             userRole={user?.role ?? "vendedor"}
+            onClientLinked={handleClientLinked}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -1613,7 +1967,7 @@ export default function WhatsAppConversationsPage() {
       <NewConversationDialog
         open={newConvOpen}
         onOpenChange={setNewConvOpen}
-        onSelect={handleSelectClient}
+        onSelect={handleSelectConversation}
       />
     </div>
   );

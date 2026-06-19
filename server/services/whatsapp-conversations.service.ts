@@ -7,6 +7,7 @@ import {
   whatsappMedia,
   whatsappConversationReads,
   whatsappReactions,
+  waSavedStickers,
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -103,6 +104,47 @@ export async function getConversationPhone(conversationId: string): Promise<stri
     .where(eq(whatsappConversations.id, conversationId))
     .limit(1);
   return conv?.phone ?? null;
+}
+
+export async function listSavedStickers(userId: string) {
+  return db
+    .select({
+      id: waSavedStickers.id,
+      mediaId: waSavedStickers.mediaId,
+      createdAt: waSavedStickers.createdAt,
+      storageKey: whatsappMedia.storageKey,
+      mimeType: whatsappMedia.mimeType,
+    })
+    .from(waSavedStickers)
+    .innerJoin(whatsappMedia, eq(waSavedStickers.mediaId, whatsappMedia.id))
+    .where(eq(waSavedStickers.userId, userId))
+    .orderBy(desc(waSavedStickers.createdAt));
+}
+
+export async function saveSticker(userId: string, mediaId: string) {
+  const [row] = await db
+    .insert(waSavedStickers)
+    .values({ userId, mediaId })
+    .onConflictDoNothing()
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteSavedSticker(userId: string, stickerId: string) {
+  const [row] = await db
+    .delete(waSavedStickers)
+    .where(and(eq(waSavedStickers.id, stickerId), eq(waSavedStickers.userId, userId)))
+    .returning();
+  return row ?? null;
+}
+
+export async function isStickerSaved(userId: string, mediaId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: waSavedStickers.id })
+    .from(waSavedStickers)
+    .where(and(eq(waSavedStickers.userId, userId), eq(waSavedStickers.mediaId, mediaId)))
+    .limit(1);
+  return !!row;
 }
 
 export async function listClientsForChat(

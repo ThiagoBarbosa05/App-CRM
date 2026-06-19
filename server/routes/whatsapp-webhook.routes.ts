@@ -239,6 +239,11 @@ async function handleIncomingMessage(
   const text = message.text?.body ?? "";
   const mediaObj = message.image ?? message.audio ?? message.video ?? message.document ?? message.sticker;
 
+  // WhatsApp envia type "unsupported" para stickers animados e outros formatos.
+  // Quando há dados de sticker no payload, normaliza o tipo.
+  const effectiveType =
+    message.type === "unsupported" && message.sticker ? "sticker" : message.type;
+
   console.log(
     `[WA Webhook] Mensagem recebida de ${message.from} (${metadata.display_phone_number}): ${text || `[${message.type}]`}`,
   );
@@ -258,7 +263,7 @@ async function handleIncomingMessage(
   await saveInboundMessage({
     phone: message.from,
     content: text || null,
-    type: message.type,
+    type: effectiveType,
     waMessageId: message.id,
     timestamp: message.timestamp,
     caption: (message.image?.caption ?? message.video?.caption ?? message.document?.caption) || undefined,

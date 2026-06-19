@@ -15,6 +15,9 @@ import {
   updateMediaStorageKey,
   linkClientToConversation,
   getConversationPhone,
+  listSavedStickers,
+  saveSticker,
+  deleteSavedSticker,
 } from "../services/whatsapp-conversations.service";
 import { clientsService } from "../services/clients.service";
 import { downloadMediaToBuffer } from "../integrations/whatsapp";
@@ -307,8 +310,60 @@ router.post("/conversations/:clientId/messages/:messageId/retry", async (req, re
   }
 });
 
+// ── Figurinhas salvas ────────────────────────────────────────────────────────
+
+router.get("/stickers", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const rows = await listSavedStickers(user.userId);
+    res.json(rows);
+  } catch (err) {
+    console.error("[WA Stickers] Erro ao listar:", err);
+    res.status(500).json({ message: "Erro ao listar figurinhas" });
+  }
+});
+
+router.post("/stickers", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const { mediaId } = z.object({ mediaId: z.string().min(1) }).parse(req.body);
+    const row = await saveSticker(user.userId, mediaId);
+    res.json(row ?? { message: "Já salva" });
+  } catch (err) {
+    if (err instanceof z.ZodError) return res.status(400).json({ errors: err.flatten() });
+    console.error("[WA Stickers] Erro ao salvar:", err);
+    res.status(500).json({ message: "Erro ao salvar figurinha" });
+  }
+});
+
+router.delete("/stickers/:id", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const row = await deleteSavedSticker(user.userId, req.params.id);
+    if (!row) return res.status(404).json({ message: "Figurinha não encontrada" });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[WA Stickers] Erro ao remover:", err);
+    res.status(500).json({ message: "Erro ao remover figurinha" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 const linkClientSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("create"), name: z.string().min(1) }),
+  z.object({
+    action: z.literal("create"),
+    name: z.string().min(1),
+    email: z.string().email().optional().or(z.literal("")),
+    cpf: z.string().optional(),
+    birthday: z.string().optional(),
+    categoria: z.string().optional(),
+    origem: z.string().optional(),
+    responsavelId: z.string().optional(),
+  }),
   z.object({ action: z.literal("link"), clientId: z.string().min(1) }),
 ]);
 
@@ -333,10 +388,20 @@ router.post("/conversations/:conversationId/link-client", async (req, res) => {
     const phone = await getConversationPhone(conversationId);
     if (!phone) return res.status(404).json({ message: "Conversa não encontrada" });
 
+    const d = parsed.data;
     const result = await clientsService.createClient({
       userId: user.userId,
       userRole: user.role,
-      clientData: { name: parsed.data.name, phone, categoria: "Geral", origem: "WhatsApp" },
+      clientData: {
+        name: d.name,
+        phone,
+        email: d.email || undefined,
+        cpf: d.cpf || undefined,
+        birthday: d.birthday || undefined,
+        categoria: d.categoria || "Geral",
+        origem: d.origem || "WhatsApp",
+        responsavelId: d.responsavelId || undefined,
+      },
     });
 
     if (!result?.id) {
