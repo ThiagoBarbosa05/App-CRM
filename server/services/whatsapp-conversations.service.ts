@@ -8,6 +8,7 @@ import {
   whatsappConversationReads,
   whatsappReactions,
   waSavedStickers,
+  waQuickReplies,
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -145,6 +146,38 @@ export async function isStickerSaved(userId: string, mediaId: string): Promise<b
     .where(and(eq(waSavedStickers.userId, userId), eq(waSavedStickers.mediaId, mediaId)))
     .limit(1);
   return !!row;
+}
+
+// ── Respostas rápidas ────────────────────────────────────────────────────────
+
+export async function listQuickReplies(userId: string) {
+  return db
+    .select({
+      id: waQuickReplies.id,
+      title: waQuickReplies.title,
+      content: waQuickReplies.content,
+      createdAt: waQuickReplies.createdAt,
+    })
+    .from(waQuickReplies)
+    .where(eq(waQuickReplies.userId, userId))
+    .orderBy(asc(waQuickReplies.title));
+}
+
+export async function createQuickReply(userId: string, title: string, content: string) {
+  const [row] = await db
+    .insert(waQuickReplies)
+    .values({ userId, title, content })
+    .onConflictDoNothing()
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteQuickReply(userId: string, id: string) {
+  const [row] = await db
+    .delete(waQuickReplies)
+    .where(and(eq(waQuickReplies.id, id), eq(waQuickReplies.userId, userId)))
+    .returning();
+  return row ?? null;
 }
 
 export async function listClientsForChat(

@@ -49,6 +49,9 @@ import {
   Bookmark,
   BookmarkCheck,
   Trash2,
+  Zap,
+  Bot,
+  ChevronDown,
 } from "lucide-react";
 import {
   Popover,
@@ -590,6 +593,156 @@ function StickerPicker({
   );
 }
 
+interface QuickReply {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+
+interface WhatsappBot {
+  id: string;
+  name: string;
+  isActive: boolean;
+  triggerType: string;
+}
+
+function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
+  const [isCreating, setIsCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newContent, setNewContent] = useState("");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: replies = [], isLoading } = useQuery<QuickReply[]>({
+    queryKey: ["/api/whatsapp/quick-replies"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/quick-replies");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const handleCreate = async () => {
+    if (!newTitle.trim() || !newContent.trim()) return;
+    try {
+      const res = await fetch("/api/whatsapp/quick-replies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle.trim(), content: newContent.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast({ title: err.message ?? "Erro ao criar resposta", variant: "destructive" });
+        return;
+      }
+      setNewTitle("");
+      setNewContent("");
+      setIsCreating(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/quick-replies"] });
+    } catch {
+      toast({ title: "Erro ao criar resposta rápida", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      await fetch(`/api/whatsapp/quick-replies/${id}`, { method: "DELETE" });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/quick-replies"] });
+    } catch {
+      toast({ title: "Erro ao remover resposta", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="w-80 flex flex-col">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <Zap className="h-3.5 w-3.5 text-slate-400" />
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Respostas rápidas</span>
+        </div>
+        <button
+          onClick={() => setIsCreating((v) => !v)}
+          className="h-5 w-5 rounded flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
+          title="Nova resposta"
+        >
+          <PlusCircle className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {isCreating && (
+        <div className="p-2 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-1.5">
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Título (ex: Saudação)"
+            className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary"
+          />
+          <textarea
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+            placeholder="Texto da resposta…"
+            rows={3}
+            className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary resize-none"
+          />
+          <div className="flex gap-1.5 justify-end">
+            <button
+              onClick={() => { setIsCreating(false); setNewTitle(""); setNewContent(""); }}
+              className="px-2 py-1 text-xs rounded text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleCreate}
+              disabled={!newTitle.trim() || !newContent.trim()}
+              className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+        </div>
+      ) : replies.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 text-center gap-2">
+          <Zap className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            Nenhuma resposta rápida criada.<br />Clique em + para adicionar.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-64 overflow-y-auto">
+          {replies.map((r) => (
+            <div
+              key={r.id}
+              className="group flex items-start gap-2 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+              onClick={() => onPick(r.content)}
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{r.title}</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 line-clamp-2 mt-0.5">{r.content}</p>
+              </div>
+              <button
+                onClick={(e) => handleDelete(e, r.id)}
+                className="h-5 w-5 rounded flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-0.5"
+                title="Remover"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateClientFromConversationDialog({
   open,
   onOpenChange,
@@ -839,8 +992,44 @@ function ConversationMessages({
 
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const [quickReplyOpen, setQuickReplyOpen] = useState(false);
+  const [botPickerOpen, setBotPickerOpen] = useState(false);
+  const [isTriggeringBot, setIsTriggeringBot] = useState(false);
   const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
   const isUnknownContact = !client.clientId;
+
+  const { data: bots = [] } = useQuery<WhatsappBot[]>({
+    queryKey: ["/api/whatsapp/bots"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/bots");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const activeBots = bots.filter((b) => b.isActive);
+
+  const handleTriggerBot = async (botId: string) => {
+    setIsTriggeringBot(true);
+    setBotPickerOpen(false);
+    try {
+      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}/trigger-bot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ botId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: (err as { message?: string }).message ?? "Erro ao disparar bot", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Bot disparado com sucesso" });
+    } catch {
+      toast({ title: "Erro de conexão ao disparar bot", variant: "destructive" });
+    } finally {
+      setIsTriggeringBot(false);
+    }
+  };
 
   const handleSaveSticker = async (mediaId: string) => {
     if (savingStickers.has(mediaId)) return;
@@ -897,11 +1086,24 @@ function ConversationMessages({
   }, [messages.length, localMessages.length]);
 
   useEffect(() => {
+    if (localMessages.length === 0) return;
+    setLocalMessages((prev) =>
+      prev.filter(
+        (lm) =>
+          !rawMessages.some(
+            (m) =>
+              m.direction === "outbound" &&
+              m.content === lm.content &&
+              new Date(m.sentAt ?? m.createdAt).getTime() >=
+                new Date(lm.createdAt).getTime() - 5_000,
+          ),
+      ),
+    );
+  }, [rawMessages]);
+
+  useEffect(() => {
     const es = new EventSource(`/api/whatsapp/conversations/${conversationKey}/stream`);
     es.addEventListener("new_message", () => {
-      // Clear local pending messages before refetch to avoid duplicate display (race condition:
-      // SSE fires after backend confirms send, but attemptSend promise hasn't resolved yet)
-      setLocalMessages([]);
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     });
@@ -926,11 +1128,12 @@ function ConversationMessages({
     } catch (err) {
       if (err instanceof TypeError) {
         // TypeError = network error: request never reached the backend, no DB record created
+        setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
         toast({ title: "Erro de conexão. Verifique sua internet e tente novamente.", variant: "destructive" });
       }
       // Non-network errors: backend persisted the message as "failed" — retry button will appear
+      // rawMessages effect will remove the local message once the server data arrives
     } finally {
-      setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
     }
@@ -1152,6 +1355,46 @@ function ConversationMessages({
               </SelectContent>
             </Select>
           </div>
+        )}
+
+        {activeBots.length > 0 && (
+          <Popover open={botPickerOpen} onOpenChange={setBotPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isTriggeringBot}
+                className="h-7 text-xs gap-1.5 shrink-0 px-2"
+                title="Disparar bot"
+              >
+                {isTriggeringBot ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Bot className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Bot</span>
+                <ChevronDown className="h-3 w-3 text-slate-400" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="bottom" align="end" className="p-0 w-56">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                <Bot className="h-3.5 w-3.5 text-slate-400" />
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Disparar bot</span>
+              </div>
+              <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-60 overflow-y-auto">
+                {activeBots.map((bot) => (
+                  <button
+                    key={bot.id}
+                    className="flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                    onClick={() => handleTriggerBot(bot.id)}
+                  >
+                    <Bot className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="text-xs text-slate-700 dark:text-slate-200 truncate">{bot.name}</span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         )}
       </div>
 
@@ -1626,6 +1869,26 @@ function ConversationMessages({
                           ta.setSelectionRange(cursorPosRef.current, cursorPosRef.current);
                         }
                       }, 0);
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+              <Popover open={quickReplyOpen} onOpenChange={setQuickReplyOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    disabled={isUploading}
+                    className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                    title="Respostas rápidas"
+                  >
+                    <Zap className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="start" className="p-0 w-auto">
+                  <QuickReplyPicker
+                    onPick={(content) => {
+                      setMessage((prev) => prev ? prev + "\n" + content : content);
+                      setQuickReplyOpen(false);
+                      setTimeout(() => textareaRef.current?.focus(), 0);
                     }}
                   />
                 </PopoverContent>

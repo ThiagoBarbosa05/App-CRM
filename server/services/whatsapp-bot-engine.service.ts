@@ -306,7 +306,7 @@ async function resolveConditionHandle(
   return data.defaultHandle ?? "default";
 }
 
-export async function startBotSession(botId: string, phone: string): Promise<void> {
+export async function startBotSession(botId: string, phone: string): Promise<"started" | "already_active" | "no_start_node"> {
   const [startNode] = await db
     .select()
     .from(whatsappBotNodes)
@@ -318,10 +318,10 @@ export async function startBotSession(botId: string, phone: string): Promise<voi
     )
     .limit(1);
 
-  if (!startNode) return;
+  if (!startNode) return "no_start_node";
 
   const existingSession = await getActiveSession(phone);
-  if (existingSession) return;
+  if (existingSession) return "already_active";
 
   const [newSession] = await db
     .insert(whatsappBotSessions)
@@ -335,6 +335,7 @@ export async function startBotSession(botId: string, phone: string): Promise<voi
     .returning();
 
   await executeNode(startNode, phone, newSession.id, botId, {});
+  return "started";
 }
 
 /**

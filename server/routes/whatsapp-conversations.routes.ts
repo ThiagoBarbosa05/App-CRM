@@ -18,7 +18,11 @@ import {
   listSavedStickers,
   saveSticker,
   deleteSavedSticker,
+  listQuickReplies,
+  createQuickReply,
+  deleteQuickReply,
 } from "../services/whatsapp-conversations.service";
+import { startBotSession } from "../services/whatsapp-bot-engine.service";
 import { clientsService } from "../services/clients.service";
 import { downloadMediaToBuffer } from "../integrations/whatsapp";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
@@ -348,6 +352,87 @@ router.delete("/stickers/:id", async (req, res) => {
   } catch (err) {
     console.error("[WA Stickers] Erro ao remover:", err);
     res.status(500).json({ message: "Erro ao remover figurinha" });
+  }
+});
+
+// ── Respostas rápidas ────────────────────────────────────────────────────────
+
+router.get("/quick-replies", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const rows = await listQuickReplies(user.userId);
+    res.json(rows);
+  } catch (err) {
+    console.error("[WA QuickReplies] Erro ao listar:", err);
+    res.status(500).json({ message: "Erro ao listar respostas rápidas" });
+  }
+});
+
+const quickReplySchema = z.object({
+  title: z.string().min(1).max(100),
+  content: z.string().min(1),
+});
+
+router.post("/quick-replies", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const parsed = quickReplySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+    const row = await createQuickReply(user.userId, parsed.data.title, parsed.data.content);
+    if (!row) return res.status(409).json({ message: "Já existe uma resposta com esse título" });
+    res.status(201).json(row);
+  } catch (err) {
+    console.error("[WA QuickReplies] Erro ao criar:", err);
+    res.status(500).json({ message: "Erro ao criar resposta rápida" });
+  }
+});
+
+router.delete("/quick-replies/:id", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const row = await deleteQuickReply(user.userId, req.params.id);
+    if (!row) return res.status(404).json({ message: "Resposta não encontrada" });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[WA QuickReplies] Erro ao remover:", err);
+    res.status(500).json({ message: "Erro ao remover resposta rápida" });
+  }
+});
+
+// ── Disparar bot em conversa ─────────────────────────────────────────────────
+
+const triggerBotSchema = z.object({ botId: z.string().min(1) });
+
+router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = triggerBotSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const conversationId = await resolveConversationId(req.params.conversationId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const phone = await getConversationPhone(conversationId);
+    if (!phone) return res.status(404).json({ message: "Telefone da conversa não encontrado" });
+
+    const result = await startBotSession(parsed.data.botId, phone);
+
+    if (result === "no_start_node") {
+      return res.status(400).json({ message: "Bot sem nó inicial configurado" });
+    }
+    if (result === "already_active") {
+      return res.status(409).json({ message: "Já existe uma sessão de bot ativa para este contato" });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[WA TriggerBot] Erro ao disparar bot:", err);
+    res.status(500).json({ message: "Erro ao disparar bot", detail: err instanceof Error ? err.message : String(err) });
   }
 });
 
