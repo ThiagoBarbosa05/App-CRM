@@ -74,6 +74,37 @@ export async function resolveConversationIdByClientId(clientId: string) {
   return conv?.id ?? null;
 }
 
+// Aceita clientId OU conversationId diretamente (para contatos desconhecidos).
+export async function resolveConversationId(clientIdOrConvId: string): Promise<string | null> {
+  const byClient = await resolveConversationIdByClientId(clientIdOrConvId);
+  if (byClient) return byClient;
+
+  const [conv] = await db
+    .select({ id: whatsappConversations.id })
+    .from(whatsappConversations)
+    .where(eq(whatsappConversations.id, clientIdOrConvId))
+    .limit(1);
+  return conv?.id ?? null;
+}
+
+export async function linkClientToConversation(conversationId: string, clientId: string) {
+  const [updated] = await db
+    .update(whatsappConversations)
+    .set({ clientId, updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId))
+    .returning();
+  return updated ?? null;
+}
+
+export async function getConversationPhone(conversationId: string): Promise<string | null> {
+  const [conv] = await db
+    .select({ phone: whatsappConversations.phone })
+    .from(whatsappConversations)
+    .where(eq(whatsappConversations.id, conversationId))
+    .limit(1);
+  return conv?.phone ?? null;
+}
+
 export async function listClientsForChat(
   userId: string,
   userRole: string,
@@ -487,11 +518,11 @@ export async function sendConversationMedia(
 
 export async function retryFailedMessage(
   messageId: string,
-  clientId: string,
+  clientIdOrConvId: string,
   userId: string,
   userRole: string,
 ) {
-  const conversationId = await resolveConversationIdByClientId(clientId);
+  const conversationId = await resolveConversationId(clientIdOrConvId);
   if (!conversationId) return null;
 
   const [msg] = await db

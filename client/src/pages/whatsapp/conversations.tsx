@@ -471,18 +471,101 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
   return <p className="text-sm italic opacity-60">[{msg.type}]</p>;
 }
 
+function CreateClientFromConversationDialog({
+  open,
+  onOpenChange,
+  client,
+  onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  client: ChatClient;
+  onSuccess: (clientId: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    setIsPending(true);
+    try {
+      const res = await fetch(`/api/whatsapp/conversations/${client.conversationId}/link-client`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create", name: name.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data?.message ?? "Erro ao criar cliente", variant: "destructive" });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+      onOpenChange(false);
+      setName("");
+      onSuccess(data.clientId);
+    } catch {
+      toast({ title: "Erro de conexão", variant: "destructive" });
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Criar cliente</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-1">
+          <div>
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">
+              Nome
+            </label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome do cliente"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">
+              Telefone
+            </label>
+            <Input value={client.phone} readOnly className="bg-slate-50 dark:bg-slate-800/50 text-slate-500" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={isPending}>
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={handleCreate} disabled={isPending || !name.trim()}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Criar cliente
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ConversationMessages({
-  clientId,
+  conversationKey,
   onBack,
   client,
   channels,
   userRole,
+  onClientLinked,
 }: {
-  clientId: string;
+  conversationKey: string;
   onBack: () => void;
   client: ChatClient;
   channels: Channel[];
   userRole: string;
+  onClientLinked: (clientId: string) => void;
 }) {
   const [message, setMessage] = useState("");
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);

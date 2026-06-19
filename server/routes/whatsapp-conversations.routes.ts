@@ -8,12 +8,15 @@ import {
   sendConversationMedia,
   sendConversationReaction,
   markConversationRead,
-  resolveConversationIdByClientId,
+  resolveConversationId,
   startConversationByClientId,
   retryFailedMessage,
   getMediaById,
   updateMediaStorageKey,
+  linkClientToConversation,
+  getConversationPhone,
 } from "../services/whatsapp-conversations.service";
+import { clientsService } from "../services/clients.service";
 import { downloadMediaToBuffer } from "../integrations/whatsapp";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
 import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
@@ -43,7 +46,7 @@ router.post("/conversations/:clientId/messages/media", upload.single("file"), as
       return res.status(400).json({ message: `Tipo de arquivo não suportado: ${req.file.mimetype}` });
     }
 
-    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
     const channelId = req.body.channelId ? Number(req.body.channelId) : undefined;
@@ -130,7 +133,7 @@ router.get("/conversations/:clientId", async (req, res) => {
     const user = (req as any).user;
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
 
-    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
     const result = await getConversation(conversationId, user.userId, user.role);
@@ -173,7 +176,7 @@ router.post("/conversations/:clientId/read", async (req, res) => {
     const user = (req as any).user;
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
 
-    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
     await markConversationRead(user.userId, conversationId);
@@ -226,7 +229,7 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
       return res.status(400).json({ errors: parsed.error.flatten() });
     }
 
-    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
     const result = await sendConversationMessage(
@@ -262,7 +265,7 @@ router.post("/conversations/:clientId/messages/:messageId/reaction", async (req,
     const parsed = reactionSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
 
-    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
     const result = await sendConversationReaction(
@@ -301,6 +304,51 @@ router.post("/conversations/:clientId/messages/:messageId/retry", async (req, re
   } catch (err) {
     console.error(`[WA Conversations] Erro ao reenviar mensagem:`, err);
     res.status(500).json({ message: "Erro ao reenviar mensagem" });
+  }
+});
+
+const linkClientSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("create"), name: z.string().min(1) }),
+  z.object({ action: z.literal("link"), clientId: z.string().min(1) }),
+]);
+
+router.post("/conversations/:conversationId/link-client", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = linkClientSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const conversationId = await resolveConversationId(req.params.conversationId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    if (parsed.data.action === "link") {
+      const updated = await linkClientToConversation(conversationId, parsed.data.clientId);
+      if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
+      return res.json({ ok: true, conversationId, clientId: parsed.data.clientId });
+    }
+
+    // action === "create": busca phone da conversa, cria cliente, vincula
+    const phone = await getConversationPhone(conversationId);
+    if (!phone) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const result = await clientsService.createClient({
+      userId: user.userId,
+      userRole: user.role,
+      clientData: { name: parsed.data.name, phone, categoria: "Geral", origem: "WhatsApp" },
+    });
+
+    if (!result?.id) {
+      return res.status(400).json({ message: "Erro ao criar cliente" });
+    }
+
+    await linkClientToConversation(conversationId, result.id);
+
+    res.json({ ok: true, conversationId, clientId: result.id, client: result });
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao vincular cliente:", err);
+    res.status(500).json({ message: "Erro ao vincular cliente", detail: err instanceof Error ? err.message : String(err) });
   }
 });
 
