@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ClientExportModalProps {
@@ -18,6 +18,8 @@ interface ClientExportModalProps {
   clients: any[];
   selectedClients: any[];
   users?: any[];
+  totalItems?: number;
+  isLoadingClients?: boolean;
 }
 
 const AVAILABLE_FIELDS = [
@@ -37,12 +39,14 @@ const AVAILABLE_FIELDS = [
   { key: 'updatedAt', label: 'Última Atualização', defaultChecked: false }
 ];
 
-export default function ClientExportModal({ 
-  open, 
-  onOpenChange, 
-  clients, 
+export default function ClientExportModal({
+  open,
+  onOpenChange,
+  clients,
   selectedClients,
-  users = []
+  users = [],
+  totalItems,
+  isLoadingClients = false,
 }: ClientExportModalProps) {
   const { toast } = useToast();
   const [selectedFields, setSelectedFields] = useState<string[]>(
@@ -218,18 +222,46 @@ export default function ClientExportModal({
             ))}
           </div>
 
-          <div className="flex justify-between items-center pt-4 border-t">
-            <span className="text-sm text-gray-600">
-              {selectedFields.length} campos selecionados
-            </span>
-            <Button 
-              onClick={handleExport} 
-              disabled={isExporting || selectedFields.length === 0}
-              className="bg-primary hover:bg-primary-dark"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {isExporting ? "Exportando..." : "Exportar"}
-            </Button>
+          <div className="pt-4 border-t space-y-3">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
+              {isLoadingClients ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                  <span>
+                    Carregando clientes
+                    {totalItems ? ` (${totalItems.toLocaleString("pt-BR")} estimado)` : ""}
+                    ...
+                  </span>
+                </>
+              ) : selectedClients.length > 0 ? (
+                <span>
+                  <span className="font-semibold text-gray-900 dark:text-slate-100">
+                    {selectedClients.length.toLocaleString("pt-BR")}
+                  </span>{" "}
+                  cliente{selectedClients.length !== 1 ? "s" : ""} selecionado{selectedClients.length !== 1 ? "s" : ""} serão exportados
+                </span>
+              ) : (
+                <span>
+                  <span className="font-semibold text-gray-900 dark:text-slate-100">
+                    {clients.length.toLocaleString("pt-BR")}
+                  </span>{" "}
+                  cliente{clients.length !== 1 ? "s" : ""} filtrado{clients.length !== 1 ? "s" : ""} serão exportados
+                </span>
+              )}
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-500 dark:text-slate-400">
+                {selectedFields.length} campo{selectedFields.length !== 1 ? "s" : ""} selecionado{selectedFields.length !== 1 ? "s" : ""}
+              </span>
+              <Button
+                onClick={handleExport}
+                disabled={isExporting || selectedFields.length === 0 || isLoadingClients}
+                className="bg-primary hover:bg-primary-dark"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {isExporting ? "Exportando..." : "Exportar"}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

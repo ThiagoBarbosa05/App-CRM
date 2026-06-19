@@ -3,6 +3,7 @@ import { getClientsController } from "../controllers/clients/get-clients.control
 import { getClientByPhoneController } from "../controllers/clients/get-client-by-phone.controller";
 import { getClientsWithoutContactController } from "../controllers/clients/get-clients-without-contact.controller";
 import { getClientsExportAllController } from "../controllers/clients/get-clients-export-all.controller";
+import { getClientsExportFilteredController } from "../controllers/clients/get-clients-export-filtered.controller";
 import { postClientController } from "../controllers/clients/post-client.controller";
 import { putClientController } from "../controllers/clients/put-client.controller";
 import { deleteClientController } from "../controllers/clients/delete-client.controller";
@@ -106,6 +107,7 @@ clientsRouter.get("/without-contact", getClientsWithoutContactController);
  * @returns {object} 500 - Erro interno do servidor
  */
 clientsRouter.get("/export-all", getClientsExportAllController);
+clientsRouter.get("/export-filtered", getClientsExportFilteredController);
 
 /**
  * @route GET /api/clients/:id

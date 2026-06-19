@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
+import { useWhatsAppNotifications } from "@/hooks/useWhatsAppNotifications.tsx";
 import { cn } from "@/lib/utils";
-import { Bell, BellOff, MessageCircle } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 
 interface ChatClient {
   id: string;
@@ -15,35 +15,8 @@ interface ChatClient {
 export function WhatsAppFloatingButton() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [pulse, setPulse] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(() => {
-    return localStorage.getItem("wa-notify-sound") !== "false";
-  });
   const clientsRef = useRef<ChatClient[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioUnlockedRef = useRef(false);
-
-  useEffect(() => {
-    audioRef.current = new Audio("/notification.wav");
-    audioRef.current.volume = 0.7;
-  }, []);
-
-  function unlockAndPlay() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audioUnlockedRef.current = true;
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
-  }
-
-  function playNotificationSound() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
-  }
 
   const { data: clientList = [] } = useQuery<ChatClient[]>({
     queryKey: ["/api/whatsapp/conversations-list-badge", user?.id],
@@ -60,71 +33,18 @@ export function WhatsAppFloatingButton() {
 
   const totalUnread = clientList.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
 
-  useEffect(() => {
-    if (!user) return;
-
-    const es = new EventSource("/api/whatsapp/notifications/stream");
-
-    es.addEventListener("new_whatsapp_inbound", (e) => {
-      const data = JSON.parse(e.data) as { clientId: string | null };
-
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list-badge", user.id] });
-
-      // Find client name if available
-      const client = data.clientId
-        ? clientsRef.current.find((c) => c.id === data.clientId)
-        : null;
-
-      toast({
-        title: "Nova mensagem no WhatsApp",
-        description: client?.name ?? "Um cliente enviou uma mensagem",
-        duration: 5000,
-        action: (
-          <button
-            onClick={() => navigate("/whatsapp/conversas")}
-            className="text-xs font-semibold text-green-600 dark:text-green-400 hover:underline whitespace-nowrap"
-          >
-            Ver conversa
-          </button>
-        ) as any,
-      });
-
+  const { soundEnabled, toggleSound: toggleSoundBase } = useWhatsAppNotifications(clientsRef, {
+    onNewMessage: () => {
       setPulse(true);
       setTimeout(() => setPulse(false), 2000);
-
-      if (soundEnabled) {
-        if (!audioUnlockedRef.current) {
-          toast({
-            title: "🔔 Ativar notificações sonoras",
-            description: "Clique para receber alertas sonoros em novas mensagens",
-            duration: 10000,
-            action: (
-              <button
-                onClick={unlockAndPlay}
-                className="text-xs font-semibold text-green-600 dark:text-green-400 hover:underline whitespace-nowrap"
-              >
-                Ativar som
-              </button>
-            ) as any,
-          });
-        } else {
-          playNotificationSound();
-        }
-      }
-    });
-
-    return () => es.close();
-  }, [user, queryClient, toast, navigate, soundEnabled]);
+    },
+  });
 
   if (!user) return null;
 
   function toggleSound(e: React.MouseEvent) {
     e.stopPropagation();
-    setSoundEnabled((prev) => {
-      const next = !prev;
-      localStorage.setItem("wa-notify-sound", String(next));
-      return next;
-    });
+    toggleSoundBase();
   }
 
   return (

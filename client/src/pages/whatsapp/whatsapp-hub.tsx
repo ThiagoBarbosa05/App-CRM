@@ -1,5 +1,6 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useWhatsAppNotifications } from "@/hooks/useWhatsAppNotifications.tsx";
 import { cn } from "@/lib/utils";
 import { Activity, Bot, FileText, MessageCircle, Send, Settings2, ArrowLeft, ChevronDown } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -24,6 +25,8 @@ const ALL_TABS = [
 export default function WhatsAppHub({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [location, navigate] = useLocation();
+  const clientsRef = useRef<{ id: string; name: string }[]>([]);
+  useWhatsAppNotifications(clientsRef);
 
   const visibleTabs = ALL_TABS.filter(
     (tab) => !user || !tab.hideForRoles.includes(user.role),

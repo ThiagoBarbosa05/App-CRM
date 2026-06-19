@@ -226,6 +226,27 @@ export class ClientsService {
   }
 
   /**
+   * Exporta todos os clientes que correspondem aos filtros ativos (sem limite de paginação)
+   */
+  async getClientsForExportFiltered(params: GetClientsParams): Promise<any[]> {
+    const { userId, userRole, filters = {} } = params;
+
+    try {
+      const clients = await this.clientsRepository.getClients(
+        userId,
+        userRole,
+        filters,
+        1,
+        999999,
+      );
+      return clients;
+    } catch (error) {
+      console.error("Erro no ClientsService.getClientsForExportFiltered:", error);
+      throw new Error("Erro ao buscar clientes para exportação");
+    }
+  }
+
+  /**
    * Exporta todos os clientes do sistema (apenas para administradores)
    */
   async getAllClientsForExport(userRole?: string): Promise<any[]> {
@@ -896,6 +917,35 @@ export class ClientsService {
   processExportAllParams(req: any): { userRole?: string } {
     const userRole = req.user?.role;
     return { userRole };
+  }
+
+  /**
+   * Processa parâmetros para a rota export-filtered (mesmos filtros do GET /clients)
+   */
+  processExportFilteredParams(req: any): GetClientsParams {
+    const userId = (req.query.userId as string) || req.user?.userId;
+    const userRole = req.user?.role;
+
+    const filters = this.normalizeFilters({
+      search: req.query.search,
+      name: req.query.name,
+      phone: req.query.phone,
+      cpf: req.query.cpf,
+      responsavelId: req.query.responsavelId,
+      categoria: req.query.categoria,
+      origem: req.query.origem,
+      markers: req.query.markers,
+      purchaseStatus: req.query.purchaseStatus,
+      purchaseStatusDays: req.query.purchaseStatusDays,
+      wineGrape: req.query.wineGrape,
+      wineRegion: req.query.wineRegion,
+      wineType: req.query.wineType,
+      hasWineProfile: req.query.hasWineProfile === "true" ? true : undefined,
+      rfmSegment: req.query.rfmSegment as string | undefined,
+      eventId: req.query.eventId as string | undefined,
+    });
+
+    return { userId, userRole, filters };
   }
 
   /**

@@ -281,11 +281,12 @@ export default function Clients() {
   const { data: allClientsForExport, isFetching: isFetchingAllForExport } =
     useQuery({
       queryKey: [
-        "/api/clients/all",
+        "/api/clients/export-filtered",
         user?.id,
         user?.role,
         debouncedSearchQuery,
         clientFilters,
+        purchaseStatusDays,
       ],
       queryFn: async () => {
         const params = new URLSearchParams();
@@ -300,11 +301,10 @@ export default function Clients() {
         });
         filterParams.forEach((value, key) => params.append(key, value));
 
-        const response = await fetch(`/api/clients?${params.toString()}`);
+        const response = await fetch(`/api/clients/export-filtered?${params.toString()}`);
         if (!response.ok)
           throw new Error("Failed to fetch all clients for export");
-        const result = await response.json();
-        return Array.isArray(result) ? result : result.data || [];
+        return response.json();
       },
       enabled: isExportModalOpen && selectedClients.length === 0,
     });
@@ -887,6 +887,12 @@ export default function Clients() {
         clients={clientsForExport}
         selectedClients={selectedClients}
         users={usersArray}
+        totalItems={totalItems}
+        isLoadingClients={
+          isExportModalOpen &&
+          selectedClients.length === 0 &&
+          isFetchingAllForExport
+        }
       />
 
       <BulkDealCreationModalForClients
