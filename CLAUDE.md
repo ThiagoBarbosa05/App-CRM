@@ -9,9 +9,17 @@ npm run dev          # Start dev server (Express + Vite)
 npm run build        # Build frontend (Vite) + backend (esbuild)
 npm start            # Run production build
 npm run check        # TypeScript type check — run before finishing any task
-npm run db:push      # Push Drizzle schema changes to DB (dev only)
 npm run sync:umbler  # Manually trigger Umbler sync job
 ```
+
+> **IMPORTANTE — Mudanças no banco de dados:**
+> Nunca usar `npm run db:push` (o prompt interativo pode bloquear ou sobrescrever dados).
+> Toda alteração de schema deve ser aplicada **manualmente** com SQL direto.
+> Use o script helper `scripts/create-reactions-table.mjs` como referência de padrão:
+> ```bash
+> node scripts/<nome-do-script>.mjs
+> ```
+> O script usa o driver `@neondatabase/serverless` já instalado no projeto e lê `DATABASE_URL` do `.env`.
 
 No test runner is configured. If implementing tests, use Vitest:
 ```bash

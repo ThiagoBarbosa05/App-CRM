@@ -5,7 +5,7 @@ import { whatsappCampaignMessages, whatsappFlows, whatsappMessages } from "@shar
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { upsertWhatsappSetting } from "../services/whatsapp-settings.service";
 import { handleIncomingMessage as runBotEngine, handleFlowResponse } from "../services/whatsapp-bot-engine.service";
-import { saveInboundMessage } from "../services/whatsapp-conversations.service";
+import { saveInboundMessage, saveInboundReaction } from "../services/whatsapp-conversations.service";
 import { getChannelByPhoneNumberId } from "../services/whatsapp-channels.service";
 import { logAccountEvent } from "../services/whatsapp-account-events.service";
 import {
@@ -218,12 +218,14 @@ type IncomingMessage = {
   type: string;
   id: string;
   timestamp?: string;
+  context?: { id: string };
   text?: { body: string };
   image?: { id: string; mime_type: string; sha256?: string; caption?: string };
   audio?: { id: string; mime_type: string };
   video?: { id: string; mime_type: string; sha256?: string; caption?: string };
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
   sticker?: { id: string; mime_type: string };
+  reaction?: { message_id: string; emoji: string };
   interactive?: { type: string; nfm_reply?: { response_json: string; name: string; body: string } };
 };
 
@@ -243,6 +245,16 @@ async function handleIncomingMessage(
 
   const channel = await getChannelByPhoneNumberId(metadata.phone_number_id).catch(() => null);
 
+  if (message.type === "reaction" && message.reaction) {
+    await saveInboundReaction({
+      phone: message.from,
+      waMessageId: message.reaction.message_id,
+      emoji: message.reaction.emoji,
+      channelId: channel?.id ?? null,
+    }).catch((err) => console.error("[WA Webhook] Erro ao salvar reação:", err));
+    return;
+  }
+
   await saveInboundMessage({
     phone: message.from,
     content: text || null,
@@ -252,6 +264,7 @@ async function handleIncomingMessage(
     caption: (message.image?.caption ?? message.video?.caption ?? message.document?.caption) || undefined,
     rawPayload: message,
     channelId: channel?.id ?? null,
+    replyToWaMessageId: message.context?.id,
     mediaData: mediaObj
       ? {
           whatsappMediaId: mediaObj.id,

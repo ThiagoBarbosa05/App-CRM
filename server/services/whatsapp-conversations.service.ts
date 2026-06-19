@@ -6,9 +6,11 @@ import {
   whatsappMessages,
   whatsappMedia,
   whatsappConversationReads,
+  whatsappReactions,
 } from "../../shared/schema";
-import { eq, and, ilike, or, desc, sql, asc } from "drizzle-orm";
-import { sendTextMessage, downloadMediaToBuffer } from "../integrations/whatsapp";
+import { eq, and, ilike, or, desc, sql, asc, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
+import { sendTextMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { uploadWhatsappMedia } from "../lib/r2";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { getChannelByUserId, getChannelById, getChannelForConversation } from "./whatsapp-channels.service";
@@ -67,6 +69,7 @@ export async function resolveConversationIdByClientId(clientId: string) {
     .select({ id: whatsappConversations.id })
     .from(whatsappConversations)
     .where(eq(whatsappConversations.clientId, clientId))
+    .orderBy(desc(whatsappConversations.lastMessageAt))
     .limit(1);
   return conv?.id ?? null;
 }
@@ -182,7 +185,9 @@ export async function getConversation(
 
   if (!conv) return null;
 
-  const messages = await db
+  const replyMsg = alias(whatsappMessages, "reply_msg");
+
+  const rawMessages = await db
     .select({
       id: whatsappMessages.id,
       conversationId: whatsappMessages.conversationId,
@@ -197,6 +202,9 @@ export async function getConversation(
       campaignMessageId: whatsappMessages.campaignMessageId,
       sentAt: whatsappMessages.sentAt,
       createdAt: whatsappMessages.createdAt,
+      replyToContent: replyMsg.content,
+      replyToType: replyMsg.type,
+      replyToDirection: replyMsg.direction,
       media: {
         id: whatsappMedia.id,
         whatsappMediaId: whatsappMedia.whatsappMediaId,
@@ -208,11 +216,39 @@ export async function getConversation(
     })
     .from(whatsappMessages)
     .leftJoin(whatsappMedia, eq(whatsappMessages.id, whatsappMedia.messageId))
+    .leftJoin(replyMsg, eq(whatsappMessages.replyToMessageId, replyMsg.id))
     .where(eq(whatsappMessages.conversationId, conversationId))
     .orderBy(
-      asc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`),
+      desc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`),
     )
-    .limit(50);
+    .limit(100);
+
+  rawMessages.reverse();
+
+  const messageIds = rawMessages.map((m) => m.id);
+  const reactionsRows = messageIds.length > 0
+    ? await db
+        .select({
+          messageId: whatsappReactions.messageId,
+          emoji: whatsappReactions.emoji,
+          direction: whatsappReactions.direction,
+        })
+        .from(whatsappReactions)
+        .where(inArray(whatsappReactions.messageId, messageIds))
+    : [];
+
+  const reactionsByMessage = new Map<string, { emoji: string; direction: "inbound" | "outbound" }[]>();
+  for (const r of reactionsRows) {
+    if (!r.emoji) continue;
+    const list = reactionsByMessage.get(r.messageId) ?? [];
+    list.push({ emoji: r.emoji, direction: r.direction as "inbound" | "outbound" });
+    reactionsByMessage.set(r.messageId, list);
+  }
+
+  const messages = rawMessages.map((m) => ({
+    ...m,
+    reactions: reactionsByMessage.get(m.id) ?? [],
+  }));
 
   return { conversation: conv, messages };
 }
@@ -223,6 +259,7 @@ export async function sendConversationMessage(
   userId: string,
   userRole: string,
   channelId?: number,
+  replyToMessageId?: string,
 ) {
   const whereConditions: ReturnType<typeof eq>[] = [
     eq(whatsappConversations.id, conversationId),
@@ -249,6 +286,17 @@ export async function sendConversationMessage(
     return null;
   }
 
+  // Resolve waMessageId da mensagem citada (necessário para o context da Meta API)
+  let replyToWaMessageId: string | null = null;
+  if (replyToMessageId) {
+    const [ref] = await db
+      .select({ waMessageId: whatsappMessages.waMessageId })
+      .from(whatsappMessages)
+      .where(eq(whatsappMessages.id, replyToMessageId))
+      .limit(1);
+    replyToWaMessageId = ref?.waMessageId ?? null;
+  }
+
   // Persiste a mensagem imediatamente como "failed" — atualiza para "sent" se a API responder ok
   const [savedMessage] = await db
     .insert(whatsappMessages)
@@ -260,6 +308,7 @@ export async function sendConversationMessage(
       status: "failed",
       sentByUserId: userId,
       sentAt: new Date(),
+      replyToMessageId: replyToMessageId ?? null,
     })
     .returning({ id: whatsappMessages.id });
 
@@ -286,7 +335,7 @@ export async function sendConversationMessage(
   }
 
   try {
-    const result = await sendTextMessage(conv.phone, message, channelOverride ?? undefined);
+    const result = await sendTextMessage(conv.phone, message, channelOverride ?? undefined, replyToWaMessageId ?? undefined);
     const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
 
     await db
@@ -305,6 +354,135 @@ export async function sendConversationMessage(
     console.error(`[WA Conversations Service] Erro na Cloud API:`, err);
     throw err;
   }
+}
+
+const ALLOWED_MEDIA_TYPES: Record<string, "image" | "video" | "audio" | "document" | "sticker"> = {
+  "image/jpeg": "image",
+  "image/png": "image",
+  "image/webp": "sticker",
+  "video/mp4": "video",
+  "video/3gpp": "video",
+  "audio/mpeg": "audio",
+  "audio/ogg": "audio",
+  "audio/opus": "audio",
+  "audio/aac": "audio",
+  "audio/mp4": "audio",
+  "audio/webm": "audio",
+  "application/pdf": "document",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "document",
+  "text/plain": "document",
+};
+
+export async function sendConversationMedia(
+  conversationId: string,
+  file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+  userId: string,
+  userRole: string,
+  channelId?: number,
+  caption?: string,
+  replyToMessageId?: string,
+) {
+  const mediaType = ALLOWED_MEDIA_TYPES[file.mimetype];
+  if (!mediaType) throw new Error(`Tipo de arquivo não suportado: ${file.mimetype}`);
+
+  const whereConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappConversations.id, conversationId),
+  ];
+  if (userRole === "vendedor") {
+    whereConditions.push(eq(clients.responsavelId, userId));
+  }
+
+  const [conv] = await db
+    .select({ id: whatsappConversations.id, phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (!conv) return null;
+
+  let replyToWaMessageId: string | null = null;
+  if (replyToMessageId) {
+    const [ref] = await db
+      .select({ waMessageId: whatsappMessages.waMessageId })
+      .from(whatsappMessages)
+      .where(eq(whatsappMessages.id, replyToMessageId))
+      .limit(1);
+    replyToWaMessageId = ref?.waMessageId ?? null;
+  }
+
+  let channelOverride = null;
+  if (userRole === "vendedor") {
+    channelOverride = await getChannelByUserId(userId).catch(() => null)
+      ?? await getChannelForConversation(conversationId).catch(() => null);
+  } else if (channelId != null) {
+    const ch = await getChannelById(channelId).catch(() => null);
+    if (ch) {
+      channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+      await db
+        .update(whatsappConversations)
+        .set({ channelId })
+        .where(eq(whatsappConversations.id, conversationId));
+    }
+  } else {
+    channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+  }
+
+  const waMediaId = await uploadMedia(
+    file.buffer,
+    file.originalname,
+    file.mimetype,
+    channelOverride ?? undefined,
+  );
+
+  const result = await sendMediaMessage(
+    conv.phone,
+    waMediaId,
+    mediaType,
+    caption ?? undefined,
+    channelOverride ?? undefined,
+  );
+
+  const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+
+  const [savedMessage] = await db
+    .insert(whatsappMessages)
+    .values({
+      conversationId,
+      direction: "outbound",
+      type: mediaType,
+      content: null,
+      caption: caption ?? null,
+      status: "sent",
+      waMessageId,
+      sentByUserId: userId,
+      sentAt: new Date(),
+      replyToMessageId: replyToMessageId ?? null,
+    })
+    .returning({ id: whatsappMessages.id });
+
+  await db
+    .insert(whatsappMedia)
+    .values({
+      messageId: savedMessage.id,
+      whatsappMediaId: waMediaId,
+      mimeType: file.mimetype,
+      filename: file.originalname,
+      size: file.size,
+    });
+
+  await db
+    .update(whatsappConversations)
+    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId));
+
+  if (conv.clientId) {
+    publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+  }
+
+  return { id: savedMessage.id, status: "sent" };
 }
 
 export async function retryFailedMessage(
@@ -377,6 +555,7 @@ export async function saveInboundMessage(data: {
   caption?: string;
   rawPayload?: unknown;
   channelId?: number | null;
+  replyToWaMessageId?: string;
   mediaData?: {
     whatsappMediaId: string;
     mimeType?: string;
@@ -401,6 +580,17 @@ export async function saveInboundMessage(data: {
     ? new Date(Number(data.timestamp) * 1000)
     : undefined;
 
+  // Resolve replyToMessageId (DB id) a partir do waMessageId da mensagem citada
+  let replyToMessageId: string | null = null;
+  if (data.replyToWaMessageId) {
+    const [ref] = await db
+      .select({ id: whatsappMessages.id })
+      .from(whatsappMessages)
+      .where(eq(whatsappMessages.waMessageId, data.replyToWaMessageId))
+      .limit(1);
+    replyToMessageId = ref?.id ?? null;
+  }
+
   const [savedMessage] = await db
     .insert(whatsappMessages)
     .values({
@@ -412,6 +602,7 @@ export async function saveInboundMessage(data: {
       waMessageId: data.waMessageId,
       rawPayload: data.rawPayload ?? null,
       sentAt,
+      replyToMessageId,
     })
     .returning({ id: whatsappMessages.id });
 
@@ -483,6 +674,134 @@ export async function persistInboundMedia(
   } catch (err) {
     console.error(`[WA Media] Falha ao persistir mídia ${whatsappMediaId}:`, err);
   }
+}
+
+export async function saveInboundReaction(data: {
+  phone: string;
+  waMessageId: string;
+  emoji: string;
+  channelId?: number | null;
+}) {
+  const [targetMsg] = await db
+    .select({ id: whatsappMessages.id, conversationId: whatsappMessages.conversationId })
+    .from(whatsappMessages)
+    .where(eq(whatsappMessages.waMessageId, data.waMessageId))
+    .limit(1);
+
+  if (!targetMsg) {
+    console.warn(`[WA Webhook] Reação para mensagem desconhecida: ${data.waMessageId}`);
+    return;
+  }
+
+  if (!data.emoji) {
+    await db
+      .delete(whatsappReactions)
+      .where(
+        and(
+          eq(whatsappReactions.messageId, targetMsg.id),
+          eq(whatsappReactions.direction, "inbound"),
+        ),
+      );
+  } else {
+    await db
+      .insert(whatsappReactions)
+      .values({
+        messageId: targetMsg.id,
+        emoji: data.emoji,
+        direction: "inbound",
+        senderPhone: data.phone,
+      })
+      .onConflictDoUpdate({
+        target: [whatsappReactions.messageId, whatsappReactions.direction],
+        set: { emoji: data.emoji, senderPhone: data.phone },
+      });
+  }
+
+  const [conv] = await db
+    .select({ clientId: whatsappConversations.clientId })
+    .from(whatsappConversations)
+    .where(eq(whatsappConversations.id, targetMsg.conversationId))
+    .limit(1);
+
+  if (conv?.clientId) {
+    publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+  }
+}
+
+export async function sendConversationReaction(
+  conversationId: string,
+  messageId: string,
+  emoji: string,
+  userId: string,
+  userRole: string,
+  channelId?: number,
+) {
+  const whereConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappConversations.id, conversationId),
+  ];
+  if (userRole === "vendedor") {
+    whereConditions.push(eq(clients.responsavelId, userId));
+  }
+
+  const [conv] = await db
+    .select({ phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (!conv) return null;
+
+  const [targetMsg] = await db
+    .select({ waMessageId: whatsappMessages.waMessageId })
+    .from(whatsappMessages)
+    .where(
+      and(
+        eq(whatsappMessages.id, messageId),
+        eq(whatsappMessages.conversationId, conversationId),
+      ),
+    )
+    .limit(1);
+
+  if (!targetMsg?.waMessageId) return null;
+
+  let channelOverride = null;
+  if (userRole === "vendedor") {
+    channelOverride = await getChannelByUserId(userId).catch(() => null)
+      ?? await getChannelForConversation(conversationId).catch(() => null);
+  } else if (channelId != null) {
+    const ch = await getChannelById(channelId).catch(() => null);
+    if (ch) channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+  } else {
+    channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+  }
+
+  await sendReaction(conv.phone, targetMsg.waMessageId, emoji, channelOverride ?? undefined);
+
+  if (!emoji) {
+    await db
+      .delete(whatsappReactions)
+      .where(
+        and(
+          eq(whatsappReactions.messageId, messageId),
+          eq(whatsappReactions.direction, "outbound"),
+        ),
+      );
+  } else {
+    await db
+      .insert(whatsappReactions)
+      .values({ messageId, emoji, direction: "outbound" })
+      .onConflictDoUpdate({
+        target: [whatsappReactions.messageId, whatsappReactions.direction],
+        set: { emoji },
+      });
+  }
+
+  if (conv.clientId) {
+    publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+  }
+
+  return { ok: true };
 }
 
 export async function startConversationByClientId(clientId: string) {

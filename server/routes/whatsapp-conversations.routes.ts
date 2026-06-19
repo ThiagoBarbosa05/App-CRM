@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
+import multer from "multer";
 import {
   listClientsForChat,
   getConversation,
   sendConversationMessage,
+  sendConversationMedia,
+  sendConversationReaction,
   markConversationRead,
   resolveConversationIdByClientId,
   startConversationByClientId,
@@ -16,6 +19,55 @@ import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
 import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
 
 const router = Router();
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
+
+const ALLOWED_MIMETYPES = new Set([
+  "image/jpeg", "image/png", "image/webp",
+  "video/mp4", "video/3gpp",
+  "audio/mpeg", "audio/ogg", "audio/opus", "audio/aac", "audio/mp4", "audio/webm",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+]);
+
+router.post("/conversations/:clientId/messages/media", upload.single("file"), async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    if (!req.file) return res.status(400).json({ message: "Arquivo não enviado" });
+    if (!ALLOWED_MIMETYPES.has(req.file.mimetype)) {
+      return res.status(400).json({ message: `Tipo de arquivo não suportado: ${req.file.mimetype}` });
+    }
+
+    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const channelId = req.body.channelId ? Number(req.body.channelId) : undefined;
+    const caption = typeof req.body.caption === "string" && req.body.caption.trim() ? req.body.caption.trim() : undefined;
+    const replyToMessageId = typeof req.body.replyToMessageId === "string" ? req.body.replyToMessageId : undefined;
+
+    const result = await sendConversationMedia(
+      conversationId,
+      { buffer: req.file.buffer, originalname: req.file.originalname, mimetype: req.file.mimetype, size: req.file.size },
+      user.userId,
+      user.role,
+      channelId,
+      caption,
+      replyToMessageId,
+    );
+
+    if (!result) return res.status(400).json({ message: "Não foi possível enviar o arquivo" });
+
+    res.json(result);
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao enviar mídia:", err);
+    res.status(500).json({ message: "Erro ao enviar arquivo", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
 
 // :mediaId é o id da linha whatsapp_media. Serve do R2 quando já persistido;
 // caso contrário busca na Meta, persiste (cache-on-read) e devolve.
@@ -161,6 +213,7 @@ router.post("/conversations/start", async (req, res) => {
 const sendMessageSchema = z.object({
   message: z.string().min(1),
   channelId: z.number().int().positive().optional(),
+  replyToMessageId: z.string().optional(),
 });
 
 router.post("/conversations/:clientId/messages", async (req, res) => {
@@ -182,6 +235,7 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
       user.userId,
       user.role,
       parsed.data.channelId,
+      parsed.data.replyToMessageId,
     );
 
     if (result === null) {
@@ -192,6 +246,40 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
   } catch (err) {
     console.error(`[WA Conversations] Erro ao enviar mensagem:`, err);
     res.status(500).json({ message: "Erro ao enviar mensagem", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+const reactionSchema = z.object({
+  emoji: z.string(),
+  channelId: z.number().int().positive().optional(),
+});
+
+router.post("/conversations/:clientId/messages/:messageId/reaction", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = reactionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const conversationId = await resolveConversationIdByClientId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const result = await sendConversationReaction(
+      conversationId,
+      req.params.messageId,
+      parsed.data.emoji,
+      user.userId,
+      user.role,
+      parsed.data.channelId,
+    );
+
+    if (!result) return res.status(404).json({ message: "Mensagem não encontrada" });
+
+    res.json(result);
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao enviar reação:", err);
+    res.status(500).json({ message: "Erro ao enviar reação", detail: err instanceof Error ? err.message : String(err) });
   }
 });
 

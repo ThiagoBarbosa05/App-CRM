@@ -40,7 +40,18 @@ import {
   Mic,
   PlusCircle,
   Loader2,
+  Reply,
+  X,
+  Paperclip,
+  Square,
+  Smile,
+  Sticker,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Channel {
   id: number;
@@ -81,17 +92,81 @@ interface WaMessage {
   caption: string | null;
   status: string | null;
   replyToMessageId: string | null;
+  replyToContent: string | null;
+  replyToType: string | null;
+  replyToDirection: "inbound" | "outbound" | null;
   sentByUserId: string | null;
   campaignMessageId: string | null;
   sentAt: string | null;
   createdAt: string;
   media: WaMedia | null;
+  reactions?: { emoji: string; direction: "inbound" | "outbound" }[];
 }
 
 interface LocalMessage {
   localId: string;
   content: string;
   createdAt: string;
+}
+
+const REACTION_EMOJIS = ["❤️", "😂", "👍", "😮", "😢", "🙏"];
+
+const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
+  { label: "Smileys", emojis: ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙","🥲","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔","🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥","😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤧","🥵","🥶","🥴","😵","🤯","🤠","🥳","🥸","😎","🤓","🧐","😕","😟","🙁","☹️","😮","😯","😲","😳","🥺","😦","😧","😨","😰","😥","😢","😭","😱","😖","😣","😞","😓","😩","😫","🥱","😤","😡","😠","🤬","😈","👿"] },
+  { label: "Gestos", emojis: ["👋","🤚","🖐️","✋","🖖","👌","🤌","🤏","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","🖕","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","👐","🤲","🤝","🙏","✍️","💅","🤳","💪","🦾","🦿","🦵","🦶","👂","🦻","👃","🫀","🫁","🧠","🦷","🦴","👀","👁️","👅","👄"] },
+  { label: "Pessoas", emojis: ["🧑","👱","🧔","🧑‍🦰","🧑‍🦱","🧑‍🦳","🧑‍🦲","👶","🧒","👦","👧","🧑","👨","👩","🧓","👴","👵","🙍","🙎","🙅","🙆","💁","🙋","🧏","🙇","🤦","🤷","👮","🕵️","💂","🥷","👷","🫅","🤴","👸","👳","👲","🧕","🤵","👰","🤰","🤱","👼","🎅","🤶","🧑‍🎄","🦸","🦹","🧙","🧝","🧛","🧟","🧞","🧜","🧚","🧑‍🤝‍🧑","💏","💑","👪"] },
+  { label: "Natureza", emojis: ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐻‍❄️","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐒","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🪱","🐛","🦋","🐌","🐞","🐜","🪲","🦟","🦗","🪳","🕷️","🦂","🐢","🐍","🦎","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠","🐟","🐬","🐳","🐋","🦈","🦭","🐊","🐅","🐆","🦓","🦍","🦧","🦣","🐘","🦛","🦏","🐪","🐫","🦒","🦘","🦬","🐃","🐂","🐄","🐎","🐖","🐏","🐑","🦙","🐐","🦌","🐕","🐩","🦮","🐕‍🦺","🐈","🐈‍⬛","🪶","🐓","🦃","🦤","🦚","🦜","🦢","🦩","🕊️","🐇","🦝","🦨","🦡","🦫","🦦","🦥","🐁","🐀","🐿️","🦔","🌵","🎄","🌲","🌳","🌴","🪵","🌱","🌿","☘️","🍀","🎍","🪴","🎋","🍃","🍂","🍁","🪺","🪹","🍄","🌾","💐","🌷","🌹","🥀","🌺","🌸","🌼","🌻","🌞","🌝","🌛","🌜","🌚","🌕","🌖","🌗","🌘","🌑","🌒","🌓","🌔","🌙","🌟","⭐","🌠","🌌","☁️","⛅","🌤️","🌈","🌂","☂️","☔","⛱️","⚡","❄️","🔥","💧","🌊"] },
+  { label: "Comida", emojis: ["🍏","🍎","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑","🥕","🧄","🧅","🥔","🍠","🥐","🥯","🍞","🥖","🥨","🧀","🥚","🍳","🧈","🥞","🧇","🥓","🥩","🍗","🍖","🌭","🍔","🍟","🍕","🫓","🥪","🥙","🧆","🌮","🌯","🫔","🥗","🥘","🫕","🥫","🍝","🍜","🍲","🍛","🍣","🍱","🥟","🦪","🍤","🍙","🍚","🍘","🍥","🥮","🍢","🧁","🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍩","🍪","🌰","🥜","🍯","🧃","🥤","🧋","🍵","☕","🫖","🍺","🍻","🥂","🍷","🫗","🥃","🍸","🍹","🧉","🍾","🧊","🥄","🍴","🍽️"] },
+  { label: "Símbolos", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❤️‍🔥","❤️‍🩹","❣️","💕","💞","💓","💗","💖","💘","💝","💟","☮️","✝️","☪️","🕉️","☸️","✡️","🔯","🕎","☯️","☦️","🛐","⛎","♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓","🆔","⚛️","🉑","☢️","☣️","📴","📳","🈶","🈚","🈸","🈺","🈷️","✴️","🆚","💮","🉐","㊙️","㊗️","🈴","🈵","🈹","🈲","🅰️","🅱️","🆎","🆑","🅾️","🆘","❌","⭕","🛑","⛔","📛","🚫","💯","💢","♨️","🚷","🚯","🚳","🚱","🔞","📵","🔕","🔇","🔉","🔊","📢","📣","📯","🔔","🔔","🛎️","🎵","🎶","✅","🔰","♻️","🔱","📛","🔰","⚜️","🔲","🔳","▪️","▫️","◾","◽","◼️","◻️","⬛","⬜","🟥","🟧","🟨","🟩","🟦","🟪","🟫"] },
+];
+
+function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
+  const [tab, setTab] = useState(0);
+  return (
+    <div className="w-72">
+      <div className="flex gap-1 px-2 pt-2 pb-1 border-b border-slate-100 dark:border-slate-800 overflow-x-auto">
+        {EMOJI_GROUPS.map((g, i) => (
+          <button
+            key={g.label}
+            onClick={() => setTab(i)}
+            className={cn(
+              "shrink-0 text-xs px-2 py-0.5 rounded-full transition-colors",
+              tab === i
+                ? "bg-primary text-primary-foreground"
+                : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800",
+            )}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-8 gap-0.5 p-2 max-h-48 overflow-y-auto">
+        {EMOJI_GROUPS[tab].emojis.map((e) => (
+          <button
+            key={e}
+            onClick={() => onPick(e)}
+            className="text-xl p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors leading-none"
+          >
+            {e}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const MEDIA_TYPE_LABELS: Record<string, string> = {
+  image: "🖼 Imagem",
+  video: "🎥 Vídeo",
+  audio: "🎤 Áudio",
+  sticker: "🖼 Figurinha",
+  document: "📄 Documento",
+};
+
+function replySnippet(content: string | null, type: string | null) {
+  if (content) return content;
+  if (type && MEDIA_TYPE_LABELS[type]) return MEDIA_TYPE_LABELS[type];
+  return "Mensagem";
 }
 
 function getInitials(name: string | null, phone: string) {
@@ -412,9 +487,21 @@ function ConversationMessages({
   const [message, setMessage] = useState("");
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+  const [replyingTo, setReplyingTo] = useState<WaMessage | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<number | undefined>(
     client.channelId ?? undefined,
   );
+  const [isUploading, setIsUploading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [reactingToId, setReactingToId] = useState<string | null>(null);
+  const cursorPosRef = useRef<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const stickerInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -454,11 +541,14 @@ function ConversationMessages({
     return () => es.close();
   }, [clientId, queryClient]);
 
-  const attemptSend = useCallback(async (text: string, localId: string, channelId?: number) => {
+  const attemptSend = useCallback(async (text: string, localId: string, channelId?: number, replyToMessageId?: string) => {
     try {
-      const body: { message: string; channelId?: number } = { message: text };
+      const body: { message: string; channelId?: number; replyToMessageId?: string } = { message: text };
       if ((userRole === "admin" || userRole === "gerente") && channelId != null) {
         body.channelId = channelId;
+      }
+      if (replyToMessageId) {
+        body.replyToMessageId = replyToMessageId;
       }
       const res = await fetch(`/api/whatsapp/conversations/${clientId}/messages`, {
         method: "POST",
@@ -496,17 +586,135 @@ function ConversationMessages({
     }
   }, [clientId, queryClient]);
 
+  const sendMedia = useCallback(async (file: File, caption?: string) => {
+    setIsUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (caption) form.append("caption", caption);
+      if ((userRole === "admin" || userRole === "gerente") && selectedChannelId != null) {
+        form.append("channelId", String(selectedChannelId));
+      }
+      if (replyingTo) {
+        form.append("replyToMessageId", replyingTo.id);
+        setReplyingTo(null);
+      }
+      const res = await fetch(`/api/whatsapp/conversations/${clientId}/messages/media`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: (err as { message?: string }).message ?? "Erro ao enviar arquivo", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erro de conexão ao enviar arquivo", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+    }
+  }, [clientId, queryClient, replyingTo, selectedChannelId, toast, userRole]);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    sendMedia(file);
+  }, [sendMedia]);
+
+  const handleStickerChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    sendMedia(file);
+  }, [sendMedia]);
+
+  const handleReact = useCallback(async (messageId: string, emoji: string) => {
+    setReactingToId(null);
+    try {
+      const body: { emoji: string; channelId?: number } = { emoji };
+      if ((userRole === "admin" || userRole === "gerente") && selectedChannelId != null) {
+        body.channelId = selectedChannelId;
+      }
+      await fetch(`/api/whatsapp/conversations/${clientId}/messages/${messageId}/reaction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
+    } catch {
+      toast({ title: "Erro ao reagir à mensagem", variant: "destructive" });
+    }
+  }, [clientId, queryClient, selectedChannelId, toast, userRole]);
+
+  const stopRecording = useCallback(() => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingSeconds(0);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  const cancelRecording = useCallback(() => {
+    recordingChunksRef.current = [];
+    stopRecording();
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+    }
+  }, [stopRecording]);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/ogg; codecs=opus")
+        ? "audio/ogg; codecs=opus"
+        : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recordingChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordingChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (recordingChunksRef.current.length === 0) return;
+        const blob = new Blob(recordingChunksRef.current, { type: mimeType });
+        const ext = mimeType.includes("ogg") ? "ogg" : "webm";
+        const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType });
+        sendMedia(file);
+        recordingChunksRef.current = [];
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      recordingTimerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
+    } catch {
+      toast({ title: "Não foi possível acessar o microfone", variant: "destructive" });
+    }
+  }, [sendMedia, toast]);
+
   const handleSend = () => {
     const text = message.trim();
     if (!text) return;
     const localId = crypto.randomUUID();
+    const replyId = replyingTo?.id;
     setLocalMessages((prev) => [
       ...prev,
       { localId, content: text, createdAt: new Date().toISOString() },
     ]);
     setMessage("");
+    setReplyingTo(null);
     textareaRef.current?.focus();
-    attemptSend(text, localId, selectedChannelId);
+    attemptSend(text, localId, selectedChannelId, replyId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -556,6 +764,28 @@ function ConversationMessages({
           )}
         </div>
 
+        {(userRole === "admin" || userRole === "gerente") && channels.length > 0 && (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap hidden sm:inline">
+              Canal:
+            </span>
+            <Select
+              value={selectedChannelId != null ? String(selectedChannelId) : ""}
+              onValueChange={(v) => setSelectedChannelId(v ? Number(v) : undefined)}
+            >
+              <SelectTrigger className="h-7 text-xs w-44">
+                <SelectValue placeholder="Selecionar canal…" />
+              </SelectTrigger>
+              <SelectContent>
+                {channels.map((ch) => (
+                  <SelectItem key={ch.id} value={String(ch.id)}>
+                    {ch.name}{ch.displayPhone ? ` · ${ch.displayPhone}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Messages area */}
@@ -609,7 +839,7 @@ function ConversationMessages({
                     <div
                       key={msg.id}
                       className={cn(
-                        "flex w-full items-end gap-2",
+                        "group flex w-full items-end gap-2",
                         isOutbound ? "justify-end" : "justify-start",
                       )}
                     >
@@ -652,10 +882,67 @@ function ConversationMessages({
                         </button>
                       )}
 
-                      {/* Bolha */}
+                      {/* Botões hover: reply + reação */}
+                      {!isFailed && (
+                        <div className={cn(
+                          "shrink-0 mb-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                          isOutbound ? "order-first" : "order-last",
+                        )}>
+                          <button
+                            onClick={() => setReplyingTo(msg)}
+                            className={cn(
+                              "h-7 w-7 rounded-full flex items-center justify-center",
+                              "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
+                              "text-slate-500 dark:text-slate-400",
+                            )}
+                            title="Responder"
+                          >
+                            <Reply className="h-3.5 w-3.5" />
+                          </button>
+                          <Popover open={reactingToId === msg.id} onOpenChange={(o) => setReactingToId(o ? msg.id : null)}>
+                            <PopoverTrigger asChild>
+                              <button
+                                className={cn(
+                                  "h-7 w-7 rounded-full flex items-center justify-center",
+                                  "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
+                                  "text-slate-500 dark:text-slate-400",
+                                )}
+                                title="Reagir"
+                              >
+                                <Smile className="h-3.5 w-3.5" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent side="top" className="w-auto p-1.5" align={isOutbound ? "start" : "end"}>
+                              <div className="flex gap-1">
+                                {REACTION_EMOJIS.map((e) => {
+                                  const currentOutbound = msg.reactions?.find((r) => r.direction === "outbound")?.emoji;
+                                  const isActive = currentOutbound === e;
+                                  return (
+                                    <button
+                                      key={e}
+                                      onClick={() => handleReact(msg.id, isActive ? "" : e)}
+                                      className={cn(
+                                        "text-xl p-1 rounded-lg transition-colors",
+                                        isActive
+                                          ? "bg-primary/20 ring-1 ring-primary"
+                                          : "hover:bg-slate-100 dark:hover:bg-slate-800",
+                                      )}
+                                    >
+                                      {e}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      )}
+
+                      {/* Bolha + reações */}
+                      <div className="flex flex-col gap-1 max-w-[72%] sm:max-w-[65%] min-w-0">
                       <div
                         className={cn(
-                          "max-w-[72%] sm:max-w-[65%] rounded-2xl shadow-sm overflow-hidden",
+                          "rounded-2xl shadow-sm overflow-hidden w-full",
                           isMedia ? "p-0" : "px-3.5 py-2.5",
                           isFailed
                             ? "bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-200 rounded-tr-[4px]"
@@ -664,6 +951,45 @@ function ConversationMessages({
                               : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-tl-[4px]",
                         )}
                       >
+                        {/* Citação da mensagem respondida */}
+                        {msg.replyToContent !== null && msg.replyToContent !== undefined ? (
+                          <div className={cn(
+                            "rounded-lg px-2.5 py-1.5 mb-2 border-l-[3px]",
+                            isMedia ? "mx-3.5 mt-2.5" : "",
+                            isOutbound
+                              ? "bg-primary-foreground/10 border-primary-foreground/50"
+                              : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
+                          )}>
+                            <p className={cn(
+                              "text-[11px] font-semibold mb-0.5",
+                              isOutbound ? "text-primary-foreground/80" : "text-slate-600 dark:text-slate-300",
+                            )}>
+                              {msg.replyToDirection === "outbound" ? "Você" : client.clientName ?? client.phone}
+                            </p>
+                            <p className={cn(
+                              "text-xs truncate",
+                              isOutbound ? "text-primary-foreground/70" : "text-slate-500 dark:text-slate-400",
+                            )}>
+                              {replySnippet(msg.replyToContent, msg.replyToType)}
+                            </p>
+                          </div>
+                        ) : msg.replyToMessageId ? (
+                          <div className={cn(
+                            "rounded-lg px-2.5 py-1.5 mb-2 border-l-[3px]",
+                            isMedia ? "mx-3.5 mt-2.5" : "",
+                            isOutbound
+                              ? "bg-primary-foreground/10 border-primary-foreground/50"
+                              : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
+                          )}>
+                            <p className={cn(
+                              "text-xs italic",
+                              isOutbound ? "text-primary-foreground/60" : "text-slate-400 dark:text-slate-500",
+                            )}>
+                              Mensagem não disponível
+                            </p>
+                          </div>
+                        ) : null}
+
                         {msg.campaignMessageId && (
                           <div className="text-[10px] font-medium mb-1 opacity-70 flex items-center gap-0.5">
                             <span>📢</span>
@@ -697,6 +1023,27 @@ function ConversationMessages({
                           ) : null}
                         </div>
                       </div>
+                      {/* Pills de reação */}
+                      {msg.reactions && msg.reactions.length > 0 && (
+                        <div className={cn("flex gap-1 flex-wrap", isOutbound ? "justify-end" : "justify-start")}>
+                          {msg.reactions.map((r) => (
+                            <button
+                              key={r.direction}
+                              onClick={() => r.direction === "outbound" ? handleReact(msg.id, "") : undefined}
+                              title={r.direction === "outbound" ? "Clique para remover sua reação" : "Reação do contato"}
+                              className={cn(
+                                "text-sm px-2 py-0.5 rounded-full border transition-colors",
+                                r.direction === "outbound"
+                                  ? "bg-primary/10 border-primary/30 hover:bg-primary/20 cursor-pointer"
+                                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 cursor-default",
+                              )}
+                            >
+                              {r.emoji}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      </div>
                     </div>
                   );
                 })}
@@ -725,51 +1072,155 @@ function ConversationMessages({
       </div>
 
       {/* Input */}
-      <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-        {(userRole === "admin" || userRole === "gerente") && channels.length > 0 && (
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
-              Canal:
-            </span>
-            <Select
-              value={selectedChannelId != null ? String(selectedChannelId) : ""}
-              onValueChange={(v) => setSelectedChannelId(v ? Number(v) : undefined)}
+      <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+        {/* Preview da mensagem sendo respondida */}
+        {replyingTo && (
+          <div className="flex items-start gap-2 px-3 sm:px-4 pt-2.5 pb-1">
+            <div className="flex-1 border-l-[3px] border-primary pl-2.5 py-0.5 min-w-0">
+              <p className="text-[11px] font-semibold text-primary mb-0.5">
+                {replyingTo.direction === "outbound" ? "Você" : client.clientName ?? client.phone}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                {replySnippet(replyingTo.content, replyingTo.type)}
+              </p>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="shrink-0 mt-0.5 h-5 w-5 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
             >
-              <SelectTrigger className="h-7 text-xs flex-1 min-w-0">
-                <SelectValue placeholder="Selecionar canal…" />
-              </SelectTrigger>
-              <SelectContent>
-                {channels.map((ch) => (
-                  <SelectItem key={ch.id} value={String(ch.id)}>
-                    {ch.name}{ch.displayPhone ? ` · ${ch.displayPhone}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         )}
-        <div className="flex items-end gap-2">
-          <Textarea
-            ref={textareaRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Digite uma mensagem…"
-            className="resize-none min-h-[40px] max-h-[120px] text-sm flex-1"
-            rows={1}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!message.trim()}
-            size="icon"
-            className="shrink-0 h-10 w-10"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-        <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1.5 text-right hidden sm:block">
-          Enter para enviar · Shift+Enter para nova linha
-        </p>
+
+        {isRecording ? (
+          <div className="p-3 sm:p-4 flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+              <span className="text-sm font-medium text-red-500 tabular-nums">
+                {Math.floor(recordingSeconds / 60).toString().padStart(2, "0")}:{(recordingSeconds % 60).toString().padStart(2, "0")}
+              </span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">Gravando áudio…</span>
+            </div>
+            <button
+              onClick={cancelRecording}
+              className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors bg-slate-100 dark:bg-slate-800"
+              title="Cancelar gravação"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <Button
+              onClick={stopRecording}
+              size="icon"
+              className="shrink-0 h-10 w-10 bg-red-500 hover:bg-red-600"
+              title="Parar e enviar"
+            >
+              <Square className="h-4 w-4 fill-current" />
+            </Button>
+          </div>
+        ) : (
+          <div className="p-3 sm:p-4">
+            <div className="flex items-end gap-1.5">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,audio/aac,audio/mp4,application/pdf,.docx,.xlsx,.pptx,text/plain"
+                onChange={handleFileChange}
+              />
+              <input
+                ref={stickerInputRef}
+                type="file"
+                className="hidden"
+                accept="image/webp"
+                onChange={handleStickerChange}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="shrink-0 mb-0.5 h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                title="Enviar arquivo"
+              >
+                {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={() => stickerInputRef.current?.click()}
+                disabled={isUploading}
+                className="shrink-0 mb-0.5 h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                title="Enviar figurinha (.webp)"
+              >
+                <Sticker className="h-4 w-4" />
+              </button>
+              <div className="flex-1 relative">
+                <Textarea
+                  ref={textareaRef}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Digite uma mensagem…"
+                  className="resize-none min-h-[40px] max-h-[120px] text-sm pr-9"
+                  rows={1}
+                  disabled={isUploading}
+                />
+                <Popover
+                  open={emojiOpen}
+                  onOpenChange={(o) => {
+                    if (o) cursorPosRef.current = textareaRef.current?.selectionStart ?? message.length;
+                    setEmojiOpen(o);
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      className="absolute right-2 bottom-2 h-6 w-6 flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
+                      title="Emoji"
+                    >
+                      <Smile className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="end" className="p-0 w-auto">
+                    <EmojiPicker
+                      onPick={(e) => {
+                        const pos = cursorPosRef.current;
+                        setMessage((prev) => prev.slice(0, pos) + e + prev.slice(pos));
+                        cursorPosRef.current = pos + e.length;
+                        setEmojiOpen(false);
+                        setTimeout(() => {
+                          const ta = textareaRef.current;
+                          if (ta) {
+                            ta.focus();
+                            ta.setSelectionRange(cursorPosRef.current, cursorPosRef.current);
+                          }
+                        }, 0);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              {message.trim() ? (
+                <Button
+                  onClick={handleSend}
+                  disabled={isUploading}
+                  size="icon"
+                  className="shrink-0 h-10 w-10"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              ) : (
+                <button
+                  onClick={startRecording}
+                  disabled={isUploading}
+                  className="shrink-0 h-10 w-10 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  title="Gravar áudio"
+                >
+                  <Mic className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-1.5 text-right hidden sm:block">
+              Enter para enviar · Shift+Enter para nova linha
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -949,12 +1400,14 @@ export default function WhatsAppConversationsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
       if (data.clientId && data.clientId === selectedClientIdRef.current) {
         markRead(data.clientId);
+        queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", data.clientId] });
       }
     });
     return () => es.close();
   }, [queryClient, markRead]);
 
   const handleSelectClient = (clientId: string) => {
+    queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
     setSelectedClientId(clientId);
     markRead(clientId);
   };

@@ -57,7 +57,7 @@ function normalizePhone(phone: string): string {
   return digits;
 }
 
-export async function sendTextMessage(to: string, text: string, channel?: ChannelOverride) {
+export async function sendTextMessage(to: string, text: string, channel?: ChannelOverride, contextMessageId?: string) {
   const cfg = await getConfig(channel);
   const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
     method: "POST",
@@ -66,6 +66,7 @@ export async function sendTextMessage(to: string, text: string, channel?: Channe
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: normalizePhone(to),
+      ...(contextMessageId ? { context: { message_id: contextMessageId } } : {}),
       type: "text",
       text: { body: text },
     }),
@@ -126,8 +127,34 @@ export async function uploadMedia(
 export async function sendMediaMessage(
   to: string,
   mediaId: string,
-  mediaType: "image" | "document" | "video" | "audio",
+  mediaType: "image" | "document" | "video" | "audio" | "sticker",
   caption?: string,
+  channel?: ChannelOverride,
+) {
+  const cfg = await getConfig(channel);
+  const mediaKey = mediaType === "sticker" ? "sticker" : mediaType;
+  const mediaBody = mediaType === "sticker"
+    ? { id: mediaId }
+    : { id: mediaId, ...(caption ? { caption } : {}) };
+  const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizePhone(to),
+      type: mediaType,
+      [mediaKey]: mediaBody,
+    }),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+export async function sendReaction(
+  to: string,
+  waMessageId: string,
+  emoji: string,
   channel?: ChannelOverride,
 ) {
   const cfg = await getConfig(channel);
@@ -138,8 +165,8 @@ export async function sendMediaMessage(
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: normalizePhone(to),
-      type: mediaType,
-      [mediaType]: { id: mediaId, ...(caption ? { caption } : {}) },
+      type: "reaction",
+      reaction: { message_id: waMessageId, emoji },
     }),
   });
   if (!response.ok) throw new Error(await response.text());

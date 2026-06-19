@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { MessageCircle } from "lucide-react";
+import { Bell, BellOff, MessageCircle } from "lucide-react";
 
 interface ChatClient {
   id: string;
@@ -18,7 +18,32 @@ export function WhatsAppFloatingButton() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [pulse, setPulse] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    return localStorage.getItem("wa-notify-sound") !== "false";
+  });
   const clientsRef = useRef<ChatClient[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockedRef = useRef(false);
+
+  useEffect(() => {
+    audioRef.current = new Audio("/notification.wav");
+    audioRef.current.volume = 0.7;
+  }, []);
+
+  function unlockAndPlay() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audioUnlockedRef.current = true;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }
+
+  function playNotificationSound() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  }
 
   const { data: clientList = [] } = useQuery<ChatClient[]>({
     queryKey: ["/api/whatsapp/conversations-list-badge", user?.id],
@@ -66,19 +91,48 @@ export function WhatsAppFloatingButton() {
 
       setPulse(true);
       setTimeout(() => setPulse(false), 2000);
+
+      if (soundEnabled) {
+        if (!audioUnlockedRef.current) {
+          toast({
+            title: "🔔 Ativar notificações sonoras",
+            description: "Clique para receber alertas sonoros em novas mensagens",
+            duration: 10000,
+            action: (
+              <button
+                onClick={unlockAndPlay}
+                className="text-xs font-semibold text-green-600 dark:text-green-400 hover:underline whitespace-nowrap"
+              >
+                Ativar som
+              </button>
+            ) as any,
+          });
+        } else {
+          playNotificationSound();
+        }
+      }
     });
 
     return () => es.close();
-  }, [user, queryClient, toast, navigate]);
+  }, [user, queryClient, toast, navigate, soundEnabled]);
 
   if (!user) return null;
 
+  function toggleSound(e: React.MouseEvent) {
+    e.stopPropagation();
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem("wa-notify-sound", String(next));
+      return next;
+    });
+  }
+
   return (
+    <div className="fixed bottom-6 right-6 z-50">
     <button
       onClick={() => navigate("/whatsapp/conversas")}
       className={cn(
-        "fixed bottom-6 right-6 z-50",
-        "h-14 w-14 rounded-full shadow-lg",
+        "relative h-14 w-14 rounded-full shadow-lg",
         "bg-[#25D366] hover:bg-[#20ba5a] active:bg-[#1da851]",
         "flex items-center justify-center",
         "transition-transform duration-150 hover:scale-105 active:scale-95",
@@ -98,5 +152,24 @@ export function WhatsAppFloatingButton() {
         </span>
       )}
     </button>
+
+    {/* Sound toggle */}
+    <button
+      onClick={toggleSound}
+      title={soundEnabled ? "Desativar som de notificação" : "Ativar som de notificação"}
+      className={cn(
+        "absolute -top-2 -left-2 h-6 w-6 rounded-full shadow",
+        "flex items-center justify-center",
+        "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700",
+        "transition-opacity hover:opacity-90",
+      )}
+      aria-label={soundEnabled ? "Desativar som" : "Ativar som"}
+    >
+      {soundEnabled
+        ? <Bell className="h-3 w-3 text-slate-600 dark:text-slate-300" />
+        : <BellOff className="h-3 w-3 text-slate-400" />
+      }
+    </button>
+    </div>
   );
 }

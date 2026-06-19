@@ -3926,6 +3926,21 @@ export const whatsappConversationReads = pgTable(
   (t) => ({ userConversationUnique: unique().on(t.userId, t.conversationId) }),
 );
 
+export const whatsappReactions = pgTable(
+  "whatsapp_reactions",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    messageId: varchar("message_id")
+      .notNull()
+      .references(() => whatsappMessages.id, { onDelete: "cascade" }),
+    emoji: text("emoji").notNull(),
+    direction: text("direction", { enum: ["inbound", "outbound"] }).notNull(),
+    senderPhone: text("sender_phone"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({ messageDirectionUnique: unique().on(t.messageId, t.direction) }),
+);
+
 export type WhatsappConversation = typeof whatsappConversations.$inferSelect;
 export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
 export type WhatsappMedia = typeof whatsappMedia.$inferSelect;
