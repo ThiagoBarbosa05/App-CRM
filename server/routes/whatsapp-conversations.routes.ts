@@ -21,6 +21,7 @@ import {
   listQuickReplies,
   createQuickReply,
   deleteQuickReply,
+  transferConversation,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession } from "../services/whatsapp-bot-engine.service";
 import { clientsService } from "../services/clients.service";
@@ -208,9 +209,13 @@ router.post("/conversations/start", async (req, res) => {
       return res.status(400).json({ errors: parsed.error.flatten() });
     }
 
-    const result = await startConversationByClientId(parsed.data.clientId);
+    const result = await startConversationByClientId(
+      parsed.data.clientId,
+      user.userId,
+      user.role,
+    );
     if (!result) {
-      return res.status(400).json({ message: "Cliente não encontrado ou sem telefone" });
+      return res.status(403).json({ message: "Cliente não encontrado ou sem permissão" });
     }
 
     res.json(result);
@@ -499,6 +504,29 @@ router.post("/conversations/:conversationId/link-client", async (req, res) => {
   } catch (err) {
     console.error("[WA Conversations] Erro ao vincular cliente:", err);
     res.status(500).json({ message: "Erro ao vincular cliente", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+const transferSchema = z.object({ channelId: z.number().int().positive() });
+
+router.post("/conversations/:conversationId/transfer", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = transferSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const conversationId = await resolveConversationId(req.params.conversationId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const updated = await transferConversation(conversationId, parsed.data.channelId);
+    if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao transferir conversa:", err);
+    res.status(500).json({ message: "Erro ao transferir conversa" });
   }
 });
 

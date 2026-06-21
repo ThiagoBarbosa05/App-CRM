@@ -52,6 +52,7 @@ import {
   Zap,
   Bot,
   Check,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   Popover,
@@ -998,7 +999,34 @@ function ConversationMessages({
   const [botPickerOpen, setBotPickerOpen] = useState(false);
   const [isTriggeringBot, setIsTriggeringBot] = useState(false);
   const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
+  const [transferOpen, setTransferOpen] = useState(false);
   const isUnknownContact = !client.clientId;
+
+  const transferMutation = useMutation({
+    mutationFn: async (channelId: number) => {
+      const res = await fetch(
+        `/api/whatsapp/conversations/${client.conversationId}/transfer`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channelId }),
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? "Erro ao transferir conversa");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setTransferOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+      toast({ title: "Conversa transferida com sucesso" });
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
 
   const { data: bots = [] } = useQuery<WhatsappBot[]>({
     queryKey: ["/api/whatsapp/bots"],
@@ -1363,6 +1391,47 @@ function ConversationMessages({
               </SelectContent>
             </Select>
           </div>
+        )}
+
+        {channels.length > 0 && (
+          <Popover open={transferOpen} onOpenChange={setTransferOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5 shrink-0"
+                title="Transferir conversa para outro canal"
+              >
+                <ArrowRightLeft className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Transferir</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-56 p-1">
+              <p className="text-xs text-slate-500 dark:text-slate-400 px-2 py-1.5 font-medium">
+                Transferir para canal:
+              </p>
+              {channels
+                .filter((ch) => ch.id !== client.channelId)
+                .map((ch) => (
+                  <button
+                    key={ch.id}
+                    className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 flex flex-col"
+                    disabled={transferMutation.isPending}
+                    onClick={() => transferMutation.mutate(ch.id)}
+                  >
+                    <span className="font-medium">{ch.name}</span>
+                    {ch.displayPhone && (
+                      <span className="text-xs text-slate-400">{ch.displayPhone}</span>
+                    )}
+                  </button>
+                ))}
+              {channels.filter((ch) => ch.id !== client.channelId).length === 0 && (
+                <p className="text-xs text-slate-400 px-2 py-1.5">
+                  Nenhum outro canal disponível.
+                </p>
+              )}
+            </PopoverContent>
+          </Popover>
         )}
 
       </div>

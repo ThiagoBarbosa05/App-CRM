@@ -99,6 +99,15 @@ export async function linkClientToConversation(conversationId: string, clientId:
   return updated ?? null;
 }
 
+export async function transferConversation(conversationId: string, targetChannelId: number) {
+  const [updated] = await db
+    .update(whatsappConversations)
+    .set({ channelId: targetChannelId, assignedAgentId: null, updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId))
+    .returning();
+  return updated ?? null;
+}
+
 export async function getConversationPhone(conversationId: string): Promise<string | null> {
   const [conv] = await db
     .select({ phone: whatsappConversations.phone })
@@ -240,7 +249,7 @@ export async function listClientsForChat(
   const conditions: ReturnType<typeof eq>[] = [];
 
   if (userRole === "vendedor" && userId) {
-    conditions.push(eq(clients.responsavelId, userId));
+    conditions.push(eq(whatsappChannels.userId, userId));
   }
 
   if (search) {
@@ -287,7 +296,7 @@ export async function getConversation(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    whereConditions.push(eq(clients.responsavelId, userId));
+    whereConditions.push(eq(whatsappChannels.userId, userId));
   }
 
   const [conv] = await db
@@ -298,6 +307,7 @@ export async function getConversation(
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .leftJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
     .where(and(...whereConditions))
     .limit(1);
 
@@ -1011,11 +1021,20 @@ export async function sendConversationReaction(
   return { ok: true };
 }
 
-export async function startConversationByClientId(clientId: string) {
+export async function startConversationByClientId(
+  clientId: string,
+  userId: string,
+  userRole: string,
+) {
+  const whereClause =
+    userRole === "vendedor"
+      ? and(eq(clients.id, clientId), eq(clients.responsavelId, userId))
+      : eq(clients.id, clientId);
+
   const [client] = await db
     .select({ id: clients.id, phone: clients.phone, name: clients.name })
     .from(clients)
-    .where(eq(clients.id, clientId))
+    .where(whereClause)
     .limit(1);
 
   if (!client?.phone) return null;

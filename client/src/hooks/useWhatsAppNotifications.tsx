@@ -23,7 +23,9 @@ export function useWhatsAppNotifications(
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioUnlockedRef = useRef(false);
+  const audioUnlockedRef = useRef(
+    localStorage.getItem("wa-sound-unlocked") === "true"
+  );
   const onNewMessageRef = useRef(options.onNewMessage);
   onNewMessageRef.current = options.onNewMessage;
 
@@ -40,6 +42,7 @@ export function useWhatsAppNotifications(
     const audio = audioRef.current;
     if (!audio) return;
     audioUnlockedRef.current = true;
+    localStorage.setItem("wa-sound-unlocked", "true");
     audio.currentTime = 0;
     audio.play().catch(() => {});
   }
