@@ -12,6 +12,54 @@ export async function getTemplateByUseCase(useCase: string): Promise<WhatsappTem
   return all.find((t) => t.useCase === useCase && t.isActive) ?? null;
 }
 
+/**
+ * Resolve um template da Meta (nome + idioma) para uma linha local em
+ * `whatsapp_templates`, criando-a se ainda não existir. Mantém o disparo de
+ * campanhas funcionando (que referencia `waTemplateId`) sem expor o conceito
+ * de "template local" para o usuário — ele só seleciona templates da Meta.
+ */
+export async function ensureLocalTemplateForMeta(params: {
+  name: string;
+  languageCode: string;
+  category?: string;
+  bodyParams?: string[];
+  createdBy: string;
+}): Promise<WhatsappTemplate> {
+  const existing = await db
+    .select()
+    .from(whatsappTemplates)
+    .where(eq(whatsappTemplates.name, params.name));
+
+  const match = existing.find((t) => t.languageCode === params.languageCode) ?? existing[0];
+  if (match) {
+    // Reativa e sincroniza os parâmetros do corpo com o template atual da Meta
+    const patch: Record<string, unknown> = {};
+    if (!match.isActive) patch.isActive = true;
+    if (params.bodyParams) patch.bodyParams = params.bodyParams;
+    if (Object.keys(patch).length === 0) return match;
+    const [updated] = await db
+      .update(whatsappTemplates)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(whatsappTemplates.id, match.id))
+      .returning();
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(whatsappTemplates)
+    .values({
+      name: params.name,
+      languageCode: params.languageCode,
+      category: params.category,
+      bodyParams: params.bodyParams ?? null,
+      useCase: "campaign",
+      isActive: true,
+      createdBy: params.createdBy,
+    })
+    .returning();
+  return created;
+}
+
 export async function createLocalTemplate(data: InsertWhatsappTemplate): Promise<WhatsappTemplate> {
   const [created] = await db.insert(whatsappTemplates).values(data).returning();
   return created;
@@ -41,6 +89,8 @@ export interface MetaTemplate {
   category: string;
   language: string;
   components: unknown[];
+  quality_score?: { score?: string } | null;
+  rejected_reason?: string | null;
 }
 
 const INACTIVE_META_STATUSES = new Set(["REJECTED", "PAUSED", "DISABLED", "PENDING_DELETION"]);
@@ -86,7 +136,9 @@ export async function fetchMetaTemplates(): Promise<MetaTemplate[]> {
     throw new Error("wa_access_token e wa_waba_id são obrigatórios para buscar templates do Meta");
   }
 
-  const url = `https://graph.facebook.com/${apiVersion}/${wabaId}/message_templates?status=APPROVED&limit=100`;
+  // Busca todos os status (aprovados, pendentes, rejeitados, pausados…)
+  const fields = "id,name,status,category,language,components,quality_score,rejected_reason";
+  const url = `https://graph.facebook.com/${apiVersion}/${wabaId}/message_templates?fields=${fields}&limit=100`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -98,4 +150,27 @@ export async function fetchMetaTemplates(): Promise<MetaTemplate[]> {
 
   const json = await response.json();
   return (json.data ?? []) as MetaTemplate[];
+}
+
+/** Exclui um template da Meta pelo nome (remove todos os idiomas com esse nome). */
+export async function deleteMetaTemplate(name: string): Promise<void> {
+  const raw = await getWhatsappSettingsRaw();
+  const accessToken = raw["wa_access_token"];
+  const wabaId = raw["wa_waba_id"];
+  const apiVersion = raw["wa_api_version"] || "v21.0";
+
+  if (!accessToken || !wabaId) {
+    throw new Error("wa_access_token e wa_waba_id são obrigatórios para excluir templates do Meta");
+  }
+
+  const url = `https://graph.facebook.com/${apiVersion}/${wabaId}/message_templates?name=${encodeURIComponent(name)}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Erro ao excluir template do Meta: ${err}`);
+  }
 }

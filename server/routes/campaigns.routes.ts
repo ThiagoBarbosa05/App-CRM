@@ -15,6 +15,7 @@ import {
   getServerBaseUrl,
   toE164Brazil,
 } from "../lib/twilio-config";
+import { ensureLocalTemplateForMeta } from "../services/whatsapp-templates.service";
 
 const router = Router();
 
@@ -55,6 +56,10 @@ router.post("/", async (req: Request, res: Response) => {
       waEnabled,
       waTemplateId,
       waBotId,
+      metaTemplateName,
+      metaTemplateLanguage,
+      metaTemplateCategory,
+      metaTemplateBodyParams,
     } = req.body as {
       name: string;
       description?: string;
@@ -72,10 +77,30 @@ router.post("/", async (req: Request, res: Response) => {
       waEnabled?: boolean;
       waTemplateId?: string;
       waBotId?: string;
+      metaTemplateName?: string;
+      metaTemplateLanguage?: string;
+      metaTemplateCategory?: string;
+      metaTemplateBodyParams?: string[];
     };
 
     if (!name || !type) {
       return res.status(400).json({ message: "Nome e tipo são obrigatórios" });
+    }
+
+    // Seleção de template da Meta → resolve/cria a linha local usada no disparo.
+    let resolvedTemplateId = waTemplateId ?? null;
+    if (!resolvedTemplateId && metaTemplateName) {
+      if (!userId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      const local = await ensureLocalTemplateForMeta({
+        name: metaTemplateName,
+        languageCode: metaTemplateLanguage || "pt_BR",
+        category: metaTemplateCategory,
+        bodyParams: metaTemplateBodyParams,
+        createdBy: userId,
+      });
+      resolvedTemplateId = local.id;
     }
 
     const [campaign] = await db
@@ -95,7 +120,7 @@ router.post("/", async (req: Request, res: Response) => {
         umblerMessageText: umblerMessageText ?? null,
         umblerTriggerDecision: umblerTriggerDecision ?? null,
         waEnabled: waEnabled ?? false,
-        waTemplateId: waTemplateId ?? null,
+        waTemplateId: resolvedTemplateId,
         waBotId: waBotId ?? null,
         createdBy: userId ?? null,
       })

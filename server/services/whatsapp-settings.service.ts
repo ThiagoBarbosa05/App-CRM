@@ -6,6 +6,7 @@ export const WA_KEYS = [
   "wa_phone_number_id",
   "wa_access_token",
   "wa_waba_id",
+  "wa_app_id",
   "wa_webhook_verify_token",
   "wa_api_version",
   "wa_enabled",

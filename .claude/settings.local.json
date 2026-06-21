@@ -54,7 +54,9 @@
       "Bash(grep -r \"umblerCampaign\" \"C:\\\\Users\\\\thiag\\\\dev\\\\App-CRM\\\\client\\\\src\" -l 2>nul)",
       "WebSearch",
       "WebFetch(domain:developers.facebook.com)",
-      "Bash(ls -la '/mnt/c/Users/thiag/dev/App-CRM/client/src/pages/')"
+      "Bash(ls -la '/mnt/c/Users/thiag/dev/App-CRM/client/src/pages/')",
+      "mcp__context7__query-docs",
+      "mcp__context7__resolve-library-id"
     ]
   }
 }

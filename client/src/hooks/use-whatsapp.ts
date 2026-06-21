@@ -92,6 +92,8 @@ export interface MetaTemplate {
   category: string;
   language: string;
   components: unknown[];
+  quality_score?: { score?: string } | null;
+  rejected_reason?: string | null;
 }
 
 export interface MetaTemplateCreatePayload {
@@ -106,6 +108,7 @@ export interface WhatsappSettings {
   wa_phone_number_id: string;
   wa_access_token: string;
   wa_waba_id: string;
+  wa_app_id: string;
   wa_webhook_verify_token: string;
   wa_api_version: string;
   wa_enabled: string;
@@ -275,6 +278,10 @@ export function useCreateCampaignWithDispatch() {
       description?: string;
       waTemplateId?: string;
       waBotId?: string;
+      metaTemplateName?: string;
+      metaTemplateLanguage?: string;
+      metaTemplateCategory?: string;
+      metaTemplateBodyParams?: string[];
       clientIds: string[];
       scheduledAt?: string; // ISO; se no futuro, a campanha fica agendada
     }) => {
@@ -285,6 +292,10 @@ export function useCreateCampaignWithDispatch() {
         waEnabled: true,
         waTemplateId: data.waTemplateId ?? null,
         waBotId: data.waBotId ?? null,
+        metaTemplateName: data.metaTemplateName,
+        metaTemplateLanguage: data.metaTemplateLanguage,
+        metaTemplateCategory: data.metaTemplateCategory,
+        metaTemplateBodyParams: data.metaTemplateBodyParams,
       });
       const campaign = await campaignRes.json();
 
@@ -409,6 +420,50 @@ export function useSubmitMetaTemplate() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao enviar template", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteMetaTemplate() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const res = await apiRequest(
+        "DELETE",
+        `/api/whatsapp/templates/meta/${encodeURIComponent(name)}`,
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Template excluído da Meta" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates", "meta"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao excluir template", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useUploadTemplateMedia() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (file: File): Promise<{ handle: string }> => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/whatsapp/templates/meta/media", {
+        method: "POST",
+        headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Erro ao enviar mídia");
+      }
+      return res.json();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao carregar mídia", description: error.message, variant: "destructive" });
     },
   });
 }

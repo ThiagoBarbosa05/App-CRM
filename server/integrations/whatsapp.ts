@@ -316,6 +316,50 @@ export async function createMetaTemplate(payload: MetaTemplateCreatePayload): Pr
   return res.json();
 }
 
+/**
+ * Faz upload de uma mídia via Resumable Upload API da Meta e retorna o `handle`
+ * usado como exemplo em cabeçalhos de template (IMAGE/VIDEO/DOCUMENT).
+ * Requer `wa_app_id` configurado (o handle é vinculado ao App, não à WABA).
+ */
+export async function uploadTemplateMediaHandle(
+  file: Buffer,
+  mimeType: string,
+): Promise<string> {
+  const cfg = await getConfig();
+  const raw = await getWhatsappSettingsRaw();
+  const appId = raw["wa_app_id"];
+  if (!appId) {
+    throw new Error(
+      "WhatsApp não configurado: wa_app_id é obrigatório para upload de mídia de template",
+    );
+  }
+
+  // 1. Abrir sessão de upload
+  const sessionUrl = `${cfg.baseUrl}/${appId}/uploads?file_length=${file.length}&file_type=${encodeURIComponent(mimeType)}`;
+  const sessionRes = await fetch(sessionUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${cfg.accessToken}` },
+  });
+  if (!sessionRes.ok) throw new Error(await sessionRes.text());
+  const session = (await sessionRes.json()) as { id?: string };
+  if (!session.id) throw new Error("Falha ao iniciar sessão de upload na Meta");
+
+  // 2. Enviar o binário (file_offset: 0)
+  const uploadRes = await fetch(`${cfg.baseUrl}/${session.id}`, {
+    method: "POST",
+    headers: {
+      Authorization: `OAuth ${cfg.accessToken}`,
+      file_offset: "0",
+      "Content-Type": "application/octet-stream",
+    },
+    body: file,
+  });
+  if (!uploadRes.ok) throw new Error(await uploadRes.text());
+  const result = (await uploadRes.json()) as { h?: string };
+  if (!result.h) throw new Error("Upload concluído mas a Meta não retornou o handle");
+  return result.h;
+}
+
 export async function getApprovedTemplates() {
   const cfg = await getConfig();
   const raw = await getWhatsappSettingsRaw();

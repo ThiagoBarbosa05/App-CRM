@@ -36,17 +36,21 @@ import {
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import {
-  useWhatsappTemplates,
   useWhatsappBots,
   useWhatsappMetaTemplates,
   useCreateCampaignWithDispatch,
-  type WhatsappTemplate,
+  type MetaTemplate,
   type WhatsappBot,
 } from "@/hooks/use-whatsapp";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { getTemplateBodyText, getTemplateHeaderText, renderTemplateText } from "@/lib/whatsapp-template";
+import {
+  getTemplateBodyText,
+  getTemplateHeaderText,
+  renderTemplateText,
+  parseTemplateVars,
+} from "@/lib/whatsapp-template";
 
 type Marker = { id: string; name: string; color?: string; type?: string };
 type Client = { id: string; name: string; phone?: string | null };
@@ -58,12 +62,10 @@ const STEPS = [
   { id: 4, label: "Confirmar", icon: Send },
 ];
 
-const USE_CASE_LABELS: Record<WhatsappTemplate["useCase"], string> = {
-  birthday_today: "Aniversário (hoje)",
-  birthday_days_before: "Aniversário (antecipado)",
-  post_call: "Pós-chamada",
-  campaign: "Campanha",
-  custom: "Personalizado",
+const CATEGORY_LABELS: Record<string, string> = {
+  MARKETING: "Marketing",
+  UTILITY: "Utilidade",
+  AUTHENTICATION: "Autenticação",
 };
 
 // ── Step indicator ────────────────────────────────────────────────────────────
@@ -407,26 +409,7 @@ const TRIGGER_LABELS: Record<string, string> = {
 };
 
 // Pré-visualização estilo bolha WhatsApp
-function TemplatePreview({ template }: { template: WhatsappTemplate }) {
-  const { data: metaTemplates = [], isLoading } = useWhatsappMetaTemplates();
-  const meta = metaTemplates.find((m) => m.name === template.name);
-
-  if (isLoading) {
-    return <div className="h-20 bg-muted rounded-xl animate-pulse mt-3" />;
-  }
-
-  if (!meta) {
-    return (
-      <div className="mt-3 flex items-start gap-2.5 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
-        <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-        <p className="text-sm text-amber-800 dark:text-amber-300">
-          O template <strong>{template.name}</strong> não foi encontrado entre os aprovados pela Meta.
-          Verifique em WhatsApp → Templates.
-        </p>
-      </div>
-    );
-  }
-
+function TemplatePreview({ meta }: { meta: MetaTemplate }) {
   const replacements: Record<string, string> = { nome: "[primeiro nome]" };
   const fallback = (v: string) => `[${v}]`;
   const header = renderTemplateText(getTemplateHeaderText(meta), replacements, fallback);
@@ -453,22 +436,27 @@ function TemplatePreview({ template }: { template: WhatsappTemplate }) {
 // ── Step 3: Template / Bot ────────────────────────────────────────────────────
 
 function StepTemplateOrBot({
-  selectedTemplateId,
+  selectedTemplate,
   selectedBotId,
   onSelectTemplate,
   onSelectBot,
 }: {
-  selectedTemplateId: string;
+  selectedTemplate: MetaTemplate | null;
   selectedBotId: string;
-  onSelectTemplate: (id: string) => void;
+  onSelectTemplate: (t: MetaTemplate | null) => void;
   onSelectBot: (id: string) => void;
 }) {
-  const { data: templates = [], isLoading: templatesLoading } = useWhatsappTemplates();
+  const { data: metaTemplates = [], isLoading: templatesLoading } = useWhatsappMetaTemplates();
   const { data: bots = [], isLoading: botsLoading } = useWhatsappBots();
-  const activeTemplates = templates.filter((t) => t.isActive);
+  const [search, setSearch] = useState("");
+  const approvedTemplates = metaTemplates.filter((t) => t.status === "APPROVED");
+  const filteredTemplates = approvedTemplates.filter((t) =>
+    t.name.toLowerCase().includes(search.toLowerCase()),
+  );
   const activeBots = bots.filter((b) => b.isActive);
-  const selectedTemplate = activeTemplates.find((t) => t.id === selectedTemplateId);
   const defaultTab = selectedBotId ? "bot" : "template";
+  const templateKey = (t: MetaTemplate) => `${t.name}::${t.language}`;
+  const selectedKey = selectedTemplate ? templateKey(selectedTemplate) : null;
 
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
@@ -490,15 +478,15 @@ function StepTemplateOrBot({
               <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />
             ))}
           </div>
-        ) : activeTemplates.length === 0 ? (
+        ) : approvedTemplates.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-12 text-center rounded-xl border-2 border-dashed border-border">
             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
               <FileText className="h-6 w-6 text-muted-foreground/50" />
             </div>
             <div>
-              <p className="text-sm font-medium">Nenhum template ativo</p>
+              <p className="text-sm font-medium">Nenhum template aprovado</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Crie um template em{" "}
+                Crie e aprove um template em{" "}
                 <a href="/whatsapp/templates" className="text-primary underline underline-offset-2">
                   WhatsApp → Templates
                 </a>{" "}
@@ -507,42 +495,57 @@ function StepTemplateOrBot({
             </div>
           </div>
         ) : (
-          <div className="space-y-2.5">
-            {activeTemplates.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => { onSelectTemplate(t.id); onSelectBot(""); }}
-                className={cn(
-                  "w-full text-left p-4 rounded-xl border-2 transition-all",
-                  selectedTemplateId === t.id
-                    ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:border-primary/40 hover:bg-muted/30",
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-foreground truncate">{t.name}</p>
-                    {t.description && (
-                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{t.description}</p>
-                    )}
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar template aprovado"
+                className="pl-9"
+              />
+            </div>
+            <div className="space-y-2.5">
+              {filteredTemplates.map((t) => (
+                <button
+                  key={templateKey(t)}
+                  type="button"
+                  onClick={() => { onSelectTemplate(t); onSelectBot(""); }}
+                  className={cn(
+                    "w-full text-left p-4 rounded-xl border-2 transition-all",
+                    selectedKey === templateKey(t)
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border hover:border-primary/40 hover:bg-muted/30",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-foreground truncate font-mono text-sm">{t.name}</p>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
+                      <Badge variant="outline" className="text-xs">
+                        {CATEGORY_LABELS[t.category] ?? t.category}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs font-mono">{t.language}</Badge>
+                    </div>
                   </div>
-                  <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
-                    <Badge variant="outline" className="text-xs">{USE_CASE_LABELS[t.useCase]}</Badge>
-                    <Badge variant="outline" className="text-xs font-mono">{t.languageCode}</Badge>
-                  </div>
-                </div>
-                {selectedTemplateId === t.id && (
-                  <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-primary/10 text-primary text-sm font-semibold">
-                    <Check className="h-3.5 w-3.5" />
-                    Selecionado
-                  </div>
-                )}
-              </button>
-            ))}
+                  {selectedKey === templateKey(t) && (
+                    <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-primary/10 text-primary text-sm font-semibold">
+                      <Check className="h-3.5 w-3.5" />
+                      Selecionado
+                    </div>
+                  )}
+                </button>
+              ))}
+              {filteredTemplates.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Nenhum template corresponde à busca.
+                </p>
+              )}
+            </div>
           </div>
         )}
-        {selectedTemplate && <TemplatePreview template={selectedTemplate} />}
+        {selectedTemplate && <TemplatePreview meta={selectedTemplate} />}
       </TabsContent>
 
       <TabsContent value="bot">
@@ -581,7 +584,7 @@ function StepTemplateOrBot({
               <button
                 key={b.id}
                 type="button"
-                onClick={() => { onSelectBot(b.id); onSelectTemplate(""); }}
+                onClick={() => { onSelectBot(b.id); onSelectTemplate(null); }}
                 className={cn(
                   "w-full text-left p-4 rounded-xl border-2 transition-all",
                   selectedBotId === b.id
@@ -619,7 +622,7 @@ function StepConfirm({
   title,
   description,
   clientCount,
-  templateId,
+  templateName,
   botId,
   scheduledAt,
   onScheduleChange,
@@ -627,14 +630,12 @@ function StepConfirm({
   title: string;
   description: string;
   clientCount: number;
-  templateId: string;
+  templateName?: string;
   botId: string;
   scheduledAt: string;
   onScheduleChange: (value: string) => void;
 }) {
-  const { data: templates = [] } = useWhatsappTemplates();
   const { data: bots = [] } = useWhatsappBots();
-  const template = templates.find((t) => t.id === templateId);
   const bot = bots.find((b) => b.id === botId);
 
   const mode = scheduledAt ? "schedule" : "now";
@@ -646,7 +647,7 @@ function StepConfirm({
     { label: "Título", value: title },
     description ? { label: "Descrição", value: description } : null,
     { label: "Destinatários", value: `${clientCount} cliente${clientCount !== 1 ? "s" : ""}` },
-    template ? { label: "Template", value: template.name } : null,
+    templateName ? { label: "Template", value: templateName } : null,
     bot ? { label: "Bot", value: bot.name } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
@@ -730,7 +731,7 @@ export default function WhatsAppCreateCampaign() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState<MetaTemplate | null>(null);
   const [selectedBotId, setSelectedBotId] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
 
@@ -739,9 +740,9 @@ export default function WhatsAppCreateCampaign() {
   const canNext = useMemo(() => {
     if (step === 1) return title.trim().length > 0;
     if (step === 2) return selectedClientIds.length > 0;
-    if (step === 3) return selectedTemplateId.length > 0 || selectedBotId.length > 0;
+    if (step === 3) return selectedTemplate !== null || selectedBotId.length > 0;
     return true;
-  }, [step, title, selectedClientIds, selectedTemplateId, selectedBotId]);
+  }, [step, title, selectedClientIds, selectedTemplate, selectedBotId]);
 
   const handleBack = () => {
     if (step > 1) setStep((s) => s - 1);
@@ -754,11 +755,20 @@ export default function WhatsAppCreateCampaign() {
         ? new Date(scheduledAt).toISOString()
         : undefined;
 
+    const bodyParams = selectedTemplate
+      ? parseTemplateVars(selectedTemplate)
+          .filter((g) => g.componentType === "body")
+          .flatMap((g) => g.vars)
+      : undefined;
+
     createMutation.mutate(
       {
         name: title,
         description,
-        waTemplateId: selectedTemplateId || undefined,
+        metaTemplateName: selectedTemplate?.name,
+        metaTemplateLanguage: selectedTemplate?.language,
+        metaTemplateCategory: selectedTemplate?.category,
+        metaTemplateBodyParams: bodyParams,
         waBotId: selectedBotId || undefined,
         clientIds: selectedClientIds,
         scheduledAt: scheduledIso,
@@ -775,7 +785,7 @@ export default function WhatsAppCreateCampaign() {
         },
       },
     );
-  }, [createMutation, title, description, selectedTemplateId, selectedBotId, selectedClientIds, scheduledAt, toast, navigate]);
+  }, [createMutation, title, description, selectedTemplate, selectedBotId, selectedClientIds, scheduledAt, toast, navigate]);
 
   // Progress percentage for the top bar
   const progressPct = ((step - 1) / (STEPS.length - 1)) * 100;
@@ -839,9 +849,9 @@ export default function WhatsAppCreateCampaign() {
               )}
               {step === 3 && (
                 <StepTemplateOrBot
-                  selectedTemplateId={selectedTemplateId}
+                  selectedTemplate={selectedTemplate}
                   selectedBotId={selectedBotId}
-                  onSelectTemplate={setSelectedTemplateId}
+                  onSelectTemplate={setSelectedTemplate}
                   onSelectBot={setSelectedBotId}
                 />
               )}
@@ -850,7 +860,7 @@ export default function WhatsAppCreateCampaign() {
                   title={title}
                   description={description}
                   clientCount={selectedClientIds.length}
-                  templateId={selectedTemplateId}
+                  templateName={selectedTemplate?.name}
                   botId={selectedBotId}
                   scheduledAt={scheduledAt}
                   onScheduleChange={setScheduledAt}

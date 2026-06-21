@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import multer from "multer";
 import {
   getWhatsappSettingsForClient,
   getWhatsappStatus,
@@ -12,11 +13,21 @@ import {
   updateLocalTemplate,
   deleteLocalTemplate,
   fetchMetaTemplates,
+  deleteMetaTemplate,
 } from "../services/whatsapp-templates.service";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
-import { createMetaTemplate, type MetaTemplateCreatePayload } from "../integrations/whatsapp";
+import {
+  createMetaTemplate,
+  uploadTemplateMediaHandle,
+  type MetaTemplateCreatePayload,
+} from "../integrations/whatsapp";
 
 const router = Router();
+
+const templateMediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 16 * 1024 * 1024 },
+});
 
 // ── Configurações ─────────────────────────────────────────────────────────────
 
@@ -103,6 +114,37 @@ router.get("/templates/meta", async (req, res) => {
     res.json(templates);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao buscar templates do Meta";
+    res.status(500).json({ message });
+  }
+});
+
+router.delete("/templates/meta/:name", async (req, res) => {
+  try {
+    const role = (req as any).user?.role;
+    if (role !== "admin" && role !== "gerente") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    await deleteMetaTemplate(req.params.name);
+    res.json({ success: true });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao excluir template do Meta";
+    res.status(500).json({ message });
+  }
+});
+
+// Upload de mídia de cabeçalho → retorna o handle exigido pela Meta
+router.post("/templates/meta/media", templateMediaUpload.single("file"), async (req, res) => {
+  try {
+    const role = (req as any).user?.role;
+    if (role !== "admin" && role !== "gerente") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    if (!req.file) return res.status(400).json({ message: "Nenhum arquivo enviado" });
+
+    const handle = await uploadTemplateMediaHandle(req.file.buffer, req.file.mimetype);
+    res.json({ handle });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao enviar mídia para o Meta";
     res.status(500).json({ message });
   }
 });

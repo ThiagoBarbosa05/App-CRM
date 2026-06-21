@@ -70,6 +70,7 @@ type SettingsForm = {
   wa_phone_number_id: string;
   wa_access_token: string;
   wa_waba_id: string;
+  wa_app_id: string;
   wa_webhook_verify_token: string;
   wa_api_version: string;
   wa_enabled: boolean;
@@ -955,6 +956,7 @@ export default function WhatsAppSettings() {
     wa_phone_number_id: "",
     wa_access_token: "",
     wa_waba_id: "",
+    wa_app_id: "",
     wa_webhook_verify_token: "",
     wa_api_version: "v20.0",
     wa_enabled: false,
@@ -987,6 +989,7 @@ export default function WhatsAppSettings() {
         wa_phone_number_id: settings.wa_phone_number_id ?? "",
         wa_access_token: settings.wa_access_token ?? "",
         wa_waba_id: settings.wa_waba_id ?? "",
+        wa_app_id: settings.wa_app_id ?? "",
         wa_webhook_verify_token: settings.wa_webhook_verify_token ?? "",
         wa_api_version: settings.wa_api_version ?? "v20.0",
         wa_enabled: settings.wa_enabled === "true",
@@ -998,6 +1001,7 @@ export default function WhatsAppSettings() {
   const handleSave = () => {
     const payload: Record<string, string> = {
       wa_api_version: form.wa_api_version,
+      wa_app_id: form.wa_app_id,
       wa_enabled: String(form.wa_enabled),
       wa_message_delay_ms: form.wa_message_delay_ms,
     };
@@ -1170,6 +1174,20 @@ export default function WhatsAppSettings() {
             <CardTitle className="text-base">Configurações gerais</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="app-id">App ID</Label>
+              <Input
+                id="app-id"
+                value={form.wa_app_id}
+                onChange={(e) => setForm((prev) => ({ ...prev, wa_app_id: e.target.value }))}
+                placeholder="1234567890123456"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                ID do aplicativo Meta. Necessário para upload de mídia ao criar templates (cabeçalho com imagem/vídeo/documento).
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="api-version">Versão da API</Label>
