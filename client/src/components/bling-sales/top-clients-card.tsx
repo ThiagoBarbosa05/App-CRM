@@ -184,10 +184,12 @@ export function TopClientsCard({ data, isLoading, title = "Top Clientes", subtit
               );
 
               return item.clientId ? (
-                <Link key={`${item.clientId}-${index}`} href={`/clientes/${item.clientId}`}>
-                  <a className="block group relative overflow-hidden rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-[0_18px_35px_-30px_rgba(245,158,11,0.45)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_45px_-30px_rgba(245,158,11,0.5)] dark:border-slate-800 dark:bg-slate-950/55">
-                    {InnerContent}
-                  </a>
+                <Link
+                  key={`${item.clientId}-${index}`}
+                  href={`/clientes/${item.clientId}`}
+                  className="block group relative overflow-hidden rounded-[24px] border border-white/80 bg-white/85 p-4 shadow-[0_18px_35px_-30px_rgba(245,158,11,0.45)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_45px_-30px_rgba(245,158,11,0.5)] dark:border-slate-800 dark:bg-slate-950/55"
+                >
+                  {InnerContent}
                 </Link>
               ) : (
                 <div
