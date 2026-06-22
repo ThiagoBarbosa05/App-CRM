@@ -346,14 +346,57 @@ export const referralsService = {
     deliveredByUserId: string,
     notes?: string,
   ): Promise<void> {
+    // 1. Busca o benefício no catálogo
     const [benefit] = await db
-      .select({ type: referralBenefitCatalog.type })
+      .select({ type: referralBenefitCatalog.type, isActive: referralBenefitCatalog.isActive })
       .from(referralBenefitCatalog)
       .where(eq(referralBenefitCatalog.id, benefitCatalogId))
       .limit(1);
 
     if (!benefit) throw new Error("Benefício não encontrado no catálogo");
+    if (!benefit.isActive) throw new Error("Este benefício está inativo e não pode ser entregue");
 
+    // 2. Busca estado atual do cliente (entregas já realizadas)
+    const [clientRow] = await db
+      .select({
+        referralBenefit1At: clients.referralBenefit1At,
+        referralBenefit2At: clients.referralBenefit2At,
+      })
+      .from(clients)
+      .where(eq(clients.id, referrerId))
+      .limit(1);
+
+    if (!clientRow) throw new Error("Cliente não encontrado");
+
+    // 3. Impede dupla entrega do mesmo nível
+    if (benefit.type === "B1" && clientRow.referralBenefit1At) {
+      throw new Error("Benefício B1 já foi entregue para este cliente");
+    }
+    if (benefit.type === "B2" && clientRow.referralBenefit2At) {
+      throw new Error("Benefício B2 já foi entregue para este cliente");
+    }
+
+    // 4. Valida se o cliente atingiu o threshold necessário
+    const clientReferrals = await db
+      .select({ hasPurchased: referrals.hasPurchased })
+      .from(referrals)
+      .where(eq(referrals.referrerId, referrerId));
+
+    const totalReferred = clientReferrals.length;
+    const totalPurchased = clientReferrals.filter((r) => r.hasPurchased).length;
+
+    if (benefit.type === "B1" && totalReferred < REFERRAL_THRESHOLD) {
+      throw new Error(
+        `Cliente precisa de ${REFERRAL_THRESHOLD} indicações para receber o B1 (possui ${totalReferred})`,
+      );
+    }
+    if (benefit.type === "B2" && totalPurchased < REFERRAL_THRESHOLD) {
+      throw new Error(
+        `Cliente precisa de ${REFERRAL_THRESHOLD} indicados que compraram para receber o B2 (possui ${totalPurchased})`,
+      );
+    }
+
+    // 5. Registra a entrega
     await db.insert(referralBenefitDeliveries).values({
       referrerId,
       benefitCatalogId,

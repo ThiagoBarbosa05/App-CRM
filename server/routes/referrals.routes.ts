@@ -1,10 +1,18 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { sendReferralMessageController } from "../controllers/referrals/send-referral-message.controller";
 import { deleteReferralController } from "../controllers/referrals/delete-referral.controller";
 import { getProgramController } from "../controllers/referrals/get-program.controller";
 import { referralsService } from "../services/referrals.service";
 
 export const referralsRouter = Router();
+
+function requireAdminOrGerente(req: Request, res: Response, next: NextFunction) {
+  const role = req.user?.role;
+  if (role !== "admin" && role !== "administrador" && role !== "gerente") {
+    return res.status(403).json({ message: "Acesso restrito a administradores e gerentes" });
+  }
+  return next();
+}
 
 referralsRouter.get("/program", getProgramController);
 referralsRouter.post("/:referralId/send-message", sendReferralMessageController);
@@ -23,7 +31,7 @@ referralsRouter.get("/benefits/catalog", async (req, res) => {
   }
 });
 
-referralsRouter.post("/benefits/catalog", async (req, res) => {
+referralsRouter.post("/benefits/catalog", requireAdminOrGerente, async (req, res) => {
   try {
     const { name, description, type, isActive } = req.body;
     if (!name || !type || !["B1", "B2"].includes(type)) {
@@ -42,7 +50,7 @@ referralsRouter.post("/benefits/catalog", async (req, res) => {
   }
 });
 
-referralsRouter.put("/benefits/catalog/:id", async (req, res) => {
+referralsRouter.put("/benefits/catalog/:id", requireAdminOrGerente, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description, type, isActive } = req.body;
@@ -63,7 +71,7 @@ referralsRouter.put("/benefits/catalog/:id", async (req, res) => {
   }
 });
 
-referralsRouter.delete("/benefits/catalog/:id", async (req, res) => {
+referralsRouter.delete("/benefits/catalog/:id", requireAdminOrGerente, async (req, res) => {
   try {
     const { id } = req.params;
     await referralsService.deleteBenefit(id);

@@ -69,6 +69,8 @@ interface CatalogBenefit {
   createdAt: string;
 }
 
+const REFERRAL_THRESHOLD = 3;
+
 interface ClientReferralsTabProps {
   clientId: string;
 }
@@ -302,7 +304,7 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
           </div>
 
           <div className="space-y-2 relative">
-            <ProgressBar value={stats?.totalReferred ?? 0} max={3} />
+            <ProgressBar value={stats?.totalReferred ?? 0} max={REFERRAL_THRESHOLD} />
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 <span className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">
@@ -389,7 +391,7 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
           </div>
 
           <div className="space-y-2 relative">
-            <ProgressBar value={stats?.totalPurchased ?? 0} max={3} />
+            <ProgressBar value={stats?.totalPurchased ?? 0} max={REFERRAL_THRESHOLD} />
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 <span className="font-bold text-slate-700 dark:text-slate-200 tabular-nums">
