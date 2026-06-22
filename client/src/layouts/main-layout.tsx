@@ -5,9 +5,11 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { BlingStatusBanner } from "@/components/bling-status-banner";
 import { WhatsAppFloatingButton } from "@/components/whatsapp-floating-button";
+import { useAuth } from "@/hooks/useAuth";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useAuth();
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sidebar-collapsed") === "true",
   );
@@ -83,8 +85,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           </AnimatePresence>
         </main>
       </div>
-
-      {/* <WhatsAppFloatingButton /> */}
+      {/* WhatsApp floating button */}
+      {user?.role === "admin" && <WhatsAppFloatingButton />}
     </div>
   );
 }
