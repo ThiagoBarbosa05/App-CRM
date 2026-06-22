@@ -345,8 +345,11 @@ async function executeNode(
     }
 
     case "condition": {
-      const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId, variables);
+      // Pausa e aguarda a resposta do contato; a ramificação é resolvida em
+      // handleIncomingMessage quando a próxima mensagem chega. Sem isso, a
+      // condição cairia no primeiro edge e o fluxo seria reiniciado a cada
+      // resposta (reenviando o template).
+      await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       break;
     }
 

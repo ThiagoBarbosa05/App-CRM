@@ -230,7 +230,13 @@ type IncomingMessage = {
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
   sticker?: { id: string; mime_type: string };
   reaction?: { message_id: string; emoji: string };
-  interactive?: { type: string; nfm_reply?: { response_json: string; name: string; body: string } };
+  button?: { payload?: string; text?: string };
+  interactive?: {
+    type: string;
+    button_reply?: { id: string; title: string };
+    list_reply?: { id: string; title: string; description?: string };
+    nfm_reply?: { response_json: string; name: string; body: string };
+  };
 };
 
 async function handleIncomingMessage(
@@ -240,7 +246,15 @@ async function handleIncomingMessage(
     display_phone_number: string;
   },
 ) {
-  const text = message.text?.body ?? "";
+  // Respostas de botão de template (type "button"), botões interativos
+  // (interactive.button_reply) e listas (interactive.list_reply) trazem o texto
+  // clicado fora de message.text — normaliza para o campo content.
+  const buttonText =
+    message.button?.text ??
+    message.interactive?.button_reply?.title ??
+    message.interactive?.list_reply?.title ??
+    null;
+  const text = message.text?.body ?? buttonText ?? "";
   const mediaObj = message.image ?? message.audio ?? message.video ?? message.document ?? message.sticker;
 
   // WhatsApp envia type "unsupported" para stickers animados e outros formatos.
@@ -283,7 +297,9 @@ async function handleIncomingMessage(
       : undefined,
   }).catch((err) => console.error("[WA Webhook] Erro ao salvar mensagem:", err));
 
-  if (message.type === "text" && text) {
+  // Aciona o bot tanto para texto comum quanto para respostas de botão/lista,
+  // que devem avançar o fluxo como se fossem uma mensagem do contato.
+  if (text && message.type !== "reaction") {
     await runBotEngine(message.from, text);
   }
 
