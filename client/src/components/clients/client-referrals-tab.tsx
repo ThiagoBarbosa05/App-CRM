@@ -15,7 +15,10 @@ import {
   X,
   UserPlus,
   Share2,
+  Check,
+  Star,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InputMask } from "@/components/ui/input-mask";
@@ -71,6 +74,28 @@ interface CatalogBenefit {
 
 const REFERRAL_THRESHOLD = 3;
 
+interface IncentiveItem {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+interface IncentiveStatus {
+  wasReferred: boolean;
+  referrerId: string | null;
+  referrerName: string | null;
+  hasPurchased: boolean;
+  delivery: {
+    id: string;
+    incentiveName: string;
+    incentiveDescription: string | null;
+    deliveredAt: string;
+    deliveredByName: string;
+    notes: string | null;
+  } | null;
+}
+
 interface ClientReferralsTabProps {
   clientId: string;
 }
@@ -105,6 +130,9 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deliveryDialogLevel, setDeliveryDialogLevel] = useState<1 | 2 | null>(null);
   const [selectedBenefitId, setSelectedBenefitId] = useState<string | null>(null);
+  const [incentiveDialogOpen, setIncentiveDialogOpen] = useState(false);
+  const [selectedIncentiveId, setSelectedIncentiveId] = useState<string | null>(null);
+  const [incentiveNotes, setIncentiveNotes] = useState("");
 
   const { data, isLoading } = useQuery<ReferralWithStats>({
     queryKey: [`/api/clients/${clientId}/referrals`],
@@ -112,6 +140,16 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
 
   const { data: catalogData } = useQuery<CatalogBenefit[]>({
     queryKey: ["/api/referrals/benefits/catalog"],
+  });
+
+  const { data: incentiveStatus } = useQuery<IncentiveStatus>({
+    queryKey: [`/api/clients/${clientId}/incentive-status`],
+  });
+
+  const { data: incentiveCatalog } = useQuery<IncentiveItem[]>({
+    queryKey: ["/api/referrals/incentives/catalog"],
+    enabled:
+      incentiveStatus?.wasReferred === true && !incentiveStatus?.delivery,
   });
 
   const addMutation = useMutation({
@@ -159,6 +197,50 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
     onError: (err: Error) => {
       toast({
         title: "Erro ao remover",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deliverIncentiveMutation = useMutation({
+    mutationFn: async ({
+      incentiveCatalogId,
+      notes,
+    }: {
+      incentiveCatalogId: string;
+      notes?: string;
+    }) => {
+      const res = await fetch("/api/referrals/incentives/deliver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          referredClientId: clientId,
+          incentiveCatalogId,
+          notes,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? "Erro ao entregar brinde");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [`/api/clients/${clientId}/incentive-status`],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/referrals/incentives/deliveries"],
+      });
+      toast({ title: "Brinde de incentivo entregue com sucesso!" });
+      setIncentiveDialogOpen(false);
+      setSelectedIncentiveId(null);
+      setIncentiveNotes("");
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Erro ao entregar brinde",
         description: err.message,
         variant: "destructive",
       });
@@ -655,6 +737,121 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
         )}
       </div>
 
+      {/* ── Seção: Brinde de Incentivo (para quem FOI indicado) ── */}
+      {incentiveStatus?.wasReferred && (
+        <div
+          className={cn(
+            "rounded-2xl border p-5 space-y-3",
+            incentiveStatus.delivery
+              ? "border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-900/10"
+              : incentiveStatus.hasPurchased
+                ? "border-primary/30 bg-accent/40 dark:bg-accent/20"
+                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/50",
+          )}
+        >
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div
+                className={cn(
+                  "h-8 w-8 rounded-xl flex items-center justify-center shrink-0",
+                  incentiveStatus.delivery
+                    ? "bg-emerald-100 dark:bg-emerald-900/30"
+                    : "bg-accent",
+                )}
+              >
+                <Star
+                  className={cn(
+                    "h-4 w-4",
+                    incentiveStatus.delivery
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-primary",
+                  )}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Brinde de Incentivo
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Indicado por{" "}
+                  <button
+                    className="font-medium text-primary hover:underline"
+                    onClick={() =>
+                      navigate(`/clientes/${incentiveStatus.referrerId}`)
+                    }
+                  >
+                    {incentiveStatus.referrerName}
+                  </button>
+                </p>
+              </div>
+            </div>
+
+            {/* Status badge */}
+            {incentiveStatus.delivery ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 shrink-0">
+                <Check className="h-3 w-3" /> Entregue
+              </span>
+            ) : incentiveStatus.hasPurchased ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary shrink-0">
+                <Gift className="h-3 w-3" /> Elegível
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
+                <Clock className="h-3 w-3" /> Aguardando compra
+              </span>
+            )}
+          </div>
+
+          {/* Detalhes da entrega */}
+          {incentiveStatus.delivery ? (
+            <div className="bg-white/70 dark:bg-slate-900/50 rounded-xl p-3 space-y-1">
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                {incentiveStatus.delivery.incentiveName}
+              </p>
+              {incentiveStatus.delivery.incentiveDescription && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {incentiveStatus.delivery.incentiveDescription}
+                </p>
+              )}
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Entregue por{" "}
+                <span className="font-medium text-slate-600 dark:text-slate-300">
+                  {incentiveStatus.delivery.deliveredByName}
+                </span>{" "}
+                em{" "}
+                {formatDeliveredAt(incentiveStatus.delivery.deliveredAt)}
+              </p>
+              {incentiveStatus.delivery.notes && (
+                <p className="text-xs text-slate-400 italic">
+                  Obs: {incentiveStatus.delivery.notes}
+                </p>
+              )}
+            </div>
+          ) : incentiveStatus.hasPurchased ? (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Este cliente realizou uma compra e está elegível para receber um
+                brinde de incentivo.
+              </p>
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1.5 shrink-0"
+                onClick={() => setIncentiveDialogOpen(true)}
+              >
+                <Gift className="h-3.5 w-3.5" />
+                Entregar Brinde
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              O brinde de incentivo estará disponível após o cliente realizar a
+              primeira compra.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* ── Dialog de Seleção de Benefício ── */}
       <Dialog
         open={deliveryDialogLevel !== null}
@@ -759,6 +956,116 @@ export function ClientReferralsTab({ clientId }: ClientReferralsTabProps) {
             >
               <PackageCheck className="h-3.5 w-3.5 mr-1.5" />
               {deliverFromCatalogMutation.isPending
+                ? "Entregando..."
+                : "Confirmar entrega"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Entregar Brinde de Incentivo ── */}
+      <Dialog
+        open={incentiveDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIncentiveDialogOpen(false);
+            setSelectedIncentiveId(null);
+            setIncentiveNotes("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-primary" />
+              Entregar Brinde de Incentivo
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Selecione o brinde de incentivo para este cliente indicado:
+            </p>
+
+            {!incentiveCatalog ? (
+              <div className="text-center py-6 text-slate-400 text-sm">
+                Carregando brindes...
+              </div>
+            ) : incentiveCatalog.length === 0 ? (
+              <div className="text-center py-6 space-y-1">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Nenhum brinde cadastrado no catálogo.
+                </p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Peça ao administrador para configurar os brindes de incentivo.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {incentiveCatalog.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedIncentiveId(item.id)}
+                    className={cn(
+                      "w-full text-left p-3 rounded-xl border transition-all",
+                      selectedIncentiveId === item.id
+                        ? "border-primary bg-accent"
+                        : "border-slate-200 dark:border-slate-700 hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-800",
+                    )}
+                  >
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      {item.name}
+                    </p>
+                    {item.description && (
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                        {item.description}
+                      </p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                Observação (opcional)
+              </Label>
+              <Textarea
+                value={incentiveNotes}
+                onChange={(e) => setIncentiveNotes(e.target.value)}
+                placeholder="Alguma observação sobre a entrega..."
+                className="text-sm min-h-[60px] resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIncentiveDialogOpen(false);
+                setSelectedIncentiveId(null);
+                setIncentiveNotes("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={
+                !selectedIncentiveId || deliverIncentiveMutation.isPending
+              }
+              onClick={() =>
+                selectedIncentiveId &&
+                deliverIncentiveMutation.mutate({
+                  incentiveCatalogId: selectedIncentiveId,
+                  notes: incentiveNotes || undefined,
+                })
+              }
+            >
+              <PackageCheck className="h-3.5 w-3.5 mr-1.5" />
+              {deliverIncentiveMutation.isPending
                 ? "Entregando..."
                 : "Confirmar entrega"}
             </Button>

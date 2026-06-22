@@ -1010,6 +1010,56 @@ export type InsertReferralBenefitDelivery = z.infer<
 export type ReferralBenefitDelivery =
   typeof referralBenefitDeliveries.$inferSelect;
 
+// Catálogo de brindes de incentivo para clientes indicados
+export const referralIncentiveCatalog = pgTable("referral_incentive_catalog", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertReferralIncentiveCatalogSchema = createInsertSchema(
+  referralIncentiveCatalog,
+).omit({ id: true, createdAt: true });
+export type InsertReferralIncentiveCatalog = z.infer<
+  typeof insertReferralIncentiveCatalogSchema
+>;
+export type ReferralIncentiveCatalog =
+  typeof referralIncentiveCatalog.$inferSelect;
+
+// Histórico de entregas de brindes de incentivo para indicados
+export const referralIncentiveDeliveries = pgTable(
+  "referral_incentive_deliveries",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    referredClientId: varchar("referred_client_id")
+      .references(() => clients.id, { onDelete: "cascade" })
+      .notNull(),
+    incentiveCatalogId: varchar("incentive_catalog_id")
+      .references(() => referralIncentiveCatalog.id)
+      .notNull(),
+    deliveredByUserId: varchar("delivered_by_user_id")
+      .references(() => users.id)
+      .notNull(),
+    deliveredAt: timestamp("delivered_at").defaultNow().notNull(),
+    notes: text("notes"),
+  },
+);
+
+export const insertReferralIncentiveDeliverySchema = createInsertSchema(
+  referralIncentiveDeliveries,
+).omit({ id: true, deliveredAt: true });
+export type InsertReferralIncentiveDelivery = z.infer<
+  typeof insertReferralIncentiveDeliverySchema
+>;
+export type ReferralIncentiveDelivery =
+  typeof referralIncentiveDeliveries.$inferSelect;
+
 // Birthday reminder relations
 export const birthdayRemindersRelations = relations(
   birthdayReminders,

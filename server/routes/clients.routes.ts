@@ -144,6 +144,17 @@ clientsRouter.get("/:clientId/referrals", getReferralsController);
 clientsRouter.post("/:clientId/referrals", postReferralController);
 clientsRouter.post("/:clientId/referrals/benefits/:level/deliver", deliverBenefitController);
 clientsRouter.get("/:clientId/referrer", getReferrerController);
+clientsRouter.get("/:clientId/incentive-status", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const { referralsService } = await import("../services/referrals.service");
+    const status = await referralsService.getClientIncentiveStatus(clientId);
+    return res.json(status);
+  } catch (error) {
+    console.error("Erro ao buscar status de incentivo:", error);
+    return res.status(500).json({ message: "Erro ao buscar status de incentivo" });
+  }
+});
 
 /**
  * @route POST /api/clients

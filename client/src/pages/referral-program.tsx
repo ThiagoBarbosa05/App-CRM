@@ -106,6 +106,28 @@ interface Delivery {
   notes: string | null;
 }
 
+interface IncentiveItem {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface IncentiveDelivery {
+  id: string;
+  referredClientId: string;
+  referredClientName: string;
+  referrerId: string | null;
+  referrerName: string | null;
+  incentiveName: string;
+  incentiveDescription: string | null;
+  deliveredByUserId: string;
+  deliveredByName: string;
+  deliveredAt: string;
+  notes: string | null;
+}
+
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({
@@ -301,6 +323,19 @@ export default function ReferralProgramPage() {
     "all" | "B1" | "B2"
   >("all");
 
+  // ── Incentivos tab state
+  const [incentiveCatalogDialogOpen, setIncentiveCatalogDialogOpen] =
+    useState(false);
+  const [editingIncentive, setEditingIncentive] =
+    useState<IncentiveItem | null>(null);
+  const [incentiveDeleteConfirmId, setIncentiveDeleteConfirmId] = useState<
+    string | null
+  >(null);
+  const [incentiveFormName, setIncentiveFormName] = useState("");
+  const [incentiveFormDesc, setIncentiveFormDesc] = useState("");
+  const [incentiveFormActive, setIncentiveFormActive] = useState(true);
+  const [incentiveDeliverySearch, setIncentiveDeliverySearch] = useState("");
+
   // ── Queries
   const { data, isLoading } = useQuery<ProgramData>({
     queryKey: ["/api/referrals/program"],
@@ -320,6 +355,22 @@ export default function ReferralProgramPage() {
     Delivery[]
   >({
     queryKey: ["/api/referrals/benefits/deliveries"],
+  });
+
+  const { data: incentiveCatalog, isLoading: incentiveCatalogLoading } =
+    useQuery<IncentiveItem[]>({
+      queryKey: ["/api/referrals/incentives/catalog", "admin"],
+      queryFn: () =>
+        fetch("/api/referrals/incentives/catalog?includeInactive=true", {
+          credentials: "include",
+        }).then((r) => r.json()),
+    });
+
+  const {
+    data: incentiveDeliveries,
+    isLoading: incentiveDeliveriesLoading,
+  } = useQuery<IncentiveDelivery[]>({
+    queryKey: ["/api/referrals/incentives/deliveries"],
   });
 
   // ── Catalog mutations
@@ -422,6 +473,136 @@ export default function ReferralProgramPage() {
     },
   });
 
+  // ── Incentive catalog mutations
+  const createIncentiveMutation = useMutation({
+    mutationFn: async (data: {
+      name: string;
+      description: string;
+      isActive: boolean;
+    }) => {
+      const res = await fetch("/api/referrals/incentives/catalog", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? "Erro ao criar brinde");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/referrals/incentives/catalog"],
+      });
+      setIncentiveCatalogDialogOpen(false);
+      toast({ title: "Brinde de incentivo criado!" });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateIncentiveMutation = useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<IncentiveItem>;
+    }) => {
+      const res = await fetch(`/api/referrals/incentives/catalog/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? "Erro ao atualizar brinde");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/referrals/incentives/catalog"],
+      });
+      setIncentiveCatalogDialogOpen(false);
+      setEditingIncentive(null);
+      toast({ title: "Brinde atualizado!" });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteIncentiveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/referrals/incentives/catalog/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? "Erro ao excluir brinde");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/referrals/incentives/catalog"],
+      });
+      setIncentiveDeleteConfirmId(null);
+      toast({ title: "Brinde excluído" });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Erro",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // ── Incentive helpers
+  function openCreateIncentiveDialog() {
+    setEditingIncentive(null);
+    setIncentiveFormName("");
+    setIncentiveFormDesc("");
+    setIncentiveFormActive(true);
+    setIncentiveCatalogDialogOpen(true);
+  }
+
+  function openEditIncentiveDialog(item: IncentiveItem) {
+    setEditingIncentive(item);
+    setIncentiveFormName(item.name);
+    setIncentiveFormDesc(item.description ?? "");
+    setIncentiveFormActive(item.isActive);
+    setIncentiveCatalogDialogOpen(true);
+  }
+
+  function handleIncentiveSubmit() {
+    const payload = {
+      name: incentiveFormName.trim(),
+      description: incentiveFormDesc.trim(),
+      isActive: incentiveFormActive,
+    };
+    if (!payload.name) return;
+    if (editingIncentive) {
+      updateIncentiveMutation.mutate({ id: editingIncentive.id, data: payload });
+    } else {
+      createIncentiveMutation.mutate(payload);
+    }
+  }
+
   // ── Helpers
   function openCreateDialog() {
     setEditingBenefit(null);
@@ -488,6 +669,20 @@ export default function ReferralProgramPage() {
       return matchesSearch && matchesStatus && matchesResponsavel;
     });
   }, [data, search, statusFilter, responsavelFilter]);
+
+  // ── Filtered incentive deliveries
+  const filteredIncentiveDeliveries = useMemo(() => {
+    if (!incentiveDeliveries) return [];
+    const term = incentiveDeliverySearch.toLowerCase();
+    return incentiveDeliveries.filter(
+      (d) =>
+        !incentiveDeliverySearch ||
+        d.referredClientName.toLowerCase().includes(term) ||
+        d.incentiveName.toLowerCase().includes(term) ||
+        d.deliveredByName.toLowerCase().includes(term) ||
+        (d.referrerName ?? "").toLowerCase().includes(term),
+    );
+  }, [incentiveDeliveries, incentiveDeliverySearch]);
 
   // ── Filtered deliveries
   const filteredDeliveries = useMemo(() => {
@@ -579,6 +774,7 @@ export default function ReferralProgramPage() {
             <TabsTrigger value="catalogo">Catálogo de Benefícios</TabsTrigger>
           )}
           <TabsTrigger value="entregas">Histórico de Entregas</TabsTrigger>
+          <TabsTrigger value="incentivos">Brindes de Incentivo</TabsTrigger>
         </TabsList>
 
         {/* ── ABA: Indicações ─────────────────────────────────────── */}
@@ -1094,6 +1290,252 @@ export default function ReferralProgramPage() {
             )}
           </div>
         </TabsContent>
+
+        {/* ── ABA: Brindes de Incentivo ──────────────────────────────── */}
+        <TabsContent value="incentivos" className="mt-2 space-y-6">
+          {/* Catálogo de Brindes (admin/gerente) */}
+          {isAdmin && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-7 w-7 rounded-lg bg-accent flex items-center justify-center">
+                    <Star className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Catálogo de Brindes de Incentivo
+                  </h3>
+                  {incentiveCatalog && (
+                    <span className="text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                      {incentiveCatalog.length}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  className="gap-1.5 h-8 text-xs"
+                  onClick={openCreateIncentiveDialog}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Novo Brinde
+                </Button>
+              </div>
+
+              <div className="hidden sm:grid grid-cols-[1fr_2fr_auto_auto] gap-4 px-5 py-2.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                <span>Nome</span>
+                <span>Descrição</span>
+                <span>Status</span>
+                <span />
+              </div>
+
+              {incentiveCatalogLoading ? (
+                <div className="space-y-2 p-5">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : !incentiveCatalog || incentiveCatalog.length === 0 ? (
+                <div className="text-center py-16 text-slate-400 dark:text-slate-500">
+                  <Star className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm font-medium">Nenhum brinde cadastrado</p>
+                  <p className="text-xs mt-1">
+                    Clique em "Novo Brinde" para começar
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {incentiveCatalog.map((item) => (
+                    <div
+                      key={item.id}
+                      className="grid grid-cols-1 sm:grid-cols-[1fr_2fr_auto_auto] gap-3 sm:gap-4 items-start sm:items-center px-5 py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                    >
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                        {item.name}
+                      </p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                        {item.description || (
+                          <span className="italic text-slate-300 dark:text-slate-600">
+                            Sem descrição
+                          </span>
+                        )}
+                      </p>
+                      <div>
+                        {item.isActive ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 text-xs gap-1">
+                            <Check className="h-3 w-3" /> Ativo
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-slate-400 text-xs gap-1"
+                          >
+                            <X className="h-3 w-3" /> Inativo
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-primary"
+                          onClick={() => openEditIncentiveDialog(item)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {incentiveDeleteConfirmId === item.id ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 text-xs px-2"
+                              disabled={deleteIncentiveMutation.isPending}
+                              onClick={() =>
+                                deleteIncentiveMutation.mutate(item.id)
+                              }
+                            >
+                              {deleteIncentiveMutation.isPending
+                                ? "..."
+                                : "Confirmar"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-slate-400"
+                              onClick={() => setIncentiveDeleteConfirmId(null)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400"
+                            onClick={() =>
+                              setIncentiveDeleteConfirmId(item.id)
+                            }
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Histórico de Entregas de Incentivo */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5 flex-1">
+                <div className="h-7 w-7 rounded-lg bg-accent flex items-center justify-center">
+                  <PackageCheck className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Histórico de Entregas de Incentivo
+                </h3>
+              </div>
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  value={incentiveDeliverySearch}
+                  onChange={(e) => setIncentiveDeliverySearch(e.target.value)}
+                  placeholder="Buscar cliente, brinde ou entregador..."
+                  className="pl-8 h-8 text-sm"
+                />
+              </div>
+              <p className="text-xs text-slate-400 dark:text-slate-500 shrink-0">
+                {filteredIncentiveDeliveries.length} entrega
+                {filteredIncentiveDeliveries.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            <div className="hidden sm:grid grid-cols-[2fr_2fr_1.5fr_1.5fr_1fr] gap-4 px-5 py-2.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+              <span>Cliente Indicado</span>
+              <span>Brinde</span>
+              <span>Indicador</span>
+              <span>Entregue por</span>
+              <span>Data</span>
+            </div>
+
+            {incentiveDeliveriesLoading ? (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="px-5 py-4">
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                  </div>
+                ))}
+              </div>
+            ) : filteredIncentiveDeliveries.length === 0 ? (
+              <div className="text-center py-16 text-slate-400 dark:text-slate-500">
+                <PackageCheck className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm font-medium">
+                  {incentiveDeliverySearch
+                    ? "Nenhuma entrega encontrada para a busca."
+                    : "Nenhum brinde de incentivo entregue ainda."}
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredIncentiveDeliveries.map((d) => (
+                  <div
+                    key={d.id}
+                    className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_1.5fr_1.5fr_1fr] gap-3 sm:gap-4 items-start sm:items-center px-5 py-4 sm:py-3.5 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
+                  >
+                    <div
+                      className="flex items-center gap-2 min-w-0 cursor-pointer group"
+                      onClick={() =>
+                        navigate(`/clientes/${d.referredClientId}`)
+                      }
+                    >
+                      <div className="h-7 w-7 rounded-md bg-accent flex items-center justify-center shrink-0 font-semibold text-primary text-xs">
+                        {d.referredClientName[0].toUpperCase()}
+                      </div>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200 group-hover:text-primary group-hover:underline truncate">
+                        {d.referredClientName}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
+                        {d.incentiveName}
+                      </p>
+                      {d.incentiveDescription && (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                          {d.incentiveDescription}
+                        </p>
+                      )}
+                      {d.notes && (
+                        <p className="text-xs text-slate-400 italic mt-0.5 truncate">
+                          Obs: {d.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                      {d.referrerName ?? (
+                        <span className="italic text-slate-300 dark:text-slate-600">
+                          —
+                        </span>
+                      )}
+                    </p>
+
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      {d.deliveredByName}
+                    </p>
+
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {format(new Date(d.deliveredAt), "dd/MM/yyyy HH:mm", {
+                        locale: ptBR,
+                      })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* ── Dialog: Criar/Editar Benefício ─────────────────────────────── */}
@@ -1224,6 +1666,96 @@ export default function ReferralProgramPage() {
                 : editingBenefit
                   ? "Salvar alterações"
                   : "Criar benefício"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Criar/Editar Brinde de Incentivo ──────────────────── */}
+      <Dialog
+        open={incentiveCatalogDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIncentiveCatalogDialogOpen(false);
+            setEditingIncentive(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-primary" />
+              {editingIncentive ? "Editar Brinde" : "Novo Brinde de Incentivo"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">
+                Nome do brinde <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                value={incentiveFormName}
+                onChange={(e) => setIncentiveFormName(e.target.value)}
+                placeholder="Ex: Garrafa de vinho, Kit degustação..."
+                className="h-9 text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">
+                Descrição (opcional)
+              </Label>
+              <Textarea
+                value={incentiveFormDesc}
+                onChange={(e) => setIncentiveFormDesc(e.target.value)}
+                placeholder="Detalhes sobre o brinde de incentivo..."
+                className="text-sm min-h-[72px] resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div>
+                <p className="text-xs font-medium text-slate-700 dark:text-slate-200">
+                  Brinde ativo
+                </p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                  Vendedores podem entregar este brinde
+                </p>
+              </div>
+              <Switch
+                checked={incentiveFormActive}
+                onCheckedChange={setIncentiveFormActive}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIncentiveCatalogDialogOpen(false);
+                setEditingIncentive(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={
+                !incentiveFormName.trim() ||
+                createIncentiveMutation.isPending ||
+                updateIncentiveMutation.isPending
+              }
+              onClick={handleIncentiveSubmit}
+            >
+              {createIncentiveMutation.isPending ||
+              updateIncentiveMutation.isPending
+                ? "Salvando..."
+                : editingIncentive
+                  ? "Salvar alterações"
+                  : "Criar brinde"}
             </Button>
           </DialogFooter>
         </DialogContent>

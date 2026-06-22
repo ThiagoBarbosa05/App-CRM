@@ -117,3 +117,96 @@ referralsRouter.get("/benefits/deliveries", async (req, res) => {
     return res.status(500).json({ message: "Erro ao buscar histórico de entregas" });
   }
 });
+
+// ─── Catálogo de Brindes de Incentivo (para indicados) ─────────────────────
+
+referralsRouter.get("/incentives/catalog", async (req, res) => {
+  try {
+    const includeInactive = req.query.includeInactive === "true";
+    const catalog = await referralsService.getIncentiveCatalog(includeInactive);
+    return res.json(catalog);
+  } catch (error) {
+    console.error("Erro ao buscar catálogo de incentivos:", error);
+    return res.status(500).json({ message: "Erro ao buscar catálogo de incentivos" });
+  }
+});
+
+referralsRouter.post("/incentives/catalog", requireAdminOrGerente, async (req, res) => {
+  try {
+    const { name, description, isActive } = req.body;
+    if (!name) {
+      return res.status(400).json({ message: "Nome é obrigatório" });
+    }
+    const item = await referralsService.createIncentiveItem({
+      name,
+      description: description ?? null,
+      isActive: isActive ?? true,
+    });
+    return res.status(201).json(item);
+  } catch (error) {
+    console.error("Erro ao criar brinde:", error);
+    return res.status(500).json({ message: "Erro ao criar brinde de incentivo" });
+  }
+});
+
+referralsRouter.put("/incentives/catalog/:id", requireAdminOrGerente, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, isActive } = req.body;
+    const updated = await referralsService.updateIncentiveItem(id, {
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(isActive !== undefined && { isActive }),
+    });
+    if (!updated) return res.status(404).json({ message: "Brinde não encontrado" });
+    return res.json(updated);
+  } catch (error) {
+    console.error("Erro ao atualizar brinde:", error);
+    return res.status(500).json({ message: "Erro ao atualizar brinde de incentivo" });
+  }
+});
+
+referralsRouter.delete("/incentives/catalog/:id", requireAdminOrGerente, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await referralsService.deleteIncentiveItem(id);
+    return res.json({ message: "Brinde excluído" });
+  } catch (error) {
+    console.error("Erro ao excluir brinde:", error);
+    return res.status(500).json({ message: "Erro ao excluir brinde de incentivo" });
+  }
+});
+
+referralsRouter.post("/incentives/deliver", async (req, res) => {
+  try {
+    const { referredClientId, incentiveCatalogId, notes } = req.body;
+    const deliveredByUserId = req.user?.userId;
+    if (!referredClientId || !incentiveCatalogId) {
+      return res.status(400).json({ message: "referredClientId e incentiveCatalogId são obrigatórios" });
+    }
+    if (!deliveredByUserId) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
+    }
+    await referralsService.deliverIncentive(
+      referredClientId,
+      incentiveCatalogId,
+      deliveredByUserId,
+      notes,
+    );
+    return res.json({ message: "Brinde de incentivo entregue com sucesso" });
+  } catch (error: any) {
+    console.error("Erro ao entregar brinde:", error);
+    return res.status(400).json({ message: error?.message ?? "Erro ao entregar brinde de incentivo" });
+  }
+});
+
+referralsRouter.get("/incentives/deliveries", async (req, res) => {
+  try {
+    const user = req.user;
+    const deliveries = await referralsService.getIncentiveDeliveries(user?.userId, user?.role);
+    return res.json(deliveries);
+  } catch (error) {
+    console.error("Erro ao buscar entregas de incentivo:", error);
+    return res.status(500).json({ message: "Erro ao buscar histórico de brindes de incentivo" });
+  }
+});

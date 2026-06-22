@@ -5,6 +5,8 @@ import {
   users,
   referralBenefitCatalog,
   referralBenefitDeliveries,
+  referralIncentiveCatalog,
+  referralIncentiveDeliveries,
 } from "../../shared/schema";
 import { eq, and, inArray, desc } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -12,6 +14,8 @@ import type {
   Referral,
   ReferralBenefitCatalog,
   InsertReferralBenefitCatalog,
+  ReferralIncentiveCatalog,
+  InsertReferralIncentiveCatalog,
 } from "../../shared/schema";
 
 export interface ReferralStats {
@@ -409,6 +413,238 @@ export const referralsService = {
         ? { referralBenefit1At: new Date() }
         : { referralBenefit2At: new Date() };
     await db.update(clients).set(field).where(eq(clients.id, referrerId));
+  },
+
+  // ─── Catálogo de Incentivos (para indicados) ─────────────────────────────
+
+  async getIncentiveCatalog(
+    includeInactive = false,
+  ): Promise<ReferralIncentiveCatalog[]> {
+    return db
+      .select()
+      .from(referralIncentiveCatalog)
+      .where(
+        includeInactive
+          ? undefined
+          : eq(referralIncentiveCatalog.isActive, true),
+      )
+      .orderBy(referralIncentiveCatalog.name);
+  },
+
+  async createIncentiveItem(
+    data: InsertReferralIncentiveCatalog,
+  ): Promise<ReferralIncentiveCatalog> {
+    const [created] = await db
+      .insert(referralIncentiveCatalog)
+      .values(data)
+      .returning();
+    return created;
+  },
+
+  async updateIncentiveItem(
+    id: string,
+    data: Partial<InsertReferralIncentiveCatalog>,
+  ): Promise<ReferralIncentiveCatalog | null> {
+    const [updated] = await db
+      .update(referralIncentiveCatalog)
+      .set(data)
+      .where(eq(referralIncentiveCatalog.id, id))
+      .returning();
+    return updated ?? null;
+  },
+
+  async deleteIncentiveItem(id: string): Promise<void> {
+    await db
+      .delete(referralIncentiveCatalog)
+      .where(eq(referralIncentiveCatalog.id, id));
+  },
+
+  // ─── Status de incentivo para um cliente indicado ─────────────────────────
+
+  async getClientIncentiveStatus(clientId: string): Promise<{
+    wasReferred: boolean;
+    referrerId: string | null;
+    referrerName: string | null;
+    hasPurchased: boolean;
+    delivery: {
+      id: string;
+      incentiveName: string;
+      incentiveDescription: string | null;
+      deliveredAt: Date;
+      deliveredByName: string;
+      notes: string | null;
+    } | null;
+  }> {
+    // Busca se este cliente foi indicado por alguém
+    const [referralRow] = await db
+      .select({
+        referrerId: referrals.referrerId,
+        hasPurchased: referrals.hasPurchased,
+        referrerName: clients.name,
+      })
+      .from(referrals)
+      .innerJoin(clients, eq(referrals.referrerId, clients.id))
+      .where(eq(referrals.referredClientId, clientId))
+      .limit(1);
+
+    if (!referralRow) {
+      return {
+        wasReferred: false,
+        referrerId: null,
+        referrerName: null,
+        hasPurchased: false,
+        delivery: null,
+      };
+    }
+
+    // Busca entrega de incentivo para este cliente
+    const deliverer = alias(users, "deliverer");
+    const [deliveryRow] = await db
+      .select({
+        id: referralIncentiveDeliveries.id,
+        incentiveName: referralIncentiveCatalog.name,
+        incentiveDescription: referralIncentiveCatalog.description,
+        deliveredAt: referralIncentiveDeliveries.deliveredAt,
+        deliveredByName: deliverer.name,
+        notes: referralIncentiveDeliveries.notes,
+      })
+      .from(referralIncentiveDeliveries)
+      .innerJoin(
+        referralIncentiveCatalog,
+        eq(
+          referralIncentiveDeliveries.incentiveCatalogId,
+          referralIncentiveCatalog.id,
+        ),
+      )
+      .innerJoin(
+        deliverer,
+        eq(referralIncentiveDeliveries.deliveredByUserId, deliverer.id),
+      )
+      .where(eq(referralIncentiveDeliveries.referredClientId, clientId))
+      .limit(1);
+
+    return {
+      wasReferred: true,
+      referrerId: referralRow.referrerId,
+      referrerName: referralRow.referrerName,
+      hasPurchased: referralRow.hasPurchased,
+      delivery: deliveryRow ?? null,
+    };
+  },
+
+  async deliverIncentive(
+    referredClientId: string,
+    incentiveCatalogId: string,
+    deliveredByUserId: string,
+    notes?: string,
+  ): Promise<void> {
+    // 1. Verifica se o item existe e está ativo
+    const [item] = await db
+      .select({ isActive: referralIncentiveCatalog.isActive })
+      .from(referralIncentiveCatalog)
+      .where(eq(referralIncentiveCatalog.id, incentiveCatalogId))
+      .limit(1);
+
+    if (!item) throw new Error("Brinde não encontrado no catálogo");
+    if (!item.isActive)
+      throw new Error("Este brinde está inativo e não pode ser entregue");
+
+    // 2. Verifica se o cliente foi realmente indicado
+    const [referralRow] = await db
+      .select({ hasPurchased: referrals.hasPurchased })
+      .from(referrals)
+      .where(eq(referrals.referredClientId, referredClientId))
+      .limit(1);
+
+    if (!referralRow)
+      throw new Error("Este cliente não possui registro de indicação");
+
+    if (!referralRow.hasPurchased)
+      throw new Error(
+        "O cliente ainda não realizou uma compra. Brinde disponível somente após a primeira compra.",
+      );
+
+    // 3. Verifica dupla entrega
+    const [existing] = await db
+      .select({ id: referralIncentiveDeliveries.id })
+      .from(referralIncentiveDeliveries)
+      .where(eq(referralIncentiveDeliveries.referredClientId, referredClientId))
+      .limit(1);
+
+    if (existing)
+      throw new Error("Este cliente já recebeu um brinde de incentivo");
+
+    // 4. Registra a entrega
+    await db.insert(referralIncentiveDeliveries).values({
+      referredClientId,
+      incentiveCatalogId,
+      deliveredByUserId,
+      notes: notes ?? null,
+    });
+  },
+
+  async getIncentiveDeliveries(
+    userId?: string,
+    userRole?: string,
+  ): Promise<
+    Array<{
+      id: string;
+      referredClientId: string;
+      referredClientName: string;
+      referrerId: string | null;
+      referrerName: string | null;
+      incentiveName: string;
+      incentiveDescription: string | null;
+      deliveredByUserId: string;
+      deliveredByName: string;
+      deliveredAt: Date;
+      notes: string | null;
+    }>
+  > {
+    const deliverer = alias(users, "deliverer");
+    const referredClient = alias(clients, "referred_client");
+    const referrerClient = alias(clients, "referrer_client");
+    const isVendedor = userRole === "vendedor" && !!userId;
+
+    return db
+      .select({
+        id: referralIncentiveDeliveries.id,
+        referredClientId: referralIncentiveDeliveries.referredClientId,
+        referredClientName: referredClient.name,
+        referrerId: referrals.referrerId,
+        referrerName: referrerClient.name,
+        incentiveName: referralIncentiveCatalog.name,
+        incentiveDescription: referralIncentiveCatalog.description,
+        deliveredByUserId: referralIncentiveDeliveries.deliveredByUserId,
+        deliveredByName: deliverer.name,
+        deliveredAt: referralIncentiveDeliveries.deliveredAt,
+        notes: referralIncentiveDeliveries.notes,
+      })
+      .from(referralIncentiveDeliveries)
+      .innerJoin(
+        referredClient,
+        eq(referralIncentiveDeliveries.referredClientId, referredClient.id),
+      )
+      .innerJoin(
+        referralIncentiveCatalog,
+        eq(
+          referralIncentiveDeliveries.incentiveCatalogId,
+          referralIncentiveCatalog.id,
+        ),
+      )
+      .innerJoin(
+        deliverer,
+        eq(referralIncentiveDeliveries.deliveredByUserId, deliverer.id),
+      )
+      .leftJoin(
+        referrals,
+        eq(referrals.referredClientId, referralIncentiveDeliveries.referredClientId),
+      )
+      .leftJoin(referrerClient, eq(referrals.referrerId, referrerClient.id))
+      .where(
+        isVendedor ? eq(referredClient.responsavelId, userId) : undefined,
+      )
+      .orderBy(desc(referralIncentiveDeliveries.deliveredAt));
   },
 
   async getDeliveries(
