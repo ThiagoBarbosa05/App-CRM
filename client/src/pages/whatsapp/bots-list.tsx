@@ -62,15 +62,9 @@ import type { WhatsappBot } from "@shared/schema";
 const createBotSchema = z
   .object({
     name: z.string().min(1, "Nome é obrigatório"),
-    triggerType: z.enum(["keyword", "new_conversation", "ai_intent"]),
-    triggerKeyword: z.string().optional(),
+    triggerType: z.enum(["new_conversation", "ai_intent"]),
     triggerPrompt: z.string().optional(),
   })
-  .refine(
-    (d) =>
-      d.triggerType !== "keyword" || (d.triggerKeyword?.trim() ?? "").length > 0,
-    { message: "Palavra-chave é obrigatória", path: ["triggerKeyword"] },
-  )
   .refine(
     (d) =>
       d.triggerType !== "ai_intent" || (d.triggerPrompt?.trim() ?? "").length > 0,
@@ -98,7 +92,7 @@ export default function WhatsAppBotsList() {
 
   const form = useForm<CreateBotForm>({
     resolver: zodResolver(createBotSchema),
-    defaultValues: { name: "", triggerType: "keyword", triggerKeyword: "" },
+    defaultValues: { name: "", triggerType: "new_conversation" },
   });
 
   const triggerType = form.watch("triggerType");
@@ -285,7 +279,6 @@ export default function WhatsAppBotsList() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="keyword">Palavra-chave</SelectItem>
                         <SelectItem value="new_conversation">
                           Nova conversa
                         </SelectItem>
@@ -298,21 +291,6 @@ export default function WhatsAppBotsList() {
                   </FormItem>
                 )}
               />
-              {triggerType === "keyword" && (
-                <FormField
-                  control={form.control}
-                  name="triggerKeyword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Palavra-chave</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: oi, olá, menu" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
               {triggerType === "ai_intent" && (
                 <FormField
                   control={form.control}

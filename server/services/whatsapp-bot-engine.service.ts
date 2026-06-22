@@ -20,7 +20,7 @@ import {
 } from "@shared/schema";
 import { publishConversationEvent } from "../lib/sse-hub";
 import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage } from "../integrations/whatsapp";
-import { r2 } from "../lib/r2";
+import { r2, getPublicR2Url } from "../lib/r2";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getActiveBots } from "./whatsapp-bot.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
@@ -204,6 +204,20 @@ function interpolate(text: string, variables: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`);
 }
 
+/** Lê um objeto do R2 e retorna seu conteúdo como Buffer. */
+async function readR2Buffer(storageKey: string): Promise<Buffer> {
+  const BUCKET = process.env.CLOUDFLARE_BUCKET_NAME || "crm-test";
+  const obj = await r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: storageKey }));
+  if (!obj.Body) {
+    throw new Error(`[BotEngine] Arquivo não encontrado no storage: ${storageKey}`);
+  }
+  const chunks: Buffer[] = [];
+  for await (const chunk of obj.Body as NodeJS.ReadableStream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as unknown as Uint8Array));
+  }
+  return Buffer.concat(chunks);
+}
+
 async function executeNode(
   node: WhatsappBotNode,
   phone: string,
@@ -227,16 +241,34 @@ async function executeNode(
           if (d.metaTemplateName) {
             const interpolatedParams = (d.templateParams ?? []).map((component) => ({
               ...component,
-              parameters: component.parameters.map((param) => ({
-                ...param,
-                text: interpolate(param.text, variables),
-              })),
+              parameters: component.parameters.map((param) => {
+                if (param.type === "text") {
+                  return { ...param, text: interpolate(param.text, variables) };
+                }
+                return param;
+              }),
             }));
+
+            // Quando há mídia de header enviada por upload, envia pelo link público
+            // do R2 (CDN Cloudflare). A URL precisa ser baixável pelo Meta — a URL de
+            // exemplo da própria Meta não é (retorna 403).
+            const components: object[] = interpolatedParams.filter(
+              (c) => !(d.templateHeaderMedia?.storageKey && c.type === "header"),
+            );
+            if (d.templateHeaderMedia?.storageKey) {
+              const m = d.templateHeaderMedia;
+              const link = getPublicR2Url(m.storageKey);
+              components.unshift({
+                type: "header",
+                parameters: [{ type: m.type, [m.type]: { link } }],
+              });
+            }
+
             const result = await sendTemplateMessage(
               phone,
               d.metaTemplateName,
               d.metaTemplateLanguage ?? "pt_BR",
-              interpolatedParams,
+              components,
             );
             const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
             await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `Template: ${d.metaTemplateName}` });
@@ -273,16 +305,7 @@ async function executeNode(
               "Janela de 24h fechada: a Meta não permite enviar mídia para este contato sem template.",
             );
           }
-          const BUCKET = process.env.CLOUDFLARE_BUCKET_NAME || "crm-test";
-          const obj = await r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: d.attachment.storageKey }));
-          if (!obj.Body) {
-            throw new Error(`[BotEngine] Arquivo não encontrado no storage: ${d.attachment.storageKey}`);
-          }
-          const chunks: Buffer[] = [];
-          for await (const chunk of obj.Body as NodeJS.ReadableStream) {
-            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as unknown as Uint8Array));
-          }
-          const buffer = Buffer.concat(chunks);
+          const buffer = await readR2Buffer(d.attachment.storageKey);
           const mimeType = d.attachment.mimeType ?? (d.attachment.type === "image" ? "image/jpeg" : "application/octet-stream");
           const filename = d.attachment.name ?? d.attachment.storageKey.split("/").pop() ?? "file";
           const mediaId = await uploadMedia(buffer, filename, mimeType);

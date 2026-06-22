@@ -3333,12 +3333,24 @@ export const whatsappBotSessions = pgTable(
 // Node data type definitions
 export type TemplateParamComponent = {
   type: "body" | "header";
-  parameters: Array<{ type: "text"; text: string }>;
+  parameters: Array<
+    | { type: "text"; text: string }
+    | { type: "image"; image: { link: string } }
+    | { type: "video"; video: { link: string } }
+    | { type: "document"; document: { link: string } }
+  >;
 };
 
 export type SendMessageAttachment = {
   storageKey: string;
   type: "image" | "document";
+  name?: string;
+  mimeType?: string;
+};
+
+export type TemplateHeaderMedia = {
+  storageKey: string;
+  type: "image" | "video" | "document";
   name?: string;
   mimeType?: string;
 };
@@ -3351,6 +3363,7 @@ export type SendMessageNodeData = {
   metaTemplateName?: string;       // nome do template aprovado no Meta
   metaTemplateLanguage?: string;   // idioma do template (ex: "pt_BR")
   templateParams?: TemplateParamComponent[]; // valores das variáveis {{1}}, {{nome}}
+  templateHeaderMedia?: TemplateHeaderMedia;  // mídia do header (upload → enviada por media ID)
 };
 
 export type QuestionNodeData = {

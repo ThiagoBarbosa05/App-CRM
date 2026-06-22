@@ -13,3 +13,4 @@ server/index.ts
 # *.png
 *.csv
 docs/analise-migracao-meta-api.md
+/.playwright-mcp

@@ -11,21 +11,31 @@ type MetaComponent = { type: string; text?: string; format?: string };
 export type TemplateVarGroup = {
   componentType: "body" | "header";
   vars: string[];
+  format: "text" | "image" | "video" | "document";
 };
 
 function getComponents(template: MetaTemplate): MetaComponent[] {
   return (template.components as MetaComponent[]) ?? [];
 }
 
-/** Extrai os grupos de variáveis ({{...}}) presentes no header/body do template. */
+/** Extrai os grupos de variáveis/mídia presentes no header/body do template. */
 export function parseTemplateVars(template: MetaTemplate): TemplateVarGroup[] {
-  return getComponents(template)
-    .filter((c) => c.text && /\{\{/.test(c.text))
-    .map((c) => ({
-      componentType: c.type.toLowerCase() as "body" | "header",
-      vars: (c.text!.match(/\{\{([^}]+)\}\}/g) ?? []).map((m) => m.slice(2, -2).trim()),
-    }))
-    .filter((c) => c.vars.length > 0);
+  const groups: TemplateVarGroup[] = [];
+  for (const c of getComponents(template)) {
+    const compType = c.type.toLowerCase() as "body" | "header";
+    if (compType !== "body" && compType !== "header") continue;
+    const fmt = (c.format as string | undefined)?.toLowerCase() ?? "text";
+    if (fmt === "image" || fmt === "video" || fmt === "document") {
+      groups.push({ componentType: compType, vars: ["media_url"], format: fmt });
+    } else if (c.text && /\{\{/.test(c.text)) {
+      groups.push({
+        componentType: compType,
+        vars: (c.text.match(/\{\{([^}]+)\}\}/g) ?? []).map((m) => m.slice(2, -2).trim()),
+        format: "text",
+      });
+    }
+  }
+  return groups;
 }
 
 /** Texto bruto do corpo (BODY) do template, se existir. */
@@ -47,7 +57,13 @@ export function getParamValue(
   compType: string,
   idx: number,
 ): string {
-  return params.find((p) => p.type === compType)?.parameters[idx]?.text ?? "";
+  const param = params.find((p) => p.type === compType)?.parameters[idx];
+  if (!param) return "";
+  if (param.type === "text") return param.text;
+  if (param.type === "image") return param.image.link;
+  if (param.type === "video") return param.video.link;
+  if (param.type === "document") return param.document.link;
+  return "";
 }
 
 export function setParamValue(
@@ -55,6 +71,7 @@ export function setParamValue(
   compType: "body" | "header",
   idx: number,
   value: string,
+  mediaType: "text" | "image" | "video" | "document" = "text",
 ): TemplateParamComponent[] {
   const next = params.map((p) => ({ ...p, parameters: [...p.parameters] }));
   let comp = next.find((p) => p.type === compType);
@@ -62,7 +79,15 @@ export function setParamValue(
     comp = { type: compType, parameters: [] };
     next.push(comp);
   }
-  comp.parameters[idx] = { type: "text", text: value };
+  if (mediaType === "image") {
+    comp.parameters[idx] = { type: "image", image: { link: value } };
+  } else if (mediaType === "video") {
+    comp.parameters[idx] = { type: "video", video: { link: value } };
+  } else if (mediaType === "document") {
+    comp.parameters[idx] = { type: "document", document: { link: value } };
+  } else {
+    comp.parameters[idx] = { type: "text", text: value };
+  }
   return next;
 }
 

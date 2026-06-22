@@ -78,6 +78,7 @@ import type {
   BotNodeData,
   SendMessageNodeData,
   SendMessageAttachment,
+  TemplateHeaderMedia,
   QuestionNodeData,
   ConditionNodeData,
   ConditionBranch,
@@ -186,7 +187,9 @@ function PropertiesPanel({
   const [templateSearch, setTemplateSearch] = useState("");
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const headerMediaInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingHeader, setIsUploadingHeader] = useState(false);
 
   if (!node) {
     return (
@@ -268,6 +271,7 @@ function PropertiesPanel({
                                 metaTemplateName: t.name,
                                 metaTemplateLanguage: t.language,
                                 templateParams: [],
+                                templateHeaderMedia: undefined,
                               })
                             }
                             className={cn(
@@ -300,10 +304,122 @@ function PropertiesPanel({
                 const varGroups = parseTemplateVars(selected);
                 if (!varGroups.length) return null;
                 const params = (d as SendMessageNodeData).templateParams ?? [];
+                const headerMedia = (d as SendMessageNodeData).templateHeaderMedia;
+                const mediaGroup = varGroups.find((g) => g.format !== "text");
+                const textGroups = varGroups.filter((g) => g.format === "text");
+                const mediaLabel =
+                  mediaGroup?.format === "video"
+                    ? "Vídeo do header"
+                    : mediaGroup?.format === "document"
+                      ? "Documento do header"
+                      : "Imagem do header";
+                const mediaAccept =
+                  mediaGroup?.format === "video"
+                    ? "video/*"
+                    : mediaGroup?.format === "document"
+                      ? "application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                      : "image/*";
                 return (
                   <div className="space-y-2 pl-2 border-l-2 border-muted">
                     <Label className="text-xs text-muted-foreground">Parâmetros</Label>
-                    {varGroups.map((group) =>
+
+                    {mediaGroup && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">{mediaLabel}</Label>
+                        {headerMedia?.storageKey ? (
+                          headerMedia.type === "image" ? (
+                            <div className="relative rounded-md border bg-muted/30 overflow-hidden">
+                              <img
+                                src={`/api/whatsapp/bots/attachments/${headerMedia.storageKey}`}
+                                alt={headerMedia.name ?? "imagem"}
+                                className="w-full max-h-40 object-cover rounded-md"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => update({ templateHeaderMedia: undefined })}
+                                className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 transition-colors"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 px-3 py-2.5 rounded-md border bg-muted/30">
+                              <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                              <span className="text-xs truncate flex-1">
+                                {headerMedia.name ?? "arquivo"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => update({ templateHeaderMedia: undefined })}
+                                className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )
+                        ) : (
+                          <>
+                            <input
+                              ref={headerMediaInputRef}
+                              type="file"
+                              accept={mediaAccept}
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setIsUploadingHeader(true);
+                                try {
+                                  const formData = new FormData();
+                                  formData.append("file", file);
+                                  const res = await fetch("/api/whatsapp/bots/attachments", {
+                                    method: "POST",
+                                    body: formData,
+                                  });
+                                  if (!res.ok) {
+                                    const err = await res.json().catch(() => ({}));
+                                    throw new Error((err as { message?: string }).message ?? "Erro no upload");
+                                  }
+                                  const data = (await res.json()) as {
+                                    storageKey: string;
+                                    name: string;
+                                    mimeType: string;
+                                  };
+                                  const media: TemplateHeaderMedia = {
+                                    storageKey: data.storageKey,
+                                    type: mediaGroup.format as TemplateHeaderMedia["type"],
+                                    name: data.name,
+                                    mimeType: data.mimeType,
+                                  };
+                                  update({ templateHeaderMedia: media });
+                                } catch (err) {
+                                  toast({ title: "Erro ao fazer upload", description: (err as Error).message, variant: "destructive" });
+                                } finally {
+                                  setIsUploadingHeader(false);
+                                  e.target.value = "";
+                                }
+                              }}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="w-full gap-2"
+                              disabled={isUploadingHeader}
+                              onClick={() => headerMediaInputRef.current?.click()}
+                            >
+                              {isUploadingHeader ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Paperclip className="h-3.5 w-3.5" />
+                              )}
+                              {isUploadingHeader ? "Enviando..." : "Enviar mídia do header"}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {textGroups.map((group) =>
                       group.vars.map((varName, i) => (
                         <div key={`${group.componentType}-${i}`} className="space-y-0.5">
                           <Label className="text-xs font-mono">{`{{${varName}}}`}</Label>
@@ -318,6 +434,7 @@ function PropertiesPanel({
                                   group.componentType,
                                   i,
                                   e.target.value,
+                                  "text",
                                 ),
                               })
                             }
