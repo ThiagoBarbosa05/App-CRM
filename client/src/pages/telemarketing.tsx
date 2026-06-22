@@ -30,15 +30,13 @@ function TabPanel({ children }: { children: React.ReactNode }) {
 
 export default function TelemarketingPage() {
   const { user, isLoading } = useAuth();
-
-  if (isLoading) return null;
+  const search = useSearch();
 
   const isAdminOrManager =
     user?.role === "admin" ||
     user?.role === "administrador" ||
     user?.role === "gerente";
 
-  const search = useSearch();
   const [activeTab, setActiveTab] = useState(
     isAdminOrManager ? "dashboard" : "dialer",
   );
@@ -48,6 +46,8 @@ export default function TelemarketingPage() {
     const tabParam = params.get("tab");
     if (tabParam) setActiveTab(tabParam);
   }, [search]);
+
+  if (isLoading) return null;
 
   return (
     <TwilioDeviceProvider>
