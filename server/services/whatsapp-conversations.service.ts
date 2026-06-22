@@ -801,7 +801,10 @@ export async function saveInboundMessage(data: {
   /** @internal usado pelo Evolution webhook para indicar mensagem enviada pelo celular do vendedor */
   _fromMe?: boolean;
   mediaData?: {
-    whatsappMediaId: string;
+    whatsappMediaId?: string;
+    /** Chave R2 já uploadada (Baileys gateway — pula persistInboundMedia) */
+    storageKey?: string;
+    size?: number;
     mimeType?: string;
     filename?: string;
     caption?: string;
@@ -867,18 +870,22 @@ export async function saveInboundMessage(data: {
       .insert(whatsappMedia)
       .values({
         messageId: savedMessage.id,
-        whatsappMediaId: data.mediaData.whatsappMediaId,
+        whatsappMediaId: data.mediaData.whatsappMediaId ?? null,
+        storageKey: data.mediaData.storageKey ?? null,
         mimeType: data.mediaData.mimeType ?? null,
         filename: data.mediaData.filename ?? null,
+        size: data.mediaData.size ?? null,
       })
       .returning({ id: whatsappMedia.id });
 
-    // Persiste a mídia no R2 enquanto o ID da Meta ainda é válido (ela expira após uma janela curta).
-    await persistInboundMedia(
-      savedMedia.id,
-      data.mediaData.whatsappMediaId,
-      data.mediaData.mimeType,
-    );
+    // Se o storageKey já veio pré-uploadado (Baileys gateway), pula o download Meta
+    if (!data.mediaData.storageKey && data.mediaData.whatsappMediaId) {
+      await persistInboundMedia(
+        savedMedia.id,
+        data.mediaData.whatsappMediaId,
+        data.mediaData.mimeType,
+      );
+    }
   }
 
   await db

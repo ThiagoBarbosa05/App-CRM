@@ -54,6 +54,12 @@ async function handleMessagesUpsert(instanceName: string, data: unknown) {
     messageType?: string;
     messageTimestamp?: number;
     pushName?: string;
+    _baileysMedia?: {
+      storageKey: string;
+      mimeType: string;
+      filename: string | null;
+      size: number;
+    };
   };
 
   const jid = msg.key?.remoteJid;
@@ -95,9 +101,15 @@ async function handleMessagesUpsert(instanceName: string, data: unknown) {
     timestamp,
     channelId: channel.id,
     rawPayload: msg as Record<string, unknown>,
-    // Para mensagens enviadas do celular do vendedor (fromMe:true), salva como outbound
-    // O saveInboundMessage trata direction internamente com base em fromMe
     _fromMe: fromMe,
+    mediaData: msg._baileysMedia
+      ? {
+          storageKey: msg._baileysMedia.storageKey,
+          mimeType: msg._baileysMedia.mimeType,
+          filename: msg._baileysMedia.filename ?? undefined,
+          size: msg._baileysMedia.size,
+        }
+      : undefined,
   }).catch((err) =>
     console.error("[Evolution Webhook] Erro ao salvar mensagem:", err),
   );
