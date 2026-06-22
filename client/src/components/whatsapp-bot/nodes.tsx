@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText } from "lucide-react";
+import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText, Hourglass } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, QuestionNodeData, ConditionNodeData, ActionNodeData, FlowFormNodeData } from "@shared/schema";
+import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, QuestionNodeData, ConditionNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData } from "@shared/schema";
 
 interface NodeData extends Record<string, unknown> {
   label: string;
@@ -168,13 +168,20 @@ export function ConditionNode({ data, selected }: NodeProps) {
   );
 }
 
+const ACTION_NODE_LABELS: Record<string, string> = {
+  add_tag: "Adicionar Tag",
+  edit_tags: "Editar etiquetas",
+  assign_agent: "Transferir p/ atendente",
+  transfer_sector: "Transferir p/ setor",
+  notify_agent: "Notificar atendente",
+  create_note: "Criar nota interna",
+  set_waiting: "Status esperando",
+  set_contact_field: "Campo do contato",
+  end_conversation: "Encerrar Conversa",
+};
+
 export function ActionNode({ data, selected }: NodeProps) {
   const d = data as NodeData & ActionNodeData;
-  const actionLabels: Record<string, string> = {
-    add_tag: "Adicionar Tag",
-    assign_agent: "Atribuir Agente",
-    end_conversation: "Encerrar Conversa",
-  };
   return (
     <>
       <Handle type="target" position={Position.Top} />
@@ -182,7 +189,32 @@ export function ActionNode({ data, selected }: NodeProps) {
         color="bg-red-500"
         icon={Zap}
         title={d.label || "Ação"}
-        preview={d.actionType ? actionLabels[d.actionType] : undefined}
+        preview={d.actionType ? ACTION_NODE_LABELS[d.actionType] : undefined}
+        selected={selected}
+      />
+      <Handle type="source" position={Position.Bottom} />
+    </>
+  );
+}
+
+export function WaitNode({ data, selected }: NodeProps) {
+  const d = data as NodeData & WaitNodeData;
+  const preview =
+    d.mode === "until"
+      ? d.untilAt
+        ? `Até ${d.untilAt}`
+        : "Aguardar até..."
+      : d.seconds
+        ? `Aguardar ${d.seconds}s`
+        : "Aguardar intervalo";
+  return (
+    <>
+      <Handle type="target" position={Position.Top} />
+      <NodeCard
+        color="bg-amber-500"
+        icon={Hourglass}
+        title={d.label || "Aguardar"}
+        preview={preview}
         selected={selected}
       />
       <Handle type="source" position={Position.Bottom} />

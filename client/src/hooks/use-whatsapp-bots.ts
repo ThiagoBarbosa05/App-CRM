@@ -63,10 +63,7 @@ export function useCreateBot() {
   return useMutation({
     mutationFn: async (data: {
       name: string;
-      triggerType: "keyword" | "new_conversation" | "ai_intent";
-      triggerKeyword?: string;
-      triggerKeywords?: string[];
-      triggerPrompt?: string;
+      description?: string;
       isActive?: boolean;
     }) => {
       const res = await fetch("/api/whatsapp/bots", {
@@ -96,10 +93,7 @@ export function useUpdateBot() {
       botId: string;
       data: Partial<{
         name: string;
-        triggerType: "keyword" | "new_conversation" | "ai_intent";
-        triggerKeyword: string;
-        triggerKeywords: string[];
-        triggerPrompt: string;
+        description: string | null;
         isActive: boolean;
       }>;
     }) => {
@@ -132,6 +126,23 @@ export function useDeleteBot() {
         headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
       });
       if (!res.ok) throw new Error("Erro ao excluir bot");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "bots"] });
+    },
+  });
+}
+
+export function useDuplicateBot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (botId: string) => {
+      const res = await fetch(`/api/whatsapp/bots/${botId}/duplicate`, {
+        method: "POST",
+        headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
+      });
+      if (!res.ok) throw new Error("Erro ao duplicar bot");
+      return res.json() as Promise<BotWithFlow>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "bots"] });

@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { db } from "server/db";
 import { eq, and } from "drizzle-orm";
 import {
@@ -109,4 +110,66 @@ export async function getActiveBots(): Promise<WhatsappBot[]> {
     .from(whatsappBots)
     .where(eq(whatsappBots.isActive, true))
     .orderBy(whatsappBots.createdAt);
+}
+
+export async function duplicateBot(
+  botId: string,
+  userId: string,
+): Promise<BotWithFlow> {
+  const source = await getBot(botId);
+  if (!source) throw new Error("Bot not found");
+
+  const [bot] = await db
+    .insert(whatsappBots)
+    .values({
+      name: `${source.bot.name} (cópia)`,
+      description: source.bot.description,
+      isActive: false,
+      createdBy: userId,
+    })
+    .returning();
+
+  // Remapeia IDs dos nós preservando a topologia das arestas.
+  const idMap = new Map<string, string>();
+  const newNodes: InsertWhatsappBotNode[] = source.nodes.map((n) => {
+    const newId =
+      n.type === "start" ? `start-${bot.id}` : `${randomUUID()}`;
+    idMap.set(n.id, newId);
+    return {
+      id: newId,
+      botId: bot.id,
+      type: n.type,
+      label: n.label,
+      positionX: n.positionX,
+      positionY: n.positionY,
+      data: n.data as InsertWhatsappBotNode["data"],
+    };
+  });
+
+  const newEdges: InsertWhatsappBotEdge[] = source.edges
+    .filter((e) => idMap.has(e.sourceNodeId) && idMap.has(e.targetNodeId))
+    .map((e) => ({
+      id: randomUUID(),
+      botId: bot.id,
+      sourceNodeId: idMap.get(e.sourceNodeId)!,
+      targetNodeId: idMap.get(e.targetNodeId)!,
+      sourceHandle: e.sourceHandle,
+      label: e.label,
+    }));
+
+  await db.transaction(async (tx) => {
+    if (newNodes.length > 0) await tx.insert(whatsappBotNodes).values(newNodes);
+    if (newEdges.length > 0) await tx.insert(whatsappBotEdges).values(newEdges);
+  });
+
+  const nodes = await db
+    .select()
+    .from(whatsappBotNodes)
+    .where(eq(whatsappBotNodes.botId, bot.id));
+  const edges = await db
+    .select()
+    .from(whatsappBotEdges)
+    .where(eq(whatsappBotEdges.botId, bot.id));
+
+  return { bot, nodes, edges };
 }

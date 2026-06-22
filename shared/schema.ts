@@ -3262,11 +3262,20 @@ export const whatsappBots = pgTable("whatsapp_bots", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  description: text("description"),
+  /**
+   * @deprecated Bots não são mais disparados automaticamente por gatilho.
+   * São iniciados manualmente (em uma conversa) ou por campanha de marketing.
+   * Colunas mantidas (nullable) apenas para compatibilidade com dados legados.
+   */
   triggerType: text("trigger_type", {
     enum: ["keyword", "new_conversation", "ai_intent"],
-  }).notNull(),
+  }),
+  /** @deprecated ver triggerType */
   triggerKeyword: text("trigger_keyword"),
+  /** @deprecated ver triggerType */
   triggerKeywords: jsonb("trigger_keywords").$type<string[]>().default([]),
+  /** @deprecated ver triggerType */
   triggerPrompt: text("trigger_prompt"),
   isActive: boolean("is_active").notNull().default(true),
   createdBy: varchar("created_by")
@@ -3282,7 +3291,7 @@ export const whatsappBotNodes = pgTable("whatsapp_bot_nodes", {
     .references(() => whatsappBots.id, { onDelete: "cascade" })
     .notNull(),
   type: text("type", {
-    enum: ["start", "send_message", "question", "condition", "action", "flow_form", "end"],
+    enum: ["start", "send_message", "question", "condition", "action", "flow_form", "wait", "end"],
   }).notNull(),
   label: text("label").notNull(),
   positionX: integer("position_x").notNull().default(0),
@@ -3321,6 +3330,7 @@ export const whatsappBotSessions = pgTable(
       .notNull()
       .default("active"),
     sessionData: jsonb("session_data").$type<Record<string, string>>().default({}).notNull(),
+    resumeAt: timestamp("resume_at"), // nó de espera: quando a sessão deve ser retomada
     startedAt: timestamp("started_at").defaultNow().notNull(),
     lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),
@@ -3384,10 +3394,63 @@ export type ConditionNodeData = {
   useAI?: boolean;
 };
 
+// Colunas de `clients` permitidas para gravação via nó "Campo do contato".
+// Whitelist explícita para não escrever em colunas sensíveis/derivadas.
+export const CONTACT_FIELD_WHITELIST = [
+  "name",
+  "email",
+  "fixedPhone",
+  "cpf",
+  "birthday",
+  "cep",
+  "address",
+  "number",
+  "complement",
+  "neighborhood",
+  "city",
+  "state",
+  "categoria",
+  "origem",
+  "nomeFantasia",
+  "inscricaoEstadual",
+] as const;
+
+export type ContactFieldKey = (typeof CONTACT_FIELD_WHITELIST)[number];
+
 export type ActionNodeData = {
-  actionType: "add_tag" | "assign_agent" | "end_conversation";
-  tagId?: string;
-  agentId?: string;
+  actionType:
+    | "add_tag" // legado (mantido por compatibilidade; preferir edit_tags)
+    | "assign_agent"
+    | "end_conversation"
+    | "edit_tags"
+    | "notify_agent"
+    | "create_note"
+    | "transfer_sector"
+    | "set_waiting"
+    | "set_contact_field";
+  tagId?: string; // legado (add_tag)
+  agentId?: string; // assign_agent
+  // edit_tags
+  addTagIds?: string[];
+  removeTagIds?: string[];
+  // notify_agent
+  notifyMessage?: string;
+  notifyAgentId?: string; // se vazio, usa o atendente atribuído à conversa
+  // create_note
+  noteText?: string;
+  // transfer_sector
+  sectorId?: string;
+  // set_waiting
+  waitingStatus?: string; // ex.: "waiting" | "open"
+  // set_contact_field
+  contactField?: ContactFieldKey;
+  contactFieldValue?: string; // literal ou {{variavel}}
+};
+
+export type WaitNodeData = {
+  mode: "interval" | "until";
+  seconds?: number; // mode = interval
+  untilAt?: string; // mode = until — ISO datetime (America/Sao_Paulo)
 };
 
 export type FlowFormNodeData = {
@@ -3404,6 +3467,7 @@ export type BotNodeData =
   | ConditionNodeData
   | ActionNodeData
   | FlowFormNodeData
+  | WaitNodeData
   | Record<string, never>;
 
 // ─── WhatsApp Flows (formulários nativos Meta) ────────────────────────────────
@@ -3895,6 +3959,8 @@ export const whatsappConversations = pgTable("whatsapp_conversations", {
   phone: text("phone").notNull(),
   channelId: integer("channel_id").references(() => whatsappChannels.id),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
+  sectorId: varchar("sector_id").references(() => sectors.id),
+  status: text("status").notNull().default("open"),
   lastMessageAt: timestamp("last_message_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

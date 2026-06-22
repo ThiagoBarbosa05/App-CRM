@@ -35,6 +35,7 @@ import {
   FileText,
   X,
   Loader2,
+  Hourglass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,7 @@ import {
   ActionNode,
   EndNode,
   FlowFormNode,
+  WaitNode,
 } from "@/components/whatsapp-bot/nodes";
 import type {
   BotNodeData,
@@ -84,6 +86,7 @@ import type {
   ConditionBranch,
   ActionNodeData,
   FlowFormNodeData,
+  WaitNodeData,
   WhatsappFlow,
 } from "@shared/schema";
 
@@ -99,6 +102,7 @@ const NODE_TYPES = {
   condition: ConditionNode,
   action: ActionNode,
   flow_form: FlowFormNode,
+  wait: WaitNode,
   end: EndNode,
 };
 
@@ -109,6 +113,7 @@ const PALETTE = [
   { type: "question", label: "Pergunta", icon: HelpCircle, color: "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100" },
   { type: "condition", label: "Condição", icon: GitBranch, color: "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100" },
   { type: "action", label: "Ação", icon: Zap, color: "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" },
+  { type: "wait", label: "Aguardar", icon: Hourglass, color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" },
   { type: "flow_form", label: "Formulário WA", icon: LayoutTemplate, color: "bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100" },
   { type: "end", label: "Fim", icon: StopCircle, color: "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" },
 ];
@@ -172,6 +177,69 @@ function useSyncFlows() {
   });
 }
 
+type AgentOption = { id: string; name: string };
+type SectorOption = { id: string; name: string; color?: string };
+type TagOption = { id: string; name: string; color?: string };
+
+function authFetch(url: string) {
+  return fetch(url, {
+    headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
+  }).then((r) => (r.ok ? r.json() : []));
+}
+
+function useAgents() {
+  return useQuery<AgentOption[]>({
+    queryKey: ["/api/users"],
+    queryFn: () => authFetch("/api/users"),
+  });
+}
+
+function useSectors() {
+  return useQuery<SectorOption[]>({
+    queryKey: ["/api/sectors"],
+    queryFn: () => authFetch("/api/sectors"),
+  });
+}
+
+function useMarkerTags() {
+  return useQuery<TagOption[]>({
+    queryKey: ["/api/tags/markers"],
+    queryFn: () => authFetch("/api/tags/markers"),
+  });
+}
+
+// Campos de `clients` que o nó "Campo do contato" pode gravar (deve refletir
+// CONTACT_FIELD_WHITELIST no schema).
+const CONTACT_FIELD_OPTIONS: { value: string; label: string }[] = [
+  { value: "name", label: "Nome" },
+  { value: "email", label: "E-mail" },
+  { value: "fixedPhone", label: "Telefone fixo" },
+  { value: "cpf", label: "CPF" },
+  { value: "birthday", label: "Aniversário" },
+  { value: "cep", label: "CEP" },
+  { value: "address", label: "Endereço" },
+  { value: "number", label: "Número" },
+  { value: "complement", label: "Complemento" },
+  { value: "neighborhood", label: "Bairro" },
+  { value: "city", label: "Cidade" },
+  { value: "state", label: "Estado" },
+  { value: "categoria", label: "Categoria" },
+  { value: "origem", label: "Origem" },
+  { value: "nomeFantasia", label: "Nome fantasia" },
+  { value: "inscricaoEstadual", label: "Inscrição estadual" },
+];
+
+const ACTION_TYPE_OPTIONS: { value: ActionNodeData["actionType"]; label: string }[] = [
+  { value: "edit_tags", label: "Editar etiquetas" },
+  { value: "assign_agent", label: "Transferir p/ atendente" },
+  { value: "transfer_sector", label: "Transferir p/ setor" },
+  { value: "notify_agent", label: "Notificar atendente" },
+  { value: "create_note", label: "Criar nota interna" },
+  { value: "set_waiting", label: "Status esperando" },
+  { value: "set_contact_field", label: "Campo do contato" },
+  { value: "end_conversation", label: "Encerrar conversa" },
+];
+
 function PropertiesPanel({
   node,
   onChange,
@@ -183,6 +251,9 @@ function PropertiesPanel({
 }) {
   const { data: metaTemplates = [], isLoading: loadingMeta } = useWhatsappMetaTemplates();
   const { data: waFlows = [], refetch: refetchFlows } = useWhatsappFlows();
+  const { data: agents = [] } = useAgents();
+  const { data: sectors = [] } = useSectors();
+  const { data: markerTags = [] } = useMarkerTags();
   const syncFlowsMutation = useSyncFlows();
   const [templateSearch, setTemplateSearch] = useState("");
   const { toast } = useToast();
@@ -639,24 +710,17 @@ function PropertiesPanel({
       )}
 
       {node.type === "action" && (
-        <div className="space-y-1">
-          <Label className="text-xs">Tipo de ação</Label>
-          <Select
-            value={(d as ActionNodeData).actionType ?? "end_conversation"}
-            onValueChange={(v) =>
-              update({ actionType: v as ActionNodeData["actionType"] })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="add_tag">Adicionar Tag</SelectItem>
-              <SelectItem value="assign_agent">Atribuir Agente</SelectItem>
-              <SelectItem value="end_conversation">Encerrar Conversa</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <ActionEditor
+          data={d as Partial<ActionNodeData>}
+          onChange={update}
+          agents={agents}
+          sectors={sectors}
+          markerTags={markerTags}
+        />
+      )}
+
+      {node.type === "wait" && (
+        <WaitEditor data={d as Partial<WaitNodeData>} onChange={update} />
       )}
 
       {(node.type === "start" || node.type === "end") && (
@@ -677,6 +741,324 @@ function PropertiesPanel({
             <Trash2 className="h-3.5 w-3.5 mr-1.5" />
             Excluir nó
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function toggleInList(list: string[] | undefined, id: string): string[] {
+  const arr = list ?? [];
+  return arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
+}
+
+function TagChips({
+  tags,
+  selected,
+  onToggle,
+  emptyHint,
+}: {
+  tags: TagOption[];
+  selected: string[];
+  onToggle: (id: string) => void;
+  emptyHint: string;
+}) {
+  if (tags.length === 0) {
+    return <p className="text-[11px] text-muted-foreground">{emptyHint}</p>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {tags.map((t) => {
+        const active = selected.includes(t.id);
+        return (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onToggle(t.id)}
+            className={cn(
+              "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+              active
+                ? "border-primary bg-primary/10 text-primary font-medium"
+                : "border-border text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {t.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ActionEditor({
+  data,
+  onChange,
+  agents,
+  sectors,
+  markerTags,
+}: {
+  data: Partial<ActionNodeData>;
+  onChange: (patch: Partial<ActionNodeData>) => void;
+  agents: AgentOption[];
+  sectors: SectorOption[];
+  markerTags: TagOption[];
+}) {
+  const actionType = data.actionType ?? "edit_tags";
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Tipo de ação</Label>
+        <Select
+          value={actionType}
+          onValueChange={(v) =>
+            onChange({ actionType: v as ActionNodeData["actionType"] })
+          }
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ACTION_TYPE_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {actionType === "edit_tags" && (
+        <>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Adicionar etiquetas</Label>
+            <TagChips
+              tags={markerTags}
+              selected={data.addTagIds ?? []}
+              onToggle={(id) =>
+                onChange({ addTagIds: toggleInList(data.addTagIds, id) })
+              }
+              emptyHint="Nenhuma etiqueta (marcador) cadastrada."
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Remover etiquetas</Label>
+            <TagChips
+              tags={markerTags}
+              selected={data.removeTagIds ?? []}
+              onToggle={(id) =>
+                onChange({ removeTagIds: toggleInList(data.removeTagIds, id) })
+              }
+              emptyHint="Nenhuma etiqueta (marcador) cadastrada."
+            />
+          </div>
+        </>
+      )}
+
+      {actionType === "assign_agent" && (
+        <div className="space-y-1">
+          <Label className="text-xs">Atendente</Label>
+          <Select
+            value={data.agentId ?? ""}
+            onValueChange={(v) => onChange({ agentId: v })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione um atendente" />
+            </SelectTrigger>
+            <SelectContent>
+              {agents.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {actionType === "transfer_sector" && (
+        <div className="space-y-1">
+          <Label className="text-xs">Setor</Label>
+          <Select
+            value={data.sectorId ?? ""}
+            onValueChange={(v) => onChange({ sectorId: v })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione um setor" />
+            </SelectTrigger>
+            <SelectContent>
+              {sectors.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {actionType === "notify_agent" && (
+        <>
+          <div className="space-y-1">
+            <Label className="text-xs">Atendente (opcional)</Label>
+            <Select
+              value={data.notifyAgentId ?? "__assigned__"}
+              onValueChange={(v) =>
+                onChange({ notifyAgentId: v === "__assigned__" ? undefined : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__assigned__">
+                  Atendente atribuído à conversa
+                </SelectItem>
+                {agents.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Mensagem da notificação</Label>
+            <Textarea
+              value={data.notifyMessage ?? ""}
+              onChange={(e) => onChange({ notifyMessage: e.target.value })}
+              placeholder="Ex: Cliente {{nome}} aguardando atendimento"
+              rows={3}
+            />
+          </div>
+        </>
+      )}
+
+      {actionType === "create_note" && (
+        <div className="space-y-1">
+          <Label className="text-xs">Texto da nota (interno)</Label>
+          <Textarea
+            value={data.noteText ?? ""}
+            onChange={(e) => onChange({ noteText: e.target.value })}
+            placeholder="Anotação visível apenas para atendentes..."
+            rows={3}
+          />
+        </div>
+      )}
+
+      {actionType === "set_waiting" && (
+        <div className="space-y-1">
+          <Label className="text-xs">Status da conversa</Label>
+          <Select
+            value={data.waitingStatus ?? "waiting"}
+            onValueChange={(v) => onChange({ waitingStatus: v })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="waiting">Esperando</SelectItem>
+              <SelectItem value="open">Aberta</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {actionType === "set_contact_field" && (
+        <>
+          <div className="space-y-1">
+            <Label className="text-xs">Campo do contato</Label>
+            <Select
+              value={data.contactField ?? ""}
+              onValueChange={(v) =>
+                onChange({ contactField: v as ActionNodeData["contactField"] })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o campo" />
+              </SelectTrigger>
+              <SelectContent>
+                {CONTACT_FIELD_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Valor</Label>
+            <Input
+              value={data.contactFieldValue ?? ""}
+              onChange={(e) => onChange({ contactFieldValue: e.target.value })}
+              placeholder="Texto ou {{variavel}}"
+            />
+          </div>
+        </>
+      )}
+
+      {actionType === "end_conversation" && (
+        <p className="text-[11px] text-muted-foreground">
+          Encerra a sessão do bot e finaliza o fluxo.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function WaitEditor({
+  data,
+  onChange,
+}: {
+  data: Partial<WaitNodeData>;
+  onChange: (patch: Partial<WaitNodeData>) => void;
+}) {
+  const mode = data.mode ?? "interval";
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Modo de espera</Label>
+        <Select
+          value={mode}
+          onValueChange={(v) => onChange({ mode: v as WaitNodeData["mode"] })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="interval">Aguardar intervalo</SelectItem>
+            <SelectItem value="until">Aguardar até</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {mode === "interval" ? (
+        <div className="space-y-1">
+          <Label className="text-xs">Tempo de espera (segundos)</Label>
+          <Input
+            type="number"
+            min={1}
+            value={data.seconds ?? ""}
+            onChange={(e) =>
+              onChange({ seconds: Number(e.target.value) || undefined })
+            }
+            placeholder="Ex: 3600 (1 hora)"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            O fluxo é retomado automaticamente após esse tempo.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <Label className="text-xs">Retomar em (data e hora)</Label>
+          <Input
+            type="datetime-local"
+            value={data.untilAt ?? ""}
+            onChange={(e) => onChange({ untilAt: e.target.value })}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Horário de Brasília (America/Sao_Paulo).
+          </p>
         </div>
       )}
     </div>
@@ -826,7 +1208,13 @@ function resolveSimHandle(node: FlowNode, text: string): string {
 
 const ACTION_SIM_LABELS: Record<string, string> = {
   add_tag: "Adicionar tag",
-  assign_agent: "Atribuir agente",
+  edit_tags: "Editar etiquetas",
+  assign_agent: "Transferir p/ atendente",
+  transfer_sector: "Transferir p/ setor",
+  notify_agent: "Notificar atendente",
+  create_note: "Criar nota interna",
+  set_waiting: "Status esperando",
+  set_contact_field: "Gravar campo do contato",
   end_conversation: "Encerrar conversa",
 };
 
@@ -891,6 +1279,14 @@ function BotSimulator({
             setDone(true);
             return;
           }
+          current = nextNode(current.id);
+        } else if (current.type === "wait") {
+          const w = current.data as WaitNodeData;
+          const desc =
+            w.mode === "until"
+              ? `até ${w.untilAt ?? "(data não definida)"}`
+              : `${w.seconds ?? 0}s`;
+          acc.push({ role: "system", text: `⏳ Aguardando ${desc}` });
           current = nextNode(current.id);
         } else if (current.type === "end") {
           acc.push({ role: "system", text: "— Conversa encerrada —" });
@@ -1071,6 +1467,7 @@ export default function BotEditor() {
       question: "Pergunta",
       condition: "Condição",
       action: "Ação",
+      wait: "Aguardar",
       flow_form: "Formulário WA",
       end: "Fim",
     };
@@ -1083,6 +1480,13 @@ export default function BotEditor() {
     }
     if (type === "send_message") {
       (defaultData as Partial<SendMessageNodeData>).messageType = "text";
+    }
+    if (type === "action") {
+      (defaultData as Partial<ActionNodeData>).actionType = "edit_tags";
+    }
+    if (type === "wait") {
+      (defaultData as Partial<WaitNodeData>).mode = "interval";
+      (defaultData as Partial<WaitNodeData>).seconds = 3600;
     }
     if (type === "flow_form") {
       (defaultData as Partial<FlowFormNodeData>).ctaText = "Preencher formulário";

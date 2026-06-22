@@ -53,6 +53,7 @@ import {
   Bot,
   Check,
   ArrowRightLeft,
+  StickyNote,
 } from "lucide-react";
 import {
   Popover,
@@ -1500,6 +1501,7 @@ function ConversationMessages({
                     isOutbound &&
                     !isFailed &&
                     msg.type !== "system" &&
+                    msg.type !== "note" &&
                     channelLabel.length > 0 &&
                     (msgIndex === 0 || msgs[msgIndex - 1].direction !== "outbound");
 
@@ -1510,6 +1512,28 @@ function ConversationMessages({
                         <span className="text-[11px] text-slate-400 dark:text-slate-500 italic bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
                           {msg.content}
                         </span>
+                      </div>
+                    );
+                  }
+
+                  // Nota interna — visível apenas para atendentes
+                  if (msg.type === "note") {
+                    return (
+                      <div key={msg.id} className="flex justify-center py-1">
+                        <div className="max-w-[80%] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-900/20">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <StickyNote className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                              Nota interna
+                            </span>
+                            <span className="text-[10px] text-amber-600/70 dark:text-amber-500/70">
+                              {time}
+                            </span>
+                          </div>
+                          <p className="text-xs text-amber-900 dark:text-amber-100 whitespace-pre-wrap">
+                            {msg.content}
+                          </p>
+                        </div>
                       </div>
                     );
                   }

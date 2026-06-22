@@ -8,6 +8,7 @@ import {
   createBot,
   updateBot,
   deleteBot,
+  duplicateBot,
   saveFlow,
 } from "../services/whatsapp-bot.service";
 import { r2 } from "../lib/r2";
@@ -36,9 +37,14 @@ const router = Router();
 
 const createBotSchema = z.object({
   name: z.string().min(1),
-  triggerType: z.enum(["keyword", "new_conversation"]),
-  triggerKeyword: z.string().optional(),
+  description: z.string().optional(),
   isActive: z.boolean().default(true),
+});
+
+const updateBotSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().nullable().optional(),
+  isActive: z.boolean().optional(),
 });
 
 const saveFlowSchema = z.object({
@@ -53,6 +59,8 @@ const saveFlowSchema = z.object({
           "question",
           "condition",
           "action",
+          "flow_form",
+          "wait",
           "end",
         ]),
         label: z.string(),
@@ -114,7 +122,7 @@ router.get("/bots/:id", async (req, res) => {
 
 router.put("/bots/:id", async (req, res) => {
   try {
-    const parsed = createBotSchema.partial().safeParse(req.body);
+    const parsed = updateBotSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ errors: parsed.error.flatten() });
     }
@@ -122,6 +130,21 @@ router.put("/bots/:id", async (req, res) => {
     res.json(bot);
   } catch {
     res.status(500).json({ message: "Erro ao atualizar bot" });
+  }
+});
+
+router.post("/bots/:id/duplicate", async (req, res) => {
+  try {
+    const userId = (req as { user?: { userId: string } }).user?.userId;
+    if (!userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const flow = await duplicateBot(req.params.id, userId);
+    res.status(201).json(flow);
+  } catch (err) {
+    if (err instanceof Error && err.message === "Bot not found") {
+      return res.status(404).json({ message: "Bot não encontrado" });
+    }
+    res.status(500).json({ message: "Erro ao duplicar bot" });
   }
 });
 

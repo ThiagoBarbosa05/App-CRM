@@ -1,5 +1,5 @@
 import { db } from "server/db";
-import { eq, and, or, desc, sql, lt } from "drizzle-orm";
+import { eq, and, or, desc, sql, lt, lte, inArray, isNull, isNotNull } from "drizzle-orm";
 import {
   whatsappBots,
   whatsappBotNodes,
@@ -9,6 +9,9 @@ import {
   whatsappConversations,
   whatsappMessages,
   whatsappMedia,
+  contactTags,
+  clients,
+  CONTACT_FIELD_WHITELIST,
   type WhatsappBotNode,
   type WhatsappBotSession,
   type SendMessageNodeData,
@@ -16,15 +19,16 @@ import {
   type ConditionNodeData,
   type ActionNodeData,
   type FlowFormNodeData,
+  type WaitNodeData,
+  type ContactFieldKey,
   type BotNodeData,
 } from "@shared/schema";
-import { publishConversationEvent } from "../lib/sse-hub";
+import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage } from "../integrations/whatsapp";
 import { r2, getPublicR2Url } from "../lib/r2";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getActiveBots } from "./whatsapp-bot.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
-import { classifyMessageIntent, classifyBotTriggerIntent } from "../ai-helpers";
+import { classifyMessageIntent } from "../ai-helpers";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
 const SESSION_TIMEOUT_MINUTES = 30;
@@ -192,6 +196,7 @@ async function updateSession(
     status?: "active" | "completed" | "timed_out";
     completedAt?: Date;
     sessionData?: Record<string, string>;
+    resumeAt?: Date | null;
   },
 ): Promise<void> {
   await db
@@ -202,6 +207,27 @@ async function updateSession(
 
 function interpolate(text: string, variables: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`);
+}
+
+/** Adiciona etiquetas ao contato sem duplicar (idempotente). */
+async function addContactTags(clientId: string, tagIds: string[]): Promise<void> {
+  const ids = tagIds.filter(Boolean);
+  if (ids.length === 0) return;
+  await db
+    .delete(contactTags)
+    .where(and(eq(contactTags.clientId, clientId), inArray(contactTags.tagId, ids)));
+  await db
+    .insert(contactTags)
+    .values(ids.map((tagId) => ({ clientId, tagId })));
+}
+
+/** Remove etiquetas do contato. */
+async function removeContactTags(clientId: string, tagIds: string[]): Promise<void> {
+  const ids = tagIds.filter(Boolean);
+  if (ids.length === 0) return;
+  await db
+    .delete(contactTags)
+    .where(and(eq(contactTags.clientId, clientId), inArray(contactTags.tagId, ids)));
 }
 
 /** Lê um objeto do R2 e retorna seu conteúdo como Buffer. */
@@ -377,15 +403,127 @@ async function executeNode(
         });
         return;
       }
-      if (d.actionType === "assign_agent" && d.agentId) {
-        const conversation = await findOrCreateConversation(phone);
-        await db
-          .update(whatsappConversations)
-          .set({ assignedAgentId: d.agentId, updatedAt: new Date() })
-          .where(eq(whatsappConversations.id, conversation.id));
+
+      const conversation = await findOrCreateConversation(phone);
+      switch (d.actionType) {
+        case "assign_agent": {
+          if (d.agentId) {
+            await db
+              .update(whatsappConversations)
+              .set({ assignedAgentId: d.agentId, updatedAt: new Date() })
+              .where(eq(whatsappConversations.id, conversation.id));
+          }
+          break;
+        }
+        case "add_tag": {
+          // Legado: mantido por compatibilidade; preferir edit_tags.
+          if (d.tagId && conversation.clientId) {
+            await addContactTags(conversation.clientId, [d.tagId]);
+          }
+          break;
+        }
+        case "edit_tags": {
+          if (conversation.clientId) {
+            if (d.addTagIds?.length)
+              await addContactTags(conversation.clientId, d.addTagIds);
+            if (d.removeTagIds?.length)
+              await removeContactTags(conversation.clientId, d.removeTagIds);
+          }
+          break;
+        }
+        case "notify_agent": {
+          const targetAgent = d.notifyAgentId || conversation.assignedAgentId;
+          if (targetAgent) {
+            publishSseEvent(
+              "bot_notification",
+              {
+                conversationId: conversation.id,
+                clientId: conversation.clientId ?? null,
+                message: interpolate(d.notifyMessage ?? "", variables),
+              },
+              targetAgent,
+            );
+          }
+          break;
+        }
+        case "create_note": {
+          if (d.noteText) {
+            await db.insert(whatsappMessages).values({
+              conversationId: conversation.id,
+              direction: "outbound",
+              type: "note",
+              content: interpolate(d.noteText, variables),
+              status: "sent",
+              sentAt: new Date(),
+            });
+            if (conversation.clientId) {
+              publishConversationEvent(conversation.clientId, "new_message", {
+                clientId: conversation.clientId,
+              });
+            }
+          }
+          break;
+        }
+        case "transfer_sector": {
+          if (d.sectorId) {
+            await db
+              .update(whatsappConversations)
+              .set({ sectorId: d.sectorId, updatedAt: new Date() })
+              .where(eq(whatsappConversations.id, conversation.id));
+          }
+          break;
+        }
+        case "set_waiting": {
+          await db
+            .update(whatsappConversations)
+            .set({ status: d.waitingStatus || "waiting", updatedAt: new Date() })
+            .where(eq(whatsappConversations.id, conversation.id));
+          break;
+        }
+        case "set_contact_field": {
+          if (
+            d.contactField &&
+            conversation.clientId &&
+            CONTACT_FIELD_WHITELIST.includes(d.contactField as ContactFieldKey)
+          ) {
+            const value = interpolate(d.contactFieldValue ?? "", variables);
+            await db
+              .update(clients)
+              .set({ [d.contactField]: value } as Partial<typeof clients.$inferInsert>)
+              .where(eq(clients.id, conversation.clientId));
+          }
+          break;
+        }
       }
+
       const next = await getNextNode(botId, node.id);
       if (next) await executeNode(next, phone, sessionId, botId, variables);
+      break;
+    }
+
+    case "wait": {
+      const d = data as WaitNodeData;
+      let resumeAt: Date | null = null;
+      if (d.mode === "interval" && d.seconds && d.seconds > 0) {
+        resumeAt = new Date(Date.now() + d.seconds * 1000);
+      } else if (d.mode === "until" && d.untilAt) {
+        const parsed = new Date(d.untilAt);
+        if (!Number.isNaN(parsed.getTime())) resumeAt = parsed;
+      }
+
+      if (!resumeAt || resumeAt.getTime() <= Date.now()) {
+        // Sem espera válida (ou já passou): segue o fluxo imediatamente.
+        const next = await getNextNode(botId, node.id);
+        if (next) await executeNode(next, phone, sessionId, botId, variables);
+        break;
+      }
+
+      // Pausa a sessão: o job resume-bot-sessions retoma a partir deste nó.
+      await updateSession(sessionId, {
+        currentNodeId: node.id,
+        sessionData: variables,
+        resumeAt,
+      });
       break;
     }
 
@@ -564,78 +702,9 @@ export async function handleIncomingMessage(
       return;
     }
 
-    // No active session — find a matching bot trigger
-    const bots = await getActiveBots();
-
-    // keyword bots first, then ai_intent, then new_conversation
-    const sorted = [
-      ...bots.filter((b) => b.triggerType === "keyword"),
-      ...bots.filter((b) => b.triggerType === "ai_intent"),
-      ...bots.filter((b) => b.triggerType === "new_conversation"),
-    ];
-
-    const text = messageText.toLowerCase().trim();
-
-    let matchedBot = sorted.find((b) => {
-      if (b.triggerType === "keyword") {
-        const keywords: string[] = [
-          ...(b.triggerKeywords ?? []),
-          ...(b.triggerKeyword ? [b.triggerKeyword] : []),
-        ];
-        return keywords.some((kw) => kw && text.includes(kw.toLowerCase().trim()));
-      }
-      return false;
-    });
-
-    if (!matchedBot) {
-      const aiIntentBots = sorted.filter((b) => b.triggerType === "ai_intent");
-      if (aiIntentBots.length > 0) {
-        for (const bot of aiIntentBots) {
-          if (!bot.triggerPrompt) continue;
-          try {
-            const matched = await classifyBotTriggerIntent(messageText, bot.triggerPrompt);
-            if (matched) {
-              matchedBot = bot;
-              break;
-            }
-          } catch {
-            // Silently fallback — AI unavailable
-          }
-        }
-      }
-    }
-
-    if (!matchedBot) {
-      matchedBot = sorted.find((b) => b.triggerType === "new_conversation");
-    }
-
-    if (!matchedBot) return;
-
-    const [startNode] = await db
-      .select()
-      .from(whatsappBotNodes)
-      .where(
-        and(
-          eq(whatsappBotNodes.botId, matchedBot.id),
-          eq(whatsappBotNodes.type, "start"),
-        ),
-      )
-      .limit(1);
-
-    if (!startNode) return;
-
-    const [newSession] = await db
-      .insert(whatsappBotSessions)
-      .values({
-        botId: matchedBot.id,
-        phoneNumber: phone,
-        currentNodeId: startNode.id,
-        status: "active",
-        sessionData: {},
-      })
-      .returning();
-
-    await executeNode(startNode, phone, newSession.id, matchedBot.id, {});
+    // Sem sessão ativa: não há disparo automático. Bots são iniciados
+    // manualmente (em uma conversa) ou por campanha de marketing via
+    // startBotSession(). Mensagens recebidas apenas avançam sessões já ativas.
   } catch (err) {
     console.error("[BotEngine] Error handling message:", err);
   }
@@ -654,8 +723,49 @@ export async function expireInactiveSessions(): Promise<number> {
       and(
         eq(whatsappBotSessions.status, "active"),
         lt(whatsappBotSessions.lastActivityAt, cutoff),
+        // Não expira sessões pausadas por um nó de espera (Aguardar).
+        isNull(whatsappBotSessions.resumeAt),
       ),
     )
     .returning({ id: whatsappBotSessions.id });
   return result.length;
+}
+
+/**
+ * Retoma sessões pausadas por um nó de espera cujo `resumeAt` já chegou.
+ * Chamado pelo job periódico resume-bot-sessions.
+ */
+export async function resumeWaitingSessions(): Promise<number> {
+  const now = new Date();
+  const due = await db
+    .select()
+    .from(whatsappBotSessions)
+    .where(
+      and(
+        eq(whatsappBotSessions.status, "active"),
+        isNotNull(whatsappBotSessions.resumeAt),
+        lte(whatsappBotSessions.resumeAt, now),
+      ),
+    );
+
+  for (const session of due) {
+    try {
+      const node = await getNode(session.currentNodeId);
+      // Limpa o resumeAt antes de avançar para evitar reprocessamento.
+      await updateSession(session.id, { resumeAt: null });
+      if (!node) continue;
+
+      const variables = session.sessionData ?? {};
+      const next = await getNextNode(session.botId, node.id);
+      if (next) {
+        await executeNode(next, session.phoneNumber, session.id, session.botId, variables);
+      } else {
+        await updateSession(session.id, { status: "completed", completedAt: new Date() });
+      }
+    } catch (err) {
+      console.error("[BotEngine] Erro ao retomar sessão em espera:", err);
+    }
+  }
+
+  return due.length;
 }

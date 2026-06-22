@@ -402,12 +402,6 @@ function StepClients({
   );
 }
 
-const TRIGGER_LABELS: Record<string, string> = {
-  keyword: "Palavra-chave",
-  new_conversation: "Nova conversa",
-  ai_intent: "Intenção (IA)",
-};
-
 // Pré-visualização estilo bolha WhatsApp
 function TemplatePreview({ meta }: { meta: MetaTemplate }) {
   const replacements: Record<string, string> = { nome: "[primeiro nome]" };
@@ -595,11 +589,12 @@ function StepTemplateOrBot({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-foreground truncate">{b.name}</p>
+                    {b.description && (
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {b.description}
+                      </p>
+                    )}
                   </div>
-                  <Badge variant="outline" className="text-xs shrink-0">
-                    {TRIGGER_LABELS[b.triggerType]}
-                    {b.triggerKeyword ? `: "${b.triggerKeyword}"` : ""}
-                  </Badge>
                 </div>
                 {selectedBotId === b.id && (
                   <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-primary/10 text-primary text-sm font-semibold">
