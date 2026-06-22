@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Settings2, CheckCircle, AlertCircle, Eye, EyeOff, Plus, Pencil, Trash2,
   Phone, Download, RefreshCw, ShieldCheck, ShieldAlert, Wifi, WifiOff,
-  AlertTriangle, KeyRound, Loader2, UserCheck, MessageSquare,
+  AlertTriangle, KeyRound, Loader2, UserCheck, MessageSquare, QrCode,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -56,10 +56,12 @@ import {
   useChannelStatus,
   useRequestVerificationCode,
   useVerifyPhoneNumber,
+  useCreateEvolutionChannel,
   type WhatsappChannel,
   type MetaPhoneNumber,
   type CreateWhatsappChannelPayload,
 } from "@/hooks/use-whatsapp";
+import { EvolutionChannelConnect } from "@/components/evolution-channel-connect";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
@@ -205,9 +207,9 @@ function ChannelDialog({
       if (channel) {
         setForm({
           name: channel.name,
-          phoneNumberId: channel.phoneNumberId,
+          phoneNumberId: channel.phoneNumberId ?? "",
           accessToken: "",
-          wabaId: channel.wabaId,
+          wabaId: channel.wabaId ?? "",
           displayPhone: channel.displayPhone ?? "",
           userId: channel.userId ?? "",
           isActive: channel.isActive,
@@ -798,7 +800,7 @@ function ChannelItem({
           {/* Row 2: phone + user */}
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className="text-xs text-muted-foreground font-mono">
-              {ch.displayPhone || ch.phoneNumberId}
+              {ch.displayPhone || ch.phoneNumberId || ch.evolutionInstanceName || "—"}
             </span>
             {ch.userId && (
               <>
@@ -811,67 +813,75 @@ function ChannelItem({
             )}
           </div>
 
-          {/* Row 3: Meta status (lazy-loaded) */}
-          {showStatus && (
+          {/* Row 3: Evolution QR / Meta status */}
+          {ch.provider === "evolution" ? (
             <div className="mt-2">
-              {isFetching && (
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Consultando Meta...
-                </div>
-              )}
-              {statusError && !isFetching && (
-                <p className="text-xs text-destructive">
-                  Erro ao buscar status. Verifique o token do canal.
-                </p>
-              )}
-              {metaStatus && !isFetching && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <QualityDot rating={metaStatus.quality_rating} />
-                  <VerificationBadge status={metaStatus.code_verification_status} />
-                  <ConnectionBadge status={metaStatus.status} />
-                  {metaStatus.code_verification_status !== "VERIFIED" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-6 text-xs px-2 gap-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
-                      onClick={onVerify}
-                    >
-                      <ShieldCheck className="h-3 w-3" />
-                      Verificar
-                    </Button>
-                  )}
-                </div>
-              )}
+              <EvolutionChannelConnect channel={ch} />
             </div>
+          ) : (
+            showStatus && (
+              <div className="mt-2">
+                {isFetching && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Consultando Meta...
+                  </div>
+                )}
+                {statusError && !isFetching && (
+                  <p className="text-xs text-destructive">
+                    Erro ao buscar status. Verifique o token do canal.
+                  </p>
+                )}
+                {metaStatus && !isFetching && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <QualityDot rating={metaStatus.quality_rating} />
+                    <VerificationBadge status={metaStatus.code_verification_status} />
+                    <ConnectionBadge status={metaStatus.status} />
+                    {metaStatus.code_verification_status !== "VERIFIED" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-xs px-2 gap-1 border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                        onClick={onVerify}
+                      >
+                        <ShieldCheck className="h-3 w-3" />
+                        Verificar
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
           )}
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-0.5 shrink-0">
           <TooltipProvider delayDuration={400}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "h-8 w-8 transition-colors",
-                    showStatus
-                      ? "text-primary hover:text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  onClick={handleRefresh}
-                >
-                  {isFetching
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <RefreshCw className="h-3.5 w-3.5" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p className="text-xs">Consultar status no Meta</p>
-              </TooltipContent>
-            </Tooltip>
+            {ch.provider !== "evolution" && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-8 w-8 transition-colors",
+                      showStatus
+                        ? "text-primary hover:text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={handleRefresh}
+                  >
+                    {isFetching
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <RefreshCw className="h-3.5 w-3.5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  <p className="text-xs">Consultar status no Meta</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -931,6 +941,108 @@ function PageSkeleton() {
   );
 }
 
+// ── Dialog: criar canal Evolution (QR Code) ───────────────────────────────────
+
+function EvolutionChannelDialog({
+  open,
+  onOpenChange,
+  users,
+  onSave,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  users: User[];
+  onSave: (data: { name: string; userId?: string; displayPhone?: string }) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [userId, setUserId] = useState("none");
+  const [displayPhone, setDisplayPhone] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSave({
+      name: name.trim(),
+      userId: userId === "none" ? undefined : userId,
+      displayPhone: displayPhone.trim() || undefined,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <QrCode className="h-4 w-4" />
+            Novo canal via QR Code
+          </DialogTitle>
+          <DialogDescription>
+            Cria um canal conectado ao número do vendedor por QR Code (Evolution API / Baileys).
+            O vendedor mantém o WhatsApp funcionando no celular.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="evo-name">Nome do canal *</Label>
+            <Input
+              id="evo-name"
+              placeholder="Ex: Vendas - João Silva"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="evo-phone">Número de exibição</Label>
+            <Input
+              id="evo-phone"
+              placeholder="(11) 99999-9999"
+              value={displayPhone}
+              onChange={(e) => setDisplayPhone(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Opcional — apenas para exibição. O número real é definido ao escanear o QR.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="evo-user">Vendedor responsável</Label>
+            <Select value={userId} onValueChange={setUserId}>
+              <SelectTrigger id="evo-user">
+                <SelectValue placeholder="Selecionar vendedor..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
+            ⚠️ Conexão não-oficial. Use números dedicados ao negócio. Não envie campanhas em massa por este canal.
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending || !name.trim()}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              Criar canal
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 
 export default function WhatsAppSettings() {
@@ -942,6 +1054,7 @@ export default function WhatsAppSettings() {
   const createChannel = useCreateWhatsappChannel();
   const updateChannel = useUpdateWhatsappChannel();
   const deleteChannel = useDeleteWhatsappChannel();
+  const createEvolutionChannel = useCreateEvolutionChannel();
 
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -979,6 +1092,7 @@ export default function WhatsAppSettings() {
 
   const [channelDialogOpen, setChannelDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [evolutionDialogOpen, setEvolutionDialogOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<WhatsappChannel | null>(null);
   const [deletingChannelId, setDeletingChannelId] = useState<number | null>(null);
   const [verifyingChannelId, setVerifyingChannelId] = useState<number | null>(null);
@@ -1043,7 +1157,7 @@ export default function WhatsAppSettings() {
   };
 
   const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
-  const existingPhoneIds = new Set(channels.map((c) => c.phoneNumberId));
+  const existingPhoneIds = new Set(channels.map((c) => c.phoneNumberId).filter((id): id is string => id !== null));
 
   const SENSITIVE_FIELDS: {
     key: (typeof SENSITIVE_KEYS)[number];
@@ -1302,6 +1416,25 @@ export default function WhatsAppSettings() {
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEvolutionDialogOpen(true)}
+                        className="gap-1.5"
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Canal via QR</span>
+                        <span className="sm:hidden">QR</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="text-xs">Conectar número do vendedor via QR Code (Evolution API)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <Button
                   size="sm"
                   onClick={() => { setEditingChannel(null); setChannelDialogOpen(true); }}
@@ -1382,6 +1515,18 @@ export default function WhatsAppSettings() {
         channelId={verifyingChannelId}
         open={verifyingChannelId !== null}
         onOpenChange={(v) => { if (!v) setVerifyingChannelId(null); }}
+      />
+
+      <EvolutionChannelDialog
+        open={evolutionDialogOpen}
+        onOpenChange={setEvolutionDialogOpen}
+        users={users}
+        onSave={({ name, userId, displayPhone }) =>
+          createEvolutionChannel.mutate({ name, userId, displayPhone }, {
+            onSuccess: () => setEvolutionDialogOpen(false),
+          })
+        }
+        isPending={createEvolutionChannel.isPending}
       />
 
       <AlertDialog

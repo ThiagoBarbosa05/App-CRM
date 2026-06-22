@@ -118,11 +118,14 @@ export interface WhatsappSettings {
 export interface WhatsappChannel {
   id: number;
   name: string;
-  phoneNumberId: string;
-  wabaId: string;
+  provider: "cloud_api" | "evolution";
+  phoneNumberId: string | null;
+  wabaId: string | null;
   displayPhone: string | null;
   userId: string | null;
   isActive: boolean;
+  evolutionInstanceName: string | null;
+  connectionStatus: string | null;
   createdAt: string;
 }
 
@@ -635,6 +638,60 @@ export function useVerifyPhoneNumber() {
     },
     onError: (error: Error) => {
       toast({ title: "Código inválido", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// ---- Canais Evolution (QR Code / Baileys) ----
+
+export interface CreateEvolutionChannelPayload {
+  name: string;
+  userId?: string | null;
+  displayPhone?: string;
+}
+
+export function useCreateEvolutionChannel() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (data: CreateEvolutionChannelPayload) => {
+      const res = await apiRequest("POST", "/api/whatsapp/channels/evolution", data);
+      return res.json() as Promise<WhatsappChannel>;
+    },
+    onSuccess: () => {
+      toast({ title: "Canal Evolution criado" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao criar canal Evolution", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useEvolutionConnect() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (channelId: number) => {
+      const res = await apiRequest("GET", `/api/whatsapp/channels/${channelId}/evolution/connect`);
+      return res.json() as Promise<{ code: string; base64?: string }>;
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao gerar QR Code", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useEvolutionLogout() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (channelId: number) => {
+      await apiRequest("POST", `/api/whatsapp/channels/${channelId}/evolution/logout`);
+    },
+    onSuccess: () => {
+      toast({ title: "Canal desconectado" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao desconectar", description: error.message, variant: "destructive" });
     },
   });
 }

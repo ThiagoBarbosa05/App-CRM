@@ -13,9 +13,11 @@ import {
 import { eq, and, ilike, or, desc, sql, asc, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
+import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
 import { uploadWhatsappMedia } from "../lib/r2";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { getChannelByUserId, getChannelById, getChannelForConversation } from "./whatsapp-channels.service";
+import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelByUserId, resolveChannelForConversation } from "./whatsapp-channels.service";
+import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 
 function normalizePhone(phone: string) {
@@ -445,26 +447,41 @@ export async function sendConversationMessage(
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
 
-  let channelOverride = null;
+  let resolvedChannel: ResolvedChannel | null = null;
   if (userRole === "vendedor") {
-    channelOverride = await getChannelByUserId(userId).catch(() => null)
-      ?? await getChannelForConversation(conversationId).catch(() => null);
+    resolvedChannel = await resolveChannelByUserId(userId).catch(() => null)
+      ?? await resolveChannelForConversation(conversationId).catch(() => null);
   } else if (channelId != null) {
-    const ch = await getChannelById(channelId).catch(() => null);
+    const ch = await resolveChannelById(channelId).catch(() => null);
     if (ch) {
-      channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+      resolvedChannel = ch;
       await db
         .update(whatsappConversations)
         .set({ channelId })
         .where(eq(whatsappConversations.id, conversationId));
     }
   } else {
-    channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+    resolvedChannel = await resolveChannelForConversation(conversationId).catch(() => null);
   }
 
   try {
-    const result = await sendTextMessage(conv.phone, message, channelOverride ?? undefined, replyToWaMessageId ?? undefined);
-    const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+    let waMessageId: string | null = null;
+
+    if (resolvedChannel?.provider === "evolution") {
+      const evoResult = await evoSendText(
+        resolvedChannel.evolutionInstanceName,
+        conv.phone,
+        message,
+        { quotedMsgId: replyToWaMessageId ?? undefined },
+      );
+      waMessageId = evoResult?.key?.id ?? null;
+    } else {
+      const cloudOverride = resolvedChannel?.provider === "cloud_api"
+        ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
+        : null;
+      const result = await sendTextMessage(conv.phone, message, cloudOverride ?? undefined, replyToWaMessageId ?? undefined);
+      waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+    }
 
     await db
       .update(whatsappMessages)
@@ -477,9 +494,9 @@ export async function sendConversationMessage(
       publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
     }
 
-    return result;
+    return { waMessageId };
   } catch (err) {
-    console.error(`[WA Conversations Service] Erro na Cloud API:`, err);
+    console.error(`[WA Conversations Service] Erro no envio:`, err);
     throw err;
   }
 }
@@ -563,59 +580,65 @@ export async function sendConversationMedia(
     replyToWaMessageId = ref?.waMessageId ?? null;
   }
 
-  let channelOverride = null;
+  let resolvedChannel: ResolvedChannel | null = null;
   if (userRole === "vendedor") {
-    channelOverride = await getChannelByUserId(userId).catch(() => null)
-      ?? await getChannelForConversation(conversationId).catch(() => null);
+    resolvedChannel = await resolveChannelByUserId(userId).catch(() => null)
+      ?? await resolveChannelForConversation(conversationId).catch(() => null);
   } else if (channelId != null) {
-    const ch = await getChannelById(channelId).catch(() => null);
+    const ch = await resolveChannelById(channelId).catch(() => null);
     if (ch) {
-      channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+      resolvedChannel = ch;
       await db
         .update(whatsappConversations)
         .set({ channelId })
         .where(eq(whatsappConversations.id, conversationId));
     }
   } else {
-    channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+    resolvedChannel = await resolveChannelForConversation(conversationId).catch(() => null);
   }
 
-  console.log(`[sendConversationMedia] channelOverride=${channelOverride ? `phoneNumberId=${channelOverride.phoneNumberId}` : "null (default)"}`);
-  console.log(`[sendConversationMedia] uploadMedia → mimetype=${effectiveMime} filename=${effectiveName}`);
+  console.log(`[sendConversationMedia] provider=${resolvedChannel?.provider ?? "null"}`);
 
-  let waMediaId: string;
-  try {
-    waMediaId = await uploadMedia(
-      effectiveBuffer,
-      effectiveName,
-      effectiveMime,
-      channelOverride ?? undefined,
-    );
-  } catch (err) {
-    console.error(`[sendConversationMedia] uploadMedia falhou:`, err);
-    throw err;
+  let waMessageId: string | null = null;
+  let waMediaId: string | null = null;
+
+  if (resolvedChannel?.provider === "evolution") {
+    const evoMediaType = mediaType === "sticker" ? "image" : mediaType;
+    const base64 = effectiveBuffer.toString("base64");
+    console.log(`[sendConversationMedia] Evolution sendMedia type=${evoMediaType}`);
+    try {
+      const evoResult = await evoSendMedia(
+        resolvedChannel.evolutionInstanceName,
+        conv.phone,
+        evoMediaType,
+        { base64: `data:${effectiveMime};base64,${base64}`, caption, filename: effectiveName, mimetype: effectiveMime },
+      );
+      waMessageId = evoResult?.key?.id ?? null;
+    } catch (err) {
+      console.error(`[sendConversationMedia] Evolution sendMedia falhou:`, err);
+      throw err;
+    }
+  } else {
+    const cloudOverride = resolvedChannel?.provider === "cloud_api"
+      ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
+      : null;
+
+    console.log(`[sendConversationMedia] uploadMedia → mimetype=${effectiveMime} filename=${effectiveName}`);
+    try {
+      waMediaId = await uploadMedia(effectiveBuffer, effectiveName, effectiveMime, cloudOverride ?? undefined);
+    } catch (err) {
+      console.error(`[sendConversationMedia] uploadMedia falhou:`, err);
+      throw err;
+    }
+    console.log(`[sendConversationMedia] waMediaId=${waMediaId} → sendMediaMessage type=${mediaType}`);
+    try {
+      const result = await sendMediaMessage(conv.phone, waMediaId, mediaType, caption ?? undefined, undefined, cloudOverride ?? undefined);
+      waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+    } catch (err) {
+      console.error(`[sendConversationMedia] sendMediaMessage falhou:`, err);
+      throw err;
+    }
   }
-
-  console.log(`[sendConversationMedia] waMediaId=${waMediaId} → sendMediaMessage type=${mediaType}`);
-
-  let result: Awaited<ReturnType<typeof sendMediaMessage>>;
-  try {
-    result = await sendMediaMessage(
-      conv.phone,
-      waMediaId,
-      mediaType,
-      caption ?? undefined,
-      undefined,
-      channelOverride ?? undefined,
-    );
-  } catch (err) {
-    console.error(`[sendConversationMedia] sendMediaMessage falhou:`, err);
-    throw err;
-  }
-
-  console.log(`[sendConversationMedia] sendMediaMessage OK:`, JSON.stringify(result));
-
-  const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
 
   const [savedMessage] = await db
     .insert(whatsappMessages)
@@ -773,6 +796,10 @@ export async function saveInboundMessage(data: {
   rawPayload?: unknown;
   channelId?: number | null;
   replyToWaMessageId?: string;
+  /** Permite sobrescrever a direção da mensagem (padrão: "inbound"). Usado pelo Evolution para fromMe:true. */
+  direction?: "inbound" | "outbound";
+  /** @internal usado pelo Evolution webhook para indicar mensagem enviada pelo celular do vendedor */
+  _fromMe?: boolean;
   mediaData?: {
     whatsappMediaId: string;
     mimeType?: string;
@@ -808,20 +835,32 @@ export async function saveInboundMessage(data: {
     replyToMessageId = ref?.id ?? null;
   }
 
-  const [savedMessage] = await db
-    .insert(whatsappMessages)
-    .values({
-      conversationId: conv.id,
-      direction: "inbound",
-      type: data.type,
-      content: data.content,
-      caption: data.caption ?? null,
-      waMessageId: data.waMessageId,
-      rawPayload: data.rawPayload ?? null,
-      sentAt,
-      replyToMessageId,
-    })
-    .returning({ id: whatsappMessages.id });
+  const direction = data.direction ?? (data._fromMe ? "outbound" : "inbound");
+
+  let savedMessage: { id: string };
+  try {
+    [savedMessage] = await db
+      .insert(whatsappMessages)
+      .values({
+        conversationId: conv.id,
+        direction,
+        type: data.type,
+        content: data.content,
+        caption: data.caption ?? null,
+        waMessageId: data.waMessageId,
+        rawPayload: data.rawPayload ?? null,
+        sentAt,
+        replyToMessageId,
+      })
+      .returning({ id: whatsappMessages.id });
+  } catch (err: unknown) {
+    // Race condition: dois webhooks simultâneos com o mesmo waMessageId
+    if ((err as { code?: string }).code === "23505") {
+      console.log(`[WA Webhook] Mensagem duplicada ignorada (race): ${data.waMessageId}`);
+      return;
+    }
+    throw err;
+  }
 
   if (data.mediaData) {
     const [savedMedia] = await db
@@ -988,7 +1027,7 @@ export async function sendConversationReaction(
       ?? await getChannelForConversation(conversationId).catch(() => null);
   } else if (channelId != null) {
     const ch = await getChannelById(channelId).catch(() => null);
-    if (ch) channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+    if (ch && ch.phoneNumberId && ch.accessToken) channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
   } else {
     channelOverride = await getChannelForConversation(conversationId).catch(() => null);
   }

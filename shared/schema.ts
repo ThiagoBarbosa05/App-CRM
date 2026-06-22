@@ -3991,12 +3991,15 @@ export type CampaignClient = typeof campaignClients.$inferSelect;
 export const whatsappChannels = pgTable("whatsapp_channels", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  phoneNumberId: text("phone_number_id").notNull().unique(),
-  accessToken: text("access_token").notNull(),
-  wabaId: text("waba_id").notNull(),
+  provider: text("provider").notNull().default("cloud_api"),
+  phoneNumberId: text("phone_number_id").unique(),
+  accessToken: text("access_token"),
+  wabaId: text("waba_id"),
   displayPhone: text("display_phone"),
   userId: varchar("user_id").references(() => users.id),
   isActive: boolean("is_active").notNull().default(true),
+  evolutionInstanceName: text("evolution_instance_name").unique(),
+  connectionStatus: text("connection_status").default("disconnected"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

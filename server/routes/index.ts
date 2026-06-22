@@ -79,6 +79,7 @@ import { referralsRouter } from "./referrals.routes";
 import rfmRouter from "./rfm.routes";
 import whatsappRouter from "./whatsapp-settings.routes";
 import whatsappWebhookRouter from "./whatsapp-webhook.routes";
+import evolutionWebhookRouter from "./evolution-webhook.routes";
 import whatsappBotsRouter from "./whatsapp-bots.routes";
 import whatsappConversationsRouter from "./whatsapp-conversations.routes";
 import whatsappChannelsRouter from "./whatsapp-channels.routes";
@@ -103,6 +104,8 @@ apiRouter.use("/bling-accounts", blingAccountsRouter);
 apiRouter.use("/twilio", twilioRouter);
 // Webhook WhatsApp Cloud API — verificação GET e notificações POST do Meta
 apiRouter.use("/whatsapp", whatsappWebhookRouter);
+// Webhook Evolution API — eventos de instâncias Baileys (QR, mensagens, status)
+apiRouter.use("/evolution", evolutionWebhookRouter);
 apiRouter.use("/calls", callsRouter);
 apiRouter.use("/elevenlabs", elevenLabsRouter);
 
