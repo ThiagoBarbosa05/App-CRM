@@ -48,6 +48,8 @@ import {
   Sticker,
   Bookmark,
   BookmarkCheck,
+  Tag,
+  Filter,
   Trash2,
   Zap,
   Bot,
@@ -74,6 +76,13 @@ interface ChatClientTag {
   type: string;
 }
 
+interface WhatsappClientTag {
+  id: string;
+  name: string;
+  emoji: string | null;
+  color: string | null;
+}
+
 interface ChatClient {
   conversationId: string;
   clientId: string | null;
@@ -88,6 +97,7 @@ interface ChatClient {
   channelName?: string | null;
   channelDisplayPhone?: string | null;
   tags?: ChatClientTag[];
+  whatsappTags?: WhatsappClientTag[];
 }
 
 interface WaMedia {
@@ -213,6 +223,68 @@ function formatSectionDate(dateStr: string) {
   return format(d, "d 'de' MMMM", { locale: ptBR });
 }
 
+const UMBLER_COLOR_MAP: Record<string, string> = {
+  Aquamarine: "#14b8a6",
+  Chocolate:  "#92400e",
+  Cyan:       "#06b6d4",
+  Gold:       "#d97706",
+  Grape:      "#7c3aed",
+  Gray:       "#6b7280",
+  Green:      "#16a34a",
+  Kiwi:       "#84cc16",
+  Magenta:    "#ec4899",
+  Pink:       "#f472b6",
+  Rose:       "#e11d48",
+  Salmon:     "#f87171",
+  Skyblue:    "#38bdf8",
+  Tangerine:  "#f97316",
+  Tomato:     "#ef4444",
+  Umblerito:  "#5046e5",
+};
+
+const TAG_PALETTE = [
+  "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#1abc9c",
+  "#3498db", "#9b59b6", "#e91e63", "#00bcd4", "#8bc34a",
+  "#ff5722", "#795548", "#607d8b", "#009688", "#673ab7",
+];
+
+function resolveTagColor(color: string | null, id: string): string {
+  if (color) {
+    const mapped = UMBLER_COLOR_MAP[color];
+    if (mapped) return mapped;
+  }
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return TAG_PALETTE[hash % TAG_PALETTE.length];
+}
+
+// 🐨 é o emoji padrão do Umbler quando nenhum emoji foi definido — tratamos como ausente
+function resolveTagEmoji(emoji: string | null): string | null {
+  if (!emoji || emoji === "🐨") return null;
+  return emoji;
+}
+
+function getTagColor(id: string): string {
+  return resolveTagColor(null, id);
+}
+
+function WhatsappTagBadge({ tag }: { tag: WhatsappClientTag }) {
+  const bg = resolveTagColor(tag.color, tag.id);
+  const emoji = resolveTagEmoji(tag.emoji);
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold text-white max-w-[120px]"
+      style={{ backgroundColor: bg }}
+      title={tag.name}
+    >
+      {emoji && <span className="shrink-0 leading-none">{emoji}</span>}
+      <span className="truncate">{tag.name}</span>
+    </span>
+  );
+}
+
 function ClientListItem({
   client,
   selected,
@@ -303,6 +375,19 @@ function ClientListItem({
             {client.tags.length > 3 && (
               <span className="text-[10px] text-slate-400 dark:text-slate-500">
                 +{client.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+
+        {client.whatsappTags && client.whatsappTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {client.whatsappTags.slice(0, 3).map((tag) => (
+              <WhatsappTagBadge key={tag.id} tag={tag} />
+            ))}
+            {client.whatsappTags.length > 3 && (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                +{client.whatsappTags.length - 3}
               </span>
             )}
           </div>
@@ -1398,15 +1483,19 @@ function ConversationMessages({
               {client.phone}
             </p>
           )}
-          {client.tags && client.tags.length > 0 && (
+          {((client.tags && client.tags.length > 0) ||
+            (client.whatsappTags && client.whatsappTags.length > 0)) && (
             <div className="flex flex-wrap gap-1 mt-1">
-              {client.tags.map((tag) => (
+              {client.tags?.map((tag) => (
                 <span
                   key={tag.id}
                   className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
                 >
                   {tag.name}
                 </span>
+              ))}
+              {client.whatsappTags?.map((tag) => (
+                <WhatsappTagBadge key={tag.id} tag={tag} />
               ))}
             </div>
           )}
@@ -2142,6 +2231,7 @@ function NewConversationDialog({
         name: string;
         phone: string | null;
         crmTags?: CrmTag[];
+        tags?: WhatsappClientTag[];
       }>;
     },
     enabled: open,
@@ -2261,15 +2351,19 @@ function NewConversationDialog({
                       {c.phone}
                     </p>
                   )}
-                  {c.crmTags && c.crmTags.length > 0 && (
+                  {((c.crmTags && c.crmTags.length > 0) ||
+                    (c.tags && c.tags.length > 0)) && (
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {c.crmTags.map((tag) => (
+                      {c.crmTags?.map((tag) => (
                         <span
                           key={tag.id}
                           className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
                         >
                           {tag.name}
                         </span>
+                      ))}
+                      {c.tags?.map((tag) => (
+                        <WhatsappTagBadge key={tag.id} tag={tag} />
                       ))}
                     </div>
                   )}
@@ -2292,10 +2386,22 @@ export default function WhatsAppConversationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [newConvOpen, setNewConvOpen] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [showTagFilter, setShowTagFilter] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const queryClient = useQueryClient();
 
   const isAdminOrGerente = user?.role === "admin" || user?.role === "gerente";
+
+  const { data: availableWaTags = [] } = useQuery<WhatsappClientTag[]>({
+    queryKey: ["/api/whatsapp/tags"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/tags");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
 
   const { data: availableChannels = [] } = useQuery<Channel[]>({
     queryKey: ["/api/whatsapp/channels/mine"],
@@ -2308,10 +2414,11 @@ export default function WhatsAppConversationsPage() {
   });
 
   const { data: clientList = [], isLoading: isLoadingClients } = useQuery<ChatClient[]>({
-    queryKey: ["/api/whatsapp/conversations-list", debouncedSearch, user?.id],
+    queryKey: ["/api/whatsapp/conversations-list", debouncedSearch, selectedTagIds, user?.id],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set("search", debouncedSearch);
+      for (const id of selectedTagIds) params.append("tagIds", id);
       const res = await fetch(`/api/whatsapp/conversations?${params}`);
       if (!res.ok) return [];
       return res.json();
@@ -2381,15 +2488,40 @@ export default function WhatsAppConversationsPage() {
             <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
               Conversas
             </h2>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-slate-500 hover:text-primary"
-              onClick={() => setNewConvOpen(true)}
-              title="Nova conversa"
-            >
-              <PlusCircle className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {availableWaTags.length > 0 && (
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "h-7 w-7",
+                      selectedTagIds.length > 0
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-slate-500 hover:text-primary",
+                    )}
+                    onClick={() => { setShowTagFilter((v) => !v); setTagSearch(""); }}
+                    title="Filtrar por etiqueta"
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                  {selectedTagIds.length > 0 && (
+                    <span className="pointer-events-none absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 text-[9px] font-bold text-white flex items-center justify-center">
+                      {selectedTagIds.length}
+                    </span>
+                  )}
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-slate-500 hover:text-primary"
+                onClick={() => setNewConvOpen(true)}
+                title="Nova conversa"
+              >
+                <PlusCircle className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -2402,8 +2534,132 @@ export default function WhatsAppConversationsPage() {
           </div>
         </div>
 
-        {/* Client list */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Client list — relative so the tag panel can overlay it */}
+        <div className="flex-1 overflow-y-auto relative">
+          {/* Tag filter overlay panel */}
+          {showTagFilter && (
+            <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-slate-900">
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Etiquetas
+                </h3>
+                <button
+                  onClick={() => setShowTagFilter(false)}
+                  className="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Tag search */}
+              <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <Input
+                    value={tagSearch}
+                    onChange={(e) => setTagSearch(e.target.value)}
+                    placeholder="Pesquisar"
+                    className="pl-9 text-sm h-9"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                  {tagSearch
+                    ? `${availableWaTags.filter((t) => t.name.toLowerCase().includes(tagSearch.toLowerCase())).length} resultado(s)`
+                    : "Exibindo todos os itens"}
+                </p>
+              </div>
+
+              {/* Tag list */}
+              <div className="flex-1 overflow-y-auto py-2">
+                {/* "Sem etiquetas" option */}
+                <div className="px-4 py-1.5">
+                  <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">
+                    Sem etiquetas
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTagIds((prev) =>
+                        prev.includes("__none__")
+                          ? prev.filter((id) => id !== "__none__")
+                          : [...prev, "__none__"],
+                      )
+                    }
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
+                      selectedTagIds.includes("__none__")
+                        ? "bg-slate-700 border-slate-700 text-white dark:bg-slate-200 dark:border-slate-200 dark:text-slate-900"
+                        : "bg-slate-100 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700",
+                    )}
+                  >
+                    Sem etiquetas
+                  </button>
+                </div>
+
+                <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4 my-2" />
+
+                {/* All tags */}
+                <div className="px-4 flex flex-col gap-2">
+                  {availableWaTags
+                    .filter((t) =>
+                      !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase()),
+                    )
+                    .map((tag) => {
+                      const active = selectedTagIds.includes(tag.id);
+                      const tagColor = resolveTagColor(tag.color, tag.id);
+                      const tagEmoji = resolveTagEmoji(tag.emoji);
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() =>
+                            setSelectedTagIds((prev) =>
+                              prev.includes(tag.id)
+                                ? prev.filter((id) => id !== tag.id)
+                                : [...prev, tag.id],
+                            )
+                          }
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white transition-all self-start max-w-full",
+                            active ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900" : "opacity-90 hover:opacity-100",
+                          )}
+                          style={{ backgroundColor: tagColor }}
+                        >
+                          {tagEmoji && <span className="shrink-0 leading-none">{tagEmoji}</span>}
+                          <span className="truncate">{tag.name}</span>
+                          {active && <Check className="h-3 w-3 shrink-0 ml-auto" />}
+                        </button>
+                      );
+                    })}
+                  {availableWaTags.filter((t) =>
+                    !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase()),
+                  ).length === 0 && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                      Nenhuma etiqueta encontrada
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              {selectedTagIds.length > 0 && (
+                <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-between">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {selectedTagIds.length} selecionada(s)
+                  </span>
+                  <button
+                    onClick={() => setSelectedTagIds([])}
+                    className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                  >
+                    Limpar filtros
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {isLoadingClients ? (
             <div className="p-4 space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -2422,9 +2678,9 @@ export default function WhatsAppConversationsPage() {
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
                 Nenhuma conversa
               </p>
-              {search ? (
+              {search || selectedTagIds.length > 0 ? (
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Tente outro nome ou número
+                  Tente outro nome, número ou filtro
                 </p>
               ) : (
                 <button

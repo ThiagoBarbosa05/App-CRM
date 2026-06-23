@@ -714,23 +714,17 @@ export class ClientsRepository {
     clientId: string,
     umblerTagId: string,
     name: string,
+    emoji?: string | null,
+    color?: string | null,
   ): Promise<void> {
-    let [tag] = await this.db
-      .select({ id: whatsappTags.id })
-      .from(whatsappTags)
-      .where(eq(whatsappTags.umblerTagId, umblerTagId))
-      .limit(1);
-
-    if (!tag) {
-      [tag] = await this.db
-        .insert(whatsappTags)
-        .values({ umblerTagId, name })
-        .onConflictDoUpdate({
-          target: whatsappTags.umblerTagId,
-          set: { name, updatedAt: sql`now()` },
-        })
-        .returning({ id: whatsappTags.id });
-    }
+    const [tag] = await this.db
+      .insert(whatsappTags)
+      .values({ umblerTagId, name, emoji: emoji ?? null, color: color ?? null })
+      .onConflictDoUpdate({
+        target: whatsappTags.umblerTagId,
+        set: { name, emoji: sql`excluded.emoji`, color: sql`excluded.color`, updatedAt: sql`now()` },
+      })
+      .returning({ id: whatsappTags.id });
 
     await this.db
       .insert(contactTags)

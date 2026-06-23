@@ -11,6 +11,7 @@ import {
   waQuickReplies,
   contactTags,
   tags,
+  whatsappTags,
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -211,10 +212,18 @@ export async function deleteQuickReply(userId: string, id: string) {
   return row ?? null;
 }
 
+export async function listWhatsappTagsForFilter() {
+  return db
+    .select({ id: whatsappTags.id, name: whatsappTags.name, emoji: whatsappTags.emoji, color: whatsappTags.color })
+    .from(whatsappTags)
+    .orderBy(whatsappTags.name);
+}
+
 export async function listClientsForChat(
   userId: string,
   userRole: string,
   search?: string,
+  whatsappTagIds?: string[],
 ) {
   const effectiveAt = sql<Date>`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`.as("last_at");
 
@@ -284,6 +293,50 @@ export async function listClientsForChat(
     );
   }
 
+  if (whatsappTagIds && whatsappTagIds.length > 0) {
+    const realTagIds = whatsappTagIds.filter((id) => id !== "__none__");
+    const includeNone = whatsappTagIds.includes("__none__");
+
+    if (realTagIds.length > 0 && includeNone) {
+      // OR: tem uma das tags selecionadas OU não tem nenhuma tag
+      const taggedSub = db
+        .selectDistinct({ clientId: contactTags.clientId })
+        .from(contactTags)
+        .where(inArray(contactTags.whatsappTagId, realTagIds));
+      const noTagSub = db
+        .selectDistinct({ clientId: contactTags.clientId })
+        .from(contactTags)
+        .where(sql`${contactTags.whatsappTagId} IS NOT NULL`);
+      conditions.push(
+        or(
+          inArray(whatsappConversations.clientId, taggedSub),
+          sql`${whatsappConversations.clientId} IS NOT NULL AND ${whatsappConversations.clientId} NOT IN (${noTagSub})`,
+          sql`${whatsappConversations.clientId} IS NULL`,
+        ) as unknown as ReturnType<typeof eq>,
+      );
+    } else if (realTagIds.length > 0) {
+      const taggedClientIds = db
+        .selectDistinct({ clientId: contactTags.clientId })
+        .from(contactTags)
+        .where(inArray(contactTags.whatsappTagId, realTagIds));
+      conditions.push(
+        inArray(whatsappConversations.clientId, taggedClientIds) as unknown as ReturnType<typeof eq>,
+      );
+    } else if (includeNone) {
+      // Apenas "sem etiqueta": clientId null OU clientId sem nenhuma wa tag
+      const withTagSub = db
+        .selectDistinct({ clientId: contactTags.clientId })
+        .from(contactTags)
+        .where(sql`${contactTags.whatsappTagId} IS NOT NULL`);
+      conditions.push(
+        or(
+          sql`${whatsappConversations.clientId} IS NULL`,
+          sql`${whatsappConversations.clientId} IS NOT NULL AND ${whatsappConversations.clientId} NOT IN (${withTagSub})`,
+        ) as unknown as ReturnType<typeof eq>,
+      );
+    }
+  }
+
   const rows = await db
     .with(readsSub, unreadSub, lastMsgSub)
     .select({
@@ -312,6 +365,7 @@ export async function listClientsForChat(
   const clientIds = rows.map((r) => r.clientId).filter((id): id is string => !!id);
 
   const tagsByClient = new Map<string, { id: string; name: string; color: string | null; type: string }[]>();
+  const whatsappTagsByClient = new Map<string, { id: string; name: string; emoji: string | null; color: string | null }[]>();
 
   if (clientIds.length > 0) {
     const tagsData = await db
@@ -332,11 +386,31 @@ export async function listClientsForChat(
       list.push({ id: row.id, name: row.name, color: row.color, type: row.type });
       tagsByClient.set(row.clientId, list);
     }
+
+    const waTagsData = await db
+      .select({
+        clientId: contactTags.clientId,
+        id: whatsappTags.id,
+        name: whatsappTags.name,
+        emoji: whatsappTags.emoji,
+        color: whatsappTags.color,
+      })
+      .from(contactTags)
+      .innerJoin(whatsappTags, eq(contactTags.whatsappTagId, whatsappTags.id))
+      .where(inArray(contactTags.clientId, clientIds));
+
+    for (const row of waTagsData) {
+      if (!row.clientId) continue;
+      const list = whatsappTagsByClient.get(row.clientId) ?? [];
+      list.push({ id: row.id, name: row.name, emoji: row.emoji, color: row.color });
+      whatsappTagsByClient.set(row.clientId, list);
+    }
   }
 
   return rows.map((row) => ({
     ...row,
     tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
+    whatsappTags: row.clientId ? (whatsappTagsByClient.get(row.clientId) ?? []) : [],
   }));
 }
 

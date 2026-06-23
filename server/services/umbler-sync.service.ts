@@ -357,19 +357,15 @@ export class UmblerSyncService {
       `[UmblerSync]   💾 Sincronizando ${tags.length} tags no CRM...`
     );
 
-    // Mapear tags para formato { id, name }
-    const tagsData = tags.map((tag) => ({
-      id: tag.id,
-      name: tag.name,
-    }));
-
     try {
       // Vincula cada tag do Umbler ao cliente via tabela pivô contact_tags
-      for (const tag of tagsData) {
+      for (const tag of tags) {
         await this.clientsRepository.linkWhatsappTagToClient(
           client.id,
           tag.id,
           tag.name,
+          (tag as any).emoji ?? null,
+          (tag as any).color ?? null,
         );
       }
       console.log(`[UmblerSync]   ✅ Tags sincronizadas com sucesso no CRM`);

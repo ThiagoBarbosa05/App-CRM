@@ -3,6 +3,7 @@ import { z } from "zod";
 import multer from "multer";
 import {
   listClientsForChat,
+  listWhatsappTagsForFilter,
   getConversation,
   sendConversationMessage,
   sendConversationMedia,
@@ -122,13 +123,29 @@ router.get("/media/:mediaId", async (req, res) => {
   }
 });
 
+router.get("/tags", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const tags = await listWhatsappTagsForFilter();
+    res.json(tags);
+  } catch {
+    res.status(500).json({ message: "Erro ao listar tags" });
+  }
+});
+
 router.get("/conversations", async (req, res) => {
   try {
     const user = (req as any).user;
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
 
     const search = typeof req.query.search === "string" ? req.query.search : undefined;
-    const result = await listClientsForChat(user.userId, user.role, search);
+    const tagIds = Array.isArray(req.query.tagIds)
+      ? (req.query.tagIds as string[])
+      : typeof req.query.tagIds === "string"
+        ? [req.query.tagIds]
+        : undefined;
+    const result = await listClientsForChat(user.userId, user.role, search, tagIds);
     res.json(result);
   } catch (err) {
     console.error("[WA Conversations] Erro ao listar conversas:", err);
