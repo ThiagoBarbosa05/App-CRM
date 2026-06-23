@@ -15,6 +15,7 @@ import {
   unique,
   uniqueIndex,
   jsonb,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -515,6 +516,21 @@ export const whatsappTags = pgTable("whatsapp_tags", {
 
 export type WhatsappTag = typeof whatsappTags.$inferSelect;
 export type InsertWhatsappTag = typeof whatsappTags.$inferInsert;
+
+// Estado de autenticação do WhatsApp via Baileys (sessão por QR Code).
+// O runtime acessa esta tabela por queries cruas (server/services/baileys/db-auth-state.ts);
+// a definição aqui serve para o Drizzle Kit reconhecê-la e não tentar removê-la.
+export const whatsappBaileysAuth = pgTable(
+  "whatsapp_baileys_auth",
+  {
+    instanceName: text("instance_name").notNull(),
+    dataKey: text("data_key").notNull(),
+    dataValue: jsonb("data_value").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.instanceName, t.dataKey] }),
+  }),
+);
 
 // Tabela de tags associadas a clientes — suporta tags internas (tagId) e tags do Umbler (whatsappTagId)
 export const contactTags = pgTable(
