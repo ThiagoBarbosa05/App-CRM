@@ -1,4 +1,5 @@
 import makeWASocket, {
+  Browsers,
   DisconnectReason,
   downloadMediaMessage,
   type WASocket,
@@ -8,7 +9,7 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 import QRCode from "qrcode";
 import { useNeonAuthState, getInstancesWithCreds, deleteInstanceCreds } from "./db-auth-state.js";
-import { normalizeToJid } from "./jid.js";
+import { normalizeToJid, jidToPhone } from "./jid.js";
 import {
   handleConnectionUpdate,
   handleQrcodeUpdated,
@@ -27,6 +28,7 @@ interface SessionInfo {
   status: "connecting" | "connected" | "disconnected" | "qr";
   qrBase64: string | null;
   qrCode: string | null;
+  reconnectAttempts: number;
 }
 
 const sessions = new Map<string, SessionInfo>();
@@ -134,6 +136,31 @@ async function tryDownloadMedia(
   }
 }
 
+// Resolve o JID real quando o WhatsApp usa endereçamento LID (@lid). O número
+// dentro de um @lid NÃO é o telefone do contato — é um identificador de
+// privacidade. Sem resolver, a conversa é criada com um número falso (ex:
+// 155495012819150) que não casa com o cadastro do cliente, gerando duplicatas.
+async function resolveRealJid(
+  sock: WASocket,
+  key: { remoteJid?: string | null; remoteJidAlt?: string | null },
+): Promise<string> {
+  const jid = key.remoteJid ?? "";
+  if (!jid.endsWith("@lid")) return jid;
+  // 1) A própria key normalmente já traz a forma @s.whatsapp.net em remoteJidAlt
+  if (key.remoteJidAlt && key.remoteJidAlt.endsWith("@s.whatsapp.net")) {
+    return key.remoteJidAlt;
+  }
+  // 2) Fallback: store de mapeamento LID → PN do Baileys
+  const lidMapping = (sock as unknown as {
+    signalRepository?: { lidMapping?: { getPNForLID?: (lid: string) => Promise<string | null> } };
+  }).signalRepository?.lidMapping;
+  if (lidMapping?.getPNForLID) {
+    const pn = await lidMapping.getPNForLID(jid).catch(() => null);
+    if (pn) return pn;
+  }
+  return jid;
+}
+
 async function createSocket(instanceName: string): Promise<void> {
   const { state, saveCreds } = await useNeonAuthState(pool, instanceName);
 
@@ -141,19 +168,22 @@ async function createSocket(instanceName: string): Promise<void> {
     auth: state,
     printQRInTerminal: false,
     logger: makeLogger() as Parameters<typeof makeWASocket>[0]["logger"],
-    browser: ["CRM", "Chrome", "10.0"],
+    // Usar browser padrão do Baileys (macOS Chrome) evita rejeição 515 por
+    // client string inválida/muito antiga
+    browser: Browsers.macOS("Chrome"),
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     getMessage: async () => undefined,
   });
 
-  const existingId = sessions.get(instanceName)?.instanceId ?? crypto.randomUUID();
+  const existing = sessions.get(instanceName);
   sessions.set(instanceName, {
     socket: sock,
-    instanceId: existingId,
+    instanceId: existing?.instanceId ?? crypto.randomUUID(),
     status: "connecting",
     qrBase64: null,
     qrCode: null,
+    reconnectAttempts: existing?.reconnectAttempts ?? 0,
   });
 
   sock.ev.on("creds.update", saveCreds);
@@ -188,8 +218,11 @@ async function createSocket(instanceName: string): Promise<void> {
       session.status = "connected";
       session.qrBase64 = null;
       session.qrCode = null;
-      console.log(`[Baileys] Instância ${instanceName}: conectada.`);
-      await handleConnectionUpdate(instanceName, { state: "open" }).catch(() => {});
+      session.reconnectAttempts = 0;
+      const meJid = state.creds.me?.id;
+      const phone = meJid ? jidToPhone(meJid) : undefined;
+      console.log(`[Baileys] Instância ${instanceName}: conectada.${phone ? ` (${phone})` : ""}`);
+      await handleConnectionUpdate(instanceName, { state: "open", phone }).catch(() => {});
     } else if (connection === "close") {
       session.status = "disconnected";
       await handleConnectionUpdate(instanceName, { state: "close" }).catch(() => {});
@@ -199,9 +232,18 @@ async function createSocket(instanceName: string): Promise<void> {
         console.log(`[Baileys] Instância ${instanceName}: deslogada — removendo credenciais.`);
         sessions.delete(instanceName);
         await deleteInstanceCreds(pool, instanceName).catch(() => {});
+      } else if (reason === DisconnectReason.restartRequired) {
+        // 515 é esperado logo após o pareamento por QR: o Baileys exige reiniciar
+        // o socket uma vez. Reconecta imediatamente, sem contar como falha de backoff.
+        console.log(`[Baileys] Instância ${instanceName}: restart requerido (515) — reconectando imediatamente...`);
+        setTimeout(() => createSocket(instanceName).catch(console.error), 100);
       } else {
-        console.log(`[Baileys] Instância ${instanceName}: reconectando (reason=${reason})...`);
-        setTimeout(() => createSocket(instanceName).catch(console.error), 3_000);
+        // Backoff exponencial: 5s, 10s, 20s, 40s (máx 60s) para evitar rate-limit do WA
+        const attempts = (session.reconnectAttempts ?? 0) + 1;
+        session.reconnectAttempts = attempts;
+        const delay = Math.min(5_000 * Math.pow(2, attempts - 1), 60_000);
+        console.log(`[Baileys] Instância ${instanceName}: reconectando (reason=${reason}, tentativa=${attempts}, delay=${delay}ms)...`);
+        setTimeout(() => createSocket(instanceName).catch(console.error), delay);
       }
     } else if (connection === "connecting") {
       session.status = "connecting";
@@ -213,8 +255,11 @@ async function createSocket(instanceName: string): Promise<void> {
     if (type !== "notify") return;
 
     for (const msg of messages) {
-      const jid = msg.key?.remoteJid ?? "";
-      if (!jid || jid.endsWith("@g.us")) continue;
+      const rawJid = msg.key?.remoteJid ?? "";
+      if (!rawJid || rawJid.endsWith("@g.us")) continue;
+
+      // Resolve LID → telefone real antes de processar (ver resolveRealJid)
+      const jid = await resolveRealJid(sock, msg.key ?? {});
 
       const msgContent = serializeMsgContent(msg);
       const mimetype = detectMediaType(msgContent);
@@ -234,7 +279,9 @@ async function createSocket(instanceName: string): Promise<void> {
       }
 
       const payload: Record<string, unknown> = {
-        key: msg.key,
+        // Sobrescreve remoteJid com o JID resolvido (telefone real, não LID),
+        // para que jidToPhone a jusante extraia o número correto.
+        key: { ...msg.key, remoteJid: jid },
         message: msgContent,
         messageTimestamp: tsToNumber(msg.messageTimestamp),
         pushName: msg.pushName ?? null,
@@ -305,13 +352,13 @@ export function startInstance(instanceName: string): { instanceId: string; statu
     return { instanceId: s.instanceId, status: s.status };
   }
   const instanceId = crypto.randomUUID();
-  // placeholder enquanto createSocket é assíncrono
   sessions.set(instanceName, {
     socket: null as unknown as WASocket,
     instanceId,
     status: "connecting",
     qrBase64: null,
     qrCode: null,
+    reconnectAttempts: 0,
   });
   createSocket(instanceName).catch((err) =>
     console.error(`[Baileys] Erro ao criar "${instanceName}":`, err),
@@ -340,13 +387,34 @@ export function getConnectionState(instanceName: string): string {
 export async function logoutInstance(instanceName: string): Promise<void> {
   const s = sessions.get(instanceName);
   if (!s) {
-    // Mesmo sem sessão ativa em memória, limpa credenciais persistidas
     await deleteInstanceCreds(pool, instanceName).catch(() => {});
     return;
   }
   try { await s.socket?.logout(); } catch { /* ignore */ }
   sessions.delete(instanceName);
   await deleteInstanceCreds(pool, instanceName);
+}
+
+/**
+ * Fecha o socket atual (se existir), apaga todas as credenciais do banco e
+ * inicia um socket novo com estado completamente limpo.
+ * Deve ser usado quando o usuário clica "Conectar via QR" explicitamente, para
+ * evitar que chaves Signal obsoletas causem erro 401 device_removed no WA.
+ */
+export async function forceRestartInstance(instanceName: string): Promise<{ instanceId: string; status: string }> {
+  const existing = sessions.get(instanceName);
+  // Se já está conectado, não interrompe a sessão
+  if (existing?.status === "connected") {
+    return { instanceId: existing.instanceId, status: existing.status };
+  }
+  // Encerra o socket atual sem chamar logout no WA (a sessão já está quebrada)
+  if (existing?.socket) {
+    try { existing.socket.end(undefined); } catch { /* ignore */ }
+  }
+  sessions.delete(instanceName);
+  // Limpa credenciais obsoletas para forçar novo par de chaves Signal
+  await deleteInstanceCreds(pool, instanceName).catch(() => {});
+  return startInstance(instanceName);
 }
 
 export async function destroyInstance(instanceName: string): Promise<void> {

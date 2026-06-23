@@ -6,6 +6,7 @@
 
 import {
   startInstance,
+  forceRestartInstance,
   waitForQr,
   getConnectionState,
   logoutInstance as smLogoutInstance,
@@ -35,10 +36,10 @@ export async function createInstance(
 }
 
 export async function connectInstance(instanceName: string): Promise<{ code: string; base64?: string }> {
-  // Inicia a instância (no-op se já existe) e aguarda o QR ficar pronto.
-  // Isso evita que o frontend fique preso em "Conectando..." quando o QR ainda
-  // não foi gerado pelo Baileys no momento da chamada HTTP.
-  startInstance(instanceName);
+  // Reinicia a instância com credenciais limpas para evitar conflito 401
+  // device_removed causado por chaves Signal obsoletas no banco.
+  // Se já estiver conectado, forceRestartInstance retorna sem interromper.
+  await forceRestartInstance(instanceName);
   const qr = await waitForQr(instanceName, 30_000);
   if (!qr) return { code: "", base64: undefined };
   return { code: qr.code, base64: qr.base64 ?? undefined };

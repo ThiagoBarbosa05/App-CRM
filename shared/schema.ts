@@ -4050,6 +4050,7 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   conversationId: varchar("conversation_id")
     .references(() => whatsappConversations.id)
     .notNull(),
+  channelId: integer("channel_id").references(() => whatsappChannels.id),
   waMessageId: text("wa_message_id").unique(),
   direction: text("direction", { enum: ["inbound", "outbound"] }).notNull(),
   type: text("type").notNull().default("text"),

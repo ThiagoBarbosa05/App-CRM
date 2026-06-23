@@ -1,4 +1,4 @@
-import { getChannelByEvolutionInstance, updateConnectionStatus } from "./whatsapp-channels.service";
+import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel } from "./whatsapp-channels.service";
 import { saveInboundMessage } from "./whatsapp-conversations.service";
 import { publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isGroupJid } from "./baileys/jid";
@@ -110,7 +110,7 @@ export async function handleMessagesUpdate(data: unknown) {
 // ── connection.update ──────────────────────────────────────────────────────────
 
 export async function handleConnectionUpdate(instanceName: string, data: unknown) {
-  const update = data as { state?: string };
+  const update = data as { state?: string; phone?: string };
   const state = update.state ?? "disconnected";
 
   const stateMap: Record<string, string> = {
@@ -125,6 +125,12 @@ export async function handleConnectionUpdate(instanceName: string, data: unknown
   if (!channel) return;
 
   await updateConnectionStatus(channel.id, connectionStatus);
+
+  // Ao conectar via QR, salva o número real do WhatsApp no displayPhone (somente
+  // se ainda não estiver preenchido — preserva valor definido manualmente).
+  if (connectionStatus === "connected" && update.phone && !channel.displayPhone) {
+    await updateChannel(channel.id, { displayPhone: `+${update.phone}` }).catch(() => {});
+  }
 
   // Notifica o vendedor dono do canal via SSE
   if (channel.userId) {

@@ -116,6 +116,9 @@ interface WaMessage {
   campaignMessageId: string | null;
   sentAt: string | null;
   createdAt: string;
+  channelId: number | null;
+  channelName: string | null;
+  channelProvider: string | null;
   media: WaMedia | null;
   reactions?: { emoji: string; direction: "inbound" | "outbound" }[];
 }
@@ -1533,15 +1536,17 @@ function ConversationMessages({
                   const isRetrying = retryingIds.has(msg.id);
                   const isMedia = msg.type === "image" || msg.type === "video" || msg.type === "sticker";
                   const time = format(new Date(msg.sentAt ?? msg.createdAt), "HH:mm");
-                  const channelLabel = (client.channelName ?? client.channelDisplayPhone ?? "")
-                    .split(" ")[0].slice(0, 5).toUpperCase();
+                  // Canal por mensagem (não mais por conversa) — deixa claro
+                  // por qual número cada resposta saiu numa conversa unificada.
+                  const channelName = msg.channelName ?? "";
+                  const prevMsg = msgIndex > 0 ? msgs[msgIndex - 1] : null;
                   const showChannelBadge =
                     isOutbound &&
                     !isFailed &&
                     msg.type !== "system" &&
                     msg.type !== "note" &&
-                    channelLabel.length > 0 &&
-                    (msgIndex === 0 || msgs[msgIndex - 1].direction !== "outbound");
+                    channelName.length > 0 &&
+                    (!prevMsg || prevMsg.direction !== "outbound" || prevMsg.channelId !== msg.channelId);
 
                   // Mensagens de sistema (ex: bot iniciado) — banner centralizado
                   if (msg.type === "system") {
@@ -1588,11 +1593,11 @@ function ConversationMessages({
                       {showChannelBadge && (
                         <div className="shrink-0 flex flex-col items-center gap-1 self-end">
                           <div
-                            title={`Canal: ${client.channelName ?? client.channelDisplayPhone}`}
+                            title={`Canal: ${channelName}`}
                             className="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center shadow-sm"
                           >
                             <span className="text-[11px] font-bold text-white uppercase leading-none text-center">
-                              {(client.channelName ?? client.channelDisplayPhone ?? "")
+                              {channelName
                                 .split(" ")
                                 .slice(0, 2)
                                 .map((w) => w[0])
@@ -1601,7 +1606,7 @@ function ConversationMessages({
                             </span>
                           </div>
                           <span className="text-[9px] font-semibold text-green-600 dark:text-green-500 text-center leading-tight w-14 break-words">
-                            {client.channelName ?? client.channelDisplayPhone}
+                            {channelName}
                           </span>
                         </div>
                       )}

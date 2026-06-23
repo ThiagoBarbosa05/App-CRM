@@ -18,7 +18,7 @@ import { sendTextMessage, uploadMedia, sendMediaMessage, sendReaction, downloadM
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
 import { uploadWhatsappMedia } from "../lib/r2";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelByUserId, resolveChannelForConversation } from "./whatsapp-channels.service";
+import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 
@@ -37,16 +37,13 @@ export async function findOrCreateConversation(phone: string, channelId?: number
     sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
   );
 
-  // When a channelId is provided, scope the lookup to that specific channel so
-  // the same client number can have separate conversations per vendor.
-  const whereClause = channelId != null
-    ? and(phoneCondition, eq(whatsappConversations.channelId, channelId))
-    : phoneCondition;
-
+  // Conversa é UMA por cliente/telefone, independente do canal. O channelId
+  // recebido representa apenas o "último canal usado" (gravado abaixo).
   const [existing] = await db
     .select()
     .from(whatsappConversations)
-    .where(whereClause)
+    .where(phoneCondition)
+    .orderBy(asc(whatsappConversations.createdAt))
     .limit(1);
 
   if (existing) return existing;
@@ -69,6 +66,26 @@ export async function findOrCreateConversation(phone: string, channelId?: number
     .returning();
 
   return created;
+}
+
+// Resolve o canal de envio de uma conversa. Se channelId for fornecido (override
+// manual de admin), usa esse canal e o grava como último canal da conversa.
+// Caso contrário, usa o último canal por onde o cliente escreveu (conversa).
+async function resolveOutboundChannel(
+  conversationId: string,
+  channelId?: number,
+): Promise<ResolvedChannel | null> {
+  if (channelId != null) {
+    const ch = await resolveChannelById(channelId).catch(() => null);
+    if (ch) {
+      await db
+        .update(whatsappConversations)
+        .set({ channelId })
+        .where(eq(whatsappConversations.id, conversationId));
+      return ch;
+    }
+  }
+  return resolveChannelForConversation(conversationId).catch(() => null);
 }
 
 export async function resolveConversationIdByClientId(clientId: string) {
@@ -252,8 +269,10 @@ export async function listClientsForChat(
 
   const conditions: ReturnType<typeof eq>[] = [];
 
+  // Conversa é unificada por cliente; o vendedor vê as conversas dos clientes
+  // sob sua responsabilidade (não mais por dono do canal).
   if (userRole === "vendedor" && userId) {
-    conditions.push(eq(whatsappChannels.userId, userId));
+    conditions.push(eq(clients.responsavelId, userId));
   }
 
   if (search) {
@@ -330,7 +349,7 @@ export async function getConversation(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    whereConditions.push(eq(whatsappChannels.userId, userId));
+    whereConditions.push(eq(clients.responsavelId, userId));
   }
 
   const [conv] = await db
@@ -341,7 +360,6 @@ export async function getConversation(
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
-    .leftJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
     .where(and(...whereConditions))
     .limit(1);
 
@@ -367,6 +385,9 @@ export async function getConversation(
       replyToContent: replyMsg.content,
       replyToType: replyMsg.type,
       replyToDirection: replyMsg.direction,
+      channelId: whatsappMessages.channelId,
+      channelName: whatsappChannels.name,
+      channelProvider: whatsappChannels.provider,
       media: {
         id: whatsappMedia.id,
         whatsappMediaId: whatsappMedia.whatsappMediaId,
@@ -379,6 +400,7 @@ export async function getConversation(
     .from(whatsappMessages)
     .leftJoin(whatsappMedia, eq(whatsappMessages.id, whatsappMedia.messageId))
     .leftJoin(replyMsg, eq(whatsappMessages.replyToMessageId, replyMsg.id))
+    .leftJoin(whatsappChannels, eq(whatsappMessages.channelId, whatsappChannels.id))
     .where(eq(whatsappMessages.conversationId, conversationId))
     .orderBy(
       desc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`),
@@ -459,11 +481,16 @@ export async function sendConversationMessage(
     replyToWaMessageId = ref?.waMessageId ?? null;
   }
 
+  // Resolve o canal de envio: override explícito (admin) tem prioridade; senão
+  // usa o último canal da conversa (por onde o cliente escreveu por último).
+  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId);
+
   // Persiste a mensagem imediatamente como "failed" — atualiza para "sent" se a API responder ok
   const [savedMessage] = await db
     .insert(whatsappMessages)
     .values({
       conversationId,
+      channelId: resolvedChannel?.id ?? null,
       direction: "outbound",
       type: "text",
       content: message,
@@ -478,23 +505,6 @@ export async function sendConversationMessage(
     .update(whatsappConversations)
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
-
-  let resolvedChannel: ResolvedChannel | null = null;
-  if (userRole === "vendedor") {
-    resolvedChannel = await resolveChannelByUserId(userId).catch(() => null)
-      ?? await resolveChannelForConversation(conversationId).catch(() => null);
-  } else if (channelId != null) {
-    const ch = await resolveChannelById(channelId).catch(() => null);
-    if (ch) {
-      resolvedChannel = ch;
-      await db
-        .update(whatsappConversations)
-        .set({ channelId })
-        .where(eq(whatsappConversations.id, conversationId));
-    }
-  } else {
-    resolvedChannel = await resolveChannelForConversation(conversationId).catch(() => null);
-  }
 
   try {
     let waMessageId: string | null = null;
@@ -612,22 +622,7 @@ export async function sendConversationMedia(
     replyToWaMessageId = ref?.waMessageId ?? null;
   }
 
-  let resolvedChannel: ResolvedChannel | null = null;
-  if (userRole === "vendedor") {
-    resolvedChannel = await resolveChannelByUserId(userId).catch(() => null)
-      ?? await resolveChannelForConversation(conversationId).catch(() => null);
-  } else if (channelId != null) {
-    const ch = await resolveChannelById(channelId).catch(() => null);
-    if (ch) {
-      resolvedChannel = ch;
-      await db
-        .update(whatsappConversations)
-        .set({ channelId })
-        .where(eq(whatsappConversations.id, conversationId));
-    }
-  } else {
-    resolvedChannel = await resolveChannelForConversation(conversationId).catch(() => null);
-  }
+  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId);
 
   console.log(`[sendConversationMedia] provider=${resolvedChannel?.provider ?? "null"}`);
 
@@ -676,6 +671,7 @@ export async function sendConversationMedia(
     .insert(whatsappMessages)
     .values({
       conversationId,
+      channelId: resolvedChannel?.id ?? null,
       direction: "outbound",
       type: mediaType,
       content: null,
@@ -878,6 +874,7 @@ export async function saveInboundMessage(data: {
       .insert(whatsappMessages)
       .values({
         conversationId: conv.id,
+        channelId: data.channelId ?? null,
         direction,
         type: data.type,
         content: data.content,
@@ -920,9 +917,15 @@ export async function saveInboundMessage(data: {
     }
   }
 
+  // Atualiza o "último canal usado" da conversa para refletir por onde o cliente
+  // escreveu por último — usado como canal padrão de resposta.
   await db
     .update(whatsappConversations)
-    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .set({
+      lastMessageAt: new Date(),
+      updatedAt: new Date(),
+      ...(data.channelId != null ? { channelId: data.channelId } : {}),
+    })
     .where(eq(whatsappConversations.id, conv.id));
 
   console.log(
