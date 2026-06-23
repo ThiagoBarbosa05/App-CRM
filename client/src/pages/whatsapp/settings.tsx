@@ -764,11 +764,26 @@ function ChannelItem({
   onVerify: () => void;
 }) {
   const [showStatus, setShowStatus] = useState(false);
+  const [evoStatus, setEvoStatus] = useState<string>(ch.connectionStatus ?? "disconnected");
   const { data: metaStatus, isFetching, error: statusError } = useChannelStatus(showStatus ? ch.id : null);
 
   const handleRefresh = () => {
     setShowStatus(true);
   };
+
+  // Cor da barra lateral por status de conexão (canais Evolution) ou por ativo/inativo
+  const stripColor = (() => {
+    if (!ch.isActive) return "bg-slate-300 dark:bg-slate-600";
+    if (ch.provider === "evolution") {
+      switch (evoStatus) {
+        case "connected": return "bg-green-400 dark:bg-green-500";
+        case "connecting": return "bg-amber-400 dark:bg-amber-500";
+        case "qr": return "bg-blue-400 dark:bg-blue-500";
+        default: return "bg-red-400 dark:bg-red-500"; // disconnected
+      }
+    }
+    return "bg-green-400 dark:bg-green-500";
+  })();
 
   return (
     <div className={cn(
@@ -779,7 +794,7 @@ function ChannelItem({
         {/* Status indicator strip */}
         <div className={cn(
           "mt-1 h-8 w-1 rounded-full shrink-0 self-center transition-colors",
-          ch.isActive ? "bg-green-400 dark:bg-green-500" : "bg-slate-300 dark:bg-slate-600"
+          stripColor
         )} />
 
         <div className="flex-1 min-w-0">
@@ -816,7 +831,7 @@ function ChannelItem({
           {/* Row 3: Evolution QR / Meta status */}
           {ch.provider === "evolution" ? (
             <div className="mt-2">
-              <EvolutionChannelConnect channel={ch} />
+              <EvolutionChannelConnect channel={ch} onStatusChange={setEvoStatus} />
             </div>
           ) : (
             showStatus && (

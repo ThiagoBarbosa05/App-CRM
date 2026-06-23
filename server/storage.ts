@@ -154,6 +154,7 @@ export interface ClientFilters {
   categoria?: string;
   origem?: string;
   markers?: string;
+  tagIds?: string[];
   purchaseStatus?: string;
   purchaseStatusDays?: number;
   wineGrape?: string;

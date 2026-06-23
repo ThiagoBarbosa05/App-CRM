@@ -165,6 +165,14 @@ export class ClientsService {
     if (rawFilters.isEventParticipant === "true" || rawFilters.isEventParticipant === true) {
       filters.isEventParticipant = true;
     }
+    if (rawFilters.tagIds) {
+      const ids = Array.isArray(rawFilters.tagIds)
+        ? (rawFilters.tagIds as string[]).filter((id) => typeof id === "string" && id.length > 0)
+        : typeof rawFilters.tagIds === "string"
+          ? rawFilters.tagIds.split(",").map((s: string) => s.trim()).filter(Boolean)
+          : [];
+      if (ids.length > 0) filters.tagIds = ids;
+    }
 
     return filters;
   }
@@ -1001,6 +1009,7 @@ export class ClientsService {
       categoria: req.query.categoria,
       origem: req.query.origem,
       markers: req.query.markers,
+      tagIds: req.query.tagIds,
       purchaseStatus: req.query.purchaseStatus,
       purchaseStatusDays: req.query.purchaseStatusDays,
       wineGrape: req.query.wineGrape,

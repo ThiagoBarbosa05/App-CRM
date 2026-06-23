@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface Props {
   channel: WhatsappChannel;
+  onStatusChange?: (status: string) => void;
 }
 
 type ConnectionStatus = "disconnected" | "connecting" | "qr" | "connected" | string;
@@ -26,12 +27,17 @@ const STATUS_COLOR: Record<string, string> = {
   disconnected: "bg-muted text-muted-foreground border-border",
 };
 
-export function EvolutionChannelConnect({ channel }: Props) {
+export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>(channel.connectionStatus ?? "disconnected");
   const connect = useEvolutionConnect();
   const logout = useEvolutionLogout();
   const queryClient = useQueryClient();
+
+  // Propaga o status ao vivo para o componente pai (barra de cor do canal)
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [status, onStatusChange]);
 
   const handleConnect = useCallback(async () => {
     setStatus("connecting");

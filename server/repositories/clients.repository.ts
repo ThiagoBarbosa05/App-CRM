@@ -13,6 +13,7 @@ import {
   clientTags,
   externalTags,
   contactTags,
+  tags,
   sales,
   clientDebts,
   messageJobsLogs,
@@ -92,6 +93,19 @@ export class ClientsRepository {
           or(...markerList.map((m) => sql`${m} = ANY(${clients.markers})`)),
         );
       }
+    }
+
+    if (filters.tagIds && filters.tagIds.length > 0) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM contact_tags ct
+          WHERE ct.client_id = ${clients.id}
+            AND ct.tag_id = ANY(ARRAY[${sql.join(
+              filters.tagIds.map((id) => sql`${id}`),
+              sql`, `,
+            )}]::text[])
+        )`,
+      );
     }
 
     if (filters.search) {
@@ -279,10 +293,32 @@ export class ClientsRepository {
       });
     }
 
+    // Buscar tags internas (contactTags → tags)
+    const crmTagsData = await this.db
+      .select({
+        clientId: contactTags.clientId,
+        id: tags.id,
+        name: tags.name,
+        color: tags.color,
+        type: tags.type,
+      })
+      .from(contactTags)
+      .innerJoin(tags, eq(contactTags.tagId, tags.id))
+      .where(inArray(contactTags.clientId, clientIds));
+
+    const crmTagsByClient = new Map<string, { id: string; name: string; color: string | null; type: string }[]>();
+    for (const row of crmTagsData) {
+      if (!row.clientId) continue;
+      const list = crmTagsByClient.get(row.clientId) ?? [];
+      list.push({ id: row.id, name: row.name, color: row.color, type: row.type });
+      crmTagsByClient.set(row.clientId, list);
+    }
+
     // Combinar clientes com suas tags
     return clientsList.map((client) => ({
       ...client,
       tags: tagsByClient.get(client.id) || [],
+      crmTags: crmTagsByClient.get(client.id) || [],
     }));
   }
 

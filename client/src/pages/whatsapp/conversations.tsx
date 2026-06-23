@@ -67,6 +67,13 @@ interface Channel {
   displayPhone: string | null;
 }
 
+interface ChatClientTag {
+  id: string;
+  name: string;
+  color: string | null;
+  type: string;
+}
+
 interface ChatClient {
   conversationId: string;
   clientId: string | null;
@@ -80,6 +87,7 @@ interface ChatClient {
   channelId?: number | null;
   channelName?: string | null;
   channelDisplayPhone?: string | null;
+  tags?: ChatClientTag[];
 }
 
 interface WaMedia {
@@ -278,6 +286,24 @@ function ClientListItem({
             </p>
           )}
         </div>
+
+        {client.tags && client.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {client.tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 truncate max-w-[80px]"
+              >
+                {tag.name}
+              </span>
+            ))}
+            {client.tags.length > 3 && (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                +{client.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </button>
   );
@@ -1369,6 +1395,18 @@ function ConversationMessages({
               {client.phone}
             </p>
           )}
+          {client.tags && client.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {client.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {(userRole === "admin" || userRole === "gerente") && channels.length > 0 && (
@@ -2053,6 +2091,13 @@ function ConversationMessages({
   );
 }
 
+interface CrmTag {
+  id: string;
+  name: string;
+  color: string | null;
+  type: string;
+}
+
 function NewConversationDialog({
   open,
   onOpenChange,
@@ -2063,24 +2108,47 @@ function NewConversationDialog({
   onSelect: (clientId: string) => void;
 }) {
   const [search, setSearch] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const debouncedSearch = useDebounce(search, 300);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const { data: availableTags = [] } = useQuery<CrmTag[]>({
+    queryKey: ["/api/tags", "wa-new-conv"],
+    queryFn: async () => {
+      const res = await fetch("/api/tags");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open,
+  });
+
   const { data, isLoading } = useQuery({
-    queryKey: ["/api/clients", "wa-new-conv", debouncedSearch],
+    queryKey: ["/api/clients", "wa-new-conv", debouncedSearch, selectedTagIds],
     queryFn: async () => {
       const params = new URLSearchParams({ pageSize: "20" });
       if (debouncedSearch) params.set("search", debouncedSearch);
+      for (const id of selectedTagIds) params.append("tagIds", id);
       const res = await fetch(`/api/clients?${params}`);
       if (!res.ok) return [];
       const json = await res.json();
-      return (json?.data ?? json) as Array<{ id: string; name: string; phone: string | null }>;
+      return (json?.data ?? json) as Array<{
+        id: string;
+        name: string;
+        phone: string | null;
+        crmTags?: CrmTag[];
+      }>;
     },
     enabled: open,
   });
 
   const clientResults = Array.isArray(data) ? data : [];
+
+  const toggleTag = (tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+    );
+  };
 
   const startMutation = useMutation({
     mutationFn: async (clientId: string) => {
@@ -2123,6 +2191,29 @@ function NewConversationDialog({
           />
         </div>
 
+        {availableTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {availableTags.map((tag) => {
+              const active = selectedTagIds.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  className={cn(
+                    "inline-flex items-center text-[11px] px-2 py-0.5 rounded-full border transition-colors",
+                    active
+                      ? "bg-blue-600 border-blue-600 text-white"
+                      : "bg-transparent border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400",
+                  )}
+                >
+                  {tag.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
           {isLoading ? (
             <div className="p-4 space-y-3">
@@ -2139,7 +2230,9 @@ function NewConversationDialog({
           ) : clientResults.length === 0 ? (
             <div className="p-6 text-center">
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                {debouncedSearch ? "Nenhum cliente encontrado" : "Digite para buscar um cliente"}
+                {debouncedSearch || selectedTagIds.length > 0
+                  ? "Nenhum cliente encontrado"
+                  : "Digite para buscar ou filtre por tag"}
               </p>
             </div>
           ) : (
@@ -2162,6 +2255,18 @@ function NewConversationDialog({
                       <Phone className="h-3 w-3 shrink-0" />
                       {c.phone}
                     </p>
+                  )}
+                  {c.crmTags && c.crmTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {c.crmTags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
                 {startMutation.isPending && startMutation.variables === c.id && (

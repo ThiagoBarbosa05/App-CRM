@@ -9,6 +9,8 @@ import {
   whatsappReactions,
   waSavedStickers,
   waQuickReplies,
+  contactTags,
+  tags,
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -263,7 +265,7 @@ export async function listClientsForChat(
     );
   }
 
-  return db
+  const rows = await db
     .with(readsSub, unreadSub, lastMsgSub)
     .select({
       conversationId: whatsappConversations.id,
@@ -287,6 +289,36 @@ export async function listClientsForChat(
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(sql`${lastMsgSub.lastAt} DESC NULLS LAST`)
     .limit(100);
+
+  const clientIds = rows.map((r) => r.clientId).filter((id): id is string => !!id);
+
+  const tagsByClient = new Map<string, { id: string; name: string; color: string | null; type: string }[]>();
+
+  if (clientIds.length > 0) {
+    const tagsData = await db
+      .select({
+        clientId: contactTags.clientId,
+        id: tags.id,
+        name: tags.name,
+        color: tags.color,
+        type: tags.type,
+      })
+      .from(contactTags)
+      .innerJoin(tags, eq(contactTags.tagId, tags.id))
+      .where(inArray(contactTags.clientId, clientIds));
+
+    for (const row of tagsData) {
+      if (!row.clientId) continue;
+      const list = tagsByClient.get(row.clientId) ?? [];
+      list.push({ id: row.id, name: row.name, color: row.color, type: row.type });
+      tagsByClient.set(row.clientId, list);
+    }
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
+  }));
 }
 
 export async function getConversation(
