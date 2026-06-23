@@ -161,6 +161,7 @@ export async function canAccessObject({
   }
 
   // The owner of the object can always access it.
+  //rrrr
   if (aclPolicy.owner === userId) {
     return true;
   }
