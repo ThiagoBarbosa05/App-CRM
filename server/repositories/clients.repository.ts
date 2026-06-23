@@ -10,9 +10,8 @@ import {
   deals,
   userServiceChannel,
   serviceChannels,
-  clientTags,
-  externalTags,
   contactTags,
+  whatsappTags,
   tags,
   sales,
   clientDebts,
@@ -25,13 +24,15 @@ import {
 import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "server/db";
 import { ClientFilters } from "server/storage";
-import { ensureClientInDesvendandoVinhoFunnel } from "../services/desvendando-vinho-funnel.service";
+import type { ContactTag as UmblerTag } from "../integrations/umbler";
 
 // Tipo para tags otimizado
 export interface ClientTag {
   id: string;
-  externalId: string | null;
-  name: string | null;
+  umblerTagId: string;
+  name: string;
+  color: string | null;
+  emoji: string | null;
 }
 
 export class ClientsRepository {
@@ -266,30 +267,34 @@ export class ClientsRepository {
 
     const clientIds = clientsList.map((c) => c.id);
 
-    // Buscar todas as tags dos clientes em uma única query
+    // Buscar todas as tags do WhatsApp (Umbler) dos clientes em uma única query
     const tagsData = await this.db
       .select({
-        clientId: clientTags.clientId,
-        tagId: externalTags.id,
-        externalId: externalTags.externalId,
-        name: externalTags.externalTagName,
+        clientId: contactTags.clientId,
+        id: whatsappTags.id,
+        umblerTagId: whatsappTags.umblerTagId,
+        name: whatsappTags.name,
+        color: whatsappTags.color,
+        emoji: whatsappTags.emoji,
       })
-      .from(clientTags)
-      .innerJoin(externalTags, eq(clientTags.externalTagId, externalTags.id))
-      .where(inArray(clientTags.clientId, clientIds));
+      .from(contactTags)
+      .innerJoin(whatsappTags, eq(contactTags.whatsappTagId, whatsappTags.id))
+      .where(inArray(contactTags.clientId, clientIds));
 
     // Agrupar tags por cliente usando Map para lookup O(1)
     const tagsByClient = new Map<string, ClientTag[]>();
 
     for (const tagData of tagsData) {
-      const clientId = tagData.clientId!;
+      const clientId = tagData.clientId;
       if (!tagsByClient.has(clientId)) {
         tagsByClient.set(clientId, []);
       }
       tagsByClient.get(clientId)!.push({
-        id: tagData.tagId,
-        externalId: tagData.externalId,
+        id: tagData.id,
+        umblerTagId: tagData.umblerTagId,
         name: tagData.name,
+        color: tagData.color,
+        emoji: tagData.emoji,
       });
     }
 
@@ -625,124 +630,25 @@ export class ClientsRepository {
   }
 
   /**
-   * Associa tags externas ao cliente
+   * Busca as tags do WhatsApp (Umbler) associadas a um cliente.
    * @param clientId - ID do cliente
-   * @param tagsData - Array de tags com id e name do Umbler
-   */
-  async syncClientTags(
-    clientId: string,
-    tagsData: Array<{ id: string; name: string }>
-  ): Promise<void> {
-    try {
-      console.log(
-        `[syncClientTags] Iniciando sincronização para cliente ${clientId}`
-      );
-      console.log(`[syncClientTags] Tags a serem sincronizadas:`, tagsData);
-
-      // Primeiro, remove todas as tags antigas do cliente
-      await this.db.delete(clientTags).where(eq(clientTags.clientId, clientId));
-      console.log(`[syncClientTags] Tags antigas removidas`);
-
-      // Se não há tags para adicionar, retorna
-      if (!tagsData || tagsData.length === 0) {
-        console.log(`[syncClientTags] Nenhuma tag para adicionar`);
-        return;
-      }
-
-      // Para cada tag, verificar se já existe na tabela externalTags
-      // Se não existir, criar um registro
-      for (const tagData of tagsData) {
-        console.log(
-          `[syncClientTags] Processando tag externa: ${tagData.id} - ${tagData.name}`
-        );
-
-        // Buscar se já existe
-        const [existingTag] = await this.db
-          .select()
-          .from(externalTags)
-          .where(eq(externalTags.externalId, tagData.id))
-          .limit(1);
-
-        let tagId: string;
-
-        if (existingTag) {
-          tagId = existingTag.id;
-          console.log(
-            `[syncClientTags] Tag externa encontrada com ID: ${tagId}`
-          );
-
-          // Atualiza o nome da tag caso tenha mudado
-          if (existingTag.externalTagName !== tagData.name) {
-            await this.db
-              .update(externalTags)
-              .set({ externalTagName: tagData.name })
-              .where(eq(externalTags.id, tagId));
-            console.log(
-              `[syncClientTags] Nome da tag atualizado: ${tagData.name}`
-            );
-          }
-        } else {
-          // Criar novo registro na tabela externalTags com o nome
-          const [newTag] = await this.db
-            .insert(externalTags)
-            .values({
-              externalId: tagData.id,
-              externalTagName: tagData.name,
-            })
-            .returning();
-
-          tagId = newTag.id;
-          console.log(
-            `[syncClientTags] Nova tag externa criada com ID: ${tagId} - Nome: ${tagData.name}`
-          );
-        }
-
-        // Criar associação na tabela clientTags
-        await this.db.insert(clientTags).values({
-          clientId: clientId,
-          externalTagId: tagId,
-        });
-        console.log(
-          `[syncClientTags] Associação criada: cliente ${clientId} <-> tag ${tagId}`
-        );
-      }
-
-      console.log(
-        `[syncClientTags] ✅ Tags sincronizadas com sucesso para o cliente ${clientId}: ${tagsData
-          .map((t) => t.name)
-          .join(", ")}`
-      );
-
-      void ensureClientInDesvendandoVinhoFunnel(clientId).catch((err) =>
-        console.error("[DesvendandoVinhoFunnel] Erro ao incluir cliente por tag externa:", err),
-      );
-    } catch (error) {
-      console.error(
-        "[syncClientTags] ❌ Erro ao sincronizar tags do cliente:",
-        error
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Busca as tags externas associadas a um cliente
-   * @param clientId - ID do cliente
-   * @returns Array de tags com id, externalId e name
+   * @returns Array de tags com id, umblerTagId, name, color e emoji
    */
   async getClientTags(clientId: string): Promise<ClientTag[]> {
     try {
-      const tags = await this.db
+      const rows = await this.db
         .select({
-          id: externalTags.id,
-          externalId: externalTags.externalId,
-          name: externalTags.externalTagName,
+          id: whatsappTags.id,
+          umblerTagId: whatsappTags.umblerTagId,
+          name: whatsappTags.name,
+          color: whatsappTags.color,
+          emoji: whatsappTags.emoji,
         })
-        .from(clientTags)
-        .innerJoin(externalTags, eq(clientTags.externalTagId, externalTags.id))
-        .where(eq(clientTags.clientId, clientId));
+        .from(contactTags)
+        .innerJoin(whatsappTags, eq(contactTags.whatsappTagId, whatsappTags.id))
+        .where(eq(contactTags.clientId, clientId));
 
-      return tags;
+      return rows;
     } catch (error) {
       console.error("Erro ao buscar tags do cliente:", error);
       return [];
@@ -756,34 +662,79 @@ export class ClientsRepository {
       .where(sql`${clients.phone} IS NOT NULL OR ${clients.fixedPhone} IS NOT NULL`);
   }
 
-  async addExternalTagToClient(clientId: string, tag: { id: string; name: string }): Promise<void> {
-    let tagId: string;
+  /**
+   * Faz upsert em lote das tags do Umbler na tabela whatsapp_tags (etapa 1 da importação).
+   * Mantém todos os dados da tag (cor, emoji, descrição, ordem, etc.).
+   * @param tags - tags vindas do endpoint getTags() do Umbler
+   * @returns quantidade de tags processadas
+   */
+  async upsertWhatsappTagsFromUmbler(tags: UmblerTag[]): Promise<number> {
+    const valid = tags.filter((t) => t.id && t.name);
+    if (valid.length === 0) return 0;
 
-    const [existing] = await this.db
-      .select()
-      .from(externalTags)
-      .where(eq(externalTags.externalId, tag.id))
+    await this.db
+      .insert(whatsappTags)
+      .values(
+        valid.map((t) => ({
+          umblerTagId: t.id,
+          name: t.name,
+          emoji: t.emoji ?? null,
+          color: t.color ?? null,
+          description: t.description ?? null,
+          order: t.order ?? null,
+          groupIds: t.groupIds ?? [],
+          umblerCreatedAt: t.createdAtUTC ? new Date(t.createdAtUTC) : null,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: whatsappTags.umblerTagId,
+        set: {
+          name: sql`excluded.name`,
+          emoji: sql`excluded.emoji`,
+          color: sql`excluded.color`,
+          description: sql`excluded.description`,
+          order: sql`excluded."order"`,
+          groupIds: sql`excluded.group_ids`,
+          umblerCreatedAt: sql`excluded.umbler_created_at`,
+          updatedAt: sql`now()`,
+        },
+      });
+
+    return valid.length;
+  }
+
+  /**
+   * Vincula uma tag do Umbler a um cliente via tabela pivô contact_tags (etapa 2 da importação).
+   * Faz upsert mínimo da whatsapp_tag caso ainda não exista.
+   * @param clientId - ID do cliente
+   * @param umblerTagId - ID da tag no Umbler
+   * @param name - nome da tag (fallback caso a tag ainda não exista localmente)
+   */
+  async linkWhatsappTagToClient(
+    clientId: string,
+    umblerTagId: string,
+    name: string,
+  ): Promise<void> {
+    let [tag] = await this.db
+      .select({ id: whatsappTags.id })
+      .from(whatsappTags)
+      .where(eq(whatsappTags.umblerTagId, umblerTagId))
       .limit(1);
 
-    if (existing) {
-      tagId = existing.id;
-      if (existing.externalTagName !== tag.name) {
-        await this.db
-          .update(externalTags)
-          .set({ externalTagName: tag.name })
-          .where(eq(externalTags.id, tagId));
-      }
-    } else {
-      const [created] = await this.db
-        .insert(externalTags)
-        .values({ externalId: tag.id, externalTagName: tag.name })
-        .returning();
-      tagId = created.id;
+    if (!tag) {
+      [tag] = await this.db
+        .insert(whatsappTags)
+        .values({ umblerTagId, name })
+        .onConflictDoUpdate({
+          target: whatsappTags.umblerTagId,
+          set: { name, updatedAt: sql`now()` },
+        })
+        .returning({ id: whatsappTags.id });
     }
 
     await this.db
       .insert(contactTags)
-      .values({ clientId, externalTagId: tagId })
+      .values({ clientId, whatsappTagId: tag.id })
       .onConflictDoNothing();
   }
 }

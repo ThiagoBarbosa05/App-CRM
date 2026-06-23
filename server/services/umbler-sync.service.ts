@@ -364,8 +364,14 @@ export class UmblerSyncService {
     }));
 
     try {
-      // Usa o repository existente para sincronizar tags
-      await this.clientsRepository.syncClientTags(client.id, tagsData);
+      // Vincula cada tag do Umbler ao cliente via tabela pivô contact_tags
+      for (const tag of tagsData) {
+        await this.clientsRepository.linkWhatsappTagToClient(
+          client.id,
+          tag.id,
+          tag.name,
+        );
+      }
       console.log(`[UmblerSync]   ✅ Tags sincronizadas com sucesso no CRM`);
     } catch (error) {
       const errorMessage =

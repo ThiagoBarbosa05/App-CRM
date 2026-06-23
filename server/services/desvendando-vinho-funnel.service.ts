@@ -1,10 +1,10 @@
 import { eq, and, asc } from "drizzle-orm";
 import { db } from "../db";
 import {
-  clientTags,
+  contactTags,
   clients,
   deals,
-  externalTags,
+  whatsappTags,
   funnelStages,
   salesFunnels,
 } from "@shared/schema";
@@ -61,10 +61,10 @@ export async function ensureClientInDesvendandoVinhoFunnel(clientId: string) {
 
   const markerNames = client.markers ?? [];
   const externalMarkerNames = await db
-    .select({ name: externalTags.externalTagName })
-    .from(clientTags)
-    .innerJoin(externalTags, eq(clientTags.externalTagId, externalTags.id))
-    .where(eq(clientTags.clientId, clientId));
+    .select({ name: whatsappTags.name })
+    .from(contactTags)
+    .innerJoin(whatsappTags, eq(contactTags.whatsappTagId, whatsappTags.id))
+    .where(eq(contactTags.clientId, clientId));
 
   const hasTargetMarker =
     markerNames.some(isDesvendandoVinho) ||

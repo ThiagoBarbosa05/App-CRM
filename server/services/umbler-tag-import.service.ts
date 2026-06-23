@@ -1,4 +1,4 @@
-import { getContactByPhone } from "../integrations/umbler";
+import { getContactByPhone, getTags } from "../integrations/umbler";
 import {
   normalizePhoneToE164,
   isValidE164Phone,
@@ -27,6 +27,7 @@ export interface TagImportStatus {
   notFound: number;
   errors: number;
   tagsAssigned: number;
+  tagsSynced: number; // total de tags da organização sincronizadas (etapa 1)
   startedAt?: string;
   completedAt?: string;
   errorMessage?: string;
@@ -43,6 +44,7 @@ const initialStatus: TagImportStatus = {
   notFound: 0,
   errors: 0,
   tagsAssigned: 0,
+  tagsSynced: 0,
   logs: [],
 };
 
@@ -109,10 +111,21 @@ export function getImportStatus(): TagImportStatus {
 }
 
 async function runImport(): Promise<void> {
+  // ── Etapa 1: baixar todas as tags da organização e popular whatsapp_tags ──
+  console.log("[UmblerTagImport] Etapa 1 — sincronizando tags da organização");
+  const tagsResponse = await getTags();
+  if (tagsResponse && Array.isArray(tagsResponse.items)) {
+    progress.tagsSynced = await repo.upsertWhatsappTagsFromUmbler(tagsResponse.items);
+    console.log(`[UmblerTagImport] ${progress.tagsSynced} tags sincronizadas`);
+  } else {
+    console.warn("[UmblerTagImport] Nenhuma tag retornada pelo Umbler na etapa 1");
+  }
+
+  // ── Etapa 2: vincular tags a cada cliente via contact_tags ──
   const allClients = await repo.getAllClientsWithPhone();
   progress.total = allClients.length;
 
-  console.log(`[UmblerTagImport] Iniciando para ${allClients.length} clientes`);
+  console.log(`[UmblerTagImport] Etapa 2 — iniciando para ${allClients.length} clientes`);
 
   for (const client of allClients) {
     const timestamp = new Date().toISOString();
@@ -145,7 +158,7 @@ async function runImport(): Promise<void> {
       const assignedTags: string[] = [];
       for (const tag of contact.tags as Array<{ id: string; name: string }>) {
         if (!tag.id || !tag.name) continue;
-        await repo.addExternalTagToClient(client.id, { id: tag.id, name: tag.name });
+        await repo.linkWhatsappTagToClient(client.id, tag.id, tag.name);
         assignedTags.push(tag.name);
         progress.tagsAssigned++;
       }

@@ -41,6 +41,7 @@ interface ImportStatus {
   notFound: number;
   errors: number;
   tagsAssigned: number;
+  tagsSynced: number;
   startedAt?: string;
   completedAt?: string;
   errorMessage?: string;
@@ -168,10 +169,17 @@ export function UmblerTagImport() {
         <CardContent className="space-y-4">
           {status && status.status !== "idle" && (
             <>
+              <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs">
+                <span className="font-medium">Etapa 1 — Tags da organização:</span>
+                <span className="font-semibold text-blue-600">
+                  {status.tagsSynced} sincronizadas
+                </span>
+              </div>
+
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>
-                    {status.processed} / {status.total} clientes
+                    Etapa 2 — {status.processed} / {status.total} clientes
                   </span>
                   <span>{percent}%</span>
                 </div>

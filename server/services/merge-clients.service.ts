@@ -12,7 +12,7 @@ import {
   clientInteractions,
   eventParticipants,
   connectOrders,
-  clientTags,
+  contactTags,
 } from "../../shared/schema";
 import { eq, sql, inArray, and } from "drizzle-orm";
 
@@ -100,27 +100,27 @@ export async function mergeClients(keepId: string, mergeId: string) {
     await tx.update(clientInteractions).set({ clientId: keepId }).where(eq(clientInteractions.clientId, mergeId));
     await tx.update(eventParticipants).set({ clientId: keepId }).where(eq(eventParticipants.clientId, mergeId));
 
-    // clientTags: buscar quais tags o cliente mantido já tem, deletar as duplicadas
-    // do removido e transferir as restantes (evita violação da constraint única)
+    // contactTags: buscar quais tags do WhatsApp o cliente mantido já tem, deletar as
+    // duplicadas do removido e transferir as restantes (evita violação da constraint única)
     const keepTagRows = await tx
-      .select({ externalTagId: clientTags.externalTagId })
-      .from(clientTags)
-      .where(eq(clientTags.clientId, keepId));
+      .select({ whatsappTagId: contactTags.whatsappTagId })
+      .from(contactTags)
+      .where(eq(contactTags.clientId, keepId));
     const keepTagIds = keepTagRows
-      .map((r) => r.externalTagId)
+      .map((r) => r.whatsappTagId)
       .filter((id): id is string => !!id);
 
     if (keepTagIds.length > 0) {
       // Deletar do duplicado as tags que o mantido já possui
-      await tx.delete(clientTags).where(
+      await tx.delete(contactTags).where(
         and(
-          eq(clientTags.clientId, mergeId),
-          inArray(clientTags.externalTagId, keepTagIds),
+          eq(contactTags.clientId, mergeId),
+          inArray(contactTags.whatsappTagId, keepTagIds),
         ),
       );
     }
     // Transferir as tags restantes para o cliente mantido
-    await tx.update(clientTags).set({ clientId: keepId }).where(eq(clientTags.clientId, mergeId));
+    await tx.update(contactTags).set({ clientId: keepId }).where(eq(contactTags.clientId, mergeId));
 
     // ── 2. Merge de saldo de cashback (somar se ambos tiverem) ──────────────
     const [mergeBalance] = await tx
