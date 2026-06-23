@@ -495,31 +495,28 @@ export const tags = pgTable("tags", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const externalTags = pgTable("external_tags", {
+// Tags do WhatsApp (Umbler) — armazena todos os dados da tag vinda do Umbler,
+// incluindo o id da tag no Umbler (umblerTagId).
+export const whatsappTags = pgTable("whatsapp_tags", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  externalId: varchar("external_id"),
-  externalTagName: text("external_tag_name"),
+  umblerTagId: varchar("umbler_tag_id").notNull().unique(),
+  name: text("name").notNull(),
+  emoji: text("emoji"),
+  color: text("color"),
+  description: text("description"),
+  order: integer("order"),
+  groupIds: text("group_ids").array().default([]),
+  umblerCreatedAt: timestamp("umbler_created_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const clientTags = pgTable("client_tags", {
-  externalTagId: varchar("external_tag_id"),
-  clientId: varchar("client_id"),
-});
+export type WhatsappTag = typeof whatsappTags.$inferSelect;
+export type InsertWhatsappTag = typeof whatsappTags.$inferInsert;
 
-export const clientTagRelations = relations(clientTags, ({ one }) => ({
-  externalTag: one(externalTags, {
-    fields: [clientTags.externalTagId],
-    references: [externalTags.id],
-  }),
-  client: one(clients, {
-    fields: [clientTags.clientId],
-    references: [clients.id],
-  }),
-}));
-
-// Tabela de tags associadas a clientes — suporta tags internas (tagId) e tags do Umbler (externalTagId)
+// Tabela de tags associadas a clientes — suporta tags internas (tagId) e tags do Umbler (whatsappTagId)
 export const contactTags = pgTable(
   "contact_tags",
   {
@@ -531,17 +528,17 @@ export const contactTags = pgTable(
       .references(() => clients.id, { onDelete: "cascade" }),
     tagId: varchar("tag_id")
       .references(() => tags.id, { onDelete: "cascade" }),
-    externalTagId: varchar("external_tag_id")
-      .references(() => externalTags.id, { onDelete: "cascade" }),
+    whatsappTagId: varchar("whatsapp_tag_id")
+      .references(() => whatsappTags.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => ({
     uniqueClientTag: uniqueIndex("contact_tags_client_tag_unique")
       .on(t.clientId, t.tagId)
       .where(sql`${t.tagId} IS NOT NULL`),
-    uniqueClientExternalTag: uniqueIndex("contact_tags_client_external_tag_unique")
-      .on(t.clientId, t.externalTagId)
-      .where(sql`${t.externalTagId} IS NOT NULL`),
+    uniqueClientWhatsappTag: uniqueIndex("contact_tags_client_whatsapp_tag_unique")
+      .on(t.clientId, t.whatsappTagId)
+      .where(sql`${t.whatsappTagId} IS NOT NULL`),
   }),
 );
 
@@ -554,9 +551,9 @@ export const contactTagsRelations = relations(contactTags, ({ one }) => ({
     fields: [contactTags.tagId],
     references: [tags.id],
   }),
-  externalTag: one(externalTags, {
-    fields: [contactTags.externalTagId],
-    references: [externalTags.id],
+  whatsappTag: one(whatsappTags, {
+    fields: [contactTags.whatsappTagId],
+    references: [whatsappTags.id],
   }),
 }));
 
