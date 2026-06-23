@@ -12,6 +12,7 @@ import {
   serviceChannels,
   clientTags,
   externalTags,
+  contactTags,
   sales,
   clientDebts,
   messageJobsLogs,
@@ -710,5 +711,43 @@ export class ClientsRepository {
       console.error("Erro ao buscar tags do cliente:", error);
       return [];
     }
+  }
+
+  async getAllClientsWithPhone(): Promise<Array<{ id: string; name: string; phone: string | null; fixedPhone: string | null }>> {
+    return this.db
+      .select({ id: clients.id, name: clients.name, phone: clients.phone, fixedPhone: clients.fixedPhone })
+      .from(clients)
+      .where(sql`${clients.phone} IS NOT NULL OR ${clients.fixedPhone} IS NOT NULL`);
+  }
+
+  async addExternalTagToClient(clientId: string, tag: { id: string; name: string }): Promise<void> {
+    let tagId: string;
+
+    const [existing] = await this.db
+      .select()
+      .from(externalTags)
+      .where(eq(externalTags.externalId, tag.id))
+      .limit(1);
+
+    if (existing) {
+      tagId = existing.id;
+      if (existing.externalTagName !== tag.name) {
+        await this.db
+          .update(externalTags)
+          .set({ externalTagName: tag.name })
+          .where(eq(externalTags.id, tagId));
+      }
+    } else {
+      const [created] = await this.db
+        .insert(externalTags)
+        .values({ externalId: tag.id, externalTagName: tag.name })
+        .returning();
+      tagId = created.id;
+    }
+
+    await this.db
+      .insert(contactTags)
+      .values({ clientId, externalTagId: tagId })
+      .onConflictDoNothing();
   }
 }

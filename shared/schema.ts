@@ -519,7 +519,7 @@ export const clientTagRelations = relations(clientTags, ({ one }) => ({
   }),
 }));
 
-// Tabela de tags internas do CRM associadas a clientes (substitui clientTags/externalTags do Umbler)
+// Tabela de tags associadas a clientes — suporta tags internas (tagId) e tags do Umbler (externalTagId)
 export const contactTags = pgTable(
   "contact_tags",
   {
@@ -530,10 +530,19 @@ export const contactTags = pgTable(
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
     tagId: varchar("tag_id")
-      .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
+    externalTagId: varchar("external_tag_id")
+      .references(() => externalTags.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
+  (t) => ({
+    uniqueClientTag: uniqueIndex("contact_tags_client_tag_unique")
+      .on(t.clientId, t.tagId)
+      .where(sql`${t.tagId} IS NOT NULL`),
+    uniqueClientExternalTag: uniqueIndex("contact_tags_client_external_tag_unique")
+      .on(t.clientId, t.externalTagId)
+      .where(sql`${t.externalTagId} IS NOT NULL`),
+  }),
 );
 
 export const contactTagsRelations = relations(contactTags, ({ one }) => ({
@@ -544,6 +553,10 @@ export const contactTagsRelations = relations(contactTags, ({ one }) => ({
   tag: one(tags, {
     fields: [contactTags.tagId],
     references: [tags.id],
+  }),
+  externalTag: one(externalTags, {
+    fields: [contactTags.externalTagId],
+    references: [externalTags.id],
   }),
 }));
 

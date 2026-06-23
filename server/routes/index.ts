@@ -85,6 +85,7 @@ import whatsappConversationsRouter from "./whatsapp-conversations.routes";
 import whatsappChannelsRouter from "./whatsapp-channels.routes";
 import whatsappFlowsRouter from "./whatsapp-flows.routes";
 import whatsappMonitorRouter from "./whatsapp-monitor.routes";
+import { umblerTagImportRouter } from "./umbler-tag-import.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -176,6 +177,7 @@ apiRouter.use("/whatsapp", whatsappConversationsRouter);
 apiRouter.use("/whatsapp", whatsappChannelsRouter);
 apiRouter.use("/whatsapp", whatsappFlowsRouter);
 apiRouter.use("/whatsapp", whatsappMonitorRouter);
+apiRouter.use("/", umblerTagImportRouter);
 apiRouter.use("/campaigns", campaignsRouter);
 apiRouter.use("/tasks", tasksRouter);
 apiRouter.use("/task-stages", taskStagesRouter);

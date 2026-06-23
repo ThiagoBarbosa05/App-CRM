@@ -566,26 +566,24 @@ export async function getChannels() {
 }
 
 export async function getContactByPhone(phone: string) {
-  try {
-    const formattedPhone = formatPhoneToDigits(phone);
-    const response = await fetch(
-      `${apiEndpoint}/contacts/phone?phoneNumber=${formattedPhone}&organizationId=${organizationId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
+  const formattedPhone = formatPhoneToDigits(phone);
+  const response = await fetch(
+    `${apiEndpoint}/contacts/phone?phoneNumber=${formattedPhone}&organizationId=${organizationId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
       },
-    );
-    if (!response.ok) {
-      throw new Error("Failed to fetch contact by phone");
-    }
-    const data = await response.json();
+    },
+  );
 
-    return data;
-  } catch (error) {
-    console.error("Error fetching contact by phone:", error);
-    return null;
+  if (response.status === 404) return null;
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`HTTP ${response.status}: ${body || response.statusText}`);
   }
+
+  return response.json();
 }
 
 /**
@@ -1529,30 +1527,45 @@ export async function getContactConversations(
 }
 
 /**
- * Lista todas as tags cadastradas na organização do Umbler
- * @returns Promise com a resposta contendo as tags ou null em caso de erro
+ * Lista todas as tags cadastradas na organização do Umbler (com paginação automática).
+ * A API retorna no máximo 50 itens por página; a função itera até buscar todas.
+ * @returns Promise com a resposta contendo todas as tags ou null em caso de erro
  */
 export async function getTags(): Promise<GetTagsResponse | null> {
-  try {
-    const response = await fetch(
-      `${apiEndpoint}/tags?organizationId=${organizationId}&Take=100`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-      },
-    );
+  const PAGE_SIZE = 50;
+  const allItems: ContactTag[] = [];
+  let skip = 0;
+  let totalItems = Infinity;
+  let lastPage: TagsPage | undefined;
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error("Failed to fetch tags: " + JSON.stringify(error));
+  try {
+    while (allItems.length < totalItems) {
+      const response = await fetch(
+        `${apiEndpoint}/tags?organizationId=${organizationId}&Skip=${skip}&Take=${PAGE_SIZE}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error("Failed to fetch tags: " + error);
+      }
+
+      const data = (await response.json()) as GetTagsResponse;
+      lastPage = data.page;
+      totalItems = data.page.totalItems;
+      allItems.push(...data.items);
+
+      if (data.items.length < PAGE_SIZE) break;
+      skip += PAGE_SIZE;
     }
 
-    const responseData = await response.json();
-    console.log("Tags fetched successfully");
-
-    return responseData as GetTagsResponse;
+    console.log(`Tags fetched successfully: ${allItems.length} tags`);
+    return lastPage ? { page: { ...lastPage, totalItems: allItems.length }, items: allItems } : null;
   } catch (error) {
     console.error("Error fetching tags:", error);
     return null;

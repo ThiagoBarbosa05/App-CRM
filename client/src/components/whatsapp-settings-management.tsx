@@ -881,13 +881,16 @@ function AutomationsTab() {
 
 // ─── Componente principal ──────────────────────────────────────────────────────
 
+import { UmblerTagImport } from "@/components/umbler-tag-import";
+
 export function WhatsappSettingsManagement() {
   return (
     <Tabs defaultValue="credentials" className="space-y-4">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="credentials">Credenciais</TabsTrigger>
         <TabsTrigger value="templates">Templates</TabsTrigger>
         <TabsTrigger value="automations">Automações</TabsTrigger>
+        <TabsTrigger value="tag-import">Etiquetas</TabsTrigger>
       </TabsList>
 
       <TabsContent value="credentials">
@@ -900,6 +903,10 @@ export function WhatsappSettingsManagement() {
 
       <TabsContent value="automations">
         <AutomationsTab />
+      </TabsContent>
+
+      <TabsContent value="tag-import">
+        <UmblerTagImport />
       </TabsContent>
     </Tabs>
   );
