@@ -395,18 +395,6 @@
   }
 }
 
-/* Touch-friendly interactive elements */
-@media (hover: none) and (pointer: coarse) {
-  button,
-  [role="button"],
-  input,
-  textarea,
-  select {
-    @apply min-h-[44px] min-w-[44px];
-    /* 44px is Apple's recommended touch target size */
-  }
-}
-
 /* Fix for mobile viewport issues */
 @supports (-webkit-touch-callout: none) {
   body {

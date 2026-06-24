@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, isToday, isYesterday } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -214,17 +214,40 @@ function getInitials(name: string | null, phone: string) {
     .toUpperCase();
 }
 
+// Os timestamps são armazenados em UTC. As funções format/isToday do date-fns
+// usam o fuso horário local do runtime, que nem sempre é o de São Paulo (em
+// alguns ambientes o navegador roda em UTC, exibindo +3h). Convertemos o
+// instante para um Date cujos campos locais já refletem o relógio de
+// São Paulo, garantindo a exibição correta independente do fuso do host.
+const SP_TZ = "America/Sao_Paulo";
+
+function toSP(dateStr: string | Date) {
+  return new Date(new Date(dateStr).toLocaleString("en-US", { timeZone: SP_TZ }));
+}
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 function formatMessageDate(dateStr: string) {
-  const d = new Date(dateStr);
-  if (isToday(d)) return format(d, "HH:mm");
-  if (isYesterday(d)) return "Ontem";
+  const d = toSP(dateStr);
+  const today = toSP(new Date());
+  const yesterday = toSP(new Date(Date.now() - 86_400_000));
+  if (isSameDay(d, today)) return format(d, "HH:mm");
+  if (isSameDay(d, yesterday)) return "Ontem";
   return format(d, "dd/MM");
 }
 
 function formatSectionDate(dateStr: string) {
-  const d = new Date(dateStr);
-  if (isToday(d)) return "Hoje";
-  if (isYesterday(d)) return "Ontem";
+  const d = toSP(dateStr);
+  const today = toSP(new Date());
+  const yesterday = toSP(new Date(Date.now() - 86_400_000));
+  if (isSameDay(d, today)) return "Hoje";
+  if (isSameDay(d, yesterday)) return "Ontem";
   return format(d, "d 'de' MMMM", { locale: ptBR });
 }
 
@@ -1452,7 +1475,7 @@ function ConversationMessages({
 
   const grouped: { date: string; msgs: WaMessage[] }[] = [];
   for (const msg of messages) {
-    const day = format(new Date(msg.sentAt ?? msg.createdAt), "yyyy-MM-dd");
+    const day = format(toSP(msg.sentAt ?? msg.createdAt), "yyyy-MM-dd");
     const last = grouped[grouped.length - 1];
     if (last?.date === day) {
       last.msgs.push(msg);
@@ -1701,7 +1724,7 @@ function ConversationMessages({
                   const isFailed = isOutbound && msg.status === "failed";
                   const isRetrying = retryingIds.has(msg.id);
                   const isMedia = msg.type === "image" || msg.type === "video" || msg.type === "sticker";
-                  const time = format(new Date(msg.sentAt ?? msg.createdAt), "HH:mm");
+                  const time = format(toSP(msg.sentAt ?? msg.createdAt), "HH:mm");
                   // Canal por mensagem (não mais por conversa) — deixa claro
                   // por qual número cada resposta saiu numa conversa unificada.
                   const channelName = msg.channelName ?? "";
@@ -1988,7 +2011,7 @@ function ConversationMessages({
                   </p>
                   <div className="flex items-center justify-end gap-1 mt-1">
                     <span className="text-[10px] text-primary-foreground/70">
-                      {format(new Date(lm.createdAt), "HH:mm")}
+                      {format(toSP(lm.createdAt), "HH:mm")}
                     </span>
                     <Loader2 className="h-3 w-3 text-primary-foreground/60 animate-spin" />
                   </div>
