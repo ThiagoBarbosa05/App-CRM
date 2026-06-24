@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { whatsappChannels, whatsappConversations } from "../../shared/schema";
+import { whatsappChannels, whatsappConversations, whatsappMessages } from "../../shared/schema";
 import { and, eq } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
@@ -82,7 +82,18 @@ export async function updateChannel(
 }
 
 export async function deleteChannel(id: number) {
-  await db.delete(whatsappChannels).where(eq(whatsappChannels.id, id));
+  await db.transaction(async (tx) => {
+    // Desvincula mensagens e conversas para preservá-las (channelId é metadado nullable)
+    await tx
+      .update(whatsappMessages)
+      .set({ channelId: null })
+      .where(eq(whatsappMessages.channelId, id));
+    await tx
+      .update(whatsappConversations)
+      .set({ channelId: null })
+      .where(eq(whatsappConversations.channelId, id));
+    await tx.delete(whatsappChannels).where(eq(whatsappChannels.id, id));
+  });
 }
 
 export async function getChannelByUserId(userId: string): Promise<ChannelOverride | null> {
