@@ -16,7 +16,6 @@ import {
   verifyPhoneNumber,
 } from "../integrations/whatsapp";
 import {
-  createInstance,
   connectInstance,
   getInstanceStatus,
   logoutInstance,
@@ -115,10 +114,6 @@ router.post("/channels/evolution", async (req: Request, res: Response) => {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 50);
-
-    const webhookUrl = `${process.env.APP_URL ?? "http://localhost:5000"}/api/evolution/webhook`;
-
-    await createInstance(instanceName, webhookUrl);
 
     const channel = await createChannel({
       name,

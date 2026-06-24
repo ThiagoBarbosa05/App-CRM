@@ -127,8 +127,8 @@ export default function WhatsAppCampaignDetails() {
     (campaign.messages?.filter((m) => m.status === "scheduled").length ?? 0);
 
   return (
-    <div className="overflow-y-auto h-full p-5 lg:p-6">
-    <div className="space-y-6 pb-10">
+    <div className="overflow-y-auto h-full p-3 sm:p-5 lg:p-6">
+    <div className="space-y-4 sm:space-y-6 pb-10">
       <PageHeader>
         <PageHeader.Info>
           <Button
@@ -162,53 +162,59 @@ export default function WhatsAppCampaignDetails() {
           {pendingMessages > 0 && campaign.status === "in_progress" && (
             <Button
               variant="outline"
-              className="gap-2"
+              size="sm"
+              className="gap-1.5"
               disabled={executeMutation.isPending}
               onClick={() => id && executeMutation.mutate(id)}
             >
-              <RotateCcw className={`h-4 w-4 ${executeMutation.isPending ? "animate-spin" : ""}`} />
-              Processar agora ({pendingMessages})
+              <RotateCcw className={`h-3.5 w-3.5 ${executeMutation.isPending ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Processar agora</span>
+              <span>({pendingMessages})</span>
             </Button>
           )}
           {failedCount > 0 && (
             <Button
               variant="outline"
-              className="gap-2"
+              size="sm"
+              className="gap-1.5"
               disabled={retryMutation.isPending}
               onClick={() => id && retryMutation.mutate(id)}
             >
-              <RotateCcw className={`h-4 w-4 ${retryMutation.isPending ? "animate-spin" : ""}`} />
-              Reprocessar falhas ({failedCount})
+              <RotateCcw className={`h-3.5 w-3.5 ${retryMutation.isPending ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Reprocessar</span>
+              <span>({failedCount})</span>
             </Button>
           )}
           {(campaign.status === "in_progress" || campaign.status === "created") && (
             <Button
               variant="outline"
-              className="gap-2"
+              size="sm"
+              className="gap-1.5"
               disabled={pauseMutation.isPending}
               onClick={() => id && pauseMutation.mutate(id)}
             >
-              <Pause className="h-4 w-4" />
-              Pausar
+              <Pause className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Pausar</span>
             </Button>
           )}
           {campaign.status === "paused" && (
             <Button
               variant="outline"
-              className="gap-2"
+              size="sm"
+              className="gap-1.5"
               disabled={resumeMutation.isPending}
               onClick={() => id && resumeMutation.mutate(id)}
             >
-              <Play className="h-4 w-4" />
-              Retomar
+              <Play className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Retomar</span>
             </Button>
           )}
           {["in_progress", "created", "paused"].includes(campaign.status) && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
-                  <Ban className="h-4 w-4" />
-                  Cancelar
+                <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
+                  <Ban className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Cancelar</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -235,7 +241,7 @@ export default function WhatsAppCampaignDetails() {
       </PageHeader>
 
       {/* Stats cards — funil de entrega */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         {[
           {
             label: "Total de contatos",
@@ -303,58 +309,94 @@ export default function WhatsAppCampaignDetails() {
         </CardContent>
       </Card>
 
-      {/* Messages table */}
-      <Card>
+      {/* Messages */}
+      <Card className="overflow-hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Mensagens</CardTitle>
+          <CardTitle className="text-base">
+            Mensagens {(campaign.messages ?? []).length > 0 && `(${campaign.messages.length})`}
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Contato</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Agendado em</TableHead>
-                <TableHead className="hidden md:table-cell">Enviado em</TableHead>
-                <TableHead className="hidden lg:table-cell">Erro</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(campaign.messages ?? []).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Nenhuma mensagem registrada
-                  </TableCell>
-                </TableRow>
-              )}
-              {(campaign.messages ?? []).map((msg) => {
-                const cfg = MSG_STATUS_CONFIG[msg.status];
-                const StatusIcon = cfg.icon;
-                return (
-                  <TableRow key={msg.id}>
-                    <TableCell className="font-medium">{msg.contactName}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{msg.phoneNumber}</TableCell>
-                    <TableCell>
-                      <Badge className={`${cfg.className} border-0 gap-1`}>
-                        <StatusIcon className="h-3 w-3" />
-                        {cfg.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-                      {formatDate(msg.scheduledAt)}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-                      {formatDate(msg.sentAt)}
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-red-500 text-sm max-w-xs truncate">
-                      {msg.errorMessage ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          {(campaign.messages ?? []).length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center px-4">
+              <MessageCircle className="h-10 w-10 text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">Nenhuma mensagem registrada</p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile: cards */}
+              <div className="md:hidden divide-y divide-border border-t border-border">
+                {(campaign.messages ?? []).map((msg) => {
+                  const cfg = MSG_STATUS_CONFIG[msg.status];
+                  const StatusIcon = cfg.icon;
+                  return (
+                    <div key={msg.id} className="p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{msg.contactName}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{msg.phoneNumber}</p>
+                        </div>
+                        <Badge className={`${cfg.className} border-0 gap-1 shrink-0`}>
+                          <StatusIcon className="h-3 w-3" />
+                          {cfg.label}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        {msg.scheduledAt && (
+                          <span>Agendado: {formatDate(msg.scheduledAt)}</span>
+                        )}
+                        {msg.sentAt && (
+                          <span>Enviado: {formatDate(msg.sentAt)}</span>
+                        )}
+                      </div>
+                      {msg.errorMessage && (
+                        <p className="text-xs text-red-500 truncate">{msg.errorMessage}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop: table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="pl-6">Contato</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Agendado em</TableHead>
+                      <TableHead>Enviado em</TableHead>
+                      <TableHead className="hidden lg:table-cell">Erro</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(campaign.messages ?? []).map((msg) => {
+                      const cfg = MSG_STATUS_CONFIG[msg.status];
+                      const StatusIcon = cfg.icon;
+                      return (
+                        <TableRow key={msg.id}>
+                          <TableCell className="font-medium pl-6">{msg.contactName}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{msg.phoneNumber}</TableCell>
+                          <TableCell>
+                            <Badge className={`${cfg.className} border-0 gap-1`}>
+                              <StatusIcon className="h-3 w-3" />
+                              {cfg.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{formatDate(msg.scheduledAt)}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{formatDate(msg.sentAt)}</TableCell>
+                          <TableCell className="hidden lg:table-cell text-red-500 text-sm max-w-xs truncate">
+                            {msg.errorMessage ?? "—"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

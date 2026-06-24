@@ -238,23 +238,23 @@ export function MetaTemplateFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
-        <DialogHeader className="px-6 pt-6 pb-3 border-b">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl sm:w-full max-h-[92vh] sm:max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b shrink-0">
           <DialogTitle>Criar template no Meta</DialogTitle>
         </DialogHeader>
 
-        <div className="grid md:grid-cols-[1fr_320px] flex-1 overflow-hidden">
+        <div className="grid md:grid-cols-[1fr_320px] flex-1 overflow-hidden min-h-0">
           {/* ── Formulário ── */}
           <form
             id="meta-template-form"
             onSubmit={handleSubmit(onSubmit)}
-            className="space-y-6 overflow-y-auto px-6 py-4"
+            className="space-y-6 overflow-y-auto px-4 sm:px-6 py-4"
           >
             {/* ── Básico ── */}
             <div>
               <SectionTitle>Básico</SectionTitle>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5 col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5 col-span-1 sm:col-span-2">
                   <Label>Nome do template</Label>
                   <Input
                     {...register("name")}
@@ -316,7 +316,7 @@ export function MetaTemplateFormDialog({
                 </div>
 
                 {!isAuth && (
-                  <div className="space-y-1.5 col-span-2">
+                  <div className="space-y-1.5 col-span-1 sm:col-span-2">
                     <Label>Formato dos parâmetros</Label>
                     <Controller
                       control={control}
@@ -722,7 +722,7 @@ export function MetaTemplateFormDialog({
         </div>
 
         {/* ── Resumo + ações ── */}
-        <div className="border-t px-6 py-3 space-y-3">
+        <div className="border-t px-4 sm:px-6 py-3 space-y-3 shrink-0">
           {issues.length > 0 && (
             <div
               className={cn(
@@ -751,14 +751,15 @@ export function MetaTemplateFormDialog({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleClose}>
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+            <Button type="button" variant="outline" onClick={handleClose} className="w-full sm:w-auto">
               Cancelar
             </Button>
             <Button
               type="submit"
               form="meta-template-form"
               disabled={submitMutation.isPending || blocking}
+              className="w-full sm:w-auto"
             >
               {submitMutation.isPending
                 ? "Enviando..."

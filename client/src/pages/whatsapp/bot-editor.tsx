@@ -1422,6 +1422,8 @@ export default function BotEditor() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [showSimulator, setShowSimulator] = useState(false);
+  const [showMobilePalette, setShowMobilePalette] = useState(false);
+  const [showMobileProps, setShowMobileProps] = useState(false);
 
   useEffect(() => {
     if (flow && !initialized) {
@@ -1613,34 +1615,46 @@ export default function BotEditor() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-background shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b bg-background shrink-0 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <Button
             variant="ghost"
             size="sm"
+            className="shrink-0 gap-1"
             onClick={() => navigate("/whatsapp/bots")}
           >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Bots
+            <ArrowLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Bots</span>
           </Button>
-          <span className="text-sm font-semibold">{botName}</span>
+          <span className="text-sm font-semibold truncate">{botName}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Mobile: add node button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="sm:hidden gap-1.5"
+            onClick={() => setShowMobilePalette(true)}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={() => setShowSimulator(true)}
           >
-            <PlayCircle className="h-4 w-4 mr-2" />
-            Testar
+            <PlayCircle className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Testar</span>
           </Button>
           <Button
             size="sm"
             onClick={handleSave}
             disabled={saveFlowMutation.isPending}
           >
-            <Save className="h-4 w-4 mr-2" />
-            {saveFlowMutation.isPending ? "Salvando..." : "Salvar"}
+            <Save className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">
+              {saveFlowMutation.isPending ? "Salvando..." : "Salvar"}
+            </span>
           </Button>
         </div>
       </div>
@@ -1652,9 +1666,49 @@ export default function BotEditor() {
         edges={edges}
       />
 
+      {/* Mobile palette dialog */}
+      <Dialog open={showMobilePalette} onOpenChange={setShowMobilePalette}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-xs sm:hidden">
+          <DialogHeader>
+            <DialogTitle>Adicionar nó</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-1">
+            {PALETTE.map(({ type, label, icon: Icon, color }) => (
+              <button
+                key={type}
+                onClick={() => { addNode(type); setShowMobilePalette(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md border text-sm font-medium transition-colors ${color}`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mobile properties dialog */}
+      <Dialog open={showMobileProps && !!selectedNode} onOpenChange={(open) => !open && setShowMobileProps(false)}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:hidden max-h-[85vh] flex flex-col p-0">
+          <DialogHeader className="p-4 pb-3 border-b shrink-0">
+            <DialogTitle className="text-sm">
+              {selectedNode?.data.label ?? "Propriedades"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto">
+            <PropertiesPanel
+              key={selectedNode?.id ?? "none"}
+              node={selectedNode}
+              onChange={updateNodeData}
+              onDelete={(id) => { deleteNode(id); setShowMobileProps(false); }}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex flex-1 overflow-hidden">
-        {/* Left palette */}
-        <div className="w-48 border-r p-3 space-y-2 overflow-y-auto shrink-0 bg-muted/20">
+        {/* Left palette — desktop only */}
+        <div className="hidden sm:flex sm:flex-col w-48 border-r p-3 space-y-2 overflow-y-auto shrink-0 bg-muted/20">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Nós
           </p>
@@ -1684,7 +1738,10 @@ export default function BotEditor() {
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
               nodeTypes={NODE_TYPES}
-              onNodeClick={(_e, node) => setSelectedNodeId(node.id)}
+              onNodeClick={(_e, node) => {
+                setSelectedNodeId(node.id);
+                setShowMobileProps(true);
+              }}
               onNodesDelete={(deleted) =>
                 setSelectedNodeId((cur) =>
                   deleted.some((n) => n.id === cur) ? null : cur,
@@ -1697,7 +1754,7 @@ export default function BotEditor() {
               <Background className="bg-muted/20" />
               <Controls className="!shadow-md [&_button]:!bg-background [&_button]:!border-border [&_button]:!text-foreground" />
               <MiniMap
-                className="!bg-muted"
+                className="!bg-muted hidden sm:block"
                 nodeColor="hsl(var(--muted-foreground))"
                 maskColor="hsl(var(--background) / 0.6)"
               />
@@ -1705,8 +1762,8 @@ export default function BotEditor() {
           )}
         </div>
 
-        {/* Right properties panel */}
-        <div className="w-72 border-l shrink-0 overflow-y-auto bg-background">
+        {/* Right properties panel — desktop only */}
+        <div className="hidden sm:block w-72 border-l shrink-0 overflow-y-auto bg-background">
           <div className="p-3 border-b">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Propriedades

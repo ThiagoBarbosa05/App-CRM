@@ -305,9 +305,15 @@ function EventsTab() {
                   {expandedId === event.id && (
                     <TableRow key={`${event.id}-detail`}>
                       <TableCell colSpan={5} className="bg-muted/30 p-0">
-                        <pre className="text-xs font-mono p-4 overflow-x-auto text-foreground/80 whitespace-pre-wrap break-all">
-                          {JSON.stringify(event.payload, null, 2)}
-                        </pre>
+                        <div className="p-3 sm:p-4 space-y-2">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground md:hidden">
+                            {event.field && <span><span className="font-medium text-foreground">Campo:</span> {event.field}</span>}
+                            <span><span className="font-medium text-foreground">Data:</span> {formatDate(event.createdAt)}</span>
+                          </div>
+                          <pre className="text-xs font-mono overflow-x-auto text-foreground/80 whitespace-pre-wrap break-all">
+                            {JSON.stringify(event.payload, null, 2)}
+                          </pre>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}
@@ -350,39 +356,68 @@ function EventsTab() {
 function TemplatesTab() {
   const { data: templates = [], isLoading } = useWhatsappTemplates();
 
-  return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Status Meta</TableHead>
-            <TableHead>Qualidade</TableHead>
-            <TableHead className="hidden md:table-cell">Ativo</TableHead>
-            <TableHead className="hidden lg:table-cell">Caso de uso</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading ? (
-            Array.from({ length: 5 }).map((_, i) => (
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border overflow-hidden">
+        <Table>
+          <TableBody>
+            {Array.from({ length: 5 }).map((_, i) => (
               <TableRow key={i}>
                 <TableCell colSpan={5}><Skeleton className="h-5 w-full" /></TableCell>
               </TableRow>
-            ))
-          ) : templates.length === 0 ? (
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
+
+  if (templates.length === 0) {
+    return (
+      <div className="rounded-lg border py-12 text-center text-muted-foreground">
+        <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
+        Nenhum template cadastrado
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      {/* Mobile cards */}
+      <div className="md:hidden divide-y divide-border">
+        {templates.map((tpl: WhatsappTemplate) => (
+          <div key={tpl.id} className="p-4 space-y-2">
+            <p className="text-sm font-medium font-mono truncate">{tpl.name}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <MetaStatusBadge status={tpl.metaStatus} />
+              <QualityBadge score={tpl.qualityScore} />
+              {tpl.isActive
+                ? <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400"><CheckCircle className="h-3 w-3" />Ativo</span>
+                : <span className="text-xs text-muted-foreground">Inativo</span>}
+            </div>
+            <p className="text-xs text-muted-foreground capitalize">{tpl.useCase.replace(/_/g, " ")}</p>
+          </div>
+        ))}
+      </div>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                Nenhum template cadastrado
-              </TableCell>
+              <TableHead>Nome</TableHead>
+              <TableHead>Status Meta</TableHead>
+              <TableHead>Qualidade</TableHead>
+              <TableHead>Ativo</TableHead>
+              <TableHead className="hidden lg:table-cell">Caso de uso</TableHead>
             </TableRow>
-          ) : (
-            templates.map((tpl: WhatsappTemplate) => (
+          </TableHeader>
+          <TableBody>
+            {templates.map((tpl: WhatsappTemplate) => (
               <TableRow key={tpl.id}>
                 <TableCell className="font-medium text-sm">{tpl.name}</TableCell>
                 <TableCell><MetaStatusBadge status={tpl.metaStatus} /></TableCell>
                 <TableCell><QualityBadge score={tpl.qualityScore} /></TableCell>
-                <TableCell className="hidden md:table-cell">
+                <TableCell>
                   {tpl.isActive
                     ? <CheckCircle className="h-4 w-4 text-green-500" />
                     : <span className="text-muted-foreground text-sm">Inativo</span>}
@@ -391,10 +426,10 @@ function TemplatesTab() {
                   {tpl.useCase.replace(/_/g, " ")}
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -404,45 +439,71 @@ function TemplatesTab() {
 function FlowsTab() {
   const { data: flows = [], isLoading } = useWhatsappFlows();
 
-  return (
-    <div className="rounded-lg border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="hidden md:table-cell">ID Meta</TableHead>
-            <TableHead className="hidden lg:table-cell text-right">Atualizado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border overflow-hidden">
+        <Table>
+          <TableBody>
+            {Array.from({ length: 4 }).map((_, i) => (
               <TableRow key={i}>
                 <TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell>
               </TableRow>
-            ))
-          ) : flows.length === 0 ? (
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
+
+  if (flows.length === 0) {
+    return (
+      <div className="rounded-lg border py-12 text-center text-muted-foreground">
+        <Workflow className="h-8 w-8 mx-auto mb-2 opacity-30" />
+        Nenhum flow sincronizado
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      {/* Mobile cards */}
+      <div className="md:hidden divide-y divide-border">
+        {flows.map((flow: WhatsappFlow) => (
+          <div key={flow.id} className="p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium truncate">{flow.name}</p>
+              <FlowStatusBadge status={flow.status} />
+            </div>
+            <p className="text-xs font-mono text-muted-foreground truncate">{flow.metaFlowId}</p>
+            <p className="text-xs text-muted-foreground">Atualizado {formatDate(flow.updatedAt)}</p>
+          </div>
+        ))}
+      </div>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                <Workflow className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                Nenhum flow sincronizado
-              </TableCell>
+              <TableHead>Nome</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>ID Meta</TableHead>
+              <TableHead className="hidden lg:table-cell text-right">Atualizado</TableHead>
             </TableRow>
-          ) : (
-            flows.map((flow: WhatsappFlow) => (
+          </TableHeader>
+          <TableBody>
+            {flows.map((flow: WhatsappFlow) => (
               <TableRow key={flow.id}>
                 <TableCell className="font-medium text-sm">{flow.name}</TableCell>
                 <TableCell><FlowStatusBadge status={flow.status} /></TableCell>
-                <TableCell className="hidden md:table-cell text-muted-foreground text-xs font-mono">{flow.metaFlowId}</TableCell>
+                <TableCell className="text-muted-foreground text-xs font-mono">{flow.metaFlowId}</TableCell>
                 <TableCell className="hidden lg:table-cell text-right text-muted-foreground text-sm whitespace-nowrap">
                   {formatDate(flow.updatedAt)}
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
@@ -478,8 +539,8 @@ export default function MetaMonitorPage() {
         </PageHeader.Info>
         <PageHeader.Actions>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-            Atualizar
+            <RefreshCw className={cn("h-4 w-4 sm:mr-2", refreshing && "animate-spin")} />
+            <span className="hidden sm:inline">Atualizar</span>
           </Button>
         </PageHeader.Actions>
       </PageHeader>

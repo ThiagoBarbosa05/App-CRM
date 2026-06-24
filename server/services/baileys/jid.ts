@@ -16,3 +16,14 @@ export function jidToPhone(jid: string): string {
 export function isGroupJid(jid: string): boolean {
   return jid.endsWith("@g.us");
 }
+
+/** Retorna true se o JID não é uma conversa 1-a-1 (grupo, status, broadcast, newsletter). */
+export function isIgnorableJid(jid: string | null | undefined): boolean {
+  if (!jid) return true;
+  return (
+    jid.endsWith("@g.us") ||         // grupos
+    jid === "status@broadcast" ||    // status / stories
+    jid.endsWith("@broadcast") ||    // listas de transmissão
+    jid.endsWith("@newsletter")      // canais / newsletters
+  );
+}

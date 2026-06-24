@@ -936,7 +936,7 @@ function ChannelItem({
 
 function PageSkeleton() {
   return (
-    <div className="overflow-y-auto h-full p-5 lg:p-6">
+    <div className="overflow-y-auto h-full p-4 sm:p-5 lg:p-6">
       <div className="space-y-6 pb-10 max-w-2xl">
         <div className="h-14 bg-muted rounded-xl animate-pulse" />
         {[120, 200, 96].map((h, i) => (
@@ -987,7 +987,7 @@ function EvolutionChannelDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <QrCode className="h-4 w-4" />
@@ -1043,11 +1043,11 @@ function EvolutionChannelDialog({
             ⚠️ Conexão não-oficial. Use números dedicados ao negócio. Não envie campanhas em massa por este canal.
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending || !name.trim()}>
+            <Button type="submit" disabled={isPending || !name.trim()} className="w-full sm:w-auto">
               {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
               Criar canal
             </Button>
@@ -1374,26 +1374,24 @@ export default function WhatsAppSettings() {
         </Card>
 
         {/* Save button */}
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 bg-card">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border px-4 py-3 bg-card">
           {hasUnsavedEdits && (
             <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
               Há campos em edição não salvos
             </p>
           )}
-          <div className="ml-auto">
-            <Button
-              onClick={handleSave}
-              disabled={updateMutation.isPending}
-              className="min-w-36"
-            >
-              {updateMutation.isPending
-                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...</>
-                : updateMutation.isSuccess
-                  ? <><CheckCircle className="h-4 w-4 mr-2" /> Salvo</>
-                  : "Salvar configurações"}
-            </Button>
-          </div>
+          <Button
+            onClick={handleSave}
+            disabled={updateMutation.isPending}
+            className="sm:ml-auto w-full sm:w-auto min-w-36"
+          >
+            {updateMutation.isPending
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...</>
+              : updateMutation.isSuccess
+                ? <><CheckCircle className="h-4 w-4 mr-2" /> Salvo</>
+                : "Salvar configurações"}
+          </Button>
         </div>
 
         {/* Channels card */}

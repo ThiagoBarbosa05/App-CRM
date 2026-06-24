@@ -45,9 +45,7 @@ export default function Settings() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="flex-1 overflow-auto">
-        <div className="p-6">
-          <SettingsManagement />
-        </div>
+        <SettingsManagement />
       </main>
     </div>
   );

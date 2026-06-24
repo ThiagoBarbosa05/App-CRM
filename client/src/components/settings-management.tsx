@@ -344,26 +344,28 @@ export function WinePriceTierSettings() {
 
 export default function SettingsManagement() {
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Settings className="h-8 w-8 text-wine-600" />
+    <div className="px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
+      <div className="flex items-center gap-3">
+        <Settings className="h-7 w-7 sm:h-8 sm:w-8 text-wine-600 shrink-0" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
-          <p className="text-gray-600">Gerencie as configurações do sistema</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Configurações</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Gerencie as configurações do sistema</p>
         </div>
       </div>
 
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-8">
-          <TabsTrigger value="users">Usuários</TabsTrigger>
-          <TabsTrigger value="categories">Categorias</TabsTrigger>
-          <TabsTrigger value="markers">Marcadores</TabsTrigger>
-          <TabsTrigger value="origins">Origens</TabsTrigger>
-          <TabsTrigger value="sectors">Setores</TabsTrigger>
-          <TabsTrigger value="learning-images">Imagens</TabsTrigger>
-          <TabsTrigger value="purchase-status">Status Compra</TabsTrigger>
-          <TabsTrigger value="wine-price-tiers">Faixas de Preço</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto pb-1 -mx-3 px-3 sm:mx-0 sm:px-0">
+          <TabsList className="w-max min-w-full grid grid-cols-8 sm:w-full">
+            <TabsTrigger value="users" className="text-xs sm:text-sm px-2 sm:px-3">Usuários</TabsTrigger>
+            <TabsTrigger value="categories" className="text-xs sm:text-sm px-2 sm:px-3">Categorias</TabsTrigger>
+            <TabsTrigger value="markers" className="text-xs sm:text-sm px-2 sm:px-3">Marcadores</TabsTrigger>
+            <TabsTrigger value="origins" className="text-xs sm:text-sm px-2 sm:px-3">Origens</TabsTrigger>
+            <TabsTrigger value="sectors" className="text-xs sm:text-sm px-2 sm:px-3">Setores</TabsTrigger>
+            <TabsTrigger value="learning-images" className="text-xs sm:text-sm px-2 sm:px-3">Imagens</TabsTrigger>
+            <TabsTrigger value="purchase-status" className="text-xs sm:text-sm px-1.5 sm:px-3">Compra</TabsTrigger>
+            <TabsTrigger value="wine-price-tiers" className="text-xs sm:text-sm px-1.5 sm:px-3">Preços</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="users">
           <UsersManagement />

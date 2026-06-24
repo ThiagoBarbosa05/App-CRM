@@ -1,7 +1,7 @@
 import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel } from "./whatsapp-channels.service";
 import { saveInboundMessage } from "./whatsapp-conversations.service";
 import { publishSseEvent } from "../lib/sse-hub";
-import { jidToPhone, isGroupJid } from "./baileys/jid";
+import { jidToPhone, isIgnorableJid } from "./baileys/jid";
 
 // Eventos do Baileys são processados in-process (sem webhook HTTP). Os nomes de
 // evento SSE e o shape dos payloads são preservados para não quebrar o frontend.
@@ -24,7 +24,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   };
 
   const jid = msg.key?.remoteJid;
-  if (!jid || isGroupJid(jid)) return;
+  if (isIgnorableJid(jid)) return;
 
   const waMessageId = msg.key.id;
   const fromMe = msg.key.fromMe === true;
@@ -49,6 +49,11 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   else if (msgContent.videoMessage) type = "video";
   else if (msgContent.documentMessage) type = "document";
   else if (msgContent.stickerMessage) type = "sticker";
+
+  // Ignora mensagens de protocolo/sync (distribuição de chaves, app-state, etc.)
+  // que o WhatsApp envia em rajada ao parear via QR — elas serializam vazias e
+  // seriam salvas como "[text]" em massa.
+  if (!text && type === "text" && !msg._baileysMedia) return;
 
   const timestamp = msg.messageTimestamp
     ? String(msg.messageTimestamp)

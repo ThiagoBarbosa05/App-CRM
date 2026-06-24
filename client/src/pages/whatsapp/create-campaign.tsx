@@ -355,6 +355,16 @@ function StepClients({
                     <span className={cn("text-sm", selected ? "font-semibold" : "font-medium")}>
                       {client.name}
                     </span>
+                    {/* Phone shown inline on mobile */}
+                    <div className="sm:hidden mt-0.5">
+                      {selectable ? (
+                        <span className="text-xs text-muted-foreground font-mono">{client.phone}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <PhoneOff className="h-3 w-3" /> Sem telefone
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     {selectable ? (

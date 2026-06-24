@@ -9,7 +9,7 @@ import makeWASocket, {
 import { Boom } from "@hapi/boom";
 import QRCode from "qrcode";
 import { useNeonAuthState, getInstancesWithCreds, deleteInstanceCreds } from "./db-auth-state.js";
-import { normalizeToJid, jidToPhone } from "./jid.js";
+import { normalizeToJid, jidToPhone, isIgnorableJid } from "./jid.js";
 import {
   handleConnectionUpdate,
   handleQrcodeUpdated,
@@ -256,7 +256,7 @@ async function createSocket(instanceName: string): Promise<void> {
 
     for (const msg of messages) {
       const rawJid = msg.key?.remoteJid ?? "";
-      if (!rawJid || rawJid.endsWith("@g.us")) continue;
+      if (isIgnorableJid(rawJid)) continue;
 
       // Resolve LID → telefone real antes de processar (ver resolveRealJid)
       const jid = await resolveRealJid(sock, msg.key ?? {});

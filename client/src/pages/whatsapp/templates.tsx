@@ -12,6 +12,7 @@ import {
   Search,
   Eye,
   AlertTriangle,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
@@ -108,7 +109,7 @@ function StatusBadge({ status }: { status: string }) {
   };
   const Icon = style.icon;
   return (
-    <Badge className={cn("border-0 gap-1", style.className)}>
+    <Badge className={cn("border-0 gap-1 shrink-0", style.className)}>
       <Icon className="h-3 w-3" />
       {style.label}
     </Badge>
@@ -170,9 +171,9 @@ function TemplateDetailsDialog({
 
   return (
     <Dialog open={!!template} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg sm:w-full">
         <DialogHeader>
-          <DialogTitle className="font-mono text-base">{template.name}</DialogTitle>
+          <DialogTitle className="font-mono text-base break-all">{template.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-1 text-sm">
           <div className="flex flex-wrap items-center gap-2">
@@ -227,6 +228,65 @@ function TemplateDetailsDialog({
   );
 }
 
+// ── Mobile card ──────────────────────────────────────────────────────────────────
+
+function TemplateMobileCard({
+  template,
+  canDelete,
+  onView,
+  onDelete,
+}: {
+  template: MetaTemplate;
+  canDelete: boolean;
+  onView: () => void;
+  onDelete: () => void;
+}) {
+  const { body } = readComponents(template.components);
+
+  return (
+    <div className="p-4 border-b border-border last:border-0">
+      <div className="flex items-start gap-3">
+        <button type="button" className="flex-1 min-w-0 text-left space-y-2" onClick={onView}>
+          <p className="text-sm font-mono font-medium truncate">{template.name}</p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <StatusBadge status={template.status} />
+            <Badge variant="outline" className="text-xs">
+              {CATEGORY_LABELS[template.category] ?? template.category}
+            </Badge>
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Globe className="h-3 w-3" />{template.language}
+            </span>
+          </div>
+          {body?.text && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{body.text}</p>
+          )}
+        </button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onView}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+          <ChevronRight className="h-4 w-4 text-muted-foreground ml-0.5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Página ──────────────────────────────────────────────────────────────────────
 
 const STATUS_FILTERS = [
@@ -276,8 +336,8 @@ export default function WhatsAppTemplates() {
   }, [metaTemplates]);
 
   return (
-    <div className="overflow-y-auto h-full p-5 lg:p-6">
-      <div className="space-y-6 pb-10">
+    <div className="overflow-y-auto h-full p-3 sm:p-5 lg:p-6">
+      <div className="space-y-4 sm:space-y-6 pb-10">
         <PageHeader>
           <PageHeader.Info>
             <PageHeader.Icon
@@ -295,15 +355,16 @@ export default function WhatsAppTemplates() {
           <PageHeader.Actions>
             <Button
               variant="outline"
-              className="gap-2"
+              size="sm"
+              className="gap-1.5"
               disabled={isFetching}
               onClick={() => refetch()}
             >
               <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-              Atualizar
+              <span className="hidden sm:inline">Atualizar</span>
             </Button>
             {canManageMeta && (
-              <Button onClick={() => setMetaDialogOpen(true)} className="gap-2">
+              <Button onClick={() => setMetaDialogOpen(true)} className="gap-2 w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 Criar template
               </Button>
@@ -312,30 +373,30 @@ export default function WhatsAppTemplates() {
         </PageHeader>
 
         {/* Resumo de status */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-green-500" />
+            <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 shrink-0" />
               <div>
-                <p className="text-2xl font-semibold leading-none">{counts.approved}</p>
+                <p className="text-xl sm:text-2xl font-semibold leading-none">{counts.approved}</p>
                 <p className="text-xs text-muted-foreground mt-1">Aprovados</p>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <Clock className="h-5 w-5 text-amber-500" />
+            <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-500 shrink-0" />
               <div>
-                <p className="text-2xl font-semibold leading-none">{counts.pending}</p>
+                <p className="text-xl sm:text-2xl font-semibold leading-none">{counts.pending}</p>
                 <p className="text-xs text-muted-foreground mt-1">Em análise</p>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-4 flex items-center gap-3">
-              <XCircle className="h-5 w-5 text-red-500" />
+            <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+              <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 shrink-0" />
               <div>
-                <p className="text-2xl font-semibold leading-none">{counts.rejected}</p>
+                <p className="text-xl sm:text-2xl font-semibold leading-none">{counts.rejected}</p>
                 <p className="text-xs text-muted-foreground mt-1">Rejeitados</p>
               </div>
             </CardContent>
@@ -367,89 +428,108 @@ export default function WhatsAppTemplates() {
           </Select>
         </div>
 
-        {/* Tabela */}
-        <Card>
+        {/* Lista / Tabela */}
+        <Card className="overflow-hidden">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead className="hidden md:table-cell">Idioma</TableHead>
-                  <TableHead className="hidden lg:table-cell">Qualidade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-24" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading &&
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 6 }).map((_, j) => (
-                        <TableCell key={j}>
-                          <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
-                        </TableCell>
+            {isLoading ? (
+              <div className="divide-y divide-border">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="p-4 flex items-center gap-3">
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 w-48 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+                      <div className="h-3 w-32 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+                    </div>
+                    <div className="h-6 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-12 text-center px-4">
+                <FileText className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  {metaTemplates.length === 0
+                    ? 'Nenhum template encontrado na sua conta Meta. Use "Criar template" para enviar o primeiro.'
+                    : "Nenhum template corresponde aos filtros."}
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Mobile: cards */}
+                <div className="md:hidden">
+                  {filtered.map((t) => (
+                    <TemplateMobileCard
+                      key={`${t.id}-${t.language}`}
+                      template={t}
+                      canDelete={canManageMeta}
+                      onView={() => setDetails(t)}
+                      onDelete={() => setDeletingName(t.name)}
+                    />
+                  ))}
+                </div>
+
+                {/* Desktop: table */}
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead className="hidden md:table-cell">Idioma</TableHead>
+                        <TableHead className="hidden lg:table-cell">Qualidade</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-24" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((t) => (
+                        <TableRow key={`${t.id}-${t.language}`}>
+                          <TableCell className="font-mono font-medium text-sm">{t.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {CATEGORY_LABELS[t.category] ?? t.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
+                            <div className="flex items-center gap-1">
+                              <Globe className="h-3 w-3" />
+                              {t.language}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <QualityBadge score={t.quality_score} />
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={t.status} />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setDetails(t)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {canManageMeta && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  onClick={() => setDeletingName(t.name)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </TableRow>
-                  ))}
-
-                {!isLoading && filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
-                      {metaTemplates.length === 0
-                        ? 'Nenhum template encontrado na sua conta Meta. Use "Criar template" para enviar o primeiro.'
-                        : "Nenhum template corresponde aos filtros."}
-                    </TableCell>
-                  </TableRow>
-                )}
-
-                {!isLoading &&
-                  filtered.map((t) => (
-                    <TableRow key={`${t.id}-${t.language}`}>
-                      <TableCell className="font-mono font-medium text-sm">{t.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {CATEGORY_LABELS[t.category] ?? t.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
-                        <div className="flex items-center gap-1">
-                          <Globe className="h-3 w-3" />
-                          {t.language}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        <QualityBadge score={t.quality_score} />
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={t.status} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setDetails(t)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canManageMeta && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              onClick={() => setDeletingName(t.name)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -462,7 +542,7 @@ export default function WhatsAppTemplates() {
 
       {/* Excluir */}
       <AlertDialog open={!!deletingName} onOpenChange={(v) => !v && setDeletingName(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full">
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir template da Meta</AlertDialogTitle>
             <AlertDialogDescription>
@@ -470,7 +550,7 @@ export default function WhatsAppTemplates() {
               permanentemente da sua conta Meta (todos os idiomas). Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700"

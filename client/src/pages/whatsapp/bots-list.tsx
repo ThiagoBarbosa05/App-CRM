@@ -14,6 +14,8 @@ import {
   MoreHorizontal,
   Search,
   Workflow,
+  ChevronRight,
+  Calendar,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -88,6 +90,104 @@ const botFormSchema = z.object({
 type BotForm = z.infer<typeof botFormSchema>;
 
 type StatusFilter = "all" | "active" | "inactive";
+
+// Mobile card for each bot
+function BotMobileCard({
+  bot,
+  onEdit,
+  onDuplicate,
+  onToggle,
+  onDelete,
+  onNavigate,
+  duplicatePending,
+  togglePending,
+}: {
+  bot: WhatsappBot;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onToggle: () => void;
+  onDelete: () => void;
+  onNavigate: () => void;
+  duplicatePending: boolean;
+  togglePending: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3 p-4 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+      <button
+        type="button"
+        className="flex items-start gap-3 flex-1 min-w-0 text-left"
+        onClick={onNavigate}
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+          <Bot className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium truncate">{bot.name}</p>
+            {bot.isActive ? (
+              <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 hover:bg-green-100 shrink-0">
+                Ativo
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="shrink-0">Inativo</Badge>
+            )}
+          </div>
+          {bot.description && (
+            <p className="text-xs text-muted-foreground truncate">{bot.description}</p>
+          )}
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Calendar className="h-3 w-3 shrink-0" />
+            {format(new Date(bot.updatedAt), "dd/MM/yyyy", { locale: ptBR })}
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+      </button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            aria-label={`Ações do bot ${bot.name}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={onNavigate}>
+            <Workflow className="mr-2 h-4 w-4" />
+            Editar fluxo
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onEdit}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Editar dados
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDuplicate} disabled={duplicatePending}>
+            <Copy className="mr-2 h-4 w-4" />
+            Duplicar
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onToggle} disabled={togglePending}>
+            {bot.isActive ? (
+              <><PowerOff className="mr-2 h-4 w-4" />Desativar</>
+            ) : (
+              <><Power className="mr-2 h-4 w-4" />Ativar</>
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={onDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Excluir
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
 
 export default function WhatsAppBotsList() {
   const [, navigate] = useLocation();
@@ -197,8 +297,8 @@ export default function WhatsAppBotsList() {
   const hasBots = bots.length > 0;
 
   return (
-    <div className="overflow-y-auto h-full p-5 lg:p-6">
-      <div className="space-y-6 pb-10">
+    <div className="overflow-y-auto h-full p-3 sm:p-5 lg:p-6">
+      <div className="space-y-4 sm:space-y-6 pb-10">
         <PageHeader>
           <PageHeader.Info>
             <PageHeader.Icon
@@ -215,7 +315,7 @@ export default function WhatsAppBotsList() {
             </PageHeader.Text>
           </PageHeader.Info>
           <PageHeader.Actions>
-            <Button onClick={() => setShowCreate(true)} className="gap-2">
+            <Button onClick={() => setShowCreate(true)} className="gap-2 w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Novo Bot
             </Button>
@@ -281,122 +381,132 @@ export default function WhatsAppBotsList() {
           </div>
         ) : (
           <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Atualizado em</TableHead>
-                  <TableHead className="w-[60px] text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBots.map((bot) => (
-                  <TableRow
-                    key={bot.id}
-                    className="cursor-pointer"
-                    onClick={() => navigate(`/whatsapp/bots/${bot.id}/editor`)}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400">
-                          <Bot className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{bot.name}</p>
-                          {bot.description && (
-                            <p className="text-xs text-muted-foreground truncate max-w-xs">
-                              {bot.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {bot.isActive ? (
-                        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 hover:bg-green-100">
-                          Ativo
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">Inativo</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(bot.updatedAt), "dd/MM/yyyy", {
-                        locale: ptBR,
-                      })}
-                    </TableCell>
-                    <TableCell
-                      className="text-right"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Ações do bot ${bot.name}`}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() =>
-                              navigate(`/whatsapp/bots/${bot.id}/editor`)
-                            }
-                          >
-                            <Workflow className="mr-2 h-4 w-4" />
-                            Editar fluxo
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openEdit(bot)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar dados
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onDuplicate(bot)}
-                            disabled={duplicateBot.isPending}
-                          >
-                            <Copy className="mr-2 h-4 w-4" />
-                            Duplicar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onToggle(bot)}
-                            disabled={toggleActive.isPending}
-                          >
-                            {bot.isActive ? (
-                              <>
-                                <PowerOff className="mr-2 h-4 w-4" />
-                                Desativar
-                              </>
-                            ) : (
-                              <>
-                                <Power className="mr-2 h-4 w-4" />
-                                Ativar
-                              </>
-                            )}
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => setDeleteTarget(bot)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            {/* Mobile: cards */}
+            <div className="md:hidden divide-y divide-border">
+              {filteredBots.map((bot) => (
+                <BotMobileCard
+                  key={bot.id}
+                  bot={bot}
+                  onNavigate={() => navigate(`/whatsapp/bots/${bot.id}/editor`)}
+                  onEdit={() => openEdit(bot)}
+                  onDuplicate={() => onDuplicate(bot)}
+                  onToggle={() => onToggle(bot)}
+                  onDelete={() => setDeleteTarget(bot)}
+                  duplicatePending={duplicateBot.isPending}
+                  togglePending={toggleActive.isPending}
+                />
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Atualizado em</TableHead>
+                    <TableHead className="w-[60px] text-right">Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredBots.map((bot) => (
+                    <TableRow
+                      key={bot.id}
+                      className="cursor-pointer"
+                      onClick={() => navigate(`/whatsapp/bots/${bot.id}/editor`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+                            <Bot className="h-5 w-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{bot.name}</p>
+                            {bot.description && (
+                              <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                {bot.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {bot.isActive ? (
+                          <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 hover:bg-green-100">
+                            Ativo
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Inativo</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {format(new Date(bot.updatedAt), "dd/MM/yyyy", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell
+                        className="text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`Ações do bot ${bot.name}`}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => navigate(`/whatsapp/bots/${bot.id}/editor`)}
+                            >
+                              <Workflow className="mr-2 h-4 w-4" />
+                              Editar fluxo
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(bot)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar dados
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => onDuplicate(bot)}
+                              disabled={duplicateBot.isPending}
+                            >
+                              <Copy className="mr-2 h-4 w-4" />
+                              Duplicar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => onToggle(bot)}
+                              disabled={toggleActive.isPending}
+                            >
+                              {bot.isActive ? (
+                                <><PowerOff className="mr-2 h-4 w-4" />Desativar</>
+                              ) : (
+                                <><Power className="mr-2 h-4 w-4" />Ativar</>
+                              )}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeleteTarget(bot)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
 
         {/* Create Bot Dialog */}
         <Dialog open={showCreate} onOpenChange={setShowCreate}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full">
             <DialogHeader>
               <DialogTitle>Novo Bot</DialogTitle>
               <DialogDescription>
@@ -438,7 +548,7 @@ export default function WhatsAppBotsList() {
                     </FormItem>
                   )}
                 />
-                <DialogFooter>
+                <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -463,7 +573,7 @@ export default function WhatsAppBotsList() {
           open={!!editTarget}
           onOpenChange={(open) => !open && setEditTarget(null)}
         >
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full">
             <DialogHeader>
               <DialogTitle>Editar bot</DialogTitle>
             </DialogHeader>
@@ -513,7 +623,7 @@ export default function WhatsAppBotsList() {
                     />
                   </div>
                 )}
-                <DialogFooter>
+                <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -535,7 +645,7 @@ export default function WhatsAppBotsList() {
           open={!!deleteTarget}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
         >
-          <AlertDialogContent>
+          <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full">
             <AlertDialogHeader>
               <AlertDialogTitle>Excluir bot</AlertDialogTitle>
               <AlertDialogDescription>
@@ -544,7 +654,7 @@ export default function WhatsAppBotsList() {
                 encerrará todas as sessões ativas.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={onDelete}

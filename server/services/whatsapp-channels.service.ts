@@ -95,17 +95,17 @@ export async function getChannelByUserId(userId: string): Promise<ChannelOverrid
   return { phoneNumberId: row.phoneNumberId, accessToken: row.accessToken };
 }
 
-export async function listChannelsByUserId(userId: string): Promise<{ id: number; name: string; displayPhone: string | null }[]> {
+export async function listChannelsByUserId(userId: string): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string }[]> {
   return db
-    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider })
     .from(whatsappChannels)
     .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true)))
     .orderBy(whatsappChannels.createdAt);
 }
 
-export async function listActiveChannels(): Promise<{ id: number; name: string; displayPhone: string | null }[]> {
+export async function listActiveChannels(): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string }[]> {
   return db
-    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider })
     .from(whatsappChannels)
     .where(eq(whatsappChannels.isActive, true))
     .orderBy(whatsappChannels.createdAt);

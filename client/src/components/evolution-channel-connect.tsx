@@ -53,9 +53,9 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
     }
   }, [connect, channel.id]);
 
-  // Auto-dispara a geração do QR quando o canal está desconectado
+  // Auto-dispara a geração do QR quando o canal não está conectado
   useEffect(() => {
-    if (status === "disconnected") {
+    if (status !== "connected") {
       handleConnect();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,7 +132,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
             size="sm"
             variant="outline"
             onClick={handleConnect}
-            disabled={connect.isPending || isConnecting}
+            disabled={connect.isPending || status === "connecting"}
             className="gap-1.5"
           >
             {isConnecting ? (

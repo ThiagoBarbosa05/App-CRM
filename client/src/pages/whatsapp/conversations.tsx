@@ -56,6 +56,9 @@ import {
   Check,
   ArrowRightLeft,
   StickyNote,
+  Wifi,
+  WifiOff,
+  Radio,
 } from "lucide-react";
 import {
   Popover,
@@ -67,6 +70,8 @@ interface Channel {
   id: number;
   name: string;
   displayPhone: string | null;
+  connectionStatus: string | null;
+  provider: string;
 }
 
 interface ChatClientTag {
@@ -153,14 +158,14 @@ const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
 function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
   const [tab, setTab] = useState(0);
   return (
-    <div className="w-72">
-      <div className="flex gap-1 px-2 pt-2 pb-1 border-b border-slate-100 dark:border-slate-800 overflow-x-auto">
+    <div className="w-[min(288px,calc(100vw-2rem))]">
+      <div className="flex gap-1 px-2 pt-2 pb-1 border-b border-slate-100 dark:border-slate-800 overflow-x-auto scrollbar-none">
         {EMOJI_GROUPS.map((g, i) => (
           <button
             key={g.label}
             onClick={() => setTab(i)}
             className={cn(
-              "shrink-0 text-xs px-2 py-0.5 rounded-full transition-colors",
+              "shrink-0 text-xs px-2 py-1 rounded-full transition-colors",
               tab === i
                 ? "bg-primary text-primary-foreground"
                 : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800",
@@ -170,12 +175,12 @@ function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-8 gap-0.5 p-2 max-h-48 overflow-y-auto">
+      <div className="grid grid-cols-8 gap-0.5 p-2 max-h-44 overflow-y-auto">
         {EMOJI_GROUPS[tab].emojis.map((e) => (
           <button
             key={e}
             onClick={() => onPick(e)}
-            className="text-xl p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors leading-none"
+            className="text-xl p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors leading-none"
           >
             {e}
           </button>
@@ -655,7 +660,7 @@ function StickerPicker({
   };
 
   return (
-    <div className="w-72 flex flex-col">
+    <div className="w-[min(288px,calc(100vw-2rem))] flex flex-col">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
         <Sticker className="h-3.5 w-3.5 text-slate-400" />
         <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Figurinhas salvas</span>
@@ -773,7 +778,7 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
   };
 
   return (
-    <div className="w-80 flex flex-col">
+    <div className="w-[min(320px,calc(100vw-2rem))] flex flex-col">
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-2">
           <Zap className="h-3.5 w-3.5 text-slate-400" />
@@ -963,12 +968,12 @@ function CreateClientFromConversationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Criar cliente</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 pt-1">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Nome *">
               <Input
                 value={form.name}
@@ -982,7 +987,7 @@ function CreateClientFromConversationDialog({
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="E-mail">
               <Input
                 type="email"
@@ -1000,7 +1005,7 @@ function CreateClientFromConversationDialog({
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Data de nascimento">
               <Input
                 type="date"
@@ -1023,7 +1028,7 @@ function CreateClientFromConversationDialog({
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Origem">
               <Select value={form.origem} onValueChange={(v) => setForm((p) => ({ ...p, origem: v }))}>
                 <SelectTrigger className="h-9 text-sm">
@@ -1458,126 +1463,198 @@ function ConversationMessages({
 
   const displayName = client.clientName ?? client.phone;
 
+  const isAdminOrGerente = userRole === "admin" || userRole === "gerente";
+  const showChannelSelect = isAdminOrGerente && channels.length > 0;
+
+  const ChannelSelect = () => (
+    <Select
+      value={selectedChannelId != null ? String(selectedChannelId) : ""}
+      onValueChange={(v) => {
+        if (!v) return;
+        const ch = channels.find((c) => c.id === Number(v));
+        if (!ch) return;
+        if (ch.provider === "evolution" && ch.connectionStatus !== "connected") return;
+        setSelectedChannelId(Number(v));
+      }}
+    >
+      <SelectTrigger className="h-8 text-xs w-full border-slate-200 dark:border-slate-700">
+        <SelectValue placeholder="Selecionar canal…">
+          {selectedChannelId != null && (() => {
+            const ch = channels.find((c) => c.id === selectedChannelId);
+            if (!ch) return "Selecionar canal…";
+            const isConnected = ch.provider === "cloud_api" || ch.connectionStatus === "connected";
+            return (
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className={cn(
+                  "shrink-0 h-2 w-2 rounded-full",
+                  isConnected ? "bg-green-500" : ch.connectionStatus === "connecting" ? "bg-amber-400 animate-pulse" : "bg-slate-300 dark:bg-slate-600",
+                )} />
+                <span className="truncate">{ch.name}{ch.displayPhone ? ` · ${ch.displayPhone}` : ""}</span>
+              </span>
+            );
+          })()}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {channels.map((ch) => {
+          const isConnected = ch.provider === "cloud_api" || ch.connectionStatus === "connected";
+          const isConnecting = ch.provider === "evolution" && ch.connectionStatus === "connecting";
+          const isDisabled = ch.provider === "evolution" && ch.connectionStatus !== "connected";
+          return (
+            <SelectItem
+              key={ch.id}
+              value={String(ch.id)}
+              disabled={isDisabled}
+              className={cn(isDisabled && "opacity-50 cursor-not-allowed")}
+            >
+              <span className="flex items-center gap-2 w-full min-w-0">
+                <span className={cn(
+                  "shrink-0 h-2 w-2 rounded-full",
+                  isConnected ? "bg-green-500" : isConnecting ? "bg-amber-400 animate-pulse" : "bg-slate-300 dark:bg-slate-600",
+                )} />
+                <span className="flex flex-col min-w-0">
+                  <span className="truncate font-medium text-xs leading-tight">{ch.name}</span>
+                  <span className={cn(
+                    "text-[10px] leading-tight",
+                    isConnected ? "text-green-600 dark:text-green-400" : isConnecting ? "text-amber-500" : "text-slate-400 dark:text-slate-500",
+                  )}>
+                    {isConnected ? (ch.displayPhone ?? "Conectado") : isConnecting ? "Conectando…" : "Desconectado"}
+                  </span>
+                </span>
+                {isConnected ? (
+                  <Wifi className="h-3 w-3 text-green-500 shrink-0 ml-auto" />
+                ) : isConnecting ? (
+                  <Radio className="h-3 w-3 text-amber-400 shrink-0 ml-auto" />
+                ) : (
+                  <WifiOff className="h-3 w-3 text-slate-400 dark:text-slate-500 shrink-0 ml-auto" />
+                )}
+              </span>
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-3 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-3 shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden h-8 w-8 shrink-0 text-slate-500"
-          onClick={onBack}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
-          {getInitials(client.clientName, client.phone)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
-            {displayName}
-          </p>
-          {client.clientName && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <Phone className="h-3 w-3" />
-              {client.phone}
+      <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+        {/* Linha principal */}
+        <div className="px-2 sm:px-4 py-2.5 flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden h-9 w-9 shrink-0 text-slate-500"
+            onClick={onBack}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+
+          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
+            {getInitials(client.clientName, client.phone)}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate leading-tight">
+              {displayName}
             </p>
-          )}
-          {((client.tags && client.tags.length > 0) ||
-            (client.whatsappTags && client.whatsappTags.length > 0)) && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {client.tags?.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
-                >
-                  {tag.name}
-                </span>
-              ))}
-              {client.whatsappTags?.map((tag) => (
-                <WhatsappTagBadge key={tag.id} tag={tag} />
-              ))}
+            {client.clientName && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
+                <Phone className="h-3 w-3 shrink-0" />
+                <span className="truncate">{client.phone}</span>
+              </p>
+            )}
+            {((client.tags && client.tags.length > 0) || (client.whatsappTags && client.whatsappTags.length > 0)) && (
+              <div className="flex flex-wrap gap-1 mt-0.5 hidden sm:flex">
+                {client.tags?.slice(0, 2).map((tag) => (
+                  <span key={tag.id} className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
+                    {tag.name}
+                  </span>
+                ))}
+                {client.whatsappTags?.slice(0, 2).map((tag) => (
+                  <WhatsappTagBadge key={tag.id} tag={tag} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Canal select — visível apenas em sm+ no header principal */}
+          {showChannelSelect && (
+            <div className="hidden sm:flex items-center gap-2 shrink-0 min-w-0 max-w-[200px]">
+              <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">Canal:</span>
+              <div className="min-w-0 flex-1">
+                <ChannelSelect />
+              </div>
             </div>
           )}
+
+          {/* Transferir */}
+          {channels.length > 0 && (
+            <Popover open={transferOpen} onOpenChange={setTransferOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 sm:h-7 sm:w-auto sm:px-2.5 sm:gap-1.5 text-xs"
+                  title="Transferir conversa para outro canal"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline text-xs">Transferir</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 p-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 px-2 py-1.5 font-medium">
+                  Transferir para canal:
+                </p>
+                {channels
+                  .filter((ch) => ch.id !== client.channelId)
+                  .map((ch) => (
+                    <button
+                      key={ch.id}
+                      className="w-full text-left px-2 py-2 text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 flex flex-col"
+                      disabled={transferMutation.isPending}
+                      onClick={() => transferMutation.mutate(ch.id)}
+                    >
+                      <span className="font-medium">{ch.name}</span>
+                      {ch.displayPhone && (
+                        <span className="text-xs text-slate-400">{ch.displayPhone}</span>
+                      )}
+                    </button>
+                  ))}
+                {channels.filter((ch) => ch.id !== client.channelId).length === 0 && (
+                  <p className="text-xs text-slate-400 px-2 py-1.5">
+                    Nenhum outro canal disponível.
+                  </p>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
         </div>
 
-        {(userRole === "admin" || userRole === "gerente") && channels.length > 0 && (
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap hidden sm:inline">
-              Canal:
-            </span>
-            <Select
-              value={selectedChannelId != null ? String(selectedChannelId) : ""}
-              onValueChange={(v) => setSelectedChannelId(v ? Number(v) : undefined)}
-            >
-              <SelectTrigger className="h-7 text-xs w-44">
-                <SelectValue placeholder="Selecionar canal…" />
-              </SelectTrigger>
-              <SelectContent>
-                {channels.map((ch) => (
-                  <SelectItem key={ch.id} value={String(ch.id)}>
-                    {ch.name}{ch.displayPhone ? ` · ${ch.displayPhone}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Linha secundária: canal select em mobile */}
+        {showChannelSelect && (
+          <div className="sm:hidden px-2 pb-2 flex items-center gap-2">
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">Canal:</span>
+            <div className="flex-1 min-w-0">
+              <ChannelSelect />
+            </div>
           </div>
         )}
-
-        {channels.length > 0 && (
-          <Popover open={transferOpen} onOpenChange={setTransferOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs gap-1.5 shrink-0"
-                title="Transferir conversa para outro canal"
-              >
-                <ArrowRightLeft className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Transferir</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-56 p-1">
-              <p className="text-xs text-slate-500 dark:text-slate-400 px-2 py-1.5 font-medium">
-                Transferir para canal:
-              </p>
-              {channels
-                .filter((ch) => ch.id !== client.channelId)
-                .map((ch) => (
-                  <button
-                    key={ch.id}
-                    className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 flex flex-col"
-                    disabled={transferMutation.isPending}
-                    onClick={() => transferMutation.mutate(ch.id)}
-                  >
-                    <span className="font-medium">{ch.name}</span>
-                    {ch.displayPhone && (
-                      <span className="text-xs text-slate-400">{ch.displayPhone}</span>
-                    )}
-                  </button>
-                ))}
-              {channels.filter((ch) => ch.id !== client.channelId).length === 0 && (
-                <p className="text-xs text-slate-400 px-2 py-1.5">
-                  Nenhum outro canal disponível.
-                </p>
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
-
       </div>
 
       {/* Banner de contato desconhecido */}
       {isUnknownContact && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 shrink-0">
           <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-          <p className="text-xs text-amber-700 dark:text-amber-400 flex-1">
-            Contato desconhecido — crie um cliente para registrar esta conversa.
+          <p className="text-xs text-amber-700 dark:text-amber-400 flex-1 leading-tight">
+            <span className="hidden sm:inline">Contato desconhecido — crie um cliente para registrar esta conversa.</span>
+            <span className="sm:hidden">Contato desconhecido.</span>
           </p>
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 shrink-0"
+            className="h-7 text-xs border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 shrink-0 whitespace-nowrap"
             onClick={() => setCreateClientOpen(true)}
           >
             Criar cliente
@@ -1586,7 +1663,7 @@ function ConversationMessages({
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-1 bg-slate-50 dark:bg-slate-950/30">
+      <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-1 bg-slate-50 dark:bg-slate-950/30">
         {isLoading ? (
           <div className="space-y-4 pt-2">
             {[1, 2, 3, 4].map((i) => (
@@ -1791,7 +1868,7 @@ function ConversationMessages({
                       )}
 
                       {/* Bolha + reações */}
-                      <div className="flex flex-col gap-1 max-w-[72%] sm:max-w-[65%] min-w-0">
+                      <div className="flex flex-col gap-1 max-w-[85%] sm:max-w-[72%] lg:max-w-[65%] min-w-0">
                       <div
                         className={cn(
                           "rounded-2xl shadow-sm overflow-hidden w-full",
@@ -1946,7 +2023,7 @@ function ConversationMessages({
         )}
 
         {pendingAudio ? (
-          <div className="p-3 sm:p-4 flex items-center gap-3">
+          <div className="px-3 py-2.5 flex items-center gap-2">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Mic className="h-4 w-4 text-green-500 shrink-0" />
               <audio
@@ -1981,13 +2058,13 @@ function ConversationMessages({
             </Button>
           </div>
         ) : isRecording ? (
-          <div className="p-3 sm:p-4 flex items-center gap-3">
-            <div className="flex items-center gap-2 flex-1">
+          <div className="px-3 py-2.5 flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-              <span className="text-sm font-medium text-red-500 tabular-nums">
+              <span className="text-sm font-medium text-red-500 tabular-nums shrink-0">
                 {Math.floor(recordingSeconds / 60).toString().padStart(2, "0")}:{(recordingSeconds % 60).toString().padStart(2, "0")}
               </span>
-              <span className="text-xs text-slate-400 dark:text-slate-500">Gravando áudio…</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 truncate">Gravando…</span>
             </div>
             <button
               onClick={cancelRecording}
@@ -2006,7 +2083,7 @@ function ConversationMessages({
             </Button>
           </div>
         ) : (
-          <div className="px-3 sm:px-4 pt-3 pb-2">
+          <div className="px-2 sm:px-3 pt-2 pb-1.5">
             <input
               ref={fileInputRef}
               type="file"
@@ -2030,8 +2107,8 @@ function ConversationMessages({
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Digite uma mensagem…"
-                className="flex-1 resize-none min-h-[90px] max-h-[200px] text-sm"
-                rows={3}
+                className="flex-1 resize-none min-h-[52px] sm:min-h-[80px] max-h-[160px] text-sm leading-relaxed"
+                rows={2}
                 disabled={isUploading}
               />
               {message.trim() ? (
@@ -2039,7 +2116,7 @@ function ConversationMessages({
                   onClick={handleSend}
                   disabled={isUploading}
                   size="icon"
-                  className="shrink-0 h-10 w-10 mb-0.5"
+                  className="shrink-0 h-10 w-10 mb-0.5 rounded-full"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -2056,11 +2133,11 @@ function ConversationMessages({
             </div>
 
             {/* Toolbar inferior: anexo, figurinha, emoji + dica */}
-            <div className="flex items-center gap-1 mt-1.5">
+            <div className="flex items-center gap-0.5 mt-1">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                 title="Enviar arquivo"
               >
                 {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
@@ -2069,7 +2146,7 @@ function ConversationMessages({
                 <PopoverTrigger asChild>
                   <button
                     disabled={isUploading}
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                     title="Figurinhas"
                   >
                     <Sticker className="h-4 w-4" />
@@ -2091,13 +2168,13 @@ function ConversationMessages({
               >
                 <PopoverTrigger asChild>
                   <button
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
                     title="Emoji"
                   >
                     <Smile className="h-4 w-4" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent side="top" align="start" className="p-0 w-auto">
+                <PopoverContent side="top" align="start" className="p-0 w-auto max-w-[calc(100vw-1rem)]">
                   <EmojiPicker
                     onPick={(e) => {
                       const pos = cursorPosRef.current;
@@ -2119,7 +2196,7 @@ function ConversationMessages({
                 <PopoverTrigger asChild>
                   <button
                     disabled={isUploading}
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                    className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                     title="Respostas rápidas"
                   >
                     <Zap className="h-4 w-4" />
@@ -2140,7 +2217,7 @@ function ConversationMessages({
                   <PopoverTrigger asChild>
                     <button
                       disabled={isTriggeringBot}
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                      className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                       title="Disparar bot"
                     >
                       {isTriggeringBot ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
@@ -2270,7 +2347,7 @@ function NewConversationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Nova conversa</DialogTitle>
         </DialogHeader>
@@ -2280,14 +2357,14 @@ function NewConversationDialog({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar cliente por nome ou telefone..."
-            className="pl-9 text-sm"
+            placeholder="Buscar cliente…"
+            className="pl-9 text-sm h-10"
             autoFocus
           />
         </div>
 
         {availableTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
             {availableTags.map((tag) => {
               const active = selectedTagIds.includes(tag.id);
               return (
@@ -2296,7 +2373,7 @@ function NewConversationDialog({
                   type="button"
                   onClick={() => toggleTag(tag.id)}
                   className={cn(
-                    "inline-flex items-center text-[11px] px-2 py-0.5 rounded-full border transition-colors",
+                    "inline-flex items-center text-[11px] px-2.5 py-1 rounded-full border transition-colors",
                     active
                       ? "bg-blue-600 border-blue-600 text-white"
                       : "bg-transparent border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400",
@@ -2309,7 +2386,7 @@ function NewConversationDialog({
           </div>
         )}
 
-        <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+        <div className="max-h-[50vh] sm:max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
           {isLoading ? (
             <div className="p-4 space-y-3">
               {[1, 2, 3].map((i) => (
@@ -2483,19 +2560,19 @@ export default function WhatsAppConversationsPage() {
         showList ? "flex w-full md:w-72 lg:w-80 md:flex" : "hidden md:flex md:w-72 lg:w-80",
       )}>
         {/* Search header */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-          <div className="flex items-center justify-between mb-3">
+        <div className="px-3 py-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div className="flex items-center justify-between mb-2.5">
             <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
               Conversas
             </h2>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               {availableWaTags.length > 0 && (
                 <div className="relative">
                   <Button
                     variant="ghost"
                     size="icon"
                     className={cn(
-                      "h-7 w-7",
+                      "h-8 w-8",
                       selectedTagIds.length > 0
                         ? "text-green-600 dark:text-green-400"
                         : "text-slate-500 hover:text-primary",
@@ -2515,7 +2592,7 @@ export default function WhatsAppConversationsPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-slate-500 hover:text-primary"
+                className="h-8 w-8 text-slate-500 hover:text-primary"
                 onClick={() => setNewConvOpen(true)}
                 title="Nova conversa"
               >
@@ -2529,7 +2606,7 @@ export default function WhatsAppConversationsPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar conversa..."
-              className="pl-9 text-sm h-9"
+              className="pl-9 text-sm h-10"
             />
           </div>
         </div>
