@@ -13,7 +13,7 @@ import {
   tags,
   whatsappTags,
 } from "../../shared/schema";
-import { eq, and, ilike, or, desc, sql, asc, inArray } from "drizzle-orm";
+import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
@@ -1209,6 +1209,17 @@ export async function startConversationByClientId(
     clientName: client.name,
     phone: client.phone,
   };
+}
+
+export async function setContactWhatsappTags(clientId: string, whatsappTagIds: string[]): Promise<void> {
+  await db
+    .delete(contactTags)
+    .where(and(eq(contactTags.clientId, clientId), isNotNull(contactTags.whatsappTagId)));
+  if (whatsappTagIds.length > 0) {
+    await db
+      .insert(contactTags)
+      .values(whatsappTagIds.map((whatsappTagId) => ({ clientId, whatsappTagId })));
+  }
 }
 
 export async function markConversationRead(userId: string, conversationId: string) {

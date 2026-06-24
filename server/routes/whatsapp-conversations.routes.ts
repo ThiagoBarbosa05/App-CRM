@@ -23,6 +23,7 @@ import {
   createQuickReply,
   deleteQuickReply,
   transferConversation,
+  setContactWhatsappTags,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession } from "../services/whatsapp-bot-engine.service";
 import { clientsService } from "../services/clients.service";
@@ -521,6 +522,24 @@ router.post("/conversations/:conversationId/link-client", async (req, res) => {
   } catch (err) {
     console.error("[WA Conversations] Erro ao vincular cliente:", err);
     res.status(500).json({ message: "Erro ao vincular cliente", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+const setWhatsappTagsSchema = z.object({ tagIds: z.array(z.string()) });
+
+router.put("/conversations/:clientId/whatsapp-tags", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = setWhatsappTagsSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    await setContactWhatsappTags(req.params.clientId, parsed.data.tagIds);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao atualizar tags:", err);
+    res.status(500).json({ message: "Erro ao atualizar tags" });
   }
 });
 

@@ -64,6 +64,7 @@ import {
 import { EvolutionChannelConnect } from "@/components/evolution-channel-connect";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const MASKED = "••••••••";
 const SENSITIVE_KEYS = ["wa_phone_number_id", "wa_access_token", "wa_waba_id", "wa_webhook_verify_token"] as const;
@@ -756,12 +757,14 @@ function ChannelItem({
   onEdit,
   onDelete,
   onVerify,
+  readOnly = false,
 }: {
   ch: WhatsappChannel;
   userMap: Record<string, string>;
   onEdit: () => void;
   onDelete: () => void;
   onVerify: () => void;
+  readOnly?: boolean;
 }) {
   const [showStatus, setShowStatus] = useState(false);
   const [evoStatus, setEvoStatus] = useState<string>(ch.connectionStatus ?? "disconnected");
@@ -871,62 +874,64 @@ function ChannelItem({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          <TooltipProvider delayDuration={400}>
-            {ch.provider !== "evolution" && (
+        {!readOnly && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            <TooltipProvider delayDuration={400}>
+              {ch.provider !== "evolution" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "h-8 w-8 transition-colors",
+                        showStatus
+                          ? "text-primary hover:text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={handleRefresh}
+                    >
+                      {isFetching
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RefreshCw className="h-3.5 w-3.5" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p className="text-xs">Consultar status no Meta</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={cn(
-                      "h-8 w-8 transition-colors",
-                      showStatus
-                        ? "text-primary hover:text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    onClick={handleRefresh}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    onClick={onEdit}
                   >
-                    {isFetching
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <RefreshCw className="h-3.5 w-3.5" />}
+                    <Pencil className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top">
-                  <p className="text-xs">Consultar status no Meta</p>
-                </TooltipContent>
+                <TooltipContent side="top"><p className="text-xs">Editar canal</p></TooltipContent>
               </Tooltip>
-            )}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={onEdit}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top"><p className="text-xs">Editar canal</p></TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={onDelete}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top"><p className="text-xs">Remover canal</p></TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top"><p className="text-xs">Remover canal</p></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1061,6 +1066,9 @@ function EvolutionChannelDialog({
 // ── Página principal ──────────────────────────────────────────────────────────
 
 export default function WhatsAppSettings() {
+  const { user } = useAuth();
+  const isVendedor = user?.role === "vendedor";
+
   const { data: settings, isLoading } = useWhatsappSettings();
   const { data: status } = useWhatsappStatus();
   const updateMutation = useUpdateWhatsappSettings();
@@ -1174,6 +1182,10 @@ export default function WhatsAppSettings() {
   const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
   const existingPhoneIds = new Set(channels.map((c) => c.phoneNumberId).filter((id): id is string => id !== null));
 
+  const myChannels = isVendedor && user
+    ? channels.filter((c) => c.userId === user.id)
+    : channels;
+
   const SENSITIVE_FIELDS: {
     key: (typeof SENSITIVE_KEYS)[number];
     label: string;
@@ -1189,6 +1201,63 @@ export default function WhatsAppSettings() {
   const hasUnsavedEdits = SENSITIVE_KEYS.some((k) => editing[k] && form[k].trim() !== "");
 
   if (isLoading) return <PageSkeleton />;
+
+  if (isVendedor) {
+    return (
+      <div className="overflow-y-auto h-full p-4 sm:p-5 lg:p-6">
+        <div className="pb-10 max-w-2xl">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-start gap-3">
+                <div className="h-9 w-9 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center shrink-0">
+                  <QrCode className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Meu WhatsApp</CardTitle>
+                  <CardDescription className="mt-0.5">
+                    Reconecte seu canal escaneando o QR Code quando necessário.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {channelsLoading ? (
+                <div className="space-y-2 pt-2">
+                  <div className="h-[72px] bg-muted rounded-xl animate-pulse" />
+                </div>
+              ) : myChannels.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center gap-3 rounded-xl border-2 border-dashed border-border">
+                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                    <Phone className="h-6 w-6 text-muted-foreground/50" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Nenhum canal vinculado</p>
+                    <p className="text-xs text-muted-foreground/70 mt-0.5">
+                      Solicite ao administrador que vincule um canal à sua conta.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {myChannels.map((ch) => (
+                    <ChannelItem
+                      key={ch.id}
+                      ch={ch}
+                      userMap={userMap}
+                      readOnly
+                      onEdit={() => {}}
+                      onDelete={() => {}}
+                      onVerify={() => {}}
+                    />
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-y-auto h-full p-4 sm:p-5 lg:p-6">

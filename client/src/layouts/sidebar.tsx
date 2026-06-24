@@ -74,6 +74,12 @@ const navItems: NavItem[] = [
   //   activeBasePath: "/whatsapp",
   // },
   {
+    href: "/whatsapp/configuracoes",
+    icon: MessageCircle,
+    label: "Meu WhatsApp",
+    roles: ["vendedor"],
+  },
+  {
     href: "/configuracoes",
     icon: Settings,
     label: "Configurações",

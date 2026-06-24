@@ -147,12 +147,642 @@ interface LocalMessage {
 const REACTION_EMOJIS = ["❤️", "😂", "👍", "😮", "😢", "🙏"];
 
 const EMOJI_GROUPS: { label: string; emojis: string[] }[] = [
-  { label: "Smileys", emojis: ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😙","🥲","😋","😛","😜","🤪","😝","🤑","🤗","🤭","🤫","🤔","🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥","😌","😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤧","🥵","🥶","🥴","😵","🤯","🤠","🥳","🥸","😎","🤓","🧐","😕","😟","🙁","☹️","😮","😯","😲","😳","🥺","😦","😧","😨","😰","😥","😢","😭","😱","😖","😣","😞","😓","😩","😫","🥱","😤","😡","😠","🤬","😈","👿"] },
-  { label: "Gestos", emojis: ["👋","🤚","🖐️","✋","🖖","👌","🤌","🤏","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","🖕","👇","☝️","👍","👎","✊","👊","🤛","🤜","👏","🙌","👐","🤲","🤝","🙏","✍️","💅","🤳","💪","🦾","🦿","🦵","🦶","👂","🦻","👃","🫀","🫁","🧠","🦷","🦴","👀","👁️","👅","👄"] },
-  { label: "Pessoas", emojis: ["🧑","👱","🧔","🧑‍🦰","🧑‍🦱","🧑‍🦳","🧑‍🦲","👶","🧒","👦","👧","🧑","👨","👩","🧓","👴","👵","🙍","🙎","🙅","🙆","💁","🙋","🧏","🙇","🤦","🤷","👮","🕵️","💂","🥷","👷","🫅","🤴","👸","👳","👲","🧕","🤵","👰","🤰","🤱","👼","🎅","🤶","🧑‍🎄","🦸","🦹","🧙","🧝","🧛","🧟","🧞","🧜","🧚","🧑‍🤝‍🧑","💏","💑","👪"] },
-  { label: "Natureza", emojis: ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐻‍❄️","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐒","🐔","🐧","🐦","🐤","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🪱","🐛","🦋","🐌","🐞","🐜","🪲","🦟","🦗","🪳","🕷️","🦂","🐢","🐍","🦎","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠","🐟","🐬","🐳","🐋","🦈","🦭","🐊","🐅","🐆","🦓","🦍","🦧","🦣","🐘","🦛","🦏","🐪","🐫","🦒","🦘","🦬","🐃","🐂","🐄","🐎","🐖","🐏","🐑","🦙","🐐","🦌","🐕","🐩","🦮","🐕‍🦺","🐈","🐈‍⬛","🪶","🐓","🦃","🦤","🦚","🦜","🦢","🦩","🕊️","🐇","🦝","🦨","🦡","🦫","🦦","🦥","🐁","🐀","🐿️","🦔","🌵","🎄","🌲","🌳","🌴","🪵","🌱","🌿","☘️","🍀","🎍","🪴","🎋","🍃","🍂","🍁","🪺","🪹","🍄","🌾","💐","🌷","🌹","🥀","🌺","🌸","🌼","🌻","🌞","🌝","🌛","🌜","🌚","🌕","🌖","🌗","🌘","🌑","🌒","🌓","🌔","🌙","🌟","⭐","🌠","🌌","☁️","⛅","🌤️","🌈","🌂","☂️","☔","⛱️","⚡","❄️","🔥","💧","🌊"] },
-  { label: "Comida", emojis: ["🍏","🍎","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶️","🫑","🥕","🧄","🧅","🥔","🍠","🥐","🥯","🍞","🥖","🥨","🧀","🥚","🍳","🧈","🥞","🧇","🥓","🥩","🍗","🍖","🌭","🍔","🍟","🍕","🫓","🥪","🥙","🧆","🌮","🌯","🫔","🥗","🥘","🫕","🥫","🍝","🍜","🍲","🍛","🍣","🍱","🥟","🦪","🍤","🍙","🍚","🍘","🍥","🥮","🍢","🧁","🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍩","🍪","🌰","🥜","🍯","🧃","🥤","🧋","🍵","☕","🫖","🍺","🍻","🥂","🍷","🫗","🥃","🍸","🍹","🧉","🍾","🧊","🥄","🍴","🍽️"] },
-  { label: "Símbolos", emojis: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❤️‍🔥","❤️‍🩹","❣️","💕","💞","💓","💗","💖","💘","💝","💟","☮️","✝️","☪️","🕉️","☸️","✡️","🔯","🕎","☯️","☦️","🛐","⛎","♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓","🆔","⚛️","🉑","☢️","☣️","📴","📳","🈶","🈚","🈸","🈺","🈷️","✴️","🆚","💮","🉐","㊙️","㊗️","🈴","🈵","🈹","🈲","🅰️","🅱️","🆎","🆑","🅾️","🆘","❌","⭕","🛑","⛔","📛","🚫","💯","💢","♨️","🚷","🚯","🚳","🚱","🔞","📵","🔕","🔇","🔉","🔊","📢","📣","📯","🔔","🔔","🛎️","🎵","🎶","✅","🔰","♻️","🔱","📛","🔰","⚜️","🔲","🔳","▪️","▫️","◾","◽","◼️","◻️","⬛","⬜","🟥","🟧","🟨","🟩","🟦","🟪","🟫"] },
+  {
+    label: "Smileys",
+    emojis: [
+      "😀",
+      "😃",
+      "😄",
+      "😁",
+      "😆",
+      "😅",
+      "🤣",
+      "😂",
+      "🙂",
+      "😉",
+      "😊",
+      "😇",
+      "🥰",
+      "😍",
+      "🤩",
+      "😘",
+      "😗",
+      "😚",
+      "😙",
+      "🥲",
+      "😋",
+      "😛",
+      "😜",
+      "🤪",
+      "😝",
+      "🤑",
+      "🤗",
+      "🤭",
+      "🤫",
+      "🤔",
+      "🤐",
+      "🤨",
+      "😐",
+      "😑",
+      "😶",
+      "😏",
+      "😒",
+      "🙄",
+      "😬",
+      "🤥",
+      "😌",
+      "😔",
+      "😪",
+      "🤤",
+      "😴",
+      "😷",
+      "🤒",
+      "🤕",
+      "🤢",
+      "🤧",
+      "🥵",
+      "🥶",
+      "🥴",
+      "😵",
+      "🤯",
+      "🤠",
+      "🥳",
+      "🥸",
+      "😎",
+      "🤓",
+      "🧐",
+      "😕",
+      "😟",
+      "🙁",
+      "☹️",
+      "😮",
+      "😯",
+      "😲",
+      "😳",
+      "🥺",
+      "😦",
+      "😧",
+      "😨",
+      "😰",
+      "😥",
+      "😢",
+      "😭",
+      "😱",
+      "😖",
+      "😣",
+      "😞",
+      "😓",
+      "😩",
+      "😫",
+      "🥱",
+      "😤",
+      "😡",
+      "😠",
+      "🤬",
+      "😈",
+      "👿",
+    ],
+  },
+  {
+    label: "Gestos",
+    emojis: [
+      "👋",
+      "🤚",
+      "🖐️",
+      "✋",
+      "🖖",
+      "👌",
+      "🤌",
+      "🤏",
+      "✌️",
+      "🤞",
+      "🤟",
+      "🤘",
+      "🤙",
+      "👈",
+      "👉",
+      "👆",
+      "🖕",
+      "👇",
+      "☝️",
+      "👍",
+      "👎",
+      "✊",
+      "👊",
+      "🤛",
+      "🤜",
+      "👏",
+      "🙌",
+      "👐",
+      "🤲",
+      "🤝",
+      "🙏",
+      "✍️",
+      "💅",
+      "🤳",
+      "💪",
+      "🦾",
+      "🦿",
+      "🦵",
+      "🦶",
+      "👂",
+      "🦻",
+      "👃",
+      "🫀",
+      "🫁",
+      "🧠",
+      "🦷",
+      "🦴",
+      "👀",
+      "👁️",
+      "👅",
+      "👄",
+    ],
+  },
+  {
+    label: "Pessoas",
+    emojis: [
+      "🧑",
+      "👱",
+      "🧔",
+      "🧑‍🦰",
+      "🧑‍🦱",
+      "🧑‍🦳",
+      "🧑‍🦲",
+      "👶",
+      "🧒",
+      "👦",
+      "👧",
+      "🧑",
+      "👨",
+      "👩",
+      "🧓",
+      "👴",
+      "👵",
+      "🙍",
+      "🙎",
+      "🙅",
+      "🙆",
+      "💁",
+      "🙋",
+      "🧏",
+      "🙇",
+      "🤦",
+      "🤷",
+      "👮",
+      "🕵️",
+      "💂",
+      "🥷",
+      "👷",
+      "🫅",
+      "🤴",
+      "👸",
+      "👳",
+      "👲",
+      "🧕",
+      "🤵",
+      "👰",
+      "🤰",
+      "🤱",
+      "👼",
+      "🎅",
+      "🤶",
+      "🧑‍🎄",
+      "🦸",
+      "🦹",
+      "🧙",
+      "🧝",
+      "🧛",
+      "🧟",
+      "🧞",
+      "🧜",
+      "🧚",
+      "🧑‍🤝‍🧑",
+      "💏",
+      "💑",
+      "👪",
+    ],
+  },
+  {
+    label: "Natureza",
+    emojis: [
+      "🐶",
+      "🐱",
+      "🐭",
+      "🐹",
+      "🐰",
+      "🦊",
+      "🐻",
+      "🐼",
+      "🐻‍❄️",
+      "🐨",
+      "🐯",
+      "🦁",
+      "🐮",
+      "🐷",
+      "🐸",
+      "🐵",
+      "🙈",
+      "🙉",
+      "🙊",
+      "🐒",
+      "🐔",
+      "🐧",
+      "🐦",
+      "🐤",
+      "🦆",
+      "🦅",
+      "🦉",
+      "🦇",
+      "🐺",
+      "🐗",
+      "🐴",
+      "🦄",
+      "🐝",
+      "🪱",
+      "🐛",
+      "🦋",
+      "🐌",
+      "🐞",
+      "🐜",
+      "🪲",
+      "🦟",
+      "🦗",
+      "🪳",
+      "🕷️",
+      "🦂",
+      "🐢",
+      "🐍",
+      "🦎",
+      "🦖",
+      "🦕",
+      "🐙",
+      "🦑",
+      "🦐",
+      "🦞",
+      "🦀",
+      "🐡",
+      "🐠",
+      "🐟",
+      "🐬",
+      "🐳",
+      "🐋",
+      "🦈",
+      "🦭",
+      "🐊",
+      "🐅",
+      "🐆",
+      "🦓",
+      "🦍",
+      "🦧",
+      "🦣",
+      "🐘",
+      "🦛",
+      "🦏",
+      "🐪",
+      "🐫",
+      "🦒",
+      "🦘",
+      "🦬",
+      "🐃",
+      "🐂",
+      "🐄",
+      "🐎",
+      "🐖",
+      "🐏",
+      "🐑",
+      "🦙",
+      "🐐",
+      "🦌",
+      "🐕",
+      "🐩",
+      "🦮",
+      "🐕‍🦺",
+      "🐈",
+      "🐈‍⬛",
+      "🪶",
+      "🐓",
+      "🦃",
+      "🦤",
+      "🦚",
+      "🦜",
+      "🦢",
+      "🦩",
+      "🕊️",
+      "🐇",
+      "🦝",
+      "🦨",
+      "🦡",
+      "🦫",
+      "🦦",
+      "🦥",
+      "🐁",
+      "🐀",
+      "🐿️",
+      "🦔",
+      "🌵",
+      "🎄",
+      "🌲",
+      "🌳",
+      "🌴",
+      "🪵",
+      "🌱",
+      "🌿",
+      "☘️",
+      "🍀",
+      "🎍",
+      "🪴",
+      "🎋",
+      "🍃",
+      "🍂",
+      "🍁",
+      "🪺",
+      "🪹",
+      "🍄",
+      "🌾",
+      "💐",
+      "🌷",
+      "🌹",
+      "🥀",
+      "🌺",
+      "🌸",
+      "🌼",
+      "🌻",
+      "🌞",
+      "🌝",
+      "🌛",
+      "🌜",
+      "🌚",
+      "🌕",
+      "🌖",
+      "🌗",
+      "🌘",
+      "🌑",
+      "🌒",
+      "🌓",
+      "🌔",
+      "🌙",
+      "🌟",
+      "⭐",
+      "🌠",
+      "🌌",
+      "☁️",
+      "⛅",
+      "🌤️",
+      "🌈",
+      "🌂",
+      "☂️",
+      "☔",
+      "⛱️",
+      "⚡",
+      "❄️",
+      "🔥",
+      "💧",
+      "🌊",
+    ],
+  },
+  {
+    label: "Comida",
+    emojis: [
+      "🍏",
+      "🍎",
+      "🍐",
+      "🍊",
+      "🍋",
+      "🍌",
+      "🍉",
+      "🍇",
+      "🍓",
+      "🫐",
+      "🍈",
+      "🍒",
+      "🍑",
+      "🥭",
+      "🍍",
+      "🥥",
+      "🥝",
+      "🍅",
+      "🍆",
+      "🥑",
+      "🥦",
+      "🥬",
+      "🥒",
+      "🌶️",
+      "🫑",
+      "🥕",
+      "🧄",
+      "🧅",
+      "🥔",
+      "🍠",
+      "🥐",
+      "🥯",
+      "🍞",
+      "🥖",
+      "🥨",
+      "🧀",
+      "🥚",
+      "🍳",
+      "🧈",
+      "🥞",
+      "🧇",
+      "🥓",
+      "🥩",
+      "🍗",
+      "🍖",
+      "🌭",
+      "🍔",
+      "🍟",
+      "🍕",
+      "🫓",
+      "🥪",
+      "🥙",
+      "🧆",
+      "🌮",
+      "🌯",
+      "🫔",
+      "🥗",
+      "🥘",
+      "🫕",
+      "🥫",
+      "🍝",
+      "🍜",
+      "🍲",
+      "🍛",
+      "🍣",
+      "🍱",
+      "🥟",
+      "🦪",
+      "🍤",
+      "🍙",
+      "🍚",
+      "🍘",
+      "🍥",
+      "🥮",
+      "🍢",
+      "🧁",
+      "🍰",
+      "🎂",
+      "🍮",
+      "🍭",
+      "🍬",
+      "🍫",
+      "🍿",
+      "🍩",
+      "🍪",
+      "🌰",
+      "🥜",
+      "🍯",
+      "🧃",
+      "🥤",
+      "🧋",
+      "🍵",
+      "☕",
+      "🫖",
+      "🍺",
+      "🍻",
+      "🥂",
+      "🍷",
+      "🫗",
+      "🥃",
+      "🍸",
+      "🍹",
+      "🧉",
+      "🍾",
+      "🧊",
+      "🥄",
+      "🍴",
+      "🍽️",
+    ],
+  },
+  {
+    label: "Símbolos",
+    emojis: [
+      "❤️",
+      "🧡",
+      "💛",
+      "💚",
+      "💙",
+      "💜",
+      "🖤",
+      "🤍",
+      "🤎",
+      "💔",
+      "❤️‍🔥",
+      "❤️‍🩹",
+      "❣️",
+      "💕",
+      "💞",
+      "💓",
+      "💗",
+      "💖",
+      "💘",
+      "💝",
+      "💟",
+      "☮️",
+      "✝️",
+      "☪️",
+      "🕉️",
+      "☸️",
+      "✡️",
+      "🔯",
+      "🕎",
+      "☯️",
+      "☦️",
+      "🛐",
+      "⛎",
+      "♈",
+      "♉",
+      "♊",
+      "♋",
+      "♌",
+      "♍",
+      "♎",
+      "♏",
+      "♐",
+      "♑",
+      "♒",
+      "♓",
+      "🆔",
+      "⚛️",
+      "🉑",
+      "☢️",
+      "☣️",
+      "📴",
+      "📳",
+      "🈶",
+      "🈚",
+      "🈸",
+      "🈺",
+      "🈷️",
+      "✴️",
+      "🆚",
+      "💮",
+      "🉐",
+      "㊙️",
+      "㊗️",
+      "🈴",
+      "🈵",
+      "🈹",
+      "🈲",
+      "🅰️",
+      "🅱️",
+      "🆎",
+      "🆑",
+      "🅾️",
+      "🆘",
+      "❌",
+      "⭕",
+      "🛑",
+      "⛔",
+      "📛",
+      "🚫",
+      "💯",
+      "💢",
+      "♨️",
+      "🚷",
+      "🚯",
+      "🚳",
+      "🚱",
+      "🔞",
+      "📵",
+      "🔕",
+      "🔇",
+      "🔉",
+      "🔊",
+      "📢",
+      "📣",
+      "📯",
+      "🔔",
+      "🔔",
+      "🛎️",
+      "🎵",
+      "🎶",
+      "✅",
+      "🔰",
+      "♻️",
+      "🔱",
+      "📛",
+      "🔰",
+      "⚜️",
+      "🔲",
+      "🔳",
+      "▪️",
+      "▫️",
+      "◾",
+      "◽",
+      "◼️",
+      "◻️",
+      "⬛",
+      "⬜",
+      "🟥",
+      "🟧",
+      "🟨",
+      "🟩",
+      "🟦",
+      "🟪",
+      "🟫",
+    ],
+  },
 ];
 
 function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
@@ -222,7 +852,9 @@ function getInitials(name: string | null, phone: string) {
 const SP_TZ = "America/Sao_Paulo";
 
 function toSP(dateStr: string | Date) {
-  return new Date(new Date(dateStr).toLocaleString("en-US", { timeZone: SP_TZ }));
+  return new Date(
+    new Date(dateStr).toLocaleString("en-US", { timeZone: SP_TZ }),
+  );
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -253,27 +885,39 @@ function formatSectionDate(dateStr: string) {
 
 const UMBLER_COLOR_MAP: Record<string, string> = {
   Aquamarine: "#14b8a6",
-  Chocolate:  "#92400e",
-  Cyan:       "#06b6d4",
-  Gold:       "#d97706",
-  Grape:      "#7c3aed",
-  Gray:       "#6b7280",
-  Green:      "#16a34a",
-  Kiwi:       "#84cc16",
-  Magenta:    "#ec4899",
-  Pink:       "#f472b6",
-  Rose:       "#e11d48",
-  Salmon:     "#f87171",
-  Skyblue:    "#38bdf8",
-  Tangerine:  "#f97316",
-  Tomato:     "#ef4444",
-  Umblerito:  "#5046e5",
+  Chocolate: "#92400e",
+  Cyan: "#06b6d4",
+  Gold: "#d97706",
+  Grape: "#7c3aed",
+  Gray: "#6b7280",
+  Green: "#16a34a",
+  Kiwi: "#84cc16",
+  Magenta: "#ec4899",
+  Pink: "#f472b6",
+  Rose: "#e11d48",
+  Salmon: "#f87171",
+  Skyblue: "#38bdf8",
+  Tangerine: "#f97316",
+  Tomato: "#ef4444",
+  Umblerito: "#5046e5",
 };
 
 const TAG_PALETTE = [
-  "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#1abc9c",
-  "#3498db", "#9b59b6", "#e91e63", "#00bcd4", "#8bc34a",
-  "#ff5722", "#795548", "#607d8b", "#009688", "#673ab7",
+  "#e74c3c",
+  "#e67e22",
+  "#f1c40f",
+  "#2ecc71",
+  "#1abc9c",
+  "#3498db",
+  "#9b59b6",
+  "#e91e63",
+  "#00bcd4",
+  "#8bc34a",
+  "#ff5722",
+  "#795548",
+  "#607d8b",
+  "#009688",
+  "#673ab7",
 ];
 
 function resolveTagColor(color: string | null, id: string): string {
@@ -317,115 +961,256 @@ function ClientListItem({
   client,
   selected,
   onClick,
+  availableTags,
+  onTagsChange,
 }: {
   client: ChatClient;
   selected: boolean;
   onClick: () => void;
+  availableTags: WhatsappClientTag[];
+  onTagsChange: (clientId: string, tagIds: string[]) => void;
 }) {
   const hasUnread = (client.unreadCount ?? 0) > 0;
   const displayName = client.clientName ?? client.phone;
+  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
+  const [localTagIds, setLocalTagIds] = useState<Set<string>>(
+    () => new Set((client.whatsappTags ?? []).map((t) => t.id)),
+  );
+
+  // Sincroniza com dados do servidor quando a query refaz o fetch
+  useEffect(() => {
+    setLocalTagIds(new Set((client.whatsappTags ?? []).map((t) => t.id)));
+  }, [client.whatsappTags]);
+
+  function toggleTag(tagId: string) {
+    const next = new Set(localTagIds);
+    if (next.has(tagId)) {
+      next.delete(tagId);
+    } else {
+      next.add(tagId);
+    }
+    setLocalTagIds(next);
+    if (client.clientId) {
+      onTagsChange(client.clientId, Array.from(next));
+    }
+  }
 
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
-        "border-b border-slate-100 dark:border-slate-800/60",
+        "w-full flex items-center gap-3 px-3.5 py-3 text-left transition-all duration-150 relative group",
+        "border-b border-slate-300/80 dark:border-slate-800",
         selected
-          ? "bg-primary/10 dark:bg-primary/15 border-l-2 border-l-primary"
+          ? "bg-primary/10 dark:bg-primary/20 shadow-[inset_3px_0_0_0_hsl(var(--primary))]"
           : hasUnread
-            ? "hover:bg-slate-50 dark:hover:bg-slate-800/40 bg-green-50/50 dark:bg-green-950/20"
-            : "hover:bg-slate-50 dark:hover:bg-slate-800/40",
+            ? "bg-emerald-50/60 dark:bg-emerald-950/20 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+            : "hover:bg-slate-100/70 dark:hover:bg-slate-800/50",
       )}
     >
-      <div className="relative shrink-0">
-        <div className="h-11 w-11 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-sm font-bold text-white shadow-sm">
-          {getInitials(client.clientName, client.phone)}
-        </div>
-        {hasUnread && !selected && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-green-500 flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-sm">
-            {(client.unreadCount ?? 0) > 99 ? "99+" : client.unreadCount}
-          </span>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-1 mb-0.5">
-          <p className={cn(
-            "text-sm truncate",
-            hasUnread && !selected ? "font-bold text-slate-900 dark:text-white" : "font-medium text-slate-800 dark:text-slate-100",
-          )}>
-            {displayName}
-          </p>
-          {client.lastMessageAt && (
-            <span className={cn(
-              "text-[11px] shrink-0",
-              hasUnread && !selected
-                ? "text-green-600 dark:text-green-400 font-semibold"
-                : "text-slate-400 dark:text-slate-500",
-            )}>
-              {formatMessageDate(client.lastMessageAt)}
+      <button
+        className="flex items-start gap-3 min-w-0 flex-1 text-left"
+        onClick={onClick}
+      >
+        {/* Avatar — mt-0.5 alinha visualmente com o nome */}
+        <div className="relative shrink-0 mt-0.5">
+          <div
+            className={cn(
+              "h-11 w-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-semibold text-white shadow-sm ring-2 transition-shadow",
+              selected ? "ring-primary/40" : "ring-white dark:ring-slate-900",
+            )}
+          >
+            {getInitials(client.clientName, client.phone)}
+          </div>
+          {hasUnread && !selected && (
+            <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-sm">
+              {(client.unreadCount ?? 0) > 99 ? "99+" : client.unreadCount}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-1">
-          {client.lastMessageContent ? (
-            <p className={cn(
-              "text-xs truncate flex-1",
-              hasUnread && !selected
-                ? "text-slate-700 dark:text-slate-200 font-medium"
-                : "text-slate-400 dark:text-slate-500",
-            )}>
-              {client.lastMessageDirection === "outbound" && client.lastMessageType !== "system" && (
-                <span className="text-slate-400 dark:text-slate-500 mr-0.5">Você: </span>
+        <div className="min-w-0 flex-1">
+          {/* Linha 1: nome + horário */}
+          <div className="flex items-baseline justify-between gap-2">
+            <p
+              className={cn(
+                "text-sm leading-5 truncate",
+                hasUnread && !selected
+                  ? "font-bold text-slate-900 dark:text-white"
+                  : "font-semibold text-slate-800 dark:text-slate-100",
               )}
+            >
+              {displayName}
+            </p>
+            {client.lastMessageAt && (
+              <span
+                className={cn(
+                  "text-[11px] shrink-0 leading-5 tabular-nums",
+                  hasUnread && !selected
+                    ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                    : "text-slate-500 dark:text-slate-400",
+                )}
+              >
+                {formatMessageDate(client.lastMessageAt)}
+              </span>
+            )}
+          </div>
+
+          {/* Linha 2: última mensagem */}
+          {client.lastMessageContent ? (
+            <p
+              className={cn(
+                "text-xs leading-5 truncate mt-0.5",
+                hasUnread && !selected
+                  ? "text-slate-700 dark:text-slate-200 font-medium"
+                  : "text-slate-600 dark:text-slate-400",
+              )}
+            >
+              {client.lastMessageDirection === "outbound" &&
+                client.lastMessageType !== "system" && (
+                  <span className="text-slate-500 dark:text-slate-500 font-medium mr-0.5">
+                    Você:
+                  </span>
+                )}{" "}
               {client.lastMessageContent}
             </p>
           ) : (
-            <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1 truncate flex-1">
+            <p className="text-xs leading-5 mt-0.5 text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
               <Phone className="h-3 w-3 shrink-0" />
               {client.phone}
             </p>
           )}
+
+          {/* Linha 3: tags (seção separada) */}
+          {((client.tags && client.tags.length > 0) ||
+            (client.whatsappTags && client.whatsappTags.length > 0)) && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {client.tags?.slice(0, 3).map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 truncate max-w-[80px]"
+                >
+                  {tag.name}
+                </span>
+              ))}
+              {(client.tags?.length ?? 0) > 3 && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                  +{(client.tags?.length ?? 0) - 3}
+                </span>
+              )}
+              {client.whatsappTags?.slice(0, 3).map((tag) => (
+                <WhatsappTagBadge key={tag.id} tag={tag} />
+              ))}
+              {(client.whatsappTags?.length ?? 0) > 3 && (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                  +{(client.whatsappTags?.length ?? 0) - 3}
+                </span>
+              )}
+            </div>
+          )}
         </div>
+      </button>
 
-        {client.tags && client.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {client.tags.slice(0, 3).map((tag) => (
-              <span
-                key={tag.id}
-                className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 truncate max-w-[80px]"
-              >
-                {tag.name}
-              </span>
-            ))}
-            {client.tags.length > 3 && (
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                +{client.tags.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-
-        {client.whatsappTags && client.whatsappTags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {client.whatsappTags.slice(0, 3).map((tag) => (
-              <WhatsappTagBadge key={tag.id} tag={tag} />
-            ))}
-            {client.whatsappTags.length > 3 && (
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                +{client.whatsappTags.length - 3}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </button>
+      {client.clientId && availableTags.length > 0 && (
+        <Popover
+          open={tagPopoverOpen}
+          onOpenChange={(open) => {
+            setTagPopoverOpen(open);
+            if (!open) setTagSearch("");
+          }}
+        >
+          <PopoverTrigger asChild>
+            <button
+              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "shrink-0 p-1 rounded transition-opacity text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700",
+                tagPopoverOpen
+                  ? "opacity-100"
+                  : "opacity-0 group-hover:opacity-100",
+              )}
+              title="Editar etiquetas"
+            >
+              <Tag className="h-3.5 w-3.5" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-60 p-2"
+            side="right"
+            align="start"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 px-1">
+              Etiquetas WhatsApp
+            </p>
+            <div className="relative mb-2">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar etiqueta..."
+                value={tagSearch}
+                onChange={(e) => setTagSearch(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full pl-7 pr-2 py-1.5 text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto">
+              {availableTags.filter((t) =>
+                t.name.toLowerCase().includes(tagSearch.toLowerCase()),
+              ).length === 0 ? (
+                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-3">
+                  Nenhuma etiqueta encontrada
+                </p>
+              ) : (
+                availableTags
+                  .filter((t) =>
+                    t.name.toLowerCase().includes(tagSearch.toLowerCase()),
+                  )
+                  .map((tag) => {
+                    const checked = localTagIds.has(tag.id);
+                    const bg = resolveTagColor(tag.color, tag.id);
+                    const emoji = resolveTagEmoji(tag.emoji);
+                    return (
+                      <button
+                        key={tag.id}
+                        onClick={() => toggleTag(tag.id)}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-left w-full transition-colors"
+                      >
+                        <span
+                          className={cn(
+                            "h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors",
+                            checked
+                              ? "bg-primary border-primary"
+                              : "border-slate-300 dark:border-slate-600",
+                          )}
+                        >
+                          {checked && <Check className="h-3 w-3 text-white" />}
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full font-medium truncate"
+                          style={{ backgroundColor: bg, color: "#fff" }}
+                        >
+                          {emoji && <span>{emoji}</span>}
+                          <span>{tag.name}</span>
+                        </span>
+                      </button>
+                    );
+                  })
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
   );
 }
 
-function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) {
+function AudioPlayer({
+  src,
+  isOutbound,
+}: {
+  src: string;
+  isOutbound: boolean;
+}) {
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -457,7 +1242,10 @@ function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) 
         src={src}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setCurrent(0); }}
+        onEnded={() => {
+          setPlaying(false);
+          setCurrent(0);
+        }}
         onTimeUpdate={() => setCurrent(audioRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
         preload="metadata"
@@ -472,14 +1260,20 @@ function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) 
             : "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200",
         )}
       >
-        {playing ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current translate-x-0.5" />}
+        {playing ? (
+          <Pause className="h-4 w-4 fill-current" />
+        ) : (
+          <Play className="h-4 w-4 fill-current translate-x-0.5" />
+        )}
       </button>
 
       <div className="flex-1 flex flex-col gap-1">
         <div
           className={cn(
             "relative h-1.5 rounded-full overflow-hidden cursor-pointer",
-            isOutbound ? "bg-primary-foreground/30" : "bg-slate-200 dark:bg-slate-600",
+            isOutbound
+              ? "bg-primary-foreground/30"
+              : "bg-slate-200 dark:bg-slate-600",
           )}
           onClick={(e) => {
             const el = audioRef.current;
@@ -497,30 +1291,47 @@ function AudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) 
             style={{ width: `${progress}%` }}
           />
         </div>
-        <span className={cn(
-          "text-[10px] tabular-nums",
-          isOutbound ? "text-primary-foreground/70" : "text-slate-400 dark:text-slate-500",
-        )}>
+        <span
+          className={cn(
+            "text-[10px] tabular-nums",
+            isOutbound
+              ? "text-primary-foreground/70"
+              : "text-slate-400 dark:text-slate-500",
+          )}
+        >
           {formatTime(current || duration)}
         </span>
       </div>
 
-      <Mic className={cn(
-        "h-4 w-4 shrink-0",
-        isOutbound ? "text-primary-foreground/50" : "text-slate-400 dark:text-slate-500",
-      )} />
+      <Mic
+        className={cn(
+          "h-4 w-4 shrink-0",
+          isOutbound
+            ? "text-primary-foreground/50"
+            : "text-slate-400 dark:text-slate-500",
+        )}
+      />
     </div>
   );
 }
 
-function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boolean }) {
+function MessageContent({
+  msg,
+  isOutbound,
+}: {
+  msg: WaMessage;
+  isOutbound: boolean;
+}) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const mediaUrl = msg.media?.id
-    ? `/api/whatsapp/media/${msg.media.id}`
-    : null;
+  const mediaUrl = msg.media?.id ? `/api/whatsapp/media/${msg.media.id}` : null;
 
   if (msg.type === "sticker") {
-    if (!mediaUrl) return <p className="px-3.5 py-2.5 text-sm italic opacity-60">🎭 Figurinha não disponível</p>;
+    if (!mediaUrl)
+      return (
+        <p className="px-3.5 py-2.5 text-sm italic opacity-60">
+          🎭 Figurinha não disponível
+        </p>
+      );
     return (
       <div className="p-1.5">
         <img
@@ -538,7 +1349,10 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
       <>
         <div>
           {mediaUrl ? (
-            <div className="relative group cursor-zoom-in" onClick={() => setLightboxOpen(true)}>
+            <div
+              className="relative group cursor-zoom-in"
+              onClick={() => setLightboxOpen(true)}
+            >
               <img
                 src={mediaUrl}
                 alt={msg.caption ?? "imagem"}
@@ -550,10 +1364,14 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
               </div>
             </div>
           ) : (
-            <div className="px-3.5 py-2.5 text-sm italic opacity-60">[imagem]</div>
+            <div className="px-3.5 py-2.5 text-sm italic opacity-60">
+              [imagem]
+            </div>
           )}
           {msg.caption && (
-            <p className="text-sm px-3.5 pt-1 pb-0.5 whitespace-pre-wrap break-words">{msg.caption}</p>
+            <p className="text-sm px-3.5 pt-1 pb-0.5 whitespace-pre-wrap break-words">
+              {msg.caption}
+            </p>
           )}
         </div>
 
@@ -589,7 +1407,9 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
           <div className="px-3.5 py-2.5 text-sm italic opacity-60">[vídeo]</div>
         )}
         {msg.caption && (
-          <p className="text-sm px-3.5 pt-1 pb-0.5 whitespace-pre-wrap break-words">{msg.caption}</p>
+          <p className="text-sm px-3.5 pt-1 pb-0.5 whitespace-pre-wrap break-words">
+            {msg.caption}
+          </p>
         )}
       </div>
     );
@@ -616,7 +1436,9 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
             download={msg.media?.filename ?? true}
             className={cn(
               "shrink-0 p-1 rounded hover:opacity-70 transition-opacity",
-              isOutbound ? "text-primary-foreground" : "text-slate-500 dark:text-slate-400",
+              isOutbound
+                ? "text-primary-foreground"
+                : "text-slate-500 dark:text-slate-400",
             )}
             onClick={(e) => e.stopPropagation()}
           >
@@ -629,19 +1451,32 @@ function MessageContent({ msg, isOutbound }: { msg: WaMessage; isOutbound: boole
 
   if (msg.content) {
     return (
-      <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">{msg.content}</p>
+      <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
+        {msg.content}
+      </p>
     );
   }
 
   // Fallback para mensagens salvas como "unsupported" que têm mídia — infere o tipo pelo mimeType.
   if (msg.media?.mimeType) {
     const mime = msg.media.mimeType;
-    const inferredMsg = { ...msg, type: mime.startsWith("video/") ? "video" : mime.startsWith("audio/") ? "audio" : "sticker" };
+    const inferredMsg = {
+      ...msg,
+      type: mime.startsWith("video/")
+        ? "video"
+        : mime.startsWith("audio/")
+          ? "audio"
+          : "sticker",
+    };
     return <MessageContent msg={inferredMsg} isOutbound={isOutbound} />;
   }
 
   if (msg.type === "unsupported") {
-    return <p className="px-3.5 py-2.5 text-sm italic opacity-60">🎭 Figurinha animada não suportada</p>;
+    return (
+      <p className="px-3.5 py-2.5 text-sm italic opacity-60">
+        🎭 Figurinha animada não suportada
+      </p>
+    );
   }
 
   return <p className="text-sm italic opacity-60">[{msg.type}]</p>;
@@ -660,7 +1495,11 @@ function StickerPicker({
   onPickFromDevice: () => void;
   onPickSaved: (mediaId: string) => void;
 }) {
-  const { data: stickers = [], isLoading, refetch } = useQuery<SavedSticker[]>({
+  const {
+    data: stickers = [],
+    isLoading,
+    refetch,
+  } = useQuery<SavedSticker[]>({
     queryKey: ["/api/whatsapp/stickers"],
     queryFn: async () => {
       const res = await fetch("/api/whatsapp/stickers");
@@ -686,7 +1525,9 @@ function StickerPicker({
     <div className="w-[min(288px,calc(100vw-2rem))] flex flex-col">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
         <Sticker className="h-3.5 w-3.5 text-slate-400" />
-        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Figurinhas salvas</span>
+        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+          Figurinhas salvas
+        </span>
       </div>
 
       {isLoading ? (
@@ -697,7 +1538,9 @@ function StickerPicker({
         <div className="flex flex-col items-center justify-center py-8 px-4 text-center gap-2">
           <Sticker className="h-8 w-8 text-slate-300 dark:text-slate-600" />
           <p className="text-xs text-slate-400 dark:text-slate-500">
-            Nenhuma figurinha salva ainda.<br />Salve figurinhas recebidas no chat.
+            Nenhuma figurinha salva ainda.
+            <br />
+            Salve figurinhas recebidas no chat.
           </p>
         </div>
       ) : (
@@ -774,17 +1617,25 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
       const res = await fetch("/api/whatsapp/quick-replies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTitle.trim(), content: newContent.trim() }),
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          content: newContent.trim(),
+        }),
       });
       if (!res.ok) {
         const err = await res.json();
-        toast({ title: err.message ?? "Erro ao criar resposta", variant: "destructive" });
+        toast({
+          title: err.message ?? "Erro ao criar resposta",
+          variant: "destructive",
+        });
         return;
       }
       setNewTitle("");
       setNewContent("");
       setIsCreating(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/quick-replies"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/quick-replies"],
+      });
     } catch {
       toast({ title: "Erro ao criar resposta rápida", variant: "destructive" });
     }
@@ -794,7 +1645,9 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
     e.stopPropagation();
     try {
       await fetch(`/api/whatsapp/quick-replies/${id}`, { method: "DELETE" });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/quick-replies"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/quick-replies"],
+      });
     } catch {
       toast({ title: "Erro ao remover resposta", variant: "destructive" });
     }
@@ -805,7 +1658,9 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-2">
           <Zap className="h-3.5 w-3.5 text-slate-400" />
-          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Respostas rápidas</span>
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+            Respostas rápidas
+          </span>
         </div>
         <button
           onClick={() => setIsCreating((v) => !v)}
@@ -834,7 +1689,11 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
           />
           <div className="flex gap-1.5 justify-end">
             <button
-              onClick={() => { setIsCreating(false); setNewTitle(""); setNewContent(""); }}
+              onClick={() => {
+                setIsCreating(false);
+                setNewTitle("");
+                setNewContent("");
+              }}
               className="px-2 py-1 text-xs rounded text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
             >
               Cancelar
@@ -858,7 +1717,9 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
         <div className="flex flex-col items-center justify-center py-8 px-4 text-center gap-2">
           <Zap className="h-8 w-8 text-slate-300 dark:text-slate-600" />
           <p className="text-xs text-slate-400 dark:text-slate-500">
-            Nenhuma resposta rápida criada.<br />Clique em + para adicionar.
+            Nenhuma resposta rápida criada.
+            <br />
+            Clique em + para adicionar.
           </p>
         </div>
       ) : (
@@ -870,8 +1731,12 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
               onClick={() => onPick(r.content)}
             >
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">{r.title}</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 line-clamp-2 mt-0.5">{r.content}</p>
+                <p className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
+                  {r.title}
+                </p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 line-clamp-2 mt-0.5">
+                  {r.content}
+                </p>
               </div>
               <button
                 onClick={(e) => handleDelete(e, r.id)}
@@ -946,14 +1811,18 @@ function CreateClientFromConversationDialog({
     enabled: open && isAdminOrGerente,
   });
 
-  const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const set =
+    (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   const handleCreate = async () => {
     if (!form.name.trim()) return;
     setIsPending(true);
     try {
-      const body: Record<string, string> = { action: "create", name: form.name.trim() };
+      const body: Record<string, string> = {
+        action: "create",
+        name: form.name.trim(),
+      };
       if (form.email.trim()) body.email = form.email.trim();
       if (form.cpf.trim()) body.cpf = form.cpf.trim();
       if (form.birthday) body.birthday = form.birthday;
@@ -961,19 +1830,35 @@ function CreateClientFromConversationDialog({
       if (form.origem) body.origem = form.origem;
       if (form.responsavelId) body.responsavelId = form.responsavelId;
 
-      const res = await fetch(`/api/whatsapp/conversations/${client.conversationId}/link-client`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const res = await fetch(
+        `/api/whatsapp/conversations/${client.conversationId}/link-client`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
       const data = await res.json();
       if (!res.ok) {
-        toast({ title: data?.message ?? "Erro ao criar cliente", variant: "destructive" });
+        toast({
+          title: data?.message ?? "Erro ao criar cliente",
+          variant: "destructive",
+        });
         return;
       }
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
       onOpenChange(false);
-      setForm({ name: "", email: "", cpf: "", birthday: "", categoria: "", origem: "WhatsApp", responsavelId: "" });
+      setForm({
+        name: "",
+        email: "",
+        cpf: "",
+        birthday: "",
+        categoria: "",
+        origem: "WhatsApp",
+        responsavelId: "",
+      });
       onSuccess(data.clientId);
     } catch {
       toast({ title: "Erro de conexão", variant: "destructive" });
@@ -982,9 +1867,17 @@ function CreateClientFromConversationDialog({
     }
   };
 
-  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  const Field = ({
+    label,
+    children,
+  }: {
+    label: string;
+    children: React.ReactNode;
+  }) => (
     <div>
-      <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">{label}</label>
+      <label className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1 block">
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -1006,7 +1899,11 @@ function CreateClientFromConversationDialog({
               />
             </Field>
             <Field label="Telefone">
-              <Input value={client.phone} readOnly className="bg-slate-50 dark:bg-slate-800/50 text-slate-500" />
+              <Input
+                value={client.phone}
+                readOnly
+                className="bg-slate-50 dark:bg-slate-800/50 text-slate-500"
+              />
             </Field>
           </div>
 
@@ -1037,14 +1934,19 @@ function CreateClientFromConversationDialog({
               />
             </Field>
             <Field label="Categoria">
-              <Select value={form.categoria} onValueChange={(v) => setForm((p) => ({ ...p, categoria: v }))}>
+              <Select
+                value={form.categoria}
+                onValueChange={(v) => setForm((p) => ({ ...p, categoria: v }))}
+              >
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Selecionar…" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Geral">Geral</SelectItem>
                   {(categories as { id: string; name: string }[]).map((c) => (
-                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1053,27 +1955,41 @@ function CreateClientFromConversationDialog({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Origem">
-              <Select value={form.origem} onValueChange={(v) => setForm((p) => ({ ...p, origem: v }))}>
+              <Select
+                value={form.origem}
+                onValueChange={(v) => setForm((p) => ({ ...p, origem: v }))}
+              >
                 <SelectTrigger className="h-9 text-sm">
                   <SelectValue placeholder="Selecionar…" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                  {(origins as { id: string; name: string }[]).filter((o) => o.name !== "WhatsApp").map((o) => (
-                    <SelectItem key={o.id} value={o.name}>{o.name}</SelectItem>
-                  ))}
+                  {(origins as { id: string; name: string }[])
+                    .filter((o) => o.name !== "WhatsApp")
+                    .map((o) => (
+                      <SelectItem key={o.id} value={o.name}>
+                        {o.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </Field>
             {isAdminOrGerente && (
               <Field label="Responsável">
-                <Select value={form.responsavelId} onValueChange={(v) => setForm((p) => ({ ...p, responsavelId: v }))}>
+                <Select
+                  value={form.responsavelId}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, responsavelId: v }))
+                  }
+                >
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder="Selecionar…" />
                   </SelectTrigger>
                   <SelectContent>
                     {(users as { id: string; name: string }[]).map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1082,10 +1998,19 @@ function CreateClientFromConversationDialog({
           </div>
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={isPending}>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+            >
               Cancelar
             </Button>
-            <Button className="flex-1" onClick={handleCreate} disabled={isPending || !form.name.trim()}>
+            <Button
+              className="flex-1"
+              onClick={handleCreate}
+              disabled={isPending || !form.name.trim()}
+            >
               {isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               Criar cliente
             </Button>
@@ -1115,13 +2040,17 @@ function ConversationMessages({
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const [replyingTo, setReplyingTo] = useState<WaMessage | null>(null);
-  const [selectedChannelId, setSelectedChannelId] = useState<number | undefined>(
-    client.channelId ?? undefined,
-  );
+  const [selectedChannelId, setSelectedChannelId] = useState<
+    number | undefined
+  >(client.channelId ?? undefined);
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [pendingAudio, setPendingAudio] = useState<{ blob: Blob; url: string; file: File } | null>(null);
+  const [pendingAudio, setPendingAudio] = useState<{
+    blob: Blob;
+    url: string;
+    file: File;
+  } | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [reactingToId, setReactingToId] = useState<string | null>(null);
   const cursorPosRef = useRef<number>(0);
@@ -1163,7 +2092,9 @@ function ConversationMessages({
     },
     onSuccess: () => {
       setTransferOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
       toast({ title: "Conversa transferida com sucesso" });
     },
     onError: (err: Error) => {
@@ -1183,22 +2114,39 @@ function ConversationMessages({
   const activeBots = bots.filter((b) => b.isActive);
 
   const handleTriggerBot = async (botId: string) => {
+    if (!canSendMessages) {
+      toast({
+        title: "Selecione um canal conectado para disparar bots",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsTriggeringBot(true);
     setBotPickerOpen(false);
     try {
-      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}/trigger-bot`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ botId }),
-      });
+      const res = await fetch(
+        `/api/whatsapp/conversations/${conversationKey}/trigger-bot`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ botId }),
+        },
+      );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        toast({ title: (err as { message?: string }).message ?? "Erro ao disparar bot", variant: "destructive" });
+        toast({
+          title:
+            (err as { message?: string }).message ?? "Erro ao disparar bot",
+          variant: "destructive",
+        });
         return;
       }
       toast({ title: "Bot disparado com sucesso" });
     } catch {
-      toast({ title: "Erro de conexão ao disparar bot", variant: "destructive" });
+      toast({
+        title: "Erro de conexão ao disparar bot",
+        variant: "destructive",
+      });
     } finally {
       setIsTriggeringBot(false);
     }
@@ -1218,7 +2166,11 @@ function ConversationMessages({
     } catch {
       toast({ title: "Erro ao salvar figurinha", variant: "destructive" });
     } finally {
-      setSavingStickers((prev) => { const s = new Set(prev); s.delete(mediaId); return s; });
+      setSavingStickers((prev) => {
+        const s = new Set(prev);
+        s.delete(mediaId);
+        return s;
+      });
     }
   };
 
@@ -1229,7 +2181,9 @@ function ConversationMessages({
       const res = await fetch(`/api/whatsapp/media/${mediaId}`);
       if (!res.ok) throw new Error("Falha ao buscar figurinha");
       const blob = await res.blob();
-      const file = new File([blob], `sticker-${Date.now()}.webp`, { type: blob.type || "image/webp" });
+      const file = new File([blob], `sticker-${Date.now()}.webp`, {
+        type: blob.type || "image/webp",
+      });
       await sendMedia(file);
     } catch {
       toast({ title: "Erro ao enviar figurinha", variant: "destructive" });
@@ -1275,121 +2229,210 @@ function ConversationMessages({
   }, [rawMessages]);
 
   useEffect(() => {
-    const es = new EventSource(`/api/whatsapp/conversations/${conversationKey}/stream`);
+    const es = new EventSource(
+      `/api/whatsapp/conversations/${conversationKey}/stream`,
+    );
     es.addEventListener("new_message", () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations", conversationKey],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
     });
     return () => es.close();
   }, [conversationKey, queryClient]);
 
-  const attemptSend = useCallback(async (text: string, localId: string, channelId?: number, replyToMessageId?: string) => {
-    try {
-      const body: { message: string; channelId?: number; replyToMessageId?: string } = { message: text };
-      if ((userRole === "admin" || userRole === "gerente") && channelId != null) {
-        body.channelId = channelId;
+  const attemptSend = useCallback(
+    async (
+      text: string,
+      localId: string,
+      channelId?: number,
+      replyToMessageId?: string,
+    ) => {
+      try {
+        const body: {
+          message: string;
+          channelId?: number;
+          replyToMessageId?: string;
+        } = { message: text };
+        if (
+          (userRole === "admin" || userRole === "gerente") &&
+          channelId != null
+        ) {
+          body.channelId = channelId;
+        }
+        if (replyToMessageId) {
+          body.replyToMessageId = replyToMessageId;
+        }
+        const res = await fetch(
+          `/api/whatsapp/conversations/${conversationKey}/messages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        if (!res.ok) throw new Error();
+      } catch (err) {
+        if (err instanceof TypeError) {
+          // TypeError = network error: request never reached the backend, no DB record created
+          setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
+          toast({
+            title: "Erro de conexão. Verifique sua internet e tente novamente.",
+            variant: "destructive",
+          });
+        }
+        // Non-network errors: backend persisted the message as "failed" — retry button will appear
+        // rawMessages effect will remove the local message once the server data arrives
+      } finally {
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations", conversationKey],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations-list"],
+        });
       }
-      if (replyToMessageId) {
-        body.replyToMessageId = replyToMessageId;
-      }
-      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error();
-    } catch (err) {
-      if (err instanceof TypeError) {
-        // TypeError = network error: request never reached the backend, no DB record created
-        setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
-        toast({ title: "Erro de conexão. Verifique sua internet e tente novamente.", variant: "destructive" });
-      }
-      // Non-network errors: backend persisted the message as "failed" — retry button will appear
-      // rawMessages effect will remove the local message once the server data arrives
-    } finally {
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
-    }
-  }, [conversationKey, queryClient, toast, userRole]);
+    },
+    [conversationKey, queryClient, toast, userRole],
+  );
 
-  const handleRetry = useCallback(async (messageId: string) => {
-    setRetryingIds((prev) => { const s = new Set(prev); s.add(messageId); return s; });
-    try {
-      await fetch(`/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/retry`, {
-        method: "POST",
-      });
-    } finally {
+  const handleRetry = useCallback(
+    async (messageId: string) => {
       setRetryingIds((prev) => {
         const s = new Set(prev);
-        s.delete(messageId);
+        s.add(messageId);
         return s;
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
-    }
-  }, [conversationKey, queryClient]);
-
-  const sendMedia = useCallback(async (file: File, caption?: string) => {
-    setIsUploading(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      if (caption) form.append("caption", caption);
-      if ((userRole === "admin" || userRole === "gerente") && selectedChannelId != null) {
-        form.append("channelId", String(selectedChannelId));
+      try {
+        await fetch(
+          `/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/retry`,
+          {
+            method: "POST",
+          },
+        );
+      } finally {
+        setRetryingIds((prev) => {
+          const s = new Set(prev);
+          s.delete(messageId);
+          return s;
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations", conversationKey],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations-list"],
+        });
       }
-      if (replyingTo) {
-        form.append("replyToMessageId", replyingTo.id);
-        setReplyingTo(null);
-      }
-      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}/messages/media`, {
-        method: "POST",
-        body: form,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast({ title: (err as { message?: string }).message ?? "Erro ao enviar arquivo", variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Erro de conexão ao enviar arquivo", variant: "destructive" });
-    } finally {
-      setIsUploading(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
-    }
-  }, [conversationKey, queryClient, replyingTo, selectedChannelId, toast, userRole]);
+    },
+    [conversationKey, queryClient],
+  );
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-    sendMedia(file);
-  }, [sendMedia]);
-
-  const handleStickerChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-    sendMedia(file);
-  }, [sendMedia]);
-
-  const handleReact = useCallback(async (messageId: string, emoji: string) => {
-    setReactingToId(null);
-    try {
-      const body: { emoji: string; channelId?: number } = { emoji };
-      if ((userRole === "admin" || userRole === "gerente") && selectedChannelId != null) {
-        body.channelId = selectedChannelId;
+  const sendMedia = useCallback(
+    async (file: File, caption?: string) => {
+      setIsUploading(true);
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        if (caption) form.append("caption", caption);
+        if (
+          (userRole === "admin" || userRole === "gerente") &&
+          selectedChannelId != null
+        ) {
+          form.append("channelId", String(selectedChannelId));
+        }
+        if (replyingTo) {
+          form.append("replyToMessageId", replyingTo.id);
+          setReplyingTo(null);
+        }
+        const res = await fetch(
+          `/api/whatsapp/conversations/${conversationKey}/messages/media`,
+          {
+            method: "POST",
+            body: form,
+          },
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast({
+            title:
+              (err as { message?: string }).message ?? "Erro ao enviar arquivo",
+            variant: "destructive",
+          });
+        }
+      } catch {
+        toast({
+          title: "Erro de conexão ao enviar arquivo",
+          variant: "destructive",
+        });
+      } finally {
+        setIsUploading(false);
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations", conversationKey],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations-list"],
+        });
       }
-      await fetch(`/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/reaction`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] });
-    } catch {
-      toast({ title: "Erro ao reagir à mensagem", variant: "destructive" });
-    }
-  }, [conversationKey, queryClient, selectedChannelId, toast, userRole]);
+    },
+    [
+      conversationKey,
+      queryClient,
+      replyingTo,
+      selectedChannelId,
+      toast,
+      userRole,
+    ],
+  );
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = "";
+      sendMedia(file);
+    },
+    [sendMedia],
+  );
+
+  const handleStickerChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = "";
+      sendMedia(file);
+    },
+    [sendMedia],
+  );
+
+  const handleReact = useCallback(
+    async (messageId: string, emoji: string) => {
+      setReactingToId(null);
+      try {
+        const body: { emoji: string; channelId?: number } = { emoji };
+        if (
+          (userRole === "admin" || userRole === "gerente") &&
+          selectedChannelId != null
+        ) {
+          body.channelId = selectedChannelId;
+        }
+        await fetch(
+          `/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/reaction`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations", conversationKey],
+        });
+      } catch {
+        toast({ title: "Erro ao reagir à mensagem", variant: "destructive" });
+      }
+    },
+    [conversationKey, queryClient, selectedChannelId, toast, userRole],
+  );
 
   const stopRecording = useCallback(() => {
     if (recordingTimerRef.current) {
@@ -1398,7 +2441,10 @@ function ConversationMessages({
     }
     setIsRecording(false);
     setRecordingSeconds(0);
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
       mediaRecorderRef.current.stop();
     }
   }, []);
@@ -1421,8 +2467,8 @@ function ConversationMessages({
       const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
         ? "audio/ogg;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "audio/webm";
+          ? "audio/webm;codecs=opus"
+          : "audio/webm";
       const recorder = new MediaRecorder(stream, { mimeType });
       recordingChunksRef.current = [];
 
@@ -1435,7 +2481,9 @@ function ConversationMessages({
         if (recordingChunksRef.current.length === 0) return;
         const blob = new Blob(recordingChunksRef.current, { type: mimeType });
         const ext = mimeType.includes("ogg") ? "ogg" : "webm";
-        const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType });
+        const file = new File([blob], `audio-${Date.now()}.${ext}`, {
+          type: mimeType,
+        });
         const url = URL.createObjectURL(blob);
         setPendingAudio({ blob, url, file });
         recordingChunksRef.current = [];
@@ -1445,15 +2493,31 @@ function ConversationMessages({
       recorder.start();
       setIsRecording(true);
       setRecordingSeconds(0);
-      recordingTimerRef.current = setInterval(() => setRecordingSeconds((s) => s + 1), 1000);
+      recordingTimerRef.current = setInterval(
+        () => setRecordingSeconds((s) => s + 1),
+        1000,
+      );
     } catch {
-      toast({ title: "Não foi possível acessar o microfone", variant: "destructive" });
+      toast({
+        title: "Não foi possível acessar o microfone",
+        variant: "destructive",
+      });
     }
   }, [toast]);
+
+  // Canal atualmente em uso na conversa. Só é possível enviar mensagens/disparar
+  // bots quando há um canal selecionado E ele está conectado (cloud_api é sempre
+  // considerado conectado; evolution depende de connectionStatus).
+  const activeChannel = channels.find((c) => c.id === selectedChannelId) ?? null;
+  const canSendMessages =
+    activeChannel != null &&
+    (activeChannel.provider === "cloud_api" ||
+      activeChannel.connectionStatus === "connected");
 
   const handleSend = () => {
     const text = message.trim();
     if (!text) return;
+    if (!canSendMessages) return;
     const localId = crypto.randomUUID();
     const replyId = replyingTo?.id;
     setLocalMessages((prev) => [
@@ -1496,33 +2560,49 @@ function ConversationMessages({
         if (!v) return;
         const ch = channels.find((c) => c.id === Number(v));
         if (!ch) return;
-        if (ch.provider === "evolution" && ch.connectionStatus !== "connected") return;
+        if (ch.provider === "evolution" && ch.connectionStatus !== "connected")
+          return;
         setSelectedChannelId(Number(v));
       }}
     >
       <SelectTrigger className="h-8 text-xs w-full border-slate-200 dark:border-slate-700">
         <SelectValue placeholder="Selecionar canal…">
-          {selectedChannelId != null && (() => {
-            const ch = channels.find((c) => c.id === selectedChannelId);
-            if (!ch) return "Selecionar canal…";
-            const isConnected = ch.provider === "cloud_api" || ch.connectionStatus === "connected";
-            return (
-              <span className="flex items-center gap-1.5 min-w-0">
-                <span className={cn(
-                  "shrink-0 h-2 w-2 rounded-full",
-                  isConnected ? "bg-green-500" : ch.connectionStatus === "connecting" ? "bg-amber-400 animate-pulse" : "bg-slate-300 dark:bg-slate-600",
-                )} />
-                <span className="truncate">{ch.name}{ch.displayPhone ? ` · ${ch.displayPhone}` : ""}</span>
-              </span>
-            );
-          })()}
+          {selectedChannelId != null &&
+            (() => {
+              const ch = channels.find((c) => c.id === selectedChannelId);
+              if (!ch) return "Selecionar canal…";
+              const isConnected =
+                ch.provider === "cloud_api" ||
+                ch.connectionStatus === "connected";
+              return (
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span
+                    className={cn(
+                      "shrink-0 h-2 w-2 rounded-full",
+                      isConnected
+                        ? "bg-green-500"
+                        : ch.connectionStatus === "connecting"
+                          ? "bg-amber-400 animate-pulse"
+                          : "bg-slate-300 dark:bg-slate-600",
+                    )}
+                  />
+                  <span className="truncate">
+                    {ch.name}
+                    {ch.displayPhone ? ` · ${ch.displayPhone}` : ""}
+                  </span>
+                </span>
+              );
+            })()}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {channels.map((ch) => {
-          const isConnected = ch.provider === "cloud_api" || ch.connectionStatus === "connected";
-          const isConnecting = ch.provider === "evolution" && ch.connectionStatus === "connecting";
-          const isDisabled = ch.provider === "evolution" && ch.connectionStatus !== "connected";
+          const isConnected =
+            ch.provider === "cloud_api" || ch.connectionStatus === "connected";
+          const isConnecting =
+            ch.provider === "evolution" && ch.connectionStatus === "connecting";
+          const isDisabled =
+            ch.provider === "evolution" && ch.connectionStatus !== "connected";
           return (
             <SelectItem
               key={ch.id}
@@ -1531,17 +2611,35 @@ function ConversationMessages({
               className={cn(isDisabled && "opacity-50 cursor-not-allowed")}
             >
               <span className="flex items-center gap-2 w-full min-w-0">
-                <span className={cn(
-                  "shrink-0 h-2 w-2 rounded-full",
-                  isConnected ? "bg-green-500" : isConnecting ? "bg-amber-400 animate-pulse" : "bg-slate-300 dark:bg-slate-600",
-                )} />
+                <span
+                  className={cn(
+                    "shrink-0 h-2 w-2 rounded-full",
+                    isConnected
+                      ? "bg-green-500"
+                      : isConnecting
+                        ? "bg-amber-400 animate-pulse"
+                        : "bg-slate-300 dark:bg-slate-600",
+                  )}
+                />
                 <span className="flex flex-col min-w-0">
-                  <span className="truncate font-medium text-xs leading-tight">{ch.name}</span>
-                  <span className={cn(
-                    "text-[10px] leading-tight",
-                    isConnected ? "text-green-600 dark:text-green-400" : isConnecting ? "text-amber-500" : "text-slate-400 dark:text-slate-500",
-                  )}>
-                    {isConnected ? (ch.displayPhone ?? "Conectado") : isConnecting ? "Conectando…" : "Desconectado"}
+                  <span className="truncate font-medium text-xs leading-tight">
+                    {ch.name}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] leading-tight",
+                      isConnected
+                        ? "text-green-600 dark:text-green-400"
+                        : isConnecting
+                          ? "text-amber-500"
+                          : "text-slate-400 dark:text-slate-500",
+                    )}
+                  >
+                    {isConnected
+                      ? (ch.displayPhone ?? "Conectado")
+                      : isConnecting
+                        ? "Conectando…"
+                        : "Desconectado"}
                   </span>
                 </span>
                 {isConnected ? (
@@ -1588,10 +2686,14 @@ function ConversationMessages({
                 <span className="truncate">{client.phone}</span>
               </p>
             )}
-            {((client.tags && client.tags.length > 0) || (client.whatsappTags && client.whatsappTags.length > 0)) && (
+            {((client.tags && client.tags.length > 0) ||
+              (client.whatsappTags && client.whatsappTags.length > 0)) && (
               <div className="flex flex-wrap gap-1 mt-0.5 hidden sm:flex">
                 {client.tags?.slice(0, 2).map((tag) => (
-                  <span key={tag.id} className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400">
+                  <span
+                    key={tag.id}
+                    className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
+                  >
                     {tag.name}
                   </span>
                 ))}
@@ -1605,7 +2707,9 @@ function ConversationMessages({
           {/* Canal select — visível apenas em sm+ no header principal */}
           {showChannelSelect && (
             <div className="hidden sm:flex items-center gap-2 shrink-0 min-w-0 max-w-[200px]">
-              <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">Canal:</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                Canal:
+              </span>
               <div className="min-w-0 flex-1">
                 <ChannelSelect />
               </div>
@@ -1641,11 +2745,14 @@ function ConversationMessages({
                     >
                       <span className="font-medium">{ch.name}</span>
                       {ch.displayPhone && (
-                        <span className="text-xs text-slate-400">{ch.displayPhone}</span>
+                        <span className="text-xs text-slate-400">
+                          {ch.displayPhone}
+                        </span>
                       )}
                     </button>
                   ))}
-                {channels.filter((ch) => ch.id !== client.channelId).length === 0 && (
+                {channels.filter((ch) => ch.id !== client.channelId).length ===
+                  0 && (
                   <p className="text-xs text-slate-400 px-2 py-1.5">
                     Nenhum outro canal disponível.
                   </p>
@@ -1658,7 +2765,9 @@ function ConversationMessages({
         {/* Linha secundária: canal select em mobile */}
         {showChannelSelect && (
           <div className="sm:hidden px-2 pb-2 flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">Canal:</span>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
+              Canal:
+            </span>
             <div className="flex-1 min-w-0">
               <ChannelSelect />
             </div>
@@ -1671,7 +2780,10 @@ function ConversationMessages({
         <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 shrink-0">
           <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
           <p className="text-xs text-amber-700 dark:text-amber-400 flex-1 leading-tight">
-            <span className="hidden sm:inline">Contato desconhecido — crie um cliente para registrar esta conversa.</span>
+            <span className="hidden sm:inline">
+              Contato desconhecido — crie um cliente para registrar esta
+              conversa.
+            </span>
             <span className="sm:hidden">Contato desconhecido.</span>
           </p>
           <Button
@@ -1690,8 +2802,19 @@ function ConversationMessages({
         {isLoading ? (
           <div className="space-y-4 pt-2">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className={cn("flex", i % 2 === 0 ? "justify-end" : "justify-start")}>
-                <Skeleton className={cn("h-14 rounded-2xl", i % 2 === 0 ? "w-2/5" : "w-3/5")} />
+              <div
+                key={i}
+                className={cn(
+                  "flex",
+                  i % 2 === 0 ? "justify-end" : "justify-start",
+                )}
+              >
+                <Skeleton
+                  className={cn(
+                    "h-14 rounded-2xl",
+                    i % 2 === 0 ? "w-2/5" : "w-3/5",
+                  )}
+                />
               </div>
             ))}
           </div>
@@ -1723,8 +2846,14 @@ function ConversationMessages({
                   const isOutbound = msg.direction === "outbound";
                   const isFailed = isOutbound && msg.status === "failed";
                   const isRetrying = retryingIds.has(msg.id);
-                  const isMedia = msg.type === "image" || msg.type === "video" || msg.type === "sticker";
-                  const time = format(toSP(msg.sentAt ?? msg.createdAt), "HH:mm");
+                  const isMedia =
+                    msg.type === "image" ||
+                    msg.type === "video" ||
+                    msg.type === "sticker";
+                  const time = format(
+                    toSP(msg.sentAt ?? msg.createdAt),
+                    "HH:mm",
+                  );
                   // Canal por mensagem (não mais por conversa) — deixa claro
                   // por qual número cada resposta saiu numa conversa unificada.
                   const channelName = msg.channelName ?? "";
@@ -1735,7 +2864,9 @@ function ConversationMessages({
                     msg.type !== "system" &&
                     msg.type !== "note" &&
                     channelName.length > 0 &&
-                    (!prevMsg || prevMsg.direction !== "outbound" || prevMsg.channelId !== msg.channelId);
+                    (!prevMsg ||
+                      prevMsg.direction !== "outbound" ||
+                      prevMsg.channelId !== msg.channelId);
 
                   // Mensagens de sistema (ex: bot iniciado) — banner centralizado
                   if (msg.type === "system") {
@@ -1807,10 +2938,11 @@ function ConversationMessages({
                           disabled={isRetrying}
                           className="shrink-0 mb-1 flex items-center gap-1 text-[11px] text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50"
                         >
-                          {isRetrying
-                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            : <RotateCcw className="h-3.5 w-3.5" />
-                          }
+                          {isRetrying ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
                           <span className="whitespace-nowrap">
                             {isRetrying ? "Reenviando…" : "Reenviar"}
                           </span>
@@ -1819,10 +2951,12 @@ function ConversationMessages({
 
                       {/* Botões hover: reply + reação + salvar figurinha */}
                       {!isFailed && (
-                        <div className={cn(
-                          "shrink-0 mb-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
-                          isOutbound ? "order-first" : "order-last",
-                        )}>
+                        <div
+                          className={cn(
+                            "shrink-0 mb-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                            isOutbound ? "order-first" : "order-last",
+                          )}
+                        >
                           <button
                             onClick={() => setReplyingTo(msg)}
                             className={cn(
@@ -1845,13 +2979,19 @@ function ConversationMessages({
                               )}
                               title="Salvar figurinha"
                             >
-                              {savingStickers.has(msg.media!.id)
-                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                : <Bookmark className="h-3.5 w-3.5" />
-                              }
+                              {savingStickers.has(msg.media!.id) ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Bookmark className="h-3.5 w-3.5" />
+                              )}
                             </button>
                           )}
-                          <Popover open={reactingToId === msg.id} onOpenChange={(o) => setReactingToId(o ? msg.id : null)}>
+                          <Popover
+                            open={reactingToId === msg.id}
+                            onOpenChange={(o) =>
+                              setReactingToId(o ? msg.id : null)
+                            }
+                          >
                             <PopoverTrigger asChild>
                               <button
                                 className={cn(
@@ -1864,15 +3004,23 @@ function ConversationMessages({
                                 <Smile className="h-3.5 w-3.5" />
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent side="top" className="w-auto p-1.5" align={isOutbound ? "start" : "end"}>
+                            <PopoverContent
+                              side="top"
+                              className="w-auto p-1.5"
+                              align={isOutbound ? "start" : "end"}
+                            >
                               <div className="flex gap-1">
                                 {REACTION_EMOJIS.map((e) => {
-                                  const currentOutbound = msg.reactions?.find((r) => r.direction === "outbound")?.emoji;
+                                  const currentOutbound = msg.reactions?.find(
+                                    (r) => r.direction === "outbound",
+                                  )?.emoji;
                                   const isActive = currentOutbound === e;
                                   return (
                                     <button
                                       key={e}
-                                      onClick={() => handleReact(msg.id, isActive ? "" : e)}
+                                      onClick={() =>
+                                        handleReact(msg.id, isActive ? "" : e)
+                                      }
                                       className={cn(
                                         "text-xl p-1 rounded-lg transition-colors",
                                         isActive
@@ -1892,109 +3040,151 @@ function ConversationMessages({
 
                       {/* Bolha + reações */}
                       <div className="flex flex-col gap-1 max-w-[85%] sm:max-w-[72%] lg:max-w-[65%] min-w-0">
-                      <div
-                        className={cn(
-                          "rounded-2xl shadow-sm overflow-hidden w-full",
-                          isMedia ? "p-0" : "px-3.5 py-2.5",
-                          isFailed
-                            ? "bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-200 rounded-tr-[4px]"
-                            : isOutbound
-                              ? "bg-primary text-primary-foreground rounded-tr-[4px]"
-                              : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-tl-[4px]",
-                        )}
-                      >
-                        {/* Citação da mensagem respondida */}
-                        {msg.replyToContent !== null && msg.replyToContent !== undefined ? (
-                          <div className={cn(
-                            "rounded-lg px-2.5 py-1.5 mb-2 border-l-[3px]",
-                            isMedia ? "mx-3.5 mt-2.5" : "",
-                            isOutbound
-                              ? "bg-primary-foreground/10 border-primary-foreground/50"
-                              : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
-                          )}>
-                            <p className={cn(
-                              "text-[11px] font-semibold mb-0.5",
-                              isOutbound ? "text-primary-foreground/80" : "text-slate-600 dark:text-slate-300",
-                            )}>
-                              {msg.replyToDirection === "outbound" ? "Você" : client.clientName ?? client.phone}
-                            </p>
-                            <p className={cn(
-                              "text-xs truncate",
-                              isOutbound ? "text-primary-foreground/70" : "text-slate-500 dark:text-slate-400",
-                            )}>
-                              {replySnippet(msg.replyToContent, msg.replyToType)}
-                            </p>
-                          </div>
-                        ) : msg.replyToMessageId ? (
-                          <div className={cn(
-                            "rounded-lg px-2.5 py-1.5 mb-2 border-l-[3px]",
-                            isMedia ? "mx-3.5 mt-2.5" : "",
-                            isOutbound
-                              ? "bg-primary-foreground/10 border-primary-foreground/50"
-                              : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
-                          )}>
-                            <p className={cn(
-                              "text-xs italic",
-                              isOutbound ? "text-primary-foreground/60" : "text-slate-400 dark:text-slate-500",
-                            )}>
-                              Mensagem não disponível
-                            </p>
-                          </div>
-                        ) : null}
-
-                        {msg.campaignMessageId && (
-                          <div className="text-[10px] font-medium mb-1 opacity-70 flex items-center gap-0.5">
-                            <span>📢</span>
-                            <span>Campanha</span>
-                          </div>
-                        )}
-                        <MessageContent msg={msg} isOutbound={isOutbound} />
-                        <div className={cn(
-                          "flex items-center gap-1 mt-1",
-                          isMedia ? "px-3 pb-2 justify-end" : "justify-end",
-                        )}>
-                          <span className={cn(
-                            "text-[10px]",
+                        <div
+                          className={cn(
+                            "rounded-2xl shadow-sm overflow-hidden w-full",
+                            isMedia ? "p-0" : "px-3.5 py-2.5",
                             isFailed
-                              ? "text-red-400 dark:text-red-500"
+                              ? "bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-200 rounded-tr-[4px]"
                               : isOutbound
-                                ? "text-primary-foreground/70"
-                                : "text-slate-400 dark:text-slate-500",
-                          )}>
-                            {time}
-                          </span>
-                          {isFailed ? (
-                            <AlertCircle className="h-3 w-3 text-red-400 dark:text-red-500" />
-                          ) : isOutbound ? (
-                            <CheckCheck className={cn(
-                              "h-3 w-3",
-                              msg.status === "delivered" || msg.status === "read"
-                                ? "text-blue-300"
-                                : "text-primary-foreground/60",
-                            )} />
-                          ) : null}
-                        </div>
-                      </div>
-                      {/* Pills de reação */}
-                      {msg.reactions && msg.reactions.length > 0 && (
-                        <div className={cn("flex gap-1 flex-wrap", isOutbound ? "justify-end" : "justify-start")}>
-                          {msg.reactions.map((r) => (
-                            <button
-                              key={r.direction}
-                              onClick={() => r.direction === "outbound" ? handleReact(msg.id, "") : undefined}
-                              title={r.direction === "outbound" ? "Clique para remover sua reação" : "Reação do contato"}
+                                ? "bg-primary text-primary-foreground rounded-tr-[4px]"
+                                : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-tl-[4px]",
+                          )}
+                        >
+                          {/* Citação da mensagem respondida */}
+                          {msg.replyToContent !== null &&
+                          msg.replyToContent !== undefined ? (
+                            <div
                               className={cn(
-                                "text-sm px-2 py-0.5 rounded-full border transition-colors",
-                                r.direction === "outbound"
-                                  ? "bg-primary/10 border-primary/30 hover:bg-primary/20 cursor-pointer"
-                                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 cursor-default",
+                                "rounded-lg px-2.5 py-1.5 mb-2 border-l-[3px]",
+                                isMedia ? "mx-3.5 mt-2.5" : "",
+                                isOutbound
+                                  ? "bg-primary-foreground/10 border-primary-foreground/50"
+                                  : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
                               )}
                             >
-                              {r.emoji}
-                            </button>
-                          ))}
+                              <p
+                                className={cn(
+                                  "text-[11px] font-semibold mb-0.5",
+                                  isOutbound
+                                    ? "text-primary-foreground/80"
+                                    : "text-slate-600 dark:text-slate-300",
+                                )}
+                              >
+                                {msg.replyToDirection === "outbound"
+                                  ? "Você"
+                                  : (client.clientName ?? client.phone)}
+                              </p>
+                              <p
+                                className={cn(
+                                  "text-xs truncate",
+                                  isOutbound
+                                    ? "text-primary-foreground/70"
+                                    : "text-slate-500 dark:text-slate-400",
+                                )}
+                              >
+                                {replySnippet(
+                                  msg.replyToContent,
+                                  msg.replyToType,
+                                )}
+                              </p>
+                            </div>
+                          ) : msg.replyToMessageId ? (
+                            <div
+                              className={cn(
+                                "rounded-lg px-2.5 py-1.5 mb-2 border-l-[3px]",
+                                isMedia ? "mx-3.5 mt-2.5" : "",
+                                isOutbound
+                                  ? "bg-primary-foreground/10 border-primary-foreground/50"
+                                  : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
+                              )}
+                            >
+                              <p
+                                className={cn(
+                                  "text-xs italic",
+                                  isOutbound
+                                    ? "text-primary-foreground/60"
+                                    : "text-slate-400 dark:text-slate-500",
+                                )}
+                              >
+                                Mensagem não disponível
+                              </p>
+                            </div>
+                          ) : null}
+
+                          {msg.campaignMessageId && (
+                            <div className="text-[10px] font-medium mb-1 opacity-70 flex items-center gap-0.5">
+                              <span>📢</span>
+                              <span>Campanha</span>
+                            </div>
+                          )}
+                          <MessageContent msg={msg} isOutbound={isOutbound} />
+                          <div
+                            className={cn(
+                              "flex items-center gap-1 mt-1",
+                              isMedia ? "px-3 pb-2 justify-end" : "justify-end",
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "text-[10px]",
+                                isFailed
+                                  ? "text-red-400 dark:text-red-500"
+                                  : isOutbound
+                                    ? "text-primary-foreground/70"
+                                    : "text-slate-400 dark:text-slate-500",
+                              )}
+                            >
+                              {time}
+                            </span>
+                            {isFailed ? (
+                              <AlertCircle className="h-3 w-3 text-red-400 dark:text-red-500" />
+                            ) : isOutbound ? (
+                              <CheckCheck
+                                className={cn(
+                                  "h-3 w-3",
+                                  msg.status === "delivered" ||
+                                    msg.status === "read"
+                                    ? "text-blue-300"
+                                    : "text-primary-foreground/60",
+                                )}
+                              />
+                            ) : null}
+                          </div>
                         </div>
-                      )}
+                        {/* Pills de reação */}
+                        {msg.reactions && msg.reactions.length > 0 && (
+                          <div
+                            className={cn(
+                              "flex gap-1 flex-wrap",
+                              isOutbound ? "justify-end" : "justify-start",
+                            )}
+                          >
+                            {msg.reactions.map((r) => (
+                              <button
+                                key={r.direction}
+                                onClick={() =>
+                                  r.direction === "outbound"
+                                    ? handleReact(msg.id, "")
+                                    : undefined
+                                }
+                                title={
+                                  r.direction === "outbound"
+                                    ? "Clique para remover sua reação"
+                                    : "Reação do contato"
+                                }
+                                className={cn(
+                                  "text-sm px-2 py-0.5 rounded-full border transition-colors",
+                                  r.direction === "outbound"
+                                    ? "bg-primary/10 border-primary/30 hover:bg-primary/20 cursor-pointer"
+                                    : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 cursor-default",
+                                )}
+                              >
+                                {r.emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2025,12 +3215,35 @@ function ConversationMessages({
 
       {/* Input */}
       <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+        {!canSendMessages ? (
+          /* Sem canal selecionado ou canal desconectado: bloqueia envio/bots */
+          <div className="flex items-center gap-3 px-4 py-4">
+            <div className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900/30">
+              <WifiOff className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                {selectedChannelId == null
+                  ? "Nenhum canal selecionado"
+                  : `Canal "${activeChannel?.name ?? "selecionado"}" desconectado`}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {selectedChannelId == null
+                  ? "Selecione um canal conectado para enviar mensagens ou disparar bots."
+                  : "Reconecte o canal para voltar a enviar mensagens ou disparar bots."}
+              </p>
+            </div>
+          </div>
+        ) : (
+        <>
         {/* Preview da mensagem sendo respondida */}
         {replyingTo && (
           <div className="flex items-start gap-2 px-3 sm:px-4 pt-2.5 pb-1">
             <div className="flex-1 border-l-[3px] border-primary pl-2.5 py-0.5 min-w-0">
               <p className="text-[11px] font-semibold text-primary mb-0.5">
-                {replyingTo.direction === "outbound" ? "Você" : client.clientName ?? client.phone}
+                {replyingTo.direction === "outbound"
+                  ? "Você"
+                  : (client.clientName ?? client.phone)}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                 {replySnippet(replyingTo.content, replyingTo.type)}
@@ -2077,7 +3290,11 @@ function ConversationMessages({
               className="shrink-0 h-10 w-10 bg-green-500 hover:bg-green-600"
               title="Enviar áudio"
             >
-              {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {isUploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
             </Button>
           </div>
         ) : isRecording ? (
@@ -2085,9 +3302,14 @@ function ConversationMessages({
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
               <span className="text-sm font-medium text-red-500 tabular-nums shrink-0">
-                {Math.floor(recordingSeconds / 60).toString().padStart(2, "0")}:{(recordingSeconds % 60).toString().padStart(2, "0")}
+                {Math.floor(recordingSeconds / 60)
+                  .toString()
+                  .padStart(2, "0")}
+                :{(recordingSeconds % 60).toString().padStart(2, "0")}
               </span>
-              <span className="text-xs text-slate-400 dark:text-slate-500 truncate">Gravando…</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                Gravando…
+              </span>
             </div>
             <button
               onClick={cancelRecording}
@@ -2163,9 +3385,16 @@ function ConversationMessages({
                 className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                 title="Enviar arquivo"
               >
-                {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
               </button>
-              <Popover open={stickerPickerOpen} onOpenChange={setStickerPickerOpen}>
+              <Popover
+                open={stickerPickerOpen}
+                onOpenChange={setStickerPickerOpen}
+              >
                 <PopoverTrigger asChild>
                   <button
                     disabled={isUploading}
@@ -2177,7 +3406,10 @@ function ConversationMessages({
                 </PopoverTrigger>
                 <PopoverContent side="top" align="start" className="p-0 w-auto">
                   <StickerPicker
-                    onPickFromDevice={() => { setStickerPickerOpen(false); stickerInputRef.current?.click(); }}
+                    onPickFromDevice={() => {
+                      setStickerPickerOpen(false);
+                      stickerInputRef.current?.click();
+                    }}
                     onPickSaved={sendSavedSticker}
                   />
                 </PopoverContent>
@@ -2185,7 +3417,9 @@ function ConversationMessages({
               <Popover
                 open={emojiOpen}
                 onOpenChange={(o) => {
-                  if (o) cursorPosRef.current = textareaRef.current?.selectionStart ?? message.length;
+                  if (o)
+                    cursorPosRef.current =
+                      textareaRef.current?.selectionStart ?? message.length;
                   setEmojiOpen(o);
                 }}
               >
@@ -2197,18 +3431,27 @@ function ConversationMessages({
                     <Smile className="h-4 w-4" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent side="top" align="start" className="p-0 w-auto max-w-[calc(100vw-1rem)]">
+                <PopoverContent
+                  side="top"
+                  align="start"
+                  className="p-0 w-auto max-w-[calc(100vw-1rem)]"
+                >
                   <EmojiPicker
                     onPick={(e) => {
                       const pos = cursorPosRef.current;
-                      setMessage((prev) => prev.slice(0, pos) + e + prev.slice(pos));
+                      setMessage(
+                        (prev) => prev.slice(0, pos) + e + prev.slice(pos),
+                      );
                       cursorPosRef.current = pos + e.length;
                       setEmojiOpen(false);
                       setTimeout(() => {
                         const ta = textareaRef.current;
                         if (ta) {
                           ta.focus();
-                          ta.setSelectionRange(cursorPosRef.current, cursorPosRef.current);
+                          ta.setSelectionRange(
+                            cursorPosRef.current,
+                            cursorPosRef.current,
+                          );
                         }
                       }, 0);
                     }}
@@ -2228,7 +3471,9 @@ function ConversationMessages({
                 <PopoverContent side="top" align="start" className="p-0 w-auto">
                   <QuickReplyPicker
                     onPick={(content) => {
-                      setMessage((prev) => prev ? prev + "\n" + content : content);
+                      setMessage((prev) =>
+                        prev ? prev + "\n" + content : content,
+                      );
                       setQuickReplyOpen(false);
                       setTimeout(() => textareaRef.current?.focus(), 0);
                     }}
@@ -2243,13 +3488,19 @@ function ConversationMessages({
                       className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                       title="Disparar bot"
                     >
-                      {isTriggeringBot ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+                      {isTriggeringBot ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Bot className="h-4 w-4" />
+                      )}
                     </button>
                   </PopoverTrigger>
                   <PopoverContent side="top" align="start" className="p-0 w-56">
                     <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
                       <Bot className="h-3.5 w-3.5 text-slate-400" />
-                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Disparar bot</span>
+                      <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        Disparar bot
+                      </span>
                     </div>
                     <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-60 overflow-y-auto">
                       {activeBots.map((bot) => (
@@ -2259,7 +3510,9 @@ function ConversationMessages({
                           onClick={() => handleTriggerBot(bot.id)}
                         >
                           <Bot className="h-3.5 w-3.5 text-primary shrink-0" />
-                          <span className="text-xs text-slate-700 dark:text-slate-200 truncate">{bot.name}</span>
+                          <span className="text-xs text-slate-700 dark:text-slate-200 truncate">
+                            {bot.name}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -2271,6 +3524,8 @@ function ConversationMessages({
               </p>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 
@@ -2341,7 +3596,9 @@ function NewConversationDialog({
 
   const toggleTag = (tagId: string) => {
     setSelectedTagIds((prev) =>
-      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId],
     );
   };
 
@@ -2359,7 +3616,9 @@ function NewConversationDialog({
       return res.json() as Promise<{ clientId: string }>;
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
       onOpenChange(false);
       onSelect(result.clientId);
     },
@@ -2468,9 +3727,10 @@ function NewConversationDialog({
                     </div>
                   )}
                 </div>
-                {startMutation.isPending && startMutation.variables === c.id && (
-                  <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
-                )}
+                {startMutation.isPending &&
+                  startMutation.variables === c.id && (
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
+                  )}
               </button>
             ))
           )}
@@ -2494,6 +3754,51 @@ export default function WhatsAppConversationsPage() {
 
   const isAdminOrGerente = user?.role === "admin" || user?.role === "gerente";
 
+  const setTagsMutation = useMutation({
+    mutationFn: async ({
+      clientId,
+      tagIds,
+    }: {
+      clientId: string;
+      tagIds: string[];
+    }) => {
+      const res = await fetch(
+        `/api/whatsapp/conversations/${clientId}/whatsapp-tags`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tagIds }),
+        },
+      );
+      if (!res.ok) throw new Error("Erro ao atualizar etiquetas");
+    },
+    onMutate: ({ clientId, tagIds }) => {
+      queryClient.setQueriesData<ChatClient[]>(
+        { queryKey: ["/api/whatsapp/conversations-list"] },
+        (prev) => {
+          if (!prev) return prev;
+          return prev.map((c) => {
+            if (c.clientId !== clientId) return c;
+            const newTags = availableWaTags.filter((t) =>
+              tagIds.includes(t.id),
+            );
+            return { ...c, whatsappTags: newTags };
+          });
+        },
+      );
+    },
+    onError: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
+    },
+  });
+
   const { data: availableWaTags = [] } = useQuery<WhatsappClientTag[]>({
     queryKey: ["/api/whatsapp/tags"],
     queryFn: async () => {
@@ -2510,11 +3815,18 @@ export default function WhatsAppConversationsPage() {
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: isAdminOrGerente,
+    refetchInterval: 30_000,
   });
 
-  const { data: clientList = [], isLoading: isLoadingClients } = useQuery<ChatClient[]>({
-    queryKey: ["/api/whatsapp/conversations-list", debouncedSearch, selectedTagIds, user?.id],
+  const { data: clientList = [], isLoading: isLoadingClients } = useQuery<
+    ChatClient[]
+  >({
+    queryKey: [
+      "/api/whatsapp/conversations-list",
+      debouncedSearch,
+      selectedTagIds,
+      user?.id,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set("search", debouncedSearch);
@@ -2526,14 +3838,21 @@ export default function WhatsAppConversationsPage() {
     refetchInterval: 15_000,
   });
 
-  const markRead = useCallback(async (id: string) => {
-    try {
-      await fetch(`/api/whatsapp/conversations/${id}/read`, { method: "POST" });
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
-    } catch {
-      // silently ignore
-    }
-  }, [queryClient]);
+  const markRead = useCallback(
+    async (id: string) => {
+      try {
+        await fetch(`/api/whatsapp/conversations/${id}/read`, {
+          method: "POST",
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations-list"],
+        });
+      } catch {
+        // silently ignore
+      }
+    },
+    [queryClient],
+  );
 
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
@@ -2541,21 +3860,30 @@ export default function WhatsAppConversationsPage() {
   useEffect(() => {
     const es = new EventSource("/api/whatsapp/notifications/stream");
     es.addEventListener("new_whatsapp_inbound", (e) => {
-      const data = JSON.parse(e.data) as { clientId: string | null; conversationId?: string | null };
-      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+      const data = JSON.parse(e.data) as {
+        clientId: string | null;
+        conversationId?: string | null;
+      };
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
       const isSelected =
         (data.clientId && data.clientId === selectedIdRef.current) ||
         (data.conversationId && data.conversationId === selectedIdRef.current);
       if (isSelected) {
         markRead(selectedIdRef.current!);
-        queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", selectedIdRef.current] });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations", selectedIdRef.current],
+        });
       }
     });
     return () => es.close();
   }, [queryClient, markRead]);
 
   const handleSelectConversation = (id: string) => {
-    queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", id] });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/whatsapp/conversations", id],
+    });
     setSelectedId(id);
     markRead(id);
   };
@@ -2563,25 +3891,34 @@ export default function WhatsAppConversationsPage() {
   // After creating a client from an unknown conversation, switch to clientId-based selection
   const handleClientLinked = (clientId: string) => {
     setSelectedId(clientId);
-    queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", clientId] });
-    queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/whatsapp/conversations", clientId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/whatsapp/conversations-list"],
+    });
   };
 
   const handleBack = () => setSelectedId(null);
 
-  const selectedClient = clientList.find(
-    (c) => c.clientId === selectedId || c.conversationId === selectedId,
-  ) ?? null;
+  const selectedClient =
+    clientList.find(
+      (c) => c.clientId === selectedId || c.conversationId === selectedId,
+    ) ?? null;
 
   const showList = !selectedId;
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left panel — contact list */}
-      <div className={cn(
-        "flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900",
-        showList ? "flex w-full md:w-72 lg:w-80 md:flex" : "hidden md:flex md:w-72 lg:w-80",
-      )}>
+      <div
+        className={cn(
+          "flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900",
+          showList
+            ? "flex w-full md:w-72 lg:w-80 md:flex"
+            : "hidden md:flex md:w-72 lg:w-80",
+        )}
+      >
         {/* Search header */}
         <div className="px-3 py-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div className="flex items-center justify-between mb-2.5">
@@ -2600,7 +3937,10 @@ export default function WhatsAppConversationsPage() {
                         ? "text-green-600 dark:text-green-400"
                         : "text-slate-500 hover:text-primary",
                     )}
-                    onClick={() => { setShowTagFilter((v) => !v); setTagSearch(""); }}
+                    onClick={() => {
+                      setShowTagFilter((v) => !v);
+                      setTagSearch("");
+                    }}
                     title="Filtrar por etiqueta"
                   >
                     <Filter className="h-4 w-4" />
@@ -2633,6 +3973,59 @@ export default function WhatsAppConversationsPage() {
             />
           </div>
         </div>
+
+        {/* Channel status strip — visible only for vendedores */}
+        {!isAdminOrGerente &&
+          availableChannels.length > 0 &&
+          availableChannels.map((ch) => {
+            const isConnected =
+              ch.provider === "cloud_api" ||
+              ch.connectionStatus === "connected";
+            const isConnecting = ch.connectionStatus === "connecting";
+            return (
+              <div
+                key={ch.id}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 border-b shrink-0",
+                  isConnected
+                    ? "border-slate-200 dark:border-slate-800 bg-green-50 dark:bg-green-950/20"
+                    : "border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/20",
+                )}
+              >
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full shrink-0",
+                    isConnected
+                      ? "bg-green-500"
+                      : isConnecting
+                        ? "bg-amber-400 animate-pulse"
+                        : "bg-red-400",
+                  )}
+                />
+                <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate flex-1 min-w-0">
+                  {ch.displayPhone || ch.name}
+                </span>
+                {isConnected ? (
+                  <span className="text-[11px] text-green-600 dark:text-green-400 shrink-0 flex items-center gap-1">
+                    <Wifi className="h-3 w-3" /> Conectado
+                  </span>
+                ) : (
+                  <a
+                    href="/whatsapp/configuracoes"
+                    className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:underline shrink-0 flex items-center gap-1"
+                  >
+                    <WifiOff className="h-3 w-3" />
+                    {isConnecting ? "Conectando..." : "Reconectar"}
+                  </a>
+                )}
+              </div>
+            );
+          })}
+
+        {/* Channel status placeholder when loading — vendedor only */}
+        {!isAdminOrGerente && availableChannels.length === 0 && (
+          <div className="h-9 border-b border-slate-200 dark:border-slate-800 bg-muted/40 animate-pulse shrink-0" />
+        )}
 
         {/* Client list — relative so the tag panel can overlay it */}
         <div className="flex-1 overflow-y-auto relative">
@@ -2703,8 +4096,10 @@ export default function WhatsAppConversationsPage() {
                 {/* All tags */}
                 <div className="px-4 flex flex-col gap-2">
                   {availableWaTags
-                    .filter((t) =>
-                      !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase()),
+                    .filter(
+                      (t) =>
+                        !tagSearch ||
+                        t.name.toLowerCase().includes(tagSearch.toLowerCase()),
                     )
                     .map((tag) => {
                       const active = selectedTagIds.includes(tag.id);
@@ -2723,18 +4118,28 @@ export default function WhatsAppConversationsPage() {
                           }
                           className={cn(
                             "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white transition-all self-start max-w-full",
-                            active ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900" : "opacity-90 hover:opacity-100",
+                            active
+                              ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900"
+                              : "opacity-90 hover:opacity-100",
                           )}
                           style={{ backgroundColor: tagColor }}
                         >
-                          {tagEmoji && <span className="shrink-0 leading-none">{tagEmoji}</span>}
+                          {tagEmoji && (
+                            <span className="shrink-0 leading-none">
+                              {tagEmoji}
+                            </span>
+                          )}
                           <span className="truncate">{tag.name}</span>
-                          {active && <Check className="h-3 w-3 shrink-0 ml-auto" />}
+                          {active && (
+                            <Check className="h-3 w-3 shrink-0 ml-auto" />
+                          )}
                         </button>
                       );
                     })}
-                  {availableWaTags.filter((t) =>
-                    !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase()),
+                  {availableWaTags.filter(
+                    (t) =>
+                      !tagSearch ||
+                      t.name.toLowerCase().includes(tagSearch.toLowerCase()),
                   ).length === 0 && (
                     <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
                       Nenhuma etiqueta encontrada
@@ -2796,8 +4201,19 @@ export default function WhatsAppConversationsPage() {
               <ClientListItem
                 key={client.conversationId}
                 client={client}
-                selected={client.clientId === selectedId || client.conversationId === selectedId}
-                onClick={() => handleSelectConversation(client.clientId ?? client.conversationId)}
+                selected={
+                  client.clientId === selectedId ||
+                  client.conversationId === selectedId
+                }
+                onClick={() =>
+                  handleSelectConversation(
+                    client.clientId ?? client.conversationId,
+                  )
+                }
+                availableTags={availableWaTags}
+                onTagsChange={(clientId, tagIds) =>
+                  setTagsMutation.mutate({ clientId, tagIds })
+                }
               />
             ))
           )}
@@ -2805,14 +4221,18 @@ export default function WhatsAppConversationsPage() {
       </div>
 
       {/* Right panel — conversation */}
-      <div className={cn(
-        "flex-1 flex-col overflow-hidden",
-        selectedId ? "flex" : "hidden md:flex",
-      )}>
+      <div
+        className={cn(
+          "flex-1 flex-col overflow-hidden",
+          selectedId ? "flex" : "hidden md:flex",
+        )}
+      >
         {selectedClient ? (
           <ConversationMessages
             key={selectedClient.conversationId}
-            conversationKey={selectedClient.clientId ?? selectedClient.conversationId}
+            conversationKey={
+              selectedClient.clientId ?? selectedClient.conversationId
+            }
             client={selectedClient}
             onBack={handleBack}
             channels={availableChannels}
