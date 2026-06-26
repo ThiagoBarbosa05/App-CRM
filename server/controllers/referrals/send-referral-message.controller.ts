@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
-import { referrals, clients, users, serviceChannels, userServiceChannel } from "../../../shared/schema";
+import { referrals, clients, users, serviceChannels, userServiceChannel, systemSettings } from "../../../shared/schema";
 import { eq } from "drizzle-orm";
 import { syncContact, createChat, sendMessage } from "../../integrations/umbler";
 import { referralsService } from "../../services/referrals.service";
+
+const DEFAULT_TEMPLATE =
+  "Olá {nome}! {indicador} te indicou para conhecer nossos produtos. Aproveite e entre em contato para saber mais! 😊";
 
 export const sendReferralMessageController = async (
   req: Request,
@@ -27,7 +30,7 @@ export const sendReferralMessageController = async (
       return res.status(404).json({ message: "Indicação não encontrada" });
     }
 
-    const [[userRow], [referrerClient]] = await Promise.all([
+    const [[userRow], [referrerClient], [templateRow]] = await Promise.all([
       db
         .select({ id: users.id, name: users.name, channelId: serviceChannels.id })
         .from(users)
@@ -39,6 +42,11 @@ export const sendReferralMessageController = async (
         .select({ name: clients.name })
         .from(clients)
         .where(eq(clients.id, referral.referrerId))
+        .limit(1),
+      db
+        .select({ value: systemSettings.value })
+        .from(systemSettings)
+        .where(eq(systemSettings.key, "referral_message_template"))
         .limit(1),
     ]);
 
@@ -72,9 +80,10 @@ export const sendReferralMessageController = async (
     }
 
     const referrerName = referrerClient?.name ?? "um de nossos clientes";
-    const message =
-      `Olá ${referral.referredName}! ${referrerName} te indicou para conhecer nossos produtos. ` +
-      `Aproveite e entre em contato para saber mais! 😊`;
+    const template = templateRow?.value ?? DEFAULT_TEMPLATE;
+    const message = template
+      .replace(/\{nome\}/g, referral.referredName)
+      .replace(/\{indicador\}/g, referrerName);
 
     await sendMessage({ chatId: chat.id, message });
 

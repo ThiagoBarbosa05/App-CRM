@@ -336,6 +336,10 @@ export default function ReferralProgramPage() {
   const [incentiveFormActive, setIncentiveFormActive] = useState(true);
   const [incentiveDeliverySearch, setIncentiveDeliverySearch] = useState("");
 
+  // ── Configurações tab state
+  const [msgTemplate, setMsgTemplate] = useState("");
+  const [msgTemplateDraft, setMsgTemplateDraft] = useState("");
+
   // ── Queries
   const { data, isLoading } = useQuery<ProgramData>({
     queryKey: ["/api/referrals/program"],
@@ -371,6 +375,54 @@ export default function ReferralProgramPage() {
     isLoading: incentiveDeliveriesLoading,
   } = useQuery<IncentiveDelivery[]>({
     queryKey: ["/api/referrals/incentives/deliveries"],
+  });
+
+  // ── Configurações: busca template da mensagem
+  useQuery<{ value: string | null }>({
+    queryKey: ["/api/system-settings/referral_message_template"],
+    queryFn: () =>
+      fetch("/api/system-settings/referral_message_template", {
+        credentials: "include",
+      }).then((r) => r.json()),
+    staleTime: 0,
+    refetchOnMount: true,
+    select: (data) => {
+      const val =
+        data?.value ??
+        "Olá {nome}! {indicador} te indicou para conhecer nossos produtos. Aproveite e entre em contato para saber mais! 😊";
+      setMsgTemplate(val);
+      setMsgTemplateDraft(val);
+      return data;
+    },
+  });
+
+  const saveMsgTemplateMutation = useMutation({
+    mutationFn: async (value: string) => {
+      const res = await fetch("/api/system-settings/referral_message_template", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          value,
+          description: "Template da mensagem enviada ao cliente indicado",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message ?? "Erro ao salvar");
+      }
+      return res.json();
+    },
+    onSuccess: (_, value) => {
+      setMsgTemplate(value);
+      queryClient.invalidateQueries({
+        queryKey: ["/api/system-settings/referral_message_template"],
+      });
+      toast({ title: "Mensagem atualizada com sucesso!" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao salvar mensagem", description: err.message, variant: "destructive" });
+    },
   });
 
   // ── Catalog mutations
@@ -775,6 +827,9 @@ export default function ReferralProgramPage() {
           )}
           <TabsTrigger value="entregas">Histórico de Entregas</TabsTrigger>
           <TabsTrigger value="incentivos">Brindes de Incentivo</TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
+          )}
         </TabsList>
 
         {/* ── ABA: Indicações ─────────────────────────────────────── */}
@@ -1536,6 +1591,109 @@ export default function ReferralProgramPage() {
             )}
           </div>
         </TabsContent>
+
+        {/* ── ABA: Configurações ───────────────────────────────────────── */}
+        {isAdmin && (
+          <TabsContent value="configuracoes" className="mt-2">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 space-y-6 max-w-2xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-primary/10">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Mensagem enviada ao cliente indicado
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Texto enviado via WhatsApp quando o vendedor clica em "Enviar mensagem"
+                  </p>
+                </div>
+              </div>
+
+              {/* Variáveis disponíveis */}
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs text-slate-500 dark:text-slate-400 self-center">
+                  Variáveis disponíveis:
+                </span>
+                {[
+                  { tag: "{nome}", desc: "Nome do cliente indicado" },
+                  { tag: "{indicador}", desc: "Nome de quem indicou" },
+                ].map(({ tag, desc }) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    title={desc}
+                    onClick={() => setMsgTemplateDraft((prev) => prev + tag)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-mono text-primary hover:bg-primary/10 transition-colors border border-slate-200 dark:border-slate-700"
+                  >
+                    {tag}
+                    <span className="text-slate-400 font-sans font-normal">— {desc}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Textarea */}
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Texto da mensagem
+                </Label>
+                <Textarea
+                  value={msgTemplateDraft}
+                  onChange={(e) => setMsgTemplateDraft(e.target.value)}
+                  rows={5}
+                  className="text-sm resize-none font-mono"
+                  placeholder="Olá {nome}! {indicador} te indicou..."
+                />
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                  Clique nas variáveis acima para inserí-las no texto.
+                </p>
+              </div>
+
+              {/* Preview */}
+              {msgTemplateDraft && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Prévia (exemplo)
+                  </Label>
+                  <div className="p-4 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
+                    {msgTemplateDraft
+                      .replace(/\{nome\}/g, "João Silva")
+                      .replace(/\{indicador\}/g, "Maria Santos")}
+                  </div>
+                </div>
+              )}
+
+              {/* Ações */}
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  size="sm"
+                  disabled={
+                    saveMsgTemplateMutation.isPending ||
+                    msgTemplateDraft === msgTemplate ||
+                    !msgTemplateDraft.trim()
+                  }
+                  onClick={() => saveMsgTemplateMutation.mutate(msgTemplateDraft)}
+                >
+                  {saveMsgTemplateMutation.isPending ? "Salvando..." : "Salvar mensagem"}
+                </Button>
+                {msgTemplateDraft !== msgTemplate && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setMsgTemplateDraft(msgTemplate)}
+                  >
+                    Descartar alterações
+                  </Button>
+                )}
+                {saveMsgTemplateMutation.isSuccess && msgTemplateDraft === msgTemplate && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                    <Check className="h-3.5 w-3.5" /> Salvo
+                  </span>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* ── Dialog: Criar/Editar Benefício ─────────────────────────────── */}
