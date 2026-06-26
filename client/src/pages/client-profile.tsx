@@ -45,6 +45,27 @@ import { ClientReferralsTab } from "@/components/clients/client-referrals-tab";
 import ClientFormModal from "@/components/client-form-modal";
 import { useAuth } from "@/hooks/useAuth";
 
+/**
+ * Extrai a mensagem segura enviada pelo backend a partir do erro lançado por
+ * `apiRequest` (formato `"<status>: <body JSON>"`). O backend só envia mensagens
+ * já curadas, então é seguro exibir. Faz fallback para um texto genérico.
+ */
+function extractSyncErrorMessage(err: unknown): string {
+  const fallback = "Não foi possível sincronizar com o Bling. Tente novamente.";
+  if (!(err instanceof Error)) return fallback;
+
+  const separatorIndex = err.message.indexOf(": ");
+  const body =
+    separatorIndex >= 0 ? err.message.slice(separatorIndex + 2) : err.message;
+
+  try {
+    const parsed = JSON.parse(body) as { message?: string };
+    return parsed.message?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function ClientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const [location, navigate] = useLocation();
@@ -61,8 +82,12 @@ export default function ClientProfilePage() {
     onSuccess: () => {
       toast({ title: "Sincronizado com sucesso", description: "Cliente enviado para o Bling." });
     },
-    onError: () => {
-      toast({ title: "Erro ao sincronizar", description: "Verifique a conexão com o Bling.", variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({
+        title: "Erro ao sincronizar",
+        description: extractSyncErrorMessage(err),
+        variant: "destructive",
+      });
     },
   });
 

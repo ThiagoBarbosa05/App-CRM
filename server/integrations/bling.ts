@@ -614,6 +614,21 @@ interface BlingApiErrorField {
 }
 
 /**
+ * Erro de uma chamada à API do Bling. Carrega o `status` HTTP e uma `message`
+ * já formatada/segura (sem token), permitindo ao chamador classificar a falha
+ * (auth, validação, rate limit) e traduzi-la em mensagem amigável ao usuário.
+ */
+export class BlingApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "BlingApiError";
+    this.status = status;
+  }
+}
+
+/**
  * Converte o corpo de erro padrão da API do Bling
  * (`{ error: { type, message, description, fields: [...] } }`) em uma mensagem
  * legível, incluindo as mensagens de validação por campo. Retorna o corpo cru
@@ -1282,8 +1297,9 @@ export async function createBlingContato(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      `Falha ao criar contato no Bling: ${errorText || response.statusText}`,
+    throw new BlingApiError(
+      response.status,
+      `Falha ao criar contato no Bling: ${formatBlingApiError(errorText, response.statusText)}`,
     );
   }
 
@@ -1326,13 +1342,17 @@ export async function updateBlingContato(
   }
 
   if (response.status === 404) {
-    throw new Error(`Contato ${contatoId} não encontrado no Bling`);
+    throw new BlingApiError(
+      404,
+      `Contato ${contatoId} não encontrado no Bling`,
+    );
   }
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      `Falha ao atualizar contato no Bling: ${errorText || response.statusText}`,
+    throw new BlingApiError(
+      response.status,
+      `Falha ao atualizar contato no Bling: ${formatBlingApiError(errorText, response.statusText)}`,
     );
   }
 }
@@ -1403,8 +1423,6 @@ async function postOAuthToken(
       `Falha ao obter token do Bling: ${errorText || response.statusText}`,
     );
   }
-
-  console.log("TOOOOOOOOOOOKEN", await response.clone().text());
 
   return (await response.json()) as BlingTokenResponse;
 }

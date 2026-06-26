@@ -22,7 +22,7 @@ import { postReferralController } from "../controllers/referrals/post-referral.c
 import { getReferrerController } from "../controllers/referrals/get-referrer.controller";
 import { deliverBenefitController } from "../controllers/referrals/deliver-benefit.controller";
 import multer from "multer";
-import { syncClientToBling } from "../services/bling-clients-export.service";
+import { syncClientToBling, BlingSyncError } from "../services/bling-clients-export.service";
 import { requireAuth } from "../middleware/validation";
 
 /**
@@ -262,7 +262,12 @@ clientsRouter.post("/:id/sync-bling", requireAuth, async (req, res) => {
     return res.json({ ok: true, message: "Cliente sincronizado com o Bling com sucesso." });
   } catch (err) {
     console.error("[sync-bling]", err);
-    return res.status(500).json({ message: "Erro ao sincronizar com o Bling." });
+    if (err instanceof BlingSyncError) {
+      return res.status(err.httpStatus).json({ message: err.userMessage });
+    }
+    return res
+      .status(500)
+      .json({ message: "Não foi possível sincronizar com o Bling. Tente novamente." });
   }
 });
 

@@ -17,6 +17,7 @@ import {
   getBlingCategoriaProduto,
   mapBlingCategoryToWineType,
   mapBlingCategoryToCountry,
+  BlingApiError,
   type BlingWineType,
   type BlingWineCountry,
   type BlingPedidoVenda,
@@ -24,6 +25,7 @@ import {
 } from "../integrations/bling";
 import { products } from "../../shared/schema";
 import { blingOrdersService } from "./bling-orders.service";
+import { blingConnectionsService } from "./bling-connections.service";
 import type {
   BlingControlPubSubMessage,
   SalesOrder,
@@ -341,8 +343,20 @@ export function getAccessTokenAndRefresher(connection: BlingConnection): {
   const accessToken = decryptToken(connection.accessTokenEncrypted);
 
   const onTokenRefresh = async (): Promise<string> => {
-    // Re-lê a conexão do banco para pegar o token mais recente (pode ter sido
-    // renovado pelo scheduler na janela entre o início do processamento e agora)
+    // Força a renovação do token via refresh token (não apenas relê o valor
+    // atual do banco — o token em DB pode estar igualmente expirado se o
+    // scheduler ainda não rodou). refreshConnection persiste o novo token.
+    try {
+      await blingConnectionsService.refreshConnection(connection.id);
+    } catch (error) {
+      // Refresh token também inválido/expirado → conexão precisa de reauth.
+      // Sinaliza como 401 para que o chamador traduza em "reconecte a conta".
+      throw new BlingApiError(
+        401,
+        `Falha ao renovar token do Bling: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
     const [fresh] = await db
       .select()
       .from(blingConnections)

@@ -22,6 +22,7 @@ import {
   getBlingContatos,
   createBlingContato,
   updateBlingContato,
+  BlingApiError,
 } from "../integrations/bling";
 import { getAccessTokenAndRefresher } from "./bling-webhook.service";
 
@@ -590,10 +591,85 @@ async function processClient(
 // ---------------------------------------------------------------------------
 
 /**
+ * Erro de sincronização individual com mensagem segura e amigável já pronta
+ * para exibição ao usuário (`userMessage`) e o status HTTP correspondente.
+ * O detalhe técnico completo permanece em `message`/`cause` (apenas logs).
+ */
+export class BlingSyncError extends Error {
+  readonly userMessage: string;
+  readonly httpStatus: number;
+
+  constructor(
+    userMessage: string,
+    httpStatus: number,
+    technicalMessage?: string,
+  ) {
+    super(technicalMessage ?? userMessage);
+    this.name = "BlingSyncError";
+    this.userMessage = userMessage;
+    this.httpStatus = httpStatus;
+  }
+}
+
+/**
+ * Traduz uma falha da API do Bling em `BlingSyncError` com mensagem segura.
+ * Nunca expõe token, IDs internos ou stack — apenas mensagens curadas (e, no
+ * caso de validação, as mensagens por campo retornadas pelo próprio Bling sobre
+ * os dados do cliente, que são seguras de exibir).
+ */
+function toBlingSyncError(error: unknown): BlingSyncError {
+  if (error instanceof BlingSyncError) return error;
+
+  if (error instanceof BlingApiError) {
+    const technical = error.message;
+
+    if (error.status === 401 || error.status === 403) {
+      return new BlingSyncError(
+        "A conexão com o Bling expirou. Reconecte a conta nas Configurações.",
+        502,
+        technical,
+      );
+    }
+
+    if (error.status === 429) {
+      return new BlingSyncError(
+        "O Bling está limitando as requisições no momento. Tente novamente em alguns instantes.",
+        429,
+        technical,
+      );
+    }
+
+    if (error.status === 400 || error.status === 422) {
+      // A mensagem de BlingApiError já vem formatada por campo (formatBlingApiError),
+      // sobre os próprios dados do cliente — seguro exibir. Removemos o prefixo técnico.
+      const detail = technical.replace(/^Falha ao (criar|atualizar) contato no Bling:\s*/i, "");
+      return new BlingSyncError(
+        `O Bling recusou os dados do cliente: ${detail}`,
+        422,
+        technical,
+      );
+    }
+
+    return new BlingSyncError(
+      "Não foi possível sincronizar com o Bling. Tente novamente; se persistir, contate o suporte.",
+      502,
+      technical,
+    );
+  }
+
+  return new BlingSyncError(
+    "Não foi possível sincronizar com o Bling. Tente novamente; se persistir, contate o suporte.",
+    500,
+    error instanceof Error ? error.message : String(error),
+  );
+}
+
+/**
  * Sincroniza um único cliente do CRM para o Bling como contato.
  *
- * Usa a primeira conexão Bling com status "connected". Se não houver nenhuma,
- * retorna silenciosamente. Erros de API são propagados para o chamador.
+ * Usa a primeira conexão Bling com status "connected". Lança `BlingSyncError`
+ * (com mensagem segura ao usuário) quando não há conexão ativa, o cliente não
+ * existe, ou a API do Bling falha.
  *
  * @param clientId - ID do cliente no CRM.
  */
@@ -604,7 +680,13 @@ export async function syncClientToBling(clientId: string): Promise<void> {
     .where(eq(blingConnections.status, "connected"))
     .limit(1);
 
-  if (!connection?.accessTokenEncrypted) return;
+  if (!connection?.accessTokenEncrypted) {
+    throw new BlingSyncError(
+      "Nenhuma conexão com o Bling está ativa. Reconecte a conta nas Configurações.",
+      409,
+      "Nenhuma conexão Bling com status 'connected' e access token disponível.",
+    );
+  }
 
   const [client] = await db
     .select({
@@ -643,7 +725,13 @@ export async function syncClientToBling(clientId: string): Promise<void> {
     .where(eq(clients.id, clientId))
     .limit(1);
 
-  if (!client) return;
+  if (!client) {
+    throw new BlingSyncError(
+      "Cliente não encontrado.",
+      404,
+      `Cliente ${clientId} não encontrado ao sincronizar com o Bling.`,
+    );
+  }
 
   const { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
 
@@ -671,9 +759,14 @@ export async function syncClientToBling(clientId: string): Promise<void> {
     await processClient(client, accessToken, onTokenRefresh, stub, connection.id);
     await markSynced(clientId);
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    await markSyncError(clientId, errMsg);
-    throw error;
+    const syncError = toBlingSyncError(error);
+    // Log com o detalhe técnico completo (apenas server-side).
+    console.error(
+      `[Bling] Falha ao sincronizar cliente ${clientId}:`,
+      syncError.message,
+    );
+    await markSyncError(clientId, syncError.message);
+    throw syncError;
   }
 
   console.info(
