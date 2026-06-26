@@ -36,6 +36,7 @@ import {
   X,
   Loader2,
   Hourglass,
+  ListChecks,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,7 @@ import {
   SendMessageNode,
   QuestionNode,
   ConditionNode,
+  MenuNode,
   ActionNode,
   EndNode,
   FlowFormNode,
@@ -84,6 +86,9 @@ import type {
   QuestionNodeData,
   ConditionNodeData,
   ConditionBranch,
+  ConditionRule,
+  MenuNodeData,
+  MenuOption,
   ActionNodeData,
   FlowFormNodeData,
   WaitNodeData,
@@ -100,6 +105,7 @@ const NODE_TYPES = {
   send_message: SendMessageNode,
   question: QuestionNode,
   condition: ConditionNode,
+  menu: MenuNode,
   action: ActionNode,
   flow_form: FlowFormNode,
   wait: WaitNode,
@@ -111,6 +117,7 @@ const NODE_TYPES = {
 const PALETTE = [
   { type: "send_message", label: "Enviar Mensagem", icon: MessageCircle, color: "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100" },
   { type: "question", label: "Pergunta", icon: HelpCircle, color: "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100" },
+  { type: "menu", label: "Menu (opções)", icon: ListChecks, color: "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100" },
   { type: "condition", label: "Condição", icon: GitBranch, color: "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100" },
   { type: "action", label: "Ação", icon: Zap, color: "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" },
   { type: "wait", label: "Aguardar", icon: Hourglass, color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" },
@@ -632,13 +639,55 @@ function PropertiesPanel({
               em nós seguintes.
             </p>
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Validar resposta como</Label>
+            <Select
+              value={(d as QuestionNodeData).validation ?? "none"}
+              onValueChange={(v) =>
+                update({ validation: v as QuestionNodeData["validation"] })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem validação</SelectItem>
+                <SelectItem value="email">E-mail</SelectItem>
+                <SelectItem value="cpf">CPF</SelectItem>
+                <SelectItem value="phone">Telefone</SelectItem>
+                <SelectItem value="number">Número</SelectItem>
+                <SelectItem value="date">Data</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {(d as QuestionNodeData).validation &&
+            (d as QuestionNodeData).validation !== "none" && (
+              <div className="space-y-1">
+                <Label className="text-xs">Mensagem de erro (resposta inválida)</Label>
+                <Textarea
+                  value={(d as QuestionNodeData).validationErrorText ?? ""}
+                  onChange={(e) => update({ validationErrorText: e.target.value })}
+                  placeholder="Ex: Formato inválido. Tente novamente."
+                  rows={2}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Enviada quando a resposta não passa na validação; a pergunta é
+                  repetida até uma resposta válida.
+                </p>
+              </div>
+            )}
         </>
+      )}
+
+      {node.type === "menu" && (
+        <MenuEditor data={d as Partial<MenuNodeData>} onChange={update} />
       )}
 
       {node.type === "condition" && (
         <ConditionEditor
           data={d as ConditionNodeData}
           onChange={(patch) => update(patch)}
+          markerTags={markerTags}
         />
       )}
 
@@ -1065,19 +1114,176 @@ function WaitEditor({
   );
 }
 
-function ConditionEditor({
+function MenuEditor({
   data,
   onChange,
 }: {
+  data: Partial<MenuNodeData>;
+  onChange: (patch: Partial<MenuNodeData>) => void;
+}) {
+  const options: MenuOption[] = data.options ?? [];
+  const renderAs = data.renderAs ?? "auto";
+  const asList = renderAs === "list" || (renderAs === "auto" && options.length > 3);
+
+  function addOption() {
+    if (options.length >= 10) return;
+    const handle = `opt-${nanoid(4)}`;
+    onChange({ options: [...options, { handle, label: "" }] });
+  }
+
+  function removeOption(handle: string) {
+    onChange({ options: options.filter((o) => o.handle !== handle) });
+  }
+
+  function updateOption(handle: string, patch: Partial<MenuOption>) {
+    onChange({
+      options: options.map((o) => (o.handle === handle ? { ...o, ...patch } : o)),
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Texto da mensagem</Label>
+        <Textarea
+          value={data.bodyText ?? ""}
+          onChange={(e) => onChange({ bodyText: e.target.value })}
+          placeholder="Ex: Como posso ajudar?"
+          rows={3}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Use <code className="font-mono">{"{{variavel}}"}</code> para inserir valores capturados.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Exibir como</Label>
+        <Select
+          value={renderAs}
+          onValueChange={(v) => onChange({ renderAs: v as MenuNodeData["renderAs"] })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Automático (≤3 botões, &gt;3 lista)</SelectItem>
+            <SelectItem value="buttons">Botões (máx. 3)</SelectItem>
+            <SelectItem value="list">Lista (máx. 10)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {asList && (
+        <div className="space-y-1">
+          <Label className="text-xs">Texto do botão da lista</Label>
+          <Input
+            value={data.listButtonText ?? ""}
+            onChange={(e) => onChange({ listButtonText: e.target.value })}
+            placeholder="Ex: Escolher"
+            maxLength={20}
+          />
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label className="text-xs">Opções</Label>
+        {options.map((opt, i) => (
+          <div key={opt.handle} className="border rounded-md p-3 space-y-2 bg-muted/30">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium">Opção {i + 1}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => removeOption(opt.handle)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+            <Input
+              value={opt.label}
+              onChange={(e) => updateOption(opt.handle, { label: e.target.value })}
+              placeholder="Texto da opção"
+              maxLength={asList ? 24 : 20}
+            />
+            {asList && (
+              <Input
+                value={opt.description ?? ""}
+                onChange={(e) => updateOption(opt.handle, { description: e.target.value })}
+                placeholder="Descrição (opcional)"
+                maxLength={72}
+                className="h-7 text-xs"
+              />
+            )}
+          </div>
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={addOption}
+          disabled={options.length >= 10}
+        >
+          <Plus className="h-3 w-3 mr-1" />
+          Adicionar opção
+        </Button>
+        {!asList && options.length > 3 && (
+          <p className="text-[11px] text-amber-600">
+            Botões aceitam no máximo 3 opções. Mude para "Lista" ou remova opções.
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Salvar opção escolhida em (opcional)</Label>
+        <Input
+          value={data.captureVariable ?? ""}
+          onChange={(e) =>
+            onChange({
+              captureVariable: e.target.value.trim().replace(/[^a-zA-Z0-9_]/g, "_"),
+            })
+          }
+          placeholder="ex: opcao"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Guarda o texto da opção; o índice fica em{" "}
+          <code className="font-mono">{`{{${(data.captureVariable || "opcao")}_index}}`}</code>.
+        </p>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Conecte cada opção a um nó. Cada opção tem sua própria saída no fluxo.
+      </p>
+    </div>
+  );
+}
+
+const CONDITION_OPERATOR_OPTIONS: { value: ConditionRule["operator"]; label: string }[] = [
+  { value: "equals", label: "É igual a" },
+  { value: "contains", label: "Contém" },
+  { value: "is_empty", label: "Está vazio" },
+];
+
+function ConditionEditor({
+  data,
+  onChange,
+  markerTags,
+}: {
   data: Partial<ConditionNodeData>;
   onChange: (patch: Partial<ConditionNodeData>) => void;
+  markerTags: TagOption[];
 }) {
   const branches: ConditionBranch[] = data.branches ?? [];
+  const mode = data.mode ?? "reply";
 
   function addBranch() {
     const handle = `branch-${nanoid(4)}`;
+    const base: ConditionBranch = { handle, label: "", keywords: [] };
+    if (mode === "attribute") {
+      base.rule = { field: "tag", operator: "has" };
+    }
     onChange({
-      branches: [...branches, { handle, label: "", keywords: [] }],
+      branches: [...branches, base],
       defaultHandle: data.defaultHandle ?? "default",
     });
   }
@@ -1096,21 +1302,55 @@ function ConditionEditor({
     });
   }
 
+  function updateRule(handle: string, patch: Partial<ConditionRule>) {
+    const branch = branches.find((b) => b.handle === handle);
+    const rule: ConditionRule = {
+      field: branch?.rule?.field ?? "tag",
+      operator: branch?.rule?.operator ?? "has",
+      value: branch?.rule?.value,
+      ...patch,
+    };
+    updateBranch(handle, { rule });
+  }
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between rounded-md border p-2.5 bg-muted/30">
-        <div className="flex items-center gap-2">
-          <Brain className="h-3.5 w-3.5 text-purple-600" />
-          <div>
-            <p className="text-xs font-medium">Classificação por IA</p>
-            <p className="text-[10px] text-muted-foreground">Usa OpenAI para entender intenção</p>
-          </div>
-        </div>
-        <Switch
-          checked={!!data.useAI}
-          onCheckedChange={(v) => onChange({ useAI: v })}
-        />
+      <div className="space-y-1">
+        <Label className="text-xs">Ramificar por</Label>
+        <Select
+          value={mode}
+          onValueChange={(v) => onChange({ mode: v as ConditionNodeData["mode"] })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="reply">Resposta do contato</SelectItem>
+            <SelectItem value="attribute">Atributo do contato</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] text-muted-foreground">
+          {mode === "attribute"
+            ? "Avalia etiquetas/campos do contato imediatamente, sem aguardar resposta."
+            : "Aguarda a próxima mensagem do contato e ramifica por palavra-chave/IA."}
+        </p>
       </div>
+
+      {mode === "reply" && (
+        <div className="flex items-center justify-between rounded-md border p-2.5 bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Brain className="h-3.5 w-3.5 text-purple-600" />
+            <div>
+              <p className="text-xs font-medium">Classificação por IA</p>
+              <p className="text-[10px] text-muted-foreground">Usa OpenAI para entender intenção</p>
+            </div>
+          </div>
+          <Switch
+            checked={!!data.useAI}
+            onCheckedChange={(v) => onChange({ useAI: v })}
+          />
+        </div>
+      )}
       {branches.map((branch, i) => (
         <div
           key={branch.handle}
@@ -1134,24 +1374,115 @@ function ConditionEditor({
               onChange={(e) =>
                 updateBranch(branch.handle, { label: e.target.value })
               }
-              placeholder='Ex: Contém "sim"'
+              placeholder={mode === "attribute" ? "Ex: Cliente VIP" : 'Ex: Contém "sim"'}
             />
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Palavras-chave (separadas por vírgula)</Label>
-            <Input
-              value={branch.keywords.join(", ")}
-              onChange={(e) =>
-                updateBranch(branch.handle, {
-                  keywords: e.target.value
-                    .split(",")
-                    .map((k) => k.trim())
-                    .filter(Boolean),
-                })
-              }
-              placeholder="sim, yes, s"
-            />
-          </div>
+          {mode === "reply" ? (
+            <div className="space-y-1">
+              <Label className="text-xs">Palavras-chave (separadas por vírgula)</Label>
+              <Input
+                value={branch.keywords.join(", ")}
+                onChange={(e) =>
+                  updateBranch(branch.handle, {
+                    keywords: e.target.value
+                      .split(",")
+                      .map((k) => k.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="sim, yes, s"
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Campo</Label>
+                <Select
+                  value={branch.rule?.field ?? "tag"}
+                  onValueChange={(v) =>
+                    updateRule(branch.handle, {
+                      field: v as ConditionRule["field"],
+                      operator: v === "tag" ? "has" : "equals",
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tag">Etiqueta</SelectItem>
+                    {CONTACT_FIELD_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {branch.rule?.field === "tag" ? (
+                <div className="space-y-1">
+                  <Label className="text-xs">Condição</Label>
+                  <Select
+                    value={branch.rule?.operator ?? "has"}
+                    onValueChange={(v) =>
+                      updateRule(branch.handle, { operator: v as ConditionRule["operator"] })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="has">Possui a etiqueta</SelectItem>
+                      <SelectItem value="not_has">Não possui a etiqueta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={branch.rule?.value ?? ""}
+                    onValueChange={(v) => updateRule(branch.handle, { value: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a etiqueta" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {markerTags.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Label className="text-xs">Condição</Label>
+                  <Select
+                    value={branch.rule?.operator ?? "equals"}
+                    onValueChange={(v) =>
+                      updateRule(branch.handle, { operator: v as ConditionRule["operator"] })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONDITION_OPERATOR_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {branch.rule?.operator !== "is_empty" && (
+                    <Input
+                      value={branch.rule?.value ?? ""}
+                      onChange={(e) => updateRule(branch.handle, { value: e.target.value })}
+                      placeholder="Valor"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ))}
       <Button
@@ -1192,6 +1523,13 @@ function nodePreview(node: FlowNode): string {
     const d = node.data as FlowFormNodeData;
     return `[Formulário: ${d.flowName || d.flowId || "—"}] ${d.ctaText ? `— "${d.ctaText}"` : ""}`;
   }
+  if (node.type === "menu") {
+    const d = node.data as MenuNodeData;
+    const opts = (d.options ?? [])
+      .map((o, i) => `${i + 1}. ${o.label || `Opção ${i + 1}`}`)
+      .join("\n");
+    return `${d.bodyText ?? ""}${opts ? `\n${opts}` : ""}`.trim() || "(menu vazio)";
+  }
   return "";
 }
 
@@ -1204,6 +1542,15 @@ function resolveSimHandle(node: FlowNode, text: string): string {
     }
   }
   return d.defaultHandle ?? "default";
+}
+
+function resolveMenuSimHandle(node: FlowNode, text: string): string | null {
+  const d = node.data as MenuNodeData;
+  const t = text.toLowerCase().trim();
+  const byLabel = (d.options ?? []).find(
+    (o) => o.label.toLowerCase().trim() === t,
+  );
+  return byLabel?.handle ?? null;
 }
 
 const ACTION_SIM_LABELS: Record<string, string> = {
@@ -1262,7 +1609,11 @@ function BotSimulator({
         } else if (current.type === "send_message") {
           acc.push({ role: "bot", text: nodePreview(current) });
           current = nextNode(current.id);
-        } else if (current.type === "question" || current.type === "flow_form") {
+        } else if (
+          current.type === "question" ||
+          current.type === "flow_form" ||
+          current.type === "menu"
+        ) {
           acc.push({ role: "bot", text: nodePreview(current) });
           setMessages([...acc]);
           setWaitingNodeId(current.id);
@@ -1330,7 +1681,12 @@ function BotSimulator({
     const acc = [...messages, { role: "user" as const, text }];
     setMessages(acc);
     setInput("");
-    const afterQuestion = nextNode(waitingNodeId);
+    const waitingNode = nodeById.get(waitingNodeId);
+    const handle =
+      waitingNode?.type === "menu"
+        ? resolveMenuSimHandle(waitingNode, text) ?? undefined
+        : undefined;
+    const afterQuestion = nextNode(waitingNodeId, handle);
     setWaitingNodeId(null);
     runFrom(afterQuestion, text, acc);
   }
@@ -1467,6 +1823,7 @@ export default function BotEditor() {
     const labelMap: Record<string, string> = {
       send_message: "Enviar Mensagem",
       question: "Pergunta",
+      menu: "Menu (opções)",
       condition: "Condição",
       action: "Ação",
       wait: "Aguardar",
@@ -1477,8 +1834,14 @@ export default function BotEditor() {
       label: labelMap[type] ?? type,
     };
     if (type === "condition") {
+      (defaultData as Partial<ConditionNodeData>).mode = "reply";
       (defaultData as Partial<ConditionNodeData>).branches = [];
       (defaultData as Partial<ConditionNodeData>).defaultHandle = "default";
+    }
+    if (type === "menu") {
+      (defaultData as Partial<MenuNodeData>).bodyText = "";
+      (defaultData as Partial<MenuNodeData>).options = [];
+      (defaultData as Partial<MenuNodeData>).renderAs = "auto";
     }
     if (type === "send_message") {
       (defaultData as Partial<SendMessageNodeData>).messageType = "text";
@@ -1552,6 +1915,26 @@ export default function BotEditor() {
         if (!hasEdge) {
           problems.push(
             `No nó "${n.data.label}", o ramo "${b.label || b.handle}" não está conectado.`,
+          );
+        }
+      }
+    }
+
+    // Menus: precisam de pelo menos uma opção, e cada opção precisa de uma aresta.
+    for (const n of nodes) {
+      if (n.type !== "menu") continue;
+      const options = (n.data as MenuNodeData).options ?? [];
+      if (options.length === 0) {
+        problems.push(`O menu "${n.data.label}" não tem nenhuma opção.`);
+        continue;
+      }
+      for (const o of options) {
+        const hasEdge = edges.some(
+          (e) => e.source === n.id && e.sourceHandle === o.handle,
+        );
+        if (!hasEdge) {
+          problems.push(
+            `No menu "${n.data.label}", a opção "${o.label || o.handle}" não está conectada.`,
           );
         }
       }

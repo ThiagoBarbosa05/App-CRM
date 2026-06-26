@@ -255,6 +255,12 @@ async function handleIncomingMessage(
     message.interactive?.list_reply?.title ??
     null;
   const text = message.text?.body ?? buttonText ?? "";
+  // O id da resposta interativa (botão/lista) corresponde ao handle da opção no
+  // nó de Menu do bot — usado para rotear o fluxo de forma robusta.
+  const replyId =
+    message.interactive?.button_reply?.id ??
+    message.interactive?.list_reply?.id ??
+    null;
   const mediaObj = message.image ?? message.audio ?? message.video ?? message.document ?? message.sticker;
 
   // WhatsApp envia type "unsupported" para stickers animados e outros formatos.
@@ -300,7 +306,7 @@ async function handleIncomingMessage(
   // Aciona o bot tanto para texto comum quanto para respostas de botão/lista,
   // que devem avançar o fluxo como se fossem uma mensagem do contato.
   if (text && message.type !== "reaction") {
-    await runBotEngine(message.from, text);
+    await runBotEngine(message.from, text, replyId);
   }
 
   if (message.type === "interactive" && message.interactive?.type === "nfm_reply") {

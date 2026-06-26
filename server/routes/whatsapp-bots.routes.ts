@@ -58,6 +58,7 @@ const saveFlowSchema = z.object({
           "send_message",
           "question",
           "condition",
+          "menu",
           "action",
           "flow_form",
           "wait",

@@ -17,6 +17,8 @@ import {
   type SendMessageNodeData,
   type QuestionNodeData,
   type ConditionNodeData,
+  type ConditionBranch,
+  type MenuNodeData,
   type ActionNodeData,
   type FlowFormNodeData,
   type WaitNodeData,
@@ -24,7 +26,7 @@ import {
   type BotNodeData,
 } from "@shared/schema";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage } from "../integrations/whatsapp";
+import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage } from "../integrations/whatsapp";
 import { r2, getPublicR2Url } from "../lib/r2";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
@@ -209,6 +211,48 @@ function interpolate(text: string, variables: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`);
 }
 
+/** Valida os 11 dígitos de um CPF (dígitos verificadores). */
+function isValidCpf(value: string): boolean {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+  const calc = (len: number) => {
+    let sum = 0;
+    for (let i = 0; i < len; i++) sum += parseInt(digits[i], 10) * (len + 1 - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return calc(9) === parseInt(digits[9], 10) && calc(10) === parseInt(digits[10], 10);
+}
+
+/**
+ * Valida a resposta do contato conforme o tipo configurado no nó de Pergunta.
+ * Retorna true quando válida (ou quando não há validação).
+ */
+function validateAnswer(
+  value: string,
+  validation: QuestionNodeData["validation"],
+): boolean {
+  const v = value.trim();
+  if (!validation || validation === "none") return true;
+  switch (validation) {
+    case "email":
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    case "cpf":
+      return isValidCpf(v);
+    case "phone":
+      return v.replace(/\D/g, "").length >= 10;
+    case "number":
+      return /^-?\d+(?:[.,]\d+)?$/.test(v);
+    case "date":
+      return (
+        /^\d{4}-\d{2}-\d{2}$/.test(v) ||
+        /^\d{2}\/\d{2}\/\d{4}$/.test(v)
+      );
+    default:
+      return true;
+  }
+}
+
 /** Adiciona etiquetas ao contato sem duplicar (idempotente). */
 async function addContactTags(clientId: string, tagIds: string[]): Promise<void> {
   const ids = tagIds.filter(Boolean);
@@ -371,10 +415,64 @@ async function executeNode(
     }
 
     case "condition": {
-      // Pausa e aguarda a resposta do contato; a ramificação é resolvida em
-      // handleIncomingMessage quando a próxima mensagem chega. Sem isso, a
-      // condição cairia no primeiro edge e o fluxo seria reiniciado a cada
-      // resposta (reenviando o template).
+      const c = data as ConditionNodeData;
+      // Modo "attribute": ramifica imediatamente pelos atributos do contato
+      // (etiqueta/campo), sem aguardar resposta. O fluxo segue na hora.
+      if (c.mode === "attribute") {
+        const conversation = await findOrCreateConversation(phone);
+        const handle = await resolveAttributeHandle(node, conversation.clientId);
+        const next = await getNextNode(botId, node.id, handle);
+        if (next) await executeNode(next, phone, sessionId, botId, variables);
+        else await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+        break;
+      }
+      // Modo "reply" (padrão): pausa e aguarda a resposta do contato; a
+      // ramificação é resolvida em handleIncomingMessage quando a próxima
+      // mensagem chega. Sem isso, a condição cairia no primeiro edge e o fluxo
+      // seria reiniciado a cada resposta (reenviando o template).
+      await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
+      break;
+    }
+
+    case "menu": {
+      const d = data as MenuNodeData;
+      const options = (d.options ?? []).filter((o) => o.label?.trim());
+      if (options.length > 0) {
+        const windowOpen = await isWithinCustomerWindow(phone);
+        if (!windowOpen) {
+          throw new Error(
+            "Janela de 24h fechada: a Meta não permite enviar menus interativos para este contato sem template.",
+          );
+        }
+        const body = interpolate(d.bodyText || "", variables) || "Escolha uma opção:";
+        const useButtons =
+          d.renderAs === "buttons" || (d.renderAs !== "list" && options.length <= 3);
+        const opts = {
+          headerText: d.headerText ? interpolate(d.headerText, variables) : undefined,
+          footerText: d.footerText ? interpolate(d.footerText, variables) : undefined,
+        };
+        let waId: string | null = null;
+        if (useButtons) {
+          const result = await sendButtonsMessage(
+            phone,
+            body,
+            options.slice(0, 3).map((o) => ({ id: o.handle, title: o.label })),
+            opts,
+          );
+          waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+        } else {
+          const result = await sendListMessage(
+            phone,
+            body,
+            d.listButtonText || "Escolher",
+            options.slice(0, 10).map((o) => ({ id: o.handle, title: o.label, description: o.description })),
+            opts,
+          );
+          waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+        }
+        await persistBotMessage(phone, { waMessageId: waId, type: "text", content: body });
+      }
+      // Pausa aguardando a escolha do contato (resolvida em handleIncomingMessage).
       await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       break;
     }
@@ -563,6 +661,74 @@ async function resolveConditionHandle(
   return data.defaultHandle ?? "default";
 }
 
+/**
+ * Resolve a ramificação de um nó de Condição no modo "attribute": avalia as
+ * regras de cada ramo contra os atributos do contato (etiquetas e campos de
+ * `clients`) e retorna o handle do primeiro ramo que casar, ou o padrão.
+ */
+async function resolveAttributeHandle(
+  node: WhatsappBotNode,
+  clientId: string | null,
+): Promise<string> {
+  const data = node.data as ConditionNodeData;
+  if (!clientId) return data.defaultHandle ?? "default";
+
+  const [client] = await db.select().from(clients).where(eq(clients.id, clientId)).limit(1);
+  const tagRows = await db
+    .select({ tagId: contactTags.tagId })
+    .from(contactTags)
+    .where(eq(contactTags.clientId, clientId));
+  const tagIds = new Set(tagRows.map((t) => t.tagId));
+
+  const matches = (branch: ConditionBranch): boolean => {
+    const rule = branch.rule;
+    if (!rule) return false;
+    if (rule.field === "tag") {
+      const has = rule.value ? tagIds.has(rule.value) : false;
+      return rule.operator === "not_has" ? !has : has;
+    }
+    const raw = (client?.[rule.field as keyof typeof client] ?? "") as unknown;
+    const fieldVal = (raw == null ? "" : String(raw)).toLowerCase().trim();
+    const target = (rule.value ?? "").toLowerCase().trim();
+    switch (rule.operator) {
+      case "is_empty":
+        return fieldVal === "";
+      case "equals":
+        return fieldVal === target;
+      case "contains":
+        return target !== "" && fieldVal.includes(target);
+      default:
+        return false;
+    }
+  };
+
+  for (const branch of data.branches ?? []) {
+    if (matches(branch)) return branch.handle;
+  }
+  return data.defaultHandle ?? "default";
+}
+
+/**
+ * Resolve a opção escolhida num nó de Menu. Prioriza o id do botão/linha
+ * (interactive reply id === handle da opção); como fallback, casa o texto
+ * clicado com o label da opção. Retorna o handle da opção ou null.
+ */
+function resolveMenuHandle(
+  node: WhatsappBotNode,
+  messageText: string,
+  replyId?: string | null,
+): string | null {
+  const data = node.data as MenuNodeData;
+  const options = data.options ?? [];
+  if (replyId) {
+    const byId = options.find((o) => o.handle === replyId);
+    if (byId) return byId.handle;
+  }
+  const text = messageText.toLowerCase().trim();
+  const byLabel = options.find((o) => o.label.toLowerCase().trim() === text);
+  return byLabel?.handle ?? null;
+}
+
 export async function startBotSession(botId: string, phone: string): Promise<"started" | "already_active" | "no_start_node"> {
   const [startNode] = await db
     .select()
@@ -659,6 +825,7 @@ export async function handleFlowResponse(
 export async function handleIncomingMessage(
   phone: string,
   messageText: string,
+  replyId?: string | null,
 ): Promise<void> {
   try {
     const session = await getActiveSession(phone);
@@ -671,6 +838,20 @@ export async function handleIncomingMessage(
 
       if (currentNode.type === "question") {
         const d = currentNode.data as QuestionNodeData;
+
+        // Valida a resposta, se houver validação configurada. Se inválida,
+        // reenvia a mensagem de erro (ou repete a pergunta) e mantém a sessão
+        // no nó atual, sem avançar.
+        if (!validateAnswer(messageText, d.validation)) {
+          const errText = interpolate(
+            d.validationErrorText || d.messageText || "Resposta inválida. Tente novamente.",
+            variables,
+          );
+          const waId = await sendFreeText(phone, errText);
+          await persistBotMessage(phone, { waMessageId: waId, type: "text", content: errText });
+          return;
+        }
+
         // Capturar variável se configurada
         if (d.captureVariable) {
           variables[d.captureVariable] = messageText;
@@ -696,6 +877,32 @@ export async function handleIncomingMessage(
           await updateSession(session.id, {
             status: "completed",
             completedAt: new Date(),
+          });
+        }
+      } else if (currentNode.type === "menu") {
+        const d = currentNode.data as MenuNodeData;
+        const handle = resolveMenuHandle(currentNode, messageText, replyId);
+        if (!handle) {
+          // Escolha não reconhecida: reenvia o menu para o contato tentar de novo.
+          await executeNode(currentNode, phone, session.id, session.botId, variables);
+          return;
+        }
+        // Exporta o label escolhido (e o índice) como variáveis, à la Umbler.
+        if (d.captureVariable) {
+          const idx = (d.options ?? []).findIndex((o) => o.handle === handle);
+          const chosen = (d.options ?? [])[idx];
+          variables[d.captureVariable] = chosen?.label ?? messageText;
+          variables[`${d.captureVariable}_index`] = String(idx);
+        }
+        const next = await getNextNode(session.botId, currentNode.id, handle);
+        if (next) {
+          await updateSession(session.id, { sessionData: variables });
+          await executeNode(next, phone, session.id, session.botId, variables);
+        } else {
+          await updateSession(session.id, {
+            status: "completed",
+            completedAt: new Date(),
+            sessionData: variables,
           });
         }
       }

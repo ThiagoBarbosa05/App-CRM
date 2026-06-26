@@ -3367,7 +3367,7 @@ export const whatsappBotNodes = pgTable("whatsapp_bot_nodes", {
     .references(() => whatsappBots.id, { onDelete: "cascade" })
     .notNull(),
   type: text("type", {
-    enum: ["start", "send_message", "question", "condition", "action", "flow_form", "wait", "end"],
+    enum: ["start", "send_message", "question", "condition", "menu", "action", "flow_form", "wait", "end"],
   }).notNull(),
   label: text("label").notNull(),
   positionX: integer("position_x").notNull().default(0),
@@ -3456,18 +3456,52 @@ export type QuestionNodeData = {
   messageText: string;
   waitForResponseSeconds?: number;
   captureVariable?: string; // nome da variável onde a resposta do usuário é guardada
+  validation?: "none" | "email" | "cpf" | "phone" | "number" | "date";
+  validationErrorText?: string; // reenviado quando a resposta é inválida (fallback: messageText)
+};
+
+// Operadores e regra de ramificação por atributo do contato (modo "attribute").
+export type ConditionRuleOperator =
+  | "has"
+  | "not_has"
+  | "equals"
+  | "contains"
+  | "is_empty";
+
+export type ConditionRule = {
+  field: "tag" | ContactFieldKey;
+  operator: ConditionRuleOperator;
+  value?: string; // tagId (field === "tag") ou valor literal (campos do contato)
 };
 
 export type ConditionBranch = {
   handle: string;
   label: string;
-  keywords: string[];
+  keywords: string[]; // modo "reply": casa com a mensagem do contato
+  rule?: ConditionRule; // modo "attribute": casa com etiqueta/campo do contato
 };
 
 export type ConditionNodeData = {
+  mode?: "reply" | "attribute"; // ausente/"reply" preserva o comportamento legado
   branches: ConditionBranch[];
   defaultHandle: string;
-  useAI?: boolean;
+  useAI?: boolean; // somente modo "reply"
+};
+
+export type MenuOption = {
+  handle: string;
+  label: string; // título do botão/linha exibido ao contato
+  description?: string; // somente modo lista
+};
+
+export type MenuNodeData = {
+  bodyText: string;
+  headerText?: string;
+  footerText?: string;
+  options: MenuOption[]; // 1–10 (≤3 viram botões; >3 viram lista)
+  renderAs?: "auto" | "buttons" | "list"; // auto: ≤3 botões, >3 lista
+  listButtonText?: string; // texto do botão que abre a lista (modo lista)
+  captureVariable?: string; // grava o label escolhido; índice em `${var}_index`
 };
 
 // Colunas de `clients` permitidas para gravação via nó "Campo do contato".
@@ -3541,6 +3575,7 @@ export type BotNodeData =
   | SendMessageNodeData
   | QuestionNodeData
   | ConditionNodeData
+  | MenuNodeData
   | ActionNodeData
   | FlowFormNodeData
   | WaitNodeData

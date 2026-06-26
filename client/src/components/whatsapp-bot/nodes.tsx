@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText, Hourglass } from "lucide-react";
+import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText, Hourglass, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, QuestionNodeData, ConditionNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData } from "@shared/schema";
+import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, QuestionNodeData, ConditionNodeData, MenuNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData } from "@shared/schema";
 
 interface NodeData extends Record<string, unknown> {
   label: string;
@@ -161,6 +161,54 @@ export function ConditionNode({ data, selected }: NodeProps) {
         {branches.length === 0 && (
           <div className="px-3 py-2">
             <p className="text-xs text-gray-400">Nenhuma condição</p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+export function MenuNode({ data, selected }: NodeProps) {
+  const d = data as NodeData & MenuNodeData;
+  const options = d.options ?? [];
+
+  return (
+    <>
+      <Handle type="target" position={Position.Top} />
+      <div
+        className={cn(
+          "rounded-lg border-2 bg-white shadow-sm min-w-[180px] max-w-[240px]",
+          selected ? "border-blue-500 shadow-blue-200 shadow-md" : "border-gray-200",
+        )}
+      >
+        <div className="flex items-center gap-2 rounded-t-md px-3 py-2 bg-indigo-500">
+          <ListChecks className="h-4 w-4 text-white" />
+          <span className="text-xs font-semibold text-white truncate">
+            {d.label || "Menu"}
+          </span>
+        </div>
+        {d.bodyText && (
+          <p className="px-3 pt-2 text-xs text-gray-500 line-clamp-2">{d.bodyText}</p>
+        )}
+        {options.length > 0 ? (
+          <div className="px-3 py-2 space-y-1 relative">
+            {options.map((opt, i) => (
+              <div key={opt.handle} className="relative flex items-center">
+                <span className="text-xs text-gray-600 truncate flex-1">
+                  {opt.label || `Opção ${i + 1}`}
+                </span>
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={opt.handle}
+                  style={{ top: "auto", right: -8, position: "relative" }}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="px-3 py-2">
+            <p className="text-xs text-gray-400">Nenhuma opção</p>
           </div>
         )}
       </div>

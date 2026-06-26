@@ -270,6 +270,92 @@ export async function sendFlowMessage(
   return response.json();
 }
 
+/**
+ * Envia uma mensagem interativa com até 3 botões de resposta rápida.
+ * O `id` de cada botão volta no webhook como `interactive.button_reply.id`,
+ * permitindo rotear o fluxo do bot pela opção escolhida.
+ * Limites Meta: máx. 3 botões; título ≤ 20 caracteres.
+ */
+export async function sendButtonsMessage(
+  to: string,
+  bodyText: string,
+  buttons: Array<{ id: string; title: string }>,
+  options: { headerText?: string; footerText?: string } = {},
+  channel?: ChannelOverride,
+) {
+  const cfg = await getConfig(channel);
+  const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizePhone(to),
+      type: "interactive",
+      interactive: {
+        type: "button",
+        ...(options.headerText ? { header: { type: "text", text: options.headerText } } : {}),
+        body: { text: bodyText },
+        ...(options.footerText ? { footer: { text: options.footerText } } : {}),
+        action: {
+          buttons: buttons.slice(0, 3).map((b) => ({
+            type: "reply",
+            reply: { id: b.id, title: b.title.slice(0, 20) },
+          })),
+        },
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
+/**
+ * Envia uma mensagem interativa de lista (menu) com até 10 linhas em uma seção.
+ * O `id` de cada linha volta no webhook como `interactive.list_reply.id`.
+ * Limites Meta: máx. 10 linhas; título da linha ≤ 24 caracteres; texto do botão ≤ 20.
+ */
+export async function sendListMessage(
+  to: string,
+  bodyText: string,
+  buttonText: string,
+  rows: Array<{ id: string; title: string; description?: string }>,
+  options: { headerText?: string; footerText?: string } = {},
+  channel?: ChannelOverride,
+) {
+  const cfg = await getConfig(channel);
+  const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: normalizePhone(to),
+      type: "interactive",
+      interactive: {
+        type: "list",
+        ...(options.headerText ? { header: { type: "text", text: options.headerText } } : {}),
+        body: { text: bodyText },
+        ...(options.footerText ? { footer: { text: options.footerText } } : {}),
+        action: {
+          button: (buttonText || "Escolher").slice(0, 20),
+          sections: [
+            {
+              rows: rows.slice(0, 10).map((r) => ({
+                id: r.id,
+                title: r.title.slice(0, 24),
+                ...(r.description ? { description: r.description.slice(0, 72) } : {}),
+              })),
+            },
+          ],
+        },
+      },
+    }),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json();
+}
+
 export async function downloadMediaToBuffer(mediaId: string, channel?: ChannelOverride): Promise<{ buffer: Buffer; contentType: string; size: number }> {
   const cfg = await getConfig(channel);
 
