@@ -15,7 +15,7 @@ import {
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { sendTextMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
+import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
 import { uploadWhatsappMedia } from "../lib/r2";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
@@ -613,6 +613,112 @@ export async function sendConversationMessage(
     return { waMessageId };
   } catch (err) {
     console.error(`[WA Conversations Service] Erro no envio:`, err);
+    throw err;
+  }
+}
+
+/**
+ * Envia um template aprovado da Meta para a conversa. Diferente do texto livre,
+ * o template é o único formato permitido fora da janela de 24h e só pode sair
+ * pelo canal oficial (cloud_api) — o Evolution (não oficial) não tem templates.
+ */
+export async function sendConversationTemplate(
+  conversationId: string,
+  userId: string,
+  userRole: string,
+  templateName: string,
+  languageCode: string,
+  bodyParams: string[] | undefined,
+  previewText: string | undefined,
+  channelId?: number,
+) {
+  const whereConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappConversations.id, conversationId),
+  ];
+  if (userRole === "vendedor") {
+    whereConditions.push(eq(clients.responsavelId, userId));
+  }
+
+  const [conv] = await db
+    .select({
+      id: whatsappConversations.id,
+      phone: whatsappConversations.phone,
+      clientId: whatsappConversations.clientId,
+    })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (!conv) {
+    console.warn(
+      `[WA Conversations Service] Conversa ${conversationId} não encontrada ou sem permissão para usuário ${userId} (${userRole})`,
+    );
+    return null;
+  }
+
+  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId);
+
+  // Templates oficiais só existem no canal cloud_api (API da Meta).
+  if (resolvedChannel?.provider !== "cloud_api") {
+    throw new Error(
+      "Templates só podem ser enviados pelo canal oficial do WhatsApp (Cloud API).",
+    );
+  }
+
+  const parameters = (bodyParams ?? []).map((text) => ({ type: "text", text }));
+  const components =
+    parameters.length > 0 ? [{ type: "body", parameters }] : undefined;
+
+  // Persiste imediatamente como "failed" — atualiza para "sent" se a API responder ok.
+  // content recebe o texto já com as variáveis substituídas (vindo do front) para
+  // exibição na bolha e na lista de conversas.
+  const [savedMessage] = await db
+    .insert(whatsappMessages)
+    .values({
+      conversationId,
+      channelId: resolvedChannel.id,
+      direction: "outbound",
+      type: "template",
+      content: previewText ?? templateName,
+      status: "failed",
+      sentByUserId: userId,
+      sentAt: new Date(),
+    })
+    .returning({ id: whatsappMessages.id });
+
+  await db
+    .update(whatsappConversations)
+    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId));
+
+  try {
+    const cloudOverride = {
+      phoneNumberId: resolvedChannel.phoneNumberId,
+      accessToken: resolvedChannel.accessToken,
+    };
+    const result = await sendTemplateMessage(
+      conv.phone,
+      templateName,
+      languageCode,
+      components,
+      cloudOverride,
+    );
+    const waMessageId =
+      (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+
+    await db
+      .update(whatsappMessages)
+      .set({ status: "sent", waMessageId })
+      .where(eq(whatsappMessages.id, savedMessage.id));
+
+    if (conv.clientId) {
+      publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+    }
+
+    return { waMessageId };
+  } catch (err) {
+    console.error(`[WA Conversations Service] Erro no envio de template:`, err);
     throw err;
   }
 }

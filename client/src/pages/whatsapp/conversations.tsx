@@ -1753,6 +1753,242 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
   );
 }
 
+interface MetaTemplateComponent {
+  type: string;
+  format?: string;
+  text?: string;
+  buttons?: { type: string; text?: string }[];
+}
+
+interface MetaTemplateItem {
+  id: string;
+  name: string;
+  status: string;
+  category: string;
+  language: string;
+  components: MetaTemplateComponent[];
+}
+
+function readTemplateComponents(components: MetaTemplateComponent[] | undefined) {
+  const list = components ?? [];
+  const header = list.find((c) => c.type?.toUpperCase() === "HEADER");
+  const body = list.find((c) => c.type?.toUpperCase() === "BODY");
+  const footer = list.find((c) => c.type?.toUpperCase() === "FOOTER");
+  return { header, body, footer };
+}
+
+// Conta as variáveis {{1}}, {{2}}… do corpo (nº de params = maior índice).
+function countTemplateVars(text: string | undefined): number {
+  if (!text) return 0;
+  const matches = text.match(/\{\{\s*(\d+)\s*\}\}/g) ?? [];
+  let max = 0;
+  for (const m of matches) {
+    const n = parseInt(m.replace(/\D/g, ""), 10);
+    if (n > max) max = n;
+  }
+  return max;
+}
+
+function applyTemplateVars(text: string, params: string[]): string {
+  return text.replace(/\{\{\s*(\d+)\s*\}\}/g, (_, d: string) => {
+    const value = params[parseInt(d, 10) - 1];
+    return value && value.length > 0 ? value : `{{${d}}}`;
+  });
+}
+
+function TemplatePicker({
+  onSend,
+}: {
+  onSend: (data: {
+    templateName: string;
+    languageCode: string;
+    bodyParams: string[];
+    previewText: string;
+  }) => void;
+}) {
+  const [selected, setSelected] = useState<MetaTemplateItem | null>(null);
+  const [params, setParams] = useState<string[]>([]);
+
+  const { data: templates = [], isLoading } = useQuery<MetaTemplateItem[]>({
+    queryKey: ["/api/whatsapp/templates/meta"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/templates/meta");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const approved = templates.filter(
+    (t) => t.status?.toUpperCase() === "APPROVED",
+  );
+
+  const selectTemplate = (t: MetaTemplateItem) => {
+    const { body } = readTemplateComponents(t.components);
+    const count = countTemplateVars(body?.text);
+    setSelected(t);
+    setParams(Array(count).fill(""));
+  };
+
+  const submit = () => {
+    if (!selected) return;
+    const { body } = readTemplateComponents(selected.components);
+    const previewText = applyTemplateVars(body?.text ?? selected.name, params);
+    onSend({
+      templateName: selected.name,
+      languageCode: selected.language,
+      bodyParams: params,
+      previewText,
+    });
+  };
+
+  // ── Tela de detalhe (template selecionado): preview + variáveis ──
+  if (selected) {
+    const { header, body, footer } = readTemplateComponents(
+      selected.components,
+    );
+    const hasMediaHeader =
+      !!header && !header.text && !!header.format && header.format !== "TEXT";
+    const canSubmit = params.every((p) => p.trim().length > 0);
+    const preview = applyTemplateVars(body?.text ?? "", params);
+
+    return (
+      <div className="w-[min(340px,calc(100vw-2rem))] flex flex-col">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+          <button
+            onClick={() => setSelected(null)}
+            className="h-5 w-5 rounded flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
+            title="Voltar"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+          </button>
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate flex-1">
+            {selected.name}
+          </span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
+            {selected.language}
+          </span>
+        </div>
+
+        <div className="p-3 flex flex-col gap-3 max-h-72 overflow-y-auto">
+          {/* Preview do corpo */}
+          <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-2.5 text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
+            {hasMediaHeader && (
+              <p className="text-[10px] italic text-slate-400 dark:text-slate-500 mb-1.5">
+                [Cabeçalho: {header?.format}]
+              </p>
+            )}
+            {preview || (
+              <span className="italic text-slate-400">Sem corpo</span>
+            )}
+            {footer?.text && (
+              <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+                {footer.text}
+              </p>
+            )}
+          </div>
+
+          {/* Inputs de variáveis */}
+          {params.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {params.map((value, i) => (
+                <div key={i}>
+                  <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 block">
+                    Variável {i + 1} {"{{"}
+                    {i + 1}
+                    {"}}"}
+                  </label>
+                  <input
+                    type="text"
+                    value={value}
+                    onChange={(e) =>
+                      setParams((prev) => {
+                        const next = [...prev];
+                        next[i] = e.target.value;
+                        return next;
+                      })
+                    }
+                    placeholder={`Valor da variável ${i + 1}`}
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-slate-100 dark:border-slate-800 p-2">
+          <button
+            onClick={submit}
+            disabled={!canSubmit}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Send className="h-3.5 w-3.5" />
+            Enviar template
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Lista de templates aprovados ──
+  return (
+    <div className="w-[min(320px,calc(100vw-2rem))] flex flex-col">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+        <FileText className="h-3.5 w-3.5 text-slate-400" />
+        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+          Templates aprovados
+        </span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+        </div>
+      ) : approved.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 text-center gap-2">
+          <FileText className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            Nenhum template aprovado disponível.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-64 overflow-y-auto">
+          {approved.map((t) => {
+            const { body } = readTemplateComponents(t.components);
+            const varCount = countTemplateVars(body?.text);
+            return (
+              <button
+                key={t.id}
+                className="flex flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                onClick={() => selectTemplate(t)}
+              >
+                <div className="flex items-center gap-1.5 w-full">
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate flex-1">
+                    {t.name}
+                  </span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
+                    {t.language}
+                  </span>
+                </div>
+                {body?.text && (
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 line-clamp-2">
+                    {body.text}
+                  </span>
+                )}
+                {varCount > 0 && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                    {varCount} variáve{varCount > 1 ? "is" : "l"} a preencher
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateClientFromConversationDialog({
   open,
   onOpenChange,
@@ -2068,6 +2304,7 @@ function ConversationMessages({
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [botPickerOpen, setBotPickerOpen] = useState(false);
   const [isTriggeringBot, setIsTriggeringBot] = useState(false);
   const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
@@ -2514,10 +2751,94 @@ function ConversationMessages({
     (activeChannel.provider === "cloud_api" ||
       activeChannel.connectionStatus === "connected");
 
+  // Janela de atendimento de 24h da Meta: só vale para o canal oficial (cloud_api).
+  // A janela abre na última mensagem RECEBIDA do contato; fora dela, a Meta só
+  // aceita templates aprovados. O Evolution (não oficial) não tem essa restrição.
+  const isCloudApi = activeChannel?.provider === "cloud_api";
+  const lastInboundAt =
+    [...messages].reverse().find((m) => m.direction === "inbound")?.sentAt ??
+    null;
+  const windowOpen = lastInboundAt
+    ? Date.now() - new Date(lastInboundAt).getTime() < 24 * 60 * 60 * 1000
+    : false;
+  const windowClosed = isCloudApi && !windowOpen;
+
+  const sendTemplate = useCallback(
+    async (data: {
+      templateName: string;
+      languageCode: string;
+      bodyParams: string[];
+      previewText: string;
+    }) => {
+      const localId = crypto.randomUUID();
+      setLocalMessages((prev) => [
+        ...prev,
+        {
+          localId,
+          content: data.previewText,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      try {
+        const body: {
+          templateName: string;
+          languageCode: string;
+          bodyParams: string[];
+          previewText: string;
+          channelId?: number;
+        } = {
+          templateName: data.templateName,
+          languageCode: data.languageCode,
+          bodyParams: data.bodyParams,
+          previewText: data.previewText,
+        };
+        if (
+          (userRole === "admin" || userRole === "gerente") &&
+          selectedChannelId != null
+        ) {
+          body.channelId = selectedChannelId;
+        }
+        const res = await fetch(
+          `/api/whatsapp/conversations/${conversationKey}/messages/template`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
+          toast({
+            title:
+              (err as { message?: string }).message ??
+              "Erro ao enviar template",
+            variant: "destructive",
+          });
+        }
+      } catch {
+        setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
+        toast({
+          title: "Erro de conexão ao enviar template",
+          variant: "destructive",
+        });
+      } finally {
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations", conversationKey],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations-list"],
+        });
+      }
+    },
+    [conversationKey, queryClient, selectedChannelId, toast, userRole],
+  );
+
   const handleSend = () => {
     const text = message.trim();
     if (!text) return;
     if (!canSendMessages) return;
+    if (windowClosed) return;
     const localId = crypto.randomUUID();
     const replyId = replyingTo?.id;
     setLocalMessages((prev) => [
@@ -3344,6 +3665,24 @@ function ConversationMessages({
               onChange={handleStickerChange}
             />
 
+            {/* Aviso da janela de 24h fechada (somente canal oficial) */}
+            {windowClosed && (
+              <div className="flex items-start gap-2 px-2.5 py-2 mb-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
+                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
+                  A janela de 24h desta conversa foi encerrada. Para falar com o
+                  contato, envie um{" "}
+                  <button
+                    onClick={() => setTemplatePickerOpen(true)}
+                    className="font-semibold underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-300"
+                  >
+                    template aprovado
+                  </button>
+                  .
+                </p>
+              </div>
+            )}
+
             {/* Textarea + botão enviar */}
             <div className="flex items-end gap-2">
               <Textarea
@@ -3359,7 +3698,7 @@ function ConversationMessages({
               {message.trim() ? (
                 <Button
                   onClick={handleSend}
-                  disabled={isUploading}
+                  disabled={isUploading || windowClosed}
                   size="icon"
                   className="shrink-0 h-10 w-10 mb-0.5 rounded-full"
                 >
@@ -3368,7 +3707,7 @@ function ConversationMessages({
               ) : (
                 <button
                   onClick={startRecording}
-                  disabled={isUploading}
+                  disabled={isUploading || windowClosed}
                   className="shrink-0 h-10 w-10 mb-0.5 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                   title="Gravar áudio"
                 >
@@ -3381,7 +3720,7 @@ function ConversationMessages({
             <div className="flex items-center gap-0.5 mt-1">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
+                disabled={isUploading || windowClosed}
                 className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                 title="Enviar arquivo"
               >
@@ -3397,7 +3736,7 @@ function ConversationMessages({
               >
                 <PopoverTrigger asChild>
                   <button
-                    disabled={isUploading}
+                    disabled={isUploading || windowClosed}
                     className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                     title="Figurinhas"
                   >
@@ -3461,7 +3800,7 @@ function ConversationMessages({
               <Popover open={quickReplyOpen} onOpenChange={setQuickReplyOpen}>
                 <PopoverTrigger asChild>
                   <button
-                    disabled={isUploading}
+                    disabled={isUploading || windowClosed}
                     className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                     title="Respostas rápidas"
                   >
@@ -3480,6 +3819,34 @@ function ConversationMessages({
                   />
                 </PopoverContent>
               </Popover>
+              {isCloudApi && (
+                <Popover
+                  open={templatePickerOpen}
+                  onOpenChange={setTemplatePickerOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <button
+                      className={cn(
+                        "h-9 w-9 rounded-full flex items-center justify-center transition-colors",
+                        windowClosed
+                          ? "text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                          : "text-slate-400 hover:text-primary",
+                      )}
+                      title="Enviar template"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="start" className="p-0 w-auto">
+                    <TemplatePicker
+                      onSend={(data) => {
+                        setTemplatePickerOpen(false);
+                        sendTemplate(data);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              )}
               {activeBots.length > 0 && (
                 <Popover open={botPickerOpen} onOpenChange={setBotPickerOpen}>
                   <PopoverTrigger asChild>

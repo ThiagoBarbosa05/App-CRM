@@ -44,6 +44,22 @@ import { ClientTelemarketingTab } from "@/components/clients/client-telemarketin
 import { ClientReferralsTab } from "@/components/clients/client-referrals-tab";
 import ClientFormModal from "@/components/client-form-modal";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+interface BlingSellerMapping {
+  connectionId: string;
+  connectionName: string;
+  connectionStatus: string;
+  blingVendedorId: string;
+  blingVendedorName: string | null;
+}
 
 /**
  * Extrai a mensagem segura enviada pelo backend a partir do erro lançado por
@@ -78,7 +94,8 @@ export default function ClientProfilePage() {
   const { toast } = useToast();
 
   const syncBlingMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/clients/${id}/sync-bling`),
+    mutationFn: (connectionId: string) =>
+      apiRequest("POST", `/api/clients/${id}/sync-bling`, { connectionId }),
     onSuccess: () => {
       toast({ title: "Sincronizado com sucesso", description: "Cliente enviado para o Bling." });
     },
@@ -129,6 +146,36 @@ export default function ClientProfilePage() {
   const { data: systemSettings } = useQuery<Record<string, string>>({
     queryKey: ["/api/system-settings"],
   });
+
+  // ── Integração Bling: conta/vendedor para o botão "Sincronizar Bling" ──────
+  const isAdminOrGerente =
+    user?.role === "admin" || user?.role === "gerente";
+  // O vendedor cujo vínculo Bling será usado: o responsável do cliente
+  // (admin/gerente) ou o próprio usuário (vendedor).
+  const blingSellerUserId = isAdminOrGerente
+    ? (client?.responsavelId ?? undefined)
+    : user?.id;
+
+  const { data: blingMappings } = useQuery<BlingSellerMapping[]>({
+    queryKey: isAdminOrGerente
+      ? ["/api/bling-accounts/seller-mappings", blingSellerUserId]
+      : ["/api/bling-accounts/my-seller-mappings"],
+    queryFn: async () => {
+      const url = isAdminOrGerente
+        ? `/api/bling-accounts/seller-mappings?userId=${blingSellerUserId}`
+        : "/api/bling-accounts/my-seller-mappings";
+      const res = await apiRequest("GET", url);
+      const json = await res.json();
+      return (json?.data ?? []) as BlingSellerMapping[];
+    },
+    enabled: !!client && (isAdminOrGerente ? !!blingSellerUserId : !!user),
+  });
+
+  // Apenas contas conectadas e com ID de vendedor vinculado podem receber o cliente.
+  const connectedBlingMappings = (blingMappings ?? []).filter(
+    (m) => m.connectionStatus === "connected" && m.blingVendedorId,
+  );
+  const canSyncBling = connectedBlingMappings.length > 0;
 
   const purchaseStatus = (() => {
     const lastPurchaseDate = (client as any)?.lastPurchaseDate as
@@ -263,20 +310,63 @@ export default function ClientProfilePage() {
               </a>
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => syncBlingMutation.mutate()}
-            disabled={syncBlingMutation.isPending}
-            className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-900/20 font-medium w-full sm:w-auto"
-          >
-            {syncBlingMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Sincronizar Bling
-          </Button>
+          {connectedBlingMappings.length > 1 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={syncBlingMutation.isPending}
+                  className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-900/20 font-medium w-full sm:w-auto"
+                >
+                  {syncBlingMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Sincronizar Bling
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Escolha a conta Bling</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {connectedBlingMappings.map((m) => (
+                  <DropdownMenuItem
+                    key={m.connectionId}
+                    onClick={() => syncBlingMutation.mutate(m.connectionId)}
+                  >
+                    {m.connectionName}
+                    {m.blingVendedorName ? ` — ${m.blingVendedorName}` : ""}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                canSyncBling &&
+                syncBlingMutation.mutate(connectedBlingMappings[0].connectionId)
+              }
+              disabled={syncBlingMutation.isPending || !canSyncBling}
+              title={
+                !canSyncBling
+                  ? isAdminOrGerente
+                    ? "O responsável não possui ID Bling vinculado a uma conta conectada."
+                    : "Você não possui ID Bling vinculado; não é possível sincronizar."
+                  : undefined
+              }
+              className="gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-900/20 font-medium w-full sm:w-auto"
+            >
+              {syncBlingMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Sincronizar Bling
+            </Button>
+          )}
           <Button
             size="sm"
             onClick={() => setEditModalOpen(true)}

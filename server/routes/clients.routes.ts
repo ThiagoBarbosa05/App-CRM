@@ -258,7 +258,11 @@ clientsRouter.delete("/", deleteClientsBulkController);
 clientsRouter.post("/:id/sync-bling", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    await syncClientToBling(id);
+    const connectionId =
+      typeof req.body?.connectionId === "string" && req.body.connectionId
+        ? req.body.connectionId
+        : undefined;
+    await syncClientToBling(id, connectionId);
     return res.json({ ok: true, message: "Cliente sincronizado com o Bling com sucesso." });
   } catch (err) {
     console.error("[sync-bling]", err);

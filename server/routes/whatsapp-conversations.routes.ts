@@ -6,6 +6,7 @@ import {
   listWhatsappTagsForFilter,
   getConversation,
   sendConversationMessage,
+  sendConversationTemplate,
   sendConversationMedia,
   sendConversationReaction,
   markConversationRead,
@@ -279,6 +280,49 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
   } catch (err) {
     console.error(`[WA Conversations] Erro ao enviar mensagem:`, err);
     res.status(500).json({ message: "Erro ao enviar mensagem", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+const sendTemplateSchema = z.object({
+  templateName: z.string().min(1),
+  languageCode: z.string().min(1).default("pt_BR"),
+  bodyParams: z.array(z.string()).optional(),
+  previewText: z.string().optional(),
+  channelId: z.number().int().positive().optional(),
+});
+
+router.post("/conversations/:clientId/messages/template", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = sendTemplateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ errors: parsed.error.flatten() });
+    }
+
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const result = await sendConversationTemplate(
+      conversationId,
+      user.userId,
+      user.role,
+      parsed.data.templateName,
+      parsed.data.languageCode,
+      parsed.data.bodyParams,
+      parsed.data.previewText,
+      parsed.data.channelId,
+    );
+
+    if (result === null) {
+      return res.status(400).json({ message: "Não foi possível enviar o template" });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error(`[WA Conversations] Erro ao enviar template:`, err);
+    res.status(400).json({ message: err instanceof Error ? err.message : "Erro ao enviar template" });
   }
 });
 
