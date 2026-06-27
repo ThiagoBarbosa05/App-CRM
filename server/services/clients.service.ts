@@ -15,7 +15,7 @@ import {
   getContactByPhone,
 } from "../integrations/umbler";
 import { formatPhoneToDigits } from "@/lib/format-phone-number";
-import { syncClientToBling } from "./bling-clients-export.service";
+import { syncClientToBling, BlingSyncError } from "./bling-clients-export.service";
 import { ensureClientInDesvendandoVinhoFunnel } from "./desvendando-vinho-funnel.service";
 
 export interface GetClientsParams {
@@ -34,10 +34,16 @@ export interface GetClientsResponse {
   totalItems: null | number;
 }
 
+export interface BlingClientOptions {
+  createInBling: boolean;
+  connectionId?: string;
+}
+
 export interface CreateClientParams {
   userId?: string;
   userRole?: string;
   clientData: any;
+  blingOptions?: BlingClientOptions;
 }
 
 export interface UpdateClientParams {
@@ -280,7 +286,7 @@ export class ClientsService {
    * Cria um novo cliente no sistema
    */
   async createClient(params: CreateClientParams): Promise<any> {
-    const { userId, userRole, clientData } = params;
+    const { userId, userRole, clientData, blingOptions } = params;
 
     try {
       // Processar e normalizar dados de entrada
@@ -398,9 +404,34 @@ export class ClientsService {
       const client =
         await this.clientsRepository.createClient(clientDataToInsert);
 
-      void syncClientToBling(client.id).catch((err) =>
-        console.error("[Bling] Erro ao sincronizar cliente criado:", err),
-      );
+      // Envio ao Bling é opt-in: só ocorre quando o usuário marca a opção no
+      // modal e escolhe a conta. O ID do vendedor Bling é derivado no servidor
+      // de (connectionId, responsavelId). Uma falha aqui NÃO desfaz o cliente
+      // do CRM — apenas é reportada na resposta.
+      let blingResult:
+        | { status: "created"; message: string }
+        | { status: "error"; message: string }
+        | undefined;
+
+      if (blingOptions?.createInBling && blingOptions.connectionId) {
+        try {
+          await syncClientToBling(client.id, blingOptions.connectionId);
+          blingResult = {
+            status: "created",
+            message: "Cliente também criado no Bling.",
+          };
+        } catch (err) {
+          const message =
+            err instanceof BlingSyncError
+              ? err.userMessage
+              : "Não foi possível criar o cliente no Bling.";
+          console.error(
+            "[Bling] Erro ao criar cliente no Bling a partir do modal:",
+            err,
+          );
+          blingResult = { status: "error", message };
+        }
+      }
 
       if (client.phone) {
         void import("./referrals.service").then(({ referralsService }) =>
@@ -473,6 +504,7 @@ export class ClientsService {
         ...client,
         requiresConfirmation: false,
         message: "Cliente criado com sucesso!",
+        bling: blingResult,
       };
     } catch (error) {
       console.error("Erro no ClientsService.createClient:", error);
@@ -962,9 +994,20 @@ export class ClientsService {
   processCreateClientParams(req: any): CreateClientParams {
     const userId = req.user?.userId;
     const userRole = req.user?.role;
-    const clientData = req.body;
+    const { bling, ...clientData } = req.body ?? {};
 
-    return { userId, userRole, clientData };
+    const blingOptions: BlingClientOptions | undefined =
+      bling && typeof bling === "object"
+        ? {
+            createInBling: Boolean(bling.createInBling),
+            connectionId:
+              typeof bling.connectionId === "string"
+                ? bling.connectionId
+                : undefined,
+          }
+        : undefined;
+
+    return { userId, userRole, clientData, blingOptions };
   }
 
   /**

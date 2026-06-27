@@ -667,22 +667,42 @@ function toBlingSyncError(error: unknown): BlingSyncError {
 /**
  * Sincroniza um único cliente do CRM para o Bling como contato.
  *
- * Usa a primeira conexão Bling com status "connected". Lança `BlingSyncError`
- * (com mensagem segura ao usuário) quando não há conexão ativa, o cliente não
- * existe, ou a API do Bling falha.
+ * Quando `connectionId` é informado, usa essa conexão específica (deve estar com
+ * status "connected") e exige que o responsável do cliente tenha vínculo de
+ * vendedor Bling nela. Sem `connectionId`, usa a primeira conexão "connected"
+ * (comportamento legado). Lança `BlingSyncError` (com mensagem segura ao usuário)
+ * quando não há conexão ativa, o cliente não existe, falta o vínculo de vendedor,
+ * ou a API do Bling falha.
  *
  * @param clientId - ID do cliente no CRM.
+ * @param connectionId - ID opcional da conexão Bling alvo.
  */
-export async function syncClientToBling(clientId: string): Promise<void> {
-  const [connection] = await db
-    .select()
-    .from(blingConnections)
-    .where(eq(blingConnections.status, "connected"))
-    .limit(1);
+export async function syncClientToBling(
+  clientId: string,
+  connectionId?: string,
+): Promise<void> {
+  const [connection] = connectionId
+    ? await db
+        .select()
+        .from(blingConnections)
+        .where(
+          and(
+            eq(blingConnections.id, connectionId),
+            eq(blingConnections.status, "connected"),
+          ),
+        )
+        .limit(1)
+    : await db
+        .select()
+        .from(blingConnections)
+        .where(eq(blingConnections.status, "connected"))
+        .limit(1);
 
   if (!connection?.accessTokenEncrypted) {
     throw new BlingSyncError(
-      "Nenhuma conexão com o Bling está ativa. Reconecte a conta nas Configurações.",
+      connectionId
+        ? "A conta Bling selecionada não está conectada. Reconecte-a nas Configurações."
+        : "Nenhuma conexão com o Bling está ativa. Reconecte a conta nas Configurações.",
       409,
       "Nenhuma conexão Bling com status 'connected' e access token disponível.",
     );
@@ -730,6 +750,16 @@ export async function syncClientToBling(clientId: string): Promise<void> {
       "Cliente não encontrado.",
       404,
       `Cliente ${clientId} não encontrado ao sincronizar com o Bling.`,
+    );
+  }
+
+  // Quando a conta é escolhida explicitamente, o responsável precisa ter um
+  // vínculo de vendedor Bling nessa conta — sem ele, não criamos no Bling.
+  if (connectionId && !client.blingVendedorId) {
+    throw new BlingSyncError(
+      "O responsável não possui um vendedor Bling vinculado a esta conta.",
+      422,
+      `Cliente ${clientId} sem blingVendedorId na conexão ${connectionId}.`,
     );
   }
 

@@ -6,7 +6,10 @@ import { eq, sql } from "drizzle-orm";
 import { blingConnectionsService } from "../services/bling-connections.service";
 import { requireAuth } from "../middleware/validation";
 import { getBlingVendorsController } from "../controllers/bling-accounts/get-bling-vendors.controller";
-import { getSellerMappingsController } from "../controllers/bling-accounts/get-seller-mappings.controller";
+import {
+  getSellerMappingsController,
+  getMySellerMappingsController,
+} from "../controllers/bling-accounts/get-seller-mappings.controller";
 import {
   startImport,
   cancelImport,
@@ -191,6 +194,9 @@ router.get("/vendors", async (req, res) => {
 });
 
 router.get("/seller-mappings", (req, res) => getSellerMappingsController(req, res));
+
+// Vínculos de vendedor Bling do próprio usuário autenticado (acessível a vendedores)
+router.get("/my-seller-mappings", (req, res) => getMySellerMappingsController(req, res));
 
 /**
  * GET /api/bling-accounts/duplicates-preview

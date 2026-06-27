@@ -31,7 +31,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { InputMask } from "@/components/ui/input-mask";
-import { X, Tag, User, Phone, MapPin, Briefcase } from "lucide-react";
+import { X, Tag, User, Phone, MapPin, Briefcase, Store, AlertCircle } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   DuplicateWarning,
   type DuplicateMatch,
@@ -44,6 +45,14 @@ interface ClientFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client?: Client;
+}
+
+interface BlingSellerMapping {
+  connectionId: string;
+  connectionName: string;
+  connectionStatus: string;
+  blingVendedorId: string;
+  blingVendedorName: string | null;
 }
 
 const brazilianStates = [
@@ -175,6 +184,71 @@ export default function ClientFormModal({
   const watchedEmail = form.watch("email");
   const watchedCep = form.watch("cep");
 
+  // ── Integração Bling (apenas no modo de criação) ──────────────────────────
+  const isAdminOrGerente =
+    user?.role === "admin" || user?.role === "gerente";
+  const [createInBling, setCreateInBling] = useState(false);
+  const [blingConnectionId, setBlingConnectionId] = useState("");
+
+  // O vendedor cujo vínculo Bling será usado: o responsável escolhido (admin/
+  // gerente) ou o próprio usuário (vendedor).
+  const watchedResponsavelId = form.watch("responsavelId");
+  const blingSellerUserId = isAdminOrGerente
+    ? watchedResponsavelId
+    : user?.id;
+
+  const { data: blingMappings } = useQuery<BlingSellerMapping[]>({
+    queryKey: isAdminOrGerente
+      ? ["/api/bling-accounts/seller-mappings", blingSellerUserId]
+      : ["/api/bling-accounts/my-seller-mappings"],
+    queryFn: async () => {
+      const url = isAdminOrGerente
+        ? `/api/bling-accounts/seller-mappings?userId=${blingSellerUserId}`
+        : "/api/bling-accounts/my-seller-mappings";
+      const res = await apiRequest("GET", url);
+      const json = await res.json();
+      return (json?.data ?? []) as BlingSellerMapping[];
+    },
+    enabled:
+      open && !client && (isAdminOrGerente ? !!blingSellerUserId : !!user),
+  });
+
+  // Apenas contas conectadas e com ID de vendedor vinculado podem receber o cliente.
+  const connectedBlingMappings = useMemo(
+    () =>
+      (blingMappings ?? []).filter(
+        (m) => m.connectionStatus === "connected" && m.blingVendedorId,
+      ),
+    [blingMappings],
+  );
+
+  // Auto-seleciona quando há uma única conta; limpa seleção inválida e desliga
+  // o toggle quando o vendedor não possui nenhum vínculo.
+  useEffect(() => {
+    if (connectedBlingMappings.length === 1) {
+      setBlingConnectionId(connectedBlingMappings[0].connectionId);
+    } else if (
+      !connectedBlingMappings.some((m) => m.connectionId === blingConnectionId)
+    ) {
+      setBlingConnectionId("");
+    }
+    if (connectedBlingMappings.length === 0) {
+      setCreateInBling(false);
+    }
+  }, [connectedBlingMappings]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reseta o estado Bling ao fechar o modal.
+  useEffect(() => {
+    if (!open) {
+      setCreateInBling(false);
+      setBlingConnectionId("");
+    }
+  }, [open]);
+
+  const blingToggleDisabled =
+    (isAdminOrGerente && !blingSellerUserId) ||
+    connectedBlingMappings.length === 0;
+
   const isCnpj = useMemo(() => {
     const digits = (watchedCpf || "").replace(/\D/g, "");
     return digits.length > 11;
@@ -295,6 +369,19 @@ export default function ClientFormModal({
             "Um código de confirmação foi enviado para o Umbler. Acesse as notas do contato no Umbler para confirmar o cadastro.",
           duration: 8000,
         });
+      } else if (data.bling?.status === "error") {
+        // Cliente criado no CRM, mas o envio ao Bling falhou.
+        toast({
+          title: "Cliente criado (sem envio ao Bling)",
+          description: `Cliente adicionado, mas não foi criado no Bling: ${data.bling.message}`,
+          variant: "destructive",
+          duration: 8000,
+        });
+      } else if (data.bling?.status === "created") {
+        toast({
+          title: "Cliente criado",
+          description: "Cliente foi adicionado e criado no Bling com sucesso.",
+        });
       } else {
         toast({
           title: "Cliente criado",
@@ -394,6 +481,13 @@ export default function ClientFormModal({
           user?.role === "admin" || user?.role === "gerente"
             ? data.responsavelId
             : user?.id || null, // Admin e gerente podem escolher, outros usam usuário atual
+        // Opção de criar o cliente no Bling (apenas na criação). O ID do vendedor
+        // Bling é derivado no servidor de (connectionId, responsavelId).
+        ...(!client && createInBling && blingConnectionId
+          ? {
+              bling: { createInBling: true, connectionId: blingConnectionId },
+            }
+          : {}),
       };
 
       if (client) {
@@ -443,6 +537,85 @@ export default function ClientFormModal({
               className="space-y-8"
             >
               <DuplicateWarning matches={duplicates} />
+
+              {/* Integração Bling — apenas na criação */}
+              {!client && (
+                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2">
+                      <span className="p-1.5 bg-accent rounded-md shrink-0">
+                        <Store className="h-4 w-4 text-primary" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          Criar também no Bling
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          Cadastra este cliente como contato no Bling,
+                          vinculado ao vendedor responsável.
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={createInBling}
+                      onCheckedChange={setCreateInBling}
+                      disabled={blingToggleDisabled}
+                    />
+                  </div>
+
+                  {/* Mensagens de estado / seletor de conta */}
+                  {isAdminOrGerente && !blingSellerUserId ? (
+                    <p className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      Selecione o responsável atribuído para habilitar o envio ao
+                      Bling.
+                    </p>
+                  ) : connectedBlingMappings.length === 0 ? (
+                    <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {isAdminOrGerente
+                        ? "Este responsável não possui ID Bling vinculado a nenhuma conta conectada."
+                        : "Você não possui ID Bling vinculado; não é possível criar o cliente no Bling."}
+                    </p>
+                  ) : createInBling ? (
+                    connectedBlingMappings.length === 1 ? (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Conta Bling:{" "}
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          {connectedBlingMappings[0].connectionName}
+                        </span>
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                          Conta Bling
+                        </label>
+                        <Select
+                          value={blingConnectionId}
+                          onValueChange={setBlingConnectionId}
+                        >
+                          <SelectTrigger className="dark:bg-slate-950 focus:ring-purple-500">
+                            <SelectValue placeholder="Selecione a conta Bling" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {connectedBlingMappings.map((m) => (
+                              <SelectItem
+                                key={m.connectionId}
+                                value={m.connectionId}
+                              >
+                                {m.connectionName}
+                                {m.blingVendedorName
+                                  ? ` — ${m.blingVendedorName}`
+                                  : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )
+                  ) : null}
+                </div>
+              )}
 
               {/* Seção 1: Dados Pessoais */}
               <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm overflow-hidden relative">
