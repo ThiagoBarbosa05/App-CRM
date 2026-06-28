@@ -16,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import { nanoid } from "nanoid";
 import {
   ArrowLeft,
+  ArrowRightLeft,
   Save,
   MessageCircle,
   HelpCircle,
@@ -29,7 +30,6 @@ import {
   Send,
   RotateCcw,
   LayoutTemplate,
-  Brain,
   RefreshCw,
   Paperclip,
   FileText,
@@ -37,6 +37,16 @@ import {
   Loader2,
   Hourglass,
   ListChecks,
+  CheckCircle2,
+  UserRoundCog,
+  Shuffle,
+  Lock,
+  Unlock,
+  Tag,
+  SendHorizonal,
+  ImageIcon,
+  FileVideo,
+  FileText as FileTextIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,9 +67,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useWhatsappBotFlow, useSaveFlow } from "@/hooks/use-whatsapp-bots";
+import { useWhatsappBotFlow, useWhatsappBots, useSaveFlow } from "@/hooks/use-whatsapp-bots";
 import { useWhatsappMetaTemplates } from "@/hooks/use-whatsapp";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -77,6 +89,12 @@ import {
   EndNode,
   FlowFormNode,
   WaitNode,
+  EndConversationNode,
+  TransferAgentNode,
+  DistributeFlowNode,
+  EditTagsNode,
+  SendTemplateNode,
+  TriggerFlowNode,
 } from "@/components/whatsapp-bot/nodes";
 import type {
   BotNodeData,
@@ -92,6 +110,14 @@ import type {
   ActionNodeData,
   FlowFormNodeData,
   WaitNodeData,
+  EndConversationNodeData,
+  TransferAgentNodeData,
+  DistributeFlowNodeData,
+  DistributeFlowOutput,
+  EditTagsNodeData,
+  SendTemplateNodeData,
+  SendTemplateButtonHandle,
+  TriggerFlowNodeData,
   WhatsappFlow,
 } from "@shared/schema";
 
@@ -110,6 +136,12 @@ const NODE_TYPES = {
   flow_form: FlowFormNode,
   wait: WaitNode,
   end: EndNode,
+  end_conversation: EndConversationNode,
+  transfer_agent: TransferAgentNode,
+  distribute_flow: DistributeFlowNode,
+  edit_tags: EditTagsNode,
+  send_template: SendTemplateNode,
+  trigger_flow: TriggerFlowNode,
 };
 
 // ─── Palette config ───────────────────────────────────────────────────────────
@@ -122,6 +154,12 @@ const PALETTE = [
   { type: "action", label: "Ação", icon: Zap, color: "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" },
   { type: "wait", label: "Aguardar", icon: Hourglass, color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" },
   { type: "flow_form", label: "Formulário WA", icon: LayoutTemplate, color: "bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100" },
+  { type: "transfer_agent", label: "Transferir p/ atendente", icon: UserRoundCog, color: "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100" },
+  { type: "distribute_flow", label: "Distribuir fluxo", icon: Shuffle, color: "bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100" },
+  { type: "edit_tags", label: "Editar etiquetas", icon: Tag, color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" },
+  { type: "send_template", label: "Enviar template", icon: SendHorizonal, color: "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100" },
+  { type: "trigger_flow", label: "Acionar outro fluxo", icon: ArrowRightLeft, color: "bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100" },
+  { type: "end_conversation", label: "Finalizar conversa", icon: CheckCircle2, color: "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100" },
   { type: "end", label: "Fim", icon: StopCircle, color: "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" },
 ];
 
@@ -186,7 +224,9 @@ function useSyncFlows() {
 
 type AgentOption = { id: string; name: string };
 type SectorOption = { id: string; name: string; color?: string };
-type TagOption = { id: string; name: string; color?: string };
+type TagOption = { id: string; name: string; color?: string | null; emoji?: string | null };
+type ChannelOption = { id: string; name: string; phoneNumber?: string | null };
+type BotOption = { id: string; name: string };
 
 function authFetch(url: string) {
   return fetch(url, {
@@ -208,10 +248,24 @@ function useSectors() {
   });
 }
 
+function useBots() {
+  return useQuery<BotOption[]>({
+    queryKey: ["/api/whatsapp/bots"],
+    queryFn: () => authFetch("/api/whatsapp/bots"),
+  });
+}
+
+function useChannels() {
+  return useQuery<ChannelOption[]>({
+    queryKey: ["/api/whatsapp/channels"],
+    queryFn: () => authFetch("/api/whatsapp/channels"),
+  });
+}
+
 function useMarkerTags() {
   return useQuery<TagOption[]>({
-    queryKey: ["/api/tags/markers"],
-    queryFn: () => authFetch("/api/tags/markers"),
+    queryKey: ["/api/whatsapp/tags"],
+    queryFn: () => authFetch("/api/whatsapp/tags"),
   });
 }
 
@@ -237,14 +291,12 @@ const CONTACT_FIELD_OPTIONS: { value: string; label: string }[] = [
 ];
 
 const ACTION_TYPE_OPTIONS: { value: ActionNodeData["actionType"]; label: string }[] = [
-  { value: "edit_tags", label: "Editar etiquetas" },
   { value: "assign_agent", label: "Transferir p/ atendente" },
   { value: "transfer_sector", label: "Transferir p/ setor" },
   { value: "notify_agent", label: "Notificar atendente" },
   { value: "create_note", label: "Criar nota interna" },
   { value: "set_waiting", label: "Status esperando" },
   { value: "set_contact_field", label: "Campo do contato" },
-  { value: "end_conversation", label: "Encerrar conversa" },
 ];
 
 function PropertiesPanel({
@@ -260,6 +312,8 @@ function PropertiesPanel({
   const { data: waFlows = [], refetch: refetchFlows } = useWhatsappFlows();
   const { data: agents = [] } = useAgents();
   const { data: sectors = [] } = useSectors();
+  const { data: channels = [] } = useChannels();
+  const { data: bots = [] } = useBots();
   const { data: markerTags = [] } = useMarkerTags();
   const syncFlowsMutation = useSyncFlows();
   const [templateSearch, setTemplateSearch] = useState("");
@@ -688,6 +742,10 @@ function PropertiesPanel({
           data={d as ConditionNodeData}
           onChange={(patch) => update(patch)}
           markerTags={markerTags}
+          agents={agents}
+          sectors={sectors}
+          channels={channels}
+          bots={bots}
         />
       )}
 
@@ -770,6 +828,52 @@ function PropertiesPanel({
 
       {node.type === "wait" && (
         <WaitEditor data={d as Partial<WaitNodeData>} onChange={update} />
+      )}
+
+      {node.type === "send_template" && (
+        <SendTemplateEditor
+          data={d as Partial<SendTemplateNodeData>}
+          onChange={update}
+          metaTemplates={metaTemplates}
+        />
+      )}
+
+      {node.type === "trigger_flow" && (
+        <TriggerFlowEditor
+          data={d as Partial<TriggerFlowNodeData>}
+          onChange={update}
+        />
+      )}
+
+      {node.type === "edit_tags" && (
+        <EditTagsEditor
+          data={d as Partial<EditTagsNodeData>}
+          onChange={update}
+          markerTags={markerTags}
+        />
+      )}
+
+      {node.type === "distribute_flow" && (
+        <DistributeFlowEditor
+          data={d as Partial<DistributeFlowNodeData>}
+          onChange={update}
+        />
+      )}
+
+      {node.type === "transfer_agent" && (
+        <TransferAgentEditor
+          data={d as Partial<TransferAgentNodeData>}
+          onChange={update}
+          agents={agents}
+        />
+      )}
+
+      {node.type === "end_conversation" && (
+        <EndConversationEditor
+          data={d as Partial<EndConversationNodeData>}
+          onChange={update}
+          agents={agents}
+        />
       )}
 
       {(node.type === "start" || node.type === "end") && (
@@ -1258,245 +1362,1537 @@ function MenuEditor({
   );
 }
 
-const CONDITION_OPERATOR_OPTIONS: { value: ConditionRule["operator"]; label: string }[] = [
-  { value: "equals", label: "É igual a" },
-  { value: "contains", label: "Contém" },
-  { value: "is_empty", label: "Está vazio" },
+// ─── Tag color/emoji helpers (mesma lógica do conversations.tsx) ──────────────
+
+const UMBLER_COLOR_MAP_BOT: Record<string, string> = {
+  Aquamarine: "#14b8a6", Chocolate: "#92400e", Cyan: "#06b6d4",
+  Gold: "#d97706", Grape: "#7c3aed", Gray: "#6b7280", Green: "#16a34a",
+  Kiwi: "#84cc16", Magenta: "#ec4899", Pink: "#f472b6", Rose: "#e11d48",
+  Salmon: "#f87171", Skyblue: "#38bdf8", Tangerine: "#f97316",
+  Tomato: "#ef4444", Umblerito: "#5046e5",
+};
+const TAG_PALETTE_BOT = [
+  "#e74c3c","#e67e22","#f1c40f","#2ecc71","#1abc9c","#3498db",
+  "#9b59b6","#e91e63","#00bcd4","#8bc34a","#ff5722","#795548","#607d8b",
 ];
+
+function resolveTagColorBot(color: string | null | undefined, id: string): string {
+  if (color) {
+    const mapped = UMBLER_COLOR_MAP_BOT[color];
+    if (mapped) return mapped;
+    if (color.startsWith("#")) return color;
+  }
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return TAG_PALETTE_BOT[hash % TAG_PALETTE_BOT.length];
+}
+
+function resolveTagEmojiBot(emoji: string | null | undefined): string | null {
+  if (!emoji || emoji === "🐨") return null;
+  return emoji;
+}
+
+// ─── Tag multi-select ─────────────────────────────────────────────────────────
+
+function TagPill({ tag, onRemove }: { tag: TagOption; onRemove?: () => void }) {
+  const bg = resolveTagColorBot(tag.color, tag.id);
+  const emoji = resolveTagEmojiBot(tag.emoji);
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full font-semibold text-white max-w-[160px]"
+      style={{ backgroundColor: bg }}
+      title={tag.name}
+    >
+      {emoji && <span className="shrink-0 leading-none">{emoji}</span>}
+      <span className="truncate">{tag.name}</span>
+      {onRemove && (
+        <button
+          type="button"
+          className="shrink-0 ml-0.5 opacity-70 hover:opacity-100 leading-none"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        >
+          ×
+        </button>
+      )}
+    </span>
+  );
+}
+
+function TagMultiSelect({
+  tags,
+  selectedIds,
+  onToggle,
+  label,
+}: {
+  tags: TagOption[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+  label: string;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = tags.filter((t) =>
+    t.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const selectedTags = tags.filter((t) => selectedIds.includes(t.id));
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="w-full min-h-8 px-3 py-1.5 rounded-md border border-input bg-background text-left hover:bg-accent transition-colors flex flex-wrap gap-1"
+        >
+          {selectedTags.length === 0 ? (
+            <span className="text-xs text-muted-foreground">Selecionar etiquetas</span>
+          ) : (
+            selectedTags.map((t) => <TagPill key={t.id} tag={t} onRemove={() => onToggle(t.id)} />)
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <div className="p-2 border-b">
+          <div className="relative">
+            <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              className="pl-7 h-7 text-xs"
+              placeholder="Pesquisar"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="overflow-y-auto max-h-56">
+          {filtered.length === 0 ? (
+            <p className="text-xs text-muted-foreground p-3">Nenhuma etiqueta encontrada.</p>
+          ) : (
+            <div className="p-1">
+              {filtered.map((t) => {
+                const checked = selectedIds.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => onToggle(t.id)}
+                    className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-sm hover:bg-accent transition-colors"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => onToggle(t.id)}
+                      className="h-3.5 w-3.5 pointer-events-none shrink-0"
+                    />
+                    <TagPill tag={t} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {selectedIds.length > 0 && (
+          <div className="border-t p-2 text-[11px] text-muted-foreground">
+            {selectedIds.length} selecionada(s)
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─── Condition field options (field selector dropdown) ────────────────────────
+
+const CONDITION_FIELD_OPTIONS: { value: string; label: string }[] = [
+  { value: "contact_field",      label: "Campo do contato" },
+  { value: "contact_active",     label: "O contato está ativo?" },
+  { value: "contact_is_group",   label: "O contato é um grupo?" },
+  { value: "tag",                label: "Etiquetas" },
+  { value: "channel",            label: "Canal da conversa" },
+  { value: "agent",              label: "Atendente da conversa" },
+  { value: "agent_online",       label: "Presença do atendente" },
+  { value: "first_conversation", label: "Primeira conversa?" },
+  { value: "message_contains",   label: "Mensagem contém" },
+  { value: "value",              label: "Valor" },
+  { value: "parallel_bot",       label: "Bot paralelo em execução" },
+];
+
+const BOOLEAN_FIELDS = new Set([
+  "contact_active",
+  "contact_is_group",
+  "first_conversation",
+]);
+
+function defaultOperatorFor(field: string): ConditionRule["operator"] {
+  if (field === "tag") return "has_all";
+  if (field === "agent_online") return "is_true";
+  if (BOOLEAN_FIELDS.has(field)) return "is_true";
+  if (field === "message_contains") return "contains";
+  if (field === "channel") return "is_one_of";
+  if (field === "agent") return "is_one_of";
+  if (field === "value") return "contains";
+  return "equals";
+}
+
+function ConditionRuleRow({
+  rule,
+  index,
+  markerTags,
+  agents,
+  sectors,
+  channels,
+  bots,
+  onChange,
+  onRemove,
+}: {
+  rule: ConditionRule;
+  index: number;
+  markerTags: TagOption[];
+  agents: AgentOption[];
+  sectors: SectorOption[];
+  channels: ChannelOption[];
+  bots: BotOption[];
+  onChange: (patch: Partial<ConditionRule>) => void;
+  onRemove: () => void;
+}) {
+  const field = rule.field;
+
+  function fieldSelector() {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-muted-foreground w-8 shrink-0">
+          {index === 0 ? "Se:" : "E se:"}
+        </span>
+        <Select
+          value={field}
+          onValueChange={(v) =>
+            onChange({ field: v as ConditionRule["field"], operator: defaultOperatorFor(v), value: undefined, subField: undefined })
+          }
+        >
+          <SelectTrigger className="flex-1 h-8 text-xs">
+            <SelectValue placeholder="Selecione" />
+          </SelectTrigger>
+          <SelectContent>
+            {CONDITION_FIELD_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {index > 0 && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // ── Boolean fields ──────────────────────────────────────────────────────────
+  if (BOOLEAN_FIELDS.has(field)) {
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10">
+          <Select
+            value={rule.operator ?? "is_true"}
+            onValueChange={(v) => onChange({ operator: v as ConditionRule["operator"] })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="is_true" className="text-xs">É verdadeiro (sim)</SelectItem>
+              <SelectItem value="is_false" className="text-xs">É falso (não)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Presença do atendente ───────────────────────────────────────────────────
+  if (field === "agent_online") {
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10">
+          <Select
+            value={rule.operator ?? "is_true"}
+            onValueChange={(v) => onChange({ operator: v as ConditionRule["operator"] })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="is_true" className="text-xs">Online</SelectItem>
+              <SelectItem value="is_false" className="text-xs">Offline</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Etiquetas ───────────────────────────────────────────────────────────────
+  if (field === "tag") {
+    const selectedIds: string[] = rule.values ?? (rule.value ? [rule.value] : []);
+
+    const toggleTag = (id: string) => {
+      const next = selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id];
+      onChange({ values: next, value: undefined });
+    };
+
+    const selectedLabels = selectedIds
+      .map((id) => markerTags.find((t) => t.id === id)?.name)
+      .filter(Boolean)
+      .join(", ");
+
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10 space-y-1.5">
+          <Select
+            value={rule.operator ?? "has_all"}
+            onValueChange={(v) => onChange({ operator: v as ConditionRule["operator"] })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="has_all" className="text-xs">Existe todas e pode haver outras</SelectItem>
+              <SelectItem value="has_none" className="text-xs">Não existe nenhuma destas</SelectItem>
+              <SelectItem value="has_any" className="text-xs">Existe alguma</SelectItem>
+              <SelectItem value="has_exactly" className="text-xs">Existem exatamente estas</SelectItem>
+              <SelectItem value="not_has_exactly" className="text-xs">Não existem exatamente estas</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <TagMultiSelect
+            tags={markerTags}
+            selectedIds={selectedIds}
+            onToggle={toggleTag}
+            label={selectedLabels || "Selecionar etiquetas"}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Setor da conversa ───────────────────────────────────────────────────────
+  if (field === "sector") {
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10 space-y-1.5">
+          <Select
+            value={rule.operator ?? "equals"}
+            onValueChange={(v) => onChange({ operator: v as ConditionRule["operator"] })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="equals" className="text-xs">É</SelectItem>
+              <SelectItem value="not_equals" className="text-xs">Não é</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={rule.value ?? ""}
+            onValueChange={(v) => onChange({ value: v })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Selecione o setor" />
+            </SelectTrigger>
+            <SelectContent>
+              {sectors.map((s) => (
+                <SelectItem key={s.id} value={s.id} className="text-xs">
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Atendente da conversa ───────────────────────────────────────────────────
+  if (field === "agent") {
+    const needsAgents = rule.operator === "is_one_of" || rule.operator === "is_none_of";
+    const selectedIds: string[] = rule.values ?? (rule.value ? [rule.value] : []);
+
+    const toggleAgent = (id: string) => {
+      const next = selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id];
+      onChange({ values: next });
+    };
+
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10 space-y-1.5">
+          <Select
+            value={rule.operator ?? "is_one_of"}
+            onValueChange={(v) => onChange({ operator: v as ConditionRule["operator"], values: [], value: undefined })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="is_one_of" className="text-xs">É um destes:</SelectItem>
+              <SelectItem value="is_none_of" className="text-xs">Não é nenhum destes:</SelectItem>
+              <SelectItem value="no_agent" className="text-xs">Conversa não está com atendente</SelectItem>
+              <SelectItem value="is_online" className="text-xs">Está online</SelectItem>
+              <SelectItem value="not_online" className="text-xs">Não está online</SelectItem>
+            </SelectContent>
+          </Select>
+          {needsAgents && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full min-h-[32px] flex flex-wrap gap-1 items-center px-2 py-1 rounded-md border border-input bg-background text-left"
+                >
+                  {selectedIds.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">Selecionar atendentes</span>
+                  ) : (
+                    agents
+                      .filter((a) => selectedIds.includes(a.id))
+                      .map((a) => (
+                        <span
+                          key={a.id}
+                          className="inline-flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full font-semibold bg-violet-500 text-white"
+                        >
+                          {a.name}
+                          <button
+                            type="button"
+                            className="ml-0.5 opacity-70 hover:opacity-100"
+                            onClick={(e) => { e.stopPropagation(); toggleAgent(a.id); }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="start">
+                <div className="overflow-y-auto max-h-48 p-1">
+                  {agents.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3">Nenhum atendente disponível.</p>
+                  ) : (
+                    agents.map((a) => {
+                      const checked = selectedIds.includes(a.id);
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => toggleAgent(a.id)}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent text-left"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleAgent(a.id)}
+                            className="h-3.5 w-3.5 pointer-events-none shrink-0"
+                          />
+                          <span className="text-xs truncate">{a.name}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Bot paralelo em execução ─────────────────────────────────────────────────
+  if (field === "parallel_bot") {
+    const filterSpecific = rule.value !== undefined;
+    const [search, setSearch] = useState("");
+    const filtered = bots.filter((b) => b.name.toLowerCase().includes(search.toLowerCase()));
+
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10 space-y-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={filterSpecific}
+              onClick={() => onChange({ value: filterSpecific ? undefined : "" })}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${filterSpecific ? "bg-primary" : "bg-input"}`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${filterSpecific ? "translate-x-4" : "translate-x-0"}`}
+              />
+            </button>
+            <span className="text-xs">Filtrar por bot específico</span>
+          </div>
+          {filterSpecific && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium">Bot monitorado</p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="w-full h-8 flex items-center px-3 rounded-md border border-input bg-background text-left text-xs"
+                  >
+                    {rule.value
+                      ? (bots.find((b) => b.id === rule.value)?.name ?? "Selecione")
+                      : "Selecione"}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <div className="p-2 border-b">
+                    <Input
+                      className="h-7 text-xs"
+                      placeholder="Pesquisar"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="overflow-y-auto max-h-48 p-1">
+                    {filtered.length === 0 ? (
+                      <p className="text-xs text-muted-foreground p-2">Nenhum bot encontrado.</p>
+                    ) : (
+                      filtered.map((b) => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => onChange({ value: b.id })}
+                          className={`w-full text-left px-2 py-1.5 text-xs rounded hover:bg-accent ${rule.value === b.id ? "bg-accent font-semibold" : ""}`}
+                        >
+                          {b.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Mensagem contém ─────────────────────────────────────────────────────────
+  if (field === "message_contains") {
+    const keywords: string[] = rule.values ?? (rule.value ? [rule.value] : []);
+    const [kw, setKw] = useState("");
+
+    const addKeyword = () => {
+      const trimmed = kw.trim();
+      if (!trimmed || keywords.includes(trimmed)) return;
+      onChange({ values: [...keywords, trimmed], value: undefined, operator: "contains" });
+      setKw("");
+    };
+
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10 space-y-1.5">
+          <div className="flex gap-1">
+            <Input
+              className="h-8 text-xs flex-1"
+              value={kw}
+              onChange={(e) => setKw(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addKeyword(); } }}
+              placeholder="Digite uma palavra-chave"
+            />
+            <button
+              type="button"
+              onClick={addKeyword}
+              className="h-8 w-8 shrink-0 flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent text-sm font-semibold"
+            >
+              +
+            </button>
+          </div>
+          {keywords.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {keywords.map((k) => (
+                <span
+                  key={k}
+                  className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-muted text-foreground border border-border"
+                >
+                  {k}
+                  <button
+                    type="button"
+                    className="opacity-60 hover:opacity-100 leading-none"
+                    onClick={() => onChange({ values: keywords.filter((x) => x !== k) })}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Campo do contato ────────────────────────────────────────────────────────
+  if (field === "contact_field") {
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10 space-y-1.5">
+          <Select
+            value={rule.subField ?? ""}
+            onValueChange={(v) => onChange({ subField: v })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Qual campo?" />
+            </SelectTrigger>
+            <SelectContent>
+              {CONTACT_FIELD_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={rule.operator ?? "equals"}
+            onValueChange={(v) => onChange({ operator: v as ConditionRule["operator"] })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="starts_with" className="text-xs">Começa com</SelectItem>
+              <SelectItem value="ends_with" className="text-xs">Termina com</SelectItem>
+              <SelectItem value="contains" className="text-xs">Contém</SelectItem>
+              <SelectItem value="not_contains" className="text-xs">Não contém</SelectItem>
+              <SelectItem value="equals" className="text-xs">Igual</SelectItem>
+              <SelectItem value="not_equals" className="text-xs">Diferente</SelectItem>
+              <SelectItem value="exists" className="text-xs">Existe</SelectItem>
+              <SelectItem value="matches_regex" className="text-xs">Corresponde ao Regex</SelectItem>
+            </SelectContent>
+          </Select>
+          {rule.operator !== "exists" && (
+            <Input
+              className="h-8 text-xs"
+              value={rule.value ?? ""}
+              onChange={(e) => onChange({ value: e.target.value })}
+              placeholder={rule.operator === "matches_regex" ? "Ex: ^[0-9]+$" : "Valor"}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Canal da conversa ────────────────────────────────────────────────────────
+  if (field === "channel") {
+    const needsChannels = rule.operator === "is_one_of" || rule.operator === "is_none_of";
+    const selectedIds: string[] = rule.values ?? (rule.value ? [rule.value] : []);
+
+    const toggleChannel = (id: string) => {
+      const next = selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id];
+      onChange({ values: next });
+    };
+
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10 space-y-1.5">
+          <Select
+            value={rule.operator ?? "is_one_of"}
+            onValueChange={(v) => onChange({ operator: v as ConditionRule["operator"], values: [], value: undefined })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="is_one_of" className="text-xs">É um destes:</SelectItem>
+              <SelectItem value="is_none_of" className="text-xs">Não é nenhum destes:</SelectItem>
+              <SelectItem value="is_attending" className="text-xs">Está atendendo</SelectItem>
+              <SelectItem value="not_attending" className="text-xs">Não está atendendo</SelectItem>
+            </SelectContent>
+          </Select>
+          {needsChannels && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full min-h-[32px] flex flex-wrap gap-1 items-center px-2 py-1 rounded-md border border-input bg-background text-left"
+                >
+                  {selectedIds.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">Selecionar canais</span>
+                  ) : (
+                    channels
+                      .filter((c) => selectedIds.includes(c.id))
+                      .map((c) => (
+                        <span
+                          key={c.id}
+                          className="inline-flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full font-semibold bg-blue-500 text-white"
+                        >
+                          {c.name || c.phoneNumber || c.id}
+                          <button
+                            type="button"
+                            className="ml-0.5 opacity-70 hover:opacity-100"
+                            onClick={(e) => { e.stopPropagation(); toggleChannel(c.id); }}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-0" align="start">
+                <div className="overflow-y-auto max-h-48 p-1">
+                  {channels.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3">Nenhum canal disponível.</p>
+                  ) : (
+                    channels.map((c) => {
+                      const checked = selectedIds.includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleChannel(c.id)}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent text-left"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleChannel(c.id)}
+                            className="h-3.5 w-3.5 pointer-events-none shrink-0"
+                          />
+                          <span className="text-xs truncate">{c.name || c.phoneNumber || c.id}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Valor ────────────────────────────────────────────────────────────────────
+  if (field === "value") {
+    const noValueOps = new Set(["exists", "is_empty"]);
+    return (
+      <div className="space-y-2">
+        {fieldSelector()}
+        <div className="ml-10 space-y-1.5">
+          <Input
+            className="h-8 text-xs"
+            value={rule.subField ?? ""}
+            onChange={(e) => onChange({ subField: e.target.value })}
+            placeholder="Nome do campo"
+          />
+          <Select
+            value={rule.operator ?? "contains"}
+            onValueChange={(v) => onChange({ operator: v as ConditionRule["operator"] })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="equals" className="text-xs">Igual</SelectItem>
+              <SelectItem value="not_equals" className="text-xs">Diferente</SelectItem>
+              <SelectItem value="contains" className="text-xs">Contém</SelectItem>
+              <SelectItem value="not_contains" className="text-xs">Não contém</SelectItem>
+              <SelectItem value="starts_with" className="text-xs">Começa com</SelectItem>
+              <SelectItem value="ends_with" className="text-xs">Termina com</SelectItem>
+              <SelectItem value="matches_regex" className="text-xs">Corresponde ao Regex</SelectItem>
+              <SelectItem value="exists" className="text-xs">Não está vazio</SelectItem>
+              <SelectItem value="is_empty" className="text-xs">Está vazio</SelectItem>
+            </SelectContent>
+          </Select>
+          {!noValueOps.has(rule.operator ?? "") && (
+            <Input
+              className="h-8 text-xs"
+              value={rule.value ?? ""}
+              onChange={(e) => onChange({ value: e.target.value })}
+              placeholder={rule.operator === "matches_regex" ? "Ex: ^[0-9]+$" : "Valor do campo"}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Fallback ──────────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-2">
+      {fieldSelector()}
+      <div className="ml-10 space-y-1.5">
+        <Input
+          className="h-8 text-xs"
+          value={rule.value ?? ""}
+          onChange={(e) => onChange({ value: e.target.value })}
+          placeholder="Valor"
+        />
+      </div>
+    </div>
+  );
+}
+
+function TriggerFlowEditor({
+  data,
+  onChange,
+}: {
+  data: Partial<TriggerFlowNodeData>;
+  onChange: (patch: Partial<TriggerFlowNodeData>) => void;
+}) {
+  const { data: bots = [] } = useWhatsappBots();
+  const { data: targetFlow } = useWhatsappBotFlow(data.targetBotId ?? "");
+
+  const targetNodes = (targetFlow?.nodes ?? []).filter(
+    (n) => n.type === "start" || (n.data as { label?: string })?.label,
+  );
+
+  const selectedBot = bots.find((b) => b.id === data.targetBotId);
+  const selectedNode = targetNodes.find((n) => n.id === data.targetNodeId);
+
+  const pathLabel = selectedBot
+    ? `${selectedBot.name}${selectedNode ? ` → ${(selectedNode.data as { label?: string })?.label ?? "Início"}` : ""}`
+    : null;
+
+  const toggles: { key: keyof TriggerFlowNodeData; label: string }[] = [
+    { key: "scheduleExecution", label: "Agendar acionamento" },
+    { key: "executeOnCurrentChannel", label: "Executar chatbot no canal atual" },
+    { key: "executeParallel", label: "Executar fluxo de forma paralela" },
+  ];
+
+  return (
+    <div className="space-y-4 p-4">
+      <div className="space-y-1.5">
+        <Label className="text-xs">Caminho</Label>
+        {/* Bot selector */}
+        <Select
+          value={data.targetBotId ?? ""}
+          onValueChange={(v) => onChange({ targetBotId: v, targetNodeId: undefined })}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Selecionar fluxo..." />
+          </SelectTrigger>
+          <SelectContent>
+            {bots.map((b) => (
+              <SelectItem key={b.id} value={b.id} className="text-xs">
+                {b.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Node selector — só aparece quando bot selecionado */}
+        {data.targetBotId && targetNodes.length > 0 && (
+          <Select
+            value={data.targetNodeId ?? ""}
+            onValueChange={(v) => onChange({ targetNodeId: v })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Nó de entrada (opcional)..." />
+            </SelectTrigger>
+            <SelectContent>
+              {targetNodes.map((n) => (
+                <SelectItem key={n.id} value={n.id} className="text-xs">
+                  {(n.data as { label?: string })?.label ?? "Início"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {/* Preview do caminho */}
+        {pathLabel && (
+          <div className="flex items-center gap-1.5 rounded-md border border-input bg-muted px-3 py-1.5">
+            <ArrowRightLeft className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+            <span className="text-xs text-muted-foreground truncate">{pathLabel}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Toggles */}
+      <div className="space-y-3">
+        {toggles.map(({ key, label }) => (
+          <div key={key} className="flex items-center justify-between">
+            <span className="text-xs">{label}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!data[key]}
+              onClick={() => onChange({ [key]: !data[key] })}
+              className={cn(
+                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                data[key] ? "bg-blue-500" : "bg-input",
+              )}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform",
+                  data[key] ? "translate-x-4" : "translate-x-0",
+                )}
+              />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type TemplateComponent = {
+  type?: string;
+  format?: string;
+  text?: string;
+  buttons?: { text?: string; type?: string }[];
+  example?: { header_handle?: string[]; header_text?: string[] };
+};
+
+function extractTemplateHeader(
+  template: import("@/hooks/use-whatsapp").MetaTemplate,
+): { format: string; url?: string } | null {
+  const comp = template.components as TemplateComponent[];
+  const header = comp?.find((c) => c.type === "HEADER");
+  if (!header || !header.format || header.format === "TEXT") return null;
+  const url = header.example?.header_handle?.[0];
+  return { format: header.format, url };
+}
+
+function extractTemplateBody(template: import("@/hooks/use-whatsapp").MetaTemplate): string | null {
+  const comp = template.components as TemplateComponent[];
+  const body = comp?.find((c) => c.type === "BODY");
+  return body?.text ?? null;
+}
+
+function TemplatePreview({ template }: { template: import("@/hooks/use-whatsapp").MetaTemplate }) {
+  const header = extractTemplateHeader(template);
+  const body = extractTemplateBody(template);
+  const comp = template.components as TemplateComponent[];
+  const btnComp = comp?.find((c) => c.type === "BUTTONS");
+  const buttons = btnComp?.buttons?.filter((b) => b.type === "QUICK_REPLY") ?? [];
+
+  return (
+    <div className="rounded-lg border bg-[#e5ddd5] overflow-hidden text-[11px]">
+      {/* Header media */}
+      {header && (
+        <div className="bg-[#d1c4b2] flex items-center justify-center" style={{ minHeight: 100 }}>
+          {header.format === "IMAGE" && header.url ? (
+            <img
+              src={header.url}
+              alt="Header"
+              className="w-full object-cover max-h-40"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+                (e.currentTarget.nextSibling as HTMLElement)?.removeAttribute("style");
+              }}
+            />
+          ) : null}
+          {header.format === "IMAGE" && !header.url && (
+            <div className="flex flex-col items-center gap-1 py-4 text-[#5a5a5a]">
+              <ImageIcon className="h-8 w-8 opacity-50" />
+              <span className="text-[10px] opacity-60">Imagem</span>
+            </div>
+          )}
+          {header.format === "VIDEO" && (
+            <div className="flex flex-col items-center gap-1 py-4 text-[#5a5a5a]">
+              <FileVideo className="h-8 w-8 opacity-50" />
+              <span className="text-[10px] opacity-60">Vídeo</span>
+            </div>
+          )}
+          {header.format === "DOCUMENT" && (
+            <div className="flex flex-col items-center gap-1 py-4 text-[#5a5a5a]">
+              <FileTextIcon className="h-8 w-8 opacity-50" />
+              <span className="text-[10px] opacity-60">Documento</span>
+            </div>
+          )}
+        </div>
+      )}
+      {/* Bubble */}
+      <div className="bg-white rounded-br-lg rounded-bl-lg mx-1 mb-1 mt-1 p-2 shadow-sm">
+        {body && (
+          <p className="text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed">{body}</p>
+        )}
+        {buttons.length > 0 && (
+          <div className="border-t border-gray-200 mt-2 pt-1.5 space-y-1">
+            {buttons.map((b, i) => (
+              <div key={i} className="text-center text-blue-500 font-medium py-0.5 border-t border-gray-100 first:border-t-0">
+                {b.text}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SendTemplateEditor({
+  data,
+  onChange,
+  metaTemplates,
+}: {
+  data: Partial<SendTemplateNodeData>;
+  onChange: (patch: Partial<SendTemplateNodeData>) => void;
+  metaTemplates: import("@/hooks/use-whatsapp").MetaTemplate[];
+}) {
+  const [search, setSearch] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
+
+  const selected = metaTemplates.find((t) => t.name === data.metaTemplateName);
+
+  function extractButtons(template: import("@/hooks/use-whatsapp").MetaTemplate): SendTemplateButtonHandle[] {
+    const comp = template.components as TemplateComponent[];
+    const btnComp = comp?.find((c) => c.type === "BUTTONS");
+    if (!btnComp?.buttons) return [];
+    return btnComp.buttons
+      .filter((b) => b.type === "QUICK_REPLY")
+      .map((b, i) => ({ handle: `btn-${i}`, label: b.text ?? `Botão ${i + 1}` }));
+  }
+
+  function pickTemplate(t: import("@/hooks/use-whatsapp").MetaTemplate) {
+    const buttons = extractButtons(t);
+    onChange({
+      metaTemplateName: t.name,
+      metaTemplateLanguage: t.language,
+      templateParams: [],
+      templateHeaderMedia: undefined,
+      buttonHandles: buttons,
+    });
+    setShowPicker(false);
+  }
+
+  const buttons = data.buttonHandles ?? [];
+
+  return (
+    <div className="space-y-4 p-4">
+      {/* Preview do template selecionado */}
+      {selected ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium">{selected.name}</p>
+              <p className="text-[11px] text-muted-foreground">{selected.language}</p>
+            </div>
+          </div>
+          <TemplatePreview template={selected} />
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">Nenhum template selecionado</p>
+      )}
+
+      {/* Picker */}
+      {showPicker ? (
+        <div className="space-y-1.5 border rounded-md overflow-hidden">
+          <div className="p-2 border-b">
+            <Input
+              className="h-7 text-xs"
+              placeholder="Pesquisar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="overflow-y-auto max-h-48 p-1">
+            {metaTemplates
+              .filter((t) => t.name.toLowerCase().includes(search.toLowerCase()))
+              .map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => pickTemplate(t)}
+                  className={cn(
+                    "w-full text-left px-2 py-1.5 rounded-sm text-xs hover:bg-accent transition-colors",
+                    data.metaTemplateName === t.name && "bg-accent font-medium",
+                  )}
+                >
+                  <span className="font-medium">{t.name}</span>
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">{t.language}</span>
+                </button>
+              ))}
+            {metaTemplates.length === 0 && (
+              <p className="text-xs text-muted-foreground p-2">Nenhum template aprovado.</p>
+            )}
+          </div>
+          <div className="border-t p-2">
+            <button type="button" onClick={() => setShowPicker(false)} className="text-xs text-muted-foreground hover:underline">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setShowPicker(true)}>
+          {data.metaTemplateName ? "Alterar template" : "Selecionar template"}
+        </Button>
+      )}
+
+      {/* Ações dos botões */}
+      {buttons.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium">Ações dos botões:</p>
+          <div className="space-y-1">
+            {buttons.map((btn) => (
+              <div key={btn.handle} className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted text-xs text-muted-foreground">
+                <span className="truncate">{btn.label}</span>
+                <span className="ml-auto shrink-0 text-[10px] text-blue-400">→ saída</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Opções extras */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium">Ativar fluxo se:</p>
+        {[
+          { key: "invalidResponseHandle" as const, label: "Resposta inválida" },
+          { key: "noResponseHandle" as const, label: "Contato não responder" },
+          { key: "notDeliveredHandle" as const, label: "Mensagem não for entregue" },
+        ].map(({ key, label }) => (
+          <div key={key} className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 cursor-pointer"
+              checked={!!data[key]}
+              onChange={(e) => onChange({ [key]: e.target.checked })}
+            />
+            <span className="text-xs">{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EditTagsEditor({
+  data,
+  onChange,
+  markerTags,
+}: {
+  data: Partial<EditTagsNodeData>;
+  onChange: (patch: Partial<EditTagsNodeData>) => void;
+  markerTags: TagOption[];
+}) {
+  const mode = data.mode ?? "add";
+  const tagIds = data.tagIds ?? [];
+
+  return (
+    <div className="space-y-3 p-4">
+      {/* Mode toggle */}
+      <div className="flex rounded-lg overflow-hidden border border-input">
+        <button
+          type="button"
+          onClick={() => onChange({ mode: "add" })}
+          className={`flex-1 py-1.5 text-xs font-semibold transition-colors ${mode === "add" ? "bg-blue-500 text-white" : "bg-background text-muted-foreground hover:bg-accent"}`}
+        >
+          Adicionar
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange({ mode: "remove" })}
+          className={`flex-1 py-1.5 text-xs font-semibold transition-colors ${mode === "remove" ? "bg-gray-700 text-white" : "bg-background text-muted-foreground hover:bg-accent"}`}
+        >
+          Remover
+        </button>
+      </div>
+
+      {/* Tag selector */}
+      <TagMultiSelect
+        tags={markerTags}
+        selectedIds={tagIds}
+        onToggle={(id) => {
+          const next = tagIds.includes(id) ? tagIds.filter((x) => x !== id) : [...tagIds, id];
+          onChange({ tagIds: next });
+        }}
+        label="Selecionar etiquetas"
+      />
+
+      {/* Selected pills */}
+      {tagIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {markerTags
+            .filter((t) => tagIds.includes(t.id))
+            .map((t) => (
+              <TagPill
+                key={t.id}
+                tag={t}
+                onRemove={() => onChange({ tagIds: tagIds.filter((x) => x !== t.id) })}
+              />
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DistributeFlowEditor({
+  data,
+  onChange,
+}: {
+  data: Partial<DistributeFlowNodeData>;
+  onChange: (patch: Partial<DistributeFlowNodeData>) => void;
+}) {
+  const outputs: DistributeFlowOutput[] = data.outputs ?? [];
+
+  function redistribute(outputs: DistributeFlowOutput[], changedIndex: number, newPct: number): DistributeFlowOutput[] {
+    const clamped = Math.max(0, Math.min(100, newPct));
+    const next = outputs.map((o, i) => i === changedIndex ? { ...o, percentage: clamped } : o);
+    const lockedTotal = next.filter((o, i) => o.locked || i === changedIndex).reduce((s, o) => s + o.percentage, 0);
+    const unlocked = next.filter((o, i) => !o.locked && i !== changedIndex);
+    const remaining = Math.max(0, 100 - lockedTotal);
+    if (unlocked.length === 0) return next;
+    const each = Math.floor(remaining / unlocked.length);
+    let leftover = remaining - each * unlocked.length;
+    let ui = 0;
+    return next.map((o, i) => {
+      if (o.locked || i === changedIndex) return o;
+      const bonus = leftover > 0 ? 1 : 0;
+      leftover -= bonus;
+      ui++;
+      return { ...o, percentage: each + bonus };
+    });
+  }
+
+  function addOutput() {
+    const newOut: DistributeFlowOutput = { handle: `out-${nanoid(4)}`, percentage: 0, locked: false };
+    const withNew = [...outputs, newOut];
+    // distribute equally among unlocked
+    const unlocked = withNew.filter((o) => !o.locked);
+    const lockedTotal = withNew.filter((o) => o.locked).reduce((s, o) => s + o.percentage, 0);
+    const each = Math.floor(Math.max(0, 100 - lockedTotal) / unlocked.length);
+    let leftover = Math.max(0, 100 - lockedTotal) - each * unlocked.length;
+    const result = withNew.map((o) => {
+      if (o.locked) return o;
+      const bonus = leftover > 0 ? 1 : 0;
+      leftover -= bonus;
+      return { ...o, percentage: each + bonus };
+    });
+    onChange({ outputs: result });
+  }
+
+  function removeOutput(index: number) {
+    const next = outputs.filter((_, i) => i !== index);
+    if (next.length === 0) { onChange({ outputs: next }); return; }
+    // redistribute removed percentage among unlocked
+    const removed = outputs[index].percentage;
+    const unlocked = next.filter((o) => !o.locked);
+    if (unlocked.length === 0) { onChange({ outputs: next }); return; }
+    const each = Math.floor(removed / unlocked.length);
+    let leftover = removed - each * unlocked.length;
+    const result = next.map((o) => {
+      if (o.locked) return o;
+      const bonus = leftover > 0 ? 1 : 0;
+      leftover -= bonus;
+      return { ...o, percentage: o.percentage + each + bonus };
+    });
+    onChange({ outputs: result });
+  }
+
+  function toggleLock(index: number) {
+    onChange({ outputs: outputs.map((o, i) => i === index ? { ...o, locked: !o.locked } : o) });
+  }
+
+  return (
+    <div className="space-y-3 p-4">
+      <div className="space-y-3">
+        {outputs.map((out, i) => (
+          <div key={out.handle} className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toggleLock(i)}
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+              title={out.locked ? "Desbloquear" : "Bloquear"}
+            >
+              {out.locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={out.percentage}
+              onChange={(e) => onChange({ outputs: redistribute(outputs, i, Number(e.target.value)) })}
+              className="flex-1 accent-violet-500 cursor-pointer"
+            />
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={out.percentage}
+              onChange={(e) => onChange({ outputs: redistribute(outputs, i, Number(e.target.value)) })}
+              className="w-14 h-7 text-xs text-center rounded-md border border-input bg-background font-semibold"
+            />
+            <span className="text-xs text-muted-foreground shrink-0">%</span>
+            {outputs.length > 2 && (
+              <button
+                type="button"
+                onClick={() => removeOutput(i)}
+                className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={addOutput}
+        className="text-xs text-primary hover:underline"
+      >
+        + Saída
+      </button>
+
+      <p className="text-[11px] text-muted-foreground">
+        Total: {outputs.reduce((s, o) => s + o.percentage, 0)}%
+        {outputs.reduce((s, o) => s + o.percentage, 0) !== 100 && (
+          <span className="text-destructive ml-1">(deve somar 100%)</span>
+        )}
+      </p>
+    </div>
+  );
+}
+
+function TransferAgentEditor({
+  data,
+  onChange,
+  agents,
+}: {
+  data: Partial<TransferAgentNodeData>;
+  onChange: (patch: Partial<TransferAgentNodeData>) => void;
+  agents: AgentOption[];
+}) {
+  const rule = data.rule ?? "specific";
+
+  return (
+    <div className="space-y-3 p-4">
+      {/* Regra */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">Regra</Label>
+        <Select
+          value={rule}
+          onValueChange={(v) => onChange({ rule: v as TransferAgentNodeData["rule"], agentId: undefined })}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="specific" className="text-xs">Específico</SelectItem>
+            <SelectItem value="previous_conversation" className="text-xs">Atendente da conversa anterior</SelectItem>
+            <SelectItem value="previous_same_conversation" className="text-xs">Atendente anterior na mesma conversa</SelectItem>
+            <SelectItem value="any_available" className="text-xs">Qualquer disponível</SelectItem>
+            <SelectItem value="random" className="text-xs">Aleatório</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Atendente específico */}
+      {rule === "specific" && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Atendente</Label>
+          <Select
+            value={data.agentId ?? ""}
+            onValueChange={(v) => onChange({ agentId: v })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Selecione o atendente" />
+            </SelectTrigger>
+            <SelectContent>
+              {agents.map((a) => (
+                <SelectItem key={a.id} value={a.id} className="text-xs">
+                  {a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Toggle: somente se tem permissão */}
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={!!data.onlyIfCurrentHasPermission}
+          onClick={() => onChange({ onlyIfCurrentHasPermission: !data.onlyIfCurrentHasPermission })}
+          className={`relative inline-flex h-5 w-9 shrink-0 mt-0.5 cursor-pointer rounded-full border-2 border-transparent transition-colors ${data.onlyIfCurrentHasPermission ? "bg-primary" : "bg-input"}`}
+        >
+          <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${data.onlyIfCurrentHasPermission ? "translate-x-4" : "translate-x-0"}`} />
+        </button>
+        <span className="text-xs leading-snug">Transferir somente se atendente atual tem permissão</span>
+      </div>
+
+      {/* Checkbox: ativar fluxo se falhar */}
+      <div className="flex items-start gap-2.5">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer"
+          checked={!!data.activateFlowIfFailed}
+          onChange={(e) => onChange({ activateFlowIfFailed: e.target.checked })}
+        />
+        <span className="text-xs leading-snug">Ativar fluxo se não for possível transferir para o atendente</span>
+      </div>
+    </div>
+  );
+}
+
+function EndConversationEditor({
+  data,
+  onChange,
+  agents,
+}: {
+  data: Partial<EndConversationNodeData>;
+  onChange: (patch: Partial<EndConversationNodeData>) => void;
+  agents: AgentOption[];
+}) {
+  const CLOSED_BY_OPTIONS = [
+    { value: "owner", label: "Dono do chat" },
+    ...agents.map((a) => ({ value: a.id, label: a.name })),
+  ];
+
+  const selected = CLOSED_BY_OPTIONS.find((o) => o.value === data.closedBy);
+
+  return (
+    <div className="space-y-3 p-4">
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium">É fechado por:</p>
+        <div className="flex flex-wrap gap-1.5">
+          {selected && (
+            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-blue-500 text-white font-semibold">
+              {selected.label}
+              <button
+                type="button"
+                className="ml-0.5 opacity-70 hover:opacity-100"
+                onClick={() => onChange({ closedBy: undefined })}
+              >
+                ×
+              </button>
+            </span>
+          )}
+        </div>
+        <Select
+          value={data.closedBy ?? ""}
+          onValueChange={(v) => onChange({ closedBy: v })}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue placeholder="Selecione quem encerra" />
+          </SelectTrigger>
+          <SelectContent>
+            {CLOSED_BY_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
 
 function ConditionEditor({
   data,
   onChange,
   markerTags,
+  agents,
+  sectors,
+  channels,
+  bots,
 }: {
   data: Partial<ConditionNodeData>;
   onChange: (patch: Partial<ConditionNodeData>) => void;
   markerTags: TagOption[];
+  agents: AgentOption[];
+  sectors: SectorOption[];
+  channels: ChannelOption[];
+  bots: BotOption[];
 }) {
-  const branches: ConditionBranch[] = data.branches ?? [];
-  const mode = data.mode ?? "reply";
+  const rules: ConditionRule[] = data.rules ?? [];
+  const hasEmptyField = rules.some((r) => !r.field);
 
-  function addBranch() {
-    const handle = `branch-${nanoid(4)}`;
-    const base: ConditionBranch = { handle, label: "", keywords: [] };
-    if (mode === "attribute") {
-      base.rule = { field: "tag", operator: "has" };
-    }
-    onChange({
-      branches: [...branches, base],
-      defaultHandle: data.defaultHandle ?? "default",
-    });
+  function addRule() {
+    onChange({ rules: [...rules, { field: "tag", operator: "has_all" }] });
   }
 
-  function removeBranch(handle: string) {
-    onChange({
-      branches: branches.filter((b) => b.handle !== handle),
-    });
+  function removeRule(index: number) {
+    onChange({ rules: rules.filter((_, i) => i !== index) });
   }
 
-  function updateBranch(handle: string, patch: Partial<ConditionBranch>) {
+  function updateRule(index: number, patch: Partial<ConditionRule>) {
     onChange({
-      branches: branches.map((b) =>
-        b.handle === handle ? { ...b, ...patch } : b,
-      ),
+      rules: rules.map((r, i) => (i === index ? { ...r, ...patch } : r)),
     });
-  }
-
-  function updateRule(handle: string, patch: Partial<ConditionRule>) {
-    const branch = branches.find((b) => b.handle === handle);
-    const rule: ConditionRule = {
-      field: branch?.rule?.field ?? "tag",
-      operator: branch?.rule?.operator ?? "has",
-      value: branch?.rule?.value,
-      ...patch,
-    };
-    updateBranch(handle, { rule });
   }
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-1">
-        <Label className="text-xs">Ramificar por</Label>
-        <Select
-          value={mode}
-          onValueChange={(v) => onChange({ mode: v as ConditionNodeData["mode"] })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="reply">Resposta do contato</SelectItem>
-            <SelectItem value="attribute">Atributo do contato</SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-[11px] text-muted-foreground">
-          {mode === "attribute"
-            ? "Avalia etiquetas/campos do contato imediatamente, sem aguardar resposta."
-            : "Aguarda a próxima mensagem do contato e ramifica por palavra-chave/IA."}
+    <div className="space-y-4">
+      {/* Group name */}
+      <Input
+        value={data.groupLabel ?? ""}
+        onChange={(e) => onChange({ groupLabel: e.target.value })}
+        placeholder="Nome do grupo de condições"
+        className="text-sm"
+      />
+
+      {/* Condition rows */}
+      <div className="space-y-4">
+        {rules.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Nenhuma condição adicionada. Clique em "+ Adicionar condição" para começar.
+          </p>
+        )}
+        {rules.map((rule, i) => (
+          <ConditionRuleRow
+            key={i}
+            rule={rule}
+            index={i}
+            markerTags={markerTags}
+            agents={agents}
+            sectors={sectors}
+            channels={channels}
+            bots={bots}
+            onChange={(patch) => updateRule(i, patch)}
+            onRemove={() => removeRule(i)}
+          />
+        ))}
+      </div>
+
+      {/* Add condition link */}
+      <button
+        type="button"
+        onClick={addRule}
+        className="text-xs text-primary hover:underline flex items-center gap-1"
+      >
+        <Plus className="h-3 w-3" />
+        Adicionar condição
+      </button>
+
+      {/* Senão block */}
+      <div className="rounded-md border border-dashed border-muted-foreground/30 px-3 py-2.5 text-center">
+        <p className="text-xs text-muted-foreground">
+          Senão → saída <span className="text-red-500 font-medium">Não atende nenhuma</span>
         </p>
       </div>
 
-      {mode === "reply" && (
-        <div className="flex items-center justify-between rounded-md border p-2.5 bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Brain className="h-3.5 w-3.5 text-purple-600" />
-            <div>
-              <p className="text-xs font-medium">Classificação por IA</p>
-              <p className="text-[10px] text-muted-foreground">Usa OpenAI para entender intenção</p>
-            </div>
-          </div>
-          <Switch
-            checked={!!data.useAI}
-            onCheckedChange={(v) => onChange({ useAI: v })}
-          />
-        </div>
+      {/* Validation hint */}
+      {hasEmptyField && (
+        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          É necessário definir um tipo de condição para cada uma das condições.
+        </p>
       )}
-      {branches.map((branch, i) => (
-        <div
-          key={branch.handle}
-          className="border rounded-md p-3 space-y-2 bg-muted/30"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium">Ramo {i + 1}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => removeBranch(branch.handle)}
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Rótulo</Label>
-            <Input
-              value={branch.label}
-              onChange={(e) =>
-                updateBranch(branch.handle, { label: e.target.value })
-              }
-              placeholder={mode === "attribute" ? "Ex: Cliente VIP" : 'Ex: Contém "sim"'}
-            />
-          </div>
-          {mode === "reply" ? (
-            <div className="space-y-1">
-              <Label className="text-xs">Palavras-chave (separadas por vírgula)</Label>
-              <Input
-                value={branch.keywords.join(", ")}
-                onChange={(e) =>
-                  updateBranch(branch.handle, {
-                    keywords: e.target.value
-                      .split(",")
-                      .map((k) => k.trim())
-                      .filter(Boolean),
-                  })
-                }
-                placeholder="sim, yes, s"
-              />
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="space-y-1">
-                <Label className="text-xs">Campo</Label>
-                <Select
-                  value={branch.rule?.field ?? "tag"}
-                  onValueChange={(v) =>
-                    updateRule(branch.handle, {
-                      field: v as ConditionRule["field"],
-                      operator: v === "tag" ? "has" : "equals",
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tag">Etiqueta</SelectItem>
-                    {CONTACT_FIELD_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {branch.rule?.field === "tag" ? (
-                <div className="space-y-1">
-                  <Label className="text-xs">Condição</Label>
-                  <Select
-                    value={branch.rule?.operator ?? "has"}
-                    onValueChange={(v) =>
-                      updateRule(branch.handle, { operator: v as ConditionRule["operator"] })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="has">Possui a etiqueta</SelectItem>
-                      <SelectItem value="not_has">Não possui a etiqueta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={branch.rule?.value ?? ""}
-                    onValueChange={(v) => updateRule(branch.handle, { value: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a etiqueta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {markerTags.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <Label className="text-xs">Condição</Label>
-                  <Select
-                    value={branch.rule?.operator ?? "equals"}
-                    onValueChange={(v) =>
-                      updateRule(branch.handle, { operator: v as ConditionRule["operator"] })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONDITION_OPERATOR_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {branch.rule?.operator !== "is_empty" && (
-                    <Input
-                      value={branch.rule?.value ?? ""}
-                      onChange={(e) => updateRule(branch.handle, { value: e.target.value })}
-                      placeholder="Valor"
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ))}
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full"
-        onClick={addBranch}
-      >
-        <Plus className="h-3 w-3 mr-1" />
-        Adicionar ramo
-      </Button>
-      <p className="text-xs text-muted-foreground">
-        Uma saída "Padrão" é sempre adicionada automaticamente.
-      </p>
     </div>
   );
 }
@@ -1828,6 +3224,12 @@ export default function BotEditor() {
       action: "Ação",
       wait: "Aguardar",
       flow_form: "Formulário WA",
+      transfer_agent: "Transferir p/ atendente",
+      distribute_flow: "Distribuir fluxo",
+      edit_tags: "Editar etiquetas",
+      send_template: "Enviar template",
+      trigger_flow: "Acionar outro fluxo",
+      end_conversation: "Finalizar conversa",
       end: "Fim",
     };
     const defaultData: Partial<BotNodeData & { label: string }> = {
@@ -1836,7 +3238,7 @@ export default function BotEditor() {
     if (type === "condition") {
       (defaultData as Partial<ConditionNodeData>).mode = "reply";
       (defaultData as Partial<ConditionNodeData>).branches = [];
-      (defaultData as Partial<ConditionNodeData>).defaultHandle = "default";
+      (defaultData as Partial<ConditionNodeData>).defaultHandle = "no_match";
     }
     if (type === "menu") {
       (defaultData as Partial<MenuNodeData>).bodyText = "";
@@ -1855,6 +3257,26 @@ export default function BotEditor() {
     }
     if (type === "flow_form") {
       (defaultData as Partial<FlowFormNodeData>).ctaText = "Preencher formulário";
+    }
+    if (type === "transfer_agent") {
+      (defaultData as Partial<TransferAgentNodeData>).rule = "specific";
+    }
+    if (type === "send_template") {
+      (defaultData as Partial<SendTemplateNodeData>).buttonHandles = [];
+    }
+    if (type === "trigger_flow") {
+      const d = defaultData as Partial<TriggerFlowNodeData>;
+      d.executeOnCurrentChannel = true;
+    }
+    if (type === "edit_tags") {
+      (defaultData as Partial<EditTagsNodeData>).mode = "add";
+      (defaultData as Partial<EditTagsNodeData>).tagIds = [];
+    }
+    if (type === "distribute_flow") {
+      (defaultData as Partial<DistributeFlowNodeData>).outputs = [
+        { handle: `out-${nanoid(4)}`, percentage: 50, locked: false },
+        { handle: `out-${nanoid(4)}`, percentage: 50, locked: false },
+      ];
     }
 
     // Posiciona em cascata para não sobrepor nós existentes.
@@ -1904,19 +3326,24 @@ export default function BotEditor() {
       );
     }
 
-    // Condições: cada ramo precisa de uma aresta saindo do seu handle.
+    // Condições: os handles fixos "match" e "no_match" precisam estar conectados.
     for (const n of nodes) {
       if (n.type !== "condition") continue;
-      const branches = (n.data as ConditionNodeData).branches ?? [];
-      for (const b of branches) {
-        const hasEdge = edges.some(
-          (e) => e.source === n.id && e.sourceHandle === b.handle,
+      const hasMatch = edges.some(
+        (e) => e.source === n.id && e.sourceHandle === "match",
+      );
+      const hasNoMatch = edges.some(
+        (e) => e.source === n.id && e.sourceHandle === "no_match",
+      );
+      if (!hasMatch) {
+        problems.push(
+          `No nó "${n.data.label}", a saída "Atende as condições" não está conectada.`,
         );
-        if (!hasEdge) {
-          problems.push(
-            `No nó "${n.data.label}", o ramo "${b.label || b.handle}" não está conectado.`,
-          );
-        }
+      }
+      if (!hasNoMatch) {
+        problems.push(
+          `No nó "${n.data.label}", a saída "Não atende nenhuma" não está conectada.`,
+        );
       }
     }
 
@@ -2123,7 +3550,7 @@ export default function BotEditor() {
               nodeTypes={NODE_TYPES}
               onNodeClick={(_e, node) => {
                 setSelectedNodeId(node.id);
-                setShowMobileProps(true);
+                if (window.innerWidth < 640) setShowMobileProps(true);
               }}
               onNodesDelete={(deleted) =>
                 setSelectedNodeId((cur) =>

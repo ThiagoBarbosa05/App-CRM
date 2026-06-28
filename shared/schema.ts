@@ -3465,13 +3465,50 @@ export type ConditionRuleOperator =
   | "has"
   | "not_has"
   | "equals"
+  | "not_equals"
   | "contains"
-  | "is_empty";
+  | "not_contains"
+  | "starts_with"
+  | "ends_with"
+  | "is_empty"
+  | "exists"
+  | "matches_regex"
+  | "is_true"
+  | "is_false"
+  | "has_all"
+  | "has_none"
+  | "has_any"
+  | "has_exactly"
+  | "not_has_exactly"
+  | "is_one_of"
+  | "is_none_of"
+  | "is_attending"
+  | "not_attending"
+  | "no_agent"
+  | "is_online"
+  | "not_online";
+
+export type ConditionFieldType =
+  | "tag"               // Etiquetas
+  | "contact_field"     // Campo do contato (sub-campo livre)
+  | "contact_active"    // O contato está ativo?
+  | "contact_is_group"  // O contato é um grupo?
+  | "sector"            // Setor da conversa
+  | "channel"           // Canal da conversa
+  | "agent"             // Atendente da conversa
+  | "agent_online"      // Presença do atendente
+  | "first_conversation"// Primeira conversa?
+  | "message_contains"  // Mensagem contém
+  | "value"             // Valor
+  | "parallel_bot"      // Bot paralelo em execução
+  | ContactFieldKey;    // retrocompat
 
 export type ConditionRule = {
-  field: "tag" | ContactFieldKey;
+  field: ConditionFieldType;
   operator: ConditionRuleOperator;
-  value?: string; // tagId (field === "tag") ou valor literal (campos do contato)
+  value?: string;      // tagId, sectorId, agentId, literal, sub-campo, etc.
+  values?: string[];   // múltiplos tagIds (field === "tag")
+  subField?: string;   // sub-campo quando field === "contact_field"
 };
 
 export type ConditionBranch = {
@@ -3486,6 +3523,9 @@ export type ConditionNodeData = {
   branches: ConditionBranch[];
   defaultHandle: string;
   useAI?: boolean; // somente modo "reply"
+  // Modelo estilo Umbler (AND conditions)
+  groupLabel?: string;
+  rules?: ConditionRule[];
 };
 
 export type MenuOption = {
@@ -3571,6 +3611,57 @@ export type FlowFormNodeData = {
   flowToken?: string;
 };
 
+export type EndConversationNodeData = {
+  closedBy?: "owner" | "agent" | string; // "owner" = dono do chat, agentId = atendente específico
+};
+
+export type EditTagsNodeData = {
+  mode: "add" | "remove";
+  tagIds: string[];
+};
+
+export type SendTemplateButtonHandle = {
+  handle: string;  // ex: "btn-0", "btn-1"
+  label: string;
+};
+
+export type SendTemplateNodeData = {
+  templateId?: string;
+  metaTemplateName?: string;
+  metaTemplateLanguage?: string;
+  templateHeaderMedia?: TemplateHeaderMedia;
+  templateParams?: string[];
+  buttonHandles?: SendTemplateButtonHandle[];
+  invalidResponseHandle?: boolean;
+  noResponseHandle?: boolean;
+  notDeliveredHandle?: boolean;
+};
+
+export type DistributeFlowOutput = {
+  handle: string;
+  percentage: number;
+  locked?: boolean;
+};
+
+export type DistributeFlowNodeData = {
+  outputs: DistributeFlowOutput[];
+};
+
+export type TransferAgentNodeData = {
+  rule: "specific" | "any_available" | "random" | "previous_conversation" | "previous_same_conversation";
+  agentId?: string;
+  onlyIfCurrentHasPermission?: boolean;
+  activateFlowIfFailed?: boolean;
+};
+
+export type TriggerFlowNodeData = {
+  targetBotId?: string;
+  targetNodeId?: string;
+  executeOnCurrentChannel?: boolean;
+  scheduleExecution?: boolean;
+  executeParallel?: boolean;
+};
+
 export type BotNodeData =
   | SendMessageNodeData
   | QuestionNodeData
@@ -3579,6 +3670,12 @@ export type BotNodeData =
   | ActionNodeData
   | FlowFormNodeData
   | WaitNodeData
+  | EndConversationNodeData
+  | TransferAgentNodeData
+  | DistributeFlowNodeData
+  | EditTagsNodeData
+  | SendTemplateNodeData
+  | TriggerFlowNodeData
   | Record<string, never>;
 
 // ─── WhatsApp Flows (formulários nativos Meta) ────────────────────────────────
