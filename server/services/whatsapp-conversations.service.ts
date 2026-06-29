@@ -17,7 +17,8 @@ import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull } from "drizzle-
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
-import { uploadWhatsappMedia } from "../lib/r2";
+import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
+import { getTemplateMedia } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
@@ -628,7 +629,7 @@ export async function sendConversationTemplate(
   userRole: string,
   templateName: string,
   languageCode: string,
-  bodyParams: string[] | undefined,
+  bodyParams: { name?: string; value: string }[] | undefined,
   previewText: string | undefined,
   channelId?: number,
 ) {
@@ -666,9 +667,33 @@ export async function sendConversationTemplate(
     );
   }
 
-  const parameters = (bodyParams ?? []).map((text) => ({ type: "text", text }));
-  const components =
-    parameters.length > 0 ? [{ type: "body", parameters }] : undefined;
+  // Corpo: parâmetro nomeado (NAMED) inclui parameter_name; posicional só o texto.
+  const bodyParameters = (bodyParams ?? []).map((p) =>
+    p.name
+      ? { type: "text", parameter_name: p.name, text: p.value }
+      : { type: "text", text: p.value },
+  );
+
+  // Cabeçalho: usa a mídia padrão configurada para o template (enviada como link
+  // público do R2, que a Meta consegue baixar). Igual ao padrão do bot engine.
+  const headerMedia = await getTemplateMedia(templateName, languageCode);
+
+  const componentsArr: object[] = [];
+  if (headerMedia) {
+    componentsArr.push({
+      type: "header",
+      parameters: [
+        {
+          type: headerMedia.mediaType,
+          [headerMedia.mediaType]: { link: getPublicR2Url(headerMedia.storageKey) },
+        },
+      ],
+    });
+  }
+  if (bodyParameters.length > 0) {
+    componentsArr.push({ type: "body", parameters: bodyParameters });
+  }
+  const components = componentsArr.length > 0 ? componentsArr : undefined;
 
   // Persiste imediatamente como "failed" — atualiza para "sent" se a API responder ok.
   // content recebe o texto já com as variáveis substituídas (vindo do front) para

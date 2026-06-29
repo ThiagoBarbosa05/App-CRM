@@ -91,9 +91,11 @@ export interface MetaTemplate {
   status: string;
   category: string;
   language: string;
+  parameter_format?: "NAMED" | "POSITIONAL";
   components: unknown[];
   quality_score?: { score?: string } | null;
   rejected_reason?: string | null;
+  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string } | null;
 }
 
 export interface MetaTemplateCreatePayload {
@@ -467,6 +469,43 @@ export function useUploadTemplateMedia() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao carregar mídia", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// Configura a mídia padrão de cabeçalho de um template aprovado (usada no envio).
+export function useSetTemplateDefaultMedia() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (params: {
+      name: string;
+      language: string;
+      file: File;
+    }): Promise<{ storageKey: string; mediaType: string }> => {
+      const formData = new FormData();
+      formData.append("file", params.file);
+      formData.append("language", params.language);
+      const res = await fetch(
+        `/api/whatsapp/templates/meta/${encodeURIComponent(params.name)}/default-media`,
+        {
+          method: "POST",
+          headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
+          body: formData,
+          credentials: "include",
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Erro ao configurar mídia padrão");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Mídia padrão configurada" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates", "meta"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao configurar mídia", description: error.message, variant: "destructive" });
     },
   });
 }

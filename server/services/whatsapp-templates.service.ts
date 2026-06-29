@@ -1,6 +1,11 @@
 import { db } from "server/db";
-import { whatsappTemplates, type InsertWhatsappTemplate, type WhatsappTemplate } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import {
+  whatsappTemplates,
+  whatsappTemplateMedia,
+  type InsertWhatsappTemplate,
+  type WhatsappTemplate,
+} from "@shared/schema";
+import { and, eq } from "drizzle-orm";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 
 export async function listLocalTemplates(): Promise<WhatsappTemplate[]> {
@@ -88,9 +93,12 @@ export interface MetaTemplate {
   status: string;
   category: string;
   language: string;
+  parameter_format?: "NAMED" | "POSITIONAL";
   components: unknown[];
   quality_score?: { score?: string } | null;
   rejected_reason?: string | null;
+  // Mídia padrão de cabeçalho configurada localmente (não vem da Meta).
+  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string } | null;
 }
 
 const INACTIVE_META_STATUSES = new Set(["REJECTED", "PAUSED", "DISABLED", "PENDING_DELETION"]);
@@ -137,7 +145,8 @@ export async function fetchMetaTemplates(): Promise<MetaTemplate[]> {
   }
 
   // Busca todos os status (aprovados, pendentes, rejeitados, pausados…)
-  const fields = "id,name,status,category,language,components,quality_score,rejected_reason";
+  const fields =
+    "id,name,status,category,language,parameter_format,components,quality_score,rejected_reason";
   const url = `https://graph.facebook.com/${apiVersion}/${wabaId}/message_templates?fields=${fields}&limit=100`;
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -149,7 +158,70 @@ export async function fetchMetaTemplates(): Promise<MetaTemplate[]> {
   }
 
   const json = await response.json();
-  return (json.data ?? []) as MetaTemplate[];
+  const templates = (json.data ?? []) as MetaTemplate[];
+
+  // Anexa a mídia padrão de cabeçalho configurada localmente (por nome + idioma).
+  const mediaRows = await db.select().from(whatsappTemplateMedia);
+  const mediaByKey = new Map(
+    mediaRows.map((m) => [`${m.templateName}::${m.languageCode}`, m]),
+  );
+  for (const t of templates) {
+    const media = mediaByKey.get(`${t.name}::${t.language}`);
+    t.headerMedia = media
+      ? { mediaType: media.mediaType as "image" | "video" | "document", storageKey: media.storageKey }
+      : null;
+  }
+
+  return templates;
+}
+
+/** Busca a mídia padrão de cabeçalho de um template (nome + idioma). */
+export async function getTemplateMedia(
+  templateName: string,
+  languageCode: string,
+): Promise<{ mediaType: "image" | "video" | "document"; storageKey: string } | null> {
+  const [row] = await db
+    .select()
+    .from(whatsappTemplateMedia)
+    .where(
+      and(
+        eq(whatsappTemplateMedia.templateName, templateName),
+        eq(whatsappTemplateMedia.languageCode, languageCode),
+      ),
+    )
+    .limit(1);
+  if (!row) return null;
+  return {
+    mediaType: row.mediaType as "image" | "video" | "document",
+    storageKey: row.storageKey,
+  };
+}
+
+/** Cria ou atualiza a mídia padrão de cabeçalho de um template (por nome + idioma). */
+export async function upsertTemplateMedia(params: {
+  templateName: string;
+  languageCode: string;
+  mediaType: "image" | "video" | "document";
+  storageKey: string;
+  userId?: string;
+}): Promise<void> {
+  await db
+    .insert(whatsappTemplateMedia)
+    .values({
+      templateName: params.templateName,
+      languageCode: params.languageCode,
+      mediaType: params.mediaType,
+      storageKey: params.storageKey,
+      createdBy: params.userId,
+    })
+    .onConflictDoUpdate({
+      target: [whatsappTemplateMedia.templateName, whatsappTemplateMedia.languageCode],
+      set: {
+        mediaType: params.mediaType,
+        storageKey: params.storageKey,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 /** Exclui um template da Meta pelo nome (remove todos os idiomas com esse nome). */

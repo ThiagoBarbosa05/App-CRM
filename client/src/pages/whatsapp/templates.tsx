@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Plus,
   FileText,
@@ -13,6 +13,9 @@ import {
   Eye,
   AlertTriangle,
   ChevronRight,
+  Upload,
+  Loader2,
+  Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
@@ -54,6 +57,7 @@ import {
 import {
   useWhatsappMetaTemplates,
   useDeleteMetaTemplate,
+  useSetTemplateDefaultMedia,
   type MetaTemplate,
 } from "@/hooks/use-whatsapp";
 import { useAuth } from "@/hooks/useAuth";
@@ -157,17 +161,86 @@ function readComponents(components: unknown[]) {
   return { header, body, footer, buttons };
 }
 
+// ── Configuração da mídia padrão de cabeçalho ───────────────────────────────────
+
+const MEDIA_HEADER_FORMATS = ["IMAGE", "VIDEO", "DOCUMENT"];
+
+function TemplateMediaConfig({ template }: { template: MetaTemplate }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const setMedia = useSetTemplateDefaultMedia();
+  const { header } = readComponents(template.components);
+  const format = header?.format?.toUpperCase();
+  const accept =
+    format === "IMAGE" ? "image/*" : format === "VIDEO" ? "video/*" : "application/pdf";
+
+  const handleFile = (file?: File) => {
+    if (!file) return;
+    setMedia.mutate({ name: template.name, language: template.language, file });
+  };
+
+  return (
+    <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+      <p className="text-xs font-medium flex items-center gap-1.5">
+        <ImageIcon className="h-3.5 w-3.5" />
+        Mídia padrão do cabeçalho
+      </p>
+      <p className="text-xs text-muted-foreground">
+        Esta mídia será enviada no cabeçalho sempre que o template for enviado a um contato.
+      </p>
+      {template.headerMedia ? (
+        <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+          <CheckCircle className="h-3.5 w-3.5" />
+          Mídia configurada ({template.headerMedia.mediaType}).
+        </p>
+      ) : (
+        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          Nenhuma mídia configurada — o envio ficará bloqueado até configurar.
+        </p>
+      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => {
+          handleFile(e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="gap-2"
+        disabled={setMedia.isPending}
+        onClick={() => fileInputRef.current?.click()}
+      >
+        {setMedia.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Upload className="h-4 w-4" />
+        )}
+        {template.headerMedia ? "Substituir mídia" : "Configurar mídia"}
+      </Button>
+    </div>
+  );
+}
+
 // ── Dialog de detalhes ──────────────────────────────────────────────────────────
 
 function TemplateDetailsDialog({
   template,
+  canManageMeta,
   onClose,
 }: {
   template: MetaTemplate | null;
+  canManageMeta: boolean;
   onClose: () => void;
 }) {
   if (!template) return null;
   const { header, body, footer, buttons } = readComponents(template.components);
+  const isMediaHeader = MEDIA_HEADER_FORMATS.includes((header?.format ?? "").toUpperCase());
 
   return (
     <Dialog open={!!template} onOpenChange={(v) => !v && onClose()}>
@@ -221,6 +294,10 @@ function TemplateDetailsDialog({
                 ))}
               </div>
             </div>
+          )}
+
+          {canManageMeta && template.status === "APPROVED" && isMediaHeader && (
+            <TemplateMediaConfig template={template} />
           )}
         </div>
       </DialogContent>
@@ -538,7 +615,11 @@ export default function WhatsAppTemplates() {
       <MetaTemplateFormDialog open={metaDialogOpen} onClose={() => setMetaDialogOpen(false)} />
 
       {/* Detalhes */}
-      <TemplateDetailsDialog template={details} onClose={() => setDetails(null)} />
+      <TemplateDetailsDialog
+        template={details}
+        canManageMeta={canManageMeta}
+        onClose={() => setDetails(null)}
+      />
 
       {/* Excluir */}
       <AlertDialog open={!!deletingName} onOpenChange={(v) => !v && setDeletingName(null)}>

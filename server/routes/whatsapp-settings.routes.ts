@@ -14,7 +14,9 @@ import {
   deleteLocalTemplate,
   fetchMetaTemplates,
   deleteMetaTemplate,
+  upsertTemplateMedia,
 } from "../services/whatsapp-templates.service";
+import { uploadWhatsappMedia } from "../lib/r2";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
 import {
   createMetaTemplate,
@@ -148,6 +150,51 @@ router.post("/templates/meta/media", templateMediaUpload.single("file"), async (
     res.status(500).json({ message });
   }
 });
+
+// Configura a mídia padrão de cabeçalho de um template aprovado. Diferente do
+// upload de "handle" (acima, usado só na criação do template), esta mídia é
+// guardada no R2 e enviada como link público no envio do template ao contato.
+router.post(
+  "/templates/meta/:name/default-media",
+  templateMediaUpload.single("file"),
+  async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const role = user?.role;
+      if (role !== "admin" && role !== "gerente") {
+        return res.status(403).json({ message: "Acesso negado" });
+      }
+      if (!req.file) return res.status(400).json({ message: "Nenhum arquivo enviado" });
+
+      const mime = req.file.mimetype;
+      const mediaType: "image" | "video" | "document" = mime.startsWith("image/")
+        ? "image"
+        : mime.startsWith("video/")
+          ? "video"
+          : "document";
+
+      const languageCode =
+        typeof req.body?.language === "string" && req.body.language.trim()
+          ? req.body.language.trim()
+          : "pt_BR";
+
+      const storageKey = await uploadWhatsappMedia(req.file.buffer, mime);
+
+      await upsertTemplateMedia({
+        templateName: req.params.name,
+        languageCode,
+        mediaType,
+        storageKey,
+        userId: user?.userId,
+      });
+
+      res.json({ storageKey, mediaType });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Erro ao configurar mídia do template";
+      res.status(500).json({ message });
+    }
+  },
+);
 
 const createTemplateSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),

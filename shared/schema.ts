@@ -3331,6 +3331,34 @@ export type WhatsappSetting = typeof whatsappSettings.$inferSelect;
 export type WhatsappTemplate = typeof whatsappTemplates.$inferSelect;
 export type InsertWhatsappTemplate = typeof whatsappTemplates.$inferInsert;
 
+// Mídia padrão de cabeçalho por template aprovado da Meta. Usada no envio de
+// templates com header de mídia (imagem/vídeo/documento) pela tela de conversas.
+// A mídia é guardada no R2 (storageKey) e enviada ao Meta como link público.
+export const whatsappTemplateMedia = pgTable(
+  "whatsapp_template_media",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    templateName: text("template_name").notNull(),
+    languageCode: text("language_code").notNull().default("pt_BR"),
+    mediaType: text("media_type", { enum: ["image", "video", "document"] }).notNull(),
+    storageKey: text("storage_key").notNull(),
+    createdBy: varchar("created_by").references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    templateLangUnique: unique("whatsapp_template_media_name_lang_unique").on(
+      table.templateName,
+      table.languageCode,
+    ),
+  }),
+);
+
+export type WhatsappTemplateMedia = typeof whatsappTemplateMedia.$inferSelect;
+export type InsertWhatsappTemplateMedia = typeof whatsappTemplateMedia.$inferInsert;
+
 // ─── WhatsApp Bots ────────────────────────────────────────────────────────────
 
 export const whatsappBots = pgTable("whatsapp_bots", {

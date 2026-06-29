@@ -59,12 +59,19 @@ import {
   Wifi,
   WifiOff,
   Radio,
+  User,
 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Channel {
   id: number;
@@ -1766,7 +1773,9 @@ interface MetaTemplateItem {
   status: string;
   category: string;
   language: string;
+  parameter_format?: "NAMED" | "POSITIONAL";
   components: MetaTemplateComponent[];
+  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string } | null;
 }
 
 function readTemplateComponents(components: MetaTemplateComponent[] | undefined) {
@@ -1777,37 +1786,49 @@ function readTemplateComponents(components: MetaTemplateComponent[] | undefined)
   return { header, body, footer };
 }
 
-// Conta as variáveis {{1}}, {{2}}… do corpo (nº de params = maior índice).
-function countTemplateVars(text: string | undefined): number {
-  if (!text) return 0;
-  const matches = text.match(/\{\{\s*(\d+)\s*\}\}/g) ?? [];
-  let max = 0;
-  for (const m of matches) {
-    const n = parseInt(m.replace(/\D/g, ""), 10);
-    if (n > max) max = n;
-  }
-  return max;
+// Extrai os nomes das variáveis ({{1}}, {{nome}}…) do corpo, na ordem e sem
+// duplicatas. Suporta tanto posicional quanto nomeado.
+function extractTemplateVars(text: string | undefined): string[] {
+  if (!text) return [];
+  const matches = text.match(/\{\{\s*([^}]+?)\s*\}\}/g) ?? [];
+  const vars = matches.map((m) => m.replace(/^\{\{\s*|\s*\}\}$/g, "").trim());
+  return vars.filter((v, i) => vars.indexOf(v) === i);
 }
 
-function applyTemplateVars(text: string, params: string[]): string {
-  return text.replace(/\{\{\s*(\d+)\s*\}\}/g, (_, d: string) => {
-    const value = params[parseInt(d, 10) - 1];
-    return value && value.length > 0 ? value : `{{${d}}}`;
+// Substitui {{var}} pelos valores fornecidos (mapeados por nome da variável).
+function applyTemplateVars(text: string, values: Record<string, string>): string {
+  return text.replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, name: string) => {
+    const key = name.trim();
+    const value = values[key];
+    return value && value.length > 0 ? value : `{{${key}}}`;
   });
+}
+
+interface TemplateClient {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  cpf: string | null;
+  city: string | null;
+  state: string | null;
 }
 
 function TemplatePicker({
   onSend,
+  clientId,
 }: {
   onSend: (data: {
     templateName: string;
     languageCode: string;
-    bodyParams: string[];
+    bodyParams: { name?: string; value: string }[];
     previewText: string;
   }) => void;
+  clientId: string | null;
 }) {
   const [selected, setSelected] = useState<MetaTemplateItem | null>(null);
-  const [params, setParams] = useState<string[]>([]);
+  // Valores das variáveis, mapeados pelo nome do placeholder ({{nome}} ou {{1}}).
+  const [values, setValues] = useState<Record<string, string>>({});
 
   const { data: templates = [], isLoading } = useQuery<MetaTemplateItem[]>({
     queryKey: ["/api/whatsapp/templates/meta"],
@@ -1818,25 +1839,61 @@ function TemplatePicker({
     },
   });
 
+  // Cliente vinculado à conversa — usado para preencher variáveis com seus dados.
+  const { data: clientData } = useQuery<TemplateClient>({
+    queryKey: ["/api/clients", clientId],
+    queryFn: async () => {
+      const res = await fetch(`/api/clients/${clientId}`);
+      if (!res.ok) throw new Error("Falha ao buscar cliente");
+      return res.json();
+    },
+    enabled: !!clientId,
+  });
+
+  // Conjunto curado de campos do cliente disponíveis (apenas os preenchidos).
+  const firstName = clientData?.name?.trim().split(/\s+/)[0] ?? "";
+  const clientFields = (
+    [
+      { label: "Nome", value: clientData?.name },
+      { label: "Primeiro nome", value: firstName },
+      { label: "Telefone", value: clientData?.phone },
+      { label: "E-mail", value: clientData?.email },
+      { label: "CPF/CNPJ", value: clientData?.cpf },
+      { label: "Cidade", value: clientData?.city },
+      { label: "Estado", value: clientData?.state },
+    ] as { label: string; value: string | null | undefined }[]
+  ).filter((f): f is { label: string; value: string } => !!f.value && f.value.trim().length > 0);
+
   const approved = templates.filter(
     (t) => t.status?.toUpperCase() === "APPROVED",
   );
 
   const selectTemplate = (t: MetaTemplateItem) => {
-    const { body } = readTemplateComponents(t.components);
-    const count = countTemplateVars(body?.text);
     setSelected(t);
-    setParams(Array(count).fill(""));
+    setValues({});
   };
+
+  // Define se o template usa parâmetros nomeados. Usa parameter_format quando a
+  // Meta o informa; senão infere (algum placeholder não-numérico → nomeado).
+  const isNamedFormat = (t: MetaTemplateItem, vars: string[]) =>
+    t.parameter_format
+      ? t.parameter_format === "NAMED"
+      : vars.some((v) => !/^\d+$/.test(v));
 
   const submit = () => {
     if (!selected) return;
     const { body } = readTemplateComponents(selected.components);
-    const previewText = applyTemplateVars(body?.text ?? selected.name, params);
+    const vars = extractTemplateVars(body?.text);
+    const named = isNamedFormat(selected, vars);
+    const bodyParams = vars.map((v) => ({
+      name: named ? v : undefined,
+      value: values[v] ?? "",
+    }));
+    const previewText = applyTemplateVars(body?.text ?? selected.name, values);
     onSend({
       templateName: selected.name,
       languageCode: selected.language,
-      bodyParams: params,
+      bodyParams,
       previewText,
     });
   };
@@ -1848,8 +1905,11 @@ function TemplatePicker({
     );
     const hasMediaHeader =
       !!header && !header.text && !!header.format && header.format !== "TEXT";
-    const canSubmit = params.every((p) => p.trim().length > 0);
-    const preview = applyTemplateVars(body?.text ?? "", params);
+    const mediaMissing = hasMediaHeader && !selected.headerMedia;
+    const vars = extractTemplateVars(body?.text);
+    const allFilled = vars.every((v) => (values[v] ?? "").trim().length > 0);
+    const canSubmit = allFilled && !mediaMissing;
+    const preview = applyTemplateVars(body?.text ?? "", values);
 
     return (
       <div className="w-[min(340px,calc(100vw-2rem))] flex flex-col">
@@ -1887,27 +1947,61 @@ function TemplatePicker({
             )}
           </div>
 
+          {/* Aviso: template de mídia sem mídia padrão configurada */}
+          {mediaMissing && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/15 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5 mt-px shrink-0" />
+              <span>
+                Configure a mídia padrão deste template na página de Templates antes de enviá-lo.
+              </span>
+            </div>
+          )}
+
           {/* Inputs de variáveis */}
-          {params.length > 0 && (
+          {vars.length > 0 && (
             <div className="flex flex-col gap-2">
-              {params.map((value, i) => (
-                <div key={i}>
-                  <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1 block">
-                    Variável {i + 1} {"{{"}
-                    {i + 1}
-                    {"}}"}
-                  </label>
+              {vars.map((v) => (
+                <div key={v}>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 font-mono">
+                      {`{{${v}}}`}
+                    </label>
+                    {clientFields.length > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                          >
+                            <User className="h-3 w-3" />
+                            Inserir dado
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto">
+                          {clientFields.map((f) => (
+                            <DropdownMenuItem
+                              key={f.label}
+                              onClick={() =>
+                                setValues((prev) => ({ ...prev, [v]: f.value }))
+                              }
+                            >
+                              <span className="text-xs">{f.label}</span>
+                              <span className="ml-2 text-[10px] text-muted-foreground truncate max-w-[130px]">
+                                {f.value}
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
                   <input
                     type="text"
-                    value={value}
+                    value={values[v] ?? ""}
                     onChange={(e) =>
-                      setParams((prev) => {
-                        const next = [...prev];
-                        next[i] = e.target.value;
-                        return next;
-                      })
+                      setValues((prev) => ({ ...prev, [v]: e.target.value }))
                     }
-                    placeholder={`Valor da variável ${i + 1}`}
+                    placeholder={`Valor de {{${v}}}`}
                     className="w-full rounded-md border border-slate-200 dark:border-slate-700 bg-transparent px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
@@ -1955,7 +2049,7 @@ function TemplatePicker({
         <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-64 overflow-y-auto">
           {approved.map((t) => {
             const { body } = readTemplateComponents(t.components);
-            const varCount = countTemplateVars(body?.text);
+            const varCount = extractTemplateVars(body?.text).length;
             return (
               <button
                 key={t.id}
@@ -2767,7 +2861,7 @@ function ConversationMessages({
     async (data: {
       templateName: string;
       languageCode: string;
-      bodyParams: string[];
+      bodyParams: { name?: string; value: string }[];
       previewText: string;
     }) => {
       const localId = crypto.randomUUID();
@@ -2783,7 +2877,7 @@ function ConversationMessages({
         const body: {
           templateName: string;
           languageCode: string;
-          bodyParams: string[];
+          bodyParams: { name?: string; value: string }[];
           previewText: string;
           channelId?: number;
         } = {
@@ -3839,6 +3933,7 @@ function ConversationMessages({
                   </PopoverTrigger>
                   <PopoverContent side="top" align="start" className="p-0 w-auto">
                     <TemplatePicker
+                      clientId={client.clientId}
                       onSend={(data) => {
                         setTemplatePickerOpen(false);
                         sendTemplate(data);

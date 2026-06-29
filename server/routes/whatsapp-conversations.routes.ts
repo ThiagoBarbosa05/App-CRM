@@ -286,7 +286,11 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
 const sendTemplateSchema = z.object({
   templateName: z.string().min(1),
   languageCode: z.string().min(1).default("pt_BR"),
-  bodyParams: z.array(z.string()).optional(),
+  // Cada parâmetro do corpo: `name` presente → template NAMED (parameter_name),
+  // ausente → template POSITIONAL (ordem do array).
+  bodyParams: z
+    .array(z.object({ name: z.string().optional(), value: z.string() }))
+    .optional(),
   previewText: z.string().optional(),
   channelId: z.number().int().positive().optional(),
 });
