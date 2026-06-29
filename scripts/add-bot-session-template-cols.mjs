@@ -11,7 +11,7 @@
 import { neon } from "@neondatabase/serverless";
 import "dotenv/config";
 
-const url = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
+const url = 'postgresql://neondb_owner:npg_L0HdjTg2seph@ep-plain-waterfall-adekkzn1.c-2.us-east-1.aws.neon.tech/neondb'
 if (!url) {
   console.error("Defina DATABASE_URL ou TEST_DATABASE_URL no .env");
   process.exit(1);

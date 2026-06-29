@@ -700,12 +700,18 @@ async function executeNode(
         });
       }
 
-      const result = await sendTemplateMessage(
-        phone,
-        d.metaTemplateName,
-        d.metaTemplateLanguage ?? "pt_BR",
-        components,
-      );
+      let result: Awaited<ReturnType<typeof sendTemplateMessage>>;
+      try {
+        result = await sendTemplateMessage(
+          phone,
+          d.metaTemplateName,
+          d.metaTemplateLanguage ?? "pt_BR",
+          components,
+        );
+      } catch (err) {
+        console.error("[BotEngine] Falha ao enviar template:", err);
+        throw new Error(`Falha ao enviar template "${d.metaTemplateName}": ${err instanceof Error ? err.message : String(err)}`);
+      }
       const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
       await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `Template: ${d.metaTemplateName}` });
 
@@ -731,6 +737,7 @@ async function executeNode(
     }
 
     case "transfer_agent": {
+      // NOTA: d.onlyIfCurrentHasPermission é no-op — não há modelo de permissão no schema (limitação conhecida).
       const d = data as TransferAgentNodeData;
       const conversation = await findOrCreateConversation(phone);
 
@@ -795,6 +802,9 @@ async function executeNode(
 
     case "distribute_flow": {
       const d = data as DistributeFlowNodeData;
+      if (!d.outputs?.length) {
+        console.warn("[BotEngine] distribute_flow sem outputs — avançando pela primeira aresta disponível");
+      }
       const handle = pickDistributeHandle(d.outputs ?? [], Math.random);
       const next = await getNextNode(botId, node.id, handle ?? undefined);
       if (next) await executeNode(next, phone, sessionId, botId, variables);
@@ -802,16 +812,27 @@ async function executeNode(
     }
 
     case "end_conversation": {
+      const d = data as EndConversationNodeData;
       const conversation = await findOrCreateConversation(phone);
       await db
         .update(whatsappConversations)
         .set({ status: "closed", updatedAt: new Date() })
         .where(eq(whatsappConversations.id, conversation.id));
+
+      let closedByText = "bot";
+      if (d.closedBy === "owner") {
+        closedByText = "dono do chat";
+      } else if (d.closedBy === "agent") {
+        closedByText = "atendente";
+      } else if (d.closedBy) {
+        closedByText = `agente ${d.closedBy}`;
+      }
+
       await db.insert(whatsappMessages).values({
         conversationId: conversation.id,
         direction: "outbound",
         type: "system",
-        content: "🤖 Atendimento encerrado pelo bot",
+        content: `🤖 Atendimento encerrado pelo ${closedByText}`,
         status: "sent",
         sentAt: new Date(),
       });
@@ -831,6 +852,8 @@ async function executeNode(
         } else {
           await removeContactTags(conversation.clientId, d.tagIds ?? []);
         }
+      } else {
+        console.warn("[BotEngine] edit_tags ignorado — conversa sem clientId vinculado");
       }
       const next = await getNextNode(botId, node.id);
       if (next) await executeNode(next, phone, sessionId, botId, variables);
@@ -842,6 +865,12 @@ async function executeNode(
         status: "completed",
         completedAt: new Date(),
       });
+      break;
+    }
+
+    default: {
+      console.error("[BotEngine] Tipo de nó não suportado:", node.type);
+      await updateSession(sessionId, { status: "completed", completedAt: new Date() });
       break;
     }
   }
@@ -1094,9 +1123,9 @@ export async function handleIncomingMessage(
       } else if (currentNode.type === "send_template") {
         const d = currentNode.data as SendTemplateNodeData;
         const buttonHandles = d.buttonHandles ?? [];
-        const matchedButton = replyId
-          ? buttonHandles.find((b) => b.handle === replyId)
-          : buttonHandles.find((b) => b.label.toLowerCase().trim() === messageText.toLowerCase().trim());
+        const byHandle = (id: string) => buttonHandles.find((b) => b.handle === id);
+        const byLabel = (text: string) => buttonHandles.find((b) => b.label.toLowerCase().trim() === text.toLowerCase().trim());
+        const matchedButton = (replyId ? byHandle(replyId) : undefined) ?? byLabel(messageText);
 
         const handle = matchedButton?.handle ?? (d.invalidResponseHandle ? "invalid_response" : null);
 
@@ -1111,6 +1140,8 @@ export async function handleIncomingMessage(
           } else {
             await updateSession(session.id, { status: "completed", completedAt: new Date() });
           }
+        } else {
+          console.warn("[BotEngine] send_template: resposta não reconhecida e invalidResponseHandle desligado — mensagem ignorada");
         }
         return;
       } else if (currentNode.type === "condition") {
@@ -1177,6 +1208,8 @@ export async function expireInactiveSessions(): Promise<number> {
         lt(whatsappBotSessions.lastActivityAt, cutoff),
         // Não expira sessões pausadas por um nó de espera (Aguardar).
         isNull(whatsappBotSessions.resumeAt),
+        // Não expira sessões aguardando resposta de template (prazo de 24h — processTemplateTimeouts cuida delas).
+        isNull(whatsappBotSessions.responseDeadlineAt),
       ),
     )
     .returning({ id: whatsappBotSessions.id });

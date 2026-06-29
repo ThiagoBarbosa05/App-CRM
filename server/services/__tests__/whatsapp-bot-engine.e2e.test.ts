@@ -54,6 +54,7 @@ import {
   handleIncomingMessage,
   handleTemplateDeliveryFailure,
   processTemplateTimeouts,
+  expireInactiveSessions,
   startBotSession,
 } from "../whatsapp-bot-engine.service";
 import * as wa from "../../integrations/whatsapp";
@@ -966,5 +967,209 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
       "Janela de 24h fechada",
     );
     expect(uploadMedia).not.toHaveBeenCalled();
+  });
+
+  // ── FIX 1: expireInactiveSessions não mata sessão com responseDeadlineAt pendente ──
+
+  it("expireInactiveSessions: não expira sessão de send_template com responseDeadlineAt futuro", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero!" }],
+        noResponseHandle: true,
+      },
+    });
+    const noResp = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Sem resposta detectada." },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, tmpl.id);
+    await addEdge(bot.id, tmpl.id, noResp.id, "no_response");
+    await addEdge(bot.id, noResp.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    // Forçar lastActivityAt muito antigo (além dos 30 min) mas mantendo responseDeadlineAt no futuro
+    await db
+      .update(whatsappBotSessions)
+      .set({ lastActivityAt: new Date(Date.now() - 60 * 60 * 1000) }) // 1h atrás
+      .where(eq(whatsappBotSessions.phoneNumber, phone));
+
+    await expireInactiveSessions();
+
+    const session = await getSession(phone);
+    // Sessão deve continuar active — o job de expiração não deve matar sessões com prazo de resposta pendente
+    expect(session?.status).toBe("active");
+  });
+
+  it("expireInactiveSessions: após correção, processTemplateTimeouts ainda pode rotear no_response", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero!" }],
+        noResponseHandle: true,
+      },
+    });
+    const noResp = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Sem resposta detectada." },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, tmpl.id);
+    await addEdge(bot.id, tmpl.id, noResp.id, "no_response");
+    await addEdge(bot.id, noResp.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    // Simular lastActivityAt antigo + responseDeadlineAt expirado
+    await db
+      .update(whatsappBotSessions)
+      .set({
+        lastActivityAt: new Date(Date.now() - 60 * 60 * 1000),
+        responseDeadlineAt: new Date(Date.now() - 1000),
+      })
+      .where(eq(whatsappBotSessions.phoneNumber, phone));
+
+    // job de expiração NÃO deve matar a sessão (tem responseDeadlineAt)
+    await expireInactiveSessions();
+    const sessionAfterExpire = await getSession(phone);
+    expect(sessionAfterExpire?.status).toBe("active");
+
+    // job de timeout do template dispara o no_response
+    await processTemplateTimeouts();
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Sem resposta detectada.");
+  });
+
+  // ── FIX 3: end_conversation honra closedBy ────────────────────────────────────
+
+  it("end_conversation: quando closedBy='owner', nota de sistema menciona dono do chat", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const { conversationId } = await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const endConv = await addNode(bot.id, {
+      type: "end_conversation",
+      data: { closedBy: "owner" },
+    });
+    await addEdge(bot.id, start.id, endConv.id);
+
+    await startBotSession(bot.id, phone);
+
+    const notes = await db
+      .select()
+      .from(whatsappMessages)
+      .where(
+        and(
+          eq(whatsappMessages.conversationId, conversationId),
+          eq(whatsappMessages.type, "system"),
+        ),
+      );
+    expect(notes.some((n) => n.content?.includes("dono"))).toBe(true);
+  });
+
+  it("end_conversation: quando closedBy='agent', nota de sistema menciona atendente", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const { conversationId } = await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const endConv = await addNode(bot.id, {
+      type: "end_conversation",
+      data: { closedBy: "agent" },
+    });
+    await addEdge(bot.id, start.id, endConv.id);
+
+    await startBotSession(bot.id, phone);
+
+    const notes = await db
+      .select()
+      .from(whatsappMessages)
+      .where(
+        and(
+          eq(whatsappMessages.conversationId, conversationId),
+          eq(whatsappMessages.type, "system"),
+        ),
+      );
+    expect(notes.some((n) => n.content?.includes("atendente"))).toBe(true);
+  });
+
+  // ── FIX 4: matcher de botão — replyId não-correspondente cai para label ────────
+
+  it("send_template: replyId preenchido mas sem match → fallback por label roteia corretamente", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero!" }],
+      },
+    });
+    const confirmed = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Confirmado pelo label!" },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, tmpl.id);
+    await addEdge(bot.id, tmpl.id, confirmed.id, "btn-0");
+    await addEdge(bot.id, confirmed.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    // replyId preenchido mas não casa com nenhum btn-N; label "Quero!" casa
+    await handleIncomingMessage(phone, "Quero!", "REPLYID_DESCONHECIDO");
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Confirmado pelo label!");
+  });
+
+  // ── FIX 5: try/catch no envio de send_template ────────────────────────────────
+
+  it("send_template: falha no envio lança erro amigável em vez de silêncio", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [],
+      },
+    });
+    await addEdge(bot.id, start.id, tmpl.id);
+
+    sendTemplateMessage.mockRejectedValueOnce(new Error("API fora do ar"));
+
+    await expect(startBotSession(bot.id, phone)).rejects.toThrow(
+      "Falha ao enviar template",
+    );
   });
 });
