@@ -14,3 +14,9 @@ server/index.ts
 *.csv
 docs/analise-migracao-meta-api.md
 /.playwright-mcp
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

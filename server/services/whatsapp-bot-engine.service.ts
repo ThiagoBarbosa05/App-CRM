@@ -207,12 +207,12 @@ async function updateSession(
     .where(eq(whatsappBotSessions.id, sessionId));
 }
 
-function interpolate(text: string, variables: Record<string, string>): string {
+export function interpolate(text: string, variables: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`);
 }
 
 /** Valida os 11 dígitos de um CPF (dígitos verificadores). */
-function isValidCpf(value: string): boolean {
+export function isValidCpf(value: string): boolean {
   const digits = value.replace(/\D/g, "");
   if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
   const calc = (len: number) => {
@@ -228,7 +228,7 @@ function isValidCpf(value: string): boolean {
  * Valida a resposta do contato conforme o tipo configurado no nó de Pergunta.
  * Retorna true quando válida (ou quando não há validação).
  */
-function validateAnswer(
+export function validateAnswer(
   value: string,
   validation: QuestionNodeData["validation"],
 ): boolean {
@@ -713,7 +713,7 @@ async function resolveAttributeHandle(
  * (interactive reply id === handle da opção); como fallback, casa o texto
  * clicado com o label da opção. Retorna o handle da opção ou null.
  */
-function resolveMenuHandle(
+export function resolveMenuHandle(
   node: WhatsappBotNode,
   messageText: string,
   replyId?: string | null,
