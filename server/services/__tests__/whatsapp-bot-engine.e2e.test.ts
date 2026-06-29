@@ -55,6 +55,7 @@ import {
   startBotSession,
 } from "../whatsapp-bot-engine.service";
 import * as wa from "../../integrations/whatsapp";
+import * as r2lib from "../../lib/r2";
 import {
   addEdge,
   addNode,
@@ -69,6 +70,10 @@ import {
 
 const sendTextMessage = vi.mocked(wa.sendTextMessage);
 const sendButtonsMessage = vi.mocked(wa.sendButtonsMessage);
+const sendTemplateMessage = vi.mocked(wa.sendTemplateMessage);
+const sendMediaMessage = vi.mocked(wa.sendMediaMessage);
+const uploadMedia = vi.mocked(wa.uploadMedia);
+const r2Send = vi.mocked(r2lib.r2.send);
 
 /** Telefones distintos por teste evitam colisão na janela de 24h / sessão. */
 let phoneSeq = 0;
@@ -287,5 +292,195 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
 
     expect(first).toBe("started");
     expect(second).toBe("already_active");
+  });
+
+  // ── send_message: template ───────────────────────────────────────────────
+
+  it("send_message template: chama sendTemplateMessage com nome e idioma corretos", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+
+    const start = await addNode(bot.id, { type: "start" });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: {
+        messageType: "template",
+        metaTemplateName: "boas_vindas",
+        metaTemplateLanguage: "pt_BR",
+        templateParams: [],
+      },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, send.id);
+    await addEdge(bot.id, send.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    expect(sendTemplateMessage).toHaveBeenCalledTimes(1);
+    const [toArg, nameArg, langArg] = sendTemplateMessage.mock.calls[0];
+    expect(toArg).toBe(phone);
+    expect(nameArg).toBe("boas_vindas");
+    expect(langArg).toBe("pt_BR");
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+  });
+
+  it("send_message template: interpola variáveis de sessão nos parâmetros de texto", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const question = await addNode(bot.id, {
+      type: "question",
+      data: { messageText: "Qual seu nome?", captureVariable: "nome" },
+    });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: {
+        messageType: "template",
+        metaTemplateName: "tpl_com_nome",
+        metaTemplateLanguage: "pt_BR",
+        templateParams: [
+          {
+            type: "body",
+            parameters: [{ type: "text", text: "{{nome}}" }],
+          },
+        ],
+      },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, question.id);
+    await addEdge(bot.id, question.id, send.id);
+    await addEdge(bot.id, send.id, end.id);
+
+    await startBotSession(bot.id, phone);
+    await handleIncomingMessage(phone, "Maria");
+
+    expect(sendTemplateMessage).toHaveBeenCalledTimes(1);
+    const components = sendTemplateMessage.mock.calls[0][3] as Array<{
+      type: string;
+      parameters: Array<{ type: string; text: string }>;
+    }>;
+    const bodyComp = components.find((c) => c.type === "body");
+    expect(bodyComp?.parameters[0]?.text).toBe("Maria");
+  });
+
+  it("send_message template: injeta mídia de header via URL pública do R2", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+
+    const start = await addNode(bot.id, { type: "start" });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: {
+        messageType: "template",
+        metaTemplateName: "tpl_com_imagem",
+        metaTemplateLanguage: "pt_BR",
+        templateParams: [],
+        templateHeaderMedia: {
+          storageKey: "uploads/header-img.jpg",
+          type: "image",
+          name: "header-img.jpg",
+          mimeType: "image/jpeg",
+        },
+      },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, send.id);
+    await addEdge(bot.id, send.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    expect(sendTemplateMessage).toHaveBeenCalledTimes(1);
+    const components = sendTemplateMessage.mock.calls[0][3] as Array<{
+      type: string;
+      parameters: Array<{ type: string; image: { link: string } }>;
+    }>;
+    const headerComp = components.find((c) => c.type === "header");
+    expect(headerComp).toBeDefined();
+    expect(headerComp?.parameters[0]?.image?.link).toBe(
+      "https://cdn.test/uploads/header-img.jpg",
+    );
+  });
+
+  // ── send_message: texto + anexo ──────────────────────────────────────────
+
+  it("send_message com anexo: faz upload no R2 e envia mídia com o texto como legenda", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const fakeBody = (async function* () {
+      yield Buffer.from("fake-image-bytes");
+    })();
+    r2Send.mockResolvedValueOnce({ Body: fakeBody } as never);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: {
+        messageType: "text",
+        text: "Veja a imagem:",
+        attachment: {
+          storageKey: "uploads/foto.jpg",
+          type: "image",
+          name: "foto.jpg",
+          mimeType: "image/jpeg",
+        },
+      },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, send.id);
+    await addEdge(bot.id, send.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    expect(uploadMedia).toHaveBeenCalledTimes(1);
+    expect(sendMediaMessage).toHaveBeenCalledTimes(1);
+    const [toArg, mediaIdArg, typeArg, captionArg] =
+      sendMediaMessage.mock.calls[0];
+    expect(toArg).toBe(phone);
+    expect(mediaIdArg).toBe("media-id-test");
+    expect(typeArg).toBe("image");
+    expect(captionArg).toBe("Veja a imagem:");
+    expect(sendTextMessage).not.toHaveBeenCalled();
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+  });
+
+  it("send_message com anexo: lança erro quando a janela de 24h está fechada", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    // Intencionalmente NÃO abre a janela de 24h
+
+    const start = await addNode(bot.id, { type: "start" });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: {
+        messageType: "text",
+        attachment: {
+          storageKey: "uploads/doc.pdf",
+          type: "document",
+          name: "doc.pdf",
+          mimeType: "application/pdf",
+        },
+      },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, send.id);
+    await addEdge(bot.id, send.id, end.id);
+
+    await expect(startBotSession(bot.id, phone)).rejects.toThrow(
+      "Janela de 24h fechada",
+    );
+    expect(uploadMedia).not.toHaveBeenCalled();
   });
 });
