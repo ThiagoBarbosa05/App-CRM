@@ -52,6 +52,8 @@ vi.mock("../../ai-helpers", () => ({
 
 import {
   handleIncomingMessage,
+  handleTemplateDeliveryFailure,
+  processTemplateTimeouts,
   startBotSession,
 } from "../whatsapp-bot-engine.service";
 import * as wa from "../../integrations/whatsapp";
@@ -71,7 +73,7 @@ import {
   resetBotTables,
 } from "../../test/bot-fixtures";
 import { db } from "../../db";
-import { contactTags, whatsappConversations, whatsappMessages } from "@shared/schema";
+import { contactTags, whatsappBotSessions, whatsappConversations, whatsappMessages } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
 const sendTextMessage = vi.mocked(wa.sendTextMessage);
@@ -518,6 +520,356 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
       .from(contactTags)
       .where(eq(contactTags.clientId, client.id));
     expect(rows.map((r) => r.tagId)).not.toContain(tag.id);
+  });
+
+  // ── send_template ────────────────────────────────────────────────────────────
+
+  it("send_template: envia o template e pausa a sessão no nó", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero!" }],
+      },
+    });
+    await addEdge(bot.id, start.id, tmpl.id);
+
+    await startBotSession(bot.id, phone);
+
+    expect(sendTemplateMessage).toHaveBeenCalledOnce();
+    expect(sendTemplateMessage.mock.calls[0][1]).toBe("promo_verao");
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("active");
+    expect(session?.currentNodeId).toBe(tmpl.id);
+    expect(session?.pendingMessageId).toBe("wamid.test");
+  });
+
+  it("send_template: clique no botão roteia para o handle correto e conclui", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero!" }],
+      },
+    });
+    const msg = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Ótimo! Em breve entraremos em contato." },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, tmpl.id);
+    await addEdge(bot.id, tmpl.id, msg.id, "btn-0");
+    await addEdge(bot.id, msg.id, end.id);
+
+    await startBotSession(bot.id, phone);
+    // Session paused at tmpl
+    await handleIncomingMessage(phone, "Quero!", "btn-0");
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Ótimo! Em breve entraremos em contato.");
+  });
+
+  it("send_template: resposta inválida roteia para invalid_response handle", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero!" }],
+        invalidResponseHandle: true,
+      },
+    });
+    const invalid = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Resposta não reconhecida." },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, tmpl.id);
+    await addEdge(bot.id, tmpl.id, invalid.id, "invalid_response");
+    await addEdge(bot.id, invalid.id, end.id);
+
+    await startBotSession(bot.id, phone);
+    await handleIncomingMessage(phone, "texto aleatório");
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Resposta não reconhecida.");
+  });
+
+  it("send_template: processTemplateTimeouts roteia para no_response quando prazo expirou", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero!" }],
+        noResponseHandle: true,
+      },
+    });
+    const noResp = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Sem resposta detectada." },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, tmpl.id);
+    await addEdge(bot.id, tmpl.id, noResp.id, "no_response");
+    await addEdge(bot.id, noResp.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    // Forçar o prazo para o passado
+    await db
+      .update(whatsappBotSessions)
+      .set({ responseDeadlineAt: new Date(Date.now() - 1000) })
+      .where(eq(whatsappBotSessions.phoneNumber, phone));
+
+    await processTemplateTimeouts();
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Sem resposta detectada.");
+  });
+
+  it("send_template: handleTemplateDeliveryFailure roteia para not_delivered quando entrega falha", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo_verao",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero!" }],
+        notDeliveredHandle: true,
+      },
+    });
+    const notDel = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Falha na entrega." },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, tmpl.id);
+    await addEdge(bot.id, tmpl.id, notDel.id, "not_delivered");
+    await addEdge(bot.id, notDel.id, end.id);
+
+    await startBotSession(bot.id, phone);
+    // pending_message_id foi gravado como "wamid.test" pelo mock
+
+    await handleTemplateDeliveryFailure("wamid.test");
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Falha na entrega.");
+  });
+
+  // ── trigger_flow ─────────────────────────────────────────────────────────────
+
+  it("trigger_flow: encerra a sessão atual e inicia o bot alvo do zero", async () => {
+    const user = await createUser();
+
+    const botB = await createBot(user.id, { name: "Bot B" });
+    const startB = await addNode(botB.id, { type: "start" });
+    const msgB = await addNode(botB.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Olá do Bot B!" },
+    });
+    const endB = await addNode(botB.id, { type: "end" });
+    await addEdge(botB.id, startB.id, msgB.id);
+    await addEdge(botB.id, msgB.id, endB.id);
+
+    const botA = await createBot(user.id, { name: "Bot A" });
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const startA = await addNode(botA.id, { type: "start" });
+    const trigger = await addNode(botA.id, {
+      type: "trigger_flow",
+      data: { targetBotId: botB.id },
+    });
+    await addEdge(botA.id, startA.id, trigger.id);
+
+    await startBotSession(botA.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.botId).toBe(botB.id);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Olá do Bot B!");
+  });
+
+  it("trigger_flow: com targetNodeId inicia o bot alvo a partir do nó indicado", async () => {
+    const user = await createUser();
+
+    const botB = await createBot(user.id, { name: "Bot B" });
+    const startB = await addNode(botB.id, { type: "start" });
+    const midNode = await addNode(botB.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Iniciou no meio!" },
+    });
+    const endB = await addNode(botB.id, { type: "end" });
+    await addEdge(botB.id, startB.id, midNode.id);
+    await addEdge(botB.id, midNode.id, endB.id);
+
+    const botA = await createBot(user.id, { name: "Bot A" });
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const startA = await addNode(botA.id, { type: "start" });
+    const trigger = await addNode(botA.id, {
+      type: "trigger_flow",
+      data: { targetBotId: botB.id, targetNodeId: midNode.id },
+    });
+    await addEdge(botA.id, startA.id, trigger.id);
+
+    await startBotSession(botA.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.botId).toBe(botB.id);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Iniciou no meio!");
+  });
+
+  // ── transfer_agent ───────────────────────────────────────────────────────────
+
+  it("transfer_agent (specific): atribui o agente, registra nota de sistema e conclui a sessão", async () => {
+    const user = await createUser();
+    const agent = await createUser({ role: "vendedor" });
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const { conversationId } = await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const transfer = await addNode(bot.id, {
+      type: "transfer_agent",
+      data: { rule: "specific", agentId: agent.id },
+    });
+    await addEdge(bot.id, start.id, transfer.id);
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+
+    const [conv] = await db
+      .select()
+      .from(whatsappConversations)
+      .where(eq(whatsappConversations.id, conversationId));
+    expect(conv.assignedAgentId).toBe(agent.id);
+
+    const notes = await db
+      .select()
+      .from(whatsappMessages)
+      .where(
+        and(
+          eq(whatsappMessages.conversationId, conversationId),
+          eq(whatsappMessages.type, "system"),
+        ),
+      );
+    expect(notes.length).toBeGreaterThan(0);
+  });
+
+  it("transfer_agent: agente não resolvido com activateFlowIfFailed segue para o próximo nó", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const transfer = await addNode(bot.id, {
+      type: "transfer_agent",
+      // specific sem agentId → não resolve
+      data: { rule: "specific", activateFlowIfFailed: true },
+    });
+    const fallback = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Nenhum agente disponível no momento." },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, transfer.id);
+    await addEdge(bot.id, transfer.id, fallback.id);
+    await addEdge(bot.id, fallback.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Nenhum agente disponível no momento.");
+  });
+
+  // ── distribute_flow ───────────────────────────────────────────────────────────
+
+  it("distribute_flow: roteia para o handle correto conforme Math.random stubado", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const dist = await addNode(bot.id, {
+      type: "distribute_flow",
+      data: {
+        outputs: [
+          { handle: "branch-a", percentage: 50 },
+          { handle: "branch-b", percentage: 50 },
+        ],
+      },
+    });
+    const msgA = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Caiu em A" },
+    });
+    const msgB = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Caiu em B" },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+
+    await addEdge(bot.id, start.id, dist.id);
+    await addEdge(bot.id, dist.id, msgA.id, "branch-a");
+    await addEdge(bot.id, dist.id, msgB.id, "branch-b");
+    await addEdge(bot.id, msgA.id, end.id);
+    await addEdge(bot.id, msgB.id, end.id);
+
+    // rng=0.1 → cai em branch-a (percentual 50/50)
+    vi.spyOn(Math, "random").mockReturnValue(0.1);
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Caiu em A");
+    expect(sentTexts()).not.toContain("Caiu em B");
+
+    vi.restoreAllMocks();
   });
 
   it("end_conversation: fecha a conversa, completa a sessão e registra nota de sistema", async () => {

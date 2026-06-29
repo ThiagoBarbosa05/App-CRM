@@ -4,7 +4,7 @@ import { db } from "../db";
 import { whatsappCampaignMessages, whatsappFlows, whatsappMessages } from "@shared/schema";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { upsertWhatsappSetting } from "../services/whatsapp-settings.service";
-import { handleIncomingMessage as runBotEngine, handleFlowResponse } from "../services/whatsapp-bot-engine.service";
+import { handleIncomingMessage as runBotEngine, handleFlowResponse, handleTemplateDeliveryFailure } from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage, saveInboundReaction } from "../services/whatsapp-conversations.service";
 import { getChannelByPhoneNumberId } from "../services/whatsapp-channels.service";
 import { logAccountEvent } from "../services/whatsapp-account-events.service";
@@ -150,8 +150,13 @@ async function handleMessageStatus(status: {
   timestamp: string;
   errors?: Array<{ title?: string; message?: string; code?: number }>;
 }) {
-  if (status.status === "failed" && status.errors?.length) {
-    console.error(`[WA Webhook] Mensagem ${status.id} → failed | errors:`, JSON.stringify(status.errors));
+  if (status.status === "failed") {
+    if (status.errors?.length) {
+      console.error(`[WA Webhook] Mensagem ${status.id} → failed | errors:`, JSON.stringify(status.errors));
+    }
+    handleTemplateDeliveryFailure(status.id).catch((err) =>
+      console.error("[WA Webhook] Erro ao processar falha de entrega de template:", err),
+    );
   } else {
     console.log(`[WA Webhook] Mensagem ${status.id} → ${status.status}`);
   }

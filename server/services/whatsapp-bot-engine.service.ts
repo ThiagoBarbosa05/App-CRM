@@ -26,6 +26,11 @@ import {
   type BotNodeData,
   type EditTagsNodeData,
   type EndConversationNodeData,
+  type DistributeFlowNodeData,
+  type SendTemplateNodeData,
+  type TransferAgentNodeData,
+  type TriggerFlowNodeData,
+  users,
 } from "@shared/schema";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage } from "../integrations/whatsapp";
@@ -201,12 +206,58 @@ async function updateSession(
     completedAt?: Date;
     sessionData?: Record<string, string>;
     resumeAt?: Date | null;
+    pendingMessageId?: string | null;
+    responseDeadlineAt?: Date | null;
   },
 ): Promise<void> {
   await db
     .update(whatsappBotSessions)
     .set({ ...data, lastActivityAt: new Date() })
     .where(eq(whatsappBotSessions.id, sessionId));
+}
+
+export type TransferAgentCtx = {
+  currentConversationAgentId: string | null;
+  clientPreviousAgentId: string | null;
+  attendantIds: string[];
+  rng: () => number;
+};
+
+export function resolveTransferAgent(
+  data: TransferAgentNodeData,
+  ctx: TransferAgentCtx,
+): string | null {
+  switch (data.rule) {
+    case "specific":
+      return data.agentId ?? null;
+    case "previous_same_conversation":
+      return ctx.currentConversationAgentId;
+    case "previous_conversation":
+      return ctx.clientPreviousAgentId;
+    case "any_available":
+    case "random": {
+      if (ctx.attendantIds.length === 0) return null;
+      const idx = Math.floor(ctx.rng() * ctx.attendantIds.length);
+      return ctx.attendantIds[idx];
+    }
+    default:
+      return null;
+  }
+}
+
+export function pickDistributeHandle(
+  outputs: Array<{ handle: string; percentage: number }>,
+  rng: () => number,
+): string | null {
+  if (outputs.length === 0) return null;
+  const total = outputs.reduce((sum, o) => sum + o.percentage, 0);
+  const r = rng() * total;
+  let cursor = 0;
+  for (const o of outputs) {
+    cursor += o.percentage;
+    if (r < cursor) return o.handle;
+  }
+  return outputs[outputs.length - 1].handle;
 }
 
 export function interpolate(text: string, variables: Record<string, string>): string {
@@ -627,6 +678,129 @@ async function executeNode(
       break;
     }
 
+    case "send_template": {
+      const d = data as SendTemplateNodeData;
+      if (!d.metaTemplateName) break;
+
+      const components: object[] = [];
+      if (d.templateParams?.length) {
+        components.push({
+          type: "body",
+          parameters: d.templateParams.map((p) => ({
+            type: "text",
+            text: interpolate(p, variables),
+          })),
+        });
+      }
+      if (d.templateHeaderMedia?.storageKey) {
+        const m = d.templateHeaderMedia;
+        components.unshift({
+          type: "header",
+          parameters: [{ type: m.type, [m.type]: { link: getPublicR2Url(m.storageKey) } }],
+        });
+      }
+
+      const result = await sendTemplateMessage(
+        phone,
+        d.metaTemplateName,
+        d.metaTemplateLanguage ?? "pt_BR",
+        components,
+      );
+      const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+      await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `Template: ${d.metaTemplateName}` });
+
+      const deadline = d.noResponseHandle
+        ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+        : null;
+
+      await updateSession(sessionId, {
+        currentNodeId: node.id,
+        pendingMessageId: waId,
+        responseDeadlineAt: deadline,
+      });
+      break;
+    }
+
+    case "trigger_flow": {
+      const d = data as TriggerFlowNodeData;
+      await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+      if (d.targetBotId) {
+        await startBotSession(d.targetBotId, phone, d.targetNodeId);
+      }
+      break;
+    }
+
+    case "transfer_agent": {
+      const d = data as TransferAgentNodeData;
+      const conversation = await findOrCreateConversation(phone);
+
+      // Busca o agente da conversa anterior do cliente (para regra previous_conversation)
+      let clientPreviousAgentId: string | null = null;
+      if (d.rule === "previous_conversation" && conversation.clientId) {
+        const [prev] = await db
+          .select({ assignedAgentId: whatsappConversations.assignedAgentId })
+          .from(whatsappConversations)
+          .where(
+            and(
+              eq(whatsappConversations.clientId, conversation.clientId),
+              // exclui a conversa atual
+              sql`${whatsappConversations.id} != ${conversation.id}`,
+            ),
+          )
+          .orderBy(desc(whatsappConversations.createdAt))
+          .limit(1);
+        clientPreviousAgentId = prev?.assignedAgentId ?? null;
+      }
+
+      // Busca atendentes (vendedor e gerente) para regras any_available/random
+      const attendantRows = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(or(eq(users.role, "vendedor"), eq(users.role, "gerente")));
+      const attendantIds = attendantRows.map((r) => r.id);
+
+      const agentId = resolveTransferAgent(d, {
+        currentConversationAgentId: conversation.assignedAgentId ?? null,
+        clientPreviousAgentId,
+        attendantIds,
+        rng: Math.random,
+      });
+
+      if (agentId) {
+        await db
+          .update(whatsappConversations)
+          .set({ assignedAgentId: agentId, updatedAt: new Date() })
+          .where(eq(whatsappConversations.id, conversation.id));
+        await db.insert(whatsappMessages).values({
+          conversationId: conversation.id,
+          direction: "outbound",
+          type: "system",
+          content: "🤖 Atendimento transferido para agente pelo bot",
+          status: "sent",
+          sentAt: new Date(),
+        });
+        await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+      } else if (d.activateFlowIfFailed) {
+        const next = await getNextNode(botId, node.id);
+        if (next) {
+          await executeNode(next, phone, sessionId, botId, variables);
+        } else {
+          await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+        }
+      } else {
+        await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+      }
+      break;
+    }
+
+    case "distribute_flow": {
+      const d = data as DistributeFlowNodeData;
+      const handle = pickDistributeHandle(d.outputs ?? [], Math.random);
+      const next = await getNextNode(botId, node.id, handle ?? undefined);
+      if (next) await executeNode(next, phone, sessionId, botId, variables);
+      break;
+    }
+
     case "end_conversation": {
       const conversation = await findOrCreateConversation(phone);
       await db
@@ -767,19 +941,30 @@ export function resolveMenuHandle(
   return byLabel?.handle ?? null;
 }
 
-export async function startBotSession(botId: string, phone: string): Promise<"started" | "already_active" | "no_start_node"> {
-  const [startNode] = await db
-    .select()
-    .from(whatsappBotNodes)
-    .where(
-      and(
-        eq(whatsappBotNodes.botId, botId),
-        eq(whatsappBotNodes.type, "start"),
-      ),
-    )
-    .limit(1);
+export async function startBotSession(
+  botId: string,
+  phone: string,
+  startNodeId?: string,
+): Promise<"started" | "already_active" | "no_start_node"> {
+  let entryNode: WhatsappBotNode | null = null;
 
-  if (!startNode) return "no_start_node";
+  if (startNodeId) {
+    entryNode = await getNode(startNodeId);
+  } else {
+    const [found] = await db
+      .select()
+      .from(whatsappBotNodes)
+      .where(
+        and(
+          eq(whatsappBotNodes.botId, botId),
+          eq(whatsappBotNodes.type, "start"),
+        ),
+      )
+      .limit(1);
+    entryNode = found ?? null;
+  }
+
+  if (!entryNode) return "no_start_node";
 
   const existingSession = await getActiveSession(phone);
   if (existingSession) return "already_active";
@@ -792,7 +977,7 @@ export async function startBotSession(botId: string, phone: string): Promise<"st
     .values({
       botId,
       phoneNumber: phone,
-      currentNodeId: startNode.id,
+      currentNodeId: entryNode.id,
       status: "active",
       sessionData: {},
     })
@@ -820,7 +1005,7 @@ export async function startBotSession(botId: string, phone: string): Promise<"st
     console.error("[WaBot] Erro ao registrar início do bot:", err);
   }
 
-  await executeNode(startNode, phone, newSession.id, botId, {});
+  await executeNode(entryNode, phone, newSession.id, botId, {});
   return "started";
 }
 
@@ -906,6 +1091,28 @@ export async function handleIncomingMessage(
         }
         await updateSession(session.id, { sessionData: variables });
         await executeNode(next, phone, session.id, session.botId, variables);
+      } else if (currentNode.type === "send_template") {
+        const d = currentNode.data as SendTemplateNodeData;
+        const buttonHandles = d.buttonHandles ?? [];
+        const matchedButton = replyId
+          ? buttonHandles.find((b) => b.handle === replyId)
+          : buttonHandles.find((b) => b.label.toLowerCase().trim() === messageText.toLowerCase().trim());
+
+        const handle = matchedButton?.handle ?? (d.invalidResponseHandle ? "invalid_response" : null);
+
+        if (handle) {
+          await updateSession(session.id, {
+            pendingMessageId: null,
+            responseDeadlineAt: null,
+          });
+          const next = await getNextNode(session.botId, currentNode.id, handle);
+          if (next) {
+            await executeNode(next, phone, session.id, session.botId, variables);
+          } else {
+            await updateSession(session.id, { status: "completed", completedAt: new Date() });
+          }
+        }
+        return;
       } else if (currentNode.type === "condition") {
         const handle = await resolveConditionHandle(currentNode, messageText);
         const next = await getNextNode(session.botId, currentNode.id, handle);
@@ -1013,4 +1220,79 @@ export async function resumeWaitingSessions(): Promise<number> {
   }
 
   return due.length;
+}
+
+/**
+ * Varre sessões ativas em nó send_template cujo responseDeadlineAt já expirou
+ * e roteia para o handle "no_response". Chamado pelo job periódico.
+ */
+export async function processTemplateTimeouts(): Promise<number> {
+  const now = new Date();
+  const due = await db
+    .select()
+    .from(whatsappBotSessions)
+    .where(
+      and(
+        eq(whatsappBotSessions.status, "active"),
+        isNotNull(whatsappBotSessions.responseDeadlineAt),
+        lte(whatsappBotSessions.responseDeadlineAt, now),
+      ),
+    );
+
+  for (const session of due) {
+    try {
+      const node = await getNode(session.currentNodeId);
+      if (!node || node.type !== "send_template") continue;
+
+      await updateSession(session.id, {
+        pendingMessageId: null,
+        responseDeadlineAt: null,
+      });
+
+      const next = await getNextNode(session.botId, node.id, "no_response");
+      if (next) {
+        await executeNode(next, session.phoneNumber, session.id, session.botId, session.sessionData ?? {});
+      } else {
+        await updateSession(session.id, { status: "completed", completedAt: new Date() });
+      }
+    } catch (err) {
+      console.error("[BotEngine] Erro ao processar timeout de template:", err);
+    }
+  }
+
+  return due.length;
+}
+
+/**
+ * Chamado pelo webhook quando uma mensagem de template falhou na entrega.
+ * Roteia sessões que aguardavam essa mensagem para o handle "not_delivered".
+ */
+export async function handleTemplateDeliveryFailure(waMessageId: string): Promise<void> {
+  const [session] = await db
+    .select()
+    .from(whatsappBotSessions)
+    .where(
+      and(
+        eq(whatsappBotSessions.status, "active"),
+        eq(whatsappBotSessions.pendingMessageId, waMessageId),
+      ),
+    )
+    .limit(1);
+
+  if (!session) return;
+
+  const node = await getNode(session.currentNodeId);
+  if (!node || node.type !== "send_template") return;
+
+  await updateSession(session.id, {
+    pendingMessageId: null,
+    responseDeadlineAt: null,
+  });
+
+  const next = await getNextNode(session.botId, node.id, "not_delivered");
+  if (next) {
+    await executeNode(next, session.phoneNumber, session.id, session.botId, session.sessionData ?? {});
+  } else {
+    await updateSession(session.id, { status: "completed", completedAt: new Date() });
+  }
 }

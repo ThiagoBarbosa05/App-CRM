@@ -3408,7 +3408,9 @@ export const whatsappBotSessions = pgTable(
       .notNull()
       .default("active"),
     sessionData: jsonb("session_data").$type<Record<string, string>>().default({}).notNull(),
-    resumeAt: timestamp("resume_at"), // nó de espera: quando a sessão deve ser retomada
+    resumeAt: timestamp("resume_at"),
+    pendingMessageId: varchar("pending_message_id"),
+    responseDeadlineAt: timestamp("response_deadline_at"),
     startedAt: timestamp("started_at").defaultNow().notNull(),
     lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),

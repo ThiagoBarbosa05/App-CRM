@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   interpolate,
   isValidCpf,
+  pickDistributeHandle,
   resolveMenuHandle,
+  resolveTransferAgent,
   validateAnswer,
 } from "../whatsapp-bot-engine.service";
-import type { MenuNodeData, WhatsappBotNode } from "@shared/schema";
+import type { DistributeFlowOutput, MenuNodeData, TransferAgentNodeData, WhatsappBotNode } from "@shared/schema";
 
 /**
  * Testes UNITÁRIOS da lógica pura de decisão do engine do bot.
@@ -116,5 +118,89 @@ describe("resolveMenuHandle", () => {
 
   it("retorna null quando a escolha não casa com nenhuma opção", () => {
     expect(resolveMenuHandle(menuNode(options), "talvez")).toBeNull();
+  });
+});
+
+describe("pickDistributeHandle", () => {
+  const outputs: DistributeFlowOutput[] = [
+    { handle: "a", percentage: 50 },
+    { handle: "b", percentage: 50 },
+  ];
+
+  it("rng=0 cai no primeiro bucket", () => {
+    expect(pickDistributeHandle(outputs, () => 0)).toBe("a");
+  });
+
+  it("rng=0.5 (exatamente no limite) cai no segundo bucket", () => {
+    expect(pickDistributeHandle(outputs, () => 0.5)).toBe("b");
+  });
+
+  it("rng=0.99 cai no último bucket", () => {
+    expect(pickDistributeHandle(outputs, () => 0.99)).toBe("b");
+  });
+
+  it("normaliza percentuais quando a soma não é 100", () => {
+    const uneven: DistributeFlowOutput[] = [
+      { handle: "x", percentage: 1 },
+      { handle: "y", percentage: 3 },
+    ];
+    // total=4; x ocupa 0-0.25, y ocupa 0.25-1.0
+    expect(pickDistributeHandle(uneven, () => 0)).toBe("x");
+    expect(pickDistributeHandle(uneven, () => 0.25)).toBe("y");
+    expect(pickDistributeHandle(uneven, () => 0.99)).toBe("y");
+  });
+
+  it("lista vazia retorna null", () => {
+    expect(pickDistributeHandle([], () => 0.5)).toBeNull();
+  });
+});
+
+describe("resolveTransferAgent", () => {
+  const ctx = {
+    currentConversationAgentId: "agent-current",
+    clientPreviousAgentId: "agent-previous",
+    attendantIds: ["att-1", "att-2", "att-3"],
+    rng: () => 0,
+  };
+
+  it("specific: retorna o agentId configurado", () => {
+    const data: TransferAgentNodeData = { rule: "specific", agentId: "agent-x" };
+    expect(resolveTransferAgent(data, ctx)).toBe("agent-x");
+  });
+
+  it("specific: retorna null quando agentId não está configurado", () => {
+    const data: TransferAgentNodeData = { rule: "specific" };
+    expect(resolveTransferAgent(data, ctx)).toBeNull();
+  });
+
+  it("previous_same_conversation: retorna o agente da conversa atual", () => {
+    const data: TransferAgentNodeData = { rule: "previous_same_conversation" };
+    expect(resolveTransferAgent(data, ctx)).toBe("agent-current");
+  });
+
+  it("previous_same_conversation: retorna null quando conversa não tem agente", () => {
+    const data: TransferAgentNodeData = { rule: "previous_same_conversation" };
+    expect(resolveTransferAgent(data, { ...ctx, currentConversationAgentId: null })).toBeNull();
+  });
+
+  it("previous_conversation: retorna o agente da conversa anterior do cliente", () => {
+    const data: TransferAgentNodeData = { rule: "previous_conversation" };
+    expect(resolveTransferAgent(data, ctx)).toBe("agent-previous");
+  });
+
+  it("random: usa rng para escolher entre os atendentes", () => {
+    const data: TransferAgentNodeData = { rule: "random" };
+    expect(resolveTransferAgent(data, { ...ctx, rng: () => 0 })).toBe("att-1");
+    expect(resolveTransferAgent(data, { ...ctx, rng: () => 0.99 })).toBe("att-3");
+  });
+
+  it("any_available: comportamento idêntico ao random", () => {
+    const data: TransferAgentNodeData = { rule: "any_available" };
+    expect(resolveTransferAgent(data, { ...ctx, rng: () => 0 })).toBe("att-1");
+  });
+
+  it("any_available: retorna null quando não há atendentes", () => {
+    const data: TransferAgentNodeData = { rule: "any_available" };
+    expect(resolveTransferAgent(data, { ...ctx, attendantIds: [] })).toBeNull();
   });
 });
