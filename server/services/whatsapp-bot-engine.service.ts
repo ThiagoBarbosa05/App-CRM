@@ -24,6 +24,8 @@ import {
   type WaitNodeData,
   type ContactFieldKey,
   type BotNodeData,
+  type EditTagsNodeData,
+  type EndConversationNodeData,
 } from "@shared/schema";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage } from "../integrations/whatsapp";
@@ -622,6 +624,42 @@ async function executeNode(
         sessionData: variables,
         resumeAt,
       });
+      break;
+    }
+
+    case "end_conversation": {
+      const conversation = await findOrCreateConversation(phone);
+      await db
+        .update(whatsappConversations)
+        .set({ status: "closed", updatedAt: new Date() })
+        .where(eq(whatsappConversations.id, conversation.id));
+      await db.insert(whatsappMessages).values({
+        conversationId: conversation.id,
+        direction: "outbound",
+        type: "system",
+        content: "🤖 Atendimento encerrado pelo bot",
+        status: "sent",
+        sentAt: new Date(),
+      });
+      await updateSession(sessionId, {
+        status: "completed",
+        completedAt: new Date(),
+      });
+      break;
+    }
+
+    case "edit_tags": {
+      const d = data as EditTagsNodeData;
+      const conversation = await findOrCreateConversation(phone);
+      if (conversation.clientId) {
+        if (d.mode === "add") {
+          await addContactTags(conversation.clientId, d.tagIds ?? []);
+        } else {
+          await removeContactTags(conversation.clientId, d.tagIds ?? []);
+        }
+      }
+      const next = await getNextNode(botId, node.id);
+      if (next) await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 

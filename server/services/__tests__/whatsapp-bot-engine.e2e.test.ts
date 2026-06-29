@@ -59,7 +59,10 @@ import * as r2lib from "../../lib/r2";
 import {
   addEdge,
   addNode,
+  attachTag,
   createBot,
+  createClient,
+  createTag,
   createUser,
   describeBotE2E,
   getOutboundMessages,
@@ -67,6 +70,9 @@ import {
   openCustomerWindow,
   resetBotTables,
 } from "../../test/bot-fixtures";
+import { db } from "../../db";
+import { contactTags, whatsappConversations, whatsappMessages } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
 
 const sendTextMessage = vi.mocked(wa.sendTextMessage);
 const sendButtonsMessage = vi.mocked(wa.sendButtonsMessage);
@@ -453,6 +459,132 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
 
     const session = await getSession(phone);
     expect(session?.status).toBe("completed");
+  });
+
+  it("edit_tags (modo add): adiciona etiqueta ao cliente e conclui a sessão", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const tag = await createTag("VIP");
+    const client = await createClient({ phone });
+    await openCustomerWindow(phone, client.id);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const editTags = await addNode(bot.id, {
+      type: "edit_tags",
+      data: { mode: "add", tagIds: [tag.id] },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, editTags.id);
+    await addEdge(bot.id, editTags.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+
+    const rows = await db
+      .select()
+      .from(contactTags)
+      .where(eq(contactTags.clientId, client.id));
+    expect(rows.map((r) => r.tagId)).toContain(tag.id);
+  });
+
+  it("edit_tags (modo remove): remove etiqueta do cliente e conclui a sessão", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const tag = await createTag("Removível");
+    const client = await createClient({ phone });
+    await attachTag(client.id, tag.id);
+    await openCustomerWindow(phone, client.id);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const editTags = await addNode(bot.id, {
+      type: "edit_tags",
+      data: { mode: "remove", tagIds: [tag.id] },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, editTags.id);
+    await addEdge(bot.id, editTags.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+
+    const rows = await db
+      .select()
+      .from(contactTags)
+      .where(eq(contactTags.clientId, client.id));
+    expect(rows.map((r) => r.tagId)).not.toContain(tag.id);
+  });
+
+  it("end_conversation: fecha a conversa, completa a sessão e registra nota de sistema", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const { conversationId } = await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Encerrando o atendimento." },
+    });
+    const endConv = await addNode(bot.id, {
+      type: "end_conversation",
+      data: {},
+    });
+    await addEdge(bot.id, start.id, send.id);
+    await addEdge(bot.id, send.id, endConv.id);
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+
+    const [conv] = await db
+      .select()
+      .from(whatsappConversations)
+      .where(eq(whatsappConversations.id, conversationId));
+    expect(conv.status).toBe("closed");
+
+    const messages = await db
+      .select()
+      .from(whatsappMessages)
+      .where(
+        and(
+          eq(whatsappMessages.conversationId, conversationId),
+          eq(whatsappMessages.type, "system"),
+        ),
+      );
+    expect(messages.length).toBeGreaterThan(0);
+  });
+
+  it("end_conversation: é nó terminal — não precisa de aresta de saída para completar", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const { conversationId } = await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const endConv = await addNode(bot.id, {
+      type: "end_conversation",
+      data: {},
+    });
+    await addEdge(bot.id, start.id, endConv.id);
+    // Sem aresta de saída a partir de endConv
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+
+    const [conv] = await db
+      .select()
+      .from(whatsappConversations)
+      .where(eq(whatsappConversations.id, conversationId));
+    expect(conv.status).toBe("closed");
   });
 
   it("send_message com anexo: lança erro quando a janela de 24h está fechada", async () => {

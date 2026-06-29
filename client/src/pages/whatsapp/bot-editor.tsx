@@ -19,7 +19,6 @@ import {
   ArrowRightLeft,
   Save,
   MessageCircle,
-  HelpCircle,
   GitBranch,
   Zap,
   PlayCircle,
@@ -82,7 +81,6 @@ import {
 import {
   StartNode,
   SendMessageNode,
-  QuestionNode,
   ConditionNode,
   MenuNode,
   ActionNode,
@@ -101,7 +99,6 @@ import type {
   SendMessageNodeData,
   SendMessageAttachment,
   TemplateHeaderMedia,
-  QuestionNodeData,
   ConditionNodeData,
   ConditionBranch,
   ConditionRule,
@@ -129,7 +126,6 @@ type FlowEdge = Edge;
 const NODE_TYPES = {
   start: StartNode,
   send_message: SendMessageNode,
-  question: QuestionNode,
   condition: ConditionNode,
   menu: MenuNode,
   action: ActionNode,
@@ -148,7 +144,6 @@ const NODE_TYPES = {
 
 const PALETTE = [
   { type: "send_message", label: "Enviar Mensagem", icon: MessageCircle, color: "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100" },
-  { type: "question", label: "Pergunta", icon: HelpCircle, color: "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100" },
   { type: "menu", label: "Menu (opções)", icon: ListChecks, color: "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100" },
   { type: "condition", label: "Condição", icon: GitBranch, color: "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100" },
   { type: "action", label: "Ação", icon: Zap, color: "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" },
@@ -656,80 +651,6 @@ function PropertiesPanel({
               </div>
             </div>
           )}
-        </>
-      )}
-
-      {node.type === "question" && (
-        <>
-          <div className="space-y-1">
-            <Label className="text-xs">Texto da pergunta</Label>
-            <Textarea
-              value={(d as QuestionNodeData).messageText ?? ""}
-              onChange={(e) => update({ messageText: e.target.value })}
-              placeholder="Digite a pergunta..."
-              rows={4}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Deixe em branco para apenas <strong>aguardar a resposta</strong> sem
-              enviar texto (ideal após um template de abertura, fora da janela de 24h).
-            </p>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Salvar resposta em (opcional)</Label>
-            <Input
-              value={(d as QuestionNodeData).captureVariable ?? ""}
-              onChange={(e) =>
-                update({
-                  captureVariable: e.target.value
-                    .trim()
-                    .replace(/[^a-zA-Z0-9_]/g, "_"),
-                })
-              }
-              placeholder="ex: nome_cliente"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              A resposta do contato fica disponível como{" "}
-              <code className="font-mono">{`{{${(d as QuestionNodeData).captureVariable || "variavel"}}}`}</code>{" "}
-              em nós seguintes.
-            </p>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Validar resposta como</Label>
-            <Select
-              value={(d as QuestionNodeData).validation ?? "none"}
-              onValueChange={(v) =>
-                update({ validation: v as QuestionNodeData["validation"] })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem validação</SelectItem>
-                <SelectItem value="email">E-mail</SelectItem>
-                <SelectItem value="cpf">CPF</SelectItem>
-                <SelectItem value="phone">Telefone</SelectItem>
-                <SelectItem value="number">Número</SelectItem>
-                <SelectItem value="date">Data</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {(d as QuestionNodeData).validation &&
-            (d as QuestionNodeData).validation !== "none" && (
-              <div className="space-y-1">
-                <Label className="text-xs">Mensagem de erro (resposta inválida)</Label>
-                <Textarea
-                  value={(d as QuestionNodeData).validationErrorText ?? ""}
-                  onChange={(e) => update({ validationErrorText: e.target.value })}
-                  placeholder="Ex: Formato inválido. Tente novamente."
-                  rows={2}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Enviada quando a resposta não passa na validação; a pergunta é
-                  repetida até uma resposta válida.
-                </p>
-              </div>
-            )}
         </>
       )}
 
@@ -2912,9 +2833,6 @@ function nodePreview(node: FlowNode): string {
     if (attachLabel && d.text) return `${d.text}\n${attachLabel}`;
     return d.text ?? "(mensagem vazia)";
   }
-  if (node.type === "question") {
-    return (node.data as QuestionNodeData).messageText ?? "(pergunta vazia)";
-  }
   if (node.type === "flow_form") {
     const d = node.data as FlowFormNodeData;
     return `[Formulário: ${d.flowName || d.flowId || "—"}] ${d.ctaText ? `— "${d.ctaText}"` : ""}`;
@@ -3006,7 +2924,6 @@ function BotSimulator({
           acc.push({ role: "bot", text: nodePreview(current) });
           current = nextNode(current.id);
         } else if (
-          current.type === "question" ||
           current.type === "flow_form" ||
           current.type === "menu"
         ) {
@@ -3218,7 +3135,6 @@ export default function BotEditor() {
     const id = `${type}-${nanoid(6)}`;
     const labelMap: Record<string, string> = {
       send_message: "Enviar Mensagem",
-      question: "Pergunta",
       menu: "Menu (opções)",
       condition: "Condição",
       action: "Ação",

@@ -3367,7 +3367,9 @@ export const whatsappBotNodes = pgTable("whatsapp_bot_nodes", {
     .references(() => whatsappBots.id, { onDelete: "cascade" })
     .notNull(),
   type: text("type", {
-    enum: ["start", "send_message", "question", "condition", "menu", "action", "flow_form", "wait", "end"],
+    // "question" mantido apenas para compatibilidade com fluxos legados;
+    // o nó não é mais criável no editor.
+    enum: ["start", "send_message", "question", "condition", "menu", "action", "flow_form", "wait", "end", "end_conversation", "transfer_agent", "distribute_flow", "edit_tags", "send_template", "trigger_flow"],
   }).notNull(),
   label: text("label").notNull(),
   positionX: integer("position_x").notNull().default(0),

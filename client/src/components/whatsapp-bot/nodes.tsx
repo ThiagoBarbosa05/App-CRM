@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { MessageCircle, HelpCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText, Hourglass, ListChecks, CheckCircle2, UserRoundCog, Shuffle, Tag, SendHorizonal, ArrowRightLeft } from "lucide-react";
+import { MessageCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText, Hourglass, ListChecks, CheckCircle2, UserRoundCog, Shuffle, Tag, SendHorizonal, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, QuestionNodeData, ConditionNodeData, ConditionRule, MenuNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData, EndConversationNodeData, TransferAgentNodeData, DistributeFlowNodeData, EditTagsNodeData, SendTemplateNodeData, SendTemplateButtonHandle, TriggerFlowNodeData } from "@shared/schema";
+import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, ConditionNodeData, ConditionRule, MenuNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData, EndConversationNodeData, TransferAgentNodeData, DistributeFlowNodeData, EditTagsNodeData, SendTemplateNodeData, SendTemplateButtonHandle, TriggerFlowNodeData } from "@shared/schema";
 
 interface NodeData extends Record<string, unknown> {
   label: string;
@@ -89,23 +89,6 @@ export function SendMessageNode({ data, selected }: NodeProps) {
             : d.text || undefined
         }
         attachment={!isTemplate ? d.attachment : undefined}
-        selected={selected}
-      />
-      <Handle type="source" position={Position.Bottom} />
-    </>
-  );
-}
-
-export function QuestionNode({ data, selected }: NodeProps) {
-  const d = data as NodeData & QuestionNodeData;
-  return (
-    <>
-      <Handle type="target" position={Position.Top} />
-      <NodeCard
-        color="bg-purple-500"
-        icon={HelpCircle}
-        title={d.label || "Pergunta"}
-        preview={d.messageText}
         selected={selected}
       />
       <Handle type="source" position={Position.Bottom} />

@@ -56,6 +56,8 @@ const saveFlowSchema = z.object({
         type: z.enum([
           "start",
           "send_message",
+          // "question" mantido apenas para compatibilidade com fluxos legados;
+          // o nó não é mais criável no editor.
           "question",
           "condition",
           "menu",
@@ -63,6 +65,12 @@ const saveFlowSchema = z.object({
           "flow_form",
           "wait",
           "end",
+          "end_conversation",
+          "transfer_agent",
+          "distribute_flow",
+          "edit_tags",
+          "send_template",
+          "trigger_flow",
         ]),
         label: z.string(),
         positionX: z.number(),
