@@ -97,9 +97,10 @@ async function sendFreeText(phone: string, text: string): Promise<string | null>
 
 interface PersistBotMessageOptions {
   waMessageId: string | null;
-  type?: "text" | "image" | "document";
+  type?: "text" | "image" | "document" | "template";
   content?: string | null;
   caption?: string | null;
+  rawPayload?: unknown;
   media?: {
     storageKey: string;
     waMediaId?: string | null;
@@ -115,13 +116,15 @@ async function persistBotMessage(
   try {
     const conversation = await findOrCreateConversation(phone);
     const msgType = options.type ?? "text";
+    const hasContent = msgType === "text" || msgType === "template";
     const [saved] = await db.insert(whatsappMessages).values({
       conversationId: conversation.id,
       waMessageId: options.waMessageId ?? undefined,
       direction: "outbound",
       type: msgType,
-      content: msgType === "text" ? (options.content ?? null) : null,
-      caption: msgType !== "text" ? (options.caption ?? null) : null,
+      content: hasContent ? (options.content ?? null) : null,
+      caption: hasContent ? null : (options.caption ?? null),
+      rawPayload: options.rawPayload ?? null,
       status: "sent",
       sentAt: new Date(),
     }).returning({ id: whatsappMessages.id });
@@ -189,13 +192,18 @@ async function getNextNode(
       ),
     );
 
-  let edge = edges.find(
-    (e) => sourceHandle && e.sourceHandle === sourceHandle,
-  );
-  if (!edge) edge = edges[0];
-  if (!edge) return null;
+  // Quando um handle é especificado (nós de ramificação: send_template,
+  // condition, menu, distribute), só seguir a aresta daquele handle. Sem aresta
+  // = parar aqui — NÃO cair na primeira aresta, que dispararia uma ramificação
+  // errada (ex: enviar o nó de um botão sem o contato ter clicado).
+  if (sourceHandle) {
+    const edge = edges.find((e) => e.sourceHandle === sourceHandle);
+    return edge ? getNode(edge.targetNodeId) : null;
+  }
 
-  return getNode(edge.targetNodeId);
+  // Nós lineares (sem handle): seguir a única aresta de saída.
+  const edge = edges[0];
+  return edge ? getNode(edge.targetNodeId) : null;
 }
 
 async function updateSession(
@@ -394,7 +402,12 @@ async function executeNode(
               components,
             );
             const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
-            await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `Template: ${d.metaTemplateName}` });
+            await persistBotMessage(phone, {
+              waMessageId: waId,
+              type: "template",
+              content: `Template: ${d.metaTemplateName}`,
+              rawPayload: { kind: "bot_template", templateName: d.metaTemplateName, language: d.metaTemplateLanguage ?? "pt_BR", components },
+            });
           } else if (d.templateId) {
             const [tpl] = await db
               .select()
@@ -411,7 +424,12 @@ async function executeNode(
                 : [];
               const result = await sendTemplateMessage(phone, tpl.name, tpl.languageCode, components);
               const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
-              await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `Template: ${tpl.name}` });
+              await persistBotMessage(phone, {
+                waMessageId: waId,
+                type: "template",
+                content: `Template: ${tpl.name}`,
+                rawPayload: { kind: "bot_template", templateName: tpl.name, language: tpl.languageCode, components },
+              });
             }
           }
         } catch (err) {
@@ -682,6 +700,13 @@ async function executeNode(
       const d = data as SendTemplateNodeData;
       if (!d.metaTemplateName) break;
 
+      if (d.headerMediaType && !d.templateHeaderMedia?.storageKey) {
+        const what = d.headerMediaType === "image" ? "uma imagem" : d.headerMediaType === "video" ? "um vídeo" : "um documento";
+        throw new Error(
+          `O template "${d.metaTemplateName}" exige ${what} no cabeçalho. Configure o arquivo no nó "Enviar template" do editor do bot.`,
+        );
+      }
+
       const components: object[] = [];
       if (d.templateParams?.length) {
         components.push({
@@ -713,7 +738,12 @@ async function executeNode(
         throw new Error(`Falha ao enviar template "${d.metaTemplateName}": ${err instanceof Error ? err.message : String(err)}`);
       }
       const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
-      await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `Template: ${d.metaTemplateName}` });
+      await persistBotMessage(phone, {
+        waMessageId: waId,
+        type: "template",
+        content: `Template: ${d.metaTemplateName}`,
+        rawPayload: { kind: "bot_template", templateName: d.metaTemplateName, language: d.metaTemplateLanguage ?? "pt_BR", components },
+      });
 
       const deadline = d.noResponseHandle
         ? new Date(Date.now() + 24 * 60 * 60 * 1000)
@@ -1001,6 +1031,28 @@ export async function startBotSession(
   const [bot] = await db.select({ name: whatsappBots.name }).from(whatsappBots).where(eq(whatsappBots.id, botId)).limit(1);
   const botName = bot?.name ?? "Bot";
 
+  // Injeta campos do cliente como variáveis iniciais da sessão
+  const clientVars: Record<string, string> = { telefone: phone };
+  const [convRow] = await db
+    .select({ clientId: whatsappConversations.clientId })
+    .from(whatsappConversations)
+    .where(eq(whatsappConversations.phone, phone))
+    .limit(1);
+  if (convRow?.clientId) {
+    const [client] = await db.select().from(clients).where(eq(clients.id, convRow.clientId)).limit(1);
+    if (client) {
+      if (client.name)         clientVars.nome          = client.name;
+      if (client.email)        clientVars.email         = client.email;
+      if (client.cpf)          clientVars.cpf           = client.cpf;
+      if (client.birthday)     clientVars.aniversario   = client.birthday;
+      if (client.city)         clientVars.cidade        = client.city;
+      if (client.state)        clientVars.estado        = client.state;
+      if (client.fixedPhone)   clientVars.telefone_fixo = client.fixedPhone;
+      if (client.address)      clientVars.endereco      = client.address;
+      if (client.neighborhood) clientVars.bairro        = client.neighborhood;
+    }
+  }
+
   const [newSession] = await db
     .insert(whatsappBotSessions)
     .values({
@@ -1008,7 +1060,7 @@ export async function startBotSession(
       phoneNumber: phone,
       currentNodeId: entryNode.id,
       status: "active",
-      sessionData: {},
+      sessionData: clientVars,
     })
     .returning();
 
@@ -1034,7 +1086,7 @@ export async function startBotSession(
     console.error("[WaBot] Erro ao registrar início do bot:", err);
   }
 
-  await executeNode(entryNode, phone, newSession.id, botId, {});
+  await executeNode(entryNode, phone, newSession.id, botId, clientVars);
   return "started";
 }
 

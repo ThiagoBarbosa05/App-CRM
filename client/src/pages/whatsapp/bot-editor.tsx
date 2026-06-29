@@ -2199,6 +2199,34 @@ function extractTemplateBody(template: import("@/hooks/use-whatsapp").MetaTempla
   return body?.text ?? null;
 }
 
+const CLIENT_VARIABLES = [
+  { label: "Nome", value: "{{nome}}" },
+  { label: "Email", value: "{{email}}" },
+  { label: "Telefone", value: "{{telefone}}" },
+  { label: "CPF", value: "{{cpf}}" },
+  { label: "Cidade", value: "{{cidade}}" },
+  { label: "Estado", value: "{{estado}}" },
+  { label: "Aniversário", value: "{{aniversario}}" },
+];
+
+function countTemplateVars(text: string | null | undefined): number {
+  if (!text) return 0;
+  const matches = text.match(/\{\{\s*(\d+)\s*\}\}/g) ?? [];
+  let max = 0;
+  for (const m of matches) {
+    const n = parseInt(m.replace(/\D/g, ""), 10);
+    if (n > max) max = n;
+  }
+  return max;
+}
+
+function applyTemplateVars(text: string, params: string[]): string {
+  return text.replace(/\{\{\s*(\d+)\s*\}\}/g, (_, d: string) => {
+    const value = params[parseInt(d, 10) - 1];
+    return value && value.length > 0 ? value : `{{${d}}}`;
+  });
+}
+
 function TemplatePreview({ template }: { template: import("@/hooks/use-whatsapp").MetaTemplate }) {
   const header = extractTemplateHeader(template);
   const body = extractTemplateBody(template);
@@ -2272,6 +2300,9 @@ function SendTemplateEditor({
 }) {
   const [search, setSearch] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  const [isUploadingHeader, setIsUploadingHeader] = useState(false);
+  const headerFileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const selected = metaTemplates.find((t) => t.name === data.metaTemplateName);
 
@@ -2286,11 +2317,16 @@ function SendTemplateEditor({
 
   function pickTemplate(t: import("@/hooks/use-whatsapp").MetaTemplate) {
     const buttons = extractButtons(t);
+    const bodyText = extractTemplateBody(t);
+    const varCount = countTemplateVars(bodyText);
+    const header = extractTemplateHeader(t);
+    const headerType = header?.format?.toLowerCase() as "image" | "video" | "document" | undefined;
     onChange({
       metaTemplateName: t.name,
       metaTemplateLanguage: t.language,
-      templateParams: [],
+      templateParams: Array(varCount).fill(""),
       templateHeaderMedia: undefined,
+      headerMediaType: headerType && ["image", "video", "document"].includes(headerType) ? headerType : undefined,
       buttonHandles: buttons,
     });
     setShowPicker(false);
@@ -2358,6 +2394,153 @@ function SendTemplateEditor({
         <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => setShowPicker(true)}>
           {data.metaTemplateName ? "Alterar template" : "Selecionar template"}
         </Button>
+      )}
+
+      {/* Header de mídia */}
+      {data.headerMediaType && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium">
+            {data.headerMediaType === "image" ? "Imagem" : data.headerMediaType === "video" ? "Vídeo" : "Documento"} do header
+          </p>
+          {data.templateHeaderMedia?.storageKey ? (
+            data.templateHeaderMedia.type === "image" ? (
+              <div className="relative rounded-md border bg-muted/30 overflow-hidden">
+                <img
+                  src={`/api/whatsapp/bots/attachments/${data.templateHeaderMedia.storageKey}`}
+                  alt={data.templateHeaderMedia.name ?? "imagem"}
+                  className="w-full max-h-40 object-cover rounded-md"
+                />
+                <button
+                  type="button"
+                  onClick={() => onChange({ templateHeaderMedia: undefined })}
+                  className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-md border bg-muted/30">
+                <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
+                <span className="text-xs truncate flex-1">{data.templateHeaderMedia.name ?? "arquivo"}</span>
+                <button
+                  type="button"
+                  onClick={() => onChange({ templateHeaderMedia: undefined })}
+                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )
+          ) : (
+            <>
+              <input
+                ref={headerFileInputRef}
+                type="file"
+                accept={
+                  data.headerMediaType === "video"
+                    ? "video/*"
+                    : data.headerMediaType === "document"
+                      ? "application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                      : "image/*"
+                }
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setIsUploadingHeader(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    const res = await fetch("/api/whatsapp/bots/attachments", {
+                      method: "POST",
+                      body: formData,
+                    });
+                    if (!res.ok) {
+                      const err = await res.json().catch(() => ({}));
+                      throw new Error((err as { message?: string }).message ?? "Erro no upload");
+                    }
+                    const uploaded = (await res.json()) as { storageKey: string; name: string; mimeType: string };
+                    onChange({
+                      templateHeaderMedia: {
+                        storageKey: uploaded.storageKey,
+                        type: data.headerMediaType!,
+                        name: uploaded.name,
+                        mimeType: uploaded.mimeType,
+                      },
+                    });
+                  } catch (err) {
+                    toast({ title: "Erro ao fazer upload", description: (err as Error).message, variant: "destructive" });
+                  } finally {
+                    setIsUploadingHeader(false);
+                    e.target.value = "";
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full gap-2"
+                disabled={isUploadingHeader}
+                onClick={() => headerFileInputRef.current?.click()}
+              >
+                {isUploadingHeader ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
+                {isUploadingHeader ? "Enviando..." : "Escolher arquivo"}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Variáveis do template */}
+      {selected && (data.templateParams ?? []).length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium">Variáveis do template:</p>
+          {(data.templateParams ?? []).map((value, i) => (
+            <div key={i}>
+              <label className="text-[11px] text-muted-foreground mb-1 block">
+                {"{{"}
+                {i + 1}
+                {"}}"}
+              </label>
+              <div className="flex flex-wrap gap-1 mb-1">
+                {CLIENT_VARIABLES.map((v) => (
+                  <button
+                    key={v.value}
+                    type="button"
+                    onClick={() => {
+                      const next = [...(data.templateParams ?? [])];
+                      next[i] = (next[i] ?? "") + v.value;
+                      onChange({ templateParams: next });
+                    }}
+                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 font-mono transition-colors"
+                  >
+                    {v.value}
+                  </button>
+                ))}
+              </div>
+              <Input
+                className="h-7 text-xs"
+                value={value}
+                onChange={(e) => {
+                  const next = [...(data.templateParams ?? [])];
+                  next[i] = e.target.value;
+                  onChange({ templateParams: next });
+                }}
+                placeholder="Texto fixo ou {{nome}}, {{email}}..."
+              />
+            </div>
+          ))}
+          {(() => {
+            const bodyText = extractTemplateBody(selected);
+            const preview = applyTemplateVars(bodyText ?? "", data.templateParams ?? []);
+            return bodyText !== preview ? (
+              <div className="rounded-md bg-muted p-2 text-[11px] text-muted-foreground whitespace-pre-wrap">
+                {preview}
+              </div>
+            ) : null;
+          })()}
+        </div>
       )}
 
       {/* Ações dos botões */}

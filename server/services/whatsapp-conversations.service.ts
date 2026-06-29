@@ -901,6 +901,7 @@ export async function retryFailedMessage(
       content: whatsappMessages.content,
       type: whatsappMessages.type,
       caption: whatsappMessages.caption,
+      rawPayload: whatsappMessages.rawPayload,
       mediaId: whatsappMedia.id,
       waMediaId: whatsappMedia.whatsappMediaId,
       mimeType: whatsappMedia.mimeType,
@@ -948,6 +949,33 @@ export async function retryFailedMessage(
 
   try {
     let result: unknown;
+
+    // Mensagem de template do bot: re-envia o MESMO template (nome, idioma e
+    // componentes interpolados gravados em rawPayload) em vez de mandar o texto
+    // placeholder "Template: X" literalmente.
+    const payload = msg.rawPayload as
+      | { kind?: string; templateName?: string; language?: string; components?: object[] }
+      | null;
+    if (msg.type === "template" && payload?.kind === "bot_template" && payload.templateName) {
+      console.log(`[retryFailedMessage] replay template="${payload.templateName}"`);
+      const tplResult = await sendTemplateMessage(
+        conv.phone,
+        payload.templateName,
+        payload.language ?? "pt_BR",
+        payload.components ?? [],
+        channelOverride ?? undefined,
+      );
+      const tplWaId = ((tplResult as { messages?: Array<{ id?: string }> })?.messages)?.[0]?.id ?? null;
+      await db
+        .update(whatsappMessages)
+        .set({ status: "sent", waMessageId: tplWaId, sentAt: new Date() })
+        .where(eq(whatsappMessages.id, messageId));
+      if (conv.clientId) {
+        publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+      }
+      return "sent";
+    }
+
     const isMedia = msg.type === "image" || msg.type === "document" || msg.type === "video" || msg.type === "audio";
 
     console.log(`[retryFailedMessage] isMedia=${isMedia} waMediaId=${msg.waMediaId}`);

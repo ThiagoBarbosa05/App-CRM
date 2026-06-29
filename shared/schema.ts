@@ -3634,6 +3634,7 @@ export type SendTemplateNodeData = {
   metaTemplateName?: string;
   metaTemplateLanguage?: string;
   templateHeaderMedia?: TemplateHeaderMedia;
+  headerMediaType?: "image" | "video" | "document"; // tipo do header detectado do template
   templateParams?: string[];
   buttonHandles?: SendTemplateButtonHandle[];
   invalidResponseHandle?: boolean;
