@@ -16,7 +16,7 @@ import {
   deleteMetaTemplate,
   upsertTemplateMedia,
 } from "../services/whatsapp-templates.service";
-import { uploadWhatsappMedia } from "../lib/r2";
+import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
 import {
   createMetaTemplate,
@@ -130,6 +130,68 @@ router.delete("/templates/meta/:name", async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao excluir template do Meta";
+    res.status(500).json({ message });
+  }
+});
+
+// Gera handle Meta a partir de um objeto já armazenado no R2 (biblioteca de
+// mídia). Busca o arquivo, envia ao Meta e retorna o handle resultante.
+router.post("/templates/meta/media-from-storage", async (req, res) => {
+  try {
+    const role = (req as any).user?.role;
+    if (role !== "admin" && role !== "gerente") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    const { storageKey } = req.body as { storageKey?: string };
+    if (!storageKey || typeof storageKey !== "string") {
+      return res.status(400).json({ message: "storageKey é obrigatório" });
+    }
+
+    const obj = await getWhatsappMediaObject(storageKey);
+    const contentType = obj.ContentType ?? "application/octet-stream";
+    const bytes = await obj.Body?.transformToByteArray();
+    if (!bytes) return res.status(500).json({ message: "Falha ao ler objeto do R2" });
+
+    const handle = await uploadTemplateMediaHandle(Buffer.from(bytes), contentType);
+    res.json({ handle });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao gerar handle da mídia";
+    res.status(500).json({ message });
+  }
+});
+
+// Define a mídia padrão de cabeçalho a partir de um storageKey já existente no
+// R2 (biblioteca de mídia) — sem novo upload de arquivo.
+router.put("/templates/meta/:name/default-media", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    const role = user?.role;
+    if (role !== "admin" && role !== "gerente") {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+    const { storageKey, mediaType, language } = req.body as {
+      storageKey?: string;
+      mediaType?: string;
+      language?: string;
+    };
+    if (!storageKey || !mediaType) {
+      return res.status(400).json({ message: "storageKey e mediaType são obrigatórios" });
+    }
+    if (!["image", "video", "document"].includes(mediaType)) {
+      return res.status(400).json({ message: "mediaType inválido" });
+    }
+
+    await upsertTemplateMedia({
+      templateName: req.params.name,
+      languageCode: typeof language === "string" && language.trim() ? language.trim() : "pt_BR",
+      mediaType: mediaType as "image" | "video" | "document",
+      storageKey,
+      userId: user?.userId,
+    });
+
+    res.json({ storageKey, mediaType });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao configurar mídia do template";
     res.status(500).json({ message });
   }
 });

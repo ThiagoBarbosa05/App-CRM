@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -37,7 +37,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSubmitMetaTemplate, useUploadTemplateMedia } from "@/hooks/use-whatsapp";
+import { useSubmitMetaTemplate, useGetHandleFromStorageKey } from "@/hooks/use-whatsapp";
+import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
+import type { MediaType } from "@/hooks/use-media-library";
 import {
   metaTemplateSchema,
   EMPTY_TEMPLATE,
@@ -116,8 +118,8 @@ export function MetaTemplateFormDialog({
   onClose: () => void;
 }) {
   const submitMutation = useSubmitMetaTemplate();
-  const uploadMutation = useUploadTemplateMedia();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const getHandleMutation = useGetHandleFromStorageKey();
+  const [attachOpen, setAttachOpen] = useState(false);
 
   const {
     register,
@@ -198,6 +200,7 @@ export function MetaTemplateFormDialog({
 
   const handleClose = () => {
     reset(EMPTY_TEMPLATE);
+    setAttachOpen(false);
     onClose();
   };
 
@@ -216,17 +219,6 @@ export function MetaTemplateFormDialog({
     else if (type === "PHONE_NUMBER") appendButton({ type: "PHONE_NUMBER", text: "", phoneNumber: "" });
     else if (type === "COPY_CODE") appendButton({ type: "COPY_CODE", text: "" });
     else if (type === "OTP") appendButton({ type: "OTP", otpType: "COPY_CODE" });
-  }
-
-  async function handleMediaSelected(file: File | undefined) {
-    if (!file) return;
-    const result = await uploadMutation.mutateAsync(file);
-    setValue("headerMediaHandle", result.handle, { shouldValidate: true });
-    if (file.type.startsWith("image/")) {
-      setValue("headerMediaPreviewUrl", URL.createObjectURL(file));
-    } else {
-      setValue("headerMediaPreviewUrl", "");
-    }
   }
 
   const mediaAccept =
@@ -413,24 +405,25 @@ export function MetaTemplateFormDialog({
                   headerFormat === "VIDEO" ||
                   headerFormat === "DOCUMENT") && (
                   <div className="space-y-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept={mediaAccept}
-                      className="hidden"
-                      onChange={(e) => {
-                        handleMediaSelected(e.target.files?.[0]);
-                        e.target.value = "";
-                      }}
-                    />
+                    {/* Preview da mídia selecionada */}
+                    {values.headerMediaPreviewUrl && headerFormat === "IMAGE" && (
+                      <div className="rounded-md overflow-hidden border border-border max-h-40 flex items-center justify-center bg-muted">
+                        <img
+                          src={values.headerMediaPreviewUrl}
+                          alt="Prévia do cabeçalho"
+                          className="max-h-40 w-full object-contain"
+                        />
+                      </div>
+                    )}
+
                     <Button
                       type="button"
                       variant="outline"
                       className="w-full gap-2"
-                      disabled={uploadMutation.isPending}
-                      onClick={() => fileInputRef.current?.click()}
+                      disabled={getHandleMutation.isPending}
+                      onClick={() => setAttachOpen(true)}
                     >
-                      {uploadMutation.isPending ? (
+                      {getHandleMutation.isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Upload className="h-4 w-4" />
@@ -439,12 +432,14 @@ export function MetaTemplateFormDialog({
                         ? "Substituir mídia"
                         : `Carregar ${headerFormat === "IMAGE" ? "imagem" : headerFormat === "VIDEO" ? "vídeo" : "documento"}`}
                     </Button>
-                    {values.headerMediaHandle && (
+
+                    {values.headerMediaHandle && !getHandleMutation.isPending && (
                       <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
                         <Info className="h-3 w-3" />
                         Mídia carregada — handle pronto para envio.
                       </p>
                     )}
+
                     <details className="text-xs text-muted-foreground">
                       <summary className="cursor-pointer">Colar handle manualmente</summary>
                       <Input
@@ -454,6 +449,24 @@ export function MetaTemplateFormDialog({
                       />
                     </details>
                     <InlineIssues issues={issues} field="header" />
+
+                    <AttachFileDialog
+                      open={attachOpen}
+                      onOpenChange={setAttachOpen}
+                      lockedType={headerFormat.toLowerCase() as MediaType}
+                      accept={mediaAccept}
+                      onAttach={async (item) => {
+                        // Mostra a preview da URL do R2 imediatamente.
+                        if (item.mediaType === "image") {
+                          setValue("headerMediaPreviewUrl", item.url);
+                        } else {
+                          setValue("headerMediaPreviewUrl", "");
+                        }
+                        // Obtém o handle Meta a partir do objeto no R2.
+                        const result = await getHandleMutation.mutateAsync(item.storageKey);
+                        setValue("headerMediaHandle", result.handle, { shouldValidate: true });
+                      }}
+                    />
                   </div>
                 )}
 

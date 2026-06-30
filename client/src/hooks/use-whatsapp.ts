@@ -95,7 +95,7 @@ export interface MetaTemplate {
   components: unknown[];
   quality_score?: { score?: string } | null;
   rejected_reason?: string | null;
-  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string } | null;
+  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string; url: string } | null;
 }
 
 export interface MetaTemplateCreatePayload {
@@ -506,6 +506,76 @@ export function useSetTemplateDefaultMedia() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao configurar mídia", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// Define mídia padrão a partir de um item já na biblioteca de mídia (R2). Não
+// faz upload — usa o storageKey existente.
+export function useSetTemplateDefaultMediaFromStorage() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (params: {
+      name: string;
+      language: string;
+      storageKey: string;
+      mediaType: "image" | "video" | "document";
+    }): Promise<{ storageKey: string; mediaType: string }> => {
+      const res = await fetch(
+        `/api/whatsapp/templates/meta/${encodeURIComponent(params.name)}/default-media`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": localStorage.getItem("userId") ?? "",
+          },
+          body: JSON.stringify({
+            storageKey: params.storageKey,
+            mediaType: params.mediaType,
+            language: params.language,
+          }),
+          credentials: "include",
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { message?: string }).message ?? "Erro ao configurar mídia padrão");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Mídia padrão configurada" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates", "meta"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao configurar mídia", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+// Gera handle Meta a partir de um item da biblioteca de mídia (R2).
+// Usado na criação de templates — o handle é obrigatório pela API do Meta.
+export function useGetHandleFromStorageKey() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (storageKey: string): Promise<{ handle: string }> => {
+      const res = await fetch("/api/whatsapp/templates/meta/media-from-storage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": localStorage.getItem("userId") ?? "",
+        },
+        body: JSON.stringify({ storageKey }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { message?: string }).message ?? "Erro ao gerar handle");
+      }
+      return res.json();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao processar mídia", description: error.message, variant: "destructive" });
     },
   });
 }

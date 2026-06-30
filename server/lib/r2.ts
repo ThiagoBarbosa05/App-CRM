@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 
 const BUCKET = process.env.CLOUDFLARE_BUCKET_NAME || "crm-test";
@@ -41,4 +46,27 @@ export async function uploadWhatsappMedia(
 // Busca o objeto de mídia do WhatsApp no R2 pela chave armazenada em storageKey.
 export async function getWhatsappMediaObject(key: string) {
   return r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+}
+
+// Sobe um arquivo da biblioteca de mídia para o R2 sob o prefixo media-library/
+// e retorna a chave do objeto (storageKey).
+export async function uploadMediaLibraryFile(
+  buffer: Buffer,
+  contentType: string,
+): Promise<string> {
+  const key = `media-library/${randomUUID()}`;
+  await r2.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }),
+  );
+  return key;
+}
+
+// Remove um objeto do R2 pela sua chave (storageKey).
+export async function deleteR2Object(key: string): Promise<void> {
+  await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }

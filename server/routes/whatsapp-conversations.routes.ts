@@ -286,13 +286,21 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
 const sendTemplateSchema = z.object({
   templateName: z.string().min(1),
   languageCode: z.string().min(1).default("pt_BR"),
-  // Cada parâmetro do corpo: `name` presente → template NAMED (parameter_name),
-  // ausente → template POSITIONAL (ordem do array).
+  // "NAMED" → parâmetros com parameter_name; "POSITIONAL" ou ausente → sem ele.
+  parameterFormat: z.enum(["NAMED", "POSITIONAL"]).optional(),
   bodyParams: z
     .array(z.object({ name: z.string().optional(), value: z.string() }))
     .optional(),
   previewText: z.string().optional(),
   channelId: z.number().int().positive().optional(),
+  // Mídia de cabeçalho escolhida no envio (biblioteca de mídia). Quando presente,
+  // tem prioridade sobre a mídia padrão configurada para o template.
+  headerMedia: z
+    .object({
+      storageKey: z.string().min(1),
+      mediaType: z.enum(["image", "video", "document"]),
+    })
+    .optional(),
 });
 
 router.post("/conversations/:clientId/messages/template", async (req, res) => {
@@ -317,6 +325,8 @@ router.post("/conversations/:clientId/messages/template", async (req, res) => {
       parsed.data.bodyParams,
       parsed.data.previewText,
       parsed.data.channelId,
+      parsed.data.headerMedia,
+      parsed.data.parameterFormat,
     );
 
     if (result === null) {

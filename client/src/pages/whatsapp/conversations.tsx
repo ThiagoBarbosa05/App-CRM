@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
+import type { MediaType } from "@/hooks/use-media-library";
 import {
   MessageSquare,
   Search,
@@ -1775,7 +1777,7 @@ interface MetaTemplateItem {
   language: string;
   parameter_format?: "NAMED" | "POSITIONAL";
   components: MetaTemplateComponent[];
-  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string } | null;
+  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string; url: string } | null;
 }
 
 function readTemplateComponents(components: MetaTemplateComponent[] | undefined) {
@@ -1821,14 +1823,24 @@ function TemplatePicker({
   onSend: (data: {
     templateName: string;
     languageCode: string;
+    parameterFormat?: "NAMED" | "POSITIONAL";
     bodyParams: { name?: string; value: string }[];
     previewText: string;
+    headerMedia?: { storageKey: string; mediaType: MediaType };
   }) => void;
   clientId: string | null;
 }) {
   const [selected, setSelected] = useState<MetaTemplateItem | null>(null);
   // Valores das variáveis, mapeados pelo nome do placeholder ({{nome}} ou {{1}}).
   const [values, setValues] = useState<Record<string, string>>({});
+  // Mídia de cabeçalho escolhida no envio (biblioteca de mídia).
+  const [headerMedia, setHeaderMedia] = useState<{
+    storageKey: string;
+    mediaType: MediaType;
+    url: string;
+    name: string;
+  } | null>(null);
+  const [attachOpen, setAttachOpen] = useState(false);
 
   const { data: templates = [], isLoading } = useQuery<MetaTemplateItem[]>({
     queryKey: ["/api/whatsapp/templates/meta"],
@@ -1871,6 +1883,7 @@ function TemplatePicker({
   const selectTemplate = (t: MetaTemplateItem) => {
     setSelected(t);
     setValues({});
+    setHeaderMedia(null);
   };
 
   // Define se o template usa parâmetros nomeados. Usa parameter_format quando a
@@ -1893,8 +1906,12 @@ function TemplatePicker({
     onSend({
       templateName: selected.name,
       languageCode: selected.language,
+      parameterFormat: selected.parameter_format,
       bodyParams,
       previewText,
+      headerMedia: headerMedia
+        ? { storageKey: headerMedia.storageKey, mediaType: headerMedia.mediaType }
+        : undefined,
     });
   };
 
@@ -1905,7 +1922,16 @@ function TemplatePicker({
     );
     const hasMediaHeader =
       !!header && !header.text && !!header.format && header.format !== "TEXT";
-    const mediaMissing = hasMediaHeader && !selected.headerMedia;
+    // Tipo de mídia exigido pelo cabeçalho (IMAGE/VIDEO/DOCUMENT → image/video/document).
+    const headerType = (header?.format?.toLowerCase() ?? "image") as MediaType;
+    const headerAccept =
+      headerType === "image"
+        ? "image/*"
+        : headerType === "video"
+          ? "video/*"
+          : "application/pdf";
+    // Pode enviar se houver mídia escolhida agora OU uma mídia padrão configurada.
+    const mediaMissing = hasMediaHeader && !headerMedia && !selected.headerMedia;
     const vars = extractTemplateVars(body?.text);
     const allFilled = vars.every((v) => (values[v] ?? "").trim().length > 0);
     const canSubmit = allFilled && !mediaMissing;
@@ -1947,15 +1973,82 @@ function TemplatePicker({
             )}
           </div>
 
-          {/* Aviso: template de mídia sem mídia padrão configurada */}
-          {mediaMissing && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/15 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
-              <AlertCircle className="h-3.5 w-3.5 mt-px shrink-0" />
-              <span>
-                Configure a mídia padrão deste template na página de Templates antes de enviá-lo.
-              </span>
-            </div>
-          )}
+          {/* Seletor de mídia de cabeçalho (biblioteca de mídia) */}
+          {hasMediaHeader && (() => {
+            // Mídia ativa: override do usuário tem prioridade; fallback = padrão do template.
+            const activeName = headerMedia?.name ?? "Mídia padrão";
+            const activeUrl = headerMedia?.url ?? selected.headerMedia?.url;
+            const activeType = headerMedia?.mediaType ?? selected.headerMedia?.mediaType;
+            const hasActive = !!headerMedia || !!selected.headerMedia;
+            return (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  Mídia do cabeçalho ({header?.format})
+                </label>
+                {hasActive ? (
+                  <div className="flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 p-1.5">
+                    {activeType === "image" && activeUrl ? (
+                      <img
+                        src={activeUrl}
+                        alt={activeName}
+                        className="h-9 w-9 rounded object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-9 w-9 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <FileText className="h-4 w-4 text-slate-400" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[11px] text-slate-600 dark:text-slate-300 truncate block">
+                        {activeName}
+                      </span>
+                      {!headerMedia && selected.headerMedia && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                          Mídia padrão do template
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachOpen(true)}
+                      className="text-[10px] text-primary hover:underline shrink-0"
+                    >
+                      Trocar
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAttachOpen(true)}
+                    className="flex items-center justify-center gap-1.5 rounded-md border border-dashed border-slate-300 dark:border-slate-600 px-2.5 py-2 text-[11px] text-slate-500 dark:text-slate-400 hover:border-primary hover:text-primary transition-colors"
+                  >
+                    <Paperclip className="h-3.5 w-3.5" />
+                    Anexar mídia
+                  </button>
+                )}
+                {mediaMissing && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Anexe a mídia do cabeçalho antes de enviar.
+                  </span>
+                )}
+                <AttachFileDialog
+                  open={attachOpen}
+                  onOpenChange={setAttachOpen}
+                  lockedType={headerType}
+                  accept={headerAccept}
+                  onAttach={(item) =>
+                    setHeaderMedia({
+                      storageKey: item.storageKey,
+                      mediaType: item.mediaType,
+                      url: item.url,
+                      name: item.name,
+                    })
+                  }
+                />
+              </div>
+            );
+          })()}
 
           {/* Inputs de variáveis */}
           {vars.length > 0 && (
@@ -2861,8 +2954,10 @@ function ConversationMessages({
     async (data: {
       templateName: string;
       languageCode: string;
+      parameterFormat?: "NAMED" | "POSITIONAL";
       bodyParams: { name?: string; value: string }[];
       previewText: string;
+      headerMedia?: { storageKey: string; mediaType: MediaType };
     }) => {
       const localId = crypto.randomUUID();
       setLocalMessages((prev) => [
@@ -2877,14 +2972,18 @@ function ConversationMessages({
         const body: {
           templateName: string;
           languageCode: string;
+          parameterFormat?: "NAMED" | "POSITIONAL";
           bodyParams: { name?: string; value: string }[];
           previewText: string;
           channelId?: number;
+          headerMedia?: { storageKey: string; mediaType: MediaType };
         } = {
           templateName: data.templateName,
           languageCode: data.languageCode,
+          parameterFormat: data.parameterFormat,
           bodyParams: data.bodyParams,
           previewText: data.previewText,
+          headerMedia: data.headerMedia,
         };
         if (
           (userRole === "admin" || userRole === "gerente") &&
@@ -2904,9 +3003,10 @@ function ConversationMessages({
           const err = await res.json().catch(() => ({}));
           setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
           toast({
-            title:
+            title: "Falha ao enviar template",
+            description:
               (err as { message?: string }).message ??
-              "Erro ao enviar template",
+              "Erro desconhecido ao enviar template",
             variant: "destructive",
           });
         }

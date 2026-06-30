@@ -3359,6 +3359,23 @@ export const whatsappTemplateMedia = pgTable(
 export type WhatsappTemplateMedia = typeof whatsappTemplateMedia.$inferSelect;
 export type InsertWhatsappTemplateMedia = typeof whatsappTemplateMedia.$inferInsert;
 
+// Biblioteca de mídia compartilhada: arquivos (imagem/vídeo/documento) que a
+// equipe sobe uma vez e reutiliza, ex.: cabeçalho de templates do WhatsApp. A
+// URL pública não é persistida — deriva-se de getPublicR2Url(storageKey).
+export const mediaLibrary = pgTable("media_library", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  storageKey: text("storage_key").notNull(),
+  mediaType: text("media_type", { enum: ["image", "video", "document"] }).notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull().default(0),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type MediaLibraryItem = typeof mediaLibrary.$inferSelect;
+export type InsertMediaLibraryItem = typeof mediaLibrary.$inferInsert;
+
 // ─── WhatsApp Bots ────────────────────────────────────────────────────────────
 
 export const whatsappBots = pgTable("whatsapp_bots", {

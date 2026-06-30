@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import {
   Plus,
   FileText,
@@ -58,8 +58,11 @@ import {
   useWhatsappMetaTemplates,
   useDeleteMetaTemplate,
   useSetTemplateDefaultMedia,
+  useSetTemplateDefaultMediaFromStorage,
   type MetaTemplate,
 } from "@/hooks/use-whatsapp";
+import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
+import type { MediaType } from "@/hooks/use-media-library";
 import { useAuth } from "@/hooks/useAuth";
 import { MetaTemplateFormDialog } from "./meta-template-dialog";
 
@@ -166,17 +169,19 @@ function readComponents(components: unknown[]) {
 const MEDIA_HEADER_FORMATS = ["IMAGE", "VIDEO", "DOCUMENT"];
 
 function TemplateMediaConfig({ template }: { template: MetaTemplate }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const setMedia = useSetTemplateDefaultMedia();
+  const [attachOpen, setAttachOpen] = useState(false);
+  const setMediaFromStorage = useSetTemplateDefaultMediaFromStorage();
+  const setMediaFromFile = useSetTemplateDefaultMedia();
+
   const { header } = readComponents(template.components);
   const format = header?.format?.toUpperCase();
+  const lockedType: MediaType =
+    format === "IMAGE" ? "image" : format === "VIDEO" ? "video" : "document";
   const accept =
-    format === "IMAGE" ? "image/*" : format === "VIDEO" ? "video/*" : "application/pdf";
+    lockedType === "image" ? "image/*" : lockedType === "video" ? "video/*" : "application/pdf";
 
-  const handleFile = (file?: File) => {
-    if (!file) return;
-    setMedia.mutate({ name: template.name, language: template.language, file });
-  };
+  const isPending = setMediaFromStorage.isPending || setMediaFromFile.isPending;
+  const hasMedia = !!template.headerMedia;
 
   return (
     <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
@@ -187,42 +192,62 @@ function TemplateMediaConfig({ template }: { template: MetaTemplate }) {
       <p className="text-xs text-muted-foreground">
         Esta mídia será enviada no cabeçalho sempre que o template for enviado a um contato.
       </p>
+
+      {/* Preview da mídia configurada */}
       {template.headerMedia ? (
-        <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
-          <CheckCircle className="h-3.5 w-3.5" />
-          Mídia configurada ({template.headerMedia.mediaType}).
-        </p>
+        <div className="space-y-1.5">
+          {template.headerMedia.mediaType === "image" ? (
+            <div className="rounded-md overflow-hidden border border-border max-h-40 flex items-center justify-center bg-muted">
+              <img
+                src={template.headerMedia.url}
+                alt="Mídia do cabeçalho"
+                className="max-h-40 w-full object-contain"
+              />
+            </div>
+          ) : (
+            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+              <CheckCircle className="h-3.5 w-3.5" />
+              {template.headerMedia.mediaType === "video" ? "Vídeo" : "Documento"} configurado.
+            </p>
+          )}
+        </div>
       ) : (
         <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
           <AlertTriangle className="h-3.5 w-3.5" />
           Nenhuma mídia configurada — o envio ficará bloqueado até configurar.
         </p>
       )}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={accept}
-        className="hidden"
-        onChange={(e) => {
-          handleFile(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
+
       <Button
         type="button"
         variant="outline"
         size="sm"
         className="gap-2"
-        disabled={setMedia.isPending}
-        onClick={() => fileInputRef.current?.click()}
+        disabled={isPending}
+        onClick={() => setAttachOpen(true)}
       >
-        {setMedia.isPending ? (
+        {isPending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Upload className="h-4 w-4" />
         )}
-        {template.headerMedia ? "Substituir mídia" : "Configurar mídia"}
+        {hasMedia ? "Substituir mídia" : "Configurar mídia"}
       </Button>
+
+      <AttachFileDialog
+        open={attachOpen}
+        onOpenChange={setAttachOpen}
+        lockedType={lockedType}
+        accept={accept}
+        onAttach={(item) => {
+          setMediaFromStorage.mutate({
+            name: template.name,
+            language: template.language,
+            storageKey: item.storageKey,
+            mediaType: item.mediaType,
+          });
+        }}
+      />
     </div>
   );
 }

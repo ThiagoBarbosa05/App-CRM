@@ -7,6 +7,7 @@ import {
 } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
+import { getPublicR2Url } from "../lib/r2";
 
 export async function listLocalTemplates(): Promise<WhatsappTemplate[]> {
   return db.select().from(whatsappTemplates).orderBy(whatsappTemplates.createdAt);
@@ -98,7 +99,7 @@ export interface MetaTemplate {
   quality_score?: { score?: string } | null;
   rejected_reason?: string | null;
   // Mídia padrão de cabeçalho configurada localmente (não vem da Meta).
-  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string } | null;
+  headerMedia?: { mediaType: "image" | "video" | "document"; storageKey: string; url: string } | null;
 }
 
 const INACTIVE_META_STATUSES = new Set(["REJECTED", "PAUSED", "DISABLED", "PENDING_DELETION"]);
@@ -168,7 +169,11 @@ export async function fetchMetaTemplates(): Promise<MetaTemplate[]> {
   for (const t of templates) {
     const media = mediaByKey.get(`${t.name}::${t.language}`);
     t.headerMedia = media
-      ? { mediaType: media.mediaType as "image" | "video" | "document", storageKey: media.storageKey }
+      ? {
+          mediaType: media.mediaType as "image" | "video" | "document",
+          storageKey: media.storageKey,
+          url: getPublicR2Url(media.storageKey),
+        }
       : null;
   }
 

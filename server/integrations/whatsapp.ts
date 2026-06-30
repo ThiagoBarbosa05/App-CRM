@@ -83,23 +83,34 @@ export async function sendTemplateMessage(
   channel?: ChannelOverride,
 ) {
   const cfg = await getConfig(channel);
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: normalizePhone(to),
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+      ...(components?.length ? { components } : {}),
+    },
+  };
+
+  console.log(
+    `[WA] sendTemplateMessage → phoneNumberId=${cfg.phoneNumberId} to=${normalizePhone(to)} template=${templateName} lang=${languageCode}`,
+  );
+  console.log(`[WA] payload:`, JSON.stringify(payload, null, 2));
+
   const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
     method: "POST",
     headers: authHeaders(cfg.accessToken),
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: normalizePhone(to),
-      type: "template",
-      template: {
-        name: templateName,
-        language: { code: languageCode },
-        ...(components?.length ? { components } : {}),
-      },
-    }),
+    body: JSON.stringify(payload),
   });
-  if (!response.ok) throw new Error(await response.text());
-  return response.json();
+
+  const responseText = await response.text();
+  console.log(`[WA] response status=${response.status} body:`, responseText);
+
+  if (!response.ok) throw new Error(responseText);
+  return JSON.parse(responseText);
 }
 
 export async function uploadMedia(

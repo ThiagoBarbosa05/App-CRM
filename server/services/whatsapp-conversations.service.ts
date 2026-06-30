@@ -18,7 +18,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
-import { getTemplateMedia } from "./whatsapp-templates.service";
+import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
@@ -632,6 +632,8 @@ export async function sendConversationTemplate(
   bodyParams: { name?: string; value: string }[] | undefined,
   previewText: string | undefined,
   channelId?: number,
+  headerMedia?: { storageKey: string; mediaType: "image" | "video" | "document" },
+  parameterFormat?: "NAMED" | "POSITIONAL",
 ) {
   const whereConditions: ReturnType<typeof eq>[] = [
     eq(whatsappConversations.id, conversationId),
@@ -667,25 +669,30 @@ export async function sendConversationTemplate(
     );
   }
 
-  // Corpo: parâmetro nomeado (NAMED) inclui parameter_name; posicional só o texto.
+  // Inclui parameter_name somente quando o template usa formato NAMED explicitamente.
+  // Para POSITIONAL (o mais comum) ou quando format não foi informado, usa só "text".
   const bodyParameters = (bodyParams ?? []).map((p) =>
-    p.name
+    parameterFormat === "NAMED" && p.name
       ? { type: "text", parameter_name: p.name, text: p.value }
       : { type: "text", text: p.value },
   );
 
-  // Cabeçalho: usa a mídia padrão configurada para o template (enviada como link
-  // público do R2, que a Meta consegue baixar). Igual ao padrão do bot engine.
-  const headerMedia = await getTemplateMedia(templateName, languageCode);
+  // Cabeçalho: prioriza a mídia escolhida no envio (biblioteca de mídia); na
+  // ausência dela, usa a mídia padrão configurada para o template. Em ambos os
+  // casos é enviada como link público do R2, que a Meta consegue baixar.
+  const resolvedHeaderMedia =
+    headerMedia ?? (await getTemplateMedia(templateName, languageCode));
 
   const componentsArr: object[] = [];
-  if (headerMedia) {
+  if (resolvedHeaderMedia) {
     componentsArr.push({
       type: "header",
       parameters: [
         {
-          type: headerMedia.mediaType,
-          [headerMedia.mediaType]: { link: getPublicR2Url(headerMedia.storageKey) },
+          type: resolvedHeaderMedia.mediaType,
+          [resolvedHeaderMedia.mediaType]: {
+            link: getPublicR2Url(resolvedHeaderMedia.storageKey),
+          },
         },
       ],
     });
@@ -696,8 +703,7 @@ export async function sendConversationTemplate(
   const components = componentsArr.length > 0 ? componentsArr : undefined;
 
   // Persiste imediatamente como "failed" — atualiza para "sent" se a API responder ok.
-  // content recebe o texto já com as variáveis substituídas (vindo do front) para
-  // exibição na bolha e na lista de conversas.
+  // rawPayload guarda os components montados para que o retry possa reenviar o template.
   const [savedMessage] = await db
     .insert(whatsappMessages)
     .values({
@@ -709,6 +715,12 @@ export async function sendConversationTemplate(
       status: "failed",
       sentByUserId: userId,
       sentAt: new Date(),
+      rawPayload: {
+        kind: "conversation_template",
+        templateName,
+        language: languageCode,
+        components: componentsArr,
+      },
     })
     .returning({ id: whatsappMessages.id });
 
@@ -722,6 +734,22 @@ export async function sendConversationTemplate(
       phoneNumberId: resolvedChannel.phoneNumberId,
       accessToken: resolvedChannel.accessToken,
     };
+
+    console.log(`[sendConversationTemplate] template="${templateName}" lang="${languageCode}" parameterFormat="${parameterFormat ?? "não informado"}" phone="${conv.phone}"`);
+    console.log(`[sendConversationTemplate] components enviados à Meta:`, JSON.stringify(components, null, 2));
+
+    // Busca os componentes completos do template (inclui botões) para diagnóstico.
+    const allMetaTemplates = await fetchMetaTemplates().catch(() => []);
+    const metaTpl = allMetaTemplates.find(
+      (t) => t.name === templateName && t.language === languageCode,
+    );
+    if (metaTpl) {
+      const buttonComp = (metaTpl.components as Array<{ type: string; buttons?: Array<{ type: string; url?: string; text?: string }> }>).find(
+        (c) => c.type?.toUpperCase() === "BUTTONS",
+      );
+      console.log(`[sendConversationTemplate] botões do template (Meta):`, JSON.stringify(buttonComp ?? null, null, 2));
+    }
+
     const result = await sendTemplateMessage(
       conv.phone,
       templateName,
@@ -732,10 +760,15 @@ export async function sendConversationTemplate(
     const waMessageId =
       (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
 
-    await db
+    console.log(`[sendConversationTemplate] Meta OK → waMessageId="${waMessageId}" savedMessage.id="${savedMessage?.id}"`);
+
+    const updateResult = await db
       .update(whatsappMessages)
       .set({ status: "sent", waMessageId })
-      .where(eq(whatsappMessages.id, savedMessage.id));
+      .where(eq(whatsappMessages.id, savedMessage.id))
+      .returning({ id: whatsappMessages.id, status: whatsappMessages.status });
+
+    console.log(`[sendConversationTemplate] DB update result:`, JSON.stringify(updateResult));
 
     if (conv.clientId) {
       publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
@@ -743,7 +776,7 @@ export async function sendConversationTemplate(
 
     return { waMessageId };
   } catch (err) {
-    console.error(`[WA Conversations Service] Erro no envio de template:`, err);
+    console.error(`[sendConversationTemplate] ERRO após Meta:`, err);
     throw err;
   }
 }
@@ -981,7 +1014,11 @@ export async function retryFailedMessage(
     const payload = msg.rawPayload as
       | { kind?: string; templateName?: string; language?: string; components?: object[] }
       | null;
-    if (msg.type === "template" && payload?.kind === "bot_template" && payload.templateName) {
+    if (
+      msg.type === "template" &&
+      payload?.templateName &&
+      (payload.kind === "bot_template" || payload.kind === "conversation_template")
+    ) {
       console.log(`[retryFailedMessage] replay template="${payload.templateName}"`);
       const tplResult = await sendTemplateMessage(
         conv.phone,
