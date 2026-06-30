@@ -13,7 +13,7 @@ import {
   tags,
   whatsappTags,
 } from "../../shared/schema";
-import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
@@ -123,9 +123,17 @@ export async function linkClientToConversation(conversationId: string, clientId:
 }
 
 export async function transferConversation(conversationId: string, targetChannelId: number) {
+  // Transferir para um canal = entregar ao atendente dono desse canal, com o
+  // canal vinculado. Assim a conversa passa a aparecer no inbox dele.
+  const [channel] = await db
+    .select({ userId: whatsappChannels.userId })
+    .from(whatsappChannels)
+    .where(eq(whatsappChannels.id, targetChannelId))
+    .limit(1);
+
   const [updated] = await db
     .update(whatsappConversations)
-    .set({ channelId: targetChannelId, assignedAgentId: null, updatedAt: new Date() })
+    .set({ channelId: targetChannelId, assignedAgentId: channel?.userId ?? null, updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId))
     .returning();
   return updated ?? null;
@@ -279,10 +287,16 @@ export async function listClientsForChat(
 
   const conditions: ReturnType<typeof eq>[] = [];
 
-  // Conversa é unificada por cliente; o vendedor vê as conversas dos clientes
-  // sob sua responsabilidade (não mais por dono do canal).
+  // Conversa é unificada por cliente; o vendedor vê as conversas atribuídas a ele
+  // (assignedAgentId) e, quando não há atribuição, as dos clientes sob sua
+  // responsabilidade. Ao transferir, a conversa passa a aparecer só para o
+  // atendente atribuído; o responsável anterior deixa de vê-la.
   if (userRole === "vendedor" && userId) {
-    conditions.push(eq(clients.responsavelId, userId));
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) conditions.push(scope);
   }
 
   if (search) {
@@ -424,7 +438,11 @@ export async function getConversation(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    whereConditions.push(eq(clients.responsavelId, userId));
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) whereConditions.push(scope);
   }
 
   const [conv] = await db
@@ -525,7 +543,11 @@ export async function sendConversationMessage(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    whereConditions.push(eq(clients.responsavelId, userId));
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) whereConditions.push(scope);
   }
 
   const [conv] = await db
@@ -641,7 +663,11 @@ export async function sendConversationTemplate(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    whereConditions.push(eq(clients.responsavelId, userId));
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) whereConditions.push(scope);
   }
 
   const [conv] = await db
@@ -836,7 +862,11 @@ export async function sendConversationMedia(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    whereConditions.push(eq(clients.responsavelId, userId));
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) whereConditions.push(scope);
   }
 
   const [conv] = await db
@@ -990,7 +1020,11 @@ export async function retryFailedMessage(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    whereConditions.push(eq(clients.responsavelId, userId));
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) whereConditions.push(scope);
   }
 
   const [conv] = await db
@@ -1311,7 +1345,11 @@ export async function sendConversationReaction(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    whereConditions.push(eq(clients.responsavelId, userId));
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) whereConditions.push(scope);
   }
 
   const [conv] = await db

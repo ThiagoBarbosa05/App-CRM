@@ -122,6 +122,37 @@ export async function listActiveChannels(): Promise<{ id: number; name: string; 
     .orderBy(whatsappChannels.createdAt);
 }
 
+/**
+ * Conjunto com os números (somente dígitos, com DDI) de todos os canais da
+ * empresa. Usado para ignorar mensagens recebidas vindas de um número próprio
+ * (ex.: o bot dispara pelo número Cloud API e a mensagem é espelhada de volta por
+ * um canal Evolution conectado), que não devem virar conversas de contato.
+ */
+export async function getOwnChannelPhones(): Promise<Set<string>> {
+  const rows = await db
+    .select({ displayPhone: whatsappChannels.displayPhone })
+    .from(whatsappChannels);
+  const phones = new Set<string>();
+  for (const r of rows) {
+    const digits = r.displayPhone?.replace(/\D/g, "");
+    if (digits) phones.add(digits);
+  }
+  return phones;
+}
+
+/**
+ * Retorna o id do canal ativo de um usuário (atendente), para qualquer provider.
+ * Usado na transferência para vincular a conversa ao canal do atendente.
+ */
+export async function getActiveChannelIdByUserId(userId: string): Promise<number | null> {
+  const [row] = await db
+    .select({ id: whatsappChannels.id })
+    .from(whatsappChannels)
+    .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true)))
+    .limit(1);
+  return row?.id ?? null;
+}
+
 export async function getChannelByEvolutionInstance(instanceName: string) {
   const [channel] = await db
     .select()

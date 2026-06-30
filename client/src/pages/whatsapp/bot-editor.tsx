@@ -46,6 +46,7 @@ import {
   ImageIcon,
   FileVideo,
   FileText as FileTextIcon,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -72,6 +79,8 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useWhatsappBotFlow, useWhatsappBots, useSaveFlow } from "@/hooks/use-whatsapp-bots";
 import { useWhatsappMetaTemplates } from "@/hooks/use-whatsapp";
+import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
+import type { MediaLibraryItem } from "@/hooks/use-media-library";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   parseTemplateVars,
@@ -2300,8 +2309,7 @@ function SendTemplateEditor({
 }) {
   const [search, setSearch] = useState("");
   const [showPicker, setShowPicker] = useState(false);
-  const [isUploadingHeader, setIsUploadingHeader] = useState(false);
-  const headerFileInputRef = useRef<HTMLInputElement>(null);
+  const [attachOpen, setAttachOpen] = useState(false);
   const { toast } = useToast();
 
   const selected = metaTemplates.find((t) => t.name === data.metaTemplateName);
@@ -2406,22 +2414,38 @@ function SendTemplateEditor({
             data.templateHeaderMedia.type === "image" ? (
               <div className="relative rounded-md border bg-muted/30 overflow-hidden">
                 <img
-                  src={`/api/whatsapp/bots/attachments/${data.templateHeaderMedia.storageKey}`}
+                  src={`https://eventos.grandcrub2b.com/${data.templateHeaderMedia.storageKey}`}
                   alt={data.templateHeaderMedia.name ?? "imagem"}
                   className="w-full max-h-40 object-cover rounded-md"
                 />
-                <button
-                  type="button"
-                  onClick={() => onChange({ templateHeaderMedia: undefined })}
-                  className="absolute top-1 right-1 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 transition-colors"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                <div className="absolute top-1 right-1 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setAttachOpen(true)}
+                    className="bg-black/60 hover:bg-black/80 text-white rounded-full px-2 py-0.5 text-[10px] transition-colors"
+                  >
+                    Trocar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ templateHeaderMedia: undefined })}
+                    className="bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-2 px-3 py-2.5 rounded-md border bg-muted/30">
                 <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
                 <span className="text-xs truncate flex-1">{data.templateHeaderMedia.name ?? "arquivo"}</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachOpen(true)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                >
+                  Trocar
+                </button>
                 <button
                   type="button"
                   onClick={() => onChange({ templateHeaderMedia: undefined })}
@@ -2432,63 +2456,41 @@ function SendTemplateEditor({
               </div>
             )
           ) : (
-            <>
-              <input
-                ref={headerFileInputRef}
-                type="file"
-                accept={
-                  data.headerMediaType === "video"
-                    ? "video/*"
-                    : data.headerMediaType === "document"
-                      ? "application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
-                      : "image/*"
-                }
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setIsUploadingHeader(true);
-                  try {
-                    const formData = new FormData();
-                    formData.append("file", file);
-                    const res = await fetch("/api/whatsapp/bots/attachments", {
-                      method: "POST",
-                      body: formData,
-                    });
-                    if (!res.ok) {
-                      const err = await res.json().catch(() => ({}));
-                      throw new Error((err as { message?: string }).message ?? "Erro no upload");
-                    }
-                    const uploaded = (await res.json()) as { storageKey: string; name: string; mimeType: string };
-                    onChange({
-                      templateHeaderMedia: {
-                        storageKey: uploaded.storageKey,
-                        type: data.headerMediaType!,
-                        name: uploaded.name,
-                        mimeType: uploaded.mimeType,
-                      },
-                    });
-                  } catch (err) {
-                    toast({ title: "Erro ao fazer upload", description: (err as Error).message, variant: "destructive" });
-                  } finally {
-                    setIsUploadingHeader(false);
-                    e.target.value = "";
-                  }
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-                disabled={isUploadingHeader}
-                onClick={() => headerFileInputRef.current?.click()}
-              >
-                {isUploadingHeader ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />}
-                {isUploadingHeader ? "Enviando..." : "Escolher arquivo"}
-              </Button>
-            </>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+              onClick={() => setAttachOpen(true)}
+            >
+              <Paperclip className="h-3.5 w-3.5" />
+              Escolher arquivo
+            </Button>
           )}
+
+          <AttachFileDialog
+            open={attachOpen}
+            onOpenChange={setAttachOpen}
+            lockedType={data.headerMediaType}
+            accept={
+              data.headerMediaType === "video"
+                ? "video/*"
+                : data.headerMediaType === "document"
+                  ? "application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                  : "image/*"
+            }
+            onAttach={(item: MediaLibraryItem) => {
+              onChange({
+                templateHeaderMedia: {
+                  storageKey: item.storageKey,
+                  type: data.headerMediaType!,
+                  name: item.name,
+                  mimeType: item.mimeType,
+                },
+              });
+              setAttachOpen(false);
+            }}
+          />
         </div>
       )}
 
@@ -2498,26 +2500,40 @@ function SendTemplateEditor({
           <p className="text-xs font-medium">Variáveis do template:</p>
           {(data.templateParams ?? []).map((value, i) => (
             <div key={i}>
-              <label className="text-[11px] text-muted-foreground mb-1 block">
-                {"{{"}
-                {i + 1}
-                {"}}"}
-              </label>
-              <div className="flex flex-wrap gap-1 mb-1">
-                {CLIENT_VARIABLES.map((v) => (
-                  <button
-                    key={v.value}
-                    type="button"
-                    onClick={() => {
-                      const next = [...(data.templateParams ?? [])];
-                      next[i] = (next[i] ?? "") + v.value;
-                      onChange({ templateParams: next });
-                    }}
-                    className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 font-mono transition-colors"
-                  >
-                    {v.value}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-muted-foreground font-mono">
+                  {"{{"}
+                  {i + 1}
+                  {"}}"}
+                </label>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                    >
+                      <User className="h-3 w-3" />
+                      Inserir dado
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto">
+                    {CLIENT_VARIABLES.map((v) => (
+                      <DropdownMenuItem
+                        key={v.value}
+                        onClick={() => {
+                          const next = [...(data.templateParams ?? [])];
+                          next[i] = v.value;
+                          onChange({ templateParams: next });
+                        }}
+                      >
+                        <span className="text-xs">{v.label}</span>
+                        <span className="ml-2 text-[10px] text-muted-foreground font-mono">
+                          {v.value}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <Input
                 className="h-7 text-xs"

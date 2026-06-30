@@ -48,7 +48,7 @@ function authHeaders(accessToken: string) {
   };
 }
 
-function normalizePhone(phone: string): string {
+export function normalizePhone(phone: string): string {
   const digits = phone.replace(/\D/g, "");
   // Números brasileiros sem DDI: 10 dígitos (fixo) ou 11 dígitos (celular)
   if (digits.length === 10 || digits.length === 11) {

@@ -1,4 +1,4 @@
-import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel } from "./whatsapp-channels.service";
+import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, getOwnChannelPhones } from "./whatsapp-channels.service";
 import { saveInboundMessage } from "./whatsapp-conversations.service";
 import { publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
@@ -33,6 +33,14 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
   if (!channel) {
     console.warn(`[Baileys Events] Instância "${instanceName}" não encontrada no banco`);
+    return;
+  }
+
+  // Ignora mensagens cujo remetente é um número próprio da empresa (ex.: o bot
+  // dispara pelo canal Cloud API e a mensagem é espelhada de volta por este canal
+  // Evolution). Sem isso, o número do bot apareceria como um contato novo.
+  const ownPhones = await getOwnChannelPhones().catch(() => new Set<string>());
+  if (ownPhones.has(phone.replace(/\D/g, ""))) {
     return;
   }
 

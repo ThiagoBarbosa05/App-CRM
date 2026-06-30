@@ -33,7 +33,8 @@ import {
   users,
 } from "@shared/schema";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage } from "../integrations/whatsapp";
+import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage, normalizePhone } from "../integrations/whatsapp";
+import { getActiveChannelIdByUserId } from "./whatsapp-channels.service";
 import { r2, getPublicR2Url } from "../lib/r2";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
@@ -160,7 +161,7 @@ async function getActiveSession(
     .from(whatsappBotSessions)
     .where(
       and(
-        eq(whatsappBotSessions.phoneNumber, phone),
+        eq(whatsappBotSessions.phoneNumber, normalizePhone(phone)),
         eq(whatsappBotSessions.status, "active"),
       ),
     )
@@ -804,9 +805,16 @@ async function executeNode(
       });
 
       if (agentId) {
+        // Vincula a conversa ao canal do atendente (se houver), para que as
+        // respostas saiam pelo número dele.
+        const agentChannelId = await getActiveChannelIdByUserId(agentId).catch(() => null);
         await db
           .update(whatsappConversations)
-          .set({ assignedAgentId: agentId, updatedAt: new Date() })
+          .set({
+            assignedAgentId: agentId,
+            ...(agentChannelId ? { channelId: agentChannelId } : {}),
+            updatedAt: new Date(),
+          })
           .where(eq(whatsappConversations.id, conversation.id));
         await db.insert(whatsappMessages).values({
           conversationId: conversation.id,
@@ -1057,7 +1065,7 @@ export async function startBotSession(
     .insert(whatsappBotSessions)
     .values({
       botId,
-      phoneNumber: phone,
+      phoneNumber: normalizePhone(phone),
       currentNodeId: entryNode.id,
       status: "active",
       sessionData: clientVars,

@@ -6,7 +6,7 @@ import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { upsertWhatsappSetting } from "../services/whatsapp-settings.service";
 import { handleIncomingMessage as runBotEngine, handleFlowResponse, handleTemplateDeliveryFailure } from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage, saveInboundReaction } from "../services/whatsapp-conversations.service";
-import { getChannelByPhoneNumberId } from "../services/whatsapp-channels.service";
+import { getChannelByPhoneNumberId, getOwnChannelPhones } from "../services/whatsapp-channels.service";
 import { logAccountEvent } from "../services/whatsapp-account-events.service";
 import {
   updateTemplateMetaStatus,
@@ -265,6 +265,7 @@ async function handleIncomingMessage(
   const replyId =
     message.interactive?.button_reply?.id ??
     message.interactive?.list_reply?.id ??
+    message.button?.payload ??
     null;
   const mediaObj = message.image ?? message.audio ?? message.video ?? message.document ?? message.sticker;
 
@@ -278,6 +279,14 @@ async function handleIncomingMessage(
   );
 
   const channel = await getChannelByPhoneNumberId(metadata.phone_number_id).catch(() => null);
+
+  // Ignora mensagens cujo remetente é um número próprio da empresa (ex.: outro
+  // canal conectado espelhando o tráfego do bot), evitando criar uma conversa de
+  // contato com o próprio número da empresa.
+  const ownPhones = await getOwnChannelPhones().catch(() => new Set<string>());
+  if (ownPhones.has(message.from.replace(/\D/g, ""))) {
+    return;
+  }
 
   if (message.type === "reaction" && message.reaction) {
     await saveInboundReaction({
