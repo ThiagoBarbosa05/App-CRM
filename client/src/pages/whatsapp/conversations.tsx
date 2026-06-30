@@ -143,6 +143,22 @@ interface WaMessage {
   channelId: number | null;
   channelName: string | null;
   channelProvider: string | null;
+  rawPayload?: {
+    kind?: string;
+    templateName?: string;
+    language?: string;
+    components?: Array<{
+      type: string;
+      parameters?: Array<{
+        type: string;
+        image?: { link?: string };
+        video?: { link?: string };
+        document?: { link?: string };
+        text?: string;
+      }>;
+    }>;
+    buttons?: Array<{ type: string; text: string }>;
+  } | null;
   media: WaMedia | null;
   reactions?: { emoji: string; direction: "inbound" | "outbound" }[];
 }
@@ -1324,6 +1340,74 @@ function AudioPlayer({
   );
 }
 
+function TemplateBubble({
+  msg,
+  isOutbound,
+}: {
+  msg: WaMessage;
+  isOutbound: boolean;
+}) {
+  const payload = msg.rawPayload;
+  const headerComp = payload?.components?.find((c) => c.type === "header");
+  const headerParam = headerComp?.parameters?.[0];
+  const imageUrl =
+    headerParam?.image?.link ??
+    headerParam?.video?.link ??
+    headerParam?.document?.link ??
+    null;
+  const buttons = payload?.buttons ?? [];
+
+  return (
+    <div className="overflow-hidden rounded-2xl" style={{ minWidth: 220, maxWidth: 320 }}>
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt="header"
+          className="w-full object-cover"
+          style={{ maxHeight: 200 }}
+        />
+      )}
+      <div className="px-3.5 pt-2.5 pb-1.5">
+        <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
+          {msg.content}
+        </p>
+      </div>
+      {buttons.length > 0 && (
+        <>
+          <div
+            className={cn(
+              "mx-3 border-t",
+              isOutbound
+                ? "border-white/20"
+                : "border-slate-200 dark:border-slate-700",
+            )}
+          />
+          <div className="flex flex-col">
+            {buttons.map((btn, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 px-3.5 py-2 text-sm font-medium",
+                  i < buttons.length - 1 &&
+                    (isOutbound
+                      ? "border-b border-white/20"
+                      : "border-b border-slate-200 dark:border-slate-700"),
+                  isOutbound
+                    ? "text-primary-foreground/90"
+                    : "text-blue-600 dark:text-blue-400",
+                )}
+              >
+                <Reply className="h-3.5 w-3.5 shrink-0" />
+                {btn.text}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function MessageContent({
   msg,
   isOutbound,
@@ -1333,6 +1417,10 @@ function MessageContent({
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const mediaUrl = msg.media?.id ? `/api/whatsapp/media/${msg.media.id}` : null;
+
+  if (msg.type === "template") {
+    return <TemplateBubble msg={msg} isOutbound={isOutbound} />;
+  }
 
   if (msg.type === "sticker") {
     if (!mediaUrl)
@@ -1827,6 +1915,7 @@ function TemplatePicker({
     bodyParams: { name?: string; value: string }[];
     previewText: string;
     headerMedia?: { storageKey: string; mediaType: MediaType };
+    templateButtons?: { type: string; text: string }[];
   }) => void;
   clientId: string | null;
 }) {
@@ -1903,6 +1992,13 @@ function TemplatePicker({
       value: values[v] ?? "",
     }));
     const previewText = applyTemplateVars(body?.text ?? selected.name, values);
+    const buttonsComp = (selected.components as Array<{ type: string; buttons?: { type: string; text?: string }[] }>).find(
+      (c) => c.type?.toUpperCase() === "BUTTONS",
+    );
+    const templateButtons = (buttonsComp?.buttons ?? [])
+      .filter((b) => b.text)
+      .map((b) => ({ type: b.type, text: b.text! }));
+
     onSend({
       templateName: selected.name,
       languageCode: selected.language,
@@ -1912,6 +2008,7 @@ function TemplatePicker({
       headerMedia: headerMedia
         ? { storageKey: headerMedia.storageKey, mediaType: headerMedia.mediaType }
         : undefined,
+      templateButtons,
     });
   };
 
@@ -2958,6 +3055,7 @@ function ConversationMessages({
       bodyParams: { name?: string; value: string }[];
       previewText: string;
       headerMedia?: { storageKey: string; mediaType: MediaType };
+      templateButtons?: { type: string; text: string }[];
     }) => {
       const localId = crypto.randomUUID();
       setLocalMessages((prev) => [
@@ -2977,6 +3075,7 @@ function ConversationMessages({
           previewText: string;
           channelId?: number;
           headerMedia?: { storageKey: string; mediaType: MediaType };
+          templateButtons?: { type: string; text: string }[];
         } = {
           templateName: data.templateName,
           languageCode: data.languageCode,
@@ -2984,6 +3083,7 @@ function ConversationMessages({
           bodyParams: data.bodyParams,
           previewText: data.previewText,
           headerMedia: data.headerMedia,
+          templateButtons: data.templateButtons,
         };
         if (
           (userRole === "admin" || userRole === "gerente") &&

@@ -463,6 +463,7 @@ export async function getConversation(
       channelId: whatsappMessages.channelId,
       channelName: whatsappChannels.name,
       channelProvider: whatsappChannels.provider,
+      rawPayload: whatsappMessages.rawPayload,
       media: {
         id: whatsappMedia.id,
         whatsappMediaId: whatsappMedia.whatsappMediaId,
@@ -634,6 +635,7 @@ export async function sendConversationTemplate(
   channelId?: number,
   headerMedia?: { storageKey: string; mediaType: "image" | "video" | "document" },
   parameterFormat?: "NAMED" | "POSITIONAL",
+  templateButtons?: { type: string; text: string }[],
 ) {
   const whereConditions: ReturnType<typeof eq>[] = [
     eq(whatsappConversations.id, conversationId),
@@ -720,6 +722,7 @@ export async function sendConversationTemplate(
         templateName,
         language: languageCode,
         components: componentsArr,
+        buttons: templateButtons ?? [],
       },
     })
     .returning({ id: whatsappMessages.id });

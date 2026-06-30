@@ -301,6 +301,9 @@ const sendTemplateSchema = z.object({
       mediaType: z.enum(["image", "video", "document"]),
     })
     .optional(),
+  templateButtons: z
+    .array(z.object({ type: z.string(), text: z.string() }))
+    .optional(),
 });
 
 router.post("/conversations/:clientId/messages/template", async (req, res) => {
@@ -327,6 +330,7 @@ router.post("/conversations/:clientId/messages/template", async (req, res) => {
       parsed.data.channelId,
       parsed.data.headerMedia,
       parsed.data.parameterFormat,
+      parsed.data.templateButtons,
     );
 
     if (result === null) {
