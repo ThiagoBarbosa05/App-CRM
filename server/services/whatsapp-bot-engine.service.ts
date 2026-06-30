@@ -145,9 +145,7 @@ async function persistBotMessage(
       .set({ lastMessageAt: new Date(), updatedAt: new Date() })
       .where(eq(whatsappConversations.id, conversation.id));
 
-    if (conversation.clientId) {
-      publishConversationEvent(conversation.clientId, "new_message", { clientId: conversation.clientId });
-    }
+    publishConversationEvent(conversation.clientId ?? conversation.id, "new_message", { clientId: conversation.clientId ?? null });
   } catch (err) {
     console.error("[WaBot] Erro ao persistir mensagem do bot:", err);
   }
@@ -626,11 +624,9 @@ async function executeNode(
               status: "sent",
               sentAt: new Date(),
             });
-            if (conversation.clientId) {
-              publishConversationEvent(conversation.clientId, "new_message", {
-                clientId: conversation.clientId,
-              });
-            }
+            publishConversationEvent(conversation.clientId ?? conversation.id, "new_message", {
+              clientId: conversation.clientId ?? null,
+            });
           }
           break;
         }
@@ -1087,9 +1083,7 @@ export async function startBotSession(
       .update(whatsappConversations)
       .set({ lastMessageAt: new Date(), updatedAt: new Date() })
       .where(eq(whatsappConversations.id, conversation.id));
-    if (conversation.clientId) {
-      publishConversationEvent(conversation.clientId, "new_message", { clientId: conversation.clientId });
-    }
+    publishConversationEvent(conversation.clientId ?? conversation.id, "new_message", { clientId: conversation.clientId ?? null });
   } catch (err) {
     console.error("[WaBot] Erro ao registrar início do bot:", err);
   }

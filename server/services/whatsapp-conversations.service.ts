@@ -630,8 +630,8 @@ export async function sendConversationMessage(
 
     // Publica o evento SSE somente após o status "sent" estar gravado no banco,
     // evitando que o frontend refaça a query e veja status "failed" prematuramente
-    if (conv.clientId) {
-      publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+    if (conv.id) {
+      publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
     }
 
     return { waMessageId };
@@ -799,8 +799,8 @@ export async function sendConversationTemplate(
 
     console.log(`[sendConversationTemplate] DB update result:`, JSON.stringify(updateResult));
 
-    if (conv.clientId) {
-      publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+    if (conv.id) {
+      publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
     }
 
     return { waMessageId };
@@ -970,8 +970,8 @@ export async function sendConversationMedia(
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
 
-  if (conv.clientId) {
-    publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+  if (conv.id) {
+    publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
   }
 
   return { id: savedMessage.id, status: "sent" };
@@ -1028,7 +1028,7 @@ export async function retryFailedMessage(
   }
 
   const [conv] = await db
-    .select({ phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
+    .select({ id: whatsappConversations.id, phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .where(and(...whereConditions))
@@ -1069,8 +1069,8 @@ export async function retryFailedMessage(
         .update(whatsappMessages)
         .set({ status: "sent", waMessageId: tplWaId, sentAt: new Date() })
         .where(eq(whatsappMessages.id, messageId));
-      if (conv.clientId) {
-        publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+      if (conv.id) {
+        publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
       }
       return "sent";
     }
@@ -1110,8 +1110,8 @@ export async function retryFailedMessage(
       .set({ status: "sent", waMessageId, sentAt: new Date() })
       .where(eq(whatsappMessages.id, messageId));
 
-    if (conv.clientId) {
-      publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+    if (conv.id) {
+      publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
     }
 
     return "sent";
@@ -1239,11 +1239,12 @@ export async function saveInboundMessage(data: {
     `[WA Webhook] Inbound de ${data.phone} → conversa: ${conv.id} (cliente: ${conv.clientId ?? "não encontrado"})`,
   );
 
-  if (conv.clientId) {
-    publishConversationEvent(conv.clientId, "new_message", {
-      clientId: conv.clientId,
-    });
-  }
+  // Chaveado por clientId ?? id para casar com o conversationKey do frontend
+  // (clientId ?? conversationId) — assim conversas sem cliente também recebem
+  // atualização em tempo real no thread aberto.
+  publishConversationEvent(conv.clientId ?? conv.id, "new_message", {
+    clientId: conv.clientId ?? null,
+  });
 
   publishSseEvent("new_whatsapp_inbound", { conversationId: conv.id, clientId: conv.clientId ?? null });
 }
@@ -1323,13 +1324,13 @@ export async function saveInboundReaction(data: {
   }
 
   const [conv] = await db
-    .select({ clientId: whatsappConversations.clientId })
+    .select({ id: whatsappConversations.id, clientId: whatsappConversations.clientId })
     .from(whatsappConversations)
     .where(eq(whatsappConversations.id, targetMsg.conversationId))
     .limit(1);
 
-  if (conv?.clientId) {
-    publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+  if (conv?.id) {
+    publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
   }
 }
 
@@ -1353,7 +1354,7 @@ export async function sendConversationReaction(
   }
 
   const [conv] = await db
-    .select({ phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
+    .select({ id: whatsappConversations.id, phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .where(and(...whereConditions))
@@ -1406,8 +1407,8 @@ export async function sendConversationReaction(
       });
   }
 
-  if (conv.clientId) {
-    publishConversationEvent(conv.clientId, "new_message", { clientId: conv.clientId });
+  if (conv.id) {
+    publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
   }
 
   return { ok: true };
