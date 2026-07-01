@@ -135,6 +135,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     res.status(201).json(campaign);
   } catch (e) {
+    console.error("[POST /api/campaigns] Erro ao criar campanha:", e);
     res.status(500).json({ message: "Erro ao criar campanha" });
   }
 });

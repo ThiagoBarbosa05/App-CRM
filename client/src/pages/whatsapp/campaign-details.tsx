@@ -554,7 +554,7 @@ export default function WhatsAppCampaignDetails() {
                         {msg.sentAt && <span>Enviado: {formatDate(msg.sentAt)}</span>}
                       </div>
                       {msg.errorMessage && (
-                        <p className="text-xs text-red-500 truncate">{msg.errorMessage}</p>
+                        <p className="text-xs text-red-500 break-words whitespace-pre-wrap">{msg.errorMessage}</p>
                       )}
                       <div className="flex items-center gap-1.5 pt-1">
                         {msg.contactId && (
@@ -617,7 +617,7 @@ export default function WhatsAppCampaignDetails() {
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">{formatDate(msg.scheduledAt)}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{formatDate(msg.sentAt)}</TableCell>
-                          <TableCell className="hidden lg:table-cell text-red-500 text-sm max-w-xs truncate">
+                          <TableCell className="hidden lg:table-cell text-red-500 text-sm max-w-xs whitespace-pre-wrap break-words">
                             {msg.errorMessage ?? "—"}
                           </TableCell>
                           <TableCell className="text-right pr-6">
