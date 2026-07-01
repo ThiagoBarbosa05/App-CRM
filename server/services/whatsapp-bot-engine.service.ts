@@ -11,6 +11,7 @@ import {
   whatsappMedia,
   contactTags,
   clients,
+  type Client,
   CONTACT_FIELD_WHITELIST,
   type WhatsappBotNode,
   type WhatsappBotSession,
@@ -281,6 +282,22 @@ export function pickDistributeHandle(
 
 export function interpolate(text: string, variables: Record<string, string>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`);
+}
+
+/** Monta o mapa de variáveis de personalização a partir dos dados de um cliente. */
+export function buildClientVariables(client: Client | null, phone: string): Record<string, string> {
+  const vars: Record<string, string> = { telefone: phone };
+  if (!client) return vars;
+  if (client.name) vars.nome = client.name;
+  if (client.email) vars.email = client.email;
+  if (client.cpf) vars.cpf = client.cpf;
+  if (client.birthday) vars.aniversario = client.birthday;
+  if (client.city) vars.cidade = client.city;
+  if (client.state) vars.estado = client.state;
+  if (client.fixedPhone) vars.telefone_fixo = client.fixedPhone;
+  if (client.address) vars.endereco = client.address;
+  if (client.neighborhood) vars.bairro = client.neighborhood;
+  return vars;
 }
 
 /** Valida os 11 dígitos de um CPF (dígitos verificadores). */
@@ -1069,26 +1086,17 @@ export async function startBotSession(
   const botName = bot?.name ?? "Bot";
 
   // Injeta campos do cliente como variáveis iniciais da sessão
-  const clientVars: Record<string, string> = { telefone: phone };
   const [convRow] = await db
     .select({ clientId: whatsappConversations.clientId })
     .from(whatsappConversations)
     .where(eq(whatsappConversations.phone, phone))
     .limit(1);
+  let clientRow: Client | null = null;
   if (convRow?.clientId) {
     const [client] = await db.select().from(clients).where(eq(clients.id, convRow.clientId)).limit(1);
-    if (client) {
-      if (client.name)         clientVars.nome          = client.name;
-      if (client.email)        clientVars.email         = client.email;
-      if (client.cpf)          clientVars.cpf           = client.cpf;
-      if (client.birthday)     clientVars.aniversario   = client.birthday;
-      if (client.city)         clientVars.cidade        = client.city;
-      if (client.state)        clientVars.estado        = client.state;
-      if (client.fixedPhone)   clientVars.telefone_fixo = client.fixedPhone;
-      if (client.address)      clientVars.endereco      = client.address;
-      if (client.neighborhood) clientVars.bairro        = client.neighborhood;
-    }
+    clientRow = client ?? null;
   }
+  const clientVars = buildClientVariables(clientRow, phone);
 
   const [newSession] = await db
     .insert(whatsappBotSessions)
