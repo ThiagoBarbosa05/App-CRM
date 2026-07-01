@@ -1,11 +1,12 @@
 import { db } from "server/db";
-import { campaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappMessages } from "@shared/schema";
+import { campaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappMessages, clients } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { sendTemplateMessage } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 import { formatPhoneToDigits } from "../lib/format-phone";
-import { startBotSession } from "./whatsapp-bot-engine.service";
+import { startBotSession, buildClientVariables, interpolate } from "./whatsapp-bot-engine.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
+import { getPublicR2Url } from "../lib/r2";
 
 const DEFAULT_DELAY_MS = 1000;
 
@@ -137,9 +138,13 @@ export async function executeCampaign(
         continue;
       }
       const phoneE164 = formatPhoneToDigits(msg.phoneNumber);
-      const bodyParams = buildBodyParams(template.bodyParams, msg.contactName);
-      const components =
-        bodyParams.length > 0 ? [{ type: "body", parameters: bodyParams }] : undefined;
+
+      let clientRow: typeof clients.$inferSelect | undefined;
+      if (msg.contactId) {
+        [clientRow] = await db.select().from(clients).where(eq(clients.id, msg.contactId));
+      }
+      const clientVars = buildClientVariables(clientRow ?? null, phoneE164);
+      const components = buildTemplateComponents(campaign, clientVars);
 
       try {
         const result = await sendTemplateMessage(
@@ -201,15 +206,46 @@ async function persistCampaignMessageToConversation(
   }
 }
 
-function buildBodyParams(
-  bodyParams: unknown,
-  contactName: string,
-): { type: string; text: string }[] {
-  if (!Array.isArray(bodyParams)) return [];
+function buildTemplateComponents(
+  campaign: typeof campaigns.$inferSelect,
+  variables: Record<string, string>,
+): object[] | undefined {
+  const components: object[] = [];
 
-  return bodyParams.map((param: unknown) => {
-    const key = typeof param === "string" ? param : String(param);
-    const value = key === "nome" ? contactName.split(" ")[0] : key;
-    return { type: "text", text: value };
-  });
+  if (campaign.metaTemplateHeaderMediaStorageKey && campaign.metaTemplateHeaderMediaType) {
+    components.push({
+      type: "header",
+      parameters: [
+        {
+          type: campaign.metaTemplateHeaderMediaType,
+          [campaign.metaTemplateHeaderMediaType]: {
+            link: getPublicR2Url(campaign.metaTemplateHeaderMediaStorageKey),
+          },
+        },
+      ],
+    });
+  } else if (
+    Array.isArray(campaign.metaTemplateHeaderParams) &&
+    campaign.metaTemplateHeaderParams.length > 0
+  ) {
+    components.push({
+      type: "header",
+      parameters: (campaign.metaTemplateHeaderParams as string[]).map((p) => ({
+        type: "text",
+        text: interpolate(p, variables),
+      })),
+    });
+  }
+
+  if (Array.isArray(campaign.metaTemplateBodyParams) && campaign.metaTemplateBodyParams.length > 0) {
+    components.push({
+      type: "body",
+      parameters: (campaign.metaTemplateBodyParams as string[]).map((p) => ({
+        type: "text",
+        text: interpolate(p, variables),
+      })),
+    });
+  }
+
+  return components.length > 0 ? components : undefined;
 }
