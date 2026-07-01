@@ -17,6 +17,9 @@ import {
   PhoneOff,
   Clock,
   User,
+  Filter,
+  ChevronDown,
+  Tag,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -41,6 +44,18 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandItem,
+} from "@/components/ui/command";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -60,11 +75,29 @@ import {
   parseTemplateVars,
 } from "@/lib/whatsapp-template";
 
-type WhatsappFilterTag = { id: string; name: string; color?: string | null; emoji?: string | null };
-type ClientTag = { id: string; name: string; color?: string | null; emoji?: string | null };
-type Client = { id: string; name: string; phone?: string | null; tags?: ClientTag[] };
+type WhatsappFilterTag = {
+  id: string;
+  name: string;
+  color?: string | null;
+  emoji?: string | null;
+};
+type ClientTag = {
+  id: string;
+  name: string;
+  color?: string | null;
+  emoji?: string | null;
+};
+type Client = {
+  id: string;
+  name: string;
+  phone?: string | null;
+  tags?: ClientTag[];
+};
 
-type TemplateHeaderMediaValue = { storageKey: string; mediaType: "image" | "video" | "document" };
+type TemplateHeaderMediaValue = {
+  storageKey: string;
+  mediaType: "image" | "video" | "document";
+};
 
 const CLIENT_VARIABLE_TOKENS = [
   { label: "Nome", value: "{{nome}}" },
@@ -92,7 +125,11 @@ const CLIENT_VARIABLE_LABELS: Record<string, string> = {
   aniversario: "Aniversário do cliente",
 };
 
-function ClientVariableMenu({ onSelect }: { onSelect: (token: string) => void }) {
+function ClientVariableMenu({
+  onSelect,
+}: {
+  onSelect: (token: string) => void;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -108,7 +145,9 @@ function ClientVariableMenu({ onSelect }: { onSelect: (token: string) => void })
         {CLIENT_VARIABLE_TOKENS.map((v) => (
           <DropdownMenuItem key={v.value} onClick={() => onSelect(v.value)}>
             <span className="text-xs">{v.label}</span>
-            <span className="ml-2 text-[10px] text-muted-foreground font-mono">{v.value}</span>
+            <span className="ml-2 text-[10px] text-muted-foreground font-mono">
+              {v.value}
+            </span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -136,9 +175,21 @@ const UMBLER_COLOR_MAP: Record<string, string> = {
 };
 
 const TAG_PALETTE = [
-  "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#1abc9c",
-  "#3498db", "#9b59b6", "#e91e63", "#00bcd4", "#8bc34a",
-  "#ff5722", "#795548", "#607d8b", "#009688", "#673ab7",
+  "#e74c3c",
+  "#e67e22",
+  "#f1c40f",
+  "#2ecc71",
+  "#1abc9c",
+  "#3498db",
+  "#9b59b6",
+  "#e91e63",
+  "#00bcd4",
+  "#8bc34a",
+  "#ff5722",
+  "#795548",
+  "#607d8b",
+  "#009688",
+  "#673ab7",
 ];
 
 function resolveTagColor(color: string | null | undefined, id: string): string {
@@ -147,7 +198,8 @@ function resolveTagColor(color: string | null | undefined, id: string): string {
     if (mapped) return mapped;
   }
   let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < id.length; i++)
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   return TAG_PALETTE[hash % TAG_PALETTE.length];
 }
 
@@ -203,16 +255,24 @@ function StepIndicator({ current }: { current: number }) {
                   done
                     ? "bg-primary border-primary text-primary-foreground shadow-sm"
                     : active
-                    ? "border-primary text-primary bg-primary/10 shadow-sm"
-                    : "border-muted-foreground/30 text-muted-foreground bg-background",
+                      ? "border-primary text-primary bg-primary/10 shadow-sm"
+                      : "border-muted-foreground/30 text-muted-foreground bg-background",
                 )}
               >
-                {done ? <Check className="h-4 w-4" /> : <Icon className="h-3.5 w-3.5" />}
+                {done ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Icon className="h-3.5 w-3.5" />
+                )}
               </div>
               <span
                 className={cn(
                   "text-[11px] font-medium hidden sm:block whitespace-nowrap",
-                  active ? "text-primary" : done ? "text-foreground" : "text-muted-foreground",
+                  active
+                    ? "text-primary"
+                    : done
+                      ? "text-foreground"
+                      : "text-muted-foreground",
                 )}
               >
                 {step.label}
@@ -305,7 +365,14 @@ function StepClients({
   });
 
   const { data: clientsResponse, isFetching } = useQuery({
-    queryKey: ["/api/clients", "campaign-select", search, selectedTagIds, exclusiveTags, currentPage],
+    queryKey: [
+      "/api/clients",
+      "campaign-select",
+      search,
+      selectedTagIds,
+      exclusiveTags,
+      currentPage,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
@@ -321,7 +388,10 @@ function StepClients({
     },
   });
 
-  const clients: Client[] = useMemo(() => clientsResponse?.data ?? [], [clientsResponse]);
+  const clients: Client[] = useMemo(
+    () => clientsResponse?.data ?? [],
+    [clientsResponse],
+  );
   const hasNextPage = clientsResponse?.hasNextPage ?? false;
   const hasPhone = (c: Client) => Boolean(c.phone?.trim());
 
@@ -341,22 +411,29 @@ function StepClients({
     );
   };
 
-  const selectableIds = useMemo(() => clients.filter(hasPhone).map((c) => c.id), [clients]);
+  const selectableIds = useMemo(
+    () => clients.filter(hasPhone).map((c) => c.id),
+    [clients],
+  );
 
   const togglePageAll = () => {
     const allSelected =
-      selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+      selectableIds.length > 0 &&
+      selectableIds.every((id) => selectedIds.includes(id));
     if (allSelected) {
       onChange(selectedIds.filter((id) => !selectableIds.includes(id)));
     } else {
       const newIds = [...selectedIds];
-      selectableIds.forEach((id) => { if (!newIds.includes(id)) newIds.push(id); });
+      selectableIds.forEach((id) => {
+        if (!newIds.includes(id)) newIds.push(id);
+      });
       onChange(newIds);
     }
   };
 
   const allOnPageSelected =
-    selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+    selectableIds.length > 0 &&
+    selectableIds.every((id) => selectedIds.includes(id));
 
   return (
     <div className="space-y-3">
@@ -365,7 +442,10 @@ function StepClients({
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <Input
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCurrentPage(1);
+          }}
           placeholder="Buscar por nome ou telefone"
           className="pl-9"
         />
@@ -373,28 +453,112 @@ function StepClients({
 
       {/* WhatsApp tag filters */}
       {whatsappTags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {whatsappTags.map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              onClick={() => toggleTag(tag.id)}
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
-                selectedTagIds.includes(tag.id)
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:border-muted-foreground/60 hover:bg-muted/50",
-              )}
-            >
-              {tag.emoji ? (
-                <span className="shrink-0">{tag.emoji}</span>
-              ) : tag.color ? (
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
-              ) : null}
-              {tag.name}
-              {selectedTagIds.includes(tag.id) && <X className="h-3 w-3" />}
-            </button>
-          ))}
+        <div className="space-y-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "flex items-center gap-2 w-full px-3 py-2 rounded-lg border text-sm transition-all text-left",
+                  selectedTagIds.length > 0
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-muted-foreground/60 hover:bg-muted/40",
+                )}
+              >
+                <Filter className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1">
+                  {selectedTagIds.length > 0
+                    ? `${selectedTagIds.length} tag${selectedTagIds.length !== 1 ? "s" : ""} selecionada${selectedTagIds.length !== 1 ? "s" : ""}`
+                    : "Filtrar por tag"}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar tag..." className="h-9" />
+                <CommandList className="max-h-56">
+                  <CommandEmpty>Nenhuma tag encontrada.</CommandEmpty>
+                  {whatsappTags.map((tag) => {
+                    const selected = selectedTagIds.includes(tag.id);
+                    return (
+                      <CommandItem
+                        key={tag.id}
+                        value={tag.name}
+                        onSelect={() => toggleTag(tag.id)}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <div
+                          className={cn(
+                            "h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors",
+                            selected
+                              ? "bg-primary border-primary"
+                              : "border-border",
+                          )}
+                        >
+                          {selected && (
+                            <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                          )}
+                        </div>
+                        {tag.emoji ? (
+                          <span className="shrink-0 text-sm">{tag.emoji}</span>
+                        ) : tag.color ? (
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                        ) : (
+                          <Tag className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        )}
+                        <span className="text-sm truncate">{tag.name}</span>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandList>
+                {selectedTagIds.length > 0 && (
+                  <div className="border-t p-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTagIds([]);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1 rounded hover:bg-muted/50"
+                    >
+                      Limpar filtro de tags
+                    </button>
+                  </div>
+                )}
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Selected tags as dismissible badges */}
+          {selectedTagIds.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {whatsappTags
+                .filter((t) => selectedTagIds.includes(t.id))
+                .map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleTag(tag.id)}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border border-primary/30 bg-primary/8 text-primary hover:bg-primary/15 transition-colors"
+                  >
+                    {tag.emoji ? (
+                      <span className="shrink-0 leading-none">{tag.emoji}</span>
+                    ) : tag.color ? (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                    ) : null}
+                    {tag.name}
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -403,9 +567,14 @@ function StepClients({
         <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer w-fit">
           <Checkbox
             checked={exclusiveTags}
-            onCheckedChange={(v) => { setExclusiveTags(!!v); setCurrentPage(1); }}
+            onCheckedChange={(v) => {
+              setExclusiveTags(!!v);
+              setCurrentPage(1);
+            }}
           />
-          Somente clientes com {selectedTagIds.length > 1 ? "apenas essas tags" : "apenas esta tag"} (sem nenhuma outra tag do WhatsApp)
+          Somente clientes com{" "}
+          {selectedTagIds.length > 1 ? "apenas essas tags" : "apenas esta tag"}{" "}
+          (sem nenhuma outra tag do WhatsApp)
         </label>
       )}
 
@@ -416,7 +585,8 @@ function StepClients({
             <Users className="h-3.5 w-3.5 text-primary" />
           </div>
           <span className="text-sm font-semibold text-primary flex-1">
-            {selectedIds.length} cliente{selectedIds.length !== 1 ? "s" : ""} selecionado{selectedIds.length !== 1 ? "s" : ""}
+            {selectedIds.length} cliente{selectedIds.length !== 1 ? "s" : ""}{" "}
+            selecionado{selectedIds.length !== 1 ? "s" : ""}
           </span>
           <button
             type="button"
@@ -441,7 +611,9 @@ function StepClients({
                 />
               </TableHead>
               <TableHead className="font-semibold">Nome</TableHead>
-              <TableHead className="hidden sm:table-cell font-semibold">Telefone</TableHead>
+              <TableHead className="hidden sm:table-cell font-semibold">
+                Telefone
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -454,75 +626,93 @@ function StepClients({
             )}
             {!isFetching && clients.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell
+                  colSpan={3}
+                  className="py-10 text-center text-sm text-muted-foreground"
+                >
                   Nenhum cliente encontrado
                 </TableCell>
               </TableRow>
             )}
-            {!isFetching && clients.map((client) => {
-              const selectable = hasPhone(client);
-              const selected = selectedIds.includes(client.id);
-              return (
-                <TableRow
-                  key={client.id}
-                  className={cn(
-                    "transition-colors",
-                    selectable ? "cursor-pointer" : "opacity-50",
-                    selected ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/40",
-                  )}
-                  onClick={() => toggleClient(client)}
-                >
-                  <TableCell className="pl-3" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox
-                      checked={selected}
-                      onCheckedChange={() => toggleClient(client)}
-                      disabled={!selectable}
-                      aria-label={`Selecionar ${client.name}`}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <span className={cn("text-sm", selected ? "font-semibold" : "font-medium")}>
-                      {client.name}
-                    </span>
-                    {/* Phone shown inline on mobile */}
-                    <div className="sm:hidden mt-0.5">
-                      {selectable ? (
-                        <span className="text-xs text-muted-foreground font-mono">{client.phone}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <PhoneOff className="h-3 w-3" /> Sem telefone
-                        </span>
-                      )}
-                    </div>
-                    {client.tags && client.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {client.tags.slice(0, 3).map((tag) => (
-                          <ClientTagBadge key={tag.id} tag={tag} />
-                        ))}
-                        {client.tags.length > 3 && (
-                          <span className="text-[10px] text-muted-foreground self-center">
-                            +{client.tags.length - 3}
+            {!isFetching &&
+              clients.map((client) => {
+                const selectable = hasPhone(client);
+                const selected = selectedIds.includes(client.id);
+                return (
+                  <TableRow
+                    key={client.id}
+                    className={cn(
+                      "transition-colors",
+                      selectable ? "cursor-pointer" : "opacity-50",
+                      selected
+                        ? "bg-primary/5 hover:bg-primary/8"
+                        : "hover:bg-muted/40",
+                    )}
+                    onClick={() => toggleClient(client)}
+                  >
+                    <TableCell
+                      className="pl-3"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={selected}
+                        onCheckedChange={() => toggleClient(client)}
+                        disabled={!selectable}
+                        aria-label={`Selecionar ${client.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          "text-sm",
+                          selected ? "font-semibold" : "font-medium",
+                        )}
+                      >
+                        {client.name}
+                      </span>
+                      {/* Phone shown inline on mobile */}
+                      <div className="sm:hidden mt-0.5">
+                        {selectable ? (
+                          <span className="text-xs text-muted-foreground font-mono">
+                            {client.phone}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <PhoneOff className="h-3 w-3" /> Sem telefone
                           </span>
                         )}
                       </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    {selectable ? (
-                      <span className="text-sm text-muted-foreground font-mono">{client.phone}</span>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="gap-1 text-muted-foreground border-dashed font-normal text-xs"
-                      >
-                        <PhoneOff className="h-3 w-3" />
-                        Sem telefone
-                      </Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                      {client.tags && client.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {client.tags.slice(0, 3).map((tag) => (
+                            <ClientTagBadge key={tag.id} tag={tag} />
+                          ))}
+                          {client.tags.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground self-center">
+                              +{client.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {selectable ? (
+                        <span className="text-sm text-muted-foreground font-mono">
+                          {client.phone}
+                        </span>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 text-muted-foreground border-dashed font-normal text-xs"
+                        >
+                          <PhoneOff className="h-3 w-3" />
+                          Sem telefone
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
           </TableBody>
         </Table>
       </div>
@@ -538,7 +728,9 @@ function StepClients({
           >
             <ArrowLeft className="h-3.5 w-3.5 mr-1.5" /> Anterior
           </Button>
-          <span className="text-sm text-muted-foreground">Página {currentPage}</span>
+          <span className="text-sm text-muted-foreground">
+            Página {currentPage}
+          </span>
           <Button
             variant="outline"
             size="sm"
@@ -572,7 +764,9 @@ function TemplatePreview({
 
   const groups = parseTemplateVars(meta);
   const bodyGroup = groups.find((g) => g.componentType === "body");
-  const headerGroup = groups.find((g) => g.componentType === "header" && g.format === "text");
+  const headerGroup = groups.find(
+    (g) => g.componentType === "header" && g.format === "text",
+  );
 
   const bodyReplacements: Record<string, string> = {};
   (bodyGroup?.vars ?? []).forEach((name, i) => {
@@ -584,15 +778,27 @@ function TemplatePreview({
   });
 
   const fallback = (v: string) => `[${v}]`;
-  const header = renderTemplateText(getTemplateHeaderText(meta), headerReplacements, fallback);
-  const body = renderTemplateText(getTemplateBodyText(meta), bodyReplacements, fallback);
+  const header = renderTemplateText(
+    getTemplateHeaderText(meta),
+    headerReplacements,
+    fallback,
+  );
+  const body = renderTemplateText(
+    getTemplateBodyText(meta),
+    bodyReplacements,
+    fallback,
+  );
 
   return (
     <div className="mt-3 space-y-1.5">
-      <p className="text-xs font-medium text-muted-foreground">Pré-visualização</p>
+      <p className="text-xs font-medium text-muted-foreground">
+        Pré-visualização
+      </p>
       <div className="rounded-xl bg-[#e7ffdb] dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900/60 p-3.5 max-w-sm shadow-sm">
         {header && (
-          <p className="text-sm font-semibold text-foreground whitespace-pre-wrap mb-1">{header}</p>
+          <p className="text-sm font-semibold text-foreground whitespace-pre-wrap mb-1">
+            {header}
+          </p>
         )}
         <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
           {body || "(Sem corpo de texto neste template.)"}
@@ -645,15 +851,24 @@ function TemplateConfigForm({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-muted/30">
         <div className="min-w-0">
-          <p className="font-semibold font-mono text-sm truncate">{template.name}</p>
+          <p className="font-semibold font-mono text-sm truncate">
+            {template.name}
+          </p>
           <div className="flex gap-1.5 mt-1">
             <Badge variant="outline" className="text-xs">
               {CATEGORY_LABELS[template.category] ?? template.category}
             </Badge>
-            <Badge variant="outline" className="text-xs font-mono">{template.language}</Badge>
+            <Badge variant="outline" className="text-xs font-mono">
+              {template.language}
+            </Badge>
           </div>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={onChangeTemplate}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onChangeTemplate}
+        >
           Trocar template
         </Button>
       </div>
@@ -665,7 +880,9 @@ function TemplateConfigForm({
             <div key={i} className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] text-muted-foreground font-mono">{`{{${name}}}`}</label>
-                <ClientVariableMenu onSelect={(token) => setBodyValue(i, token)} />
+                <ClientVariableMenu
+                  onSelect={(token) => setBodyValue(i, token)}
+                />
               </div>
               <Input
                 value={bodyParams[i] ?? ""}
@@ -685,7 +902,9 @@ function TemplateConfigForm({
             <div key={i} className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] text-muted-foreground font-mono">{`{{${name}}}`}</label>
-                <ClientVariableMenu onSelect={(token) => setHeaderValue(i, token)} />
+                <ClientVariableMenu
+                  onSelect={(token) => setHeaderValue(i, token)}
+                />
               </div>
               <Input
                 value={headerParams[i] ?? ""}
@@ -702,18 +921,34 @@ function TemplateConfigForm({
         <div className="space-y-2">
           <p className="text-xs font-medium">
             Mídia do cabeçalho (
-            {headerGroup.format === "image" ? "imagem" : headerGroup.format === "video" ? "vídeo" : "documento"}
+            {headerGroup.format === "image"
+              ? "imagem"
+              : headerGroup.format === "video"
+                ? "vídeo"
+                : "documento"}
             ):
           </p>
           {headerMedia ? (
             <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border">
-              <span className="text-sm text-muted-foreground truncate">Arquivo selecionado</span>
-              <Button type="button" variant="outline" size="sm" onClick={() => setMediaDialogOpen(true)}>
+              <span className="text-sm text-muted-foreground truncate">
+                Arquivo selecionado
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMediaDialogOpen(true)}
+              >
                 Trocar
               </Button>
             </div>
           ) : (
-            <Button type="button" variant="outline" onClick={() => setMediaDialogOpen(true)} className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMediaDialogOpen(true)}
+              className="gap-2"
+            >
               <FileText className="h-4 w-4" />
               Selecionar arquivo
             </Button>
@@ -723,13 +958,20 @@ function TemplateConfigForm({
             onOpenChange={setMediaDialogOpen}
             lockedType={headerGroup.format as "image" | "video" | "document"}
             onAttach={(item) =>
-              onHeaderMediaChange({ storageKey: item.storageKey, mediaType: item.mediaType })
+              onHeaderMediaChange({
+                storageKey: item.storageKey,
+                mediaType: item.mediaType,
+              })
             }
           />
         </div>
       )}
 
-      <TemplatePreview meta={template} bodyParams={bodyParams} headerParams={headerParams} />
+      <TemplatePreview
+        meta={template}
+        bodyParams={bodyParams}
+        headerParams={headerParams}
+      />
     </div>
   );
 }
@@ -759,10 +1001,13 @@ function StepTemplateOrBot({
   headerMedia: TemplateHeaderMediaValue | null;
   onHeaderMediaChange: (media: TemplateHeaderMediaValue | null) => void;
 }) {
-  const { data: metaTemplates = [], isLoading: templatesLoading } = useWhatsappMetaTemplates();
+  const { data: metaTemplates = [], isLoading: templatesLoading } =
+    useWhatsappMetaTemplates();
   const { data: bots = [], isLoading: botsLoading } = useWhatsappBots();
   const [search, setSearch] = useState("");
-  const approvedTemplates = metaTemplates.filter((t) => t.status === "APPROVED");
+  const approvedTemplates = metaTemplates.filter(
+    (t) => t.status === "APPROVED",
+  );
   const filteredTemplates = approvedTemplates.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase()),
   );
@@ -811,7 +1056,10 @@ function StepTemplateOrBot({
               <p className="text-sm font-medium">Nenhum template aprovado</p>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Crie e aprove um template em{" "}
-                <a href="/whatsapp/templates" className="text-primary underline underline-offset-2">
+                <a
+                  href="/whatsapp/templates"
+                  className="text-primary underline underline-offset-2"
+                >
                   WhatsApp → Templates
                 </a>{" "}
                 antes de criar uma campanha.
@@ -834,7 +1082,10 @@ function StepTemplateOrBot({
                 <button
                   key={templateKey(t)}
                   type="button"
-                  onClick={() => { onSelectTemplate(t); onSelectBot(""); }}
+                  onClick={() => {
+                    onSelectTemplate(t);
+                    onSelectBot("");
+                  }}
                   className={cn(
                     "w-full text-left p-4 rounded-xl border-2 transition-all",
                     selectedKey === templateKey(t)
@@ -844,13 +1095,17 @@ function StepTemplateOrBot({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-foreground truncate font-mono text-sm">{t.name}</p>
+                      <p className="font-semibold text-foreground truncate font-mono text-sm">
+                        {t.name}
+                      </p>
                     </div>
                     <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
                       <Badge variant="outline" className="text-xs">
                         {CATEGORY_LABELS[t.category] ?? t.category}
                       </Badge>
-                      <Badge variant="outline" className="text-xs font-mono">{t.language}</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">
+                        {t.language}
+                      </Badge>
                     </div>
                   </div>
                   {selectedKey === templateKey(t) && (
@@ -875,8 +1130,8 @@ function StepTemplateOrBot({
         <div className="flex items-start gap-2.5 p-3.5 mb-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
           <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <p className="text-sm text-amber-800 dark:text-amber-300">
-            Para contatos fora da janela de 24h, a Meta exige que a primeira mensagem do bot seja
-            um <strong>template aprovado</strong>.
+            Para contatos fora da janela de 24h, a Meta exige que a primeira
+            mensagem do bot seja um <strong>template aprovado</strong>.
           </p>
         </div>
         {botsLoading ? (
@@ -894,7 +1149,10 @@ function StepTemplateOrBot({
               <p className="text-sm font-medium">Nenhum bot ativo</p>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Crie um bot em{" "}
-                <a href="/whatsapp/bots" className="text-primary underline underline-offset-2">
+                <a
+                  href="/whatsapp/bots"
+                  className="text-primary underline underline-offset-2"
+                >
                   WhatsApp → Bots
                 </a>{" "}
                 antes de criar uma campanha.
@@ -907,7 +1165,10 @@ function StepTemplateOrBot({
               <button
                 key={b.id}
                 type="button"
-                onClick={() => { onSelectBot(b.id); onSelectTemplate(null); }}
+                onClick={() => {
+                  onSelectBot(b.id);
+                  onSelectTemplate(null);
+                }}
                 className={cn(
                   "w-full text-left p-4 rounded-xl border-2 transition-all",
                   selectedBotId === b.id
@@ -917,7 +1178,9 @@ function StepTemplateOrBot({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-foreground truncate">{b.name}</p>
+                    <p className="font-semibold text-foreground truncate">
+                      {b.name}
+                    </p>
                     {b.description && (
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
                         {b.description}
@@ -963,14 +1226,19 @@ function StepConfirm({
   const bot = bots.find((b) => b.id === botId);
 
   const mode = scheduledAt ? "schedule" : "now";
-  const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+  const minDateTime = new Date(
+    Date.now() - new Date().getTimezoneOffset() * 60000,
+  )
     .toISOString()
     .slice(0, 16);
 
   const summaryRows = [
     { label: "Título", value: title },
     description ? { label: "Descrição", value: description } : null,
-    { label: "Destinatários", value: `${clientCount} cliente${clientCount !== 1 ? "s" : ""}` },
+    {
+      label: "Destinatários",
+      value: `${clientCount} cliente${clientCount !== 1 ? "s" : ""}`,
+    },
     templateName ? { label: "Template", value: templateName } : null,
     bot ? { label: "Bot", value: bot.name } : null,
   ].filter(Boolean) as { label: string; value: string }[];
@@ -985,11 +1253,15 @@ function StepConfirm({
               key={row.label}
               className={cn(
                 "flex items-start justify-between gap-4 px-5 py-3.5 text-sm",
-                i < summaryRows.length - 1 && "border-b border-border"
+                i < summaryRows.length - 1 && "border-b border-border",
               )}
             >
-              <span className="text-muted-foreground shrink-0">{row.label}</span>
-              <span className="font-semibold text-right break-words max-w-[60%]">{row.value}</span>
+              <span className="text-muted-foreground shrink-0">
+                {row.label}
+              </span>
+              <span className="font-semibold text-right break-words max-w-[60%]">
+                {row.value}
+              </span>
             </div>
           ))}
         </CardContent>
@@ -1001,8 +1273,18 @@ function StepConfirm({
           <p className="text-sm font-semibold">Quando disparar?</p>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { value: "now", label: "Agora", icon: Send, action: () => onScheduleChange("") },
-              { value: "schedule", label: "Agendar", icon: Clock, action: () => onScheduleChange(scheduledAt || minDateTime) },
+              {
+                value: "now",
+                label: "Agora",
+                icon: Send,
+                action: () => onScheduleChange(""),
+              },
+              {
+                value: "schedule",
+                label: "Agendar",
+                icon: Clock,
+                action: () => onScheduleChange(scheduledAt || minDateTime),
+              },
             ].map((opt) => (
               <button
                 key={opt.value}
@@ -1055,11 +1337,16 @@ export default function WhatsAppCreateCampaign() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<MetaTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<MetaTemplate | null>(
+    null,
+  );
   const [selectedBotId, setSelectedBotId] = useState("");
   const [templateBodyParams, setTemplateBodyParams] = useState<string[]>([]);
-  const [templateHeaderParams, setTemplateHeaderParams] = useState<string[]>([]);
-  const [templateHeaderMedia, setTemplateHeaderMedia] = useState<TemplateHeaderMediaValue | null>(null);
+  const [templateHeaderParams, setTemplateHeaderParams] = useState<string[]>(
+    [],
+  );
+  const [templateHeaderMedia, setTemplateHeaderMedia] =
+    useState<TemplateHeaderMediaValue | null>(null);
   const [scheduledAt, setScheduledAt] = useState("");
 
   const createMutation = useCreateCampaignWithDispatch();
@@ -1069,7 +1356,12 @@ export default function WhatsAppCreateCampaign() {
     setTemplateBodyParams([]);
     setTemplateHeaderParams([]);
     setTemplateHeaderMedia(
-      t?.headerMedia ? { storageKey: t.headerMedia.storageKey, mediaType: t.headerMedia.mediaType } : null,
+      t?.headerMedia
+        ? {
+            storageKey: t.headerMedia.storageKey,
+            mediaType: t.headerMedia.mediaType,
+          }
+        : null,
     );
   };
 
@@ -1086,19 +1378,41 @@ export default function WhatsAppCreateCampaign() {
     const bodyGroup = groups.find((g) => g.componentType === "body");
     const headerGroup = groups.find((g) => g.componentType === "header");
     const bodyOk =
-      !bodyGroup || bodyGroup.vars.every((_, i) => (templateBodyParams[i] ?? "").trim().length > 0);
+      !bodyGroup ||
+      bodyGroup.vars.every(
+        (_, i) => (templateBodyParams[i] ?? "").trim().length > 0,
+      );
     if (!headerGroup) return bodyOk;
-    if (headerGroup.format !== "text") return bodyOk && templateHeaderMedia !== null;
-    const headerOk = headerGroup.vars.every((_, i) => (templateHeaderParams[i] ?? "").trim().length > 0);
+    if (headerGroup.format !== "text")
+      return bodyOk && templateHeaderMedia !== null;
+    const headerOk = headerGroup.vars.every(
+      (_, i) => (templateHeaderParams[i] ?? "").trim().length > 0,
+    );
     return bodyOk && headerOk;
-  }, [selectedTemplate, templateBodyParams, templateHeaderParams, templateHeaderMedia]);
+  }, [
+    selectedTemplate,
+    templateBodyParams,
+    templateHeaderParams,
+    templateHeaderMedia,
+  ]);
 
   const canNext = useMemo(() => {
     if (step === 1) return title.trim().length > 0;
     if (step === 2) return selectedClientIds.length > 0;
-    if (step === 3) return (selectedTemplate !== null && templateVarsComplete) || selectedBotId.length > 0;
+    if (step === 3)
+      return (
+        (selectedTemplate !== null && templateVarsComplete) ||
+        selectedBotId.length > 0
+      );
     return true;
-  }, [step, title, selectedClientIds, selectedTemplate, selectedBotId, templateVarsComplete]);
+  }, [
+    step,
+    title,
+    selectedClientIds,
+    selectedTemplate,
+    selectedBotId,
+    templateVarsComplete,
+  ]);
 
   const handleBack = () => {
     if (step > 1) setStep((s) => s - 1);
@@ -1119,10 +1433,17 @@ export default function WhatsAppCreateCampaign() {
         metaTemplateLanguage: selectedTemplate?.language,
         metaTemplateCategory: selectedTemplate?.category,
         metaTemplateBodyParams:
-          selectedTemplate && templateBodyParams.length > 0 ? templateBodyParams : undefined,
+          selectedTemplate && templateBodyParams.length > 0
+            ? templateBodyParams
+            : undefined,
         metaTemplateHeaderParams:
-          selectedTemplate && templateHeaderParams.length > 0 ? templateHeaderParams : undefined,
-        metaTemplateHeaderMedia: selectedTemplate && templateHeaderMedia ? templateHeaderMedia : undefined,
+          selectedTemplate && templateHeaderParams.length > 0
+            ? templateHeaderParams
+            : undefined,
+        metaTemplateHeaderMedia:
+          selectedTemplate && templateHeaderMedia
+            ? templateHeaderMedia
+            : undefined,
         waBotId: selectedBotId || undefined,
         clientIds: selectedClientIds,
         scheduledAt: scheduledIso,
@@ -1130,7 +1451,9 @@ export default function WhatsAppCreateCampaign() {
       {
         onSuccess: (data) => {
           toast({
-            title: scheduledIso ? "Campanha agendada!" : "Campanha enfileirada!",
+            title: scheduledIso
+              ? "Campanha agendada!"
+              : "Campanha enfileirada!",
             description: scheduledIso
               ? "Será disparada automaticamente no horário escolhido."
               : "O disparo será processado em segundo plano.",
@@ -1170,7 +1493,6 @@ export default function WhatsAppCreateCampaign() {
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 sm:p-5 lg:p-6">
           <div className="space-y-6 pb-6">
-
             {/* Header */}
             <PageHeader>
               <PageHeader.Info>
@@ -1205,7 +1527,10 @@ export default function WhatsAppCreateCampaign() {
                 <StepInfo
                   title={title}
                   description={description}
-                  onChange={(t, d) => { setTitle(t); setDescription(d); }}
+                  onChange={(t, d) => {
+                    setTitle(t);
+                    setDescription(d);
+                  }}
                 />
               )}
               {step === 2 && (
@@ -1260,14 +1585,22 @@ export default function WhatsAppCreateCampaign() {
                   key={s.id}
                   className={cn(
                     "rounded-full transition-all",
-                    step === s.id ? "w-4 h-1.5 bg-primary" : step > s.id ? "w-1.5 h-1.5 bg-primary/50" : "w-1.5 h-1.5 bg-muted"
+                    step === s.id
+                      ? "w-4 h-1.5 bg-primary"
+                      : step > s.id
+                        ? "w-1.5 h-1.5 bg-primary/50"
+                        : "w-1.5 h-1.5 bg-muted",
                   )}
                 />
               ))}
             </div>
 
             {step < 4 ? (
-              <Button onClick={() => setStep((s) => s + 1)} disabled={!canNext} className="gap-2 min-w-28">
+              <Button
+                onClick={() => setStep((s) => s + 1)}
+                disabled={!canNext}
+                className="gap-2 min-w-28"
+              >
                 Próximo
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -1284,7 +1617,11 @@ export default function WhatsAppCreateCampaign() {
                   </>
                 ) : (
                   <>
-                    {scheduledAt ? <Clock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                    {scheduledAt ? (
+                      <Clock className="h-4 w-4" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                     {scheduledAt ? "Agendar campanha" : "Disparar agora"}
                   </>
                 )}
