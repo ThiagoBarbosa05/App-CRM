@@ -605,6 +605,135 @@ function TemplatePreview({
   );
 }
 
+function TemplateConfigForm({
+  template,
+  onChangeTemplate,
+  bodyParams,
+  onBodyParamsChange,
+  headerParams,
+  onHeaderParamsChange,
+  headerMedia,
+  onHeaderMediaChange,
+}: {
+  template: MetaTemplate;
+  onChangeTemplate: () => void;
+  bodyParams: string[];
+  onBodyParamsChange: (values: string[]) => void;
+  headerParams: string[];
+  onHeaderParamsChange: (values: string[]) => void;
+  headerMedia: TemplateHeaderMediaValue | null;
+  onHeaderMediaChange: (media: TemplateHeaderMediaValue | null) => void;
+}) {
+  const [mediaDialogOpen, setMediaDialogOpen] = useState(false);
+  const groups = parseTemplateVars(template);
+  const bodyGroup = groups.find((g) => g.componentType === "body");
+  const headerGroup = groups.find((g) => g.componentType === "header");
+  const headerIsMedia = !!headerGroup && headerGroup.format !== "text";
+
+  const setBodyValue = (i: number, value: string) => {
+    const next = [...bodyParams];
+    next[i] = value;
+    onBodyParamsChange(next);
+  };
+  const setHeaderValue = (i: number, value: string) => {
+    const next = [...headerParams];
+    next[i] = value;
+    onHeaderParamsChange(next);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-muted/30">
+        <div className="min-w-0">
+          <p className="font-semibold font-mono text-sm truncate">{template.name}</p>
+          <div className="flex gap-1.5 mt-1">
+            <Badge variant="outline" className="text-xs">
+              {CATEGORY_LABELS[template.category] ?? template.category}
+            </Badge>
+            <Badge variant="outline" className="text-xs font-mono">{template.language}</Badge>
+          </div>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={onChangeTemplate}>
+          Trocar template
+        </Button>
+      </div>
+
+      {bodyGroup && bodyGroup.vars.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium">Variáveis do corpo:</p>
+          {bodyGroup.vars.map((name, i) => (
+            <div key={i} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] text-muted-foreground font-mono">{`{{${name}}}`}</label>
+                <ClientVariableMenu onSelect={(token) => setBodyValue(i, token)} />
+              </div>
+              <Input
+                value={bodyParams[i] ?? ""}
+                onChange={(e) => setBodyValue(i, e.target.value)}
+                placeholder="Texto fixo ou {{nome}}, {{email}}..."
+                className="text-sm"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {headerGroup && !headerIsMedia && headerGroup.vars.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium">Variáveis do cabeçalho:</p>
+          {headerGroup.vars.map((name, i) => (
+            <div key={i} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] text-muted-foreground font-mono">{`{{${name}}}`}</label>
+                <ClientVariableMenu onSelect={(token) => setHeaderValue(i, token)} />
+              </div>
+              <Input
+                value={headerParams[i] ?? ""}
+                onChange={(e) => setHeaderValue(i, e.target.value)}
+                placeholder="Texto fixo ou {{nome}}, {{email}}..."
+                className="text-sm"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {headerIsMedia && headerGroup && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium">
+            Mídia do cabeçalho (
+            {headerGroup.format === "image" ? "imagem" : headerGroup.format === "video" ? "vídeo" : "documento"}
+            ):
+          </p>
+          {headerMedia ? (
+            <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border">
+              <span className="text-sm text-muted-foreground truncate">Arquivo selecionado</span>
+              <Button type="button" variant="outline" size="sm" onClick={() => setMediaDialogOpen(true)}>
+                Trocar
+              </Button>
+            </div>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => setMediaDialogOpen(true)} className="gap-2">
+              <FileText className="h-4 w-4" />
+              Selecionar arquivo
+            </Button>
+          )}
+          <AttachFileDialog
+            open={mediaDialogOpen}
+            onOpenChange={setMediaDialogOpen}
+            lockedType={headerGroup.format as "image" | "video" | "document"}
+            onAttach={(item) =>
+              onHeaderMediaChange({ storageKey: item.storageKey, mediaType: item.mediaType })
+            }
+          />
+        </div>
+      )}
+
+      <TemplatePreview meta={template} bodyParams={bodyParams} headerParams={headerParams} />
+    </div>
+  );
+}
+
 // ── Step 3: Template / Bot ────────────────────────────────────────────────────
 
 function StepTemplateOrBot({
