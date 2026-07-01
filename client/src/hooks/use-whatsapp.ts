@@ -319,6 +319,8 @@ export function useCreateCampaignWithDispatch() {
       metaTemplateLanguage?: string;
       metaTemplateCategory?: string;
       metaTemplateBodyParams?: string[];
+      metaTemplateHeaderParams?: string[];
+      metaTemplateHeaderMedia?: { storageKey: string; mediaType: "image" | "video" | "document" };
       clientIds: string[];
       scheduledAt?: string; // ISO; se no futuro, a campanha fica agendada
     }) => {
@@ -333,6 +335,8 @@ export function useCreateCampaignWithDispatch() {
         metaTemplateLanguage: data.metaTemplateLanguage,
         metaTemplateCategory: data.metaTemplateCategory,
         metaTemplateBodyParams: data.metaTemplateBodyParams,
+        metaTemplateHeaderParams: data.metaTemplateHeaderParams,
+        metaTemplateHeaderMedia: data.metaTemplateHeaderMedia,
       });
       const campaign = await campaignRes.json();
 
