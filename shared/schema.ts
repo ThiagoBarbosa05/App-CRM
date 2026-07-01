@@ -4021,6 +4021,12 @@ export const campaigns = pgTable("campaigns", {
   waTemplateId: varchar("wa_template_id").references(() => whatsappTemplates.id),
   waBotId: varchar("wa_bot_id").references(() => whatsappBots.id),
   waTriggerDecision: text("wa_trigger_decision"),
+  metaTemplateBodyParams: jsonb("meta_template_body_params"),
+  metaTemplateHeaderParams: jsonb("meta_template_header_params"),
+  metaTemplateHeaderMediaStorageKey: text("meta_template_header_media_storage_key"),
+  metaTemplateHeaderMediaType: text("meta_template_header_media_type", {
+    enum: ["image", "video", "document"],
+  }),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
