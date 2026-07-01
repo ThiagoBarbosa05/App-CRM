@@ -16,11 +16,15 @@ export interface WhatsappCampaign {
   endDate?: string;
   completedAt?: string;
   createdAt: string;
+  createdByName?: string | null;
+  botName?: string | null;
+  templateName?: string | null;
 }
 
 export interface WhatsappCampaignMessage {
   id: string;
   campaignId: string;
+  contactId?: string | null;
   contactName: string;
   phoneNumber: string;
   status: "scheduled" | "sent" | "delivered" | "read" | "failed" | "cancelled";
@@ -44,7 +48,18 @@ export interface WhatsappCampaignStats {
     read: number;
     failed: number;
     pending: number;
+    cancelled: number;
   };
+  timestamp: string;
+}
+
+export interface WhatsappCampaignBotStats {
+  campaignId: string;
+  stats: {
+    active: number;
+    finished: number;
+    reasons: { reason: string; label: string; count: number }[];
+  } | null;
   timestamp: string;
 }
 
@@ -203,6 +218,23 @@ export function useWhatsappCampaignStats(id: string | undefined) {
       const data = query.state.data as WhatsappCampaignStats | undefined;
       if (!data) return false;
       return data.stats.pending > 0 ? 4000 : false;
+    },
+  });
+}
+
+export function useWhatsappCampaignBotStats(id: string | undefined) {
+  return useQuery<WhatsappCampaignBotStats>({
+    queryKey: ["whatsapp", "campaigns", id, "bot-stats"],
+    queryFn: async () => {
+      const res = await fetch(`/api/whatsapp/campaigns/${id}/bot-stats`);
+      if (!res.ok) throw new Error("Erro ao buscar estatísticas de bot");
+      return res.json();
+    },
+    enabled: !!id,
+    refetchInterval: (query) => {
+      const data = query.state.data as WhatsappCampaignBotStats | undefined;
+      if (!data?.stats) return false;
+      return data.stats.active > 0 ? 4000 : false;
     },
   });
 }

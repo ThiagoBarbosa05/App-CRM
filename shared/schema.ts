@@ -3456,6 +3456,12 @@ export const whatsappBotSessions = pgTable(
     resumeAt: timestamp("resume_at"),
     pendingMessageId: varchar("pending_message_id"),
     responseDeadlineAt: timestamp("response_deadline_at"),
+    // Campanha de marketing que iniciou a sessão (null quando a sessão foi
+    // iniciada manualmente numa conversa ou organicamente).
+    campaignId: varchar("campaign_id").references(() => whatsappCampaigns.id),
+    // Motivo da finalização (valores livres controlados em código — ver
+    // BOT_SESSION_COMPLETION_REASONS em whatsapp-bot-engine.service.ts).
+    completionReason: text("completion_reason"),
     startedAt: timestamp("started_at").defaultNow().notNull(),
     lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),

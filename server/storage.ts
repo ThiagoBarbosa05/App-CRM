@@ -155,6 +155,7 @@ export interface ClientFilters {
   origem?: string;
   markers?: string;
   tagIds?: string[];
+  whatsappTagIds?: string[];
   purchaseStatus?: string;
   purchaseStatusDays?: number;
   wineGrape?: string;

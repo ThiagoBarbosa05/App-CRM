@@ -86,12 +86,28 @@ export async function executeCampaign(
       }
       const phoneE164 = formatPhoneToDigits(msg.phoneNumber);
       try {
-        await startBotSession(campaign.waBotId, phoneE164);
+        const { status, lastMessageId } = await startBotSession(campaign.waBotId, phoneE164, undefined, campaignId);
+
+        if (status === "already_active" || status === "no_start_node") {
+          const errorMessage =
+            status === "already_active"
+              ? "Sessão de bot já ativa para este contato — nenhuma mensagem enviada"
+              : "Bot não possui nó inicial configurado";
+          await db
+            .update(whatsappCampaignMessages)
+            .set({ status: "failed", errorMessage, updatedAt: new Date() })
+            .where(eq(whatsappCampaignMessages.id, msg.id));
+          failed++;
+          console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${msg.phoneNumber}): ${errorMessage}`);
+          if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
+          continue;
+        }
+
         await db
           .update(whatsappCampaignMessages)
-          .set({ status: "sent", sentAt: new Date(), updatedAt: new Date() })
+          .set({ status: "sent", sentAt: new Date(), messageId: lastMessageId, updatedAt: new Date() })
           .where(eq(whatsappCampaignMessages.id, msg.id));
-        await persistCampaignMessageToConversation(phoneE164, null, "Disparo via bot", msg.id);
+        await persistCampaignMessageToConversation(phoneE164, lastMessageId, "Disparo via bot", msg.id);
         sent++;
         console.log(`[WaCampaign] Bot ✓ ${msg.contactName} (${msg.phoneNumber})`);
       } catch (err) {

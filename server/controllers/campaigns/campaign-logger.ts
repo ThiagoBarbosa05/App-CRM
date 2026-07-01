@@ -3,9 +3,15 @@ import { sql, eq, and } from "drizzle-orm";
 import {
   whatsappCampaigns,
   whatsappCampaignMessages,
+  whatsappBotSessions,
+  campaigns,
+  whatsappBots,
+  whatsappTemplates,
+  users,
   InsertWhatsappCampaign,
   InsertWhatsappCampaignMessage,
 } from "@shared/schema";
+import type { BotSessionCompletionReason } from "../../services/whatsapp-bot-engine.service";
 
 interface CampaignLog {
   campaignId: string;
@@ -173,6 +179,7 @@ export async function getCampaignStats(campaignId: string): Promise<{
   read: number;
   failed: number;
   pending: number;
+  cancelled: number;
 } | null> {
   try {
     console.log("📈 Getting stats for campaign:", campaignId);
@@ -193,6 +200,7 @@ export async function getCampaignStats(campaignId: string): Promise<{
       read: messages.filter((m) => m.status === "read").length,
       failed: messages.filter((m) => m.status === "failed").length,
       pending: messages.filter((m) => m.status === "scheduled").length,
+      cancelled: messages.filter((m) => m.status === "cancelled").length,
     };
 
     console.log("✅ Stats retrieved from database:", stats);
@@ -200,6 +208,72 @@ export async function getCampaignStats(campaignId: string): Promise<{
     return stats;
   } catch (error) {
     console.error("❌ Error getting campaign stats:", error);
+    return null;
+  }
+}
+
+// Rótulos amigáveis dos motivos de finalização de sessão de bot, exibidos no
+// bloco "Motivos de finalização dos bots" da página de detalhes da campanha.
+const BOT_COMPLETION_REASON_LABELS: Record<BotSessionCompletionReason, string> = {
+  end_of_flow: "Chegou no final do fluxo",
+  end_conversation: "Atendimento encerrado pelo bot",
+  transferred_to_agent: "Transferido para atendente",
+  handed_off_to_bot: "Encaminhado para outro bot",
+  timed_out: "Sessão expirada por inatividade",
+  delivery_failed: "Falha na entrega da mensagem",
+  unsupported_node: "Erro: nó não suportado",
+};
+
+/**
+ * Estatísticas de sessões de bot iniciadas por uma campanha (via
+ * whatsapp_bot_sessions.campaign_id). Retorna null quando a campanha não usa
+ * bot (nenhuma sessão vinculada) — o frontend usa isso para ocultar os cards
+ * "Dos bots" / "Motivos de finalização" em campanhas de template puro.
+ */
+export async function getCampaignBotStats(campaignId: string): Promise<{
+  active: number;
+  finished: number;
+  reasons: { reason: string; label: string; count: number }[];
+} | null> {
+  try {
+    const rows = await db
+      .select({
+        status: whatsappBotSessions.status,
+        completionReason: whatsappBotSessions.completionReason,
+        count: sql<number>`count(*)`,
+      })
+      .from(whatsappBotSessions)
+      .where(eq(whatsappBotSessions.campaignId, campaignId))
+      .groupBy(whatsappBotSessions.status, whatsappBotSessions.completionReason);
+
+    if (rows.length === 0) return null;
+
+    let active = 0;
+    let finished = 0;
+    const reasonCounts = new Map<string, number>();
+
+    for (const row of rows) {
+      const count = Number(row.count);
+      if (row.status === "active") {
+        active += count;
+      } else {
+        finished += count;
+        const reason = row.completionReason ?? "unknown";
+        reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + count);
+      }
+    }
+
+    const reasons = Array.from(reasonCounts.entries()).map(([reason, count]) => ({
+      reason,
+      label:
+        BOT_COMPLETION_REASON_LABELS[reason as BotSessionCompletionReason] ??
+        "Outro motivo",
+      count,
+    }));
+
+    return { active, finished, reasons };
+  } catch (error) {
+    console.error("❌ Error getting campaign bot stats:", error);
     return null;
   }
 }
@@ -238,12 +312,24 @@ export async function listCampaigns(params?: {
  */
 export async function getCampaignDetails(campaignId: string) {
   try {
-    const [campaign] = await db
-      .select()
+    const [row] = await db
+      .select({
+        campaign: whatsappCampaigns,
+        createdByName: users.name,
+        botName: whatsappBots.name,
+        templateName: whatsappTemplates.name,
+      })
       .from(whatsappCampaigns)
+      .leftJoin(users, eq(whatsappCampaigns.createdBy, users.id))
+      // `campaigns` compartilha o mesmo id de `whatsappCampaigns` (ambos criados
+      // juntos em POST /api/whatsapp/campaigns) e tem waBotId/waTemplateId como
+      // FKs reais — diferente de whatsappCampaigns.botId, que é um texto solto.
+      .leftJoin(campaigns, eq(campaigns.id, whatsappCampaigns.id))
+      .leftJoin(whatsappBots, eq(whatsappBots.id, campaigns.waBotId))
+      .leftJoin(whatsappTemplates, eq(whatsappTemplates.id, campaigns.waTemplateId))
       .where(eq(whatsappCampaigns.id, campaignId));
 
-    if (!campaign) {
+    if (!row) {
       return null;
     }
 
@@ -254,7 +340,10 @@ export async function getCampaignDetails(campaignId: string) {
       .orderBy(sql`${whatsappCampaignMessages.scheduledAt} ASC`);
 
     return {
-      ...campaign,
+      ...row.campaign,
+      createdByName: row.createdByName ?? null,
+      botName: row.botName ?? null,
+      templateName: row.templateName ?? null,
       messages,
     };
   } catch (error) {

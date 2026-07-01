@@ -13,6 +13,7 @@ import {
   listCampaigns,
   getCampaignDetails,
   getCampaignStats,
+  getCampaignBotStats,
 } from "../controllers/campaigns/campaign-logger";
 import { formatPhoneToDigits } from "../lib/format-phone";
 
@@ -310,6 +311,17 @@ router.get("/campaigns/:id/stats", async (req, res) => {
     res.json({ campaignId: req.params.id, stats, timestamp: new Date().toISOString() });
   } catch (e) {
     res.status(500).json({ message: "Erro ao buscar estatísticas da campanha" });
+  }
+});
+
+// ── Estatísticas de sessões de bot de uma campanha ────────────────────────────
+
+router.get("/campaigns/:id/bot-stats", async (req, res) => {
+  try {
+    const stats = await getCampaignBotStats(req.params.id);
+    res.json({ campaignId: req.params.id, stats, timestamp: new Date().toISOString() });
+  } catch (e) {
+    res.status(500).json({ message: "Erro ao buscar estatísticas de bot da campanha" });
   }
 });
 

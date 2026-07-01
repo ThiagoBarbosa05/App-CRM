@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -4224,10 +4225,10 @@ function NewConversationDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: availableTags = [] } = useQuery<CrmTag[]>({
-    queryKey: ["/api/tags", "wa-new-conv"],
+  const { data: availableTags = [] } = useQuery<WhatsappClientTag[]>({
+    queryKey: ["/api/whatsapp/tags"],
     queryFn: async () => {
-      const res = await fetch("/api/tags");
+      const res = await fetch("/api/whatsapp/tags");
       if (!res.ok) return [];
       return res.json();
     },
@@ -4239,7 +4240,7 @@ function NewConversationDialog({
     queryFn: async () => {
       const params = new URLSearchParams({ pageSize: "20" });
       if (debouncedSearch) params.set("search", debouncedSearch);
-      for (const id of selectedTagIds) params.append("tagIds", id);
+      for (const id of selectedTagIds) params.append("whatsappTagIds", id);
       const res = await fetch(`/api/clients?${params}`);
       if (!res.ok) return [];
       const json = await res.json();
@@ -4311,18 +4312,26 @@ function NewConversationDialog({
           <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
             {availableTags.map((tag) => {
               const active = selectedTagIds.includes(tag.id);
+              const bg = resolveTagColor(tag.color, tag.id);
+              const emoji = resolveTagEmoji(tag.emoji);
               return (
                 <button
                   key={tag.id}
                   type="button"
                   onClick={() => toggleTag(tag.id)}
                   className={cn(
-                    "inline-flex items-center text-[11px] px-2.5 py-1 rounded-full border transition-colors",
+                    "inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border font-medium transition-colors",
                     active
-                      ? "bg-blue-600 border-blue-600 text-white"
-                      : "bg-transparent border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400",
+                      ? "text-white"
+                      : "bg-transparent text-slate-600 dark:text-slate-400 hover:opacity-80",
                   )}
+                  style={
+                    active
+                      ? { backgroundColor: bg, borderColor: bg }
+                      : { borderColor: bg, color: bg }
+                  }
                 >
+                  {emoji && <span>{emoji}</span>}
                   {tag.name}
                 </button>
               );
@@ -4404,9 +4413,17 @@ function NewConversationDialog({
 
 export default function WhatsAppConversationsPage() {
   const { user } = useAuth();
+  // Deep-link vindo de outras telas (ex.: detalhes de campanha), abre direto
+  // a conversa daquele telefone: /whatsapp/conversas?phone=5511999999999
+  // Normaliza para só dígitos — o telefone salvo em whatsapp_conversations
+  // também é só dígitos (normalizePhone), e o "+" vindo de outras telas
+  // (ex.: formatPhoneToDigits) quebraria o ILIKE no backend.
+  const rawPhoneParam = new URLSearchParams(useSearch()).get("phone");
+  const phoneParam = rawPhoneParam ? rawPhoneParam.replace(/\D/g, "") : null;
+  const autoSelectedPhoneRef = useRef(false);
   // selectedId holds either a clientId or a conversationId (for unknown contacts)
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(phoneParam ?? "");
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [showTagFilter, setShowTagFilter] = useState(false);
@@ -4499,6 +4516,21 @@ export default function WhatsAppConversationsPage() {
     },
     refetchInterval: 15_000,
   });
+
+  // Assim que a busca por telefone (vinda do parâmetro ?phone=) retornar,
+  // seleciona automaticamente a conversa correspondente — uma única vez.
+  useEffect(() => {
+    if (!phoneParam || autoSelectedPhoneRef.current || clientList.length === 0) return;
+    const target = phoneParam.replace(/\D/g, "");
+    const match = clientList.find((c) => {
+      const digits = c.phone?.replace(/\D/g, "") ?? "";
+      return digits && (digits.endsWith(target) || target.endsWith(digits));
+    });
+    if (match) {
+      setSelectedId(match.clientId ?? match.conversationId);
+      autoSelectedPhoneRef.current = true;
+    }
+  }, [clientList, phoneParam]);
 
   const markRead = useCallback(
     async (id: string) => {

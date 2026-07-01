@@ -507,10 +507,10 @@ router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
 
     const result = await startBotSession(parsed.data.botId, phone);
 
-    if (result === "no_start_node") {
+    if (result.status === "no_start_node") {
       return res.status(400).json({ message: "Bot sem nó inicial configurado" });
     }
-    if (result === "already_active") {
+    if (result.status === "already_active") {
       return res.status(409).json({ message: "Já existe uma sessão de bot ativa para este contato" });
     }
 

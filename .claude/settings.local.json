@@ -64,7 +64,8 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\thiag\\\\dev\\\\App-CRM\" -Force)",
       "PowerShell(npm run check)",
       "WebFetch(domain:help.umbler.com)",
-      "WebFetch(domain:blog.umbler.com)"
+      "WebFetch(domain:blog.umbler.com)",
+      "Bash(awk 'NR==351,NR==1010{print NR\": \"$0}' server/services/whatsapp-bot-engine.service.ts)"
     ]
   }
 }

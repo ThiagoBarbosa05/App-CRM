@@ -109,6 +109,19 @@ export class ClientsRepository {
       );
     }
 
+    if (filters.whatsappTagIds && filters.whatsappTagIds.length > 0) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM contact_tags ct
+          WHERE ct.client_id = ${clients.id}
+            AND ct.whatsapp_tag_id = ANY(ARRAY[${sql.join(
+              filters.whatsappTagIds.map((id) => sql`${id}`),
+              sql`, `,
+            )}]::text[])
+        )`,
+      );
+    }
+
     if (filters.search) {
       const searchTerm = `%${filters.search}%`;
       const normalizedSearchPhone = filters.search.replace(/\D/g, "");

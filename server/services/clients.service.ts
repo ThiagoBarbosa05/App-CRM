@@ -179,6 +179,14 @@ export class ClientsService {
           : [];
       if (ids.length > 0) filters.tagIds = ids;
     }
+    if (rawFilters.whatsappTagIds) {
+      const ids = Array.isArray(rawFilters.whatsappTagIds)
+        ? (rawFilters.whatsappTagIds as string[]).filter((id) => typeof id === "string" && id.length > 0)
+        : typeof rawFilters.whatsappTagIds === "string"
+          ? rawFilters.whatsappTagIds.split(",").map((s: string) => s.trim()).filter(Boolean)
+          : [];
+      if (ids.length > 0) filters.whatsappTagIds = ids;
+    }
 
     return filters;
   }

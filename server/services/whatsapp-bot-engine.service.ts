@@ -205,6 +205,17 @@ async function getNextNode(
   return edge ? getNode(edge.targetNodeId) : null;
 }
 
+// Motivos canônicos de finalização de uma sessão de bot, usados no relatório
+// "Motivos de finalização dos bots" da página de detalhes da campanha.
+export type BotSessionCompletionReason =
+  | "end_of_flow"
+  | "end_conversation"
+  | "transferred_to_agent"
+  | "handed_off_to_bot"
+  | "timed_out"
+  | "delivery_failed"
+  | "unsupported_node";
+
 async function updateSession(
   sessionId: string,
   data: {
@@ -215,6 +226,7 @@ async function updateSession(
     resumeAt?: Date | null;
     pendingMessageId?: string | null;
     responseDeadlineAt?: Date | null;
+    completionReason?: BotSessionCompletionReason | null;
   },
 ): Promise<void> {
   await db
@@ -354,13 +366,17 @@ async function executeNode(
   sessionId: string,
   botId: string,
   variables: Record<string, string> = {},
-): Promise<void> {
+): Promise<string | null> {
   const data = node.data as BotNodeData;
+  // Rastreia o último waMessageId enviado na cadeia síncrona de nós, para que
+  // o chamador (startBotSession) consiga persistir o id em whatsappCampaignMessages
+  // e o webhook de status da Meta consiga corrigir o status depois.
+  let lastMessageId: string | null = null;
 
   switch (node.type) {
     case "start": {
       const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId, variables);
+      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 
@@ -407,6 +423,7 @@ async function executeNode(
               content: `Template: ${d.metaTemplateName}`,
               rawPayload: { kind: "bot_template", templateName: d.metaTemplateName, language: d.metaTemplateLanguage ?? "pt_BR", components },
             });
+            lastMessageId = waId;
           } else if (d.templateId) {
             const [tpl] = await db
               .select()
@@ -429,6 +446,7 @@ async function executeNode(
                 content: `Template: ${tpl.name}`,
                 rawPayload: { kind: "bot_template", templateName: tpl.name, language: tpl.languageCode, components },
               });
+              lastMessageId = waId;
             }
           }
         } catch (err) {
@@ -462,14 +480,16 @@ async function executeNode(
               filename,
             },
           });
+          lastMessageId = waId;
           // Se há texto E anexo, o texto virou legenda. Não enviar mensagem separada.
         } else if (text) {
           const waId = await sendFreeText(phone, text);
           await persistBotMessage(phone, { waMessageId: waId, type: "text", content: text });
+          lastMessageId = waId;
         }
       }
       const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId, variables);
+      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 
@@ -479,6 +499,7 @@ async function executeNode(
         const text = interpolate(d.messageText, variables);
         const waId = await sendFreeText(phone, text);
         await persistBotMessage(phone, { waMessageId: waId, type: "text", content: text });
+        lastMessageId = waId;
       }
       await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       break;
@@ -492,8 +513,8 @@ async function executeNode(
         const conversation = await findOrCreateConversation(phone);
         const handle = await resolveAttributeHandle(node, conversation.clientId);
         const next = await getNextNode(botId, node.id, handle);
-        if (next) await executeNode(next, phone, sessionId, botId, variables);
-        else await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+        if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+        else await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
         break;
       }
       // Modo "reply" (padrão): pausa e aguarda a resposta do contato; a
@@ -541,6 +562,7 @@ async function executeNode(
           waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
         }
         await persistBotMessage(phone, { waMessageId: waId, type: "text", content: body });
+        lastMessageId = waId;
       }
       // Pausa aguardando a escolha do contato (resolvida em handleIncomingMessage).
       await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
@@ -556,6 +578,7 @@ async function executeNode(
         });
         const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
         await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `[Formulário: ${d.flowName || d.flowId}]` });
+        lastMessageId = waId;
         // Aguarda a resposta do Flow — o session fica no nó atual
         await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       }
@@ -568,8 +591,9 @@ async function executeNode(
         await updateSession(sessionId, {
           status: "completed",
           completedAt: new Date(),
+          completionReason: "end_conversation",
         });
-        return;
+        return null;
       }
 
       const conversation = await findOrCreateConversation(phone);
@@ -663,7 +687,7 @@ async function executeNode(
       }
 
       const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId, variables);
+      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 
@@ -680,7 +704,7 @@ async function executeNode(
       if (!resumeAt || resumeAt.getTime() <= Date.now()) {
         // Sem espera válida (ou já passou): segue o fluxo imediatamente.
         const next = await getNextNode(botId, node.id);
-        if (next) await executeNode(next, phone, sessionId, botId, variables);
+        if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
         break;
       }
 
@@ -741,6 +765,7 @@ async function executeNode(
         content: `Template: ${d.metaTemplateName}`,
         rawPayload: { kind: "bot_template", templateName: d.metaTemplateName, language: d.metaTemplateLanguage ?? "pt_BR", components },
       });
+      lastMessageId = waId;
 
       const deadline = d.noResponseHandle
         ? new Date(Date.now() + 24 * 60 * 60 * 1000)
@@ -756,7 +781,7 @@ async function executeNode(
 
     case "trigger_flow": {
       const d = data as TriggerFlowNodeData;
-      await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+      await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "handed_off_to_bot" });
       if (d.targetBotId) {
         await startBotSession(d.targetBotId, phone, d.targetNodeId);
       }
@@ -820,16 +845,16 @@ async function executeNode(
           status: "sent",
           sentAt: new Date(),
         });
-        await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+        await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "transferred_to_agent" });
       } else if (d.activateFlowIfFailed) {
         const next = await getNextNode(botId, node.id);
         if (next) {
-          await executeNode(next, phone, sessionId, botId, variables);
+          lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
         } else {
-          await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+          await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
         }
       } else {
-        await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+        await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
       }
       break;
     }
@@ -841,7 +866,7 @@ async function executeNode(
       }
       const handle = pickDistributeHandle(d.outputs ?? [], Math.random);
       const next = await getNextNode(botId, node.id, handle ?? undefined);
-      if (next) await executeNode(next, phone, sessionId, botId, variables);
+      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 
@@ -873,6 +898,7 @@ async function executeNode(
       await updateSession(sessionId, {
         status: "completed",
         completedAt: new Date(),
+        completionReason: "end_conversation",
       });
       break;
     }
@@ -890,7 +916,7 @@ async function executeNode(
         console.warn("[BotEngine] edit_tags ignorado — conversa sem clientId vinculado");
       }
       const next = await getNextNode(botId, node.id);
-      if (next) await executeNode(next, phone, sessionId, botId, variables);
+      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
       break;
     }
 
@@ -898,16 +924,19 @@ async function executeNode(
       await updateSession(sessionId, {
         status: "completed",
         completedAt: new Date(),
+        completionReason: "end_of_flow",
       });
       break;
     }
 
     default: {
       console.error("[BotEngine] Tipo de nó não suportado:", node.type);
-      await updateSession(sessionId, { status: "completed", completedAt: new Date() });
+      await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "unsupported_node" });
       break;
     }
   }
+
+  return lastMessageId;
 }
 
 async function resolveConditionHandle(
@@ -1008,7 +1037,11 @@ export async function startBotSession(
   botId: string,
   phone: string,
   startNodeId?: string,
-): Promise<"started" | "already_active" | "no_start_node"> {
+  campaignId?: string,
+): Promise<{
+  status: "started" | "already_active" | "no_start_node";
+  lastMessageId: string | null;
+}> {
   let entryNode: WhatsappBotNode | null = null;
 
   if (startNodeId) {
@@ -1027,10 +1060,10 @@ export async function startBotSession(
     entryNode = found ?? null;
   }
 
-  if (!entryNode) return "no_start_node";
+  if (!entryNode) return { status: "no_start_node", lastMessageId: null };
 
   const existingSession = await getActiveSession(phone);
-  if (existingSession) return "already_active";
+  if (existingSession) return { status: "already_active", lastMessageId: null };
 
   const [bot] = await db.select({ name: whatsappBots.name }).from(whatsappBots).where(eq(whatsappBots.id, botId)).limit(1);
   const botName = bot?.name ?? "Bot";
@@ -1065,6 +1098,7 @@ export async function startBotSession(
       currentNodeId: entryNode.id,
       status: "active",
       sessionData: clientVars,
+      campaignId: campaignId ?? null,
     })
     .returning();
 
@@ -1088,8 +1122,8 @@ export async function startBotSession(
     console.error("[WaBot] Erro ao registrar início do bot:", err);
   }
 
-  await executeNode(entryNode, phone, newSession.id, botId, clientVars);
-  return "started";
+  const lastMessageId = await executeNode(entryNode, phone, newSession.id, botId, clientVars);
+  return { status: "started", lastMessageId };
 }
 
 /**
@@ -1118,7 +1152,7 @@ export async function handleFlowResponse(
 
     const next = await getNextNode(session.botId, currentNode.id);
     if (!next) {
-      await updateSession(session.id, { status: "completed", completedAt: new Date(), sessionData: variables });
+      await updateSession(session.id, { status: "completed", completedAt: new Date(), sessionData: variables, completionReason: "end_of_flow" });
       return;
     }
     await updateSession(session.id, { sessionData: variables });
@@ -1169,6 +1203,7 @@ export async function handleIncomingMessage(
             status: "completed",
             completedAt: new Date(),
             sessionData: variables,
+            completionReason: "end_of_flow",
           });
           return;
         }
@@ -1192,7 +1227,7 @@ export async function handleIncomingMessage(
           if (next) {
             await executeNode(next, phone, session.id, session.botId, variables);
           } else {
-            await updateSession(session.id, { status: "completed", completedAt: new Date() });
+            await updateSession(session.id, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
           }
         } else {
           console.warn("[BotEngine] send_template: resposta não reconhecida e invalidResponseHandle desligado — mensagem ignorada");
@@ -1207,6 +1242,7 @@ export async function handleIncomingMessage(
           await updateSession(session.id, {
             status: "completed",
             completedAt: new Date(),
+            completionReason: "end_of_flow",
           });
         }
       } else if (currentNode.type === "menu") {
@@ -1233,6 +1269,7 @@ export async function handleIncomingMessage(
             status: "completed",
             completedAt: new Date(),
             sessionData: variables,
+            completionReason: "end_of_flow",
           });
         }
       }
@@ -1255,7 +1292,7 @@ export async function expireInactiveSessions(): Promise<number> {
   const cutoff = new Date(Date.now() - SESSION_TIMEOUT_MINUTES * 60 * 1000);
   const result = await db
     .update(whatsappBotSessions)
-    .set({ status: "timed_out", completedAt: new Date() })
+    .set({ status: "timed_out", completedAt: new Date(), completionReason: "timed_out" })
     .where(
       and(
         eq(whatsappBotSessions.status, "active"),
@@ -1299,7 +1336,7 @@ export async function resumeWaitingSessions(): Promise<number> {
       if (next) {
         await executeNode(next, session.phoneNumber, session.id, session.botId, variables);
       } else {
-        await updateSession(session.id, { status: "completed", completedAt: new Date() });
+        await updateSession(session.id, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
       }
     } catch (err) {
       console.error("[BotEngine] Erro ao retomar sessão em espera:", err);
@@ -1340,7 +1377,7 @@ export async function processTemplateTimeouts(): Promise<number> {
       if (next) {
         await executeNode(next, session.phoneNumber, session.id, session.botId, session.sessionData ?? {});
       } else {
-        await updateSession(session.id, { status: "completed", completedAt: new Date() });
+        await updateSession(session.id, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
       }
     } catch (err) {
       console.error("[BotEngine] Erro ao processar timeout de template:", err);
@@ -1380,6 +1417,6 @@ export async function handleTemplateDeliveryFailure(waMessageId: string): Promis
   if (next) {
     await executeNode(next, session.phoneNumber, session.id, session.botId, session.sessionData ?? {});
   } else {
-    await updateSession(session.id, { status: "completed", completedAt: new Date() });
+    await updateSession(session.id, { status: "completed", completedAt: new Date(), completionReason: "delivery_failed" });
   }
 }
