@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   PhoneOff,
   Clock,
+  User,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
 import { useQuery } from "@tanstack/react-query";
 import {
   useWhatsappBots,
@@ -55,6 +63,58 @@ import {
 type WhatsappFilterTag = { id: string; name: string; color?: string | null; emoji?: string | null };
 type ClientTag = { id: string; name: string; color?: string | null; emoji?: string | null };
 type Client = { id: string; name: string; phone?: string | null; tags?: ClientTag[] };
+
+type TemplateHeaderMediaValue = { storageKey: string; mediaType: "image" | "video" | "document" };
+
+const CLIENT_VARIABLE_TOKENS = [
+  { label: "Nome", value: "{{nome}}" },
+  { label: "E-mail", value: "{{email}}" },
+  { label: "Telefone", value: "{{telefone}}" },
+  { label: "Telefone fixo", value: "{{telefone_fixo}}" },
+  { label: "CPF", value: "{{cpf}}" },
+  { label: "Cidade", value: "{{cidade}}" },
+  { label: "Estado", value: "{{estado}}" },
+  { label: "Endereço", value: "{{endereco}}" },
+  { label: "Bairro", value: "{{bairro}}" },
+  { label: "Aniversário", value: "{{aniversario}}" },
+];
+
+const CLIENT_VARIABLE_LABELS: Record<string, string> = {
+  nome: "Nome do cliente",
+  email: "E-mail do cliente",
+  telefone: "Telefone do cliente",
+  telefone_fixo: "Telefone fixo do cliente",
+  cpf: "CPF do cliente",
+  cidade: "Cidade do cliente",
+  estado: "Estado do cliente",
+  endereco: "Endereço do cliente",
+  bairro: "Bairro do cliente",
+  aniversario: "Aniversário do cliente",
+};
+
+function ClientVariableMenu({ onSelect }: { onSelect: (token: string) => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+        >
+          <User className="h-3 w-3" />
+          Inserir dado
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto">
+        {CLIENT_VARIABLE_TOKENS.map((v) => (
+          <DropdownMenuItem key={v.value} onClick={() => onSelect(v.value)}>
+            <span className="text-xs">{v.label}</span>
+            <span className="ml-2 text-[10px] text-muted-foreground font-mono">{v.value}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 const UMBLER_COLOR_MAP: Record<string, string> = {
   Aquamarine: "#14b8a6",
@@ -494,11 +554,38 @@ function StepClients({
 }
 
 // Pré-visualização estilo bolha WhatsApp
-function TemplatePreview({ meta }: { meta: MetaTemplate }) {
-  const replacements: Record<string, string> = { nome: "[primeiro nome]" };
+function TemplatePreview({
+  meta,
+  bodyParams,
+  headerParams,
+}: {
+  meta: MetaTemplate;
+  bodyParams: string[];
+  headerParams: string[];
+}) {
+  const friendlyValue = (raw: string): string => {
+    const trimmed = raw.trim();
+    const match = /^\{\{(\w+)\}\}$/.exec(trimmed);
+    if (match) return `[${CLIENT_VARIABLE_LABELS[match[1]] ?? match[1]}]`;
+    return trimmed || "[valor não preenchido]";
+  };
+
+  const groups = parseTemplateVars(meta);
+  const bodyGroup = groups.find((g) => g.componentType === "body");
+  const headerGroup = groups.find((g) => g.componentType === "header" && g.format === "text");
+
+  const bodyReplacements: Record<string, string> = {};
+  (bodyGroup?.vars ?? []).forEach((name, i) => {
+    bodyReplacements[name] = friendlyValue(bodyParams[i] ?? "");
+  });
+  const headerReplacements: Record<string, string> = {};
+  (headerGroup?.vars ?? []).forEach((name, i) => {
+    headerReplacements[name] = friendlyValue(headerParams[i] ?? "");
+  });
+
   const fallback = (v: string) => `[${v}]`;
-  const header = renderTemplateText(getTemplateHeaderText(meta), replacements, fallback);
-  const body = renderTemplateText(getTemplateBodyText(meta), replacements, fallback);
+  const header = renderTemplateText(getTemplateHeaderText(meta), headerReplacements, fallback);
+  const body = renderTemplateText(getTemplateBodyText(meta), bodyReplacements, fallback);
 
   return (
     <div className="mt-3 space-y-1.5">
