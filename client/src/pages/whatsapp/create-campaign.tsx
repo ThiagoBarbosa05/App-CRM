@@ -741,11 +741,23 @@ function StepTemplateOrBot({
   selectedBotId,
   onSelectTemplate,
   onSelectBot,
+  bodyParams,
+  onBodyParamsChange,
+  headerParams,
+  onHeaderParamsChange,
+  headerMedia,
+  onHeaderMediaChange,
 }: {
   selectedTemplate: MetaTemplate | null;
   selectedBotId: string;
   onSelectTemplate: (t: MetaTemplate | null) => void;
   onSelectBot: (id: string) => void;
+  bodyParams: string[];
+  onBodyParamsChange: (values: string[]) => void;
+  headerParams: string[];
+  onHeaderParamsChange: (values: string[]) => void;
+  headerMedia: TemplateHeaderMediaValue | null;
+  onHeaderMediaChange: (media: TemplateHeaderMediaValue | null) => void;
 }) {
   const { data: metaTemplates = [], isLoading: templatesLoading } = useWhatsappMetaTemplates();
   const { data: bots = [], isLoading: botsLoading } = useWhatsappBots();
@@ -773,7 +785,18 @@ function StepTemplateOrBot({
       </TabsList>
 
       <TabsContent value="template">
-        {templatesLoading ? (
+        {selectedTemplate ? (
+          <TemplateConfigForm
+            template={selectedTemplate}
+            onChangeTemplate={() => onSelectTemplate(null)}
+            bodyParams={bodyParams}
+            onBodyParamsChange={onBodyParamsChange}
+            headerParams={headerParams}
+            onHeaderParamsChange={onHeaderParamsChange}
+            headerMedia={headerMedia}
+            onHeaderMediaChange={onHeaderMediaChange}
+          />
+        ) : templatesLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />
@@ -846,7 +869,6 @@ function StepTemplateOrBot({
             </div>
           </div>
         )}
-        {selectedTemplate && <TemplatePreview meta={selectedTemplate} />}
       </TabsContent>
 
       <TabsContent value="bot">
@@ -1035,16 +1057,48 @@ export default function WhatsAppCreateCampaign() {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<MetaTemplate | null>(null);
   const [selectedBotId, setSelectedBotId] = useState("");
+  const [templateBodyParams, setTemplateBodyParams] = useState<string[]>([]);
+  const [templateHeaderParams, setTemplateHeaderParams] = useState<string[]>([]);
+  const [templateHeaderMedia, setTemplateHeaderMedia] = useState<TemplateHeaderMediaValue | null>(null);
   const [scheduledAt, setScheduledAt] = useState("");
 
   const createMutation = useCreateCampaignWithDispatch();
 
+  const handleSelectTemplate = (t: MetaTemplate | null) => {
+    setSelectedTemplate(t);
+    setTemplateBodyParams([]);
+    setTemplateHeaderParams([]);
+    setTemplateHeaderMedia(
+      t?.headerMedia ? { storageKey: t.headerMedia.storageKey, mediaType: t.headerMedia.mediaType } : null,
+    );
+  };
+
+  const handleSelectBot = (id: string) => {
+    setSelectedBotId(id);
+    setTemplateBodyParams([]);
+    setTemplateHeaderParams([]);
+    setTemplateHeaderMedia(null);
+  };
+
+  const templateVarsComplete = useMemo(() => {
+    if (!selectedTemplate) return true;
+    const groups = parseTemplateVars(selectedTemplate);
+    const bodyGroup = groups.find((g) => g.componentType === "body");
+    const headerGroup = groups.find((g) => g.componentType === "header");
+    const bodyOk =
+      !bodyGroup || bodyGroup.vars.every((_, i) => (templateBodyParams[i] ?? "").trim().length > 0);
+    if (!headerGroup) return bodyOk;
+    if (headerGroup.format !== "text") return bodyOk && templateHeaderMedia !== null;
+    const headerOk = headerGroup.vars.every((_, i) => (templateHeaderParams[i] ?? "").trim().length > 0);
+    return bodyOk && headerOk;
+  }, [selectedTemplate, templateBodyParams, templateHeaderParams, templateHeaderMedia]);
+
   const canNext = useMemo(() => {
     if (step === 1) return title.trim().length > 0;
     if (step === 2) return selectedClientIds.length > 0;
-    if (step === 3) return selectedTemplate !== null || selectedBotId.length > 0;
+    if (step === 3) return (selectedTemplate !== null && templateVarsComplete) || selectedBotId.length > 0;
     return true;
-  }, [step, title, selectedClientIds, selectedTemplate, selectedBotId]);
+  }, [step, title, selectedClientIds, selectedTemplate, selectedBotId, templateVarsComplete]);
 
   const handleBack = () => {
     if (step > 1) setStep((s) => s - 1);
@@ -1057,12 +1111,6 @@ export default function WhatsAppCreateCampaign() {
         ? new Date(scheduledAt).toISOString()
         : undefined;
 
-    const bodyParams = selectedTemplate
-      ? parseTemplateVars(selectedTemplate)
-          .filter((g) => g.componentType === "body")
-          .flatMap((g) => g.vars)
-      : undefined;
-
     createMutation.mutate(
       {
         name: title,
@@ -1070,7 +1118,11 @@ export default function WhatsAppCreateCampaign() {
         metaTemplateName: selectedTemplate?.name,
         metaTemplateLanguage: selectedTemplate?.language,
         metaTemplateCategory: selectedTemplate?.category,
-        metaTemplateBodyParams: bodyParams,
+        metaTemplateBodyParams:
+          selectedTemplate && templateBodyParams.length > 0 ? templateBodyParams : undefined,
+        metaTemplateHeaderParams:
+          selectedTemplate && templateHeaderParams.length > 0 ? templateHeaderParams : undefined,
+        metaTemplateHeaderMedia: selectedTemplate && templateHeaderMedia ? templateHeaderMedia : undefined,
         waBotId: selectedBotId || undefined,
         clientIds: selectedClientIds,
         scheduledAt: scheduledIso,
@@ -1087,7 +1139,20 @@ export default function WhatsAppCreateCampaign() {
         },
       },
     );
-  }, [createMutation, title, description, selectedTemplate, selectedBotId, selectedClientIds, scheduledAt, toast, navigate]);
+  }, [
+    createMutation,
+    title,
+    description,
+    selectedTemplate,
+    templateBodyParams,
+    templateHeaderParams,
+    templateHeaderMedia,
+    selectedBotId,
+    selectedClientIds,
+    scheduledAt,
+    toast,
+    navigate,
+  ]);
 
   // Progress percentage for the top bar
   const progressPct = ((step - 1) / (STEPS.length - 1)) * 100;
@@ -1153,8 +1218,14 @@ export default function WhatsAppCreateCampaign() {
                 <StepTemplateOrBot
                   selectedTemplate={selectedTemplate}
                   selectedBotId={selectedBotId}
-                  onSelectTemplate={setSelectedTemplate}
-                  onSelectBot={setSelectedBotId}
+                  onSelectTemplate={handleSelectTemplate}
+                  onSelectBot={handleSelectBot}
+                  bodyParams={templateBodyParams}
+                  onBodyParamsChange={setTemplateBodyParams}
+                  headerParams={templateHeaderParams}
+                  onHeaderParamsChange={setTemplateHeaderParams}
+                  headerMedia={templateHeaderMedia}
+                  onHeaderMediaChange={setTemplateHeaderMedia}
                 />
               )}
               {step === 4 && (
