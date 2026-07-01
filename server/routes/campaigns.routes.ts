@@ -60,6 +60,8 @@ router.post("/", async (req: Request, res: Response) => {
       metaTemplateLanguage,
       metaTemplateCategory,
       metaTemplateBodyParams,
+      metaTemplateHeaderParams,
+      metaTemplateHeaderMedia,
     } = req.body as {
       name: string;
       description?: string;
@@ -81,6 +83,8 @@ router.post("/", async (req: Request, res: Response) => {
       metaTemplateLanguage?: string;
       metaTemplateCategory?: string;
       metaTemplateBodyParams?: string[];
+      metaTemplateHeaderParams?: string[];
+      metaTemplateHeaderMedia?: { storageKey: string; mediaType: "image" | "video" | "document" };
     };
 
     if (!name || !type) {
@@ -97,7 +101,6 @@ router.post("/", async (req: Request, res: Response) => {
         name: metaTemplateName,
         languageCode: metaTemplateLanguage || "pt_BR",
         category: metaTemplateCategory,
-        bodyParams: metaTemplateBodyParams,
         createdBy: userId,
       });
       resolvedTemplateId = local.id;
@@ -122,6 +125,10 @@ router.post("/", async (req: Request, res: Response) => {
         waEnabled: waEnabled ?? false,
         waTemplateId: resolvedTemplateId,
         waBotId: waBotId ?? null,
+        metaTemplateBodyParams: metaTemplateBodyParams ?? null,
+        metaTemplateHeaderParams: metaTemplateHeaderParams ?? null,
+        metaTemplateHeaderMediaStorageKey: metaTemplateHeaderMedia?.storageKey ?? null,
+        metaTemplateHeaderMediaType: metaTemplateHeaderMedia?.mediaType ?? null,
         createdBy: userId ?? null,
       })
       .returning();
