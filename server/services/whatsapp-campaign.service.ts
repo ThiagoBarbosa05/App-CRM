@@ -81,7 +81,7 @@ export async function executeCampaign(
 
   if (!campaign.waEnabled) {
     console.log(`[WaCampaign] Campanha ${campaignId} não tem waEnabled — ignorando`);
-    return { sent: 0, failed: 0, skipped: 0 };
+    return { sent: 0, failed: 0, skipped: 0, retried: 0 };
   }
 
   if (!campaign.waTemplateId && !campaign.waBotId) {
