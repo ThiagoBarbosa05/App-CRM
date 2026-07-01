@@ -1,14 +1,15 @@
 import { db } from "server/db";
 import { campaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappMessages, clients } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
-import { sendTemplateMessage } from "../integrations/whatsapp";
+import { eq, and, or, isNull, lte } from "drizzle-orm";
+import { sendTemplateMessage, WhatsAppApiError } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
-import { formatPhoneToDigits } from "../lib/format-phone";
+import { normalizePhoneE164 } from "@shared/phone";
 import { startBotSession, buildClientVariables, interpolate } from "./whatsapp-bot-engine.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
 import { getPublicR2Url } from "../lib/r2";
 
 const DEFAULT_DELAY_MS = 1000;
+const MAX_SEND_ATTEMPTS = 5;
 
 async function getDelayMs(): Promise<number> {
   try {
@@ -20,6 +21,48 @@ async function getDelayMs(): Promise<number> {
   }
 }
 
+// Backoff exponencial (5s, 10s, 20s, 40s, 80s...), com teto de 5 minutos.
+function computeBackoffMs(attempts: number): number {
+  const backoffSeconds = Math.min(5 * Math.pow(2, attempts), 300);
+  return backoffSeconds * 1000;
+}
+
+/**
+ * Trata erro de envio: se for rate-limit (429) da Meta e ainda houver
+ * tentativas disponíveis, reagenda a mensagem (volta para "scheduled" com
+ * nextAttemptAt no futuro) em vez de marcar como falha definitiva — em
+ * campanhas de 1000-2000 contatos, rate-limit é praticamente garantido de
+ * acontecer em algum ponto do envio sequencial.
+ */
+async function handleSendFailure(
+  msg: typeof whatsappCampaignMessages.$inferSelect,
+  err: unknown,
+): Promise<"retried" | "failed"> {
+  const errorMessage = err instanceof Error ? err.message : String(err);
+  const isRateLimited = err instanceof WhatsAppApiError && err.status === 429;
+  const nextAttempts = (msg.attempts ?? 0) + 1;
+
+  if (isRateLimited && nextAttempts < MAX_SEND_ATTEMPTS) {
+    await db
+      .update(whatsappCampaignMessages)
+      .set({
+        status: "scheduled",
+        attempts: nextAttempts,
+        nextAttemptAt: new Date(Date.now() + computeBackoffMs(nextAttempts)),
+        errorMessage: `Rate limit da Meta — nova tentativa agendada (${nextAttempts}/${MAX_SEND_ATTEMPTS}): ${errorMessage}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(whatsappCampaignMessages.id, msg.id));
+    return "retried";
+  }
+
+  await db
+    .update(whatsappCampaignMessages)
+    .set({ status: "failed", attempts: nextAttempts, errorMessage, updatedAt: new Date() })
+    .where(eq(whatsappCampaignMessages.id, msg.id));
+  return "failed";
+}
+
 export async function executeCampaign(
   campaignId: string,
   opts?: { limit?: number },
@@ -27,6 +70,7 @@ export async function executeCampaign(
   sent: number;
   failed: number;
   skipped: number;
+  retried: number;
 }> {
   const [campaign] = await db
     .select()
@@ -44,6 +88,7 @@ export async function executeCampaign(
     throw new Error(`Campanha ${campaignId} não possui template ou bot configurado`);
   }
 
+  const now0 = new Date();
   const pendingQuery = db
     .select()
     .from(whatsappCampaignMessages)
@@ -51,6 +96,10 @@ export async function executeCampaign(
       and(
         eq(whatsappCampaignMessages.campaignId, campaignId),
         eq(whatsappCampaignMessages.status, "scheduled"),
+        or(
+          isNull(whatsappCampaignMessages.nextAttemptAt),
+          lte(whatsappCampaignMessages.nextAttemptAt, now0),
+        ),
       ),
     );
 
@@ -61,7 +110,7 @@ export async function executeCampaign(
 
   if (pendingMessages.length === 0) {
     console.log(`[WaCampaign] Nenhuma mensagem pendente para campanha ${campaignId}`);
-    return { sent: 0, failed: 0, skipped: 0 };
+    return { sent: 0, failed: 0, skipped: 0, retried: 0 };
   }
 
   console.log(`[WaCampaign] Enviando ${pendingMessages.length} mensagem(ns) para campanha ${campaignId}`);
@@ -70,6 +119,7 @@ export async function executeCampaign(
   let sent = 0;
   let failed = 0;
   let skipped = 0;
+  let retried = 0;
 
   if (campaign.waBotId) {
     // ── Bot campaign: iniciar sessão de bot para cada contato ─────────────────
@@ -85,7 +135,15 @@ export async function executeCampaign(
         skipped++;
         continue;
       }
-      const phoneE164 = formatPhoneToDigits(msg.phoneNumber);
+      const phoneE164 = normalizePhoneE164(msg.phoneNumber);
+      if (!phoneE164) {
+        await db
+          .update(whatsappCampaignMessages)
+          .set({ status: "failed", errorMessage: "Telefone inválido", updatedAt: new Date() })
+          .where(eq(whatsappCampaignMessages.id, msg.id));
+        failed++;
+        continue;
+      }
       try {
         const { status, lastMessageId } = await startBotSession(campaign.waBotId, phoneE164, undefined, campaignId);
 
@@ -112,13 +170,9 @@ export async function executeCampaign(
         sent++;
         console.log(`[WaCampaign] Bot ✓ ${msg.contactName} (${msg.phoneNumber})`);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        await db
-          .update(whatsappCampaignMessages)
-          .set({ status: "failed", errorMessage, updatedAt: new Date() })
-          .where(eq(whatsappCampaignMessages.id, msg.id));
-        failed++;
-        console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${msg.phoneNumber}):`, errorMessage);
+        const outcome = await handleSendFailure(msg, err);
+        if (outcome === "retried") retried++; else failed++;
+        console.error(`[WaCampaign] Bot ✗ (${outcome}) ${msg.contactName} (${msg.phoneNumber}):`, err instanceof Error ? err.message : err);
       }
       if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     }
@@ -137,7 +191,15 @@ export async function executeCampaign(
         skipped++;
         continue;
       }
-      const phoneE164 = formatPhoneToDigits(msg.phoneNumber);
+      const phoneE164 = normalizePhoneE164(msg.phoneNumber);
+      if (!phoneE164) {
+        await db
+          .update(whatsappCampaignMessages)
+          .set({ status: "failed", errorMessage: "Telefone inválido", updatedAt: new Date() })
+          .where(eq(whatsappCampaignMessages.id, msg.id));
+        failed++;
+        continue;
+      }
 
       let clientRow: typeof clients.$inferSelect | undefined;
       if (msg.contactId) {
@@ -167,20 +229,16 @@ export async function executeCampaign(
         sent++;
         console.log(`[WaCampaign] ✓ ${msg.contactName} (${msg.phoneNumber})`);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        await db
-          .update(whatsappCampaignMessages)
-          .set({ status: "failed", errorMessage, updatedAt: new Date() })
-          .where(eq(whatsappCampaignMessages.id, msg.id));
-        failed++;
-        console.error(`[WaCampaign] ✗ ${msg.contactName} (${msg.phoneNumber}):`, errorMessage);
+        const outcome = await handleSendFailure(msg, err);
+        if (outcome === "retried") retried++; else failed++;
+        console.error(`[WaCampaign] ✗ (${outcome}) ${msg.contactName} (${msg.phoneNumber}):`, err instanceof Error ? err.message : err);
       }
       if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     }
   }
 
-  console.log(`[WaCampaign] Campanha ${campaignId} concluída — enviadas: ${sent}, falhas: ${failed}, puladas: ${skipped}`);
-  return { sent, failed, skipped };
+  console.log(`[WaCampaign] Campanha ${campaignId} concluída — enviadas: ${sent}, falhas: ${failed}, puladas: ${skipped}, reagendadas: ${retried}`);
+  return { sent, failed, skipped, retried };
 }
 
 async function persistCampaignMessageToConversation(

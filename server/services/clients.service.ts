@@ -14,7 +14,7 @@ import {
   assignTagToContact,
   getContactByPhone,
 } from "../integrations/umbler";
-import { formatPhoneToDigits } from "@/lib/format-phone-number";
+import { normalizePhoneE164 } from "@shared/phone";
 import { syncClientToBling, BlingSyncError } from "./bling-clients-export.service";
 import { ensureClientInDesvendandoVinhoFunnel } from "./desvendando-vinho-funnel.service";
 
@@ -817,6 +817,16 @@ export class ClientsService {
   }
 
   /**
+   * Normaliza um campo de telefone para E.164; mantém o valor original se a
+   * normalização falhar, para que a validação do Zod rejeite com uma mensagem
+   * clara em vez de a gente silenciosamente descartar o dado do usuário.
+   */
+  private normalizePhoneField(value: unknown): unknown {
+    if (typeof value !== "string" || value.trim() === "") return value;
+    return normalizePhoneE164(value) ?? value;
+  }
+
+  /**
    * Processa e normaliza dados do cliente antes da validação (para criação)
    */
   private processClientData(
@@ -833,6 +843,8 @@ export class ClientsService {
       email: clientData.email === "" ? null : clientData.email,
       categoria: clientData.categoria || "Geral",
       origem: clientData.origem || "Website",
+      phone: this.normalizePhoneField(clientData.phone),
+      fixedPhone: this.normalizePhoneField(clientData.fixedPhone),
     };
 
     // Se não for admin e não foi especificado um responsável, usar o usuário atual
@@ -857,7 +869,12 @@ export class ClientsService {
       responsavelId:
         updateData.responsavelId === "" ? null : updateData.responsavelId,
       cpf: updateData.cpf === "" ? null : updateData.cpf,
-      phone: updateData.phone === "" ? null : updateData.phone,
+      phone:
+        updateData.phone === "" ? null : this.normalizePhoneField(updateData.phone),
+      fixedPhone:
+        updateData.fixedPhone === ""
+          ? null
+          : this.normalizePhoneField(updateData.fixedPhone),
       email: updateData.email === "" ? null : updateData.email,
     };
 

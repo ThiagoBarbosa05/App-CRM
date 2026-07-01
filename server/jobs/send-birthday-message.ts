@@ -12,7 +12,7 @@ import {
 } from "./birthday-automation-config";
 import { AutomationExecutionService } from "../services/automation-execution.service";
 import { storage } from "../storage";
-import { formatPhoneToDigits } from "../lib/format-phone";
+import { normalizePhoneE164 } from "@shared/phone";
 
 interface ProcessedClient {
   id: string;
@@ -315,7 +315,12 @@ async function processClientBirthday(
       throw new Error(`Template ${automation.waTemplateId} não encontrado`);
     }
 
-    const phoneE164 = formatPhoneToDigits(client.phone);
+    const phoneE164 = normalizePhoneE164(client.phone);
+    if (!phoneE164) {
+      jobLog.status = "falhou";
+      jobLog.lastError = `Telefone inválido: ${client.phone}`;
+      return;
+    }
 
     const bodyParams = Array.isArray(template.bodyParams)
       ? template.bodyParams.map((param: unknown) => {

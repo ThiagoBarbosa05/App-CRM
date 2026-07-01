@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { sql } from "drizzle-orm";
+import { normalizePhoneE164, toMetaWhatsAppId } from "@shared/phone";
 
 export interface DuplicateMatch {
   id: string;
@@ -23,10 +24,14 @@ export interface DuplicateGroup {
 export type DuplicateField = "cpf" | "email" | "phone" | "name";
 
 /**
- * Normaliza telefone removendo tudo que não é dígito.
+ * Normaliza telefone para dígitos (com DDI), usando normalizePhoneE164 como
+ * base — mesma lógica canônica usada no resto do app. Cai para extração
+ * simples de dígitos se o formato não for reconhecido, para não quebrar a
+ * checagem de duplicidade em números fora do padrão BR.
  */
 function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, "");
+  const e164 = normalizePhoneE164(phone);
+  return e164 ? toMetaWhatsAppId(e164) : phone.replace(/\D/g, "");
 }
 
 /**

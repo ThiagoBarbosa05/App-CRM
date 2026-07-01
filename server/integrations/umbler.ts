@@ -1,4 +1,4 @@
-import { formatPhoneToDigits } from "@/lib/format-phone-number";
+import { normalizePhoneE164 } from "@shared/phone";
 import { serviceChannels } from "@shared/schema";
 // import "dotenv/config";
 import { db } from "server/db";
@@ -566,7 +566,7 @@ export async function getChannels() {
 }
 
 export async function getContactByPhone(phone: string) {
-  const formattedPhone = formatPhoneToDigits(phone);
+  const formattedPhone = normalizePhoneE164(phone) ?? phone;
   const response = await fetch(
     `${apiEndpoint}/contacts/phone?phoneNumber=${formattedPhone}&organizationId=${organizationId}`,
     {

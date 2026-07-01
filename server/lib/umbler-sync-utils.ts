@@ -140,42 +140,6 @@ export async function retryWithBackoff<T>(
   throw lastError!;
 }
 
-/**
- * Normaliza telefone para formato E.164
- * Entrada: (11) 99999-9999, 11999999999, +5511999999999
- * Saída: +5511999999999
- */
-export function normalizePhoneToE164(phone: string): string | null {
-  if (!phone) return null;
-
-  // Remove todos os caracteres não numéricos, exceto o +
-  let cleaned = phone.replace(/[^\d+]/g, "");
-
-  // Se já tem +55, retorna
-  if (cleaned.startsWith("+55")) {
-    return cleaned;
-  }
-
-  // Se começa com 55, adiciona +
-  if (cleaned.startsWith("55")) {
-    return `+${cleaned}`;
-  }
-
-  // Se tem 10 ou 11 dígitos, adiciona +55
-  if (cleaned.length === 10 || cleaned.length === 11) {
-    return `+55${cleaned}`;
-  }
-
-  // Formato inválido
-  return null;
-}
-
-/**
- * Valida se o telefone está no formato E.164 válido
- */
-export function isValidE164Phone(phone: string): boolean {
-  // Padrão E.164: +[código do país][DDD][número]
-  // Brasil: +55 (2 dígitos) + DDD (2 dígitos) + número (8 ou 9 dígitos)
-  const e164Pattern = /^\+55\d{10,11}$/;
-  return e164Pattern.test(phone);
-}
+// Normalização de telefone para E.164 foi movida para shared/phone.ts
+// (normalizePhoneE164), único ponto de verdade compartilhado entre
+// client e server.

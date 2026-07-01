@@ -6,13 +6,11 @@ import {
 } from "../repositories/umbler-sync.repository";
 import {
   calculateTagsHash,
-  normalizePhoneToE164,
-  isValidE164Phone,
   RateLimiter,
   retryWithBackoff,
   type UmblerTag,
 } from "../lib/umbler-sync-utils";
-import { formatPhoneToDigits } from "../lib/format-phone";
+import { normalizePhoneE164 } from "@shared/phone";
 import { ClientsRepository } from "server/repositories/clients.repository";
 
 export interface SyncResult {
@@ -230,12 +228,12 @@ export class UmblerSyncService {
       `[UmblerSync] 👤 Processando cliente: ${client.name} (${client.id})`
     );
 
-    // 1. Normaliza telefone para E.164 usando formatPhoneToDigits
+    // 1. Normaliza telefone para E.164 usando normalizePhoneE164
     console.log(`[UmblerSync]   📞 Telefone original: ${client.phone}`);
-    const phoneE164 = formatPhoneToDigits(client.phone);
+    const phoneE164 = normalizePhoneE164(client.phone);
     console.log(`[UmblerSync]   📞 Telefone normalizado: ${phoneE164}`);
 
-    if (!phoneE164 || !isValidE164Phone(phoneE164)) {
+    if (!phoneE164) {
       console.warn(
         `[UmblerSync] Invalid phone for client ${client.id}: ${client.phone}`
       );

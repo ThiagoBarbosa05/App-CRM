@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { normalizePhoneE164 } from "@shared/phone";
 import * as XLSX from "xlsx";
 import { parseExcelDateToISO } from "@/lib/parse-excel-date";
 
@@ -388,6 +389,14 @@ export default function ClientImportModal({
           clientData.phone = clientData.phone.trim();
           clientData.cpf = clientData.cpf.trim();
           clientData.email = clientData.email?.trim() || null;
+
+          // Normaliza o telefone para E.164 antes de checar duplicidade — evita
+          // que a mesma pessoa em formatos diferentes na planilha ("22988523633"
+          // vs "(22) 98852-3633") vire dois cadastros e receba disparo duplicado.
+          const normalizedImportPhone = normalizePhoneE164(clientData.phone);
+          if (normalizedImportPhone) {
+            clientData.phone = normalizedImportPhone;
+          }
 
           // Primeiro, verificar se já existe um cliente com este telefone
           const phone = clientData.phone;

@@ -1,10 +1,6 @@
 import { getContactByPhone, getTags } from "../integrations/umbler";
-import {
-  normalizePhoneToE164,
-  isValidE164Phone,
-  RateLimiter,
-  retryWithBackoff,
-} from "../lib/umbler-sync-utils";
+import { RateLimiter, retryWithBackoff } from "../lib/umbler-sync-utils";
+import { normalizePhoneE164 } from "@shared/phone";
 import { ClientsRepository } from "../repositories/clients.repository";
 
 export type LogResult = "success" | "not_found" | "no_phone" | "error";
@@ -58,8 +54,8 @@ const repo = new ClientsRepository();
 function resolvePhone(phone: string | null, fixedPhone: string | null): string | null {
   for (const raw of [phone, fixedPhone]) {
     if (!raw) continue;
-    const normalized = normalizePhoneToE164(raw);
-    if (normalized && isValidE164Phone(normalized)) return normalized;
+    const normalized = normalizePhoneE164(raw);
+    if (normalized) return normalized;
   }
   return null;
 }

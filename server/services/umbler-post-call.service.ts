@@ -7,7 +7,7 @@ import {
   sendMessage,
   startBirthdayBot,
 } from "../integrations/umbler";
-import { formatPhoneToDigits } from "../lib/format-phone";
+import { normalizePhoneE164 } from "@shared/phone";
 
 async function setCallUmblerStatus(
   callId: string,
@@ -58,7 +58,7 @@ export async function sendPostCallMessage(
       return;
     }
 
-    const phoneE164 = formatPhoneToDigits(client.phone);
+    const phoneE164 = normalizePhoneE164(client.phone);
     if (!phoneE164) {
       console.warn(`[UmblerPostCall] Telefone inválido: ${client.phone}`);
       await setCallUmblerStatus(callId, "falhou");

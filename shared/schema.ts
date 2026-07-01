@@ -20,6 +20,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+import { normalizePhoneE164 } from "./phone";
 
 export const sessions = pgTable("sessions", {
   sid: varchar("sid").primaryKey(),
@@ -1170,7 +1171,11 @@ export const insertClientSchema = createInsertSchema(clients)
       message: "Cliente deve ser maior de idade (18 anos ou mais)",
       path: ["birthday"],
     },
-  );
+  )
+  .refine((data) => !data.phone || normalizePhoneE164(data.phone) !== null, {
+    message: "Telefone inválido — use um número de celular ou fixo brasileiro válido",
+    path: ["phone"],
+  });
 
 // Schema para atualização de clientes (partial, sem validação de maioridade para não bloquear atualizações)
 export const updateClientSchema = createInsertSchema(clients)
@@ -1225,7 +1230,11 @@ export const updateClientSchema = createInsertSchema(clients)
       message: "Cliente deve ser maior de idade (18 anos ou mais)",
       path: ["birthday"],
     },
-  );
+  )
+  .refine((data) => !data.phone || normalizePhoneE164(data.phone) !== null, {
+    message: "Telefone inválido — use um número de celular ou fixo brasileiro válido",
+    path: ["phone"],
+  });
 
 export const insertSectorSchema = createInsertSchema(sectors).omit({
   id: true,
@@ -3165,31 +3174,41 @@ export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
 });
 
 // Tabela de mensagens de campanhas
-export const whatsappCampaignMessages = pgTable("whatsapp_campaign_messages", {
-  id: varchar("id").primaryKey(),
-  campaignId: varchar("campaign_id")
-    .references(() => whatsappCampaigns.id)
-    .notNull(),
-  contactId: text("contact_id"),
-  contactName: text("contact_name").notNull(),
-  phoneNumber: text("phone_number").notNull(),
-  status: text("status", {
-    // scheduled→sent (API aceitou)→delivered→read; failed/cancelled são terminais.
-    enum: ["scheduled", "sent", "delivered", "read", "failed", "cancelled"],
-  })
-    .notNull()
-    .default("scheduled"),
-  scheduledAt: timestamp("scheduled_at").notNull(),
-  sentAt: timestamp("sent_at"),
-  deliveredAt: timestamp("delivered_at"),
-  readAt: timestamp("read_at"),
-  errorMessage: text("error_message"),
-  messageId: text("message_id"), // waMessageId retornado pela Meta (para casar status do webhook)
-  attempts: integer("attempts").default(0).notNull(),
-  nextAttemptAt: timestamp("next_attempt_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const whatsappCampaignMessages = pgTable(
+  "whatsapp_campaign_messages",
+  {
+    id: varchar("id").primaryKey(),
+    campaignId: varchar("campaign_id")
+      .references(() => whatsappCampaigns.id)
+      .notNull(),
+    contactId: text("contact_id"),
+    contactName: text("contact_name").notNull(),
+    phoneNumber: text("phone_number").notNull(),
+    status: text("status", {
+      // scheduled→sent (API aceitou)→delivered→read; failed/cancelled são terminais.
+      enum: ["scheduled", "sent", "delivered", "read", "failed", "cancelled"],
+    })
+      .notNull()
+      .default("scheduled"),
+    scheduledAt: timestamp("scheduled_at").notNull(),
+    sentAt: timestamp("sent_at"),
+    deliveredAt: timestamp("delivered_at"),
+    readAt: timestamp("read_at"),
+    errorMessage: text("error_message"),
+    messageId: text("message_id"), // waMessageId retornado pela Meta (para casar status do webhook)
+    attempts: integer("attempts").default(0).notNull(),
+    nextAttemptAt: timestamp("next_attempt_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    // Impede que o mesmo contato seja enfileirado duas vezes na mesma campanha
+    // (double-click / retry do frontend não devem gerar disparo duplicado).
+    uniqueIndex("wa_campaign_messages_campaign_contact_uidx")
+      .on(t.campaignId, t.contactId)
+      .where(sql`contact_id IS NOT NULL`),
+  ],
+);
 
 // Schemas de inserção
 export const insertWhatsappCampaignSchema = createInsertSchema(whatsappCampaigns);
@@ -3468,6 +3487,11 @@ export const whatsappBotSessions = pgTable(
   },
   (t) => [
     index("wa_bot_sessions_phone_status_idx").on(t.phoneNumber, t.status),
+    // Só pode existir UMA sessão "active" por telefone — fecha a corrida entre
+    // um SELECT de checagem e o INSERT em startBotSession.
+    uniqueIndex("wa_bot_sessions_active_phone_uidx")
+      .on(t.phoneNumber)
+      .where(sql`status = 'active'`),
   ],
 );
 

@@ -15,7 +15,7 @@ import {
   getCampaignStats,
   getCampaignBotStats,
 } from "../controllers/campaigns/campaign-logger";
-import { formatPhoneToDigits } from "../lib/format-phone";
+import { normalizePhoneE164 } from "@shared/phone";
 
 const router = Router();
 
@@ -106,13 +106,34 @@ router.post("/campaigns", async (req, res) => {
       return res.status(400).json({ message: "Campanha não possui template ou bot configurado" });
     }
 
-    // 2. Buscar clientes
+    // 2. Buscar clientes e normalizar telefone (E.164). Contatos com telefone
+    //    ausente/inválido são descartados; contatos cujo telefone normalizado
+    //    já apareceu antes na lista (mesmo número real, cadastros duplicados
+    //    em formatos diferentes) também são descartados, mantendo só o primeiro,
+    //    para não disparar duas vezes para a mesma pessoa.
     const clientRows = await db
       .select({ id: clients.id, name: clients.name, phone: clients.phone })
       .from(clients)
       .where(inArray(clients.id, clientIds));
 
-    const validClients = clientRows.filter((c) => c.phone?.trim());
+    const seenPhones = new Set<string>();
+    const validClients: { id: string; name: string; phone: string; phoneE164: string }[] = [];
+    let skippedInvalidPhone = 0;
+    let skippedDuplicatePhone = 0;
+
+    for (const c of clientRows) {
+      const phoneE164 = c.phone?.trim() ? normalizePhoneE164(c.phone) : null;
+      if (!phoneE164) {
+        skippedInvalidPhone++;
+        continue;
+      }
+      if (seenPhones.has(phoneE164)) {
+        skippedDuplicatePhone++;
+        continue;
+      }
+      seenPhones.add(phoneE164);
+      validClients.push({ id: c.id, name: c.name, phone: c.phone!, phoneE164 });
+    }
 
     if (validClients.length === 0) {
       return res.status(400).json({ message: "Nenhum dos clientes fornecidos possui telefone válido" });
@@ -148,26 +169,49 @@ router.post("/campaigns", async (req, res) => {
         },
       });
 
-    // 4. Criar mensagens agendadas em whatsappCampaignMessages
-    const now = new Date();
-    const messageValues = validClients.map((client) => ({
-      id: `${campaignId}-${client.id}-${now.getTime()}`,
-      campaignId,
-      contactId: client.id,
-      contactName: client.name,
-      phoneNumber: formatPhoneToDigits(client.phone!),
-      status: "scheduled" as const,
-      scheduledAt: now,
-    }));
+    // 4. Excluir contatos que já têm mensagem não-terminal/enviada nesta campanha
+    //    (reenvio do mesmo formulário, duplo clique, retry de rede no frontend
+    //    não devem gerar um novo disparo para quem já está na fila ou já recebeu).
+    const alreadyQueued = await db
+      .select({ contactId: whatsappCampaignMessages.contactId })
+      .from(whatsappCampaignMessages)
+      .where(
+        and(
+          eq(whatsappCampaignMessages.campaignId, campaignId),
+          inArray(whatsappCampaignMessages.contactId, validClients.map((c) => c.id)),
+          inArray(whatsappCampaignMessages.status, ["scheduled", "sent", "delivered", "read"]),
+        ),
+      );
+    const alreadyQueuedIds = new Set(alreadyQueued.map((m) => m.contactId));
 
-    await db.insert(whatsappCampaignMessages).values(messageValues).onConflictDoNothing();
+    const now = new Date();
+    const messageValues = validClients
+      .filter((client) => !alreadyQueuedIds.has(client.id))
+      .map((client) => ({
+        // Id determinístico por (campanha, contato) — junto com o índice único
+        // wa_campaign_messages_campaign_contact_uidx, onConflictDoNothing abaixo
+        // vira uma rede de segurança real contra corrida na exclusão acima.
+        id: `${campaignId}-${client.id}`,
+        campaignId,
+        contactId: client.id,
+        contactName: client.name,
+        phoneNumber: client.phoneE164,
+        status: "scheduled" as const,
+        scheduledAt: now,
+      }));
+
+    if (messageValues.length > 0) {
+      await db.insert(whatsappCampaignMessages).values(messageValues).onConflictDoNothing();
+    }
 
     // 5. NÃO dispara inline — apenas enfileira. O job whatsapp-campaign-dispatcher
     //    processa as mensagens "scheduled" em lotes (evita timeout em disparo em massa).
     res.status(202).json({
       campaignId,
-      queued: validClients.length,
-      skippedNoPhone: clientRows.length - validClients.length,
+      queued: messageValues.length,
+      skippedNoPhone: skippedInvalidPhone,
+      skippedDuplicatePhone,
+      skippedAlreadyQueued: alreadyQueuedIds.size,
       scheduledAt: isScheduled ? scheduledDate?.toISOString() : null,
     });
   } catch (e) {

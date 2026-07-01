@@ -1,4 +1,19 @@
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
+import { toMetaWhatsAppId } from "@shared/phone";
+
+// Erro tipado com o status HTTP da resposta da Meta, para que quem chama
+// sendTextMessage/sendTemplateMessage consiga distinguir rate-limit (429) de
+// outras falhas (template inválido, número inválido etc.) e decidir se vale
+// a pena reagendar com backoff em vez de marcar a mensagem como falha definitiva.
+export class WhatsAppApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = "WhatsAppApiError";
+  }
+}
 
 interface WaConfig {
   phoneNumberId: string;
@@ -48,15 +63,6 @@ function authHeaders(accessToken: string) {
   };
 }
 
-export function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  // Números brasileiros sem DDI: 10 dígitos (fixo) ou 11 dígitos (celular)
-  if (digits.length === 10 || digits.length === 11) {
-    return `55${digits}`;
-  }
-  return digits;
-}
-
 export async function sendTextMessage(to: string, text: string, channel?: ChannelOverride, contextMessageId?: string) {
   const cfg = await getConfig(channel);
   const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
@@ -65,13 +71,13 @@ export async function sendTextMessage(to: string, text: string, channel?: Channe
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to: normalizePhone(to),
+      to: toMetaWhatsAppId(to),
       ...(contextMessageId ? { context: { message_id: contextMessageId } } : {}),
       type: "text",
       text: { body: text },
     }),
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw new WhatsAppApiError(await response.text(), response.status);
   return response.json();
 }
 
@@ -86,7 +92,7 @@ export async function sendTemplateMessage(
   const payload = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
-    to: normalizePhone(to),
+    to: toMetaWhatsAppId(to),
     type: "template",
     template: {
       name: templateName,
@@ -96,7 +102,7 @@ export async function sendTemplateMessage(
   };
 
   console.log(
-    `[WA] sendTemplateMessage → phoneNumberId=${cfg.phoneNumberId} to=${normalizePhone(to)} template=${templateName} lang=${languageCode}`,
+    `[WA] sendTemplateMessage → phoneNumberId=${cfg.phoneNumberId} to=${toMetaWhatsAppId(to)} template=${templateName} lang=${languageCode}`,
   );
   console.log(`[WA] payload:`, JSON.stringify(payload, null, 2));
 
@@ -109,7 +115,7 @@ export async function sendTemplateMessage(
   const responseText = await response.text();
   console.log(`[WA] response status=${response.status} body:`, responseText);
 
-  if (!response.ok) throw new Error(responseText);
+  if (!response.ok) throw new WhatsAppApiError(responseText, response.status);
   return JSON.parse(responseText);
 }
 
@@ -158,7 +164,7 @@ export async function sendMediaMessage(
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to: normalizePhone(to),
+      to: toMetaWhatsAppId(to),
       type: mediaType,
       [mediaKey]: mediaBody,
     }),
@@ -185,7 +191,7 @@ export async function sendMediaByUrl(
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to: normalizePhone(to),
+      to: toMetaWhatsAppId(to),
       type: mediaType,
       [mediaType]: mediaBody,
     }),
@@ -207,7 +213,7 @@ export async function sendReaction(
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to: normalizePhone(to),
+      to: toMetaWhatsAppId(to),
       type: "reaction",
       reaction: { message_id: waMessageId, emoji },
     }),
@@ -259,7 +265,7 @@ export async function sendFlowMessage(
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to: normalizePhone(to),
+      to: toMetaWhatsAppId(to),
       type: "interactive",
       interactive: {
         type: "flow",
@@ -301,7 +307,7 @@ export async function sendButtonsMessage(
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to: normalizePhone(to),
+      to: toMetaWhatsAppId(to),
       type: "interactive",
       interactive: {
         type: "button",
@@ -341,7 +347,7 @@ export async function sendListMessage(
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to: normalizePhone(to),
+      to: toMetaWhatsAppId(to),
       type: "interactive",
       interactive: {
         type: "list",

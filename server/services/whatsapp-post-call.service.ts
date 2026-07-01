@@ -2,7 +2,7 @@ import { db } from "server/db";
 import { campaigns, clients, calls, whatsappTemplates } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { sendTemplateMessage, sendTextMessage } from "../integrations/whatsapp";
-import { formatPhoneToDigits } from "../lib/format-phone";
+import { normalizePhoneE164 } from "@shared/phone";
 
 async function setCallWaStatus(
   callId: string,
@@ -53,7 +53,12 @@ export async function sendPostCallMessage(
       return;
     }
 
-    const phoneE164 = formatPhoneToDigits(client.phone);
+    const phoneE164 = normalizePhoneE164(client.phone);
+    if (!phoneE164) {
+      console.warn(`[WaPostCall] Telefone inválido: ${client.phone}`);
+      await setCallWaStatus(callId, "falhou");
+      return;
+    }
 
     if (campaign.waTemplateId) {
       const [template] = await db

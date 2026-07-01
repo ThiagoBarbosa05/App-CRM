@@ -34,7 +34,8 @@ import {
   users,
 } from "@shared/schema";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage, normalizePhone } from "../integrations/whatsapp";
+import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage } from "../integrations/whatsapp";
+import { toMetaWhatsAppId } from "@shared/phone";
 import { getActiveChannelIdByUserId } from "./whatsapp-channels.service";
 import { r2, getPublicR2Url } from "../lib/r2";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
@@ -160,7 +161,7 @@ async function getActiveSession(
     .from(whatsappBotSessions)
     .where(
       and(
-        eq(whatsappBotSessions.phoneNumber, normalizePhone(phone)),
+        eq(whatsappBotSessions.phoneNumber, toMetaWhatsAppId(phone)),
         eq(whatsappBotSessions.status, "active"),
       ),
     )
@@ -1098,17 +1099,30 @@ export async function startBotSession(
   }
   const clientVars = buildClientVariables(clientRow, phone);
 
-  const [newSession] = await db
-    .insert(whatsappBotSessions)
-    .values({
-      botId,
-      phoneNumber: normalizePhone(phone),
-      currentNodeId: entryNode.id,
-      status: "active",
-      sessionData: clientVars,
-      campaignId: campaignId ?? null,
-    })
-    .returning();
+  // O SELECT em getActiveSession acima é só fast-path; quem garante a
+  // exclusividade de fato é o índice único parcial wa_bot_sessions_active_phone_uidx
+  // (uma sessão "active" por telefone). Se dois disparos concorrentes para o
+  // mesmo contato chegarem aqui quase simultaneamente, o INSERT perdedor cai
+  // no catch abaixo em vez de criar uma segunda sessão ativa.
+  let newSession: WhatsappBotSession;
+  try {
+    [newSession] = await db
+      .insert(whatsappBotSessions)
+      .values({
+        botId,
+        phoneNumber: toMetaWhatsAppId(phone),
+        currentNodeId: entryNode.id,
+        status: "active",
+        sessionData: clientVars,
+        campaignId: campaignId ?? null,
+      })
+      .returning();
+  } catch (err) {
+    if ((err as { code?: string }).code === "23505") {
+      return { status: "already_active", lastMessageId: null };
+    }
+    throw err;
+  }
 
   // Registra no histórico da conversa que o bot foi iniciado
   try {
