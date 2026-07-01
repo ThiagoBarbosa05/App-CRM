@@ -52,8 +52,65 @@ import {
   parseTemplateVars,
 } from "@/lib/whatsapp-template";
 
-type Marker = { id: string; name: string; color?: string; type?: string };
-type Client = { id: string; name: string; phone?: string | null };
+type WhatsappFilterTag = { id: string; name: string; color?: string | null; emoji?: string | null };
+type ClientTag = { id: string; name: string; color?: string | null; emoji?: string | null };
+type Client = { id: string; name: string; phone?: string | null; tags?: ClientTag[] };
+
+const UMBLER_COLOR_MAP: Record<string, string> = {
+  Aquamarine: "#14b8a6",
+  Chocolate: "#92400e",
+  Cyan: "#06b6d4",
+  Gold: "#d97706",
+  Grape: "#7c3aed",
+  Gray: "#6b7280",
+  Green: "#16a34a",
+  Kiwi: "#84cc16",
+  Magenta: "#ec4899",
+  Pink: "#f472b6",
+  Rose: "#e11d48",
+  Salmon: "#f87171",
+  Skyblue: "#38bdf8",
+  Tangerine: "#f97316",
+  Tomato: "#ef4444",
+  Umblerito: "#5046e5",
+};
+
+const TAG_PALETTE = [
+  "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#1abc9c",
+  "#3498db", "#9b59b6", "#e91e63", "#00bcd4", "#8bc34a",
+  "#ff5722", "#795548", "#607d8b", "#009688", "#673ab7",
+];
+
+function resolveTagColor(color: string | null | undefined, id: string): string {
+  if (color) {
+    const mapped = UMBLER_COLOR_MAP[color];
+    if (mapped) return mapped;
+  }
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return TAG_PALETTE[hash % TAG_PALETTE.length];
+}
+
+// 🐨 é o emoji padrão do Umbler quando nenhum emoji foi definido — tratamos como ausente
+function resolveTagEmoji(emoji: string | null | undefined): string | null {
+  if (!emoji || emoji === "🐨") return null;
+  return emoji;
+}
+
+function ClientTagBadge({ tag }: { tag: ClientTag }) {
+  const bg = resolveTagColor(tag.color, tag.id);
+  const emoji = resolveTagEmoji(tag.emoji);
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold text-white max-w-[100px]"
+      style={{ backgroundColor: bg }}
+      title={tag.name}
+    >
+      {emoji && <span className="shrink-0 leading-none">{emoji}</span>}
+      <span className="truncate">{tag.name}</span>
+    </span>
+  );
+}
 
 const STEPS = [
   { id: 1, label: "Informações", icon: Info },
@@ -173,30 +230,29 @@ function StepClients({
   onChange: (ids: string[]) => void;
 }) {
   const [search, setSearch] = useState("");
-  const [selectedMarkers, setSelectedMarkers] = useState<string[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [exclusiveTags, setExclusiveTags] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
 
-  const { data: markers = [] } = useQuery<Marker[]>({
-    queryKey: ["/api/tags/markers"],
+  const { data: whatsappTags = [] } = useQuery<WhatsappFilterTag[]>({
+    queryKey: ["/api/whatsapp/tags"],
     queryFn: async () => {
-      const res = await fetch("/api/tags/markers");
-      if (!res.ok) throw new Error("Erro ao buscar marcadores");
+      const res = await fetch("/api/whatsapp/tags");
+      if (!res.ok) throw new Error("Erro ao buscar tags do WhatsApp");
       return res.json();
     },
   });
 
-  const marcadores = useMemo(
-    () => (markers as Marker[]).filter((m) => m.type === "marcador" || !m.type),
-    [markers],
-  );
-
   const { data: clientsResponse, isFetching } = useQuery({
-    queryKey: ["/api/clients", "campaign-select", search, selectedMarkers, currentPage],
+    queryKey: ["/api/clients", "campaign-select", search, selectedTagIds, exclusiveTags, currentPage],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (selectedMarkers.length > 0) params.set("markers", selectedMarkers.join(","));
+      if (selectedTagIds.length > 0) {
+        params.set("whatsappTagIds", selectedTagIds.join(","));
+        if (exclusiveTags) params.set("exclusiveWhatsappTags", "true");
+      }
       params.set("page", String(currentPage));
       params.set("pageSize", String(PAGE_SIZE));
       const res = await fetch(`/api/clients?${params.toString()}`);
@@ -209,9 +265,9 @@ function StepClients({
   const hasNextPage = clientsResponse?.hasNextPage ?? false;
   const hasPhone = (c: Client) => Boolean(c.phone?.trim());
 
-  const toggleMarker = (name: string) => {
-    setSelectedMarkers((prev) =>
-      prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name],
+  const toggleTag = (id: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
     );
     setCurrentPage(1);
   };
@@ -255,29 +311,42 @@ function StepClients({
         />
       </div>
 
-      {/* Marker filters */}
-      {marcadores.length > 0 && (
+      {/* WhatsApp tag filters */}
+      {whatsappTags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {marcadores.map((m) => (
+          {whatsappTags.map((tag) => (
             <button
-              key={m.id}
+              key={tag.id}
               type="button"
-              onClick={() => toggleMarker(m.name)}
+              onClick={() => toggleTag(tag.id)}
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
-                selectedMarkers.includes(m.name)
+                selectedTagIds.includes(tag.id)
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border text-muted-foreground hover:border-muted-foreground/60 hover:bg-muted/50",
               )}
             >
-              {m.color && (
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: m.color }} />
-              )}
-              {m.name}
-              {selectedMarkers.includes(m.name) && <X className="h-3 w-3" />}
+              {tag.emoji ? (
+                <span className="shrink-0">{tag.emoji}</span>
+              ) : tag.color ? (
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+              ) : null}
+              {tag.name}
+              {selectedTagIds.includes(tag.id) && <X className="h-3 w-3" />}
             </button>
           ))}
         </div>
+      )}
+
+      {/* Exclusive tag toggle */}
+      {selectedTagIds.length > 0 && (
+        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer w-fit">
+          <Checkbox
+            checked={exclusiveTags}
+            onCheckedChange={(v) => { setExclusiveTags(!!v); setCurrentPage(1); }}
+          />
+          Somente clientes com {selectedTagIds.length > 1 ? "apenas essas tags" : "apenas esta tag"} (sem nenhuma outra tag do WhatsApp)
+        </label>
       )}
 
       {/* Selected count bar */}
@@ -365,6 +434,18 @@ function StepClients({
                         </span>
                       )}
                     </div>
+                    {client.tags && client.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {client.tags.slice(0, 3).map((tag) => (
+                          <ClientTagBadge key={tag.id} tag={tag} />
+                        ))}
+                        {client.tags.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground self-center">
+                            +{client.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     {selectable ? (

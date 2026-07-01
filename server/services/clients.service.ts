@@ -187,6 +187,9 @@ export class ClientsService {
           : [];
       if (ids.length > 0) filters.whatsappTagIds = ids;
     }
+    if (rawFilters.exclusiveWhatsappTags === true || rawFilters.exclusiveWhatsappTags === "true") {
+      filters.exclusiveWhatsappTags = true;
+    }
 
     return filters;
   }
@@ -1061,6 +1064,8 @@ export class ClientsService {
       origem: req.query.origem,
       markers: req.query.markers,
       tagIds: req.query.tagIds,
+      whatsappTagIds: req.query.whatsappTagIds,
+      exclusiveWhatsappTags: req.query.exclusiveWhatsappTags,
       purchaseStatus: req.query.purchaseStatus,
       purchaseStatusDays: req.query.purchaseStatusDays,
       wineGrape: req.query.wineGrape,

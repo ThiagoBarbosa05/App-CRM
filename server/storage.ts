@@ -156,6 +156,7 @@ export interface ClientFilters {
   markers?: string;
   tagIds?: string[];
   whatsappTagIds?: string[];
+  exclusiveWhatsappTags?: boolean;
   purchaseStatus?: string;
   purchaseStatusDays?: number;
   wineGrape?: string;
