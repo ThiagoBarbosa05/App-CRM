@@ -19,6 +19,7 @@ import {
   type QuestionNodeData,
   type ConditionNodeData,
   type ConditionBranch,
+  type ConditionRule,
   type MenuNodeData,
   type ActionNodeData,
   type FlowFormNodeData,
@@ -198,6 +199,9 @@ async function getNextNode(
   // = parar aqui — NÃO cair na primeira aresta, que dispararia uma ramificação
   // errada (ex: enviar o nó de um botão sem o contato ter clicado).
   if (sourceHandle) {
+    console.log(
+      `[WaBot][Condition] getNextNode: sourceNode=${sourceNodeId} sourceHandle=${sourceHandle} arestas=${JSON.stringify(edges.map((e) => ({ sourceHandle: e.sourceHandle, targetNodeId: e.targetNodeId })))}`,
+    );
     const edge = edges.find((e) => e.sourceHandle === sourceHandle);
     return edge ? getNode(edge.targetNodeId) : null;
   }
@@ -525,12 +529,17 @@ async function executeNode(
 
     case "condition": {
       const c = data as ConditionNodeData;
+      console.log(
+        `[WaBot][Condition] executeNode: node=${node.id} mode=${c.mode ?? "(reply)"} rules=${JSON.stringify(c.rules)} branches=${JSON.stringify(c.branches)} defaultHandle=${c.defaultHandle}`,
+      );
       // Modo "attribute": ramifica imediatamente pelos atributos do contato
       // (etiqueta/campo), sem aguardar resposta. O fluxo segue na hora.
       if (c.mode === "attribute") {
         const conversation = await findOrCreateConversation(phone);
         const handle = await resolveAttributeHandle(node, conversation.clientId);
+        console.log(`[WaBot][Condition] modo attribute: clientId=${conversation.clientId} handle=${handle}`);
         const next = await getNextNode(botId, node.id, handle);
+        console.log(`[WaBot][Condition] modo attribute: próximo nó=${next?.id ?? "(nenhum — encerrando)"}`);
         if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
         else await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
         break;
@@ -539,6 +548,7 @@ async function executeNode(
       // ramificação é resolvida em handleIncomingMessage quando a próxima
       // mensagem chega. Sem isso, a condição cairia no primeiro edge e o fluxo
       // seria reiniciado a cada resposta (reenviando o template).
+      console.log(`[WaBot][Condition] modo reply: pausando no nó ${node.id}, aguardando resposta do contato`);
       await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       break;
     }
@@ -960,9 +970,27 @@ async function executeNode(
 export async function resolveConditionHandle(
   node: WhatsappBotNode,
   messageText: string,
+  ctx?: { client?: Client; tagIds?: Set<string | null> },
 ): Promise<string> {
   const data = node.data as ConditionNodeData;
   const text = messageText.toLowerCase().trim();
+
+  // Grupo de condições estilo Umbler (editor atual): AND entre todas as
+  // regras de `data.rules`. Quando presente, ignora `branches`/`useAI`
+  // (modelo legado, não populado pelo editor atual).
+  if (data.rules && data.rules.length > 0) {
+    console.log(
+      `[WaBot][Condition] resolveConditionHandle: avaliando data.rules=${JSON.stringify(data.rules)} messageText=${JSON.stringify(messageText)} temClient=${!!ctx?.client} tagIds=${JSON.stringify(Array.from(ctx?.tagIds ?? []))}`,
+    );
+    const matched = evaluateConditionRules(data.rules, {
+      messageText,
+      client: ctx?.client,
+      tagIds: ctx?.tagIds ?? new Set(),
+    });
+    const handle = matched ? "match" : (data.defaultHandle ?? "default");
+    console.log(`[WaBot][Condition] resolveConditionHandle: matched=${matched} handle=${handle}`);
+    return handle;
+  }
 
   if (data.useAI && data.branches?.length) {
     try {
@@ -983,39 +1011,89 @@ export async function resolveConditionHandle(
   return data.defaultHandle ?? "default";
 }
 
+export type ConditionRuleContext = {
+  messageText?: string;
+  client?: Client;
+  tagIds: Set<string | null>;
+};
+
 /**
- * Avalia a regra de um único ramo (modo "attribute") contra um contato já
- * carregado. Extraída de `resolveAttributeHandle` para ser testável sem banco.
+ * Avalia uma única `ConditionRule` contra o contexto disponível (mensagem
+ * recebida e/ou contato carregado). Usada tanto pelo grupo de condições estilo
+ * Umbler (`data.rules`, avaliação AND) quanto pelos ramos legados
+ * (`branches[].rule`, modo "attribute").
  *
- * Cobre apenas os operadores de fato implementados hoje: `has`/`not_has`
- * (campo "tag") e `is_empty`/`equals`/`contains` (demais campos). Os demais
- * operadores de `ConditionRuleOperator` existem no schema/UI mas ainda não
- * têm avaliação aqui — caem no `default: false`.
+ * Cobre apenas os operadores de fato implementados hoje: `contains` (campo
+ * "message_contains", contra a mensagem recebida), `has`/`not_has` (campo
+ * "tag") e `is_empty`/`equals`/`contains` (demais campos, contra `clients`).
+ * Os demais operadores de `ConditionRuleOperator` existem no schema/UI mas
+ * ainda não têm avaliação aqui — caem no `default: false`.
+ */
+export function evaluateConditionRule(
+  rule: ConditionRule,
+  ctx: ConditionRuleContext,
+): boolean {
+  let result: boolean;
+  if (rule.field === "message_contains") {
+    const text = (ctx.messageText ?? "").toLowerCase().trim();
+    const keywords: string[] = rule.values?.length ? rule.values : rule.value ? [rule.value] : [];
+    result = keywords.some((kw) => text.includes(kw.toLowerCase().trim()));
+    console.log(
+      `[WaBot][Condition] evaluateConditionRule: field=message_contains keywords=${JSON.stringify(keywords)} text=${JSON.stringify(text)} → ${result}`,
+    );
+    return result;
+  }
+  if (rule.field === "tag") {
+    const has = rule.value ? ctx.tagIds.has(rule.value) : false;
+    result = rule.operator === "not_has" ? !has : has;
+    console.log(
+      `[WaBot][Condition] evaluateConditionRule: field=tag operator=${rule.operator} value=${rule.value} tagIds=${JSON.stringify(Array.from(ctx.tagIds))} → ${result}`,
+    );
+    return result;
+  }
+  const raw = (ctx.client?.[rule.field as keyof Client] ?? "") as unknown;
+  const fieldVal = (raw == null ? "" : String(raw)).toLowerCase().trim();
+  const target = (rule.value ?? "").toLowerCase().trim();
+  switch (rule.operator) {
+    case "is_empty":
+      result = fieldVal === "";
+      break;
+    case "equals":
+      result = fieldVal === target;
+      break;
+    case "contains":
+      result = target !== "" && fieldVal.includes(target);
+      break;
+    default:
+      result = false;
+  }
+  console.log(
+    `[WaBot][Condition] evaluateConditionRule: field=${rule.field} operator=${rule.operator} fieldVal=${JSON.stringify(fieldVal)} target=${JSON.stringify(target)} → ${result}`,
+  );
+  return result;
+}
+
+/** AND entre todas as regras do grupo (modelo estilo Umbler, `data.rules`). Grupo vazio nunca casa. */
+export function evaluateConditionRules(
+  rules: ConditionRule[],
+  ctx: ConditionRuleContext,
+): boolean {
+  if (rules.length === 0) return false;
+  return rules.every((rule) => evaluateConditionRule(rule, ctx));
+}
+
+/**
+ * Avalia a regra de um único ramo (modo "attribute" legado) contra um
+ * contato já carregado. Extraída de `resolveAttributeHandle` para ser
+ * testável sem banco.
  */
 export function matchesConditionBranch(
   branch: ConditionBranch,
   client: Client | undefined,
   tagIds: Set<string | null>,
 ): boolean {
-  const rule = branch.rule;
-  if (!rule) return false;
-  if (rule.field === "tag") {
-    const has = rule.value ? tagIds.has(rule.value) : false;
-    return rule.operator === "not_has" ? !has : has;
-  }
-  const raw = (client?.[rule.field as keyof Client] ?? "") as unknown;
-  const fieldVal = (raw == null ? "" : String(raw)).toLowerCase().trim();
-  const target = (rule.value ?? "").toLowerCase().trim();
-  switch (rule.operator) {
-    case "is_empty":
-      return fieldVal === "";
-    case "equals":
-      return fieldVal === target;
-    case "contains":
-      return target !== "" && fieldVal.includes(target);
-    default:
-      return false;
-  }
+  if (!branch.rule) return false;
+  return evaluateConditionRule(branch.rule, { client, tagIds });
 }
 
 /**
@@ -1052,6 +1130,10 @@ export async function resolveAttributeHandle(
     .from(contactTags)
     .where(eq(contactTags.clientId, clientId));
   const tagIds = new Set(tagRows.map((t) => t.tagId));
+
+  if (data.rules && data.rules.length > 0) {
+    return evaluateConditionRules(data.rules, { client, tagIds }) ? "match" : (data.defaultHandle ?? "default");
+  }
 
   return pickAttributeBranch(data.branches ?? [], client, tagIds) ?? data.defaultHandle ?? "default";
 }
@@ -1217,9 +1299,13 @@ export async function handleIncomingMessage(
 ): Promise<void> {
   try {
     const session = await getActiveSession(phone);
+    console.log(
+      `[WaBot][Condition] handleIncomingMessage: phone=${phone} sessão=${session?.id ?? "(nenhuma)"} currentNodeId=${session?.currentNodeId ?? "-"}`,
+    );
 
     if (session) {
       const currentNode = await getNode(session.currentNodeId);
+      console.log(`[WaBot][Condition] handleIncomingMessage: currentNode tipo=${currentNode?.type ?? "(não encontrado)"}`);
       if (!currentNode) return;
 
       const variables: Record<string, string> = { ...(session.sessionData ?? {}) };
@@ -1282,8 +1368,34 @@ export async function handleIncomingMessage(
         }
         return;
       } else if (currentNode.type === "condition") {
-        const handle = await resolveConditionHandle(currentNode, messageText);
+        const condData = currentNode.data as ConditionNodeData;
+        console.log(
+          `[WaBot][Condition] handleIncomingMessage: nó=${currentNode.id} messageText=${JSON.stringify(messageText)} rules=${JSON.stringify(condData.rules)} branches=${JSON.stringify(condData.branches)}`,
+        );
+        let ruleCtx: { client?: Client; tagIds?: Set<string | null> } | undefined;
+        if (condData.rules?.length) {
+          const conversation = await findOrCreateConversation(phone);
+          console.log(`[WaBot][Condition] handleIncomingMessage: conversation.clientId=${conversation.clientId}`);
+          if (conversation.clientId) {
+            const [ruleClient] = await db
+              .select()
+              .from(clients)
+              .where(eq(clients.id, conversation.clientId))
+              .limit(1);
+            const tagRows = await db
+              .select({ tagId: contactTags.tagId })
+              .from(contactTags)
+              .where(eq(contactTags.clientId, conversation.clientId));
+            ruleCtx = { client: ruleClient, tagIds: new Set(tagRows.map((t) => t.tagId)) };
+            console.log(
+              `[WaBot][Condition] handleIncomingMessage: client carregado=${!!ruleClient} tagIds=${JSON.stringify(Array.from(ruleCtx.tagIds!))}`,
+            );
+          }
+        }
+        const handle = await resolveConditionHandle(currentNode, messageText, ruleCtx);
+        console.log(`[WaBot][Condition] handleIncomingMessage: handle resolvido=${handle}`);
         const next = await getNextNode(session.botId, currentNode.id, handle);
+        console.log(`[WaBot][Condition] handleIncomingMessage: próximo nó=${next?.id ?? "(nenhum — encerrando)"} tipo=${next?.type ?? "-"}`);
         if (next) {
           await executeNode(next, phone, session.id, session.botId, variables);
         } else {

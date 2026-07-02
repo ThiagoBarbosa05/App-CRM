@@ -5,6 +5,8 @@ vi.mock("../../ai-helpers", () => ({
 }));
 
 import {
+  evaluateConditionRule,
+  evaluateConditionRules,
   matchesConditionBranch,
   pickAttributeBranch,
   resolveAttributeHandle,
@@ -191,6 +193,131 @@ describe("resolveConditionHandle — modo reply", () => {
     });
     await resolveConditionHandle(node, "sim");
     expect(classifyMock).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe("evaluateConditionRule — campo message_contains", () => {
+  it("bate quando a mensagem contém uma das keywords em rule.values", () => {
+    const rule: ConditionRule = { field: "message_contains", operator: "contains", values: ["teste"] };
+    expect(evaluateConditionRule(rule, { messageText: "teste", tagIds: new Set() })).toBe(true);
+  });
+
+  it("é case-insensitive e por substring", () => {
+    const rule: ConditionRule = { field: "message_contains", operator: "contains", values: ["TESTE"] };
+    expect(evaluateConditionRule(rule, { messageText: "isso é um teste rápido", tagIds: new Set() })).toBe(true);
+  });
+
+  it("casa em qualquer uma das keywords de rule.values", () => {
+    const rule: ConditionRule = { field: "message_contains", operator: "contains", values: ["sim", "claro"] };
+    expect(evaluateConditionRule(rule, { messageText: "claro que sim", tagIds: new Set() })).toBe(true);
+  });
+
+  it("usa rule.value como fallback quando rule.values está ausente", () => {
+    const rule: ConditionRule = { field: "message_contains", operator: "contains", value: "teste" };
+    expect(evaluateConditionRule(rule, { messageText: "teste", tagIds: new Set() })).toBe(true);
+  });
+
+  it("não bate quando a mensagem não contém nenhuma keyword", () => {
+    const rule: ConditionRule = { field: "message_contains", operator: "contains", values: ["teste"] };
+    expect(evaluateConditionRule(rule, { messageText: "outra coisa", tagIds: new Set() })).toBe(false);
+  });
+
+  it("sem keywords configuradas (values e value ausentes) → nunca bate", () => {
+    const rule: ConditionRule = { field: "message_contains", operator: "contains" };
+    expect(evaluateConditionRule(rule, { messageText: "qualquer coisa", tagIds: new Set() })).toBe(false);
+  });
+
+  it("sem messageText no contexto → nunca bate", () => {
+    const rule: ConditionRule = { field: "message_contains", operator: "contains", values: ["teste"] };
+    expect(evaluateConditionRule(rule, { tagIds: new Set() })).toBe(false);
+  });
+});
+
+describe("evaluateConditionRules — grupo AND (data.rules, estilo Umbler)", () => {
+  it("lista vazia nunca bate", () => {
+    expect(evaluateConditionRules([], { messageText: "teste", tagIds: new Set() })).toBe(false);
+  });
+
+  it("uma única regra que bate → true", () => {
+    const rules: ConditionRule[] = [{ field: "message_contains", operator: "contains", values: ["teste"] }];
+    expect(evaluateConditionRules(rules, { messageText: "teste", tagIds: new Set() })).toBe(true);
+  });
+
+  it("todas as regras precisam bater (AND)", () => {
+    const rules: ConditionRule[] = [
+      { field: "message_contains", operator: "contains", values: ["teste"] },
+      { field: "tag", operator: "has", value: "tag-1" },
+    ];
+    expect(
+      evaluateConditionRules(rules, { messageText: "teste", tagIds: new Set(["tag-1"]) }),
+    ).toBe(true);
+    expect(
+      evaluateConditionRules(rules, { messageText: "teste", tagIds: new Set(["tag-2"]) }),
+    ).toBe(false);
+  });
+});
+
+describe("resolveConditionHandle — grupo data.rules (editor atual do bot)", () => {
+  it("regra message_contains bate com a mensagem → retorna 'match'", async () => {
+    const node = conditionNode({
+      branches: [],
+      defaultHandle: "no_match",
+      groupLabel: "Editar etiquetas",
+      rules: [{ field: "message_contains", operator: "contains", values: ["teste"] }],
+    });
+    expect(await resolveConditionHandle(node, "teste")).toBe("match");
+  });
+
+  it("regra message_contains não bate → retorna defaultHandle (no_match)", async () => {
+    const node = conditionNode({
+      branches: [],
+      defaultHandle: "no_match",
+      rules: [{ field: "message_contains", operator: "contains", values: ["teste"] }],
+    });
+    expect(await resolveConditionHandle(node, "outra coisa")).toBe("no_match");
+  });
+
+  it("defaultHandle ausente e regra não bate → retorna a string literal 'default'", async () => {
+    const node = conditionNode({
+      branches: [],
+      defaultHandle: undefined as unknown as string,
+      rules: [{ field: "message_contains", operator: "contains", values: ["teste"] }],
+    });
+    expect(await resolveConditionHandle(node, "outra coisa")).toBe("default");
+  });
+
+  it("rules presente tem prioridade sobre branches/useAI (modelo legado é ignorado)", async () => {
+    const node = conditionNode({
+      branches: [branch("h-legado", ["teste"])],
+      defaultHandle: "no_match",
+      useAI: true,
+      rules: [{ field: "message_contains", operator: "contains", values: ["teste"] }],
+    });
+    expect(await resolveConditionHandle(node, "teste")).toBe("match");
+    expect(classifyMock).not.toHaveBeenCalled();
+  });
+
+  it("regra de tag usa o ctx.tagIds passado por quem chama", async () => {
+    const node = conditionNode({
+      branches: [],
+      defaultHandle: "no_match",
+      rules: [{ field: "tag", operator: "has", value: "tag-1" }],
+    });
+    expect(await resolveConditionHandle(node, "qualquer coisa", { tagIds: new Set(["tag-1"]) })).toBe(
+      "match",
+    );
+    expect(await resolveConditionHandle(node, "qualquer coisa", { tagIds: new Set(["tag-2"]) })).toBe(
+      "no_match",
+    );
+  });
+
+  it("regra de tag sem ctx (não fornecido pelo chamador) nunca bate", async () => {
+    const node = conditionNode({
+      branches: [],
+      defaultHandle: "no_match",
+      rules: [{ field: "tag", operator: "has", value: "tag-1" }],
+    });
+    expect(await resolveConditionHandle(node, "qualquer coisa")).toBe("no_match");
   });
 });
 
