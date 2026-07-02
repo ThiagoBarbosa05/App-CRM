@@ -347,25 +347,33 @@ export function validateAnswer(
   }
 }
 
-/** Adiciona etiquetas ao contato sem duplicar (idempotente). */
-async function addContactTags(clientId: string, tagIds: string[]): Promise<void> {
-  const ids = tagIds.filter(Boolean);
+/**
+ * Adiciona etiquetas do WhatsApp (`whatsappTags`, selecionadas no editor de bot
+ * via `/api/whatsapp/tags`) ao contato, sem duplicar (idempotente).
+ *
+ * `contactTags.whatsappTagId` — não `tagId` (etiquetas internas do CRM,
+ * outra tabela) — é a coluna correta aqui: é o espaço de IDs que o editor
+ * de bot realmente oferece para este nó.
+ */
+async function addContactTags(clientId: string, whatsappTagIds: string[]): Promise<void> {
+  const ids = whatsappTagIds.filter(Boolean);
   if (ids.length === 0) return;
   await db
     .delete(contactTags)
-    .where(and(eq(contactTags.clientId, clientId), inArray(contactTags.tagId, ids)));
+    .where(and(eq(contactTags.clientId, clientId), inArray(contactTags.whatsappTagId, ids)));
   await db
     .insert(contactTags)
-    .values(ids.map((tagId) => ({ clientId, tagId })));
+    .values(ids.map((whatsappTagId) => ({ clientId, whatsappTagId })))
+    .onConflictDoNothing();
 }
 
-/** Remove etiquetas do contato. */
-async function removeContactTags(clientId: string, tagIds: string[]): Promise<void> {
-  const ids = tagIds.filter(Boolean);
+/** Remove etiquetas do WhatsApp do contato (ver `addContactTags`). */
+async function removeContactTags(clientId: string, whatsappTagIds: string[]): Promise<void> {
+  const ids = whatsappTagIds.filter(Boolean);
   if (ids.length === 0) return;
   await db
     .delete(contactTags)
-    .where(and(eq(contactTags.clientId, clientId), inArray(contactTags.tagId, ids)));
+    .where(and(eq(contactTags.clientId, clientId), inArray(contactTags.whatsappTagId, ids)));
 }
 
 /** Lê um objeto do R2 e retorna seu conteúdo como Buffer. */

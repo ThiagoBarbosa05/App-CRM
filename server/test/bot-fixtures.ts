@@ -14,6 +14,7 @@ import {
   whatsappBots,
   whatsappConversations,
   whatsappMessages,
+  whatsappTags,
   whatsappTemplates,
   type BotNodeData,
   type WhatsappBotNode,
@@ -118,6 +119,21 @@ export async function createTag(
 
 export async function attachTag(clientId: string, tagId: string): Promise<void> {
   await db.insert(contactTags).values({ clientId, tagId });
+}
+
+/** Etiqueta do WhatsApp (Umbler) — a que o nó "Editar etiquetas" do bot manipula de fato. */
+export async function createWhatsappTag(
+  name: string,
+): Promise<typeof whatsappTags.$inferSelect> {
+  const [tag] = await db
+    .insert(whatsappTags)
+    .values({ name, umblerTagId: randomUUID() })
+    .returning();
+  return tag;
+}
+
+export async function attachWhatsappTag(clientId: string, whatsappTagId: string): Promise<void> {
+  await db.insert(contactTags).values({ clientId, whatsappTagId });
 }
 
 export async function createTemplate(

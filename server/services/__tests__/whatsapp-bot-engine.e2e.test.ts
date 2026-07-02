@@ -62,11 +62,11 @@ import * as r2lib from "../../lib/r2";
 import {
   addEdge,
   addNode,
-  attachTag,
+  attachWhatsappTag,
   createBot,
   createClient,
-  createTag,
   createUser,
+  createWhatsappTag,
   describeBotE2E,
   getOutboundMessages,
   getSession,
@@ -119,7 +119,7 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
 
     const result = await startBotSession(bot.id, phone);
 
-    expect(result).toBe("started");
+    expect(result.status).toBe("started");
     expect(sentTexts()).toContain("Olá, tudo bem?");
 
     const session = await getSession(phone);
@@ -280,7 +280,7 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
 
     const result = await startBotSession(bot.id, phone);
 
-    expect(result).toBe("no_start_node");
+    expect(result.status).toBe("no_start_node");
   });
 
   it("retorna 'already_active' quando já há sessão ativa para o telefone", async () => {
@@ -299,8 +299,8 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
     const first = await startBotSession(bot.id, phone);
     const second = await startBotSession(bot.id, phone);
 
-    expect(first).toBe("started");
-    expect(second).toBe("already_active");
+    expect(first.status).toBe("started");
+    expect(second.status).toBe("already_active");
   });
 
   // ── send_message: template ───────────────────────────────────────────────
@@ -464,11 +464,11 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
     expect(session?.status).toBe("completed");
   });
 
-  it("edit_tags (modo add): adiciona etiqueta ao cliente e conclui a sessão", async () => {
+  it("edit_tags (modo add): adiciona etiqueta do WhatsApp ao cliente e conclui a sessão", async () => {
     const user = await createUser();
     const bot = await createBot(user.id);
     const phone = nextPhone();
-    const tag = await createTag("VIP");
+    const tag = await createWhatsappTag("VIP");
     const client = await createClient({ phone });
     await openCustomerWindow(phone, client.id);
 
@@ -490,16 +490,46 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
       .select()
       .from(contactTags)
       .where(eq(contactTags.clientId, client.id));
-    expect(rows.map((r) => r.tagId)).toContain(tag.id);
+    expect(rows.map((r) => r.whatsappTagId)).toContain(tag.id);
   });
 
-  it("edit_tags (modo remove): remove etiqueta do cliente e conclui a sessão", async () => {
+  it("edit_tags (modo add): não duplica quando a etiqueta já está no cliente", async () => {
     const user = await createUser();
     const bot = await createBot(user.id);
     const phone = nextPhone();
-    const tag = await createTag("Removível");
+    const tag = await createWhatsappTag("Já tem");
     const client = await createClient({ phone });
-    await attachTag(client.id, tag.id);
+    await attachWhatsappTag(client.id, tag.id);
+    await openCustomerWindow(phone, client.id);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const editTags = await addNode(bot.id, {
+      type: "edit_tags",
+      data: { mode: "add", tagIds: [tag.id] },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, editTags.id);
+    await addEdge(bot.id, editTags.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+
+    const rows = await db
+      .select()
+      .from(contactTags)
+      .where(and(eq(contactTags.clientId, client.id), eq(contactTags.whatsappTagId, tag.id)));
+    expect(rows).toHaveLength(1);
+  });
+
+  it("edit_tags (modo remove): remove etiqueta do WhatsApp do cliente e conclui a sessão", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const tag = await createWhatsappTag("Removível");
+    const client = await createClient({ phone });
+    await attachWhatsappTag(client.id, tag.id);
     await openCustomerWindow(phone, client.id);
 
     const start = await addNode(bot.id, { type: "start" });
@@ -520,7 +550,7 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
       .select()
       .from(contactTags)
       .where(eq(contactTags.clientId, client.id));
-    expect(rows.map((r) => r.tagId)).not.toContain(tag.id);
+    expect(rows.map((r) => r.whatsappTagId)).not.toContain(tag.id);
   });
 
   // ── send_template ────────────────────────────────────────────────────────────
@@ -1014,6 +1044,7 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
     const user = await createUser();
     const bot = await createBot(user.id);
     const phone = nextPhone();
+    await openCustomerWindow(phone);
 
     const start = await addNode(bot.id, { type: "start" });
     const tmpl = await addNode(bot.id, {
@@ -1119,6 +1150,7 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
     const user = await createUser();
     const bot = await createBot(user.id);
     const phone = nextPhone();
+    await openCustomerWindow(phone);
 
     const start = await addNode(bot.id, { type: "start" });
     const tmpl = await addNode(bot.id, {
