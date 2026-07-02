@@ -498,9 +498,8 @@ async function processClient(
   if (!blingContactId) {
     let existingId: number | null = null;
 
-    // Busca por CPF/CNPJ primeiro
-    const docParaBusca = client.documentType === "cnpj" ? client.cnpj : client.cpf;
-    const validCpf = sanitizeDocument(docParaBusca);
+    // Busca por CPF/CNPJ primeiro (ambos ficam na coluna cpf)
+    const validCpf = sanitizeDocument(client.cpf);
     if (validCpf) {
       const results = await getBlingContatos(
         accessToken,
@@ -546,12 +545,13 @@ async function processClient(
     ? Number(client.blingVendedorId)
     : null;
 
+  // CPF e CNPJ são ambos armazenados na coluna `cpf` — `documentType` define só o tipo da pessoa
   const isCnpj = client.documentType === "cnpj";
   const payload = {
     nome: client.name,
     tipo: (isCnpj ? "J" : "F") as "F" | "J",
     situacao: "A" as const,
-    numeroDocumento: sanitizeDocument(isCnpj ? client.cnpj : client.cpf),
+    numeroDocumento: sanitizeDocument(client.cpf),
     telefone: sanitizePhone(client.fixedPhone),
     celular: sanitizePhone(client.phone),
     email: client.email ?? undefined,
