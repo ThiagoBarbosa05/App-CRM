@@ -115,6 +115,15 @@ function sanitizeDocument(cpf: string | null): string | undefined {
   return cpf;
 }
 
+/** Remove tudo que não é dígito e elimina o prefixo +55 se presente. */
+function sanitizePhone(phone: string | null | undefined): string | undefined {
+  if (!phone) return undefined;
+  let d = phone.replace(/\D/g, "");
+  if ((d.length === 13 || d.length === 12) && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 0) return undefined;
+  return d;
+}
+
 // ---------------------------------------------------------------------------
 // API pública
 // ---------------------------------------------------------------------------
@@ -530,8 +539,8 @@ async function processClient(
     tipo: "F" as const,
     situacao: "A" as const,
     numeroDocumento: sanitizeDocument(client.cpf),
-    telefone: client.fixedPhone ?? undefined,
-    celular: client.phone ?? undefined,
+    telefone: sanitizePhone(client.fixedPhone),
+    celular: sanitizePhone(client.phone),
     email: client.email ?? undefined,
     vendedor: vendedorId ? { id: vendedorId } : undefined,
     endereco: {
