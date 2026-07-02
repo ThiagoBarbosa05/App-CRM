@@ -257,7 +257,6 @@ async function runExport(
           phone: clients.phone,
           fixedPhone: clients.fixedPhone,
           cpf: clients.cpf,
-          cnpj: clients.cnpj,
           documentType: clients.documentType,
           email: clients.email,
           birthday: clients.birthday,
@@ -468,7 +467,6 @@ type ClientBatch = {
   phone: string | null;
   fixedPhone: string | null;
   cpf: string | null;
-  cnpj: string | null;
   documentType: string | null;
   email: string | null;
   birthday: string | null;
@@ -737,7 +735,6 @@ export async function syncClientToBling(
       phone: clients.phone,
       fixedPhone: clients.fixedPhone,
       cpf: clients.cpf,
-      cnpj: clients.cnpj,
       documentType: clients.documentType,
       email: clients.email,
       birthday: clients.birthday,
