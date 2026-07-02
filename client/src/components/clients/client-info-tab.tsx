@@ -90,17 +90,15 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
 
   const formatPhone = (phone: string | null | undefined) => {
     if (!phone) return "—";
-    const cleanPhone = phone.replace(/\D/g, "");
-    if (cleanPhone.length === 11) {
-      return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
-        2,
-        7,
-      )}-${cleanPhone.slice(7)}`;
-    } else if (cleanPhone.length === 10) {
-      return `(${cleanPhone.slice(0, 2)}) ${cleanPhone.slice(
-        2,
-        6,
-      )}-${cleanPhone.slice(6)}`;
+    let digits = phone.replace(/\D/g, "");
+    // Remove código do país Brasil (55) quando presente
+    if (digits.length === 13 && digits.startsWith("55")) digits = digits.slice(2);
+    if (digits.length === 12 && digits.startsWith("55")) digits = digits.slice(2);
+    if (digits.length === 11) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    }
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
     }
     return phone;
   };

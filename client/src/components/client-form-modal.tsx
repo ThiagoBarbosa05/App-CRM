@@ -463,7 +463,7 @@ export default function ClientFormModal({
             return data.cpf?.trim() || null;
           return null;
         })(),
-        phone: data.phone?.replace(/\D/g, "") ? data.phone?.trim() : null,
+        phone: data.phone?.replace(/\D/g, "") || null,
         documentType: isCnpj ? "cnpj" : "cpf",
         nomeFantasia: isCnpj ? data.nomeFantasia?.trim() || null : null,
         inscricaoEstadual: isCnpj

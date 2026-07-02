@@ -13,10 +13,10 @@ export function formatCpf(cpf: string): string {
 }
 
 export function formatPhone(phone: string): string {
-  const cleaned = phone.replace(/\D/g, "");
-  if (cleaned.length === 11) {
-    return cleaned.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  }
+  let d = phone.replace(/\D/g, "");
+  if ((d.length === 13 || d.length === 12) && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 11) return d.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  if (d.length === 10) return d.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
   return phone;
 }
 
