@@ -106,13 +106,13 @@ function sleep(ms: number): Promise<void> {
  * Retorna o CPF/CNPJ somente se for válido para envio ao Bling.
  * Descarta nulos, strings vazias e CPFs sabidamente inválidos (ex: 000.000.000-00).
  */
-function sanitizeDocument(cpf: string | null): string | undefined {
-  if (!cpf) return undefined;
-  const digits = cpf.replace(/\D/g, "");
+function sanitizeDocument(doc: string | null): string | undefined {
+  if (!doc) return undefined;
+  const digits = doc.replace(/\D/g, "");
   if (digits.length === 0) return undefined;
   // CPF/CNPJ com todos os dígitos iguais é inválido (000...0, 111...1 etc.)
   if (/^(\d)\1+$/.test(digits)) return undefined;
-  return cpf;
+  return digits; // Bling espera só dígitos no payload
 }
 
 /**
@@ -257,6 +257,8 @@ async function runExport(
           phone: clients.phone,
           fixedPhone: clients.fixedPhone,
           cpf: clients.cpf,
+          cnpj: clients.cnpj,
+          documentType: clients.documentType,
           email: clients.email,
           birthday: clients.birthday,
           cep: clients.cep,
@@ -466,6 +468,8 @@ type ClientBatch = {
   phone: string | null;
   fixedPhone: string | null;
   cpf: string | null;
+  cnpj: string | null;
+  documentType: string | null;
   email: string | null;
   birthday: string | null;
   cep: string | null;
@@ -494,8 +498,9 @@ async function processClient(
   if (!blingContactId) {
     let existingId: number | null = null;
 
-    // Busca por CPF primeiro
-    const validCpf = sanitizeDocument(client.cpf);
+    // Busca por CPF/CNPJ primeiro
+    const docParaBusca = client.documentType === "cnpj" ? client.cnpj : client.cpf;
+    const validCpf = sanitizeDocument(docParaBusca);
     if (validCpf) {
       const results = await getBlingContatos(
         accessToken,
@@ -541,11 +546,12 @@ async function processClient(
     ? Number(client.blingVendedorId)
     : null;
 
+  const isCnpj = client.documentType === "cnpj";
   const payload = {
     nome: client.name,
-    tipo: "F" as const,
+    tipo: (isCnpj ? "J" : "F") as "F" | "J",
     situacao: "A" as const,
-    numeroDocumento: sanitizeDocument(client.cpf),
+    numeroDocumento: sanitizeDocument(isCnpj ? client.cnpj : client.cpf),
     telefone: sanitizePhone(client.fixedPhone),
     celular: sanitizePhone(client.phone),
     email: client.email ?? undefined,
@@ -731,6 +737,8 @@ export async function syncClientToBling(
       phone: clients.phone,
       fixedPhone: clients.fixedPhone,
       cpf: clients.cpf,
+      cnpj: clients.cnpj,
+      documentType: clients.documentType,
       email: clients.email,
       birthday: clients.birthday,
       cep: clients.cep,
