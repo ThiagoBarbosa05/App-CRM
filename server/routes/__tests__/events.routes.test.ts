@@ -123,7 +123,7 @@ describe("eventsRouter", () => {
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
     const response = await request(app)
       .post("/events/event-1/participants")
-      .send({ clientId: "client-1", status: "inscrito" });
+      .send({ clientId: "client-1", status: "pendente" });
     expect(addEventParticipantMock).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(201);
   });

@@ -957,7 +957,7 @@ async function executeNode(
   return lastMessageId;
 }
 
-async function resolveConditionHandle(
+export async function resolveConditionHandle(
   node: WhatsappBotNode,
   messageText: string,
 ): Promise<string> {
@@ -984,11 +984,62 @@ async function resolveConditionHandle(
 }
 
 /**
+ * Avalia a regra de um único ramo (modo "attribute") contra um contato já
+ * carregado. Extraída de `resolveAttributeHandle` para ser testável sem banco.
+ *
+ * Cobre apenas os operadores de fato implementados hoje: `has`/`not_has`
+ * (campo "tag") e `is_empty`/`equals`/`contains` (demais campos). Os demais
+ * operadores de `ConditionRuleOperator` existem no schema/UI mas ainda não
+ * têm avaliação aqui — caem no `default: false`.
+ */
+export function matchesConditionBranch(
+  branch: ConditionBranch,
+  client: Client | undefined,
+  tagIds: Set<string | null>,
+): boolean {
+  const rule = branch.rule;
+  if (!rule) return false;
+  if (rule.field === "tag") {
+    const has = rule.value ? tagIds.has(rule.value) : false;
+    return rule.operator === "not_has" ? !has : has;
+  }
+  const raw = (client?.[rule.field as keyof Client] ?? "") as unknown;
+  const fieldVal = (raw == null ? "" : String(raw)).toLowerCase().trim();
+  const target = (rule.value ?? "").toLowerCase().trim();
+  switch (rule.operator) {
+    case "is_empty":
+      return fieldVal === "";
+    case "equals":
+      return fieldVal === target;
+    case "contains":
+      return target !== "" && fieldVal.includes(target);
+    default:
+      return false;
+  }
+}
+
+/**
+ * Escolhe o primeiro ramo cuja regra casa com o contato ("primeiro que casa
+ * vence" — não há avaliação de grupo AND aqui). Retorna `null` quando nenhum
+ * ramo casa; quem chama decide o fallback (`defaultHandle`).
+ */
+export function pickAttributeBranch(
+  branches: ConditionBranch[],
+  client: Client | undefined,
+  tagIds: Set<string | null>,
+): string | null {
+  for (const branch of branches) {
+    if (matchesConditionBranch(branch, client, tagIds)) return branch.handle;
+  }
+  return null;
+}
+
+/**
  * Resolve a ramificação de um nó de Condição no modo "attribute": avalia as
  * regras de cada ramo contra os atributos do contato (etiquetas e campos de
  * `clients`) e retorna o handle do primeiro ramo que casar, ou o padrão.
  */
-async function resolveAttributeHandle(
+export async function resolveAttributeHandle(
   node: WhatsappBotNode,
   clientId: string | null,
 ): Promise<string> {
@@ -1002,32 +1053,7 @@ async function resolveAttributeHandle(
     .where(eq(contactTags.clientId, clientId));
   const tagIds = new Set(tagRows.map((t) => t.tagId));
 
-  const matches = (branch: ConditionBranch): boolean => {
-    const rule = branch.rule;
-    if (!rule) return false;
-    if (rule.field === "tag") {
-      const has = rule.value ? tagIds.has(rule.value) : false;
-      return rule.operator === "not_has" ? !has : has;
-    }
-    const raw = (client?.[rule.field as keyof typeof client] ?? "") as unknown;
-    const fieldVal = (raw == null ? "" : String(raw)).toLowerCase().trim();
-    const target = (rule.value ?? "").toLowerCase().trim();
-    switch (rule.operator) {
-      case "is_empty":
-        return fieldVal === "";
-      case "equals":
-        return fieldVal === target;
-      case "contains":
-        return target !== "" && fieldVal.includes(target);
-      default:
-        return false;
-    }
-  };
-
-  for (const branch of data.branches ?? []) {
-    if (matches(branch)) return branch.handle;
-  }
-  return data.defaultHandle ?? "default";
+  return pickAttributeBranch(data.branches ?? [], client, tagIds) ?? data.defaultHandle ?? "default";
 }
 
 /**
