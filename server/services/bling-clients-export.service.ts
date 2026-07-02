@@ -115,12 +115,19 @@ function sanitizeDocument(cpf: string | null): string | undefined {
   return cpf;
 }
 
-/** Remove tudo que não é dígito e elimina o prefixo +55 se presente. */
+/**
+ * Normaliza telefone para o formato que o Bling aceita no payload: (xx) xxxxx-xxxx.
+ * Remove +55, caracteres não-dígito e formata conforme o número de dígitos.
+ */
 function sanitizePhone(phone: string | null | undefined): string | undefined {
   if (!phone) return undefined;
   let d = phone.replace(/\D/g, "");
+  // Remove prefixo +55 (Brasil)
   if ((d.length === 13 || d.length === 12) && d.startsWith("55")) d = d.slice(2);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   if (d.length === 0) return undefined;
+  // Número fora do padrão — retorna só dígitos (evita enviar mask chars ou +55)
   return d;
 }
 
