@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InputMask } from "@/components/ui/input-mask";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -382,10 +383,11 @@ export default function CompanyFormModal({
 
             <div className="space-y-2">
               <Label htmlFor="phone">Celular</Label>
-              <Input
+              <InputMask
                 id="phone"
-                {...register("phone")}
+                mask="(99) 99999-9999"
                 placeholder="(11) 99999-9999"
+                {...register("phone")}
               />
               {errors.phone && (
                 <p className="text-sm text-destructive">
@@ -396,10 +398,11 @@ export default function CompanyFormModal({
 
             <div className="space-y-2">
               <Label htmlFor="fixedPhone">Telefone Fixo</Label>
-              <Input
+              <InputMask
                 id="fixedPhone"
-                {...register("fixedPhone")}
+                mask="(99) 9999-9999"
                 placeholder="(11) 9999-9999"
+                {...register("fixedPhone")}
               />
               {errors.fixedPhone && (
                 <p className="text-sm text-destructive">
