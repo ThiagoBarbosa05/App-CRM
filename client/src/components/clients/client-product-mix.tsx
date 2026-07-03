@@ -158,6 +158,7 @@ export function ClientProductMixTable({
 export function ClientInactiveProducts({
   inactiveProducts,
 }: ClientInactiveProductsProps) {
+  const [, navigate] = useLocation();
   return (
     <Card className="rounded-[24px] border-slate-200/80 bg-white shadow-[0_18px_40px_-36px_rgba(15,23,42,0.35)] dark:border-slate-800/80 dark:bg-slate-900">
       <CardHeader className="pb-3">
@@ -181,7 +182,8 @@ export function ClientInactiveProducts({
             return (
               <div
                 key={`${product.productId ?? product.description}-${product.lastPurchaseDate ?? "none"}`}
-                className={`relative overflow-hidden rounded-[20px] border bg-white px-4 py-4 dark:bg-slate-950/60 ${
+                onClick={() => product.productId && navigate(`/products/${product.productId}`)}
+                className={`relative overflow-hidden rounded-[20px] border bg-white px-4 py-4 dark:bg-slate-950/60 transition-colors ${product.productId ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50" : ""} ${
                   isAbandoned
                     ? "border-rose-200/60 dark:border-rose-800/30"
                     : "border-amber-200/60 dark:border-amber-800/30"
