@@ -358,7 +358,7 @@ async function listProductMix(clientId: string) {
   const result = await db.execute(sql`
     WITH all_items AS (
       SELECT
-        boi.product_id::text AS product_id,
+        p.id::text AS product_id,
         boi.product_code AS product_code,
         boi.description AS description,
         boi.order_id::text AS order_id,
@@ -367,6 +367,7 @@ async function listProductMix(clientId: string) {
         bo.sale_date::text AS sale_date
       FROM bling_order_items boi
       INNER JOIN bling_orders bo ON boi.order_id = bo.id
+      LEFT JOIN products p ON p.bling_product_id = boi.product_id::text AND p.deleted_at IS NULL
       WHERE bo.deleted_at IS NULL
         AND bo.app_client_id = ${clientId}
 
