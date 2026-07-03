@@ -5106,12 +5106,13 @@ export class DatabaseStorage implements IStorage {
       const blingRow = (blingSummaryRows.rows[0] as any) ?? {};
       console.log("[profile-debug] bling summary:", JSON.stringify(blingRow));
 
-      // Query 2: connect (qty + orders + buyers — sem revenue pois unit_value pode ser 0)
+      // Query 2: connect (revenue + qty + orders + buyers)
       const connectSummaryRows = await db.execute(sql`
         SELECT
-          COALESCE(SUM(coi.quantity::numeric), 0)::text  AS total_quantity,
-          COUNT(DISTINCT co.id)::int                      AS order_count,
-          COUNT(DISTINCT co.app_client_id)::int           AS buyer_count
+          COALESCE(SUM(coi.quantity::numeric * coi.unit_value::numeric), 0)::text AS total_revenue,
+          COALESCE(SUM(coi.quantity::numeric), 0)::text                            AS total_quantity,
+          COUNT(DISTINCT co.id)::int                                               AS order_count,
+          COUNT(DISTINCT co.app_client_id)::int                                    AS buyer_count
         FROM connect_order_items coi
         INNER JOIN connect_orders co ON co.id = coi.order_id
         INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
@@ -5120,9 +5121,13 @@ export class DatabaseStorage implements IStorage {
           AND p.id = ${productId}
       `);
       const connectRow = (connectSummaryRows.rows[0] as any) ?? {};
+      console.log("[profile-debug] connect summary:", JSON.stringify(connectRow));
 
       const summary = {
-        totalRevenue: blingRow.total_revenue ?? "0",
+        totalRevenue: (
+          parseFloat(blingRow.total_revenue ?? "0") +
+          parseFloat(connectRow.total_revenue ?? "0")
+        ).toString(),
         totalQuantity: (
           parseFloat(blingRow.total_quantity ?? "0") +
           parseFloat(connectRow.total_quantity ?? "0")
@@ -5150,9 +5155,10 @@ export class DatabaseStorage implements IStorage {
         ),
         connect_raw AS (
           SELECT
-            TO_CHAR(co.sale_date::date, 'YYYY-MM') AS month,
-            coi.quantity::numeric                   AS qty,
-            co.id::text                             AS order_id
+            TO_CHAR(co.sale_date::date, 'YYYY-MM')              AS month,
+            coi.quantity::numeric                                AS qty,
+            (coi.quantity::numeric * coi.unit_value::numeric)    AS revenue,
+            co.id::text                                          AS order_id
           FROM connect_order_items coi
           INNER JOIN connect_orders co ON co.id = coi.order_id
           INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
@@ -5170,6 +5176,7 @@ export class DatabaseStorage implements IStorage {
         connect_agg AS (
           SELECT month,
                  SUM(qty)                  AS qty,
+                 SUM(revenue)              AS revenue,
                  COUNT(DISTINCT order_id)  AS orders
           FROM connect_raw GROUP BY month
         ),
@@ -5180,7 +5187,7 @@ export class DatabaseStorage implements IStorage {
         )
         SELECT
           m.month,
-          COALESCE(ba.revenue, 0)::text                                          AS total_revenue,
+          (COALESCE(ba.revenue, 0) + COALESCE(ca.revenue, 0))::text             AS total_revenue,
           COALESCE(ba.qty + ca.qty, ba.qty, ca.qty, 0)::text                    AS total_quantity,
           (COALESCE(ba.orders, 0) + COALESCE(ca.orders, 0))::int                AS order_count
         FROM all_months m
