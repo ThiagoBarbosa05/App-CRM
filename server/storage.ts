@@ -5006,9 +5006,13 @@ export class DatabaseStorage implements IStorage {
         SELECT bo.app_client_id
         FROM bling_order_items boi
         INNER JOIN bling_orders bo ON bo.id = boi.order_id
-        INNER JOIN products p2 ON p2.bling_product_id = boi.product_id
+        INNER JOIN products p2 ON (
+          p2.bling_product_id = boi.product_id::text
+          OR UPPER(boi.description) = UPPER(p2.name)
+        )
         WHERE bo.app_client_id IS NOT NULL
           AND bo.deleted_at IS NULL
+          AND p2.deleted_at IS NULL
           AND p2.id = ${productId}
 
         UNION
@@ -5018,6 +5022,7 @@ export class DatabaseStorage implements IStorage {
         INNER JOIN connect_orders co ON co.id = coi.order_id
         INNER JOIN products p2 ON UPPER(coi.product_name) LIKE UPPER('%' || p2.name || '%')
         WHERE co.app_client_id IS NOT NULL
+          AND p2.deleted_at IS NULL
           AND p2.id = ${productId}
       ) _buyers
     `);
@@ -5034,9 +5039,13 @@ export class DatabaseStorage implements IStorage {
                boi.quantity::numeric AS qty
         FROM bling_order_items boi
         INNER JOIN bling_orders bo ON bo.id = boi.order_id
-        INNER JOIN products p ON p.bling_product_id = boi.product_id
+        INNER JOIN products p ON (
+          p.bling_product_id = boi.product_id::text
+          OR UPPER(boi.description) = UPPER(p.name)
+        )
         WHERE bo.app_client_id IS NOT NULL
           AND bo.deleted_at IS NULL
+          AND p.deleted_at IS NULL
           AND p.id = ${productId}
 
         UNION ALL
