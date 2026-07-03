@@ -234,6 +234,7 @@ export async function listClientsForChat(
   userRole: string,
   search?: string,
   whatsappTagIds?: string[],
+  pagination: { cursor?: Cursor | null; limit?: number } = {},
 ) {
   // .mapWith aplica o mapper de timestamp do Drizzle ao SQL cru — sem ele o
   // valor chega ao cliente como string sem fuso ("2026-07-02 23:16:00") e o
@@ -290,6 +291,9 @@ export async function listClientsForChat(
       .from(whatsappMessages)
       .orderBy(whatsappMessages.conversationId, desc(effectiveAt)),
   );
+
+  const limit = clampLimit(pagination.limit, { fallback: 20, max: 100 });
+  const cursor = pagination.cursor ?? null;
 
   const conditions: ReturnType<typeof eq>[] = [];
 
@@ -358,6 +362,20 @@ export async function listClientsForChat(
     }
   }
 
+  if (cursor) {
+    const cursorCondition =
+      cursor.at !== null
+        ? or(
+            and(
+              isNotNull(lastMsgSub.lastAt),
+              sql`(${lastMsgSub.lastAt}, ${whatsappConversations.id}) < (${cursor.at}::timestamp, ${cursor.id})`,
+            ),
+            isNull(lastMsgSub.lastAt),
+          )
+        : and(isNull(lastMsgSub.lastAt), sql`${whatsappConversations.id} < ${cursor.id}`);
+    conditions.push(cursorCondition as unknown as ReturnType<typeof eq>);
+  }
+
   const rows = await db
     .with(readsSub, unreadSub, lastMsgSub)
     .select({
@@ -380,10 +398,21 @@ export async function listClientsForChat(
     .leftJoin(lastMsgSub, eq(whatsappConversations.id, lastMsgSub.conversationId))
     .leftJoin(unreadSub, eq(whatsappConversations.id, unreadSub.conversationId))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(sql`${lastMsgSub.lastAt} DESC NULLS LAST`)
-    .limit(100);
+    .orderBy(sql`${lastMsgSub.lastAt} DESC NULLS LAST`, desc(whatsappConversations.id))
+    .limit(limit + 1);
 
-  const clientIds = rows.map((r) => r.clientId).filter((id): id is string => !!id);
+  const hasMore = rows.length > limit;
+  const pageRows = rows.slice(0, limit);
+  const lastRow = pageRows[pageRows.length - 1];
+  const nextCursor =
+    hasMore && lastRow
+      ? encodeCursor({
+          at: lastRow.lastMessageAt ? lastRow.lastMessageAt.toISOString() : null,
+          id: lastRow.conversationId,
+        })
+      : null;
+
+  const clientIds = pageRows.map((r) => r.clientId).filter((id): id is string => !!id);
 
   const tagsByClient = new Map<string, { id: string; name: string; color: string | null; type: string }[]>();
   const whatsappTagsByClient = new Map<string, { id: string; name: string; emoji: string | null; color: string | null }[]>();
@@ -428,11 +457,14 @@ export async function listClientsForChat(
     }
   }
 
-  return rows.map((row) => ({
-    ...row,
-    tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
-    whatsappTags: row.clientId ? (whatsappTagsByClient.get(row.clientId) ?? []) : [],
-  }));
+  return {
+    items: pageRows.map((row) => ({
+      ...row,
+      tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
+      whatsappTags: row.clientId ? (whatsappTagsByClient.get(row.clientId) ?? []) : [],
+    })),
+    nextCursor,
+  };
 }
 
 export async function getConversation(

@@ -33,6 +33,7 @@ vi.mock("../../lib/r2", () => ({
 
 import { getConversation, listClientsForChat } from "../whatsapp-conversations.service";
 import {
+  createClient,
   createConversation,
   createMessage,
   createUser,
@@ -115,5 +116,74 @@ describeBotE2E("getConversation — paginação de mensagens", () => {
     expect(allContents).toHaveLength(3);
     expect(new Set(allContents)).toEqual(new Set(["a", "b", "c"]));
     expect(page2!.nextCursor).toBeNull();
+  });
+});
+
+describeBotE2E("listClientsForChat — paginação da lista de conversas", () => {
+  beforeEach(async () => {
+    await resetBotTables();
+  });
+
+  it("retorna as `limit` conversas mais recentes por última mensagem e nextCursor", async () => {
+    const user = await createUser();
+    const base = Date.parse("2026-01-01T00:00:00.000Z");
+    const convs = [];
+    for (let i = 0; i < 3; i++) {
+      const client = await createClient({ name: `Cliente ${i}` });
+      const conv = await createConversation({ clientId: client.id });
+      await createMessage(conv.id, { sentAt: new Date(base + i * 60_000) });
+      convs.push(conv);
+    }
+
+    const result = await listClientsForChat(user.id, "admin", undefined, undefined, {
+      limit: 2,
+    });
+
+    expect(result.items).toHaveLength(2);
+    // mais recente primeiro: a última criada (i=2) tem o maior sentAt
+    expect(result.items[0].conversationId).toBe(convs[2].id);
+    expect(result.items[1].conversationId).toBe(convs[1].id);
+    expect(result.nextCursor).not.toBeNull();
+  });
+
+  it("pagina para conversas sem nenhuma mensagem (bucket sem timestamp) só depois das com mensagem", async () => {
+    const user = await createUser();
+    const clientWithMsg = await createClient({ name: "Com mensagem" });
+    const convWithMsg = await createConversation({ clientId: clientWithMsg.id });
+    await createMessage(convWithMsg.id, { sentAt: new Date("2026-01-01T00:00:00.000Z") });
+
+    const clientNoMsg = await createClient({ name: "Sem mensagem" });
+    const convNoMsg = await createConversation({ clientId: clientNoMsg.id });
+
+    const page1 = await listClientsForChat(user.id, "admin", undefined, undefined, {
+      limit: 1,
+    });
+    expect(page1.items[0].conversationId).toBe(convWithMsg.id);
+    expect(page1.nextCursor).not.toBeNull();
+
+    const cursor = decodeCursor(page1.nextCursor);
+    const page2 = await listClientsForChat(user.id, "admin", undefined, undefined, {
+      limit: 1,
+      cursor,
+    });
+    expect(page2.items[0].conversationId).toBe(convNoMsg.id);
+    expect(page2.nextCursor).toBeNull();
+  });
+
+  it("combina cursor com filtro de busca sem vazar conversas fora do filtro", async () => {
+    const user = await createUser();
+    const clientA = await createClient({ name: "Ana Paginação" });
+    const convA = await createConversation({ clientId: clientA.id });
+    await createMessage(convA.id, { sentAt: new Date("2026-01-01T00:00:00.000Z") });
+
+    const clientB = await createClient({ name: "Bruno Fora Do Filtro" });
+    const convB = await createConversation({ clientId: clientB.id });
+    await createMessage(convB.id, { sentAt: new Date("2026-01-01T00:01:00.000Z") });
+
+    const result = await listClientsForChat(user.id, "admin", "Ana", undefined, {
+      limit: 20,
+    });
+
+    expect(result.items.map((i) => i.conversationId)).toEqual([convA.id]);
   });
 });
