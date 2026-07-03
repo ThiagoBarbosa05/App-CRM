@@ -544,8 +544,9 @@ export default function ProductProfilePage() {
             />
             <SummaryCard
               icon={<Users className="h-5 w-5 text-pink-600" />}
-              label="Compradores únicos"
-              value={String(profile?.summary.buyerCount ?? 0)}
+              label="Alcance"
+              value={String(product?.clientCount ?? 0)}
+              sub="clientes distintos"
               color="bg-pink-100 dark:bg-pink-900/30"
             />
           </motion.div>
