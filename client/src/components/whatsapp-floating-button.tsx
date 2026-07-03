@@ -21,9 +21,10 @@ export function WhatsAppFloatingButton() {
   const { data: clientList = [] } = useQuery<ChatClient[]>({
     queryKey: ["/api/whatsapp/conversations-list-badge", user?.id],
     queryFn: async () => {
-      const res = await fetch("/api/whatsapp/conversations");
+      const res = await fetch("/api/whatsapp/conversations?limit=100");
       if (!res.ok) return [];
-      return res.json();
+      const data = await res.json();
+      return data.items ?? [];
     },
     enabled: !!user,
     refetchInterval: 30_000,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearch } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { setActiveWaConversation } from "@/lib/wa-active-conversation";
+import { refreshFirstPage } from "@/lib/wa-chat-pagination";
+import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
 import type { MediaType } from "@/hooks/use-media-library";
 import {
@@ -4468,19 +4470,22 @@ export default function WhatsAppConversationsPage() {
       if (!res.ok) throw new Error("Erro ao atualizar etiquetas");
     },
     onMutate: ({ clientId, tagIds }) => {
-      queryClient.setQueriesData<ChatClient[]>(
-        { queryKey: ["/api/whatsapp/conversations-list"] },
-        (prev) => {
-          if (!prev) return prev;
-          return prev.map((c) => {
-            if (c.clientId !== clientId) return c;
-            const newTags = availableWaTags.filter((t) =>
-              tagIds.includes(t.id),
-            );
-            return { ...c, whatsappTags: newTags };
-          });
-        },
-      );
+      queryClient.setQueriesData<{
+        pages: { items: ChatClient[]; nextCursor: string | null }[];
+        pageParams: unknown[];
+      }>({ queryKey: ["/api/whatsapp/conversations-list"] }, (prev) => {
+        if (!prev) return prev;
+        const newTags = availableWaTags.filter((t) => tagIds.includes(t.id));
+        return {
+          ...prev,
+          pages: prev.pages.map((page) => ({
+            ...page,
+            items: page.items.map((c) =>
+              c.clientId === clientId ? { ...c, whatsappTags: newTags } : c,
+            ),
+          })),
+        };
+      });
     },
     onError: () => {
       queryClient.invalidateQueries({
@@ -4513,25 +4518,64 @@ export default function WhatsAppConversationsPage() {
     refetchInterval: 30_000,
   });
 
-  const { data: clientList = [], isLoading: isLoadingClients } = useQuery<
-    ChatClient[]
-  >({
-    queryKey: [
-      "/api/whatsapp/conversations-list",
-      debouncedSearch,
-      selectedTagIds,
-      user?.id,
-    ],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.set("search", debouncedSearch);
-      for (const id of selectedTagIds) params.append("tagIds", id);
-      const res = await fetch(`/api/whatsapp/conversations?${params}`);
-      if (!res.ok) return [];
-      return res.json();
-    },
-    refetchInterval: 15_000,
+  interface ConversationsListPage {
+    items: ChatClient[];
+    nextCursor: string | null;
+  }
+
+  const conversationsListQueryKey = [
+    "/api/whatsapp/conversations-list",
+    debouncedSearch,
+    selectedTagIds,
+    user?.id,
+  ];
+
+  async function fetchConversationsListPage(
+    cursor: string | null,
+  ): Promise<ConversationsListPage> {
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    for (const id of selectedTagIds) params.append("tagIds", id);
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(`/api/whatsapp/conversations?${params}`);
+    if (!res.ok) return { items: [], nextCursor: null };
+    return res.json();
+  }
+
+  const {
+    data: clientListData,
+    isLoading: isLoadingClients,
+    fetchNextPage: fetchNextClientsPage,
+    hasNextPage: hasNextClientsPage,
+    isFetchingNextPage: isFetchingNextClientsPage,
+    isFetchNextPageError: isClientsNextPageError,
+  } = useInfiniteQuery({
+    queryKey: conversationsListQueryKey,
+    queryFn: ({ pageParam }) => fetchConversationsListPage(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
   });
+
+  const clientList = clientListData?.pages.flatMap((p) => p.items) ?? [];
+
+  // Refs para o polling e o SSE global (não devem reabrir a conexão SSE nem
+  // recriar o efeito a cada troca de busca/tag — só precisam ler o valor
+  // mais recente no momento em que disparam).
+  const fetchConversationsListPageRef = useRef(fetchConversationsListPage);
+  fetchConversationsListPageRef.current = fetchConversationsListPage;
+  const conversationsListQueryKeyRef = useRef(conversationsListQueryKey);
+  conversationsListQueryKeyRef.current = conversationsListQueryKey;
+
+  // Reforço periódico: re-busca só a página mais recente, sem tocar nas
+  // páginas antigas já carregadas via scroll.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshFirstPage(queryClient, conversationsListQueryKey, () =>
+        fetchConversationsListPage(null),
+      );
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [queryClient, debouncedSearch, selectedTagIds, user?.id]);
 
   // Assim que a busca por telefone (vinda do parâmetro ?phone=) retornar,
   // seleciona automaticamente a conversa correspondente — uma única vez.
@@ -4574,17 +4618,17 @@ export default function WhatsAppConversationsPage() {
         clientId: string | null;
         conversationId?: string | null;
       };
-      queryClient.invalidateQueries({
-        queryKey: ["/api/whatsapp/conversations-list"],
-      });
+      refreshFirstPage(queryClient, conversationsListQueryKeyRef.current, () =>
+        fetchConversationsListPageRef.current(null),
+      );
       const isSelected =
         (data.clientId && data.clientId === selectedIdRef.current) ||
         (data.conversationId && data.conversationId === selectedIdRef.current);
+      // Não precisa re-buscar as mensagens aqui: se a conversa está
+      // selecionada, o próprio ConversationMessages já tem seu stream SSE por
+      // conversa (/conversations/:id/stream) que atualiza a 1ª página.
       if (isSelected) {
         markRead(selectedIdRef.current!);
-        queryClient.invalidateQueries({
-          queryKey: ["/api/whatsapp/conversations", selectedIdRef.current],
-        });
       }
     });
     return () => es.close();
@@ -4633,6 +4677,17 @@ export default function WhatsAppConversationsPage() {
   }, [selectedClient]);
 
   const showList = !selectedId;
+
+  const sidebarContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreConversations = useCallback(() => {
+    if (!hasNextClientsPage || isFetchingNextClientsPage) return;
+    fetchNextClientsPage();
+  }, [hasNextClientsPage, isFetchingNextClientsPage, fetchNextClientsPage]);
+  const sidebarSentinelRef = useInfiniteScrollSentinel(
+    sidebarContainerRef,
+    loadMoreConversations,
+    hasNextClientsPage === true,
+  );
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -4754,7 +4809,7 @@ export default function WhatsAppConversationsPage() {
         )}
 
         {/* Client list — relative so the tag panel can overlay it */}
-        <div className="flex-1 overflow-y-auto relative">
+        <div className="flex-1 overflow-y-auto relative" ref={sidebarContainerRef}>
           {/* Tag filter overlay panel */}
           {showTagFilter && (
             <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-slate-900">
@@ -4944,6 +4999,18 @@ export default function WhatsAppConversationsPage() {
               />
             ))
           )}
+          {isClientsNextPageError && (
+            <div className="flex items-center justify-center gap-2 py-3 text-xs text-red-500">
+              Erro ao carregar mais conversas.
+              <button
+                onClick={() => fetchNextClientsPage()}
+                className="font-semibold underline underline-offset-2"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
+          {hasNextClientsPage && <div ref={sidebarSentinelRef} className="h-4" />}
         </div>
       </div>
 
