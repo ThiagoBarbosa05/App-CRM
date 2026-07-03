@@ -5104,24 +5104,32 @@ export class DatabaseStorage implements IStorage {
           AND p.id = ${productId}
       `);
       const blingRow = (blingSummaryRows.rows[0] as any) ?? {};
-      console.log("[profile-debug] bling summary:", JSON.stringify(blingRow));
 
-      // Query 2: connect (revenue + qty + orders + buyers)
+      // Query 2: connect — distribui total_value do pedido proporcionalmente por quantidade de item
       const connectSummaryRows = await db.execute(sql`
+        WITH order_totals AS (
+          SELECT order_id, SUM(quantity::numeric) AS total_qty
+          FROM connect_order_items
+          GROUP BY order_id
+        )
         SELECT
-          COALESCE(SUM(coi.quantity::numeric * coi.unit_value::numeric), 0)::text AS total_revenue,
-          COALESCE(SUM(coi.quantity::numeric), 0)::text                            AS total_quantity,
-          COUNT(DISTINCT co.id)::int                                               AS order_count,
-          COUNT(DISTINCT co.app_client_id)::int                                    AS buyer_count
+          COALESCE(SUM(
+            CASE WHEN co.total_value::text = 'NaN' THEN 0
+                 ELSE co.total_value::numeric * coi.quantity::numeric / NULLIF(ot.total_qty, 0)
+            END
+          ), 0)::text                      AS total_revenue,
+          COALESCE(SUM(coi.quantity::numeric), 0)::text AS total_quantity,
+          COUNT(DISTINCT co.id)::int        AS order_count,
+          COUNT(DISTINCT co.app_client_id)::int AS buyer_count
         FROM connect_order_items coi
         INNER JOIN connect_orders co ON co.id = coi.order_id
         INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
+        INNER JOIN order_totals ot ON ot.order_id = coi.order_id
         WHERE co.sale_date::date >= ${twelveMonthsAgo}::date
           AND co.sale_date::date <= ${today}::date
           AND p.id = ${productId}
       `);
       const connectRow = (connectSummaryRows.rows[0] as any) ?? {};
-      console.log("[profile-debug] connect summary:", JSON.stringify(connectRow));
 
       const summary = {
         totalRevenue: (
@@ -5153,15 +5161,23 @@ export class DatabaseStorage implements IStorage {
             AND bo.sale_date <= ${today}
             AND p.id = ${productId}
         ),
+        order_totals AS (
+          SELECT order_id, SUM(quantity::numeric) AS total_qty
+          FROM connect_order_items
+          GROUP BY order_id
+        ),
         connect_raw AS (
           SELECT
-            TO_CHAR(co.sale_date::date, 'YYYY-MM')              AS month,
-            coi.quantity::numeric                                AS qty,
-            (coi.quantity::numeric * coi.unit_value::numeric)    AS revenue,
-            co.id::text                                          AS order_id
+            TO_CHAR(co.sale_date::date, 'YYYY-MM')                                         AS month,
+            coi.quantity::numeric                                                            AS qty,
+            CASE WHEN co.total_value::text = 'NaN' THEN 0
+                 ELSE co.total_value::numeric * coi.quantity::numeric / NULLIF(ot.total_qty, 0)
+            END                                                                             AS revenue,
+            co.id::text                                                                     AS order_id
           FROM connect_order_items coi
           INNER JOIN connect_orders co ON co.id = coi.order_id
           INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
+          INNER JOIN order_totals ot ON ot.order_id = coi.order_id
           WHERE co.sale_date::date >= ${twelveMonthsAgo}::date
             AND co.sale_date::date <= ${today}::date
             AND p.id = ${productId}
@@ -5201,8 +5217,6 @@ export class DatabaseStorage implements IStorage {
         totalQuantity: r.total_quantity as string,
         orderCount: r.order_count as number,
       }));
-      console.log("[profile-debug] monthly history:", JSON.stringify(monthlyHistory));
-
       // Buyers
       const buyers = await this.db
         .select({
