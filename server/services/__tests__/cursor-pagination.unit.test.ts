@@ -50,4 +50,11 @@ describe("clampLimit", () => {
   it("respeita o valor pedido quando está dentro do intervalo", () => {
     expect(clampLimit("35", { fallback: 20, max: 100 })).toBe(35);
   });
+
+  it("aceita number diretamente (não só string) — services chamam com pagination.limit já numérico", () => {
+    expect(clampLimit(35, { fallback: 20, max: 100 })).toBe(35);
+    expect(clampLimit(500, { fallback: 20, max: 100 })).toBe(100);
+    expect(clampLimit(0, { fallback: 20, max: 100 })).toBe(20);
+    expect(clampLimit(-5, { fallback: 20, max: 100 })).toBe(20);
+  });
 });

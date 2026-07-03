@@ -38,12 +38,23 @@ export function decodeCursor(raw: unknown): Cursor | null {
   }
 }
 
-/** Lê um `limit` de query param e trava dentro de [1, max], usando `fallback` quando ausente/inválido. */
+/**
+ * Trava um `limit` dentro de [1, max], usando `fallback` quando ausente/inválido.
+ * Aceita tanto `string` (query param cru, ex.: rotas) quanto `number` (já
+ * parseado, ex.: quando um service recebe `pagination.limit` de um caller
+ * interno) — os dois layers (rota e service) chamam `clampLimit`, então
+ * precisa aceitar ambos os formatos.
+ */
 export function clampLimit(
   raw: unknown,
   options: { fallback: number; max: number },
 ): number {
-  const parsed = typeof raw === "string" ? Number.parseInt(raw, 10) : NaN;
+  const parsed =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string"
+        ? Number.parseInt(raw, 10)
+        : NaN;
   if (!Number.isFinite(parsed) || parsed < 1) return options.fallback;
   return Math.min(parsed, options.max);
 }
