@@ -4994,14 +4994,36 @@ export class DatabaseStorage implements IStorage {
         aiProfile: products.aiProfile,
         aiProfileGeneratedAt: products.aiProfileGeneratedAt,
         createdByName: users.name,
-        clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
       })
       .from(products)
       .leftJoin(users, eq(products.createdBy, users.id))
-      .leftJoin(companyProducts, eq(products.id, companyProducts.productId))
-      .where(and(eq(products.id, productId), isNull(products.deletedAt)))
-      .groupBy(products.id, users.name);
-    return result ?? null;
+      .where(and(eq(products.id, productId), isNull(products.deletedAt)));
+
+    if (!result) return null;
+
+    const buyerRows = await db.execute(sql`
+      SELECT COUNT(DISTINCT app_client_id)::int AS cnt FROM (
+        SELECT bo.app_client_id
+        FROM bling_order_items boi
+        INNER JOIN bling_orders bo ON bo.id = boi.order_id
+        INNER JOIN products p2 ON p2.bling_product_id = boi.product_id
+        WHERE bo.app_client_id IS NOT NULL
+          AND bo.deleted_at IS NULL
+          AND p2.id = ${productId}
+
+        UNION
+
+        SELECT co.app_client_id
+        FROM connect_order_items coi
+        INNER JOIN connect_orders co ON co.id = coi.order_id
+        INNER JOIN products p2 ON UPPER(coi.product_name) LIKE UPPER('%' || p2.name || '%')
+        WHERE co.app_client_id IS NOT NULL
+          AND p2.id = ${productId}
+      ) _buyers
+    `);
+
+    const clientCount = (buyerRows.rows[0] as any)?.cnt ?? 0;
+    return { ...result, clientCount };
   }
 
   async getProductProfile(productId: string) {
