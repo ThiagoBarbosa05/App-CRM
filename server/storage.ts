@@ -1287,11 +1287,27 @@ export class DatabaseStorage implements IStorage {
           imageUrl: products.imageUrl,
           aiProfile: products.aiProfile,
           aiProfileGeneratedAt: products.aiProfileGeneratedAt,
-          clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
+          clientCount: sql<number>`CAST(
+            (
+              SELECT COUNT(DISTINCT app_client_id) FROM (
+                SELECT bo.app_client_id
+                FROM bling_order_items boi
+                INNER JOIN bling_orders bo ON bo.id = boi.order_id
+                WHERE boi.product_id = "products"."bling_product_id"
+                  AND bo.app_client_id IS NOT NULL
+                  AND bo.deleted_at IS NULL
+                UNION
+                SELECT co.app_client_id
+                FROM connect_order_items coi
+                INNER JOIN connect_orders co ON co.id = coi.order_id
+                WHERE UPPER(coi.product_name) LIKE UPPER('%' || "products"."name" || '%')
+                  AND co.app_client_id IS NOT NULL
+              ) _buyer_union
+            ) AS INTEGER
+          )`,
         })
         .from(products)
         .leftJoin(users, eq(products.createdBy, users.id))
-        .leftJoin(companyProducts, eq(products.id, companyProducts.productId))
         .groupBy(products.id, users.name)
         .orderBy(asc(products.name));
       const conditions: any[] = [];
@@ -4673,11 +4689,27 @@ export class DatabaseStorage implements IStorage {
           createdBy: products.createdBy,
           createdAt: products.createdAt,
           createdByName: users.name,
-          clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
+          clientCount: sql<number>`CAST(
+            (
+              SELECT COUNT(DISTINCT app_client_id) FROM (
+                SELECT bo.app_client_id
+                FROM bling_order_items boi
+                INNER JOIN bling_orders bo ON bo.id = boi.order_id
+                WHERE boi.product_id = "products"."bling_product_id"
+                  AND bo.app_client_id IS NOT NULL
+                  AND bo.deleted_at IS NULL
+                UNION
+                SELECT co.app_client_id
+                FROM connect_order_items coi
+                INNER JOIN connect_orders co ON co.id = coi.order_id
+                WHERE UPPER(coi.product_name) LIKE UPPER('%' || "products"."name" || '%')
+                  AND co.app_client_id IS NOT NULL
+              ) _buyer_union
+            ) AS INTEGER
+          )`,
         })
         .from(products)
         .leftJoin(users, eq(products.createdBy, users.id))
-        .leftJoin(companyProducts, eq(products.id, companyProducts.productId))
         .groupBy(products.id, users.name)
         .orderBy(asc(products.name));
 
