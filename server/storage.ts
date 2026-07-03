@@ -5108,7 +5108,8 @@ export class DatabaseStorage implements IStorage {
       // Query 2: connect — distribui total_value do pedido proporcionalmente por quantidade de item
       const connectSummaryRows = await db.execute(sql`
         WITH order_totals AS (
-          SELECT order_id, SUM(quantity::numeric) AS total_qty
+          SELECT order_id,
+            SUM(CASE WHEN quantity::text = 'NaN' THEN 0 ELSE quantity::numeric END) AS total_qty
           FROM connect_order_items
           GROUP BY order_id
         )
@@ -5162,7 +5163,8 @@ export class DatabaseStorage implements IStorage {
             AND p.id = ${productId}
         ),
         order_totals AS (
-          SELECT order_id, SUM(quantity::numeric) AS total_qty
+          SELECT order_id,
+            SUM(CASE WHEN quantity::text = 'NaN' THEN 0 ELSE quantity::numeric END) AS total_qty
           FROM connect_order_items
           GROUP BY order_id
         ),
