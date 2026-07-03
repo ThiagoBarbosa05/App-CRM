@@ -5130,27 +5130,51 @@ export class DatabaseStorage implements IStorage {
         buyerCount: summaryRow.buyer_count ?? 0,
       };
 
-      // Month-by-month history
-      const monthlyHistory = await this.db
-        .select({
-          month: sql<string>`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM')`,
-          totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
-          totalQuantity: sql<string>`SUM(${blingOrderItems.quantity}::numeric)`,
-          orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
-        })
-        .from(blingOrderItems)
-        .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
-        .innerJoin(
-          products,
-          eq(blingOrderItems.productId, products.blingProductId),
+      // Month-by-month history — bling + connect orders
+      const monthlyHistoryRows = await db.execute(sql`
+        WITH all_sales AS (
+          SELECT
+            TO_CHAR(TO_DATE(bo.sale_date, 'YYYY-MM-DD'), 'YYYY-MM') AS month,
+            boi.quantity::numeric AS qty,
+            (boi.quantity::numeric * boi.value::numeric) AS revenue,
+            bo.id::text AS order_id
+          FROM bling_order_items boi
+          INNER JOIN bling_orders bo ON bo.id = boi.order_id
+          INNER JOIN products p ON p.bling_product_id = boi.product_id
+          WHERE bo.deleted_at IS NULL
+            AND bo.sale_date >= ${twelveMonthsAgo}
+            AND bo.sale_date <= ${today}
+            AND p.id = ${productId}
+
+          UNION ALL
+
+          SELECT
+            TO_CHAR(co.sale_date::date, 'YYYY-MM') AS month,
+            coi.quantity::numeric AS qty,
+            (coi.quantity::numeric * coi.unit_value::numeric) AS revenue,
+            co.id::text AS order_id
+          FROM connect_order_items coi
+          INNER JOIN connect_orders co ON co.id = coi.order_id
+          INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
+          WHERE co.sale_date::date >= ${twelveMonthsAgo}::date
+            AND co.sale_date::date <= ${today}::date
+            AND p.id = ${productId}
         )
-        .where(baseConditions)
-        .groupBy(
-          sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM')`,
-        )
-        .orderBy(
-          sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM') ASC`,
-        );
+        SELECT
+          month,
+          SUM(revenue)::text              AS "totalRevenue",
+          SUM(qty)::text                  AS "totalQuantity",
+          COUNT(DISTINCT order_id)::int   AS "orderCount"
+        FROM all_sales
+        GROUP BY month
+        ORDER BY month ASC
+      `);
+      const monthlyHistory = (monthlyHistoryRows.rows as any[]).map((r) => ({
+        month: r.month as string,
+        totalRevenue: r.totalRevenue as string,
+        totalQuantity: r.totalQuantity as string,
+        orderCount: r.orderCount as number,
+      }));
 
       // Buyers
       const buyers = await this.db
