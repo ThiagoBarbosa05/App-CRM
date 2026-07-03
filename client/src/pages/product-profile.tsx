@@ -75,6 +75,7 @@ interface BuyerClient {
   city: string | null;
   state: string | null;
   last_purchase: string | null;
+  total_quantity: number;
 }
 
 interface ProductData {
@@ -390,6 +391,7 @@ export default function ProductProfilePage() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showBuyersModal, setShowBuyersModal] = useState(false);
   const [buyersPage, setBuyersPage] = useState(1);
+  const [buyersSort, setBuyersSort] = useState<"recent" | "quantity">("recent");
   const BUYERS_PAGE_SIZE = 25;
   const { toast } = useToast();
   const [aiProfile, setAiProfile] = React.useState<WineAIProfile | null>(null);
@@ -1030,44 +1032,61 @@ export default function ProductProfilePage() {
         {/* Tab: Compradores */}
         <AppTabsContent value="buyers" className="mt-6">
           {!isLoadingBuyers && (allBuyers?.length ?? 0) > 0 && (
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
               <p className="text-sm text-slate-500">
                 <span className="font-bold text-slate-800 dark:text-slate-200">
                   {allBuyers!.length}
                 </span>{" "}
                 compradores no total
               </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => {
-                  const rows = [["Nome", "Telefone", "Email", "Cidade", "Estado", "Última compra"]];
-                  allBuyers!.forEach((b) => {
-                    rows.push([
-                      b.name,
-                      b.phone ?? "",
-                      b.email ?? "",
-                      b.city ?? "",
-                      b.state ?? "",
-                      b.last_purchase ?? "",
-                    ]);
-                  });
-                  const csv = rows
-                    .map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(","))
-                    .join("\n");
-                  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `compradores_${product?.name ?? "produto"}.csv`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
-              >
-                <Download className="h-4 w-4" />
-                Exportar
-              </Button>
+              <div className="flex items-center gap-2">
+                <div className="flex rounded-xl border border-border overflow-hidden">
+                  <button
+                    className={`px-3 py-1.5 text-xs font-bold transition-colors ${buyersSort === "recent" ? "bg-primary text-white" : "bg-card text-slate-500 hover:bg-accent"}`}
+                    onClick={() => { setBuyersSort("recent"); setBuyersPage(1); }}
+                  >
+                    Mais recentes
+                  </button>
+                  <button
+                    className={`px-3 py-1.5 text-xs font-bold transition-colors border-l border-border ${buyersSort === "quantity" ? "bg-primary text-white" : "bg-card text-slate-500 hover:bg-accent"}`}
+                    onClick={() => { setBuyersSort("quantity"); setBuyersPage(1); }}
+                  >
+                    Mais compraram
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    const rows = [["Nome", "Telefone", "Email", "Cidade", "Estado", "Última compra", "Qtd. total"]];
+                    allBuyers!.forEach((b) => {
+                      rows.push([
+                        b.name,
+                        b.phone ?? "",
+                        b.email ?? "",
+                        b.city ?? "",
+                        b.state ?? "",
+                        b.last_purchase ?? "",
+                        String(b.total_quantity ?? 0),
+                      ]);
+                    });
+                    const csv = rows
+                      .map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(","))
+                      .join("\n");
+                    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `compradores_${product?.name ?? "produto"}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar
+                </Button>
+              </div>
             </div>
           )}
 
@@ -1092,7 +1111,12 @@ export default function ProductProfilePage() {
           ) : (
             <>
               <div className="space-y-2">
-                {allBuyers!
+                {[...allBuyers!]
+                  .sort((a, b) =>
+                    buyersSort === "quantity"
+                      ? Number(b.total_quantity) - Number(a.total_quantity)
+                      : (b.last_purchase ?? "").localeCompare(a.last_purchase ?? ""),
+                  )
                   .slice((buyersPage - 1) * BUYERS_PAGE_SIZE, buyersPage * BUYERS_PAGE_SIZE)
                   .map((buyer, i) => {
                     const globalIndex = (buyersPage - 1) * BUYERS_PAGE_SIZE + i;
@@ -1132,14 +1156,23 @@ export default function ProductProfilePage() {
                             )}
                           </div>
                         </div>
-                        {buyer.last_purchase && (
-                          <div className="text-right shrink-0">
-                            <p className="text-[10px] text-slate-400 uppercase tracking-wider">última compra</p>
-                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                              {format(new Date(buyer.last_purchase), "dd/MM/yyyy")}
-                            </p>
-                          </div>
-                        )}
+                        <div className="text-right shrink-0">
+                          {buyersSort === "quantity" ? (
+                            <>
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wider">unid. compradas</p>
+                              <p className="text-sm font-bold text-primary">
+                                {Number(buyer.total_quantity).toFixed(0)}
+                              </p>
+                            </>
+                          ) : buyer.last_purchase ? (
+                            <>
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wider">última compra</p>
+                              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                                {format(new Date(buyer.last_purchase), "dd/MM/yyyy")}
+                              </p>
+                            </>
+                          ) : null}
+                        </div>
                       </motion.div>
                     );
                   })}

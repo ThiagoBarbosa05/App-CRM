@@ -5029,7 +5029,9 @@ export class DatabaseStorage implements IStorage {
   async getProductAllBuyers(productId: string) {
     const rows = await db.execute(sql`
       WITH all_purchases AS (
-        SELECT bo.app_client_id, bo.sale_date::text AS purchase_date
+        SELECT bo.app_client_id,
+               bo.sale_date::text AS purchase_date,
+               boi.quantity::numeric AS qty
         FROM bling_order_items boi
         INNER JOIN bling_orders bo ON bo.id = boi.order_id
         INNER JOIN products p ON p.bling_product_id = boi.product_id
@@ -5039,22 +5041,27 @@ export class DatabaseStorage implements IStorage {
 
         UNION ALL
 
-        SELECT co.app_client_id, co.sale_date::date::text AS purchase_date
+        SELECT co.app_client_id,
+               co.sale_date::date::text AS purchase_date,
+               coi.quantity::numeric AS qty
         FROM connect_order_items coi
         INNER JOIN connect_orders co ON co.id = coi.order_id
         INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
         WHERE co.app_client_id IS NOT NULL
           AND p.id = ${productId}
       ),
-      buyer_dates AS (
-        SELECT app_client_id, MAX(purchase_date) AS last_purchase
+      buyer_agg AS (
+        SELECT app_client_id,
+               MAX(purchase_date) AS last_purchase,
+               SUM(qty)::numeric AS total_quantity
         FROM all_purchases
         GROUP BY app_client_id
       )
-      SELECT c.id, c.name, c.phone, c.email, c.city, c.state, bd.last_purchase
-      FROM buyer_dates bd
-      INNER JOIN clients c ON c.id = bd.app_client_id
-      ORDER BY bd.last_purchase DESC NULLS LAST
+      SELECT c.id, c.name, c.phone, c.email, c.city, c.state,
+             ba.last_purchase, ba.total_quantity
+      FROM buyer_agg ba
+      INNER JOIN clients c ON c.id = ba.app_client_id
+      ORDER BY ba.last_purchase DESC NULLS LAST
     `);
     return rows.rows as {
       id: string;
@@ -5064,6 +5071,7 @@ export class DatabaseStorage implements IStorage {
       city: string | null;
       state: string | null;
       last_purchase: string | null;
+      total_quantity: number;
     }[];
   }
 
