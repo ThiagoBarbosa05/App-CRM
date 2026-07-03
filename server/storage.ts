@@ -5028,8 +5028,8 @@ export class DatabaseStorage implements IStorage {
 
   async getProductAllBuyers(productId: string) {
     const rows = await db.execute(sql`
-      WITH all_buyers AS (
-        SELECT DISTINCT bo.app_client_id
+      WITH all_purchases AS (
+        SELECT bo.app_client_id, bo.sale_date::text AS purchase_date
         FROM bling_order_items boi
         INNER JOIN bling_orders bo ON bo.id = boi.order_id
         INNER JOIN products p ON p.bling_product_id = boi.product_id
@@ -5037,21 +5037,34 @@ export class DatabaseStorage implements IStorage {
           AND bo.deleted_at IS NULL
           AND p.id = ${productId}
 
-        UNION
+        UNION ALL
 
-        SELECT DISTINCT co.app_client_id
+        SELECT co.app_client_id, co.sale_date::date::text AS purchase_date
         FROM connect_order_items coi
         INNER JOIN connect_orders co ON co.id = coi.order_id
         INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
         WHERE co.app_client_id IS NOT NULL
           AND p.id = ${productId}
+      ),
+      buyer_dates AS (
+        SELECT app_client_id, MAX(purchase_date) AS last_purchase
+        FROM all_purchases
+        GROUP BY app_client_id
       )
-      SELECT c.id, c.name, c.phone, c.email, c.city, c.state
-      FROM all_buyers ab
-      INNER JOIN clients c ON c.id = ab.app_client_id
-      ORDER BY c.name
+      SELECT c.id, c.name, c.phone, c.email, c.city, c.state, bd.last_purchase
+      FROM buyer_dates bd
+      INNER JOIN clients c ON c.id = bd.app_client_id
+      ORDER BY bd.last_purchase DESC NULLS LAST
     `);
-    return rows.rows as { id: string; name: string; phone: string | null; email: string | null; city: string | null; state: string | null }[];
+    return rows.rows as {
+      id: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+      city: string | null;
+      state: string | null;
+      last_purchase: string | null;
+    }[];
   }
 
   async getProductProfile(productId: string) {
