@@ -27,6 +27,7 @@ import {
   setContactWhatsappTags,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession } from "../services/whatsapp-bot-engine.service";
+import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
 import { clientsService } from "../services/clients.service";
 import { downloadMediaToBuffer } from "../integrations/whatsapp";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
@@ -147,7 +148,12 @@ router.get("/conversations", async (req, res) => {
       : typeof req.query.tagIds === "string"
         ? [req.query.tagIds]
         : undefined;
-    const result = await listClientsForChat(user.userId, user.role, search, tagIds);
+    const cursor = decodeCursor(req.query.cursor);
+    const limit = clampLimit(req.query.limit, { fallback: 20, max: 100 });
+    const result = await listClientsForChat(user.userId, user.role, search, tagIds, {
+      cursor,
+      limit,
+    });
     res.json(result);
   } catch (err) {
     console.error("[WA Conversations] Erro ao listar conversas:", err);
@@ -163,7 +169,12 @@ router.get("/conversations/:clientId", async (req, res) => {
     const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
-    const result = await getConversation(conversationId, user.userId, user.role);
+    const cursor = decodeCursor(req.query.cursor);
+    const limit = clampLimit(req.query.limit, { fallback: 20, max: 50 });
+    const result = await getConversation(conversationId, user.userId, user.role, {
+      cursor,
+      limit,
+    });
     if (result === null) return res.status(404).json({ message: "Conversa não encontrada" });
 
     res.json(result);
