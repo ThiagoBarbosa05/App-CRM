@@ -367,7 +367,10 @@ async function listProductMix(clientId: string) {
         bo.sale_date::text AS sale_date
       FROM bling_order_items boi
       INNER JOIN bling_orders bo ON boi.order_id = bo.id
-      LEFT JOIN products p ON p.bling_product_id = boi.product_id::text AND p.deleted_at IS NULL
+      LEFT JOIN products p ON (
+        p.bling_product_id = boi.product_id::text
+        OR UPPER(boi.description) = UPPER(p.name)
+      ) AND p.deleted_at IS NULL
       WHERE bo.deleted_at IS NULL
         AND bo.app_client_id = ${clientId}
 
