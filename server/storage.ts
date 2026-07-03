@@ -5087,61 +5087,48 @@ export class DatabaseStorage implements IStorage {
         sql`${blingOrders.saleDate} <= ${today}`,
       );
 
-      // Summary stats
-      // Revenue (faturado) → bling only (preços confiáveis)
-      // Quantity + orders + buyers → bling + connect
-      const summaryRows = await db.execute(sql`
-        WITH bling_sales AS (
-          SELECT
-            boi.quantity::numeric                          AS qty,
-            (boi.quantity::numeric * boi.value::numeric)  AS revenue,
-            bo.id::text                                    AS order_id,
-            bo.app_client_id
-          FROM bling_order_items boi
-          INNER JOIN bling_orders bo ON bo.id = boi.order_id
-          INNER JOIN products p ON p.bling_product_id = boi.product_id
-          WHERE bo.deleted_at IS NULL
-            AND bo.sale_date >= ${twelveMonthsAgo}
-            AND bo.sale_date <= ${today}
-            AND p.id = ${productId}
-        ),
-        connect_sales AS (
-          SELECT
-            coi.quantity::numeric AS qty,
-            co.id::text           AS order_id,
-            co.app_client_id
-          FROM connect_order_items coi
-          INNER JOIN connect_orders co ON co.id = coi.order_id
-          INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
-          WHERE co.sale_date::date >= ${twelveMonthsAgo}::date
-            AND co.sale_date::date <= ${today}::date
-            AND p.id = ${productId}
-        )
+      // Summary stats — duas queries separadas para garantir clareza
+      // Query 1: bling (revenue + qty + orders + buyers)
+      const blingSummaryRows = await db.execute(sql`
         SELECT
-          -- faturado: só bling (preços confiáveis)
-          (SELECT COALESCE(SUM(revenue), 0)::text FROM bling_sales)   AS total_revenue,
-          -- garrafas: bling + connect
-          COALESCE(
-            (SELECT SUM(qty) FROM bling_sales) +
-            (SELECT SUM(qty) FROM connect_sales), 0
-          )::text                                                       AS total_quantity,
-          -- pedidos: bling + connect
-          (
-            (SELECT COUNT(DISTINCT order_id) FROM bling_sales) +
-            (SELECT COUNT(DISTINCT order_id) FROM connect_sales)
-          )::int                                                        AS order_count,
-          -- compradores: bling + connect
-          (
-            (SELECT COUNT(DISTINCT app_client_id) FROM bling_sales) +
-            (SELECT COUNT(DISTINCT app_client_id) FROM connect_sales)
-          )::int                                                        AS buyer_count
+          COALESCE(SUM(boi.quantity::numeric * boi.value::numeric), 0)::text  AS total_revenue,
+          COALESCE(SUM(boi.quantity::numeric), 0)::text                        AS total_quantity,
+          COUNT(DISTINCT bo.id)::int                                            AS order_count,
+          COUNT(DISTINCT bo.app_client_id)::int                                 AS buyer_count
+        FROM bling_order_items boi
+        INNER JOIN bling_orders bo ON bo.id = boi.order_id
+        INNER JOIN products p ON p.bling_product_id = boi.product_id
+        WHERE bo.deleted_at IS NULL
+          AND bo.sale_date >= ${twelveMonthsAgo}
+          AND bo.sale_date <= ${today}
+          AND p.id = ${productId}
       `);
-      const summaryRow = (summaryRows.rows[0] as any) ?? {};
+      const blingRow = (blingSummaryRows.rows[0] as any) ?? {};
+      console.log("[profile-debug] bling summary:", JSON.stringify(blingRow));
+
+      // Query 2: connect (qty + orders + buyers — sem revenue pois unit_value pode ser 0)
+      const connectSummaryRows = await db.execute(sql`
+        SELECT
+          COALESCE(SUM(coi.quantity::numeric), 0)::text  AS total_quantity,
+          COUNT(DISTINCT co.id)::int                      AS order_count,
+          COUNT(DISTINCT co.app_client_id)::int           AS buyer_count
+        FROM connect_order_items coi
+        INNER JOIN connect_orders co ON co.id = coi.order_id
+        INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
+        WHERE co.sale_date::date >= ${twelveMonthsAgo}::date
+          AND co.sale_date::date <= ${today}::date
+          AND p.id = ${productId}
+      `);
+      const connectRow = (connectSummaryRows.rows[0] as any) ?? {};
+
       const summary = {
-        totalRevenue: summaryRow.total_revenue ?? "0",
-        totalQuantity: summaryRow.total_quantity ?? "0",
-        orderCount: summaryRow.order_count ?? 0,
-        buyerCount: summaryRow.buyer_count ?? 0,
+        totalRevenue: blingRow.total_revenue ?? "0",
+        totalQuantity: (
+          parseFloat(blingRow.total_quantity ?? "0") +
+          parseFloat(connectRow.total_quantity ?? "0")
+        ).toString(),
+        orderCount: (blingRow.order_count ?? 0) + (connectRow.order_count ?? 0),
+        buyerCount: (blingRow.buyer_count ?? 0) + (connectRow.buyer_count ?? 0),
       };
 
       // Month-by-month history — bling (revenue) + connect (qty) por mês
@@ -5207,6 +5194,7 @@ export class DatabaseStorage implements IStorage {
         totalQuantity: r.total_quantity as string,
         orderCount: r.order_count as number,
       }));
+      console.log("[profile-debug] monthly history:", JSON.stringify(monthlyHistory));
 
       // Buyers
       const buyers = await this.db
