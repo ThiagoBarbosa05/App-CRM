@@ -1287,29 +1287,11 @@ export class DatabaseStorage implements IStorage {
           imageUrl: products.imageUrl,
           aiProfile: products.aiProfile,
           aiProfileGeneratedAt: products.aiProfileGeneratedAt,
-          clientCount: sql<number>`CAST(
-            (
-              SELECT COUNT(DISTINCT app_client_id) FROM (
-                SELECT bo.app_client_id
-                FROM bling_order_items boi
-                INNER JOIN bling_orders bo ON bo.id = boi.order_id
-                WHERE boi.product_id = "products"."bling_product_id"
-                  AND bo.app_client_id IS NOT NULL
-                  AND bo.deleted_at IS NULL
-                UNION
-                SELECT co.app_client_id
-                FROM connect_order_items coi
-                INNER JOIN connect_orders co ON co.id = coi.order_id
-                WHERE UPPER(coi.product_name) LIKE UPPER('%' || "products"."name" || '%')
-                  AND co.app_client_id IS NOT NULL
-              ) _buyer_union
-            ) AS INTEGER
-          )`,
         })
         .from(products)
         .leftJoin(users, eq(products.createdBy, users.id))
-        .groupBy(products.id, users.name)
         .orderBy(asc(products.name));
+
       const conditions: any[] = [];
 
       if (filters.name) {
@@ -1338,10 +1320,53 @@ export class DatabaseStorage implements IStorage {
         .where(and(...conditions));
 
       const offset = (page - 1) * pageSize;
-      const result = await query.limit(pageSize).offset(offset);
-      const total = await totalQuery;
+      const [pageRows, totalResult] = await Promise.all([
+        query.limit(pageSize).offset(offset),
+        totalQuery,
+      ]);
 
-      return { data: result, total: total[0].count };
+      if (pageRows.length === 0) {
+        return { data: [], total: totalResult[0].count };
+      }
+
+      // Compute buyer counts for this page's products via raw SQL to avoid ORM aliasing issues
+      const pageIds = pageRows.map((p) => p.id);
+      const idList = sql.join(pageIds.map((id) => sql`${id}`), sql`, `);
+
+      const buyerRows = await this.db.execute(sql`
+        WITH all_buyers AS (
+          SELECT p2.id AS product_id, bo.app_client_id
+          FROM bling_order_items boi
+          INNER JOIN bling_orders bo ON bo.id = boi.order_id
+          INNER JOIN products p2 ON p2.bling_product_id = boi.product_id
+          WHERE bo.app_client_id IS NOT NULL
+            AND bo.deleted_at IS NULL
+            AND p2.id IN (${idList})
+
+          UNION
+
+          SELECT p2.id AS product_id, co.app_client_id
+          FROM connect_order_items coi
+          INNER JOIN connect_orders co ON co.id = coi.order_id
+          INNER JOIN products p2 ON UPPER(coi.product_name) LIKE UPPER('%' || p2.name || '%')
+          WHERE co.app_client_id IS NOT NULL
+            AND p2.id IN (${idList})
+        )
+        SELECT product_id, COUNT(DISTINCT app_client_id)::int AS cnt
+        FROM all_buyers
+        GROUP BY product_id
+      `);
+
+      const countMap = new Map<string, number>(
+        (buyerRows.rows as any[]).map((r) => [r.product_id, r.cnt]),
+      );
+
+      const data = pageRows.map((p) => ({
+        ...p,
+        clientCount: countMap.get(p.id) ?? 0,
+      }));
+
+      return { data, total: totalResult[0].count };
     } catch (error) {
       console.error("Erro na query getProducts:", error);
       throw error;
@@ -4678,7 +4703,7 @@ export class DatabaseStorage implements IStorage {
 
   async getProductsWithClientCount() {
     try {
-      const result = await db
+      const rows = await db
         .select({
           id: products.id,
           name: products.name,
@@ -4689,31 +4714,45 @@ export class DatabaseStorage implements IStorage {
           createdBy: products.createdBy,
           createdAt: products.createdAt,
           createdByName: users.name,
-          clientCount: sql<number>`CAST(
-            (
-              SELECT COUNT(DISTINCT app_client_id) FROM (
-                SELECT bo.app_client_id
-                FROM bling_order_items boi
-                INNER JOIN bling_orders bo ON bo.id = boi.order_id
-                WHERE boi.product_id = "products"."bling_product_id"
-                  AND bo.app_client_id IS NOT NULL
-                  AND bo.deleted_at IS NULL
-                UNION
-                SELECT co.app_client_id
-                FROM connect_order_items coi
-                INNER JOIN connect_orders co ON co.id = coi.order_id
-                WHERE UPPER(coi.product_name) LIKE UPPER('%' || "products"."name" || '%')
-                  AND co.app_client_id IS NOT NULL
-              ) _buyer_union
-            ) AS INTEGER
-          )`,
         })
         .from(products)
         .leftJoin(users, eq(products.createdBy, users.id))
-        .groupBy(products.id, users.name)
         .orderBy(asc(products.name));
 
-      return result;
+      if (rows.length === 0) return [];
+
+      const allIds = rows.map((p) => p.id);
+      const idList = sql.join(allIds.map((id) => sql`${id}`), sql`, `);
+
+      const buyerRows = await db.execute(sql`
+        WITH all_buyers AS (
+          SELECT p2.id AS product_id, bo.app_client_id
+          FROM bling_order_items boi
+          INNER JOIN bling_orders bo ON bo.id = boi.order_id
+          INNER JOIN products p2 ON p2.bling_product_id = boi.product_id
+          WHERE bo.app_client_id IS NOT NULL
+            AND bo.deleted_at IS NULL
+            AND p2.id IN (${idList})
+
+          UNION
+
+          SELECT p2.id AS product_id, co.app_client_id
+          FROM connect_order_items coi
+          INNER JOIN connect_orders co ON co.id = coi.order_id
+          INNER JOIN products p2 ON UPPER(coi.product_name) LIKE UPPER('%' || p2.name || '%')
+          WHERE co.app_client_id IS NOT NULL
+            AND p2.id IN (${idList})
+        )
+        SELECT product_id, COUNT(DISTINCT app_client_id)::int AS cnt
+        FROM all_buyers
+        GROUP BY product_id
+      `);
+
+      const countMap = new Map<string, number>(
+        (buyerRows.rows as any[]).map((r) => [r.product_id, r.cnt]),
+      );
+
+      return rows.map((p) => ({ ...p, clientCount: countMap.get(p.id) ?? 0 }));
     } catch (error) {
       console.error("Error fetching products with client count:", error);
       throw error;
