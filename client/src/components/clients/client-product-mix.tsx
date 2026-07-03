@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -36,6 +37,7 @@ function formatDateLabel(date: string | null): string {
 export function ClientProductMixTable({
   productMix,
 }: ClientProductMixTableProps) {
+  const [, navigate] = useLocation();
   const maxValue =
     productMix.length > 0
       ? Math.max(...productMix.map((p) => p.totalValue))
@@ -63,6 +65,9 @@ export function ClientProductMixTable({
                   Pedidos
                 </TableHead>
                 <TableHead className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                  Qtd.
+                </TableHead>
+                <TableHead className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                   Ultima compra
                 </TableHead>
                 <TableHead className="text-right text-[10px] font-semibold uppercase tracking-widest text-slate-400">
@@ -74,7 +79,8 @@ export function ClientProductMixTable({
               {productMix.slice(0, 10).map((product, index) => (
                 <TableRow
                   key={`${product.productId ?? product.description}-${product.lastPurchaseDate ?? "none"}`}
-                  className="transition-colors hover:bg-amber-50/40 dark:hover:bg-amber-900/10"
+                  onClick={() => product.productId && navigate(`/products/${product.productId}`)}
+                  className={`transition-colors hover:bg-amber-50/40 dark:hover:bg-amber-900/10 ${product.productId ? "cursor-pointer" : ""}`}
                 >
                   <TableCell>
                     <span
@@ -113,6 +119,9 @@ export function ClientProductMixTable({
                   </TableCell>
                   <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                     {product.orderCount}
+                  </TableCell>
+                  <TableCell className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    {Number(product.totalQuantity).toFixed(0)} un.
                   </TableCell>
                   <TableCell className="text-sm text-slate-600 dark:text-slate-300">
                     {formatDateLabel(product.lastPurchaseDate)}
