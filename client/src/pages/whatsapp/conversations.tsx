@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { setActiveWaConversation } from "@/lib/wa-active-conversation";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
 import type { MediaType } from "@/hooks/use-media-library";
 import {
@@ -878,9 +879,17 @@ function getInitials(name: string | null, phone: string) {
 const SP_TZ = "America/Sao_Paulo";
 
 function toSP(dateStr: string | Date) {
-  return new Date(
-    new Date(dateStr).toLocaleString("en-US", { timeZone: SP_TZ }),
-  );
+  let d: Date;
+  if (dateStr instanceof Date) {
+    d = dateStr;
+  } else {
+    // Strings sem indicador de fuso (ex.: "2026-07-02 23:16:00" vindas de SQL
+    // cru) seriam interpretadas como hora local pelo new Date(). Como o banco
+    // armazena UTC, tratamos timestamps "naive" explicitamente como UTC.
+    const hasTz = /(?:Z|[+-]\d{2}:?\d{2})$/.test(dateStr);
+    d = new Date(hasTz ? dateStr : dateStr.replace(" ", "T") + "Z");
+  }
+  return new Date(d.toLocaleString("en-US", { timeZone: SP_TZ }));
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -2730,9 +2739,16 @@ function ConversationMessages({
       new Date(b.sentAt ?? b.createdAt).getTime(),
   );
 
+  // Ao abrir a conversa, pula direto para a última mensagem (sem animação);
+  // mensagens que chegam depois (novas ou enviadas) rolam suavemente.
+  const hasScrolledInitiallyRef = useRef(false);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, localMessages.length]);
+    if (isLoading) return;
+    messagesEndRef.current?.scrollIntoView({
+      behavior: hasScrolledInitiallyRef.current ? "smooth" : "auto",
+    });
+    hasScrolledInitiallyRef.current = true;
+  }, [isLoading, messages.length, localMessages.length]);
 
   useEffect(() => {
     if (localMessages.length === 0) return;
@@ -4596,9 +4612,25 @@ export default function WhatsAppConversationsPage() {
   const handleBack = () => setSelectedId(null);
 
   const selectedClient =
-    clientList.find(
-      (c) => c.clientId === selectedId || c.conversationId === selectedId,
-    ) ?? null;
+    selectedId != null
+      ? (clientList.find(
+          (c) => c.clientId === selectedId || c.conversationId === selectedId,
+        ) ?? null)
+      : null;
+
+  // Registra a conversa aberta para o hook de notificações globais suprimir
+  // toast/som de mensagens desta conversa. Limpa ao desmontar a página.
+  useEffect(() => {
+    setActiveWaConversation(
+      selectedClient
+        ? {
+            clientId: selectedClient.clientId,
+            conversationId: selectedClient.conversationId,
+          }
+        : null,
+    );
+    return () => setActiveWaConversation(null);
+  }, [selectedClient]);
 
   const showList = !selectedId;
 
@@ -4896,8 +4928,9 @@ export default function WhatsAppConversationsPage() {
                 key={client.conversationId}
                 client={client}
                 selected={
-                  client.clientId === selectedId ||
-                  client.conversationId === selectedId
+                  selectedId != null &&
+                  (client.clientId === selectedId ||
+                    client.conversationId === selectedId)
                 }
                 onClick={() =>
                   handleSelectConversation(

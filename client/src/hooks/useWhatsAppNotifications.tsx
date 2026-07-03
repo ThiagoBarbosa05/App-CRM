@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+import { getActiveWaConversation } from "@/lib/wa-active-conversation";
 
 interface ChatClient {
   id: string;
@@ -60,28 +62,41 @@ export function useWhatsAppNotifications(
     const es = new EventSource("/api/whatsapp/notifications/stream");
 
     es.addEventListener("new_whatsapp_inbound", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as { clientId: string | null };
+      const data = JSON.parse((e as MessageEvent).data) as {
+        clientId: string | null;
+        conversationId?: string | null;
+      };
 
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list-badge", user.id] });
+
+      onNewMessageRef.current?.();
+
+      // Mensagem da conversa atualmente aberta na página de conversas:
+      // o usuário já está vendo o thread — não notificar.
+      const active = getActiveWaConversation();
+      const isActiveConversation =
+        active != null &&
+        ((data.clientId != null && data.clientId === active.clientId) ||
+          (data.conversationId != null &&
+            data.conversationId === active.conversationId));
+      if (isActiveConversation) return;
 
       const client = data.clientId
         ? clientsRef.current.find((c) => c.id === data.clientId)
         : null;
-
-      onNewMessageRef.current?.();
 
       toast({
         title: "Nova mensagem no WhatsApp",
         description: client?.name ?? "Um cliente enviou uma mensagem",
         duration: 5000,
         action: (
-          <button
+          <ToastAction
+            altText="Ver conversa"
             onClick={() => navigate("/whatsapp/conversas")}
-            className="text-xs font-semibold text-green-600 dark:text-green-400 hover:underline whitespace-nowrap"
           >
             Ver conversa
-          </button>
-        ) as any,
+          </ToastAction>
+        ),
       });
 
       if (soundEnabled) {
@@ -91,13 +106,10 @@ export function useWhatsAppNotifications(
             description: "Clique para receber alertas sonoros em novas mensagens",
             duration: 10000,
             action: (
-              <button
-                onClick={unlockAndPlay}
-                className="text-xs font-semibold text-green-600 dark:text-green-400 hover:underline whitespace-nowrap"
-              >
+              <ToastAction altText="Ativar som" onClick={unlockAndPlay}>
                 Ativar som
-              </button>
-            ) as any,
+              </ToastAction>
+            ),
           });
         } else {
           playNotificationSound();

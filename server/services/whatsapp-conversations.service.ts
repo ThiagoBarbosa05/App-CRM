@@ -234,7 +234,12 @@ export async function listClientsForChat(
   search?: string,
   whatsappTagIds?: string[],
 ) {
-  const effectiveAt = sql<Date>`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`.as("last_at");
+  // .mapWith aplica o mapper de timestamp do Drizzle ao SQL cru — sem ele o
+  // valor chega ao cliente como string sem fuso ("2026-07-02 23:16:00") e o
+  // browser a interpreta como hora local, exibindo o horário UTC (+3h em SP).
+  const effectiveAt = sql<Date>`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`
+    .mapWith(whatsappMessages.sentAt)
+    .as("last_at");
 
   const readsSub = db.$with("reads").as(
     db
