@@ -8,6 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -144,15 +150,20 @@ function SummaryCard({
   value,
   sub,
   color,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub?: string;
   color: string;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="border border-border bg-card shadow-sm">
+    <Card
+      className={`border border-border bg-card shadow-sm ${onClick ? "cursor-pointer hover:shadow-md hover:border-primary/30 transition-all" : ""}`}
+      onClick={onClick}
+    >
       <CardContent className="p-5">
         <div className="flex items-start gap-3">
           <div className={`p-2.5 rounded-xl ${color} shrink-0`}>{icon}</div>
@@ -366,6 +377,7 @@ export default function ProductProfilePage() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("details");
+  const [showBuyersModal, setShowBuyersModal] = useState(false);
   const { toast } = useToast();
   const [aiProfile, setAiProfile] = React.useState<WineAIProfile | null>(null);
 
@@ -415,6 +427,26 @@ export default function ProductProfilePage() {
     },
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
+  });
+
+  interface BuyerClient {
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    city: string | null;
+    state: string | null;
+  }
+
+  const { data: allBuyers, isLoading: isLoadingBuyers } = useQuery<BuyerClient[]>({
+    queryKey: ["/api/products", id, "buyers"],
+    queryFn: async () => {
+      const res = await fetch(`/api/products/${id}/buyers`);
+      if (!res.ok) throw new Error("Erro ao buscar compradores");
+      return res.json();
+    },
+    enabled: !!id && showBuyersModal,
+    staleTime: 5 * 60 * 1000,
   });
 
   const chartData =
@@ -548,6 +580,7 @@ export default function ProductProfilePage() {
               value={String(product?.clientCount ?? 0)}
               sub="clientes distintos"
               color="bg-pink-100 dark:bg-pink-900/30"
+              onClick={() => setShowBuyersModal(true)}
             />
           </motion.div>
         )}
@@ -1098,6 +1131,65 @@ export default function ProductProfilePage() {
           )}
         </AppTabsContent>
       </AppTabs>
+
+      {/* Modal: todos os compradores */}
+      <Dialog open={showBuyersModal} onOpenChange={setShowBuyersModal}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-pink-500" />
+              Alcance — {product?.clientCount ?? 0} clientes
+            </DialogTitle>
+          </DialogHeader>
+
+          {isLoadingBuyers ? (
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-14 rounded-xl" />
+              ))}
+            </div>
+          ) : (allBuyers?.length ?? 0) === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Users className="h-10 w-10 text-slate-300 mb-3" />
+              <p className="font-semibold text-slate-600 dark:text-slate-300">
+                Nenhum comprador encontrado
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+              {allBuyers!.map((buyer, i) => (
+                <div
+                  key={buyer.id}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-lg bg-accent border border-border flex items-center justify-center text-xs font-black text-primary shrink-0">
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">
+                      {buyer.name}
+                    </p>
+                    <div className="flex items-center gap-3 flex-wrap mt-0.5">
+                      {buyer.phone && (
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                          <Phone className="h-3 w-3" />
+                          {buyer.phone}
+                        </span>
+                      )}
+                      {(buyer.city || buyer.state) && (
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                          <MapPin className="h-3 w-3" />
+                          {[buyer.city, buyer.state].filter(Boolean).join(" / ")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

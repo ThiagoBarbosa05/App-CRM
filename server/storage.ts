@@ -5026,6 +5026,34 @@ export class DatabaseStorage implements IStorage {
     return { ...result, clientCount };
   }
 
+  async getProductAllBuyers(productId: string) {
+    const rows = await db.execute(sql`
+      WITH all_buyers AS (
+        SELECT DISTINCT bo.app_client_id
+        FROM bling_order_items boi
+        INNER JOIN bling_orders bo ON bo.id = boi.order_id
+        INNER JOIN products p ON p.bling_product_id = boi.product_id
+        WHERE bo.app_client_id IS NOT NULL
+          AND bo.deleted_at IS NULL
+          AND p.id = ${productId}
+
+        UNION
+
+        SELECT DISTINCT co.app_client_id
+        FROM connect_order_items coi
+        INNER JOIN connect_orders co ON co.id = coi.order_id
+        INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
+        WHERE co.app_client_id IS NOT NULL
+          AND p.id = ${productId}
+      )
+      SELECT c.id, c.name, c.phone, c.email, c.city, c.state
+      FROM all_buyers ab
+      INNER JOIN clients c ON c.id = ab.app_client_id
+      ORDER BY c.name
+    `);
+    return rows.rows as { id: string; name: string; phone: string | null; email: string | null; city: string | null; state: string | null }[];
+  }
+
   async getProductProfile(productId: string) {
     try {
       const twelveMonthsAgo = format(subMonths(new Date(), 12), "yyyy-MM-dd");

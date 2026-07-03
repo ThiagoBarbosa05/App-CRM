@@ -147,6 +147,17 @@ productsRouter.delete("/:id", async (req, res) => {
   }
 });
 
+productsRouter.get("/:productId/buyers", async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const buyers = await storage.getProductAllBuyers(productId);
+    return res.json(buyers);
+  } catch (error) {
+    console.error("Error fetching product buyers:", error);
+    return res.status(500).json({ message: "Erro ao buscar compradores" });
+  }
+});
+
 productsRouter.get("/:productId/detail", async (req, res) => {
   try {
     const { productId } = req.params;
