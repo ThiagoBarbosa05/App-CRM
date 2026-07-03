@@ -1,5 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Search } from "lucide-react";
 
 interface ProductCategory {
@@ -51,106 +58,66 @@ export function ProductsFilters({
           />
         </div>
 
-        <div className="relative group">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="w-full h-12 pl-4 pr-10 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200/80 dark:border-slate-800/80 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 transition-all appearance-none cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-900 shadow-sm"
-          >
-            <option value="">Todos os tipos</option>
-            <option value="ESPUMANTE">🥂 Espumante</option>
-            <option value="BRANCO">🥂 Branco</option>
-            <option value="ROSE">🍷 Rose</option>
-            <option value="TINTO">🍷 Tinto</option>
-            <option value="PÓS-REFEIÇÃO">🥃 Pós-refeição</option>
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300 transition-colors">
-            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-        </div>
+        <Select value={typeFilter || "__all__"} onValueChange={(v) => setTypeFilter(v === "__all__" ? "" : v)}>
+          <SelectTrigger className="h-12 rounded-xl bg-slate-50/50 dark:bg-slate-950/50 border-slate-200/80 dark:border-slate-800/80 shadow-sm text-sm font-medium">
+            <SelectValue placeholder="Todos os tipos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os tipos</SelectItem>
+            <SelectItem value="ESPUMANTE">🥂 Espumante</SelectItem>
+            <SelectItem value="BRANCO">🥂 Branco</SelectItem>
+            <SelectItem value="ROSE">🍷 Rose</SelectItem>
+            <SelectItem value="TINTO">🍷 Tinto</SelectItem>
+            <SelectItem value="PÓS-REFEIÇÃO">🥃 Pós-refeição</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <div className="relative group">
-          <select
-            value={countryFilter}
-            onChange={(e) => setCountryFilter(e.target.value)}
-            className="w-full h-12 pl-4 pr-10 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200/80 dark:border-slate-800/80 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 transition-all appearance-none cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-900 shadow-sm"
-          >
-            <option value="">Todos os países</option>
-            <option value="CHILE">🇨🇱 Chile</option>
-            <option value="ARGENTINA">🇦🇷 Argentina</option>
-            <option value="URUGUAI">🇺🇾 Uruguai</option>
-            <option value="BRASIL">🇧🇷 Brasil</option>
-            <option value="EUA">🇺🇸 EUA</option>
-            <option value="FRANÇA">🇫🇷 França</option>
-            <option value="ITÁLIA">🇮🇹 Itália</option>
-            <option value="PORTUGAL">🇵🇹 Portugal</option>
-            <option value="ESPANHA">🇪🇸 Espanha</option>
-            <option value="ALEMANHA">🇩🇪 Alemanha</option>
-            <option value="OUTROS">🌍 Outros</option>
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300 transition-colors">
-            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-        </div>
+        <Select value={countryFilter || "__all__"} onValueChange={(v) => setCountryFilter(v === "__all__" ? "" : v)}>
+          <SelectTrigger className="h-12 rounded-xl bg-slate-50/50 dark:bg-slate-950/50 border-slate-200/80 dark:border-slate-800/80 shadow-sm text-sm font-medium">
+            <SelectValue placeholder="Todos os países" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os países</SelectItem>
+            <SelectItem value="CHILE">🇨🇱 Chile</SelectItem>
+            <SelectItem value="ARGENTINA">🇦🇷 Argentina</SelectItem>
+            <SelectItem value="URUGUAI">🇺🇾 Uruguai</SelectItem>
+            <SelectItem value="BRASIL">🇧🇷 Brasil</SelectItem>
+            <SelectItem value="EUA">🇺🇸 EUA</SelectItem>
+            <SelectItem value="FRANÇA">🇫🇷 França</SelectItem>
+            <SelectItem value="ITÁLIA">🇮🇹 Itália</SelectItem>
+            <SelectItem value="PORTUGAL">🇵🇹 Portugal</SelectItem>
+            <SelectItem value="ESPANHA">🇪🇸 Espanha</SelectItem>
+            <SelectItem value="ALEMANHA">🇩🇪 Alemanha</SelectItem>
+            <SelectItem value="OUTROS">🌍 Outros</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <div className="relative group">
-          <select
-            value={volumeFilter}
-            onChange={(e) => setVolumeFilter(e.target.value)}
-            className="w-full h-12 pl-4 pr-10 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200/80 dark:border-slate-800/80 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 transition-all appearance-none cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-900 shadow-sm"
-          >
-            <option value="">Todos os volumes</option>
-            <option value="187ml">187ml</option>
-            <option value="375ml">375ml</option>
-            <option value="750ml">750ml</option>
-            <option value="1500ml">1500ml</option>
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300 transition-colors">
-            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-        </div>
+        <Select value={volumeFilter || "__all__"} onValueChange={(v) => setVolumeFilter(v === "__all__" ? "" : v)}>
+          <SelectTrigger className="h-12 rounded-xl bg-slate-50/50 dark:bg-slate-950/50 border-slate-200/80 dark:border-slate-800/80 shadow-sm text-sm font-medium">
+            <SelectValue placeholder="Todos os volumes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todos os volumes</SelectItem>
+            <SelectItem value="187ml">187ml</SelectItem>
+            <SelectItem value="375ml">375ml</SelectItem>
+            <SelectItem value="750ml">750ml</SelectItem>
+            <SelectItem value="1500ml">1500ml</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <div className="relative group">
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="w-full h-12 pl-4 pr-10 bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200/80 dark:border-slate-800/80 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 dark:focus:border-blue-400 transition-all appearance-none cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-900 shadow-sm"
-          >
-            <option value="">Todas as categorias</option>
+        <Select value={categoryFilter || "__all__"} onValueChange={(v) => setCategoryFilter(v === "__all__" ? "" : v)}>
+          <SelectTrigger className="h-12 rounded-xl bg-slate-50/50 dark:bg-slate-950/50 border-slate-200/80 dark:border-slate-800/80 shadow-sm text-sm font-medium">
+            <SelectValue placeholder="Todas as categorias" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">Todas as categorias</SelectItem>
             {categories.map((cat) => (
-              <option key={cat.id} value={cat.name}>
+              <SelectItem key={cat.id} value={cat.name}>
                 {cat.name}
-              </option>
+              </SelectItem>
             ))}
-          </select>
-          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300 transition-colors">
-            <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-        </div>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

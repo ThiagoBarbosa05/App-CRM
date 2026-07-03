@@ -66,6 +66,8 @@ interface ProductsTableProps {
   totalPages: number;
   totalProducts: number;
   setCurrentPage: (page: number) => void;
+  pageSize: number;
+  setPageSize: (size: number) => void;
 }
 
 function isWineProduct(category?: string) {
@@ -91,6 +93,8 @@ export function ProductsTable({
   totalPages,
   totalProducts,
   setCurrentPage,
+  pageSize,
+  setPageSize,
 }: ProductsTableProps) {
   const [, navigate] = useLocation();
   return (
@@ -350,8 +354,8 @@ export function ProductsTable({
                   <TableCell colSpan={8} className="text-center py-32">
                     <div className="flex flex-col items-center gap-5">
                       <div className="relative">
-                        <div className="animate-spin rounded-full h-14 w-14 border-[3px] border-blue-500/20 border-t-blue-600" />
-                        <Wine className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 text-blue-600/80" />
+                        <div className="animate-spin rounded-full h-14 w-14 border-[3px] border-primary/20 border-t-primary" />
+                        <Wine className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-5 w-5 text-primary/80" />
                       </div>
                       <div className="space-y-1">
                         <p className="font-bold text-slate-800 dark:text-slate-200">
@@ -594,7 +598,21 @@ export function ProductsTable({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">Por página</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="h-9 px-2 pr-7 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer shadow-sm"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
             <div className="flex items-center bg-white dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl shadow-sm p-1.5 backdrop-blur-sm">
               <Button
                 variant="ghost"
