@@ -23,6 +23,7 @@ import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
+import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
 
 function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
@@ -438,7 +439,11 @@ export async function getConversation(
   conversationId: string,
   userId: string,
   userRole: string,
+  pagination: { cursor?: Cursor | null; limit?: number } = {},
 ) {
+  const limit = clampLimit(pagination.limit, { fallback: 20, max: 50 });
+  const cursor = pagination.cursor ?? null;
+
   const whereConditions: ReturnType<typeof eq>[] = [
     eq(whatsappConversations.id, conversationId),
   ];
@@ -464,6 +469,16 @@ export async function getConversation(
   if (!conv) return null;
 
   const replyMsg = alias(whatsappMessages, "reply_msg");
+  const effectiveAt = sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`;
+
+  const messageConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappMessages.conversationId, conversationId),
+  ];
+  if (cursor) {
+    messageConditions.push(
+      sql`(${effectiveAt}, ${whatsappMessages.id}) < (${cursor.at}::timestamp, ${cursor.id})` as unknown as ReturnType<typeof eq>,
+    );
+  }
 
   const rawMessages = await db
     .select({
@@ -500,15 +515,24 @@ export async function getConversation(
     .leftJoin(whatsappMedia, eq(whatsappMessages.id, whatsappMedia.messageId))
     .leftJoin(replyMsg, eq(whatsappMessages.replyToMessageId, replyMsg.id))
     .leftJoin(whatsappChannels, eq(whatsappMessages.channelId, whatsappChannels.id))
-    .where(eq(whatsappMessages.conversationId, conversationId))
-    .orderBy(
-      desc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`),
-    )
-    .limit(100);
+    .where(and(...messageConditions))
+    .orderBy(desc(effectiveAt), desc(whatsappMessages.id))
+    .limit(limit + 1);
 
-  rawMessages.reverse();
+  const hasMore = rawMessages.length > limit;
+  const pageRows = rawMessages.slice(0, limit);
+  const oldestInPage = pageRows[pageRows.length - 1];
+  const nextCursor =
+    hasMore && oldestInPage
+      ? encodeCursor({
+          at: (oldestInPage.sentAt ?? oldestInPage.createdAt).toISOString(),
+          id: oldestInPage.id,
+        })
+      : null;
 
-  const messageIds = rawMessages.map((m) => m.id);
+  pageRows.reverse();
+
+  const messageIds = pageRows.map((m) => m.id);
   const reactionsRows = messageIds.length > 0
     ? await db
         .select({
@@ -528,12 +552,12 @@ export async function getConversation(
     reactionsByMessage.set(r.messageId, list);
   }
 
-  const messages = rawMessages.map((m) => ({
+  const messages = pageRows.map((m) => ({
     ...m,
     reactions: reactionsByMessage.get(m.id) ?? [],
   }));
 
-  return { conversation: conv, messages };
+  return { conversation: conv, messages, nextCursor };
 }
 
 export async function sendConversationMessage(

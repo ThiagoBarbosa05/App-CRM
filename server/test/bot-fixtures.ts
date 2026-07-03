@@ -254,3 +254,34 @@ export async function getOutboundMessages(
     )
     .orderBy(whatsappMessages.createdAt);
 }
+
+export async function createConversation(
+  overrides: Partial<typeof whatsappConversations.$inferInsert> = {},
+): Promise<typeof whatsappConversations.$inferSelect> {
+  const [conversation] = await db
+    .insert(whatsappConversations)
+    .values({
+      phone: overrides.phone ?? `5511${Math.floor(Math.random() * 1e9)}`,
+      ...overrides,
+    })
+    .returning();
+  return conversation;
+}
+
+export async function createMessage(
+  conversationId: string,
+  overrides: Partial<typeof whatsappMessages.$inferInsert> = {},
+): Promise<typeof whatsappMessages.$inferSelect> {
+  const [message] = await db
+    .insert(whatsappMessages)
+    .values({
+      conversationId,
+      direction: overrides.direction ?? "inbound",
+      type: overrides.type ?? "text",
+      content: overrides.content ?? "mensagem de teste",
+      sentAt: overrides.sentAt ?? new Date(),
+      ...overrides,
+    })
+    .returning();
+  return message;
+}
