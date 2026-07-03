@@ -5145,10 +5145,11 @@ export class DatabaseStorage implements IStorage {
       };
 
       // Month-by-month history — bling (revenue) + connect (qty) por mês
+      // Agrega cada fonte ANTES do JOIN para evitar produto cartesiano
       const monthlyHistoryRows = await db.execute(sql`
-        WITH bling_month AS (
+        WITH bling_raw AS (
           SELECT
-            TO_CHAR(TO_DATE(bo.sale_date, 'YYYY-MM-DD'), 'YYYY-MM') AS month,
+            TO_CHAR(TO_DATE(bo.sale_date, 'YYYY-MM-DD'), 'YYYY-MM')  AS month,
             boi.quantity::numeric                                      AS qty,
             (boi.quantity::numeric * boi.value::numeric)              AS revenue,
             bo.id::text                                               AS order_id
@@ -5160,7 +5161,7 @@ export class DatabaseStorage implements IStorage {
             AND bo.sale_date <= ${today}
             AND p.id = ${productId}
         ),
-        connect_month AS (
+        connect_raw AS (
           SELECT
             TO_CHAR(co.sale_date::date, 'YYYY-MM') AS month,
             coi.quantity::numeric                   AS qty,
@@ -5172,20 +5173,32 @@ export class DatabaseStorage implements IStorage {
             AND co.sale_date::date <= ${today}::date
             AND p.id = ${productId}
         ),
+        bling_agg AS (
+          SELECT month,
+                 SUM(revenue)              AS revenue,
+                 SUM(qty)                  AS qty,
+                 COUNT(DISTINCT order_id)  AS orders
+          FROM bling_raw GROUP BY month
+        ),
+        connect_agg AS (
+          SELECT month,
+                 SUM(qty)                  AS qty,
+                 COUNT(DISTINCT order_id)  AS orders
+          FROM connect_raw GROUP BY month
+        ),
         all_months AS (
-          SELECT month FROM bling_month
+          SELECT month FROM bling_agg
           UNION
-          SELECT month FROM connect_month
+          SELECT month FROM connect_agg
         )
         SELECT
           m.month,
-          COALESCE(SUM(bm.revenue), 0)::text                        AS total_revenue,
-          COALESCE(SUM(bm.qty) + SUM(cm.qty), SUM(bm.qty), SUM(cm.qty), 0)::text AS total_quantity,
-          (COUNT(DISTINCT bm.order_id) + COUNT(DISTINCT cm.order_id))::int        AS order_count
+          COALESCE(ba.revenue, 0)::text                                          AS total_revenue,
+          COALESCE(ba.qty + ca.qty, ba.qty, ca.qty, 0)::text                    AS total_quantity,
+          (COALESCE(ba.orders, 0) + COALESCE(ca.orders, 0))::int                AS order_count
         FROM all_months m
-        LEFT JOIN bling_month bm ON bm.month = m.month
-        LEFT JOIN connect_month cm ON cm.month = m.month
-        GROUP BY m.month
+        LEFT JOIN bling_agg   ba ON ba.month = m.month
+        LEFT JOIN connect_agg ca ON ca.month = m.month
         ORDER BY m.month ASC
       `);
       const monthlyHistory = (monthlyHistoryRows.rows as any[]).map((r) => ({
