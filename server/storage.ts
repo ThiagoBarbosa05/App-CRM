@@ -5087,13 +5087,16 @@ export class DatabaseStorage implements IStorage {
         sql`${blingOrders.saleDate} <= ${today}`,
       );
 
-      // Summary stats — bling + connect orders (últimos 12 meses)
+      // Summary stats
+      // Revenue (faturado) → bling only (preços confiáveis)
+      // Quantity + orders + buyers → bling + connect
       const summaryRows = await db.execute(sql`
-        WITH all_sales AS (
-          SELECT boi.quantity::numeric AS qty,
-                 (boi.quantity::numeric * boi.value::numeric) AS revenue,
-                 bo.id::text AS order_id,
-                 bo.app_client_id
+        WITH bling_sales AS (
+          SELECT
+            boi.quantity::numeric                          AS qty,
+            (boi.quantity::numeric * boi.value::numeric)  AS revenue,
+            bo.id::text                                    AS order_id,
+            bo.app_client_id
           FROM bling_order_items boi
           INNER JOIN bling_orders bo ON bo.id = boi.order_id
           INNER JOIN products p ON p.bling_product_id = boi.product_id
@@ -5101,13 +5104,12 @@ export class DatabaseStorage implements IStorage {
             AND bo.sale_date >= ${twelveMonthsAgo}
             AND bo.sale_date <= ${today}
             AND p.id = ${productId}
-
-          UNION ALL
-
-          SELECT coi.quantity::numeric AS qty,
-                 (coi.quantity::numeric * coi.unit_value::numeric) AS revenue,
-                 co.id::text AS order_id,
-                 co.app_client_id
+        ),
+        connect_sales AS (
+          SELECT
+            coi.quantity::numeric AS qty,
+            co.id::text           AS order_id,
+            co.app_client_id
           FROM connect_order_items coi
           INNER JOIN connect_orders co ON co.id = coi.order_id
           INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
@@ -5116,11 +5118,23 @@ export class DatabaseStorage implements IStorage {
             AND p.id = ${productId}
         )
         SELECT
-          COALESCE(SUM(qty), 0)::text          AS total_quantity,
-          COALESCE(SUM(revenue), 0)::text      AS total_revenue,
-          COUNT(DISTINCT order_id)::int        AS order_count,
-          COUNT(DISTINCT app_client_id)::int   AS buyer_count
-        FROM all_sales
+          -- faturado: só bling (preços confiáveis)
+          (SELECT COALESCE(SUM(revenue), 0)::text FROM bling_sales)   AS total_revenue,
+          -- garrafas: bling + connect
+          COALESCE(
+            (SELECT SUM(qty) FROM bling_sales) +
+            (SELECT SUM(qty) FROM connect_sales), 0
+          )::text                                                       AS total_quantity,
+          -- pedidos: bling + connect
+          (
+            (SELECT COUNT(DISTINCT order_id) FROM bling_sales) +
+            (SELECT COUNT(DISTINCT order_id) FROM connect_sales)
+          )::int                                                        AS order_count,
+          -- compradores: bling + connect
+          (
+            (SELECT COUNT(DISTINCT app_client_id) FROM bling_sales) +
+            (SELECT COUNT(DISTINCT app_client_id) FROM connect_sales)
+          )::int                                                        AS buyer_count
       `);
       const summaryRow = (summaryRows.rows[0] as any) ?? {};
       const summary = {
@@ -5130,14 +5144,14 @@ export class DatabaseStorage implements IStorage {
         buyerCount: summaryRow.buyer_count ?? 0,
       };
 
-      // Month-by-month history — bling + connect orders
+      // Month-by-month history — bling (revenue) + connect (qty) por mês
       const monthlyHistoryRows = await db.execute(sql`
-        WITH all_sales AS (
+        WITH bling_month AS (
           SELECT
             TO_CHAR(TO_DATE(bo.sale_date, 'YYYY-MM-DD'), 'YYYY-MM') AS month,
-            boi.quantity::numeric AS qty,
-            (boi.quantity::numeric * boi.value::numeric) AS revenue,
-            bo.id::text AS order_id
+            boi.quantity::numeric                                      AS qty,
+            (boi.quantity::numeric * boi.value::numeric)              AS revenue,
+            bo.id::text                                               AS order_id
           FROM bling_order_items boi
           INNER JOIN bling_orders bo ON bo.id = boi.order_id
           INNER JOIN products p ON p.bling_product_id = boi.product_id
@@ -5145,35 +5159,40 @@ export class DatabaseStorage implements IStorage {
             AND bo.sale_date >= ${twelveMonthsAgo}
             AND bo.sale_date <= ${today}
             AND p.id = ${productId}
-
-          UNION ALL
-
+        ),
+        connect_month AS (
           SELECT
             TO_CHAR(co.sale_date::date, 'YYYY-MM') AS month,
-            coi.quantity::numeric AS qty,
-            (coi.quantity::numeric * coi.unit_value::numeric) AS revenue,
-            co.id::text AS order_id
+            coi.quantity::numeric                   AS qty,
+            co.id::text                             AS order_id
           FROM connect_order_items coi
           INNER JOIN connect_orders co ON co.id = coi.order_id
           INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
           WHERE co.sale_date::date >= ${twelveMonthsAgo}::date
             AND co.sale_date::date <= ${today}::date
             AND p.id = ${productId}
+        ),
+        all_months AS (
+          SELECT month FROM bling_month
+          UNION
+          SELECT month FROM connect_month
         )
         SELECT
-          month,
-          SUM(revenue)::text              AS "totalRevenue",
-          SUM(qty)::text                  AS "totalQuantity",
-          COUNT(DISTINCT order_id)::int   AS "orderCount"
-        FROM all_sales
-        GROUP BY month
-        ORDER BY month ASC
+          m.month,
+          COALESCE(SUM(bm.revenue), 0)::text                        AS total_revenue,
+          COALESCE(SUM(bm.qty) + SUM(cm.qty), SUM(bm.qty), SUM(cm.qty), 0)::text AS total_quantity,
+          (COUNT(DISTINCT bm.order_id) + COUNT(DISTINCT cm.order_id))::int        AS order_count
+        FROM all_months m
+        LEFT JOIN bling_month bm ON bm.month = m.month
+        LEFT JOIN connect_month cm ON cm.month = m.month
+        GROUP BY m.month
+        ORDER BY m.month ASC
       `);
       const monthlyHistory = (monthlyHistoryRows.rows as any[]).map((r) => ({
         month: r.month as string,
-        totalRevenue: r.totalRevenue as string,
-        totalQuantity: r.totalQuantity as string,
-        orderCount: r.orderCount as number,
+        totalRevenue: r.total_revenue as string,
+        totalQuantity: r.total_quantity as string,
+        orderCount: r.order_count as number,
       }));
 
       // Buyers
