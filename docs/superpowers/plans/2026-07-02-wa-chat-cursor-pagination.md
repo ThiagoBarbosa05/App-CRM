@@ -86,6 +86,13 @@ describe("clampLimit", () => {
   it("respeita o valor pedido quando está dentro do intervalo", () => {
     expect(clampLimit("35", { fallback: 20, max: 100 })).toBe(35);
   });
+
+  it("aceita number diretamente (não só string) — services chamam com pagination.limit já numérico", () => {
+    expect(clampLimit(35, { fallback: 20, max: 100 })).toBe(35);
+    expect(clampLimit(500, { fallback: 20, max: 100 })).toBe(100);
+    expect(clampLimit(0, { fallback: 20, max: 100 })).toBe(20);
+    expect(clampLimit(-5, { fallback: 20, max: 100 })).toBe(20);
+  });
 });
 ```
 
@@ -137,12 +144,23 @@ export function decodeCursor(raw: unknown): Cursor | null {
   }
 }
 
-/** Lê um `limit` de query param e trava dentro de [1, max], usando `fallback` quando ausente/inválido. */
+/**
+ * Trava um `limit` dentro de [1, max], usando `fallback` quando ausente/inválido.
+ * Aceita tanto `string` (query param cru, ex.: rotas) quanto `number` (já
+ * parseado, ex.: quando um service recebe `pagination.limit` de um caller
+ * interno) — os dois layers (rota e service) chamam `clampLimit`, então
+ * precisa aceitar ambos os formatos.
+ */
 export function clampLimit(
   raw: unknown,
   options: { fallback: number; max: number },
 ): number {
-  const parsed = typeof raw === "string" ? Number.parseInt(raw, 10) : NaN;
+  const parsed =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string"
+        ? Number.parseInt(raw, 10)
+        : NaN;
   if (!Number.isFinite(parsed) || parsed < 1) return options.fallback;
   return Math.min(parsed, options.max);
 }
@@ -151,7 +169,7 @@ export function clampLimit(
 - [ ] **Step 4: Rodar o teste e confirmar que passa**
 
 Run: `npx vitest run server/services/__tests__/cursor-pagination.unit.test.ts`
-Expected: PASS (11 testes)
+Expected: PASS (14 testes)
 
 - [ ] **Step 5: Type check e commit**
 
