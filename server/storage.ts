@@ -5075,10 +5075,10 @@ export class DatabaseStorage implements IStorage {
     }[];
   }
 
-  async getProductProfile(productId: string) {
+  async getProductProfile(productId: string, startDate?: string, endDate?: string) {
     try {
-      const twelveMonthsAgo = format(subMonths(new Date(), 12), "yyyy-MM-dd");
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = endDate ?? format(new Date(), "yyyy-MM-dd");
+      const twelveMonthsAgo = startDate ?? format(subMonths(new Date(), 12), "yyyy-MM-dd");
 
       const baseConditions = and(
         eq(products.id, productId),

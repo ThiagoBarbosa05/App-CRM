@@ -173,7 +173,8 @@ productsRouter.get("/:productId/detail", async (req, res) => {
 productsRouter.get("/:productId/profile", async (req, res) => {
   try {
     const { productId } = req.params;
-    const profile = await storage.getProductProfile(productId);
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+    const profile = await storage.getProductProfile(productId, startDate, endDate);
     return res.json(profile);
   } catch (error) {
     console.error("Error fetching product profile:", error);

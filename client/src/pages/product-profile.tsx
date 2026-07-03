@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -390,6 +390,36 @@ export default function ProductProfilePage() {
   const initialTab = new URLSearchParams(window.location.search).get("tab") ?? "details";
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showBuyersModal, setShowBuyersModal] = useState(false);
+  const [period, setPeriod] = useState<"12m" | "6m" | "3m" | "last" | "current">("12m");
+
+  const PERIOD_OPTIONS: { value: typeof period; label: string }[] = [
+    { value: "12m", label: "12 meses" },
+    { value: "6m", label: "6 meses" },
+    { value: "3m", label: "3 meses" },
+    { value: "last", label: "Mês passado" },
+    { value: "current", label: "Este mês" },
+  ];
+
+  const periodDates = (() => {
+    const now = new Date();
+    switch (period) {
+      case "6m":
+        return { start: format(subMonths(now, 6), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+      case "3m":
+        return { start: format(subMonths(now, 3), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+      case "last":
+        return {
+          start: format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd"),
+          end: format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd"),
+        };
+      case "current":
+        return { start: format(startOfMonth(now), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+      default:
+        return { start: format(subMonths(now, 12), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+    }
+  })();
+
+  const periodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "12 meses";
   const [buyersPage, setBuyersPage] = useState(1);
   const [buyersSort, setBuyersSort] = useState<"recent" | "quantity">("recent");
   const BUYERS_PAGE_SIZE = 25;
@@ -434,9 +464,10 @@ export default function ProductProfilePage() {
   });
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery<ProfileData>({
-    queryKey: ["/api/products", id, "profile"],
+    queryKey: ["/api/products", id, "profile", period],
     queryFn: async () => {
-      const res = await fetch(`/api/products/${id}/profile`);
+      const params = new URLSearchParams({ startDate: periodDates.start, endDate: periodDates.end });
+      const res = await fetch(`/api/products/${id}/profile?${params}`);
       if (!res.ok) throw new Error("Erro ao buscar perfil");
       return res.json();
     },
@@ -540,9 +571,26 @@ export default function ProductProfilePage() {
 
       {/* Summary cards */}
       <div>
-        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">
-          Últimos 12 meses
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+            {periodLabel}
+          </p>
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPeriod(opt.value)}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                  period === opt.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {isLoadingProfile ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {[1, 2, 3, 4, 5].map((i) => (
