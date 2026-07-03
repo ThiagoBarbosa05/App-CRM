@@ -24,6 +24,8 @@ import { deliverBenefitController } from "../controllers/referrals/deliver-benef
 import multer from "multer";
 import { syncClientToBling, BlingSyncError } from "../services/bling-clients-export.service";
 import { requireAuth } from "../middleware/validation";
+import { consultarCPF } from "../services/assertiva.service";
+import { storage } from "../storage";
 
 /**
  * Router específico para endpoints relacionados a clientes
@@ -122,6 +124,29 @@ clientsRouter.get(
   "/:clientId/purchase-insights",
   getClientPurchaseInsightsController,
 );
+
+clientsRouter.get("/:clientId/verify-cpf", requireAuth, async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const client = await storage.getClientById(clientId);
+    if (!client) {
+      return res.status(404).json({ message: "Cliente não encontrado" });
+    }
+    if (!client.cpf) {
+      return res.status(422).json({ message: "Cliente sem CPF cadastrado" });
+    }
+    const data = await consultarCPF(client.cpf);
+    return res.json(data);
+  } catch (err: any) {
+    if (err.message === "ASSERTIVA_NOT_CONFIGURED") {
+      return res.status(503).json({ message: "Integração Assertiva não configurada. Adicione ASSERTIVA_CLIENT_ID e ASSERTIVA_CLIENT_SECRET nos secrets." });
+    }
+    if (err.message === "CPF_NOT_FOUND") {
+      return res.status(404).json({ message: "CPF não encontrado na base Assertiva" });
+    }
+    return res.status(500).json({ message: err.message ?? "Erro ao consultar Assertiva" });
+  }
+});
 
 /**
  * @route GET /api/clients/:clientId/interactions

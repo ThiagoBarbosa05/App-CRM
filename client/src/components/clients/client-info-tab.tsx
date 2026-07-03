@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   User,
   Phone,
@@ -17,6 +18,9 @@ import {
   UserCheck,
   UserPlus,
   TrendingUp,
+  Loader2,
+  ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 
 const RFM_LABELS: Record<string, string> = {
@@ -60,6 +64,7 @@ import { ptBR } from "date-fns/locale";
 import type { ReactNode } from "react";
 import { type Client } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ClientInfoTabProps {
   client: Client;
@@ -68,6 +73,32 @@ interface ClientInfoTabProps {
 }
 
 export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
+  const [cpfVerify, setCpfVerify] = useState<{
+    status: "idle" | "loading" | "success" | "error";
+    nome?: string;
+    dataNascimento?: string;
+    message?: string;
+  }>({ status: "idle" });
+
+  async function handleVerifyCpf() {
+    setCpfVerify({ status: "loading" });
+    try {
+      const data = await apiRequest("GET", `/api/clients/${client.id}/verify-cpf`);
+      const json = await data.json();
+      if (!data.ok) {
+        setCpfVerify({ status: "error", message: json.message ?? "Erro na consulta" });
+        return;
+      }
+      setCpfVerify({
+        status: "success",
+        nome: json?.nome ?? json?.data?.nome ?? "—",
+        dataNascimento: json?.dataNascimento ?? json?.data?.dataNascimento ?? json?.data?.data_nascimento ?? "—",
+      });
+    } catch {
+      setCpfVerify({ status: "error", message: "Erro ao conectar com a Assertiva" });
+    }
+  }
+
   const formatDate = (dateString: string) => {
     try {
       const date =
@@ -252,12 +283,58 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               href={`tel:${client.phone}`}
               interactive
             />
-            <InfoTile
-              icon={CreditCard}
-              accent="slate"
-              label={client.documentType === "cnpj" ? "CNPJ" : "CPF"}
-              value={formatCPF(client.cpf || "")}
-            />
+            {/* CPF / CNPJ tile com botão Assertiva */}
+            <div className="group rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/75">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 shadow-inner dark:bg-slate-800">
+                  <CreditCard className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                      {client.documentType === "cnpj" ? "CNPJ" : "CPF"}
+                    </p>
+                    {client.documentType !== "cnpj" && client.cpf && (
+                      <button
+                        type="button"
+                        onClick={handleVerifyCpf}
+                        disabled={cpfVerify.status === "loading"}
+                        title="Consultar na Assertiva"
+                        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500 transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+                      >
+                        {cpfVerify.status === "loading" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <ShieldCheck className="h-3 w-3" />
+                        )}
+                        Assertiva
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 break-words text-base font-black text-slate-900 dark:text-slate-100">
+                    {formatCPF(client.cpf || "")}
+                  </p>
+                  {cpfVerify.status === "success" && (
+                    <div className="mt-2 space-y-0.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-900/20">
+                      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3 shrink-0" />
+                        Receita Federal
+                      </p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{cpfVerify.nome}</p>
+                      {cpfVerify.dataNascimento && cpfVerify.dataNascimento !== "—" && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">Nasc. {cpfVerify.dataNascimento}</p>
+                      )}
+                    </div>
+                  )}
+                  {cpfVerify.status === "error" && (
+                    <div className="mt-2 flex items-start gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-900/20">
+                      <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />
+                      <p className="text-[11px] text-rose-700 dark:text-rose-400">{cpfVerify.message}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
             <InfoTile
               icon={Calendar}
               accent="amber"
