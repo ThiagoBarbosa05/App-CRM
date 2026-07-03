@@ -29,6 +29,7 @@ export default defineConfig({
             "server/test/create-route-test-app.test.ts",
             "server/routes/__tests__/**/*.test.ts",
             "server/services/__tests__/**/*.unit.test.ts",
+            "client/src/lib/__tests__/**/*.test.ts",
           ],
         },
       },
