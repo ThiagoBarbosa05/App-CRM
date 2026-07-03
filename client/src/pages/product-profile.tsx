@@ -1156,22 +1156,21 @@ export default function ProductProfilePage() {
                             )}
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          {buyersSort === "quantity" ? (
-                            <>
-                              <p className="text-[10px] text-slate-400 uppercase tracking-wider">unid. compradas</p>
-                              <p className="text-sm font-bold text-primary">
-                                {Number(buyer.total_quantity).toFixed(0)}
-                              </p>
-                            </>
-                          ) : buyer.last_purchase ? (
-                            <>
+                        <div className="text-right shrink-0 space-y-1">
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wider">unid. compradas</p>
+                            <p className="text-sm font-bold text-primary">
+                              {Number(buyer.total_quantity).toFixed(0)}
+                            </p>
+                          </div>
+                          {buyer.last_purchase && (
+                            <div>
                               <p className="text-[10px] text-slate-400 uppercase tracking-wider">última compra</p>
-                              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
                                 {format(new Date(buyer.last_purchase), "dd/MM/yyyy")}
                               </p>
-                            </>
-                          ) : null}
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     );
