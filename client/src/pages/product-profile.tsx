@@ -385,8 +385,9 @@ function SensoryGauge({
 
 export default function ProductProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("details");
+  const [location, navigate] = useLocation();
+  const initialTab = new URLSearchParams(window.location.search).get("tab") ?? "details";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [showBuyersModal, setShowBuyersModal] = useState(false);
   const [buyersPage, setBuyersPage] = useState(1);
   const BUYERS_PAGE_SIZE = 25;

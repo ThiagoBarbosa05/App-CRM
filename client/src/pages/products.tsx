@@ -152,9 +152,8 @@ export default function Products() {
   }, []);
 
   const handleViewClients = useCallback((product: Product) => {
-    setSelectedProductForClients(product);
-    setIsClientsModalOpen(true);
-  }, []);
+    navigate(`/products/${product.id}?tab=buyers`);
+  }, [navigate]);
 
   const handleExportProducts = useCallback(async () => {
     setIsExporting(true);
