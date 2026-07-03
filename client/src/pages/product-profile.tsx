@@ -1174,7 +1174,8 @@ export default function ProductProfilePage() {
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.02 }}
-                        className="flex items-center gap-4 px-5 py-4 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors shadow-sm"
+                        onClick={() => buyer.id && navigate(`/clientes/${buyer.id}`)}
+                        className={`flex items-center gap-4 px-5 py-4 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors shadow-sm ${buyer.id ? "cursor-pointer" : ""}`}
                       >
                         <div className="h-9 w-9 rounded-xl bg-accent border border-border flex items-center justify-center text-sm font-black text-primary shrink-0">
                           {globalIndex + 1}
@@ -1288,7 +1289,8 @@ export default function ProductProfilePage() {
               {allBuyers!.map((buyer, i) => (
                 <div
                   key={buyer.id}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors"
+                  onClick={() => buyer.id && navigate(`/clientes/${buyer.id}`)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors ${buyer.id ? "cursor-pointer" : ""}`}
                 >
                   <div className="h-8 w-8 rounded-lg bg-accent border border-border flex items-center justify-center text-xs font-black text-primary shrink-0">
                     {i + 1}
