@@ -3,29 +3,22 @@ const BASE_URL = "https://integracao.assertivasolucoes.com.br/v3";
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
 async function fetchToken(): Promise<string> {
-  const clientId = process.env.ASSERTIVA_CLIENT_ID;
-  const clientSecret = process.env.ASSERTIVA_CLIENT_SECRET;
+  const clientId = process.env.ASSERTIVA_CLIENT_ID?.trim();
+  const clientSecret = process.env.ASSERTIVA_CLIENT_SECRET?.trim();
 
   if (!clientId || !clientSecret) {
     throw new Error("ASSERTIVA_NOT_CONFIGURED");
   }
 
-  const cleanId = clientId.trim();
-  const cleanSecret = clientSecret.trim();
-
-  const params = new URLSearchParams({
-    grant_type: "client_credentials",
-    client_id: cleanId,
-    client_secret: cleanSecret,
-  });
-
-  console.log("[Assertiva] clientId length:", cleanId.length, "secretLength:", cleanSecret.length);
-  console.log("[Assertiva] enviando token request para:", `${BASE_URL}/token`);
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 
   const res = await fetch(`${BASE_URL}/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params.toString(),
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": `Basic ${basicAuth}`,
+    },
+    body: "grant_type=client_credentials",
   });
 
   const body = await res.text();
