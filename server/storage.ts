@@ -121,6 +121,10 @@ import {
   type InsertInteractionWeeklyResult,
   type InteractionWeeklyResult,
 } from "@shared/schema";
+import {
+  getClientRegistrationQuality,
+  type ClientRegistrationQuality,
+} from "@shared/client-registration-quality";
 import { db } from "./db";
 import {
   and,
@@ -185,6 +189,11 @@ export interface ProductFilters {
   category?: string;
 }
 
+export type ClientWithProfile = Client & {
+  lastPurchaseDate: string | null;
+  registrationQuality: ClientRegistrationQuality;
+};
+
 export interface IStorage {
   // Users
   getUsers(): Promise<any[]>;
@@ -197,7 +206,7 @@ export interface IStorage {
   // Clients
   getClients(): Promise<Client[]>;
   getAllClientsForExport(): Promise<Client[]>;
-  getClient(id: string): Promise<Client | undefined>;
+  getClient(id: string): Promise<ClientWithProfile | undefined>;
   getClientByCpf(cpf: string): Promise<Client | undefined>;
   getClientByPhone(phone: string): Promise<Client | undefined>;
   createClient(client: InsertClient): Promise<Client>;
@@ -869,7 +878,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getClient(id: string): Promise<Client | undefined> {
+  async getClient(id: string): Promise<ClientWithProfile | undefined> {
     const [client] = await this.db
       .select()
       .from(clients)
@@ -890,8 +899,13 @@ export class DatabaseStorage implements IStorage {
     `),
     );
     const lastPurchaseDate =
-      (purchaseResult.rows[0] as any)?.last_purchase_date ?? null;
-    return { ...client, lastPurchaseDate } as any;
+      (purchaseResult.rows[0] as { last_purchase_date: string | null } | undefined)
+        ?.last_purchase_date ?? null;
+    return {
+      ...client,
+      lastPurchaseDate,
+      registrationQuality: getClientRegistrationQuality(client),
+    };
   }
 
   async getClientByCpf(cpf: string): Promise<Client | undefined> {
