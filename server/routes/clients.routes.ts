@@ -26,6 +26,7 @@ import { syncClientToBling, BlingSyncError } from "../services/bling-clients-exp
 import { requireAuth } from "../middleware/validation";
 import { consultarCPF, testarCPF } from "../services/assertiva.service";
 import { getClientsNeedingRegistrationUpdate } from "../services/registration-quality-panel.service";
+import { getClientsHealthController } from "../controllers/clients/get-clients-health.controller";
 import { storage } from "../storage";
 
 /**
@@ -59,6 +60,7 @@ const clientsImportUpload = multer({
  * @returns {object} Lista paginada de clientes
  */
 clientsRouter.get("/", getClientsController);
+clientsRouter.get("/health", getClientsHealthController);
 clientsRouter.get("/duplicates", getDuplicatesController);
 clientsRouter.post("/check-duplicate", checkDuplicateController);
 clientsRouter.post("/:keepId/merge/:mergeId", mergeClientsController);
