@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
   AppTabs,
@@ -28,6 +28,7 @@ import {
   Users,
   RefreshCw,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -54,6 +55,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type ClientWithProfile = Client & {
   lastPurchaseDate: string | null;
@@ -98,7 +109,24 @@ export default function ClientProfilePage() {
     return currentTab || "info";
   });
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
+
+  const deleteClientMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/clients/${id}`),
+    onSuccess: () => {
+      toast({ title: "Cliente excluído", description: "O cadastro foi removido com sucesso." });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      navigate("/clientes");
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o cliente. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const syncBlingMutation = useMutation({
     mutationFn: (connectionId: string) =>
@@ -425,6 +453,17 @@ export default function ClientProfilePage() {
             <Edit className="h-4 w-4" />
             Editar
           </Button>
+          {user?.role === "admin" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 dark:border-red-800/60 dark:text-red-400 dark:hover:bg-red-900/20 font-medium w-full sm:w-auto"
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir
+            </Button>
+          )}
         </PageHeader.Actions>
       </PageHeader>
 
@@ -565,6 +604,29 @@ export default function ClientProfilePage() {
           client={client}
         />
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{client.name}</strong>?
+              Essa ação é irreversível e remove também interações, funis,
+              cashback e demais dados relacionados a esse cliente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteClientMutation.mutate()}
+              disabled={deleteClientMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteClientMutation.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

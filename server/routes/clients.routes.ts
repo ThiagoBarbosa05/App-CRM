@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { getClientsController } from "../controllers/clients/get-clients.controller";
 import { getClientByPhoneController } from "../controllers/clients/get-client-by-phone.controller";
 import { getClientsWithoutContactController } from "../controllers/clients/get-clients-without-contact.controller";
@@ -34,6 +34,13 @@ import { storage } from "../storage";
  * Segue padrão RESTful e organiza todas as rotas de clientes
  */
 export const clientsRouter = Router();
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Acesso restrito a administradores" });
+  }
+  return next();
+}
 
 const clientsImportUpload = multer({
   limits: {
@@ -298,7 +305,7 @@ clientsRouter.post("/:clientId/generate-wine-profile", generateWineProfileContro
  *   - Interações do cliente
  *   - O cliente em si
  */
-clientsRouter.delete("/:id", deleteClientController);
+clientsRouter.delete("/:id", requireAuth, requireAdmin, deleteClientController);
 
 /**
  * @route DELETE /api/clients

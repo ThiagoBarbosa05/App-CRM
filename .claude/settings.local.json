@@ -73,7 +73,9 @@
       "Bash(disown)",
       "Bash(pkill -f \"tsx server/index.ts\")",
       "Bash(disown -a)",
-      "Bash(echo \"launched pid $!\")"
+      "Bash(echo \"launched pid $!\")",
+      "Bash(echo \"pid $!\")",
+      "Bash(env)"
     ]
   }
 }

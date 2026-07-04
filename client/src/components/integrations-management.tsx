@@ -13,7 +13,10 @@ import { useBlingAccounts } from "@/hooks/use-bling-accounts";
 import { useWhatsappStatus } from "@/hooks/use-whatsapp-settings";
 import { useAssertivaStatus } from "@/hooks/use-assertiva-status";
 import { AssertivaIntegrationManagement } from "@/components/assertiva-integration-management";
+import { useOpenAIStatus } from "@/hooks/use-openai-status";
+import { OpenAIIntegrationManagement } from "@/components/openai-integration-management";
 import { cn } from "@/lib/utils";
+import { Sparkles } from "lucide-react";
 
 interface TelephonyStatus {
   twilio: boolean;
@@ -80,12 +83,14 @@ export function IntegrationsManagement() {
 
   const { data: waStatus } = useWhatsappStatus();
   const { data: assertivaStatus } = useAssertivaStatus();
+  const { data: openaiStatus } = useOpenAIStatus();
 
   const blingConnected = blingConnections.some((c) => c.status === "connected");
   const twilioActive = telephonyStatus?.twilio ?? false;
   const elevenLabsActive = telephonyStatus?.elevenlabs ?? false;
   const waActive = (waStatus?.enabled && waStatus?.configured) ?? false;
   const assertivaActive = assertivaStatus?.connected ?? false;
+  const openaiActive = openaiStatus?.configured ?? false;
 
   return (
     <div className="space-y-6">
@@ -166,6 +171,19 @@ export function IntegrationsManagement() {
             </span>
             <StatusDot active={assertivaActive} />
           </PillTabsTrigger>
+
+          <PillTabsTrigger
+            value="openai"
+            color="purple"
+            className="gap-2.5 px-4 py-2.5"
+            title="OpenAI"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="text-[0.8rem] font-bold leading-none tracking-tight">
+              OpenAI
+            </span>
+            <StatusDot active={openaiActive} />
+          </PillTabsTrigger>
         </PillTabsList>
 
         <AppTabsContent value="bling" className="mt-0">
@@ -186,6 +204,10 @@ export function IntegrationsManagement() {
 
         <AppTabsContent value="assertiva" className="mt-0">
           <AssertivaIntegrationManagement />
+        </AppTabsContent>
+
+        <AppTabsContent value="openai" className="mt-0">
+          <OpenAIIntegrationManagement />
         </AppTabsContent>
       </AppTabs>
     </div>
