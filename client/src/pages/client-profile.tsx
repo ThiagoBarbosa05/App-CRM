@@ -300,6 +300,17 @@ export default function ClientProfilePage() {
           </PageHeader.Text>
         </PageHeader.Info>
 
+        {/* Centro: vendedor responsável */}
+        {(client as any).responsavelName && (
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
+            <Users className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Vendedor</span>
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{(client as any).responsavelName}</span>
+            </div>
+          </div>
+        )}
+
         {/* Direita: ações rápidas */}
         <PageHeader.Actions className="flex-wrap sm:flex-nowrap justify-end mt-4 md:mt-0">
           {whatsappUrl && (
