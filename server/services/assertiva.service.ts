@@ -1,8 +1,10 @@
-const BASE_URL = "https://integracao.assertivasolucoes.com.br/v3";
+const TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token";
+const CPF_URL = "https://integracao.assertivasolucoes.com.br/v3/cpf";
 
-let tokenCache: { token: string; expiresAt: number } | null = null;
+let cachedToken: string | null = null;
+let tokenExpiresAt = 0;
 
-async function fetchToken(): Promise<string> {
+async function fetchNewToken(): Promise<{ access_token: string; expires_in: number }> {
   const clientId = process.env.ASSERTIVA_CLIENT_ID?.trim();
   const clientSecret = process.env.ASSERTIVA_CLIENT_SECRET?.trim();
 
@@ -10,38 +12,61 @@ async function fetchToken(): Promise<string> {
     throw new Error("ASSERTIVA_NOT_CONFIGURED");
   }
 
-  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString("base64");
 
-  const res = await fetch(`${BASE_URL}/token`, {
+  const body = new URLSearchParams();
+  body.append("grant_type", "client_credentials");
+
+  const response = await fetch(TOKEN_URL, {
     method: "POST",
     headers: {
+      Authorization: `Basic ${basicAuth}`,
       "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": `Basic ${basicAuth}`,
+      Accept: "application/json",
     },
-    body: "grant_type=client_credentials",
+    body: body.toString(),
   });
 
-  if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    throw new Error(`Assertiva auth failed: ${res.status} - ${err.slice(0, 200)}`);
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`Assertiva auth failed: ${response.status} - ${responseText}`);
   }
 
-  const data = await res.json();
-  return data.access_token as string;
+  let data: any;
+  try {
+    data = JSON.parse(responseText);
+  } catch {
+    throw new Error("A Assertiva retornou uma resposta de autenticação que não é um JSON válido.");
+  }
+
+  if (!data.access_token) {
+    throw new Error("A Assertiva não retornou access_token.");
+  }
+
+  return data;
 }
 
 async function getToken(): Promise<string> {
-  if (tokenCache && Date.now() < tokenCache.expiresAt) {
-    return tokenCache.token;
+  const now = Date.now();
+
+  if (cachedToken && now < tokenExpiresAt) {
+    return cachedToken;
   }
-  const token = await fetchToken();
-  tokenCache = { token, expiresAt: Date.now() + 55 * 60 * 1000 };
-  return token;
+
+  const tokenData = await fetchNewToken();
+
+  cachedToken = tokenData.access_token;
+
+  const expiresInSeconds = Number(tokenData.expires_in) > 0 ? Number(tokenData.expires_in) : 1800;
+  tokenExpiresAt = Date.now() + Math.max(expiresInSeconds - 60, 60) * 1000;
+
+  return cachedToken;
 }
 
 async function doConsultarCPF(cpf: string, token: string) {
   const clean = cpf.replace(/\D/g, "");
-  const res = await fetch(`${BASE_URL}/cpf/${clean}`, {
+  const res = await fetch(`${CPF_URL}/${clean}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
   let data: any;
@@ -58,7 +83,8 @@ export async function consultarCPF(cpf: string) {
   let { status, data } = await doConsultarCPF(cpf, token);
 
   if (status === 401) {
-    tokenCache = null;
+    cachedToken = null;
+    tokenExpiresAt = 0;
     token = await getToken();
     ({ status, data } = await doConsultarCPF(cpf, token));
   }
