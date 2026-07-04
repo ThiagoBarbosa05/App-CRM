@@ -48,20 +48,28 @@ export function RegistrationQualityList({
   responsavelId,
 }: RegistrationQualityListProps) {
   const { data: candidates, isLoading } = useRegistrationQualityPanel(responsavelId);
-  const [fieldFilter, setFieldFilter] = useState<Set<FilterableFieldKey>>(new Set());
+  // null = filtro inativo (mostra todos). Set vazio = filtro ativo pedindo
+  // "nenhum campo além do nome" (caso contrário indistinguível de "sem filtro").
+  const [fieldFilter, setFieldFilter] = useState<Set<FilterableFieldKey> | null>(null);
+
+  const isOnlyNameActive = fieldFilter !== null && fieldFilter.size === 0;
+
+  const toggleOnlyName = () => {
+    setFieldFilter((prev) => (prev !== null && prev.size === 0 ? null : new Set()));
+  };
 
   const toggleField = (key: FilterableFieldKey) => {
     setFieldFilter((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev ?? []);
       if (next.has(key)) next.delete(key);
       else next.add(key);
-      return next;
+      return next.size === 0 ? null : next;
     });
   };
 
   const filteredCandidates = useMemo(() => {
     if (!candidates) return [];
-    if (fieldFilter.size === 0) return candidates;
+    if (fieldFilter === null) return candidates;
     return candidates.filter((client) => sameSet(getFilledKeys(client), fieldFilter));
   }, [candidates, fieldFilter]);
 
@@ -72,13 +80,21 @@ export function RegistrationQualityList({
           <Filter className="h-3.5 w-3.5" />
           Nome + só isso preenchido:
         </div>
+
+        <label className="flex items-center gap-1.5 cursor-pointer select-none pr-4 border-r border-slate-200 dark:border-slate-800">
+          <Checkbox checked={isOnlyNameActive} onCheckedChange={toggleOnlyName} />
+          <Label className="text-sm font-normal cursor-pointer">
+            Só nome (nada mais)
+          </Label>
+        </label>
+
         {FILTERABLE_FIELDS.map((field) => (
           <label
             key={field.key}
             className="flex items-center gap-1.5 cursor-pointer select-none"
           >
             <Checkbox
-              checked={fieldFilter.has(field.key)}
+              checked={fieldFilter?.has(field.key) ?? false}
               onCheckedChange={() => toggleField(field.key)}
             />
             <Label className="text-sm font-normal cursor-pointer">
