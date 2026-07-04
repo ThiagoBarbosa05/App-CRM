@@ -259,6 +259,27 @@ export default function Clients() {
     purchaseStatusDays,
   });
 
+  const { data: healthData, isLoading: isLoadingHealth } = useQuery<{
+    total: number;
+    active: number;
+    inactive: number;
+    incomplete: number;
+  }>({
+    queryKey: ["/api/clients/health", user?.id, user?.role, purchaseStatusDays],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (user?.role === "vendedor" && user?.id) {
+        params.append("userId", user.id);
+        params.append("userRole", user.role);
+      }
+      params.append("purchaseStatusDays", String(purchaseStatusDays));
+      const res = await fetch(`/api/clients/health?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch health data");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
   // ── Retrátil + Date range para setor de análises ──────────────────────────
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -383,6 +404,77 @@ export default function Clients() {
           </Button>
         </PageHeader.Actions>
       </PageHeader>
+
+      {/* Saúde da Carteira de Clientes */}
+      <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md px-5 py-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
+            <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Saúde da Carteira de Clientes</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Visão geral do estado atual da carteira</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Total */}
+          <div className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/40">
+              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Total na carteira</p>
+              {isLoadingHealth ? (
+                <div className="h-6 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-0.5" />
+              ) : (
+                <p className="text-xl font-black text-blue-600 dark:text-blue-400">{(healthData?.total ?? 0).toLocaleString("pt-BR")}</p>
+              )}
+            </div>
+          </div>
+          {/* Ativos */}
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-900/10 px-4 py-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
+              <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-500">Ativos</p>
+              {isLoadingHealth ? (
+                <div className="h-6 w-12 bg-emerald-200 dark:bg-emerald-700/40 rounded animate-pulse mt-0.5" />
+              ) : (
+                <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{(healthData?.active ?? 0).toLocaleString("pt-BR")}</p>
+              )}
+            </div>
+          </div>
+          {/* Inativos */}
+          <div className="flex items-center gap-3 rounded-xl border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-900/10 px-4 py-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/40">
+              <Phone className="h-5 w-5 text-red-500 dark:text-red-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-400 dark:text-red-500">Inativos</p>
+              {isLoadingHealth ? (
+                <div className="h-6 w-12 bg-red-200 dark:bg-red-700/40 rounded animate-pulse mt-0.5" />
+              ) : (
+                <p className="text-xl font-black text-red-500 dark:text-red-400">{(healthData?.inactive ?? 0).toLocaleString("pt-BR")}</p>
+              )}
+            </div>
+          </div>
+          {/* Cadastro incompleto */}
+          <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${(healthData?.incomplete ?? 0) > 0 ? "animate-slow-pulse border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/10" : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900"}`}>
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${(healthData?.incomplete ?? 0) > 0 ? "bg-amber-100 dark:bg-amber-900/40" : "bg-slate-100 dark:bg-slate-800"}`}>
+              <MapPin className={`h-5 w-5 ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400"}`} />
+            </div>
+            <div>
+              <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-500 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}`}>Cadastro incompleto</p>
+              {isLoadingHealth ? (
+                <div className="h-6 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-0.5" />
+              ) : (
+                <p className={`text-xl font-black ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-500"}`}>{(healthData?.incomplete ?? 0).toLocaleString("pt-BR")}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Análise de Clientes + Análise Comercial — retrátil + abas */}
       <div className="space-y-4">
