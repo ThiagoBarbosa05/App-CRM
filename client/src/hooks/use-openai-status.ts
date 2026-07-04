@@ -8,11 +8,26 @@ export interface OpenAIStatus {
   lastError: string | null;
 }
 
+export interface OpenAIConfig {
+  models: { chat: string; test: string; profile: string };
+  defaults: { temperature: number; maxTokens: number };
+  uses: string[];
+  keyHint: string | null;
+  configured: boolean;
+}
+
 const STATUS_QUERY_KEY = ["/api/integrations/openai/status"];
+const CONFIG_QUERY_KEY = ["/api/integrations/openai/config"];
 
 export function useOpenAIStatus() {
   return useQuery<OpenAIStatus>({
     queryKey: STATUS_QUERY_KEY,
+  });
+}
+
+export function useOpenAIConfig() {
+  return useQuery<OpenAIConfig>({
+    queryKey: CONFIG_QUERY_KEY,
   });
 }
 
