@@ -2,8 +2,13 @@ const TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token";
 const CPF_URL = "https://integracao.assertivasolucoes.com.br/v3/cpf";
 const CPF_LOCALIZE_URL = "https://integracao.assertivasolucoes.com.br/v3/localize/pf";
 
+const PROACTIVE_REFRESH_WINDOW_MS = 5 * 60 * 1000;
+
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
+let lastRefreshAt: number | null = null;
+let lastError: string | null = null;
+let refreshInFlight: Promise<string> | null = null;
 
 async function fetchNewToken(): Promise<{ access_token: string; expires_in: number }> {
   const clientId = process.env.ASSERTIVA_CLIENT_ID?.trim();
@@ -48,6 +53,26 @@ async function fetchNewToken(): Promise<{ access_token: string; expires_in: numb
   return data;
 }
 
+async function refreshToken(): Promise<string> {
+  try {
+    const tokenData = await fetchNewToken();
+
+    cachedToken = tokenData.access_token;
+
+    const expiresInSeconds = Number(tokenData.expires_in) > 0 ? Number(tokenData.expires_in) : 1800;
+    const buffer = Math.min(60, Math.floor(expiresInSeconds / 2));
+    tokenExpiresAt = Date.now() + (expiresInSeconds - buffer) * 1000;
+
+    lastRefreshAt = Date.now();
+    lastError = null;
+
+    return cachedToken;
+  } catch (err: any) {
+    lastError = err?.message ?? "Erro desconhecido ao renovar token da Assertiva";
+    throw err;
+  }
+}
+
 async function getToken(): Promise<string> {
   const now = Date.now();
 
@@ -55,14 +80,52 @@ async function getToken(): Promise<string> {
     return cachedToken;
   }
 
-  const tokenData = await fetchNewToken();
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
 
-  cachedToken = tokenData.access_token;
+  refreshInFlight = refreshToken().finally(() => {
+    refreshInFlight = null;
+  });
 
-  const expiresInSeconds = Number(tokenData.expires_in) > 0 ? Number(tokenData.expires_in) : 1800;
-  tokenExpiresAt = Date.now() + Math.max(expiresInSeconds - 60, 60) * 1000;
+  return refreshInFlight;
+}
 
-  return cachedToken;
+export async function ensureFreshToken(): Promise<void> {
+  const now = Date.now();
+  const needsRefresh =
+    !cachedToken || tokenExpiresAt - now < PROACTIVE_REFRESH_WINDOW_MS;
+
+  if (!needsRefresh) {
+    return;
+  }
+
+  try {
+    await getToken();
+  } catch {
+    // lastError já foi registrado em refreshToken(); o cron não deve derrubar o processo.
+  }
+}
+
+export function getAssertivaStatus() {
+  const configured = !!(
+    process.env.ASSERTIVA_CLIENT_ID?.trim() && process.env.ASSERTIVA_CLIENT_SECRET?.trim()
+  );
+
+  return {
+    configured,
+    connected: !!cachedToken && Date.now() < tokenExpiresAt,
+    tokenExpiresAt: cachedToken ? new Date(tokenExpiresAt).toISOString() : null,
+    lastRefreshAt: lastRefreshAt ? new Date(lastRefreshAt).toISOString() : null,
+    lastError,
+  };
+}
+
+export async function forceRefreshAssertivaToken() {
+  cachedToken = null;
+  tokenExpiresAt = 0;
+  await getToken();
+  return getAssertivaStatus();
 }
 
 async function doConsultarCPF(cpf: string, token: string) {

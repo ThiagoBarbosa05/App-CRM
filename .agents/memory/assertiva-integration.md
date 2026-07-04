@@ -6,7 +6,7 @@ description: Authentication format and known issues for Assertiva CPF lookup API
 # Assertiva API — Integração CPF
 
 ## Endpoint correto
-- Token: `POST https://integracao.assertivasolucoes.com.br/v3/token`
+- Token: `POST https://api.assertivasolucoes.com.br/oauth2/v3/token`
 - CPF: `GET https://integracao.assertivasolucoes.com.br/v3/cpf/{cpf}`
 
 ## Formato de autenticação

@@ -87,6 +87,7 @@ import whatsappFlowsRouter from "./whatsapp-flows.routes";
 import whatsappMonitorRouter from "./whatsapp-monitor.routes";
 import { umblerTagImportRouter } from "./umbler-tag-import.routes";
 import { mediaLibraryRouter } from "./media-library.routes";
+import assertivaRouter from "./assertiva.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -188,3 +189,4 @@ apiRouter.use("/notes", notesRouter);
 apiRouter.use("/task-file-folders", taskFileFoldersRouter);
 apiRouter.use("/task-files", taskFilesRouter);
 apiRouter.use("/media-library", mediaLibraryRouter);
+apiRouter.use("/integrations/assertiva", assertivaRouter);

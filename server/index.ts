@@ -7,6 +7,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
 import "./jobs/update-expired-events-scheduler";
 import "./jobs/bling-token-refresh-scheduler";
+import "./jobs/assertiva-token-refresh-scheduler";
 import "./jobs/campaign-dispatcher";
 import "./jobs/whatsapp-campaign-dispatcher";
 import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";

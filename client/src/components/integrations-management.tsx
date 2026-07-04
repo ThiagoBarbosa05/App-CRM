@@ -11,6 +11,8 @@ import { WhatsappSettingsManagement } from "@/components/whatsapp-settings-manag
 import { useQuery } from "@tanstack/react-query";
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
 import { useWhatsappStatus } from "@/hooks/use-whatsapp-settings";
+import { useAssertivaStatus } from "@/hooks/use-assertiva-status";
+import { AssertivaIntegrationManagement } from "@/components/assertiva-integration-management";
 import { cn } from "@/lib/utils";
 
 interface TelephonyStatus {
@@ -77,11 +79,13 @@ export function IntegrationsManagement() {
   });
 
   const { data: waStatus } = useWhatsappStatus();
+  const { data: assertivaStatus } = useAssertivaStatus();
 
   const blingConnected = blingConnections.some((c) => c.status === "connected");
   const twilioActive = telephonyStatus?.twilio ?? false;
   const elevenLabsActive = telephonyStatus?.elevenlabs ?? false;
   const waActive = (waStatus?.enabled && waStatus?.configured) ?? false;
+  const assertivaActive = assertivaStatus?.connected ?? false;
 
   return (
     <div className="space-y-6">
@@ -150,6 +154,18 @@ export function IntegrationsManagement() {
             />
             <StatusDot active={waActive} />
           </PillTabsTrigger>
+
+          <PillTabsTrigger
+            value="assertiva"
+            color="amber"
+            className="gap-2.5 px-4 py-2.5"
+            title="Assertiva"
+          >
+            <span className="text-[0.8rem] font-bold leading-none tracking-tight">
+              Assertiva
+            </span>
+            <StatusDot active={assertivaActive} />
+          </PillTabsTrigger>
         </PillTabsList>
 
         <AppTabsContent value="bling" className="mt-0">
@@ -166,6 +182,10 @@ export function IntegrationsManagement() {
 
         <AppTabsContent value="whatsapp" className="mt-0">
           <WhatsappSettingsManagement />
+        </AppTabsContent>
+
+        <AppTabsContent value="assertiva" className="mt-0">
+          <AssertivaIntegrationManagement />
         </AppTabsContent>
       </AppTabs>
     </div>
