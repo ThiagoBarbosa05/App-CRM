@@ -1287,13 +1287,11 @@ export class DatabaseStorage implements IStorage {
           imageUrl: products.imageUrl,
           aiProfile: products.aiProfile,
           aiProfileGeneratedAt: products.aiProfileGeneratedAt,
-          clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
         })
         .from(products)
         .leftJoin(users, eq(products.createdBy, users.id))
-        .leftJoin(companyProducts, eq(products.id, companyProducts.productId))
-        .groupBy(products.id, users.name)
         .orderBy(asc(products.name));
+
       const conditions: any[] = [];
 
       if (filters.name) {
@@ -1322,10 +1320,53 @@ export class DatabaseStorage implements IStorage {
         .where(and(...conditions));
 
       const offset = (page - 1) * pageSize;
-      const result = await query.limit(pageSize).offset(offset);
-      const total = await totalQuery;
+      const [pageRows, totalResult] = await Promise.all([
+        query.limit(pageSize).offset(offset),
+        totalQuery,
+      ]);
 
-      return { data: result, total: total[0].count };
+      if (pageRows.length === 0) {
+        return { data: [], total: totalResult[0].count };
+      }
+
+      // Compute buyer counts for this page's products via raw SQL to avoid ORM aliasing issues
+      const pageIds = pageRows.map((p) => p.id);
+      const idList = sql.join(pageIds.map((id) => sql`${id}`), sql`, `);
+
+      const buyerRows = await this.db.execute(sql`
+        WITH all_buyers AS (
+          SELECT p2.id AS product_id, bo.app_client_id
+          FROM bling_order_items boi
+          INNER JOIN bling_orders bo ON bo.id = boi.order_id
+          INNER JOIN products p2 ON p2.bling_product_id = boi.product_id
+          WHERE bo.app_client_id IS NOT NULL
+            AND bo.deleted_at IS NULL
+            AND p2.id IN (${idList})
+
+          UNION
+
+          SELECT p2.id AS product_id, co.app_client_id
+          FROM connect_order_items coi
+          INNER JOIN connect_orders co ON co.id = coi.order_id
+          INNER JOIN products p2 ON UPPER(coi.product_name) LIKE UPPER('%' || p2.name || '%')
+          WHERE co.app_client_id IS NOT NULL
+            AND p2.id IN (${idList})
+        )
+        SELECT product_id, COUNT(DISTINCT app_client_id)::int AS cnt
+        FROM all_buyers
+        GROUP BY product_id
+      `);
+
+      const countMap = new Map<string, number>(
+        (buyerRows.rows as any[]).map((r) => [r.product_id, r.cnt]),
+      );
+
+      const data = pageRows.map((p) => ({
+        ...p,
+        clientCount: countMap.get(p.id) ?? 0,
+      }));
+
+      return { data, total: totalResult[0].count };
     } catch (error) {
       console.error("Erro na query getProducts:", error);
       throw error;
@@ -4662,7 +4703,7 @@ export class DatabaseStorage implements IStorage {
 
   async getProductsWithClientCount() {
     try {
-      const result = await db
+      const rows = await db
         .select({
           id: products.id,
           name: products.name,
@@ -4673,15 +4714,45 @@ export class DatabaseStorage implements IStorage {
           createdBy: products.createdBy,
           createdAt: products.createdAt,
           createdByName: users.name,
-          clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
         })
         .from(products)
         .leftJoin(users, eq(products.createdBy, users.id))
-        .leftJoin(companyProducts, eq(products.id, companyProducts.productId))
-        .groupBy(products.id, users.name)
         .orderBy(asc(products.name));
 
-      return result;
+      if (rows.length === 0) return [];
+
+      const allIds = rows.map((p) => p.id);
+      const idList = sql.join(allIds.map((id) => sql`${id}`), sql`, `);
+
+      const buyerRows = await db.execute(sql`
+        WITH all_buyers AS (
+          SELECT p2.id AS product_id, bo.app_client_id
+          FROM bling_order_items boi
+          INNER JOIN bling_orders bo ON bo.id = boi.order_id
+          INNER JOIN products p2 ON p2.bling_product_id = boi.product_id
+          WHERE bo.app_client_id IS NOT NULL
+            AND bo.deleted_at IS NULL
+            AND p2.id IN (${idList})
+
+          UNION
+
+          SELECT p2.id AS product_id, co.app_client_id
+          FROM connect_order_items coi
+          INNER JOIN connect_orders co ON co.id = coi.order_id
+          INNER JOIN products p2 ON UPPER(coi.product_name) LIKE UPPER('%' || p2.name || '%')
+          WHERE co.app_client_id IS NOT NULL
+            AND p2.id IN (${idList})
+        )
+        SELECT product_id, COUNT(DISTINCT app_client_id)::int AS cnt
+        FROM all_buyers
+        GROUP BY product_id
+      `);
+
+      const countMap = new Map<string, number>(
+        (buyerRows.rows as any[]).map((r) => [r.product_id, r.cnt]),
+      );
+
+      return rows.map((p) => ({ ...p, clientCount: countMap.get(p.id) ?? 0 }));
     } catch (error) {
       console.error("Error fetching products with client count:", error);
       throw error;
@@ -4923,20 +4994,100 @@ export class DatabaseStorage implements IStorage {
         aiProfile: products.aiProfile,
         aiProfileGeneratedAt: products.aiProfileGeneratedAt,
         createdByName: users.name,
-        clientCount: sql<number>`CAST(COUNT(DISTINCT ${companyProducts.companyId}) AS INTEGER)`,
       })
       .from(products)
       .leftJoin(users, eq(products.createdBy, users.id))
-      .leftJoin(companyProducts, eq(products.id, companyProducts.productId))
-      .where(and(eq(products.id, productId), isNull(products.deletedAt)))
-      .groupBy(products.id, users.name);
-    return result ?? null;
+      .where(and(eq(products.id, productId), isNull(products.deletedAt)));
+
+    if (!result) return null;
+
+    const buyerRows = await db.execute(sql`
+      SELECT COUNT(DISTINCT app_client_id)::int AS cnt FROM (
+        SELECT bo.app_client_id
+        FROM bling_order_items boi
+        INNER JOIN bling_orders bo ON bo.id = boi.order_id
+        INNER JOIN products p2 ON (
+          p2.bling_product_id = boi.product_id::text
+          OR UPPER(boi.description) = UPPER(p2.name)
+        )
+        WHERE bo.app_client_id IS NOT NULL
+          AND bo.deleted_at IS NULL
+          AND p2.deleted_at IS NULL
+          AND p2.id = ${productId}
+
+        UNION
+
+        SELECT co.app_client_id
+        FROM connect_order_items coi
+        INNER JOIN connect_orders co ON co.id = coi.order_id
+        INNER JOIN products p2 ON UPPER(coi.product_name) LIKE UPPER('%' || p2.name || '%')
+        WHERE co.app_client_id IS NOT NULL
+          AND p2.deleted_at IS NULL
+          AND p2.id = ${productId}
+      ) _buyers
+    `);
+
+    const clientCount = (buyerRows.rows[0] as any)?.cnt ?? 0;
+    return { ...result, clientCount };
   }
 
-  async getProductProfile(productId: string) {
+  async getProductAllBuyers(productId: string) {
+    const rows = await db.execute(sql`
+      WITH all_purchases AS (
+        SELECT bo.app_client_id,
+               bo.sale_date::text AS purchase_date,
+               boi.quantity::numeric AS qty
+        FROM bling_order_items boi
+        INNER JOIN bling_orders bo ON bo.id = boi.order_id
+        INNER JOIN products p ON (
+          p.bling_product_id = boi.product_id::text
+          OR UPPER(boi.description) = UPPER(p.name)
+        )
+        WHERE bo.app_client_id IS NOT NULL
+          AND bo.deleted_at IS NULL
+          AND p.deleted_at IS NULL
+          AND p.id = ${productId}
+
+        UNION ALL
+
+        SELECT co.app_client_id,
+               co.sale_date::date::text AS purchase_date,
+               coi.quantity::numeric AS qty
+        FROM connect_order_items coi
+        INNER JOIN connect_orders co ON co.id = coi.order_id
+        INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
+        WHERE co.app_client_id IS NOT NULL
+          AND p.id = ${productId}
+      ),
+      buyer_agg AS (
+        SELECT app_client_id,
+               MAX(purchase_date) AS last_purchase,
+               SUM(qty)::numeric AS total_quantity
+        FROM all_purchases
+        GROUP BY app_client_id
+      )
+      SELECT c.id, c.name, c.phone, c.email, c.city, c.state,
+             ba.last_purchase, ba.total_quantity
+      FROM buyer_agg ba
+      INNER JOIN clients c ON c.id = ba.app_client_id
+      ORDER BY ba.last_purchase DESC NULLS LAST
+    `);
+    return rows.rows as {
+      id: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+      city: string | null;
+      state: string | null;
+      last_purchase: string | null;
+      total_quantity: number;
+    }[];
+  }
+
+  async getProductProfile(productId: string, startDate?: string, endDate?: string) {
     try {
-      const twelveMonthsAgo = format(subMonths(new Date(), 12), "yyyy-MM-dd");
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = endDate ?? format(new Date(), "yyyy-MM-dd");
+      const twelveMonthsAgo = startDate ?? format(subMonths(new Date(), 12), "yyyy-MM-dd");
 
       const baseConditions = and(
         eq(products.id, productId),
@@ -4945,52 +5096,138 @@ export class DatabaseStorage implements IStorage {
         sql`${blingOrders.saleDate} <= ${today}`,
       );
 
-      // Summary stats
-      const [summary] = await this.db
-        .select({
-          totalRevenue: sql<string>`COALESCE(SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric), 0)`,
-          totalQuantity: sql<string>`COALESCE(SUM(${blingOrderItems.quantity}::numeric), 0)`,
-          orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
-          buyerCount: sql<number>`COUNT(DISTINCT ${blingOrders.companyId})::int`,
-        })
-        .from(products)
-        .leftJoin(
-          blingOrderItems,
-          eq(blingOrderItems.productId, products.blingProductId),
-        )
-        .leftJoin(
-          blingOrders,
-          and(
-            eq(blingOrderItems.orderId, blingOrders.id),
-            isNull(blingOrders.deletedAt),
-            sql`${blingOrders.saleDate} >= ${twelveMonthsAgo}`,
-            sql`${blingOrders.saleDate} <= ${today}`,
-          ),
-        )
-        .where(eq(products.id, productId));
+      // Summary stats — duas queries separadas para garantir clareza
+      // Query 1: bling (revenue + qty + orders + buyers)
+      const blingSummaryRows = await db.execute(sql`
+        SELECT
+          COALESCE(SUM(boi.quantity::numeric * boi.value::numeric), 0)::text  AS total_revenue,
+          COALESCE(SUM(boi.quantity::numeric), 0)::text                        AS total_quantity,
+          COUNT(DISTINCT bo.id)::int                                            AS order_count,
+          COUNT(DISTINCT bo.app_client_id)::int                                 AS buyer_count
+        FROM bling_order_items boi
+        INNER JOIN bling_orders bo ON bo.id = boi.order_id
+        INNER JOIN products p ON p.bling_product_id = boi.product_id
+        WHERE bo.deleted_at IS NULL
+          AND bo.sale_date >= ${twelveMonthsAgo}
+          AND bo.sale_date <= ${today}
+          AND p.id = ${productId}
+      `);
+      const blingRow = (blingSummaryRows.rows[0] as any) ?? {};
 
-      // Month-by-month history
-      const monthlyHistory = await this.db
-        .select({
-          month: sql<string>`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM')`,
-          totalRevenue: sql<string>`SUM(${blingOrderItems.quantity}::numeric * ${blingOrderItems.value}::numeric)`,
-          totalQuantity: sql<string>`SUM(${blingOrderItems.quantity}::numeric)`,
-          orderCount: sql<number>`COUNT(DISTINCT ${blingOrders.id})::int`,
-        })
-        .from(blingOrderItems)
-        .innerJoin(blingOrders, eq(blingOrderItems.orderId, blingOrders.id))
-        .innerJoin(
-          products,
-          eq(blingOrderItems.productId, products.blingProductId),
+      // Query 2: connect — distribui total_value do pedido proporcionalmente por quantidade de item
+      const connectSummaryRows = await db.execute(sql`
+        WITH order_totals AS (
+          SELECT order_id,
+            SUM(CASE WHEN quantity::text = 'NaN' THEN 0 ELSE quantity::numeric END) AS total_qty
+          FROM connect_order_items
+          GROUP BY order_id
         )
-        .where(baseConditions)
-        .groupBy(
-          sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM')`,
-        )
-        .orderBy(
-          sql`TO_CHAR(TO_DATE(${blingOrders.saleDate}, 'YYYY-MM-DD'), 'YYYY-MM') ASC`,
-        );
+        SELECT
+          COALESCE(SUM(
+            CASE WHEN co.total_value::text = 'NaN' THEN 0
+                 ELSE co.total_value::numeric * coi.quantity::numeric / NULLIF(ot.total_qty, 0)
+            END
+          ), 0)::text                      AS total_revenue,
+          COALESCE(SUM(coi.quantity::numeric), 0)::text AS total_quantity,
+          COUNT(DISTINCT co.id)::int        AS order_count,
+          COUNT(DISTINCT co.app_client_id)::int AS buyer_count
+        FROM connect_order_items coi
+        INNER JOIN connect_orders co ON co.id = coi.order_id
+        INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
+        INNER JOIN order_totals ot ON ot.order_id = coi.order_id
+        WHERE co.sale_date::date >= ${twelveMonthsAgo}::date
+          AND co.sale_date::date <= ${today}::date
+          AND p.id = ${productId}
+      `);
+      const connectRow = (connectSummaryRows.rows[0] as any) ?? {};
 
+      const summary = {
+        totalRevenue: (
+          parseFloat(blingRow.total_revenue ?? "0") +
+          parseFloat(connectRow.total_revenue ?? "0")
+        ).toString(),
+        totalQuantity: (
+          parseFloat(blingRow.total_quantity ?? "0") +
+          parseFloat(connectRow.total_quantity ?? "0")
+        ).toString(),
+        orderCount: (blingRow.order_count ?? 0) + (connectRow.order_count ?? 0),
+        buyerCount: (blingRow.buyer_count ?? 0) + (connectRow.buyer_count ?? 0),
+      };
+
+      // Month-by-month history — bling (revenue) + connect (qty) por mês
+      // Agrega cada fonte ANTES do JOIN para evitar produto cartesiano
+      const monthlyHistoryRows = await db.execute(sql`
+        WITH bling_raw AS (
+          SELECT
+            TO_CHAR(TO_DATE(bo.sale_date, 'YYYY-MM-DD'), 'YYYY-MM')  AS month,
+            boi.quantity::numeric                                      AS qty,
+            (boi.quantity::numeric * boi.value::numeric)              AS revenue,
+            bo.id::text                                               AS order_id
+          FROM bling_order_items boi
+          INNER JOIN bling_orders bo ON bo.id = boi.order_id
+          INNER JOIN products p ON p.bling_product_id = boi.product_id
+          WHERE bo.deleted_at IS NULL
+            AND bo.sale_date >= ${twelveMonthsAgo}
+            AND bo.sale_date <= ${today}
+            AND p.id = ${productId}
+        ),
+        order_totals AS (
+          SELECT order_id,
+            SUM(CASE WHEN quantity::text = 'NaN' THEN 0 ELSE quantity::numeric END) AS total_qty
+          FROM connect_order_items
+          GROUP BY order_id
+        ),
+        connect_raw AS (
+          SELECT
+            TO_CHAR(co.sale_date::date, 'YYYY-MM')                                         AS month,
+            coi.quantity::numeric                                                            AS qty,
+            CASE WHEN co.total_value::text = 'NaN' THEN 0
+                 ELSE co.total_value::numeric * coi.quantity::numeric / NULLIF(ot.total_qty, 0)
+            END                                                                             AS revenue,
+            co.id::text                                                                     AS order_id
+          FROM connect_order_items coi
+          INNER JOIN connect_orders co ON co.id = coi.order_id
+          INNER JOIN products p ON UPPER(coi.product_name) LIKE UPPER('%' || p.name || '%')
+          INNER JOIN order_totals ot ON ot.order_id = coi.order_id
+          WHERE co.sale_date::date >= ${twelveMonthsAgo}::date
+            AND co.sale_date::date <= ${today}::date
+            AND p.id = ${productId}
+        ),
+        bling_agg AS (
+          SELECT month,
+                 SUM(revenue)              AS revenue,
+                 SUM(qty)                  AS qty,
+                 COUNT(DISTINCT order_id)  AS orders
+          FROM bling_raw GROUP BY month
+        ),
+        connect_agg AS (
+          SELECT month,
+                 SUM(qty)                  AS qty,
+                 SUM(revenue)              AS revenue,
+                 COUNT(DISTINCT order_id)  AS orders
+          FROM connect_raw GROUP BY month
+        ),
+        all_months AS (
+          SELECT month FROM bling_agg
+          UNION
+          SELECT month FROM connect_agg
+        )
+        SELECT
+          m.month,
+          (COALESCE(ba.revenue, 0) + COALESCE(ca.revenue, 0))::text             AS total_revenue,
+          COALESCE(ba.qty + ca.qty, ba.qty, ca.qty, 0)::text                    AS total_quantity,
+          (COALESCE(ba.orders, 0) + COALESCE(ca.orders, 0))::int                AS order_count
+        FROM all_months m
+        LEFT JOIN bling_agg   ba ON ba.month = m.month
+        LEFT JOIN connect_agg ca ON ca.month = m.month
+        ORDER BY m.month ASC
+      `);
+      const monthlyHistory = (monthlyHistoryRows.rows as any[]).map((r) => ({
+        month: r.month as string,
+        totalRevenue: r.total_revenue as string,
+        totalQuantity: r.total_quantity as string,
+        orderCount: r.order_count as number,
+      }));
       // Buyers
       const buyers = await this.db
         .select({

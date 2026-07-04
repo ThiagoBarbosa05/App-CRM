@@ -356,9 +356,22 @@ async function listAllOrderMetrics(clientId: string) {
 
 async function listProductMix(clientId: string) {
   const result = await db.execute(sql`
-    WITH all_items AS (
+    WITH code_to_product AS (
+      SELECT DISTINCT ON (boi2.product_code)
+        boi2.product_code,
+        p2.id AS internal_id
+      FROM bling_order_items boi2
+      INNER JOIN products p2 ON p2.bling_product_id = boi2.product_id::text AND p2.deleted_at IS NULL
+      WHERE boi2.product_code IS NOT NULL
+      ORDER BY boi2.product_code, p2.id
+    ),
+    all_items AS (
       SELECT
-        boi.product_id::text AS product_id,
+        COALESCE(
+          p_direct.id,
+          ctp.internal_id,
+          p_name.id
+        )::text AS product_id,
         boi.product_code AS product_code,
         boi.description AS description,
         boi.order_id::text AS order_id,
@@ -367,6 +380,9 @@ async function listProductMix(clientId: string) {
         bo.sale_date::text AS sale_date
       FROM bling_order_items boi
       INNER JOIN bling_orders bo ON boi.order_id = bo.id
+      LEFT JOIN products p_direct ON p_direct.bling_product_id = boi.product_id::text AND p_direct.deleted_at IS NULL
+      LEFT JOIN code_to_product ctp ON ctp.product_code = boi.product_code AND p_direct.id IS NULL
+      LEFT JOIN products p_name ON UPPER(boi.description) = UPPER(p_name.name) AND p_name.deleted_at IS NULL AND p_direct.id IS NULL AND ctp.internal_id IS NULL
       WHERE bo.deleted_at IS NULL
         AND bo.app_client_id = ${clientId}
 

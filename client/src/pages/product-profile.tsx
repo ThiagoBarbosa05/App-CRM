@@ -1,13 +1,19 @@
 import React, { useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -59,6 +65,17 @@ interface WineAIProfile {
   estilo: string;
   harmonizacao: string[];
   descricao: string;
+}
+
+interface BuyerClient {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  city: string | null;
+  state: string | null;
+  last_purchase: string | null;
+  total_quantity: number;
 }
 
 interface ProductData {
@@ -144,15 +161,20 @@ function SummaryCard({
   value,
   sub,
   color,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub?: string;
   color: string;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="border border-border bg-card shadow-sm">
+    <Card
+      className={`border border-border bg-card shadow-sm ${onClick ? "cursor-pointer hover:shadow-md hover:border-primary/30 transition-all" : ""}`}
+      onClick={onClick}
+    >
       <CardContent className="p-5">
         <div className="flex items-start gap-3">
           <div className={`p-2.5 rounded-xl ${color} shrink-0`}>{icon}</div>
@@ -364,8 +386,43 @@ function SensoryGauge({
 
 export default function ProductProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("details");
+  const [location, navigate] = useLocation();
+  const initialTab = new URLSearchParams(window.location.search).get("tab") ?? "details";
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [showBuyersModal, setShowBuyersModal] = useState(false);
+  const [period, setPeriod] = useState<"12m" | "6m" | "3m" | "last" | "current">("12m");
+
+  const PERIOD_OPTIONS: { value: typeof period; label: string }[] = [
+    { value: "12m", label: "12 meses" },
+    { value: "6m", label: "6 meses" },
+    { value: "3m", label: "3 meses" },
+    { value: "last", label: "Mês passado" },
+    { value: "current", label: "Este mês" },
+  ];
+
+  const periodDates = (() => {
+    const now = new Date();
+    switch (period) {
+      case "6m":
+        return { start: format(subMonths(now, 6), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+      case "3m":
+        return { start: format(subMonths(now, 3), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+      case "last":
+        return {
+          start: format(startOfMonth(subMonths(now, 1)), "yyyy-MM-dd"),
+          end: format(endOfMonth(subMonths(now, 1)), "yyyy-MM-dd"),
+        };
+      case "current":
+        return { start: format(startOfMonth(now), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+      default:
+        return { start: format(subMonths(now, 12), "yyyy-MM-dd"), end: format(now, "yyyy-MM-dd") };
+    }
+  })();
+
+  const periodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "12 meses";
+  const [buyersPage, setBuyersPage] = useState(1);
+  const [buyersSort, setBuyersSort] = useState<"recent" | "quantity">("recent");
+  const BUYERS_PAGE_SIZE = 25;
   const { toast } = useToast();
   const [aiProfile, setAiProfile] = React.useState<WineAIProfile | null>(null);
 
@@ -407,14 +464,26 @@ export default function ProductProfilePage() {
   });
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery<ProfileData>({
-    queryKey: ["/api/products", id, "profile"],
+    queryKey: ["/api/products", id, "profile", period],
     queryFn: async () => {
-      const res = await fetch(`/api/products/${id}/profile`);
+      const params = new URLSearchParams({ startDate: periodDates.start, endDate: periodDates.end });
+      const res = await fetch(`/api/products/${id}/profile?${params}`);
       if (!res.ok) throw new Error("Erro ao buscar perfil");
       return res.json();
     },
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: allBuyers, isLoading: isLoadingBuyers } = useQuery<BuyerClient[]>({
+    queryKey: ["/api/products", id, "buyers"],
+    queryFn: async () => {
+      const res = await fetch(`/api/products/${id}/buyers`);
+      if (!res.ok) throw new Error("Erro ao buscar compradores");
+      return res.json();
+    },
+    enabled: !!id && (activeTab === "buyers" || showBuyersModal),
+    staleTime: 5 * 60 * 1000,
   });
 
   const chartData =
@@ -502,9 +571,26 @@ export default function ProductProfilePage() {
 
       {/* Summary cards */}
       <div>
-        <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">
-          Últimos 12 meses
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+            {periodLabel}
+          </p>
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPeriod(opt.value)}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                  period === opt.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {isLoadingProfile ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {[1, 2, 3, 4, 5].map((i) => (
@@ -544,9 +630,11 @@ export default function ProductProfilePage() {
             />
             <SummaryCard
               icon={<Users className="h-5 w-5 text-pink-600" />}
-              label="Compradores únicos"
-              value={String(profile?.summary.buyerCount ?? 0)}
+              label="Alcance"
+              value={String(product?.clientCount ?? 0)}
+              sub="clientes distintos"
               color="bg-pink-100 dark:bg-pink-900/30"
+              onClick={() => setShowBuyersModal(true)}
             />
           </motion.div>
         )}
@@ -991,49 +1079,72 @@ export default function ProductProfilePage() {
 
         {/* Tab: Compradores */}
         <AppTabsContent value="buyers" className="mt-6">
-          {!isLoadingProfile && (profile?.buyers.length ?? 0) > 0 && (
-            <div className="flex justify-end mb-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => {
-                  const rows = [["Nome", "Celular", "Email"]];
-                  profile!.buyers.forEach((b) => {
-                    rows.push([
-                      b.companyName ?? b.companyId,
-                      b.celular ?? "",
-                      b.email ?? "",
-                    ]);
-                  });
-                  const csv = rows
-                    .map((r) =>
-                      r.map((v) => `"${v.replace(/"/g, '""')}"`).join(","),
-                    )
-                    .join("\n");
-                  const blob = new Blob(["﻿" + csv], {
-                    type: "text/csv;charset=utf-8;",
-                  });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `compradores_${product?.name ?? "produto"}.csv`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
-              >
-                <Download className="h-4 w-4" />
-                Exportar
-              </Button>
+          {!isLoadingBuyers && (allBuyers?.length ?? 0) > 0 && (
+            <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+              <p className="text-sm text-slate-500">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {allBuyers!.length}
+                </span>{" "}
+                compradores no total
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex rounded-xl border border-border overflow-hidden">
+                  <button
+                    className={`px-3 py-1.5 text-xs font-bold transition-colors ${buyersSort === "recent" ? "bg-primary text-white" : "bg-card text-slate-500 hover:bg-accent"}`}
+                    onClick={() => { setBuyersSort("recent"); setBuyersPage(1); }}
+                  >
+                    Mais recentes
+                  </button>
+                  <button
+                    className={`px-3 py-1.5 text-xs font-bold transition-colors border-l border-border ${buyersSort === "quantity" ? "bg-primary text-white" : "bg-card text-slate-500 hover:bg-accent"}`}
+                    onClick={() => { setBuyersSort("quantity"); setBuyersPage(1); }}
+                  >
+                    Mais compraram
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    const rows = [["Nome", "Telefone", "Email", "Cidade", "Estado", "Última compra", "Qtd. total"]];
+                    allBuyers!.forEach((b) => {
+                      rows.push([
+                        b.name,
+                        b.phone ?? "",
+                        b.email ?? "",
+                        b.city ?? "",
+                        b.state ?? "",
+                        b.last_purchase ?? "",
+                        String(b.total_quantity ?? 0),
+                      ]);
+                    });
+                    const csv = rows
+                      .map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(","))
+                      .join("\n");
+                    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `compradores_${product?.name ?? "produto"}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                  Exportar
+                </Button>
+              </div>
             </div>
           )}
-          {isLoadingProfile ? (
+
+          {isLoadingBuyers ? (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
                 <Skeleton key={i} className="h-16 rounded-xl" />
               ))}
             </div>
-          ) : (profile?.buyers.length ?? 0) === 0 ? (
+          ) : (allBuyers?.length ?? 0) === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="p-5 bg-accent rounded-full mb-4">
                 <Building2 className="h-10 w-10 text-primary" />
@@ -1042,61 +1153,173 @@ export default function ProductProfilePage() {
                 Nenhum comprador encontrado
               </p>
               <p className="text-sm text-slate-400 mt-1">
-                Sem compras registradas nos últimos 12 meses
+                Sem compras registradas para este produto
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {profile!.buyers.map((buyer, i) => (
-                <motion.div
-                  key={buyer.companyId}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="flex items-center gap-4 px-5 py-4 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors shadow-sm"
-                >
-                  <div className="h-9 w-9 rounded-xl bg-accent border border-border flex items-center justify-center text-sm font-black text-primary shrink-0">
-                    {i + 1}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-slate-800 dark:text-slate-200 truncate">
-                      {buyer.companyName ?? buyer.companyId}
-                    </p>
-                    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                      <span className="text-xs text-slate-400">
-                        {parseFloat(buyer.totalQuantity).toFixed(0)} unid.
-                      </span>
-                      <span className="text-slate-300 text-xs">·</span>
-                      <span className="text-xs text-slate-400">
-                        {buyer.orderCount} pedido
-                        {buyer.orderCount !== 1 ? "s" : ""}
-                      </span>
-                      <span className="text-slate-300 text-xs">·</span>
-                      <span className="text-xs text-slate-400">
-                        última compra{" "}
-                        {format(parseISO(buyer.lastPurchase), "dd/MM/yyyy")}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                        <Phone className="h-3.5 w-3.5 text-slate-400" />
-                        {buyer.celular || "Celular não informado"}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                        <Mail className="h-3.5 w-3.5 text-slate-400" />
-                        {buyer.email || "E-mail não informado"}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-base font-black text-primary shrink-0">
-                    {formatCurrency(parseFloat(buyer.totalRevenue))}
+            <>
+              <div className="space-y-2">
+                {[...allBuyers!]
+                  .sort((a, b) =>
+                    buyersSort === "quantity"
+                      ? Number(b.total_quantity) - Number(a.total_quantity)
+                      : (b.last_purchase ?? "").localeCompare(a.last_purchase ?? ""),
+                  )
+                  .slice((buyersPage - 1) * BUYERS_PAGE_SIZE, buyersPage * BUYERS_PAGE_SIZE)
+                  .map((buyer, i) => {
+                    const globalIndex = (buyersPage - 1) * BUYERS_PAGE_SIZE + i;
+                    return (
+                      <motion.div
+                        key={buyer.id}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.02 }}
+                        onClick={() => buyer.id && navigate(`/clientes/${buyer.id}`)}
+                        className={`flex items-center gap-4 px-5 py-4 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors shadow-sm ${buyer.id ? "cursor-pointer" : ""}`}
+                      >
+                        <div className="h-9 w-9 rounded-xl bg-accent border border-border flex items-center justify-center text-sm font-black text-primary shrink-0">
+                          {globalIndex + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {buyer.name}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap">
+                            {buyer.phone && (
+                              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                <Phone className="h-3.5 w-3.5 text-slate-400" />
+                                {buyer.phone}
+                              </span>
+                            )}
+                            {buyer.email && (
+                              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                <Mail className="h-3.5 w-3.5 text-slate-400" />
+                                {buyer.email}
+                              </span>
+                            )}
+                            {(buyer.city || buyer.state) && (
+                              <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                                <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                                {[buyer.city, buyer.state].filter(Boolean).join(" / ")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 space-y-1">
+                          <div>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wider">unid. compradas</p>
+                            <p className="text-sm font-bold text-primary">
+                              {Number(buyer.total_quantity).toFixed(0)}
+                            </p>
+                          </div>
+                          {buyer.last_purchase && (
+                            <div>
+                              <p className="text-[10px] text-slate-400 uppercase tracking-wider">última compra</p>
+                              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                                {format(new Date(buyer.last_purchase), "dd/MM/yyyy")}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+              </div>
+
+              {allBuyers!.length > BUYERS_PAGE_SIZE && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={buyersPage === 1}
+                    onClick={() => setBuyersPage((p) => p - 1)}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-slate-500">
+                    Página{" "}
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {buyersPage}
+                    </span>{" "}
+                    de{" "}
+                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                      {Math.ceil(allBuyers!.length / BUYERS_PAGE_SIZE)}
+                    </span>
                   </span>
-                </motion.div>
-              ))}
-            </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={buyersPage >= Math.ceil(allBuyers!.length / BUYERS_PAGE_SIZE)}
+                    onClick={() => setBuyersPage((p) => p + 1)}
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </AppTabsContent>
       </AppTabs>
+
+      {/* Modal: todos os compradores */}
+      <Dialog open={showBuyersModal} onOpenChange={setShowBuyersModal}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-pink-500" />
+              Alcance — {product?.clientCount ?? 0} clientes
+            </DialogTitle>
+          </DialogHeader>
+
+          {isLoadingBuyers ? (
+            <div className="space-y-3 overflow-y-auto flex-1 pr-1">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-14 rounded-xl" />
+              ))}
+            </div>
+          ) : (allBuyers?.length ?? 0) === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Users className="h-10 w-10 text-slate-300 mb-3" />
+              <p className="font-semibold text-slate-600 dark:text-slate-300">
+                Nenhum comprador encontrado
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-y-auto flex-1 space-y-2 pr-1">
+              {allBuyers!.map((buyer, i) => (
+                <div
+                  key={buyer.id}
+                  onClick={() => buyer.id && navigate(`/clientes/${buyer.id}`)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl bg-card border border-border hover:bg-muted/50 transition-colors ${buyer.id ? "cursor-pointer" : ""}`}
+                >
+                  <div className="h-8 w-8 rounded-lg bg-accent border border-border flex items-center justify-center text-xs font-black text-primary shrink-0">
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm truncate">
+                      {buyer.name}
+                    </p>
+                    <div className="flex items-center gap-3 flex-wrap mt-0.5">
+                      {buyer.phone && (
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                          <Phone className="h-3 w-3" />
+                          {buyer.phone}
+                        </span>
+                      )}
+                      {(buyer.city || buyer.state) && (
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                          <MapPin className="h-3 w-3" />
+                          {[buyer.city, buyer.state].filter(Boolean).join(" / ")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

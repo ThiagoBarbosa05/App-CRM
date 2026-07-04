@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useLocation } from "wouter";
 import {
   AlertCircle,
   ArrowRight,
@@ -145,6 +146,7 @@ function getRiskLabel(riskStatus: "ok" | "atencao" | "abandonado") {
 }
 
 export function ClientPurchaseInsights({ data }: ClientPurchaseInsightsProps) {
+  const [, navigate] = useLocation();
   const { predictiveAnalysis, summary, inactiveProducts } = data;
   const riskCount = inactiveProducts.length;
   const priorityCopy = getPriorityCopy(data);
@@ -294,8 +296,10 @@ export function ClientPurchaseInsights({ data }: ClientPurchaseInsightsProps) {
               return (
                 <div
                   key={`${product.productId ?? product.description}-${product.lastPurchaseDate ?? "none"}`}
+                  onClick={() => product.productId && navigate(`/products/${product.productId}`)}
                   className={cn(
-                    "relative overflow-hidden rounded-[20px] border bg-white px-4 py-4 dark:bg-slate-950/60",
+                    "relative overflow-hidden rounded-[20px] border bg-white px-4 py-4 dark:bg-slate-950/60 transition-colors",
+                    product.productId && "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50",
                     isAbandoned
                       ? "border-rose-200/60 dark:border-rose-800/30"
                       : "border-amber-200/60 dark:border-amber-800/30",

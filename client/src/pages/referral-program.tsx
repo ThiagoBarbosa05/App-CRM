@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
@@ -378,7 +378,7 @@ export default function ReferralProgramPage() {
   });
 
   // ── Configurações: busca template da mensagem
-  useQuery<{ value: string | null }>({
+  const { data: msgTemplateData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/system-settings/referral_message_template"],
     queryFn: () =>
       fetch("/api/system-settings/referral_message_template", {
@@ -386,15 +386,16 @@ export default function ReferralProgramPage() {
       }).then((r) => r.json()),
     staleTime: 0,
     refetchOnMount: true,
-    select: (data) => {
-      const val =
-        data?.value ??
-        "Olá {nome}! {indicador} te indicou para conhecer nossos produtos. Aproveite e entre em contato para saber mais! 😊";
-      setMsgTemplate(val);
-      setMsgTemplateDraft(val);
-      return data;
-    },
   });
+
+  useEffect(() => {
+    if (msgTemplateData === undefined) return;
+    const val =
+      msgTemplateData?.value ??
+      "Olá {nome}! {indicador} te indicou para conhecer nossos produtos. Aproveite e entre em contato para saber mais! 😊";
+    setMsgTemplate(val);
+    setMsgTemplateDraft(val);
+  }, [msgTemplateData]);
 
   const saveMsgTemplateMutation = useMutation({
     mutationFn: async (value: string) => {
@@ -707,8 +708,8 @@ export default function ReferralProgramPage() {
     return data.referrals.filter((r) => {
       const matchesSearch =
         !search ||
-        r.referredName.toLowerCase().includes(term) ||
-        r.referrerName.toLowerCase().includes(term) ||
+        (r.referredName ?? "").toLowerCase().includes(term) ||
+        (r.referrerName ?? "").toLowerCase().includes(term) ||
         (r.referrerResponsavelName ?? "").toLowerCase().includes(term) ||
         r.referredPhone.includes(search.replace(/\D/g, ""));
       const matchesStatus =
@@ -934,7 +935,7 @@ export default function ReferralProgramPage() {
                         }
                       >
                         <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0 font-semibold text-primary text-sm">
-                          {r.referredName[0].toUpperCase()}
+                          {(r.referredName?.[0] ?? "?").toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <p
@@ -963,7 +964,7 @@ export default function ReferralProgramPage() {
                         onClick={() => navigate(`/clientes/${r.referrerId}`)}
                       >
                         <div className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 font-medium text-slate-500 dark:text-slate-400 text-xs">
-                          {r.referrerName[0].toUpperCase()}
+                          {(r.referrerName?.[0] ?? "?").toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-primary group-hover:underline">

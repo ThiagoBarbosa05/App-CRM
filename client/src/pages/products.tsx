@@ -17,7 +17,6 @@ import { PageHeader } from "@/components/page-header";
 import { ProductsStatistics } from "@/components/products/products-statistics";
 import { ProductsFilters } from "@/components/products/products-filters";
 import { ProductsTable } from "@/components/products/products-table";
-import { ProductProfileSheet } from "@/components/products/product-profile-sheet";
 import { Button } from "@/components/ui/button";
 
 interface Product {
@@ -55,6 +54,7 @@ export default function Products() {
   const [debouncedCategoryFilter, setDebouncedCategoryFilter] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -152,43 +152,63 @@ export default function Products() {
   }, []);
 
   const handleViewClients = useCallback((product: Product) => {
-    setSelectedProductForClients(product);
-    setIsClientsModalOpen(true);
-  }, []);
+    navigate(`/products/${product.id}?tab=buyers`);
+  }, [navigate]);
 
-  const handleExportProducts = useCallback(() => {
-    const exportData = products.map((product: Product) => ({
-      "Nome do Vinho": product.name,
-      País: product.country,
-      Volume: product.volume,
-      Tipo: product.type,
-      "Valor de Tabela": `R$ ${parseFloat(
-        product.negotiatedPrice,
-      ).toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`,
-      "Criado Por": product.createdByName || "Sistema",
-      "Data de Criação": new Date(product.createdAt).toLocaleDateString(
-        "pt-BR",
-      ),
-    }));
+  const handleExportProducts = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (debouncedSearchQuery) params.append("name", debouncedSearchQuery);
+      if (debouncedTypeFilter) params.append("type", debouncedTypeFilter);
+      if (debouncedCountryFilter) params.append("country", debouncedCountryFilter);
+      if (debouncedVolumeFilter) params.append("volume", debouncedVolumeFilter);
+      if (debouncedCategoryFilter) params.append("category", debouncedCategoryFilter);
+      params.append("page", "1");
+      params.append("pageSize", "10000");
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
+      const response = await fetch(`/api/products?${params.toString()}`);
+      if (!response.ok) throw new Error("Falha ao buscar produtos");
+      const result = await response.json();
+      const allProducts: Product[] = result.data || [];
 
-    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const dataBlob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    saveAs(dataBlob, `produtos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const exportData = allProducts.map((product: Product) => ({
+        "Nome do Vinho": product.name,
+        País: product.country,
+        Volume: product.volume,
+        Tipo: product.type,
+        "Valor de Tabela": `R$ ${parseFloat(product.negotiatedPrice).toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+        "Criado Por": product.createdByName || "Sistema",
+        "Data de Criação": new Date(product.createdAt).toLocaleDateString("pt-BR"),
+      }));
 
-    toast({
-      title: "Exportação concluída",
-      description: "Lista de produtos exportada com sucesso.",
-    });
-  }, [products, toast]);
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Produtos");
+
+      const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const dataBlob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      saveAs(dataBlob, `produtos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+
+      toast({
+        title: "Exportação concluída",
+        description: `${allProducts.length} produto(s) exportado(s) com sucesso.`,
+      });
+    } catch {
+      toast({
+        title: "Erro na exportação",
+        description: "Não foi possível exportar os produtos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [debouncedSearchQuery, debouncedTypeFilter, debouncedCountryFilter, debouncedVolumeFilter, debouncedCategoryFilter, toast]);
 
   const getCountryFlag = (country: string) => {
     const flags: { [key: string]: string } = {
@@ -263,10 +283,11 @@ export default function Products() {
             variant="outline"
             size="sm"
             onClick={handleExportProducts}
+            disabled={isExporting}
             className="h-11 px-5 rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
           >
-            <Download className="mr-2 h-4 w-4 shrink-0" />
-            Exportar
+            <Download className={`mr-2 h-4 w-4 shrink-0 ${isExporting ? "animate-bounce" : ""}`} />
+            {isExporting ? "Exportando..." : "Exportar"}
           </Button>
           <Button
             onClick={() => setIsProductModalOpen(true)}
@@ -314,6 +335,8 @@ export default function Products() {
             totalPages={totalPages}
             totalProducts={totalProducts}
             setCurrentPage={setCurrentPage}
+            pageSize={pageSize}
+            setPageSize={(size) => { setPageSize(size); setCurrentPage(1); }}
           />
         </div>
       </div>
