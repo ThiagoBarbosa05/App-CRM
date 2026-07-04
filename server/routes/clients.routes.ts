@@ -24,7 +24,7 @@ import { deliverBenefitController } from "../controllers/referrals/deliver-benef
 import multer from "multer";
 import { syncClientToBling, BlingSyncError } from "../services/bling-clients-export.service";
 import { requireAuth } from "../middleware/validation";
-import { consultarCPF } from "../services/assertiva.service";
+import { consultarCPF, testarCPF } from "../services/assertiva.service";
 import { storage } from "../storage";
 
 /**
@@ -110,6 +110,17 @@ clientsRouter.get("/without-contact", getClientsWithoutContactController);
  */
 clientsRouter.get("/export-all", getClientsExportAllController);
 clientsRouter.get("/export-filtered", getClientsExportFilteredController);
+
+clientsRouter.get("/assertiva-test", async (req, res) => {
+  const cpf = String(req.query.cpf ?? "").replace(/\D/g, "");
+  if (cpf.length !== 11) return res.status(400).json({ message: "CPF inválido" });
+  try {
+    const result = await testarCPF(cpf);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message });
+  }
+});
 
 /**
  * @route GET /api/clients/:id

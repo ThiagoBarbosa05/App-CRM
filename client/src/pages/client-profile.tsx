@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
+import type { ClientRegistrationQuality } from "@shared/client-registration-quality";
+import { RegistrationQualityBar } from "@/components/clients/registration-quality-bar";
 import { PageHeader } from "@/components/page-header";
 import ClientInteractionsTab from "@/components/client-interactions-tab";
 import { ClientCashbackTab } from "@/components/client-cashback-tab";
@@ -52,6 +54,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+type ClientWithProfile = Client & {
+  lastPurchaseDate: string | null;
+  registrationQuality: ClientRegistrationQuality;
+};
 
 interface BlingSellerMapping {
   connectionId: string;
@@ -133,7 +140,7 @@ export default function ClientProfilePage() {
     isLoading,
     isError,
     refetch,
-  } = useQuery<Client>({
+  } = useQuery<ClientWithProfile>({
     queryKey: ["/api/clients", id],
     queryFn: async () => {
       const res = await fetch(`/api/clients/${id}`);
@@ -178,10 +185,7 @@ export default function ClientProfilePage() {
   const canSyncBling = connectedBlingMappings.length > 0;
 
   const purchaseStatus = (() => {
-    const lastPurchaseDate = (client as any)?.lastPurchaseDate as
-      | string
-      | null
-      | undefined;
+    const lastPurchaseDate = client?.lastPurchaseDate;
     const days = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
     if (!lastPurchaseDate) return "inativo";
     const last = new Date(lastPurchaseDate + "T00:00:00");
@@ -288,6 +292,7 @@ export default function ClientProfilePage() {
                   Inativo
                 </Badge>
               )}
+              <RegistrationQualityBar quality={client.registrationQuality} />
             </div>
             <PageHeader.Description>
               Informações completas, funis e interações
@@ -489,7 +494,7 @@ export default function ClientProfilePage() {
                 )}
 
                 {activeTab === "gosto" && (
-                  <ClientWineProfileTab client={client as any} />
+                  <ClientWineProfileTab client={client} />
                 )}
 
                 {activeTab === "telemarketing" && (

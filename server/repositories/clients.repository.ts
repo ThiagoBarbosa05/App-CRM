@@ -437,13 +437,21 @@ export class ClientsRepository {
   }
 
   async getClientById(id: string): Promise<Client | undefined> {
-    const [client] = await this.db
-      .select()
+    const [row] = await this.db
+      .select({
+        client: clients,
+        responsavelName: users.name,
+      })
       .from(clients)
+      .leftJoin(users, eq(clients.responsavelId, users.id))
       .where(eq(clients.id, id));
-    if (!client) return undefined;
-    const lastPurchaseDates = await this.getClientsLastPurchaseDates([client.id]);
-    return { ...client, lastPurchaseDate: lastPurchaseDates.get(client.id) ?? null } as any;
+    if (!row) return undefined;
+    const lastPurchaseDates = await this.getClientsLastPurchaseDates([row.client.id]);
+    return {
+      ...row.client,
+      responsavelName: row.responsavelName ?? null,
+      lastPurchaseDate: lastPurchaseDates.get(row.client.id) ?? null,
+    } as any;
   }
 
   async getClientsWithoutRecentContact(

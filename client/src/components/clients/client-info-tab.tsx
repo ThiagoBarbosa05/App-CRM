@@ -210,6 +210,26 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
 
             <div className="flex flex-wrap gap-2">
               <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900/60">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                  <Users className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                    Vendedor responsável
+                  </p>
+                  {(client as any).responsavelName ? (
+                    <p className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                      {(client as any).responsavelName}
+                    </p>
+                  ) : (
+                    <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">
+                      Não definido
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900/60">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/40">
                   <UserCheck className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                 </div>
