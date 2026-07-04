@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import {
@@ -378,7 +378,7 @@ export default function ReferralProgramPage() {
   });
 
   // ── Configurações: busca template da mensagem
-  useQuery<{ value: string | null }>({
+  const { data: msgTemplateData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/system-settings/referral_message_template"],
     queryFn: () =>
       fetch("/api/system-settings/referral_message_template", {
@@ -386,15 +386,16 @@ export default function ReferralProgramPage() {
       }).then((r) => r.json()),
     staleTime: 0,
     refetchOnMount: true,
-    select: (data) => {
-      const val =
-        data?.value ??
-        "Olá {nome}! {indicador} te indicou para conhecer nossos produtos. Aproveite e entre em contato para saber mais! 😊";
-      setMsgTemplate(val);
-      setMsgTemplateDraft(val);
-      return data;
-    },
   });
+
+  useEffect(() => {
+    if (msgTemplateData === undefined) return;
+    const val =
+      msgTemplateData?.value ??
+      "Olá {nome}! {indicador} te indicou para conhecer nossos produtos. Aproveite e entre em contato para saber mais! 😊";
+    setMsgTemplate(val);
+    setMsgTemplateDraft(val);
+  }, [msgTemplateData]);
 
   const saveMsgTemplateMutation = useMutation({
     mutationFn: async (value: string) => {
