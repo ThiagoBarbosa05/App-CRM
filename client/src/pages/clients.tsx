@@ -478,19 +478,21 @@ export default function Clients() {
             </div>
           </button>
           {/* Cadastro incompleto */}
-          <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${(healthData?.incomplete ?? 0) > 0 ? "animate-slow-pulse border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/10" : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900"}`}>
-            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${(healthData?.incomplete ?? 0) > 0 ? "bg-amber-100 dark:bg-amber-900/40" : "bg-slate-100 dark:bg-slate-800"}`}>
-              <MapPin className={`h-5 w-5 ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400"}`} />
+          <Link href="/dashboard?tab=cadastro-incompleto">
+            <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98] ${(healthData?.incomplete ?? 0) > 0 ? "animate-slow-pulse border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/10" : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900"}`}>
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${(healthData?.incomplete ?? 0) > 0 ? "bg-amber-100 dark:bg-amber-900/40" : "bg-slate-100 dark:bg-slate-800"}`}>
+                <MapPin className={`h-5 w-5 ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400"}`} />
+              </div>
+              <div>
+                <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-500 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}`}>Cadastro incompleto</p>
+                {isLoadingHealth ? (
+                  <div className="h-6 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-0.5" />
+                ) : (
+                  <p className={`text-xl font-black ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-500"}`}>{(healthData?.incomplete ?? 0).toLocaleString("pt-BR")}</p>
+                )}
+              </div>
             </div>
-            <div>
-              <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-500 dark:text-amber-400" : "text-slate-400 dark:text-slate-500"}`}>Cadastro incompleto</p>
-              {isLoadingHealth ? (
-                <div className="h-6 w-12 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-0.5" />
-              ) : (
-                <p className={`text-xl font-black ${(healthData?.incomplete ?? 0) > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-500"}`}>{(healthData?.incomplete ?? 0).toLocaleString("pt-BR")}</p>
-              )}
-            </div>
-          </div>
+          </Link>
         </div>
       </div>
 

@@ -104,7 +104,9 @@ export default function DashboardPage() {
     user?.role === "administrador";
 
   // ── Estado da aba ──────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState("desempenho");
+  const [activeTab, setActiveTab] = useState(() => {
+    return new URLSearchParams(window.location.search).get("tab") || "desempenho";
+  });
 
   // ── Date range ────────────────────────────────────────────────────────────
   type DatePreset = "hoje" | "este-mes" | "mes-passado" | "periodo";
