@@ -18,6 +18,8 @@ export interface RegistrationQualityCandidate {
   totalSpent: number;
   lastPurchaseDate: string | null;
   registrationQuality: ClientRegistrationQuality;
+  /** true quando o cliente compra bem ou com frequência (RFM frequency/monetary >= 3). */
+  isPriority: boolean;
 }
 
 type CandidateRow = {
@@ -29,17 +31,19 @@ type CandidateRow = {
   email: string | null;
   responsavel_id: string | null;
   responsavel_name: string | null;
+  rfm_frequency: number;
+  rfm_monetary: number;
   order_count: string;
   total_spent: string;
   last_purchase_date: string | null;
 };
 
 /**
- * Clientes com compras significativas ou frequentes (RFM: frequency ou
- * monetary >= 3, na escala 0-5 calculada por rfm.service.ts) mas com o
- * cadastro incompleto (registrationQuality.score <= maxQualityScore).
- * Ordenado por valor gasto — quem vale mais e tem pior cadastro aparece
- * primeiro, para priorizar a atualização pelo vendedor.
+ * Todos os clientes com cadastro incompleto (registrationQuality.score <=
+ * maxQualityScore), sem exigir histórico de compra. Ordenado por prioridade:
+ * primeiro quem compra bem ou com frequência (RFM frequency/monetary >= 3,
+ * na escala 0-5 de rfm.service.ts) — dentro de cada grupo, por valor gasto
+ * desc — e só depois os demais clientes da base, também por valor gasto.
  */
 export async function getClientsNeedingRegistrationUpdate(params: {
   responsavelId?: string;
@@ -52,6 +56,8 @@ export async function getClientsNeedingRegistrationUpdate(params: {
       c.id, c.name, c.phone, c.cpf, c.birthday, c.email,
       c.responsavel_id,
       u.name AS responsavel_name,
+      COALESCE(c.rfm_frequency, 0) AS rfm_frequency,
+      COALESCE(c.rfm_monetary, 0) AS rfm_monetary,
       COALESCE(p.order_count, 0)::text AS order_count,
       COALESCE(p.total_spent, 0)::text AS total_spent,
       p.last_purchase_date::text AS last_purchase_date
@@ -72,8 +78,7 @@ export async function getClientsNeedingRegistrationUpdate(params: {
         WHERE app_client_id = c.id
       ) o
     ) p ON true
-    WHERE (COALESCE(c.rfm_frequency, 0) >= 3 OR COALESCE(c.rfm_monetary, 0) >= 3)
-      ${responsavelId ? sql`AND c.responsavel_id = ${responsavelId}` : sql``}
+    ${responsavelId ? sql`WHERE c.responsavel_id = ${responsavelId}` : sql``}
   `);
 
   return result.rows
@@ -90,7 +95,11 @@ export async function getClientsNeedingRegistrationUpdate(params: {
       totalSpent: parseFloat(row.total_spent) || 0,
       lastPurchaseDate: row.last_purchase_date,
       registrationQuality: getClientRegistrationQuality(row),
+      isPriority: row.rfm_frequency >= 3 || row.rfm_monetary >= 3,
     }))
     .filter((candidate) => candidate.registrationQuality.score <= maxQualityScore)
-    .sort((a, b) => b.totalSpent - a.totalSpent);
+    .sort((a, b) => {
+      if (a.isPriority !== b.isPriority) return a.isPriority ? -1 : 1;
+      return b.totalSpent - a.totalSpent;
+    });
 }

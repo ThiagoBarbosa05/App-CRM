@@ -10,6 +10,40 @@
   animation: slow-pulse 2.4s ease-in-out infinite;
 }
 
+@keyframes blink-red {
+  0%, 100% {
+    background-color: rgb(254 242 242);
+    border-color: rgb(252 165 165);
+    color: rgb(153 27 27);
+  }
+  50% {
+    background-color: rgb(239 68 68);
+    border-color: rgb(239 68 68);
+    color: rgb(255 255 255);
+  }
+}
+.dark .animate-blink-red {
+  animation-name: blink-red-dark;
+}
+@keyframes blink-red-dark {
+  0%, 100% {
+    background-color: rgb(127 29 29 / 0.25);
+    border-color: rgb(153 27 27);
+    color: rgb(252 165 165);
+  }
+  50% {
+    background-color: rgb(239 68 68);
+    border-color: rgb(239 68 68);
+    color: rgb(255 255 255);
+  }
+}
+.animate-blink-red {
+  animation: blink-red 1s ease-in-out infinite;
+}
+.animate-blink-red * {
+  color: inherit !important;
+}
+
 /* Estilos customizados para o editor React Quill */
 .ql-toolbar {
   border-top: 1px solid hsl(214.3 31.8% 91.4%) !important;

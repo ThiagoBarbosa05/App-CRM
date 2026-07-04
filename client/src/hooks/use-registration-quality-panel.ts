@@ -14,13 +14,15 @@ export interface RegistrationQualityCandidate {
   totalSpent: number;
   lastPurchaseDate: string | null;
   registrationQuality: ClientRegistrationQuality;
+  isPriority: boolean;
 }
 
 /**
- * Clientes com compras significativas/frequentes e cadastro incompleto.
- * `responsavelId` é opcional: para admin/gerente filtra por vendedor; se
- * omitido, o backend já restringe automaticamente à carteira de quem chamou
- * quando o usuário logado não é admin/gerente.
+ * Todos os clientes com cadastro incompleto, ordenados por prioridade: quem
+ * compra bem/com frequência (RFM) primeiro, depois os demais clientes da
+ * base. `responsavelId` é opcional: para admin/gerente filtra por vendedor;
+ * se omitido, o backend já restringe automaticamente à carteira de quem
+ * chamou quando o usuário logado não é admin/gerente.
  */
 export function useRegistrationQualityPanel(responsavelId?: string) {
   return useQuery<RegistrationQualityCandidate[]>({
