@@ -28,6 +28,7 @@ import SellerDashboardPage from "./pages/seller-dashboard";
 import SellerPerformancePage from "./pages/seller-performance";
 import ClientProfilePage from "./pages/client-profile";
 import DuplicatesPage from "./pages/duplicates";
+import ClientsRegistrationQualityPage from "./pages/clients-registration-quality";
 import CalculadoraVinho from "./pages/calculadora-vinho";
 import EventsPage from "./pages/events";
 import TarefasPage from "./pages/tarefas";
@@ -100,6 +101,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <DuplicatesPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/clientes/qualidade-cadastro"
+        component={() => (
+          <MainLayout>
+            <ClientsRegistrationQualityPage />
           </MainLayout>
         )}
       />

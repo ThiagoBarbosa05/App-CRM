@@ -10,6 +10,7 @@ import "./jobs/bling-token-refresh-scheduler";
 import "./jobs/assertiva-token-refresh-scheduler";
 import "./jobs/campaign-dispatcher";
 import "./jobs/whatsapp-campaign-dispatcher";
+import "./jobs/rfm-recalculate-scheduler";
 import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
 import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";

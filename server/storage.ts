@@ -191,6 +191,7 @@ export interface ProductFilters {
 
 export type ClientWithProfile = Client & {
   lastPurchaseDate: string | null;
+  responsavelName: string | null;
   registrationQuality: ClientRegistrationQuality;
 };
 
@@ -879,11 +880,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClient(id: string): Promise<ClientWithProfile | undefined> {
-    const [client] = await this.db
-      .select()
+    const [row] = await this.db
+      .select({
+        client: clients,
+        responsavelName: users.name,
+      })
       .from(clients)
+      .leftJoin(users, eq(clients.responsavelId, users.id))
       .where(eq(clients.id, id));
-    if (!client) return undefined;
+    if (!row) return undefined;
+    const client = row.client;
     // Enriquecer com lastPurchaseDate
     const safeId = id.replace(/'/g, "");
     const purchaseResult = await this.db.execute(
@@ -903,6 +909,7 @@ export class DatabaseStorage implements IStorage {
         ?.last_purchase_date ?? null;
     return {
       ...client,
+      responsavelName: row.responsavelName ?? null,
       lastPurchaseDate,
       registrationQuality: getClientRegistrationQuality(client),
     };

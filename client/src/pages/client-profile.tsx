@@ -95,7 +95,7 @@ export default function ClientProfilePage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(() => {
     const currentTab = new URLSearchParams(window.location.search).get("tab");
-    return currentTab || "compras";
+    return currentTab || "info";
   });
   const [editModalOpen, setEditModalOpen] = useState(false);
   const { toast } = useToast();
