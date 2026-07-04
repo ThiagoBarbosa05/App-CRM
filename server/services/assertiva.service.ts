@@ -21,14 +21,12 @@ async function fetchToken(): Promise<string> {
     body: "grant_type=client_credentials",
   });
 
-  const body = await res.text();
-  console.log(`[Assertiva] token response ${res.status}:`, body.slice(0, 600));
-
   if (!res.ok) {
-    throw new Error(`Assertiva auth failed: ${res.status} - ${body.slice(0, 300)}`);
+    const err = await res.text().catch(() => "");
+    throw new Error(`Assertiva auth failed: ${res.status} - ${err.slice(0, 200)}`);
   }
 
-  const data = JSON.parse(body);
+  const data = await res.json();
   return data.access_token as string;
 }
 
@@ -46,10 +44,8 @@ async function doConsultarCPF(cpf: string, token: string) {
   const res = await fetch(`${BASE_URL}/cpf/${clean}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
-  const body = await res.text();
-  console.log(`[Assertiva] CPF response ${res.status}:`, body.slice(0, 600));
   let data: any;
-  try { data = JSON.parse(body); } catch { data = { raw: body }; }
+  try { data = await res.json(); } catch { data = {}; }
   return { status: res.status, data };
 }
 

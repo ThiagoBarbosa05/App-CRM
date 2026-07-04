@@ -1,0 +1,1 @@
+- [Assertiva API Integration](assertiva-integration.md) — Basic auth header + grant_type only in body; 403 = conta sem permissão, contatar suporte Assertiva.
