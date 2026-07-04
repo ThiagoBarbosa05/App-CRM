@@ -407,14 +407,54 @@ export default function Clients() {
 
       {/* Saúde da Carteira de Clientes */}
       <div className="bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-md px-5 py-4">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
-            <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
+              <Briefcase className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">Saúde da Carteira de Clientes</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Visão geral do estado atual da carteira</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Saúde da Carteira de Clientes</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Visão geral do estado atual da carteira</p>
-          </div>
+          {/* Score da Carteira */}
+          {!isLoadingHealth && healthData && healthData.total > 0 && (() => {
+            const score = Math.min(100, Math.round(
+              (healthData.active / healthData.total) * 50 +
+              ((healthData.total - healthData.incomplete) / healthData.total) * 50
+            ));
+            const isGreen = score >= 70;
+            const isYellow = score >= 40 && score < 70;
+            const label = score >= 70 ? "Boa" : score >= 40 ? "Regular" : "Crítica";
+            const colorText = isGreen ? "text-emerald-600 dark:text-emerald-400" : isYellow ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400";
+            const colorBg = isGreen ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/60" : isYellow ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/60" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/60";
+            const colorBar = isGreen ? "bg-emerald-500" : isYellow ? "bg-amber-400" : "bg-red-500";
+            const colorLabel = isGreen ? "text-emerald-600 dark:text-emerald-400" : isYellow ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400";
+            return (
+              <div className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 ${colorBg}`}>
+                <div className="text-right">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Score da Carteira</p>
+                  <div className="flex items-end gap-1.5 mt-0.5">
+                    <span className={`text-3xl font-black leading-none ${colorText}`}>{score}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 mb-0.5">/100</span>
+                  </div>
+                  <div className="mt-1.5 w-24 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${colorBar}`} style={{ width: `${score}%` }} />
+                  </div>
+                  <p className={`text-[10px] font-bold mt-1 ${colorLabel}`}>{label}</p>
+                </div>
+              </div>
+            );
+          })()}
+          {isLoadingHealth && (
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 py-2.5">
+              <div className="text-right">
+                <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                <div className="h-8 w-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1" />
+                <div className="h-1.5 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mt-1.5" />
+              </div>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {/* Total */}
