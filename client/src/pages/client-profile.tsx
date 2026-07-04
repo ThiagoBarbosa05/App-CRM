@@ -292,7 +292,6 @@ export default function ClientProfilePage() {
                   Inativo
                 </Badge>
               )}
-              <RegistrationQualityBar quality={client.registrationQuality} />
             </div>
             <PageHeader.Description>
               Informações completas, funis e interações
@@ -300,8 +299,34 @@ export default function ClientProfilePage() {
           </PageHeader.Text>
         </PageHeader.Info>
 
-        {/* Centro: vendedor responsável + status */}
+        {/* Centro: cadastro + vendedor + status */}
         <div className="hidden md:flex items-center gap-2">
+          {/* Card de qualidade de cadastro */}
+          {(() => {
+            const q = client.registrationQuality;
+            const incomplete = q.score < 4;
+            return (
+              <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border transition-all ${incomplete ? "animate-slow-pulse border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"}`}>
+                <div className="flex flex-col leading-tight">
+                  <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${incomplete ? "text-red-400 dark:text-red-500" : "text-slate-400 dark:text-slate-500"}`}>Cadastro</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center gap-0.5">
+                      {q.fields.map((field) => (
+                        <span
+                          key={field.key}
+                          className={`h-2.5 w-5 rounded-sm ${field.filled ? "bg-emerald-500 dark:bg-emerald-400" : incomplete ? "bg-red-300 dark:bg-red-700" : "bg-slate-200 dark:bg-slate-700"}`}
+                        />
+                      ))}
+                    </div>
+                    <span className={`text-xs font-black tabular-nums ${incomplete ? "text-red-600 dark:text-red-400" : "text-slate-700 dark:text-slate-200"}`}>
+                      {q.score}/{q.total}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {(client as any).responsavelName && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
               <Users className="h-3.5 w-3.5 text-amber-500 shrink-0" />
