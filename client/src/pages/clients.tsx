@@ -432,19 +432,28 @@ export default function Clients() {
             </div>
           </div>
           {/* Ativos */}
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50 dark:bg-emerald-900/10 px-4 py-3">
+          <button
+            onClick={() => {
+              setClientFilters(prev => ({ ...prev, purchaseStatus: prev.purchaseStatus === "ativo" ? "all" : "ativo" }));
+              setCurrentPage(1);
+              document.getElementById("lista-clientes")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98] ${clientFilters.purchaseStatus === "ativo" ? "border-emerald-400 bg-emerald-100 ring-2 ring-emerald-400 dark:border-emerald-600 dark:bg-emerald-900/30 dark:ring-emerald-600" : "border-emerald-200 bg-emerald-50 dark:border-emerald-800/60 dark:bg-emerald-900/10"}`}
+          >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
               <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-500">Ativos</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-500">
+                Ativos {clientFilters.purchaseStatus === "ativo" && <span className="ml-1 text-[9px] normal-case font-bold bg-emerald-500 text-white rounded px-1">filtrado</span>}
+              </p>
               {isLoadingHealth ? (
                 <div className="h-6 w-12 bg-emerald-200 dark:bg-emerald-700/40 rounded animate-pulse mt-0.5" />
               ) : (
                 <p className="text-xl font-black text-emerald-600 dark:text-emerald-400">{(healthData?.active ?? 0).toLocaleString("pt-BR")}</p>
               )}
             </div>
-          </div>
+          </button>
           {/* Inativos */}
           <div className="flex items-center gap-3 rounded-xl border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-900/10 px-4 py-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/40">
@@ -687,7 +696,7 @@ export default function Clients() {
         </div>
 
         {/* Container da tabela com loading overlay */}
-        <div className="relative min-h-[400px]">
+        <div id="lista-clientes" className="relative min-h-[400px]">
           <ClientsTableWithSelection
             clients={clientsArray}
             onSelectionChange={handleSelectionChange}
