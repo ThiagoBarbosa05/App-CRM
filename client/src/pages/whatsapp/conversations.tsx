@@ -28,6 +28,7 @@ import { setActiveWaConversation } from "@/lib/wa-active-conversation";
 import { refreshFirstPage } from "@/lib/wa-chat-pagination";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
+import { ContactDetailsSheet } from "@/components/whatsapp/contact-details-sheet";
 import type { MediaType } from "@/hooks/use-media-library";
 import {
   MessageSquare,
@@ -87,21 +88,21 @@ interface Channel {
   provider: string;
 }
 
-interface ChatClientTag {
+export interface ChatClientTag {
   id: string;
   name: string;
   color: string | null;
   type: string;
 }
 
-interface WhatsappClientTag {
+export interface WhatsappClientTag {
   id: string;
   name: string;
   emoji: string | null;
   color: string | null;
 }
 
-interface ChatClient {
+export interface ChatClient {
   conversationId: string;
   clientId: string | null;
   phone: string;
@@ -863,7 +864,7 @@ function replySnippet(content: string | null, type: string | null) {
   return "Mensagem";
 }
 
-function getInitials(name: string | null, phone: string) {
+export function getInitials(name: string | null, phone: string) {
   if (!name) return phone.replace(/\D/g, "").slice(-2);
   return name
     .split(" ")
@@ -979,7 +980,7 @@ function getTagColor(id: string): string {
   return resolveTagColor(null, id);
 }
 
-function WhatsappTagBadge({ tag }: { tag: WhatsappClientTag }) {
+export function WhatsappTagBadge({ tag }: { tag: WhatsappClientTag }) {
   const bg = resolveTagColor(tag.color, tag.id);
   const emoji = resolveTagEmoji(tag.emoji);
   return (
@@ -2605,6 +2606,7 @@ function ConversationMessages({
   const [isTriggeringBot, setIsTriggeringBot] = useState(false);
   const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
+  const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const isUnknownContact = !client.clientId;
 
   const transferMutation = useMutation({
@@ -3349,6 +3351,17 @@ function ConversationMessages({
               </div>
             </div>
           )}
+
+          {/* Detalhes do contato */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            title="Ver detalhes do contato"
+            onClick={() => setContactDetailsOpen(true)}
+          >
+            <User className="h-3.5 w-3.5" />
+          </Button>
 
           {/* Transferir */}
           {channels.length > 0 && (
@@ -4216,6 +4229,12 @@ function ConversationMessages({
         client={client}
         userRole={userRole}
         onSuccess={onClientLinked}
+      />
+
+      <ContactDetailsSheet
+        client={client}
+        open={contactDetailsOpen}
+        onOpenChange={setContactDetailsOpen}
       />
     </div>
   );
