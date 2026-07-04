@@ -16,6 +16,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -67,6 +77,7 @@ import {
   WifiOff,
   Radio,
   User,
+  Lock,
 } from "lucide-react";
 import {
   Popover,
@@ -117,6 +128,7 @@ export interface ChatClient {
   channelDisplayPhone?: string | null;
   tags?: ChatClientTag[];
   whatsappTags?: WhatsappClientTag[];
+  status?: "open" | "closed" | null;
 }
 
 interface WaMedia {
@@ -995,6 +1007,133 @@ export function WhatsappTagBadge({ tag }: { tag: WhatsappClientTag }) {
   );
 }
 
+export function WhatsappTagsEditPopover({
+  clientId,
+  currentTags,
+  availableTags,
+  onTagsChange,
+  triggerClassName,
+}: {
+  clientId: string;
+  currentTags: WhatsappClientTag[];
+  availableTags: WhatsappClientTag[];
+  onTagsChange: (clientId: string, tagIds: string[]) => void;
+  triggerClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const closedTriggerClassName = triggerClassName ?? "opacity-100";
+  const [tagSearch, setTagSearch] = useState("");
+  const [localTagIds, setLocalTagIds] = useState<Set<string>>(
+    () => new Set(currentTags.map((t) => t.id)),
+  );
+
+  // Sincroniza com dados do servidor quando a query refaz o fetch
+  useEffect(() => {
+    setLocalTagIds(new Set(currentTags.map((t) => t.id)));
+  }, [currentTags]);
+
+  function toggleTag(tagId: string) {
+    const next = new Set(localTagIds);
+    if (next.has(tagId)) {
+      next.delete(tagId);
+    } else {
+      next.add(tagId);
+    }
+    setLocalTagIds(next);
+    onTagsChange(clientId, Array.from(next));
+  }
+
+  if (availableTags.length === 0) return null;
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setTagSearch("");
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            "shrink-0 p-1 rounded transition-opacity text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700",
+            open ? "opacity-100" : closedTriggerClassName,
+          )}
+          title="Editar etiquetas"
+        >
+          <Tag className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-60 p-2"
+        side="right"
+        align="start"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 px-1">
+          Etiquetas WhatsApp
+        </p>
+        <div className="relative mb-2">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Buscar etiqueta..."
+            value={tagSearch}
+            onChange={(e) => setTagSearch(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full pl-7 pr-2 py-1.5 text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto">
+          {availableTags.filter((t) =>
+            t.name.toLowerCase().includes(tagSearch.toLowerCase()),
+          ).length === 0 ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-3">
+              Nenhuma etiqueta encontrada
+            </p>
+          ) : (
+            availableTags
+              .filter((t) =>
+                t.name.toLowerCase().includes(tagSearch.toLowerCase()),
+              )
+              .map((tag) => {
+                const checked = localTagIds.has(tag.id);
+                const bg = resolveTagColor(tag.color, tag.id);
+                const emoji = resolveTagEmoji(tag.emoji);
+                return (
+                  <button
+                    key={tag.id}
+                    onClick={() => toggleTag(tag.id)}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-left w-full transition-colors"
+                  >
+                    <span
+                      className={cn(
+                        "h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors",
+                        checked
+                          ? "bg-primary border-primary"
+                          : "border-slate-300 dark:border-slate-600",
+                      )}
+                    >
+                      {checked && <Check className="h-3 w-3 text-white" />}
+                    </span>
+                    <span
+                      className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full font-medium truncate"
+                      style={{ backgroundColor: bg, color: "#fff" }}
+                    >
+                      {emoji && <span>{emoji}</span>}
+                      <span>{tag.name}</span>
+                    </span>
+                  </button>
+                );
+              })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ClientListItem({
   client,
   selected,
@@ -1010,29 +1149,6 @@ function ClientListItem({
 }) {
   const hasUnread = (client.unreadCount ?? 0) > 0;
   const displayName = client.clientName ?? client.phone;
-  const [tagPopoverOpen, setTagPopoverOpen] = useState(false);
-  const [tagSearch, setTagSearch] = useState("");
-  const [localTagIds, setLocalTagIds] = useState<Set<string>>(
-    () => new Set((client.whatsappTags ?? []).map((t) => t.id)),
-  );
-
-  // Sincroniza com dados do servidor quando a query refaz o fetch
-  useEffect(() => {
-    setLocalTagIds(new Set((client.whatsappTags ?? []).map((t) => t.id)));
-  }, [client.whatsappTags]);
-
-  function toggleTag(tagId: string) {
-    const next = new Set(localTagIds);
-    if (next.has(tagId)) {
-      next.delete(tagId);
-    } else {
-      next.add(tagId);
-    }
-    setLocalTagIds(next);
-    if (client.clientId) {
-      onTagsChange(client.clientId, Array.from(next));
-    }
-  }
 
   return (
     <div
@@ -1103,6 +1219,7 @@ function ClientListItem({
                   ? "text-slate-700 dark:text-slate-200 font-medium"
                   : "text-slate-600 dark:text-slate-400",
               )}
+              title={client.lastMessageContent}
             >
               {client.lastMessageDirection === "outbound" &&
                 client.lastMessageType !== "system" && (
@@ -1149,94 +1266,14 @@ function ClientListItem({
         </div>
       </button>
 
-      {client.clientId && availableTags.length > 0 && (
-        <Popover
-          open={tagPopoverOpen}
-          onOpenChange={(open) => {
-            setTagPopoverOpen(open);
-            if (!open) setTagSearch("");
-          }}
-        >
-          <PopoverTrigger asChild>
-            <button
-              onClick={(e) => e.stopPropagation()}
-              className={cn(
-                "shrink-0 p-1 rounded transition-opacity text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700",
-                tagPopoverOpen
-                  ? "opacity-100"
-                  : "opacity-0 group-hover:opacity-100",
-              )}
-              title="Editar etiquetas"
-            >
-              <Tag className="h-3.5 w-3.5" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-60 p-2"
-            side="right"
-            align="start"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2 px-1">
-              Etiquetas WhatsApp
-            </p>
-            <div className="relative mb-2">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Buscar etiqueta..."
-                value={tagSearch}
-                onChange={(e) => setTagSearch(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full pl-7 pr-2 py-1.5 text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="flex flex-col gap-0.5 max-h-52 overflow-y-auto">
-              {availableTags.filter((t) =>
-                t.name.toLowerCase().includes(tagSearch.toLowerCase()),
-              ).length === 0 ? (
-                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-3">
-                  Nenhuma etiqueta encontrada
-                </p>
-              ) : (
-                availableTags
-                  .filter((t) =>
-                    t.name.toLowerCase().includes(tagSearch.toLowerCase()),
-                  )
-                  .map((tag) => {
-                    const checked = localTagIds.has(tag.id);
-                    const bg = resolveTagColor(tag.color, tag.id);
-                    const emoji = resolveTagEmoji(tag.emoji);
-                    return (
-                      <button
-                        key={tag.id}
-                        onClick={() => toggleTag(tag.id)}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-left w-full transition-colors"
-                      >
-                        <span
-                          className={cn(
-                            "h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors",
-                            checked
-                              ? "bg-primary border-primary"
-                              : "border-slate-300 dark:border-slate-600",
-                          )}
-                        >
-                          {checked && <Check className="h-3 w-3 text-white" />}
-                        </span>
-                        <span
-                          className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full font-medium truncate"
-                          style={{ backgroundColor: bg, color: "#fff" }}
-                        >
-                          {emoji && <span>{emoji}</span>}
-                          <span>{tag.name}</span>
-                        </span>
-                      </button>
-                    );
-                  })
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
+      {client.clientId && (
+        <WhatsappTagsEditPopover
+          clientId={client.clientId}
+          currentTags={client.whatsappTags ?? []}
+          availableTags={availableTags}
+          onTagsChange={onTagsChange}
+          triggerClassName="opacity-0 group-hover:opacity-100"
+        />
       )}
     </div>
   );
@@ -2561,6 +2598,8 @@ function ConversationMessages({
   channels,
   userRole,
   onClientLinked,
+  availableWhatsappTags,
+  onWhatsappTagsChange,
 }: {
   conversationKey: string;
   onBack: () => void;
@@ -2568,6 +2607,8 @@ function ConversationMessages({
   channels: Channel[];
   userRole: string;
   onClientLinked: (clientId: string) => void;
+  availableWhatsappTags: WhatsappClientTag[];
+  onWhatsappTagsChange: (clientId: string, tagIds: string[]) => void;
 }) {
   const [message, setMessage] = useState("");
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
@@ -2607,6 +2648,7 @@ function ConversationMessages({
   const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const isUnknownContact = !client.clientId;
 
   const transferMutation = useMutation({
@@ -2631,6 +2673,55 @@ function ConversationMessages({
         queryKey: ["/api/whatsapp/conversations-list"],
       });
       toast({ title: "Conversa transferida com sucesso" });
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
+  const closeConversationMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(
+        `/api/whatsapp/conversations/${client.conversationId}/close`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? "Erro ao encerrar conversa");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setCloseConfirmOpen(false);
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
+      toast({ title: "Conversa encerrada" });
+      onBack();
+    },
+    onError: (err: Error) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
+  const reopenConversationMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(
+        `/api/whatsapp/conversations/${client.conversationId}/reopen`,
+        { method: "POST" },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message ?? "Erro ao reabrir conversa");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
+      toast({ title: "Conversa reaberta" });
+      onBack();
     },
     onError: (err: Error) => {
       toast({ title: err.message, variant: "destructive" });
@@ -3325,7 +3416,7 @@ function ConversationMessages({
             {((client.tags && client.tags.length > 0) ||
               (client.whatsappTags && client.whatsappTags.length > 0)) && (
               <div className="flex flex-wrap gap-1 mt-0.5 hidden sm:flex">
-                {client.tags?.slice(0, 2).map((tag) => (
+                {client.tags?.map((tag) => (
                   <span
                     key={tag.id}
                     className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
@@ -3333,7 +3424,7 @@ function ConversationMessages({
                     {tag.name}
                   </span>
                 ))}
-                {client.whatsappTags?.slice(0, 2).map((tag) => (
+                {client.whatsappTags?.map((tag) => (
                   <WhatsappTagBadge key={tag.id} tag={tag} />
                 ))}
               </div>
@@ -3362,6 +3453,17 @@ function ConversationMessages({
           >
             <User className="h-3.5 w-3.5" />
           </Button>
+
+          {/* Editar etiquetas */}
+          {client.clientId && (
+            <WhatsappTagsEditPopover
+              clientId={client.clientId}
+              currentTags={client.whatsappTags ?? []}
+              availableTags={availableWhatsappTags}
+              onTagsChange={onWhatsappTagsChange}
+              triggerClassName="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 opacity-100"
+            />
+          )}
 
           {/* Transferir */}
           {channels.length > 0 && (
@@ -3406,6 +3508,32 @@ function ConversationMessages({
                 )}
               </PopoverContent>
             </Popover>
+          )}
+
+          {/* Encerrar / reabrir conversa */}
+          {client.status === "closed" ? (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0 sm:h-7 sm:w-auto sm:px-2.5 sm:gap-1.5 text-xs"
+              title="Reabrir conversa"
+              disabled={reopenConversationMutation.isPending}
+              onClick={() => reopenConversationMutation.mutate()}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline text-xs">Reabrir</span>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0 sm:h-7 sm:w-auto sm:px-2.5 sm:gap-1.5 text-xs"
+              title="Encerrar conversa"
+              onClick={() => setCloseConfirmOpen(true)}
+            >
+              <Lock className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline text-xs">Encerrar</span>
+            </Button>
           )}
         </div>
 
@@ -4236,6 +4364,28 @@ function ConversationMessages({
         open={contactDetailsOpen}
         onOpenChange={setContactDetailsOpen}
       />
+
+      <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Encerrar conversa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A conversa sairá da lista de conversas abertas. Ela reabre
+              automaticamente se o cliente (ou você) enviar uma nova
+              mensagem, ou pode ser reaberta manualmente na aba "Encerradas".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={closeConversationMutation.isPending}
+              onClick={() => closeConversationMutation.mutate()}
+            >
+              Encerrar conversa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -4465,6 +4615,7 @@ export default function WhatsAppConversationsPage() {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [showTagFilter, setShowTagFilter] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"open" | "closed">("open");
   const debouncedSearch = useDebounce(search, 300);
   const queryClient = useQueryClient();
 
@@ -4546,6 +4697,7 @@ export default function WhatsAppConversationsPage() {
     "/api/whatsapp/conversations-list",
     debouncedSearch,
     selectedTagIds,
+    statusFilter,
     user?.id,
   ];
 
@@ -4555,6 +4707,8 @@ export default function WhatsAppConversationsPage() {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("search", debouncedSearch);
     for (const id of selectedTagIds) params.append("tagIds", id);
+    // Com busca ativa, ignora a aba Abertas/Encerradas — busca em todas.
+    if (!debouncedSearch) params.set("status", statusFilter);
     if (cursor) params.set("cursor", cursor);
     const res = await fetch(`/api/whatsapp/conversations?${params}`);
     if (!res.ok) return { items: [], nextCursor: null };
@@ -4594,7 +4748,7 @@ export default function WhatsAppConversationsPage() {
       );
     }, 15_000);
     return () => clearInterval(interval);
-  }, [queryClient, debouncedSearch, selectedTagIds, user?.id]);
+  }, [queryClient, debouncedSearch, selectedTagIds, statusFilter, user?.id]);
 
   // Assim que a busca por telefone (vinda do parâmetro ?phone=) retornar,
   // seleciona automaticamente a conversa correspondente — uma única vez.
@@ -4772,6 +4926,37 @@ export default function WhatsAppConversationsPage() {
               className="pl-9 text-sm h-10"
             />
           </div>
+
+          {debouncedSearch ? (
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 px-0.5">
+              Buscando em todas as conversas, inclusive encerradas.
+            </p>
+          ) : (
+            <div className="flex gap-1 mt-2 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5">
+              <button
+                onClick={() => setStatusFilter("open")}
+                className={cn(
+                  "flex-1 text-xs font-medium py-1.5 rounded-md transition-colors",
+                  statusFilter === "open"
+                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200",
+                )}
+              >
+                Abertas
+              </button>
+              <button
+                onClick={() => setStatusFilter("closed")}
+                className={cn(
+                  "flex-1 text-xs font-medium py-1.5 rounded-md transition-colors",
+                  statusFilter === "closed"
+                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200",
+                )}
+              >
+                Encerradas
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Channel status strip — visible only for vendedores */}
@@ -5051,6 +5236,10 @@ export default function WhatsAppConversationsPage() {
             channels={availableChannels}
             userRole={user?.role ?? "vendedor"}
             onClientLinked={handleClientLinked}
+            availableWhatsappTags={availableWaTags}
+            onWhatsappTagsChange={(clientId, tagIds) =>
+              setTagsMutation.mutate({ clientId, tagIds })
+            }
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">

@@ -25,6 +25,8 @@ import {
   deleteQuickReply,
   transferConversation,
   setContactWhatsappTags,
+  closeConversation,
+  reopenConversation,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession } from "../services/whatsapp-bot-engine.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
@@ -150,10 +152,17 @@ router.get("/conversations", async (req, res) => {
         : undefined;
     const cursor = decodeCursor(req.query.cursor);
     const limit = clampLimit(req.query.limit, { fallback: 20, max: 100 });
-    const result = await listClientsForChat(user.userId, user.role, search, tagIds, {
-      cursor,
-      limit,
-    });
+    // Com busca ativa, ignora o filtro de status — o usuário quer encontrar a
+    // conversa em qualquer aba, inclusive entre as encerradas.
+    const status = search ? undefined : req.query.status === "closed" ? "closed" : "open";
+    const result = await listClientsForChat(
+      user.userId,
+      user.role,
+      search,
+      tagIds,
+      { cursor, limit },
+      status,
+    );
     res.json(result);
   } catch (err) {
     console.error("[WA Conversations] Erro ao listar conversas:", err);
@@ -636,6 +645,42 @@ router.post("/conversations/:conversationId/transfer", async (req, res) => {
   } catch (err) {
     console.error("[WA Conversations] Erro ao transferir conversa:", err);
     res.status(500).json({ message: "Erro ao transferir conversa" });
+  }
+});
+
+router.post("/conversations/:conversationId/close", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const conversationId = await resolveConversationId(req.params.conversationId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const updated = await closeConversation(conversationId, user.userId);
+    if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao encerrar conversa:", err);
+    res.status(500).json({ message: "Erro ao encerrar conversa" });
+  }
+});
+
+router.post("/conversations/:conversationId/reopen", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const conversationId = await resolveConversationId(req.params.conversationId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const updated = await reopenConversation(conversationId);
+    if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[WA Conversations] Erro ao reabrir conversa:", err);
+    res.status(500).json({ message: "Erro ao reabrir conversa" });
   }
 });
 

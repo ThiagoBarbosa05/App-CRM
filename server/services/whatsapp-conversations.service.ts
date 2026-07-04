@@ -12,6 +12,7 @@ import {
   contactTags,
   tags,
   whatsappTags,
+  users,
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -140,6 +141,40 @@ export async function transferConversation(conversationId: string, targetChannel
   return updated ?? null;
 }
 
+export async function closeConversation(conversationId: string, userId: string) {
+  const [user] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const [updated] = await db
+    .update(whatsappConversations)
+    .set({ status: "closed", updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId))
+    .returning();
+
+  await db.insert(whatsappMessages).values({
+    conversationId,
+    direction: "outbound",
+    type: "system",
+    content: `🔒 Atendimento encerrado por ${user?.name ?? "atendente"}`,
+    status: "sent",
+    sentAt: new Date(),
+  });
+
+  return updated ?? null;
+}
+
+export async function reopenConversation(conversationId: string) {
+  const [updated] = await db
+    .update(whatsappConversations)
+    .set({ status: "open", updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId))
+    .returning();
+  return updated ?? null;
+}
+
 export async function getConversationPhone(conversationId: string): Promise<string | null> {
   const [conv] = await db
     .select({ phone: whatsappConversations.phone })
@@ -235,6 +270,7 @@ export async function listClientsForChat(
   search?: string,
   whatsappTagIds?: string[],
   pagination: { cursor?: Cursor | null; limit?: number } = {},
+  status?: "open" | "closed",
 ) {
   // .mapWith aplica o mapper de timestamp do Drizzle ao SQL cru — sem ele o
   // valor chega ao cliente como string sem fuso ("2026-07-02 23:16:00") e o
@@ -296,6 +332,10 @@ export async function listClientsForChat(
   const cursor = pagination.cursor ?? null;
 
   const conditions: ReturnType<typeof eq>[] = [];
+
+  if (status) {
+    conditions.push(eq(whatsappConversations.status, status));
+  }
 
   // Conversa é unificada por cliente; o vendedor vê as conversas atribuídas a ele
   // (assignedAgentId) e, quando não há atribuição, as dos clientes sob sua
@@ -391,6 +431,7 @@ export async function listClientsForChat(
       channelId: whatsappConversations.channelId,
       channelName: whatsappChannels.name,
       channelDisplayPhone: whatsappChannels.displayPhone,
+      status: whatsappConversations.status,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
@@ -662,7 +703,7 @@ export async function sendConversationMessage(
 
   await db
     .update(whatsappConversations)
-    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
 
   try {
@@ -816,7 +857,7 @@ export async function sendConversationTemplate(
 
   await db
     .update(whatsappConversations)
-    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
 
   try {
@@ -1028,7 +1069,7 @@ export async function sendConversationMedia(
 
   await db
     .update(whatsappConversations)
-    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
 
   if (conv.id) {
@@ -1290,6 +1331,7 @@ export async function saveInboundMessage(data: {
   await db
     .update(whatsappConversations)
     .set({
+      status: "open",
       lastMessageAt: new Date(),
       updatedAt: new Date(),
       ...(data.channelId != null ? { channelId: data.channelId } : {}),
