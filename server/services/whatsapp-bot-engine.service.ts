@@ -145,7 +145,7 @@ async function persistBotMessage(
 
     await db
       .update(whatsappConversations)
-      .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+      .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
       .where(eq(whatsappConversations.id, conversation.id));
 
     publishConversationEvent(conversation.clientId ?? conversation.id, "new_message", { clientId: conversation.clientId ?? null });
@@ -920,7 +920,12 @@ async function executeNode(
       } else if (d.closedBy === "agent") {
         closedByText = "atendente";
       } else if (d.closedBy) {
-        closedByText = `agente ${d.closedBy}`;
+        const [agent] = await db
+          .select({ name: users.name })
+          .from(users)
+          .where(eq(users.id, d.closedBy))
+          .limit(1);
+        closedByText = agent?.name ?? "atendente";
       }
 
       await db.insert(whatsappMessages).values({
@@ -1253,7 +1258,7 @@ export async function startBotSession(
     });
     await db
       .update(whatsappConversations)
-      .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+      .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
       .where(eq(whatsappConversations.id, conversation.id));
     publishConversationEvent(conversation.clientId ?? conversation.id, "new_message", { clientId: conversation.clientId ?? null });
   } catch (err) {

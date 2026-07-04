@@ -14,7 +14,7 @@ import {
   whatsappTags,
   users,
 } from "../../shared/schema";
-import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull } from "drizzle-orm";
+import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
@@ -333,8 +333,13 @@ export async function listClientsForChat(
 
   const conditions: ReturnType<typeof eq>[] = [];
 
-  if (status) {
-    conditions.push(eq(whatsappConversations.status, status));
+  if (status === "closed") {
+    conditions.push(eq(whatsappConversations.status, "closed"));
+  } else if (status === "open") {
+    // "Abertas" inclui qualquer status que não seja "closed" (ex.: conversas
+    // em espera marcadas por um nó "set_waiting" do bot, que usam valores
+    // customizados como "waiting" em vez de "open").
+    conditions.push(ne(whatsappConversations.status, "closed") as ReturnType<typeof eq>);
   }
 
   // Conversa é unificada por cliente; o vendedor vê as conversas atribuídas a ele
