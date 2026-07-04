@@ -24,6 +24,7 @@ import { IndividualSellerView } from "@/components/seller-dashboard/individual-s
 import { AggregateView } from "@/components/seller-dashboard/aggregate-view";
 import { CashbackCohortSection } from "@/components/seller-dashboard/cashback-cohort-section";
 import { OrdersSection } from "@/components/seller-dashboard/orders-section";
+import { RegistrationQualitySection } from "@/components/seller-dashboard/registration-quality-section";
 
 interface UserOption {
   id: string;
@@ -197,6 +198,7 @@ export default function SellerDashboardPage() {
           : user?.id;
         return (
           <>
+            <RegistrationQualitySection sellerId={effectiveUserId} />
             <CashbackCohortSection startDate={startDate} endDate={endDate} userId={effectiveUserId} />
             <OrdersSection startDate={startDate} endDate={endDate} lockedUserId={effectiveUserId} />
           </>

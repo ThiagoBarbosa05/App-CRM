@@ -25,6 +25,7 @@ import multer from "multer";
 import { syncClientToBling, BlingSyncError } from "../services/bling-clients-export.service";
 import { requireAuth } from "../middleware/validation";
 import { consultarCPF, testarCPF } from "../services/assertiva.service";
+import { getClientsNeedingRegistrationUpdate } from "../services/registration-quality-panel.service";
 import { storage } from "../storage";
 
 /**
@@ -119,6 +120,31 @@ clientsRouter.get("/assertiva-test", async (req, res) => {
     return res.json(result);
   } catch (err: any) {
     return res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * @route GET /api/clients/registration-quality-panel
+ * @description Clientes com compras significativas/frequentes (RFM) e cadastro incompleto
+ * @access Private (vendedor vê apenas sua carteira; admin/gerente pode filtrar por responsavelId)
+ * @queryParams {string} [responsavelId] - Filtra por vendedor responsável (apenas admin/gerente)
+ * @returns {array} Lista de clientes ordenada por valor gasto (maior primeiro)
+ */
+clientsRouter.get("/registration-quality-panel", requireAuth, async (req, res) => {
+  try {
+    const user = req.user!;
+    const isAdminOrManager = user.role === "admin" || user.role === "gerente";
+    const requestedResponsavelId =
+      typeof req.query.responsavelId === "string" && req.query.responsavelId
+        ? req.query.responsavelId
+        : undefined;
+    const responsavelId = isAdminOrManager ? requestedResponsavelId : user.userId;
+
+    const candidates = await getClientsNeedingRegistrationUpdate({ responsavelId });
+    return res.json(candidates);
+  } catch (err) {
+    console.error("[registration-quality-panel]", err);
+    return res.status(500).json({ message: "Erro ao buscar clientes com cadastro incompleto" });
   }
 });
 
