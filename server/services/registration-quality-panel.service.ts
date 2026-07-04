@@ -19,7 +19,7 @@ export interface RegistrationQualityCandidate {
   registrationQuality: ClientRegistrationQuality;
 }
 
-interface CandidateRow {
+type CandidateRow = {
   id: string;
   name: string;
   phone: string | null;
@@ -30,7 +30,7 @@ interface CandidateRow {
   order_count: string;
   total_spent: string;
   last_purchase_date: string | null;
-}
+};
 
 /**
  * Clientes com compras significativas ou frequentes (RFM: frequency ou

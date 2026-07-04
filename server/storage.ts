@@ -191,6 +191,7 @@ export interface ProductFilters {
 
 export type ClientWithProfile = Client & {
   lastPurchaseDate: string | null;
+  responsavelName: string | null;
   registrationQuality: ClientRegistrationQuality;
 };
 

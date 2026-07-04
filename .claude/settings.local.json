@@ -67,7 +67,8 @@
       "WebFetch(domain:blog.umbler.com)",
       "Bash(awk 'NR==351,NR==1010{print NR\": \"$0}' server/services/whatsapp-bot-engine.service.ts)",
       "Bash(git worktree *)",
-      "Bash(ln -s /home/runner/workspace/node_modules node_modules)"
+      "Bash(ln -s /home/runner/workspace/node_modules node_modules)",
+      "Bash(ln -sfn /home/runner/workspace/node_modules node_modules)"
     ]
   }
 }
