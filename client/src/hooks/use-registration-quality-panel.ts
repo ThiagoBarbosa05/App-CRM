@@ -9,6 +9,7 @@ export interface RegistrationQualityCandidate {
   birthday: string | null;
   email: string | null;
   responsavelId: string | null;
+  responsavelName: string | null;
   orderCount: number;
   totalSpent: number;
   lastPurchaseDate: string | null;

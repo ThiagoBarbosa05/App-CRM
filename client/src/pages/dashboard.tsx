@@ -27,6 +27,7 @@ import {
   BarChart3,
   Calendar,
   CalendarIcon,
+  ClipboardList,
   CreditCard,
   Package,
   Percent,
@@ -57,6 +58,7 @@ import { OrdersSection } from "@/components/seller-dashboard/orders-section";
 import { ConnectCsvImportModal } from "@/components/connect-sales/connect-csv-import-modal";
 import { CohortAnalysisTable } from "@/components/bling-sales/cohort-analysis-table";
 import { useCohortAnalysis } from "@/hooks/use-bling-orders";
+import { RegistrationQualityList } from "@/components/clients/registration-quality-list";
 
 // ---------------------------------------------------------------------------
 
@@ -352,6 +354,15 @@ export default function DashboardPage() {
             <Calendar className="h-4 w-4 shrink-0" />
             <span className="hidden sm:inline">Eventos</span>
           </PillTabsTrigger>
+
+          <PillTabsTrigger
+            value="cadastro-incompleto"
+            color="amber"
+            className="flex-1 justify-center"
+          >
+            <ClipboardList className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Cadastro Incompleto</span>
+          </PillTabsTrigger>
         </PillTabsList>
 
         {/* Aba Desempenho ─────────────────────────────────────────────────── */}
@@ -431,6 +442,14 @@ export default function DashboardPage() {
         {/* Aba Eventos ────────────────────────────────────────────────────── */}
         <TabsContent value="eventos" className="m-0 outline-none space-y-4">
           <EventsDashboard />
+        </TabsContent>
+
+        {/* Aba Cadastro Incompleto ───────────────────────────────────────── */}
+        <TabsContent
+          value="cadastro-incompleto"
+          className="m-0 outline-none space-y-4"
+        >
+          <RegistrationQualityList responsavelId={resolvedSellerId || undefined} />
         </TabsContent>
       </Tabs>
     </div>

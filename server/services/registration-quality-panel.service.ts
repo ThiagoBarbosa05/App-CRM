@@ -13,6 +13,7 @@ export interface RegistrationQualityCandidate {
   birthday: string | null;
   email: string | null;
   responsavelId: string | null;
+  responsavelName: string | null;
   orderCount: number;
   totalSpent: number;
   lastPurchaseDate: string | null;
@@ -27,6 +28,7 @@ type CandidateRow = {
   birthday: string | null;
   email: string | null;
   responsavel_id: string | null;
+  responsavel_name: string | null;
   order_count: string;
   total_spent: string;
   last_purchase_date: string | null;
@@ -49,10 +51,12 @@ export async function getClientsNeedingRegistrationUpdate(params: {
     SELECT
       c.id, c.name, c.phone, c.cpf, c.birthday, c.email,
       c.responsavel_id,
+      u.name AS responsavel_name,
       COALESCE(p.order_count, 0)::text AS order_count,
       COALESCE(p.total_spent, 0)::text AS total_spent,
       p.last_purchase_date::text AS last_purchase_date
     FROM clients c
+    LEFT JOIN users u ON u.id = c.responsavel_id
     LEFT JOIN LATERAL (
       SELECT
         COUNT(*) AS order_count,
@@ -81,6 +85,7 @@ export async function getClientsNeedingRegistrationUpdate(params: {
       birthday: row.birthday,
       email: row.email,
       responsavelId: row.responsavel_id,
+      responsavelName: row.responsavel_name,
       orderCount: parseInt(row.order_count, 10) || 0,
       totalSpent: parseFloat(row.total_spent) || 0,
       lastPurchaseDate: row.last_purchase_date,

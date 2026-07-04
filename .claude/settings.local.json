@@ -68,7 +68,12 @@
       "Bash(awk 'NR==351,NR==1010{print NR\": \"$0}' server/services/whatsapp-bot-engine.service.ts)",
       "Bash(git worktree *)",
       "Bash(ln -s /home/runner/workspace/node_modules node_modules)",
-      "Bash(ln -sfn /home/runner/workspace/node_modules node_modules)"
+      "Bash(ln -sfn /home/runner/workspace/node_modules node_modules)",
+      "Bash(kill 16506 16517)",
+      "Bash(disown)",
+      "Bash(pkill -f \"tsx server/index.ts\")",
+      "Bash(disown -a)",
+      "Bash(echo \"launched pid $!\")"
     ]
   }
 }

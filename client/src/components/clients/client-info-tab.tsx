@@ -301,16 +301,25 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               value={formatPhone(client.phone)}
               href={`tel:${client.phone}`}
               interactive
+              missing={!client.phone}
             />
             {/* CPF / CNPJ tile com botão Assertiva */}
-            <div className="group rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/75">
+            <div className={cn(
+              "group rounded-[22px] border p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)]",
+              !client.cpf
+                ? "animate-slow-pulse border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20"
+                : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/75"
+            )}>
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 shadow-inner dark:bg-slate-800">
-                  <CreditCard className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                <div className={cn(
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-inner",
+                  !client.cpf ? "bg-red-100 dark:bg-red-900/40" : "bg-slate-100 dark:bg-slate-800"
+                )}>
+                  <CreditCard className={cn("h-4 w-4", !client.cpf ? "text-red-500 dark:text-red-400" : "text-slate-500 dark:text-slate-400")} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                    <p className={cn("text-[11px] font-black uppercase tracking-[0.18em]", !client.cpf ? "text-red-400 dark:text-red-500" : "text-slate-400 dark:text-slate-500")}>
                       {client.documentType === "cnpj" ? "CNPJ" : "CPF"}
                     </p>
                     {client.documentType !== "cnpj" && client.cpf && (
@@ -359,12 +368,14 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               accent="amber"
               label="Aniversário"
               value={client.birthday ? formatBirthday(client.birthday) : "Não informado"}
+              missing={!client.birthday}
             />
             <InfoTile
               icon={Mail}
               accent="emerald"
               label="E-mail"
               value={client.email || "Não informado"}
+              missing={!client.email}
             />
             <div
               className={cn(
@@ -670,6 +681,7 @@ function InfoTile({
   value,
   href,
   interactive = false,
+  missing = false,
 }: {
   icon: typeof User;
   accent: TileAccent;
@@ -677,25 +689,33 @@ function InfoTile({
   value: string;
   href?: string;
   interactive?: boolean;
+  missing?: boolean;
 }) {
   const styles = tileAccentStyles[accent];
 
   return (
-    <div className="group rounded-[22px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)] dark:border-slate-800 dark:bg-slate-900/75">
+    <div
+      className={cn(
+        "group rounded-[22px] border p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)]",
+        missing
+          ? "animate-slow-pulse border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20"
+          : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/75",
+      )}
+    >
       <div className="flex items-start gap-3">
         <div
           className={cn(
             "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-inner",
-            styles.iconWrap,
+            missing ? "bg-red-100 dark:bg-red-900/40" : styles.iconWrap,
           )}
         >
-          <Icon className={cn("h-4 w-4", styles.icon)} />
+          <Icon className={cn("h-4 w-4", missing ? "text-red-500 dark:text-red-400" : styles.icon)} />
         </div>
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+          <p className={cn("text-[11px] font-black uppercase tracking-[0.18em]", missing ? "text-red-400 dark:text-red-500" : "text-slate-400 dark:text-slate-500")}>
             {label}
           </p>
-          {href ? (
+          {href && !missing ? (
             <a
               href={href}
               className={cn(
@@ -707,7 +727,7 @@ function InfoTile({
               {value}
             </a>
           ) : (
-            <p className="mt-2 break-words text-base font-black text-slate-900 dark:text-slate-100">
+            <p className={cn("mt-2 break-words text-base font-black", missing ? "text-red-500 dark:text-red-400" : "text-slate-900 dark:text-slate-100")}>
               {value}
             </p>
           )}
