@@ -10,14 +10,22 @@ async function fetchToken(): Promise<string> {
     throw new Error("ASSERTIVA_NOT_CONFIGURED");
   }
 
+  const cleanId = clientId.trim();
+  const cleanSecret = clientSecret.trim();
+
+  const params = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: cleanId,
+    client_secret: cleanSecret,
+  });
+
+  console.log("[Assertiva] clientId length:", cleanId.length, "secretLength:", cleanSecret.length);
+  console.log("[Assertiva] enviando token request para:", `${BASE_URL}/token`);
+
   const res = await fetch(`${BASE_URL}/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
+    body: params.toString(),
   });
 
   const body = await res.text();
