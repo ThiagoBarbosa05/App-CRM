@@ -10,24 +10,21 @@ async function fetchToken(): Promise<string> {
     throw new Error("ASSERTIVA_NOT_CONFIGURED");
   }
 
-  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-
-  const res = await fetch(`${BASE_URL}/oauth2/token`, {
+  const res = await fetch(`${BASE_URL}/token`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Authorization": `Basic ${basicAuth}`,
-    },
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret,
     }),
   });
 
   const body = await res.text();
-  console.log(`[Assertiva] token response ${res.status}:`, body.slice(0, 500));
+  console.log(`[Assertiva] token response ${res.status}:`, body.slice(0, 600));
 
   if (!res.ok) {
-    throw new Error(`Assertiva auth failed: ${res.status} - ${body.slice(0, 200)}`);
+    throw new Error(`Assertiva auth failed: ${res.status} - ${body.slice(0, 300)}`);
   }
 
   const data = JSON.parse(body);
@@ -49,7 +46,7 @@ async function doConsultarCPF(cpf: string, token: string) {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
   const body = await res.text();
-  console.log(`[Assertiva] CPF response ${res.status}:`, body.slice(0, 500));
+  console.log(`[Assertiva] CPF response ${res.status}:`, body.slice(0, 600));
   let data: any;
   try { data = JSON.parse(body); } catch { data = { raw: body }; }
   return { status: res.status, data };
