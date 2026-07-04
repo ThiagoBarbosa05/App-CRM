@@ -65,7 +65,9 @@
       "PowerShell(npm run check)",
       "WebFetch(domain:help.umbler.com)",
       "WebFetch(domain:blog.umbler.com)",
-      "Bash(awk 'NR==351,NR==1010{print NR\": \"$0}' server/services/whatsapp-bot-engine.service.ts)"
+      "Bash(awk 'NR==351,NR==1010{print NR\": \"$0}' server/services/whatsapp-bot-engine.service.ts)",
+      "Bash(git worktree *)",
+      "Bash(ln -s /home/runner/workspace/node_modules node_modules)"
     ]
   }
 }
