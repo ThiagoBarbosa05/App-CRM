@@ -111,7 +111,7 @@ clientsRouter.get("/without-contact", getClientsWithoutContactController);
 clientsRouter.get("/export-all", getClientsExportAllController);
 clientsRouter.get("/export-filtered", getClientsExportFilteredController);
 
-clientsRouter.get("/assertiva-test", requireAuth, async (req, res) => {
+clientsRouter.get("/assertiva-test", async (req, res) => {
   const cpf = String(req.query.cpf ?? "").replace(/\D/g, "");
   if (cpf.length !== 11) return res.status(400).json({ message: "CPF inválido" });
   try {
