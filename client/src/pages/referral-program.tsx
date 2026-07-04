@@ -707,8 +707,8 @@ export default function ReferralProgramPage() {
     return data.referrals.filter((r) => {
       const matchesSearch =
         !search ||
-        r.referredName.toLowerCase().includes(term) ||
-        r.referrerName.toLowerCase().includes(term) ||
+        (r.referredName ?? "").toLowerCase().includes(term) ||
+        (r.referrerName ?? "").toLowerCase().includes(term) ||
         (r.referrerResponsavelName ?? "").toLowerCase().includes(term) ||
         r.referredPhone.includes(search.replace(/\D/g, ""));
       const matchesStatus =
@@ -934,7 +934,7 @@ export default function ReferralProgramPage() {
                         }
                       >
                         <div className="h-8 w-8 rounded-lg bg-accent flex items-center justify-center shrink-0 font-semibold text-primary text-sm">
-                          {r.referredName[0].toUpperCase()}
+                          {(r.referredName?.[0] ?? "?").toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <p
@@ -963,7 +963,7 @@ export default function ReferralProgramPage() {
                         onClick={() => navigate(`/clientes/${r.referrerId}`)}
                       >
                         <div className="h-7 w-7 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 font-medium text-slate-500 dark:text-slate-400 text-xs">
-                          {r.referrerName[0].toUpperCase()}
+                          {(r.referrerName?.[0] ?? "?").toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-primary group-hover:underline">
