@@ -1,5 +1,6 @@
 const TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token";
 const CPF_URL = "https://integracao.assertivasolucoes.com.br/v3/cpf";
+const CPF_LOCALIZE_URL = "https://integracao.assertivasolucoes.com.br/v3/localize/pf";
 
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
@@ -72,6 +73,27 @@ async function doConsultarCPF(cpf: string, token: string) {
   let data: any;
   try { data = await res.json(); } catch { data = {}; }
   return { status: res.status, data };
+}
+
+export async function testarCPF(cpf: string) {
+  const token = await getToken();
+  const clean = cpf.replace(/\D/g, "");
+
+  const [r1, r2] = await Promise.all([
+    fetch(`${CPF_URL}/${clean}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }),
+    fetch(`${CPF_LOCALIZE_URL}/${clean}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }),
+  ]);
+
+  const [t1, t2] = await Promise.all([r1.text(), r2.text()]);
+
+  return {
+    endpoint_cpf: { status: r1.status, url: `${CPF_URL}/${clean}`, body: safeJson(t1) },
+    endpoint_localize: { status: r2.status, url: `${CPF_LOCALIZE_URL}/${clean}`, body: safeJson(t2) },
+  };
+}
+
+function safeJson(text: string) {
+  try { return JSON.parse(text); } catch { return { raw: text.slice(0, 500) }; }
 }
 
 export async function consultarCPF(cpf: string) {
