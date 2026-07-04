@@ -126,9 +126,10 @@ clientsRouter.get(
 );
 
 clientsRouter.get("/:clientId/verify-cpf", requireAuth, async (req, res) => {
+  console.log("[verify-cpf] handler atingido, clientId:", req.params.clientId);
   try {
     const { clientId } = req.params;
-    const client = await storage.getClientById(clientId);
+    const client = await storage.getClient(clientId);
     if (!client) {
       return res.status(404).json({ message: "Cliente não encontrado" });
     }
@@ -138,6 +139,7 @@ clientsRouter.get("/:clientId/verify-cpf", requireAuth, async (req, res) => {
     const data = await consultarCPF(client.cpf);
     return res.json(data);
   } catch (err: any) {
+    console.error("[verify-cpf] erro:", err?.message, err?.stack);
     if (err.message === "ASSERTIVA_NOT_CONFIGURED") {
       return res.status(503).json({ message: "Integração Assertiva não configurada. Adicione ASSERTIVA_CLIENT_ID e ASSERTIVA_CLIENT_SECRET nos secrets." });
     }

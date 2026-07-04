@@ -64,7 +64,6 @@ import { ptBR } from "date-fns/locale";
 import type { ReactNode } from "react";
 import { type Client } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 
 interface ClientInfoTabProps {
   client: Client;
@@ -83,9 +82,9 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
   async function handleVerifyCpf() {
     setCpfVerify({ status: "loading" });
     try {
-      const data = await apiRequest("GET", `/api/clients/${client.id}/verify-cpf`);
-      const json = await data.json();
-      if (!data.ok) {
+      const res = await fetch(`/api/clients/${client.id}/verify-cpf`, { credentials: "include" });
+      const json = await res.json();
+      if (!res.ok) {
         setCpfVerify({ status: "error", message: json.message ?? "Erro na consulta" });
         return;
       }
