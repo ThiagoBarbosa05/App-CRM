@@ -455,19 +455,28 @@ export default function Clients() {
             </div>
           </button>
           {/* Inativos */}
-          <div className="flex items-center gap-3 rounded-xl border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-900/10 px-4 py-3">
+          <button
+            onClick={() => {
+              setClientFilters(prev => ({ ...prev, purchaseStatus: prev.purchaseStatus === "inativo" ? "all" : "inativo" }));
+              setCurrentPage(1);
+              document.getElementById("lista-clientes")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all hover:scale-[1.02] hover:shadow-md active:scale-[0.98] ${clientFilters.purchaseStatus === "inativo" ? "border-red-400 bg-red-100 ring-2 ring-red-400 dark:border-red-600 dark:bg-red-900/30 dark:ring-red-600" : "border-red-200 bg-red-50 dark:border-red-800/60 dark:bg-red-900/10"}`}
+          >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 dark:bg-red-900/40">
               <Phone className="h-5 w-5 text-red-500 dark:text-red-400" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-400 dark:text-red-500">Inativos</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-red-400 dark:text-red-500">
+                Inativos {clientFilters.purchaseStatus === "inativo" && <span className="ml-1 text-[9px] normal-case font-bold bg-red-500 text-white rounded px-1">filtrado</span>}
+              </p>
               {isLoadingHealth ? (
                 <div className="h-6 w-12 bg-red-200 dark:bg-red-700/40 rounded animate-pulse mt-0.5" />
               ) : (
                 <p className="text-xl font-black text-red-500 dark:text-red-400">{(healthData?.inactive ?? 0).toLocaleString("pt-BR")}</p>
               )}
             </div>
-          </div>
+          </button>
           {/* Cadastro incompleto */}
           <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${(healthData?.incomplete ?? 0) > 0 ? "animate-slow-pulse border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/10" : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900"}`}>
             <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${(healthData?.incomplete ?? 0) > 0 ? "bg-amber-100 dark:bg-amber-900/40" : "bg-slate-100 dark:bg-slate-800"}`}>
