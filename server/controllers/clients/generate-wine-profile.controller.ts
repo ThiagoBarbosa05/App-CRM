@@ -27,30 +27,28 @@ export const generateWineProfileController = async (req: Request, res: Response)
       .sort((a, b) => b.totalValue - a.totalValue)
       .slice(0, 10);
 
-    const blingProductIds = insights.productMix
+    const internalProductIds = insights.productMix
       .map((p) => p.productId)
       .filter((id): id is string => !!id);
 
     const productInfo: Record<string, { type: string | null; country: string | null; aiProfile: WineAIProfile | null }> = {};
-    if (blingProductIds.length > 0) {
+    if (internalProductIds.length > 0) {
       const dbProducts = await db
         .select({
-          blingProductId: products.blingProductId,
+          id: products.id,
           type: products.type,
           country: products.country,
           aiProfile: products.aiProfile,
         })
         .from(products)
-        .where(inArray(products.blingProductId, blingProductIds));
+        .where(inArray(products.id, internalProductIds));
 
       for (const p of dbProducts) {
-        if (p.blingProductId) {
-          productInfo[p.blingProductId] = {
-            type: p.type,
-            country: p.country,
-            aiProfile: (p.aiProfile as WineAIProfile | null) ?? null,
-          };
-        }
+        productInfo[p.id] = {
+          type: p.type,
+          country: p.country,
+          aiProfile: (p.aiProfile as WineAIProfile | null) ?? null,
+        };
       }
     }
 
