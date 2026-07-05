@@ -371,7 +371,7 @@ async function listProductMix(clientId: string) {
         COALESCE(
           p_direct.id,
           ctp.internal_id,
-          p_name.id
+          p_substr.id
         )::text AS product_id,
         boi.product_code AS product_code,
         boi.description AS description,
@@ -383,14 +383,22 @@ async function listProductMix(clientId: string) {
       INNER JOIN bling_orders bo ON boi.order_id = bo.id
       LEFT JOIN products p_direct ON p_direct.bling_product_id = boi.product_id::text AND p_direct.deleted_at IS NULL
       LEFT JOIN code_to_product ctp ON ctp.product_code = boi.product_code AND p_direct.id IS NULL
-      LEFT JOIN products p_name ON UPPER(boi.description) = UPPER(p_name.name) AND p_name.deleted_at IS NULL AND p_direct.id IS NULL AND ctp.internal_id IS NULL
+      LEFT JOIN LATERAL (
+        SELECT p.id FROM products p
+        WHERE p.deleted_at IS NULL
+          AND p_direct.id IS NULL AND ctp.internal_id IS NULL
+          AND boi.description IS NOT NULL
+          AND (UPPER(boi.description) LIKE '%' || UPPER(p.name) || '%'
+            OR UPPER(p.name) LIKE '%' || UPPER(boi.description) || '%')
+        ORDER BY LENGTH(p.name) DESC LIMIT 1
+      ) p_substr ON true
       WHERE bo.deleted_at IS NULL
         AND bo.app_client_id = ${clientId}
 
       UNION ALL
 
       SELECT
-        NULL::text AS product_id,
+        p_match.id::text AS product_id,
         coi.product_code AS product_code,
         coi.product_name AS description,
         coi.order_id::text AS order_id,
@@ -399,6 +407,14 @@ async function listProductMix(clientId: string) {
         to_char(co.sale_date, 'YYYY-MM-DD') AS sale_date
       FROM connect_order_items coi
       INNER JOIN connect_orders co ON coi.order_id = co.id
+      LEFT JOIN LATERAL (
+        SELECT p.id FROM products p
+        WHERE p.deleted_at IS NULL
+          AND coi.product_name IS NOT NULL
+          AND (UPPER(coi.product_name) LIKE '%' || UPPER(p.name) || '%'
+            OR UPPER(p.name) LIKE '%' || UPPER(coi.product_name) || '%')
+        ORDER BY LENGTH(p.name) DESC LIMIT 1
+      ) p_match ON true
       WHERE co.app_client_id = ${clientId}
     )
     SELECT
