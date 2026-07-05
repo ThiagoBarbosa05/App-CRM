@@ -21,6 +21,7 @@ import {
   Bot,
   CircleDollarSign,
   Download,
+  Globe,
   GraduationCap,
   Grid,
   Grid3X3,
@@ -54,6 +55,7 @@ import { WinePriceTierSettings } from "@/components/settings-management";
 import ProductCategoriesManagement from "@/components/product-categories-management";
 import { WineAIProfileSettings } from "@/components/wine-ai-profile-settings";
 import { IntegrationsManagement } from "@/components/integrations-management";
+import CountriesManagement from "@/components/countries-management";
 
 export default function Configurations() {
   const { user } = useAuth();
@@ -100,27 +102,15 @@ export default function Configurations() {
   });
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="flex flex-col h-full p-4 md:p-6 gap-6">
       <PageHeader>
-        <PageHeader.Info>
-          <PageHeader.Icon
-            icon={Settings}
-            color="text-primary"
-            bgColor="bg-accent"
-          />
-          <PageHeader.Text>
-            <PageHeader.Title>Painel de Configurações</PageHeader.Title>
-            <PageHeader.Description>
-              Gerencie usuários, categorias e todas as preferências do sistema
-            </PageHeader.Description>
-          </PageHeader.Text>
-        </PageHeader.Info>
+        <PageHeader.Title>Painel de Configurações</PageHeader.Title>
       </PageHeader>
 
       <AppTabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="space-y-6"
+        className="flex flex-col flex-1 min-h-0"
       >
         <PillTabsList className="flex-wrap h-auto">
           <PillTabsTrigger value="users" color="wine">
@@ -138,6 +128,10 @@ export default function Configurations() {
           <PillTabsTrigger value="origins" color="wine">
             <Tag className="h-3.5 w-3.5" />
             Origens
+          </PillTabsTrigger>
+          <PillTabsTrigger value="countries" color="wine">
+            <Globe className="h-3.5 w-3.5" />
+            Países
           </PillTabsTrigger>
           <PillTabsTrigger value="sectors" color="wine">
             <LayoutPanelTop className="h-3.5 w-3.5" />
@@ -209,6 +203,10 @@ export default function Configurations() {
 
             <AppTabsContent value="origins">
               <OriginsManagement />
+            </AppTabsContent>
+
+            <AppTabsContent value="countries">
+              <CountriesManagement />
             </AppTabsContent>
 
             <AppTabsContent value="sectors">
