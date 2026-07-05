@@ -12,6 +12,7 @@ import tagsRouter, {
   categoriesRouter,
   originsRouter,
   markersRouter,
+  countriesRouter,
 } from "./tags.routes";
 import { interactionsRouter } from "./interactions.routes";
 import { cashbackSettingsRouter } from "./cashback-settings.routes";
@@ -148,6 +149,7 @@ apiRouter.use("/tags", tagsRouter);
 apiRouter.use("/categories", categoriesRouter);
 apiRouter.use("/origins", originsRouter);
 apiRouter.use("/markers", markersRouter);
+apiRouter.use("/countries", countriesRouter);
 apiRouter.use("/interactions", interactionsRouter);
 apiRouter.use("/cashback-settings", cashbackSettingsRouter);
 apiRouter.use("/", cashbackRouter);

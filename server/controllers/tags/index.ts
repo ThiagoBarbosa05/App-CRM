@@ -9,3 +9,6 @@ export { deleteOriginController } from "./delete-origin.controller";
 export { createMarkerController } from "./create-marker.controller";
 export { updateMarkerController } from "./update-marker.controller";
 export { deleteMarkerController } from "./delete-marker.controller";
+export { createCountryController } from "./create-country.controller";
+export { updateCountryController } from "./update-country.controller";
+export { deleteCountryController } from "./delete-country.controller";

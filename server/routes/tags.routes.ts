@@ -14,7 +14,11 @@ import {
   createMarkerController,
   updateMarkerController,
   deleteMarkerController,
+  createCountryController,
+  updateCountryController,
+  deleteCountryController,
 } from "../controllers/tags/index";
+import { getCountriesController } from "../controllers/tags/get-countries.controller";
 
 /**
  * Router específico para endpoints relacionados a tags
@@ -453,5 +457,17 @@ markersRouter.put("/:id", updateMarkerController);
  */
 markersRouter.delete("/:id", deleteMarkerController);
 
+/**
+ * Router para operações CRUD de países
+ * Montado em /api/countries
+ */
+const countriesRouter = Router();
+
+tagsRouter.get("/countries", getCountriesController);
+
+countriesRouter.post("/", createCountryController);
+countriesRouter.put("/:id", updateCountryController);
+countriesRouter.delete("/:id", deleteCountryController);
+
 export default tagsRouter;
-export { categoriesRouter, originsRouter, markersRouter };
+export { categoriesRouter, originsRouter, markersRouter, countriesRouter };

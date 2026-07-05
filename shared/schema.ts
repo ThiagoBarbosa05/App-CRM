@@ -491,7 +491,7 @@ export const tags = pgTable("tags", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  type: text("type", { enum: ["marcador", "origem", "categoria"] }).notNull(),
+  type: text("type", { enum: ["marcador", "origem", "categoria", "pais"] }).notNull(),
   color: text("color").default("#6B7280"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -65,6 +65,10 @@ class TagsService {
   async getMarkers(): Promise<Tag[]> {
     return await tagsRepository.getTagsByType("marcador");
   }
+
+  async getCountries(): Promise<Tag[]> {
+    return await tagsRepository.getTagsByType("pais");
+  }
 }
 
 export const tagsService = new TagsService();
