@@ -28,7 +28,7 @@ class TagsRepository {
    * - Tipos válidos: "categoria", "origem", "marcador"
    */
   async getTagsByType(
-    type: "categoria" | "origem" | "marcador"
+    type: "categoria" | "origem" | "marcador" | "pais"
   ): Promise<Tag[]> {
     const result = await db
       .select()
