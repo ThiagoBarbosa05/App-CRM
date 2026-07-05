@@ -101,6 +101,8 @@ export default function ProductImportModal({
             fieldLower.includes("volume") ||
             fieldLower.includes("tipo") ||
             fieldLower.includes("type") ||
+            fieldLower.includes("categoria") ||
+            fieldLower.includes("category") ||
             fieldLower.includes("valor") ||
             fieldLower.includes("price") ||
             fieldLower.includes("preço");
@@ -158,6 +160,9 @@ export default function ProductImportModal({
           const type = String(
             product["Tipo"] || product.tipo || product.type || "TINTO",
           ).toUpperCase();
+          const category = String(
+            product["Categoria"] || product.categoria || product.category || "OUTROS",
+          ).toUpperCase();
 
           // Processar preço
           let negotiatedPrice = "0.00";
@@ -200,6 +205,7 @@ export default function ProductImportModal({
             country: finalCountry,
             volume: finalVolume,
             type: finalType,
+            category,
             negotiatedPrice,
           };
 
@@ -297,6 +303,7 @@ export default function ProductImportModal({
     const templateData = [
       {
         "Nome do Vinho": "Vinho Tinto Exemplo",
+        Categoria: "VINHOS",
         País: "BRASIL",
         Volume: "750ml",
         Tipo: "TINTO",
