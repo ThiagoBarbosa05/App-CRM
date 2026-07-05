@@ -40,21 +40,7 @@ const productSchema = z
   .object({
     name: z.string().min(1, "Nome do vinho é obrigatório"),
     category: z.string().min(1, "Categoria é obrigatória"),
-    country: z
-      .enum([
-        "CHILE",
-        "ARGENTINA",
-        "URUGUAI",
-        "BRASIL",
-        "EUA",
-        "FRANÇA",
-        "ITÁLIA",
-        "PORTUGAL",
-        "ESPANHA",
-        "ALEMANHA",
-        "OUTROS",
-      ])
-      .optional(),
+    country: z.string().optional(),
     volume: z.enum(["187ml", "375ml", "750ml", "1500ml"]).optional(),
     type: z
       .enum(["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"])
@@ -123,6 +109,11 @@ export function ProductFormModal({
   const { data: productCategories = [] } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories"],
     retry: 3,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: countries = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/tags/countries"],
     staleTime: 5 * 60 * 1000,
   });
 
@@ -332,17 +323,11 @@ export function ProductFormModal({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="CHILE">🇨🇱 Chile</SelectItem>
-                          <SelectItem value="ARGENTINA">🇦🇷 Argentina</SelectItem>
-                          <SelectItem value="URUGUAI">🇺🇾 Uruguai</SelectItem>
-                          <SelectItem value="BRASIL">🇧🇷 Brasil</SelectItem>
-                          <SelectItem value="EUA">🇺🇸 EUA</SelectItem>
-                          <SelectItem value="FRANÇA">🇫🇷 França</SelectItem>
-                          <SelectItem value="ITÁLIA">🇮🇹 Itália</SelectItem>
-                          <SelectItem value="PORTUGAL">🇵🇹 Portugal</SelectItem>
-                          <SelectItem value="ESPANHA">🇪🇸 Espanha</SelectItem>
-                          <SelectItem value="ALEMANHA">🇩🇪 Alemanha</SelectItem>
-                          <SelectItem value="OUTROS">🌍 Outros</SelectItem>
+                          {(countries as { id: string; name: string }[]).map((c) => (
+                            <SelectItem key={c.id} value={c.name}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

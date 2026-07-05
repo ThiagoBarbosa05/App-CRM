@@ -35,19 +35,10 @@ interface ProductsBulkEditModalProps {
 // Sentinela para "não alterar este campo"
 const KEEP = "__keep__";
 
-const COUNTRY_OPTIONS = [
-  { value: "CHILE", label: "🇨🇱 Chile" },
-  { value: "ARGENTINA", label: "🇦🇷 Argentina" },
-  { value: "URUGUAI", label: "🇺🇾 Uruguai" },
-  { value: "BRASIL", label: "🇧🇷 Brasil" },
-  { value: "EUA", label: "🇺🇸 EUA" },
-  { value: "FRANÇA", label: "🇫🇷 França" },
-  { value: "ITÁLIA", label: "🇮🇹 Itália" },
-  { value: "PORTUGAL", label: "🇵🇹 Portugal" },
-  { value: "ESPANHA", label: "🇪🇸 Espanha" },
-  { value: "ALEMANHA", label: "🇩🇪 Alemanha" },
-  { value: "OUTROS", label: "🌍 Outros" },
-];
+interface Country {
+  id: string;
+  name: string;
+}
 
 const VOLUME_OPTIONS = ["187ml", "375ml", "750ml", "1500ml"];
 
@@ -67,6 +58,11 @@ export function ProductsBulkEditModal({
 
   const { data: productCategories = [] } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories"],
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: countries = [] } = useQuery<Country[]>({
+    queryKey: ["/api/tags/countries"],
     staleTime: 5 * 60 * 1000,
   });
 
@@ -161,9 +157,9 @@ export function ProductsBulkEditModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={KEEP}>Não alterar</SelectItem>
-                {COUNTRY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
+                {(countries as Country[]).map((c) => (
+                  <SelectItem key={c.id} value={c.name}>
+                    {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>

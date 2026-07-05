@@ -45,6 +45,11 @@ export function ProductsFilters({
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: countries = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/tags/countries"],
+    staleTime: 5 * 60 * 1000,
+  });
+
   return (
     <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 p-6 rounded-3xl shadow-sm relative z-10">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -78,17 +83,11 @@ export function ProductsFilters({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__all__">Todos os países</SelectItem>
-            <SelectItem value="CHILE">🇨🇱 Chile</SelectItem>
-            <SelectItem value="ARGENTINA">🇦🇷 Argentina</SelectItem>
-            <SelectItem value="URUGUAI">🇺🇾 Uruguai</SelectItem>
-            <SelectItem value="BRASIL">🇧🇷 Brasil</SelectItem>
-            <SelectItem value="EUA">🇺🇸 EUA</SelectItem>
-            <SelectItem value="FRANÇA">🇫🇷 França</SelectItem>
-            <SelectItem value="ITÁLIA">🇮🇹 Itália</SelectItem>
-            <SelectItem value="PORTUGAL">🇵🇹 Portugal</SelectItem>
-            <SelectItem value="ESPANHA">🇪🇸 Espanha</SelectItem>
-            <SelectItem value="ALEMANHA">🇩🇪 Alemanha</SelectItem>
-            <SelectItem value="OUTROS">🌍 Outros</SelectItem>
+            {countries.map((c) => (
+              <SelectItem key={c.id} value={c.name}>
+                {c.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 

@@ -2116,21 +2116,7 @@ export const products = pgTable("products", {
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   category: text("category").notNull().default("OUTROS"),
-  country: text("country", {
-    enum: [
-      "CHILE",
-      "ARGENTINA",
-      "URUGUAI",
-      "BRASIL",
-      "EUA",
-      "FRANÇA",
-      "ITÁLIA",
-      "PORTUGAL",
-      "ESPANHA",
-      "ALEMANHA",
-      "OUTROS",
-    ],
-  }),
+  country: text("country"),
   volume: text("volume", {
     enum: ["187ml", "375ml", "750ml", "1500ml"],
   }).notNull(),
