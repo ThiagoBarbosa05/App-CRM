@@ -45,8 +45,15 @@ interface AccessTokenEntry {
   expiresAt: number;
 }
 
+interface RegisteredClient {
+  clientId: string;
+  redirectUris: string[];
+  clientName: string;
+}
+
 const authCodes = new Map<string, AuthCodeEntry>();
 const accessTokens = new Map<string, AccessTokenEntry>();
+const registeredClients = new Map<string, RegisteredClient>();
 
 // Limpeza periódica de entradas expiradas (a cada 15 minutos)
 setInterval(() => {
@@ -89,6 +96,40 @@ function requireMcpAuth(req: Request, res: Response): boolean {
   res.status(401).json({ error: "Token inválido." });
   return false;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OAuth 2.0 — POST /mcp/register  (RFC 7591 Dynamic Client Registration)
+// Claude.ai chama este endpoint automaticamente antes de iniciar o fluxo PKCE
+// ─────────────────────────────────────────────────────────────────────────────
+
+mcpRouter.post("/register", (req: Request, res: Response) => {
+  const body = req.body as Record<string, any>;
+  const redirectUris: string[] = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
+
+  if (!redirectUris.length) {
+    return res.status(400).json({
+      error: "invalid_client_metadata",
+      error_description: "redirect_uris é obrigatório",
+    });
+  }
+
+  const clientId = crypto.randomBytes(16).toString("hex");
+  const clientName: string = body.client_name ?? "MCP Client";
+
+  registeredClients.set(clientId, { clientId, redirectUris, clientName });
+
+  return res.status(201).json({
+    client_id: clientId,
+    client_id_issued_at: Math.floor(Date.now() / 1000),
+    client_secret_expires_at: 0,
+    redirect_uris: redirectUris,
+    client_name: clientName,
+    grant_types: ["authorization_code"],
+    response_types: ["code"],
+    token_endpoint_auth_method: "none",
+    code_challenge_methods_supported: ["S256"],
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OAuth 2.0 — GET /mcp/authorize
