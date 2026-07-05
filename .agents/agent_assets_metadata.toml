@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "z7uYS1q9fe0VQQroG3MgR"
+uri = "file://itens_sem_match.xlsx"
+type = "table"
+title = "Itens Sem Match — Para Correção Manual"
