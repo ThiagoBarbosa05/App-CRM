@@ -58,6 +58,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ProductFormModal } from "@/components/product-form-modal";
 import { getCountryFlag } from "@/lib/country-flags";
+import { CountryFlag } from "@/components/country-flag";
 
 interface WineAIProfile {
   corpo: string;
@@ -536,8 +537,9 @@ export default function ProductProfilePage() {
                 <PageHeader.Title>{product?.name}</PageHeader.Title>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {product?.country && (
-                    <span className="text-sm font-semibold text-slate-500">
-                      {flag} {product.country}
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-500">
+                      <CountryFlag country={product.country} size={16} />
+                      {product.country}
                     </span>
                   )}
                   {product?.type && (
@@ -701,9 +703,12 @@ export default function ProductProfilePage() {
                       País
                     </span>
                   </div>
-                  <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
-                    {flag} {product?.country ?? "—"}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <CountryFlag country={product?.country} size={20} />
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">
+                      {product?.country ?? "—"}
+                    </p>
+                  </div>
                 </div>
               )}
 

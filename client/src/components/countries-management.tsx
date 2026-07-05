@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { getCountryFlag } from "@/lib/country-flags";
 import {
   Dialog,
   DialogContent,
@@ -245,9 +246,12 @@ export default function CountriesManagement() {
                           <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <span
-                          className="font-semibold text-slate-900 dark:text-slate-100 truncate"
+                          className="font-semibold text-slate-900 dark:text-slate-100 truncate flex items-center gap-2"
                           title={country.name}
                         >
+                          <span className="text-lg leading-none">
+                            {getCountryFlag(country.name)}
+                          </span>
                           {country.name}
                         </span>
                       </div>
