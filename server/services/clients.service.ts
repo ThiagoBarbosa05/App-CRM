@@ -159,6 +159,20 @@ export class ClientsService {
     if (rawFilters.wineType && typeof rawFilters.wineType === "string") {
       filters.wineType = rawFilters.wineType;
     }
+    if (rawFilters.wineBody && typeof rawFilters.wineBody === "string" && rawFilters.wineBody !== "all") {
+      filters.wineBody = rawFilters.wineBody;
+    }
+    if (rawFilters.wineSweetness && typeof rawFilters.wineSweetness === "string" && rawFilters.wineSweetness !== "all") {
+      filters.wineSweetness = rawFilters.wineSweetness;
+    }
+    if (rawFilters.winePriceMin) {
+      const v = parseFloat(String(rawFilters.winePriceMin));
+      if (!isNaN(v) && v >= 0) filters.winePriceMin = v;
+    }
+    if (rawFilters.winePriceMax) {
+      const v = parseFloat(String(rawFilters.winePriceMax));
+      if (!isNaN(v) && v >= 0) filters.winePriceMax = v;
+    }
     if (rawFilters.hasWineProfile === true) {
       filters.hasWineProfile = true;
     }
@@ -1008,6 +1022,10 @@ export class ClientsService {
       wineGrape: req.query.wineGrape,
       wineRegion: req.query.wineRegion,
       wineType: req.query.wineType,
+      wineBody: req.query.wineBody,
+      wineSweetness: req.query.wineSweetness,
+      winePriceMin: req.query.winePriceMin,
+      winePriceMax: req.query.winePriceMax,
       hasWineProfile: req.query.hasWineProfile === "true" ? true : undefined,
       rfmSegment: req.query.rfmSegment as string | undefined,
       eventId: req.query.eventId as string | undefined,
@@ -1088,6 +1106,10 @@ export class ClientsService {
       wineGrape: req.query.wineGrape,
       wineRegion: req.query.wineRegion,
       wineType: req.query.wineType,
+      wineBody: req.query.wineBody,
+      wineSweetness: req.query.wineSweetness,
+      winePriceMin: req.query.winePriceMin,
+      winePriceMax: req.query.winePriceMax,
       hasWineProfile: req.query.hasWineProfile === "true" ? true : undefined,
       rfmSegment: req.query.rfmSegment as string | undefined,
       eventId: req.query.eventId as string | undefined,

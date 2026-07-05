@@ -75,7 +75,11 @@
       "Bash(disown -a)",
       "Bash(echo \"launched pid $!\")",
       "Bash(echo \"pid $!\")",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(python3 -)",
+      "Bash(echo \"exit-filter: $?\")",
+      "Skill(dataviz)",
+      "Bash(echo \"filter-exit: $?\")"
     ]
   }
 }

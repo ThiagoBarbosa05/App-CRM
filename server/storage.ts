@@ -166,6 +166,10 @@ export interface ClientFilters {
   wineGrape?: string;
   wineRegion?: string;
   wineType?: string;
+  wineBody?: string;
+  wineSweetness?: string;
+  winePriceMin?: number;
+  winePriceMax?: number;
   hasWineProfile?: boolean;
   rfmSegment?: string;
   eventId?: string;

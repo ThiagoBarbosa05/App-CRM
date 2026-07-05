@@ -213,6 +213,30 @@ export class ClientsRepository {
       );
     }
 
+    if (filters.wineBody && filters.wineBody !== "all") {
+      conditions.push(
+        sql`${clients.wineProfile}->'perfil_sensorial'->>'corpo' ILIKE ${filters.wineBody}`,
+      );
+    }
+
+    if (filters.wineSweetness && filters.wineSweetness !== "all") {
+      conditions.push(
+        sql`${clients.wineProfile}->'perfil_sensorial'->>'docura' ILIKE ${filters.wineSweetness}`,
+      );
+    }
+
+    if (filters.winePriceMin !== undefined) {
+      conditions.push(
+        sql`(${clients.wineProfile}->'faixa_de_preco'->>'max')::numeric >= ${filters.winePriceMin}`,
+      );
+    }
+
+    if (filters.winePriceMax !== undefined) {
+      conditions.push(
+        sql`(${clients.wineProfile}->'faixa_de_preco'->>'min')::numeric <= ${filters.winePriceMax}`,
+      );
+    }
+
     if (filters.rfmSegment && filters.rfmSegment !== "all") {
       conditions.push(eq(clients.rfmSegment, filters.rfmSegment));
     }

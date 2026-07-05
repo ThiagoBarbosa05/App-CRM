@@ -287,7 +287,7 @@ clientsRouter.put("/:id", putClientController);
  * @returns {object} 500 - Erro interno do servidor
  */
 clientsRouter.post("/:id/confirm", confirmClientController);
-clientsRouter.post("/:clientId/generate-wine-profile", generateWineProfileController);
+clientsRouter.post("/:clientId/generate-wine-profile", requireAuth, generateWineProfileController);
 
 /**
  * @route DELETE /api/clients/:id

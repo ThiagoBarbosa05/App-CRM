@@ -10,6 +10,10 @@ export interface ClientAnalyticsFilters {
   wineGrape?: string;
   wineRegion?: string;
   wineType?: string;
+  wineBody?: string;
+  wineSweetness?: string;
+  winePriceMin?: string;
+  winePriceMax?: string;
   rfmSegment?: string;
   eventId?: string;
   isEventParticipant?: boolean;

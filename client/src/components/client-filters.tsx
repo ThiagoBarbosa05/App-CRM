@@ -41,6 +41,10 @@ export interface ClientFilters {
   wineGrape: string;
   wineRegion: string;
   wineType: string;
+  wineBody: string;
+  wineSweetness: string;
+  winePriceMin: string;
+  winePriceMax: string;
   rfmSegment: string;
   eventId: string;
   isEventParticipant?: boolean;
@@ -119,6 +123,10 @@ export default function ClientFilters({
       wineGrape: "",
       wineRegion: "",
       wineType: "all",
+      wineBody: "all",
+      wineSweetness: "all",
+      winePriceMin: "",
+      winePriceMax: "",
       rfmSegment: "all",
       eventId: "all",
     };
@@ -391,6 +399,61 @@ export default function ClientFilters({
                       <SelectItem value="PÓS-REFEIÇÃO">Pós-refeição</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">Corpo</Label>
+                  <Select
+                    value={localFilters.wineBody}
+                    onValueChange={(value) => handleFilterChange("wineBody", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o corpo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="leve">Leve</SelectItem>
+                      <SelectItem value="médio">Médio</SelectItem>
+                      <SelectItem value="encorpado">Encorpado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">Doçura</Label>
+                  <Select
+                    value={localFilters.wineSweetness}
+                    onValueChange={(value) => handleFilterChange("wineSweetness", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a doçura..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="seco">Seco</SelectItem>
+                      <SelectItem value="meio-seco">Meio-seco</SelectItem>
+                      <SelectItem value="meio-doce">Meio-doce</SelectItem>
+                      <SelectItem value="doce">Doce</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-sm font-medium">Faixa de preço habitual (R$)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      placeholder="De"
+                      value={localFilters.winePriceMin}
+                      onChange={(e) => handleFilterChange("winePriceMin", e.target.value)}
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Até"
+                      value={localFilters.winePriceMax}
+                      onChange={(e) => handleFilterChange("winePriceMax", e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

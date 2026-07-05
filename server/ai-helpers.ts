@@ -1,5 +1,6 @@
 // Funções auxiliares para integração com IA
 import OpenAI from 'openai';
+import { z } from 'zod';
 import type { ConditionBranch } from '@shared/schema';
 
 export interface WineAIProfile {
@@ -16,19 +17,28 @@ export interface WineAIProfile {
   descricao: string;
 }
 
-export interface ClientWineProfile {
-  resumo: string;
-  tipos_preferidos: string[];
-  perfil_sensorial: {
-    corpo: string;
-    docura: string;
-    tanino: string | null;
-  };
-  regioes_favoritas: string[];
-  uvas_favoritas: string[];
-  faixa_de_preco: { min: number; max: number };
-  sugestao_abordagem: string;
-}
+export const clientWineProfileSchema = z.object({
+  resumo: z.string(),
+  tipos_preferidos: z.array(z.string()).default([]),
+  perfil_sensorial: z.object({
+    corpo: z.string(),
+    docura: z.string(),
+    tanino: z.string().nullable().default(null),
+  }),
+  regioes_favoritas: z.array(z.string()).default([]),
+  uvas_favoritas: z.array(z.string()).default([]),
+  faixa_de_preco: z.object({
+    min: z.coerce.number(),
+    max: z.coerce.number(),
+  }),
+  sugestao_abordagem: z.string(),
+  // Calculado pelo backend a partir do histórico real de compras — nunca vem da IA
+  distribuicao_tipos: z
+    .array(z.object({ tipo: z.string(), quantidade: z.number(), percentual: z.number() }))
+    .optional(),
+});
+
+export type ClientWineProfile = z.infer<typeof clientWineProfileSchema>;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
@@ -252,7 +262,8 @@ export async function generateClientWineProfile(
       const profile = p.aiProfile
         ? ` | corpo: ${p.aiProfile.corpo}, uvas: ${p.aiProfile.uvas.join(', ')}, região: ${p.aiProfile.regiao}`
         : '';
-      return `${i + 1}. ${p.name} (${p.type ?? ''}, ${p.country ?? ''}) — ${p.quantity} compras, R$${p.totalValue.toFixed(2)}${profile}`;
+      const meta = [p.type, p.country].filter(Boolean).join(', ');
+      return `${i + 1}. ${p.name}${meta ? ` (${meta})` : ''} — ${p.quantity} compras, R$${p.totalValue.toFixed(2)}${profile}`;
     })
     .join('\n');
 
@@ -286,7 +297,11 @@ Retorne APENAS um JSON válido com exatamente estas chaves:
   });
 
   const content = completion.choices[0]?.message?.content ?? '{}';
-  return JSON.parse(content) as ClientWineProfile;
+  const parsed = clientWineProfileSchema.safeParse(JSON.parse(content));
+  if (!parsed.success) {
+    throw new Error(`Perfil retornado pela IA em formato inválido: ${parsed.error.issues.map((i) => i.path.join('.')).join(', ')}`);
+  }
+  return parsed.data;
 }
 
 /**
