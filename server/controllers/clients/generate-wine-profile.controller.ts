@@ -65,11 +65,15 @@ export const generateWineProfileController = async (req: Request, res: Response)
     });
 
     // Distribuição real por tipo (base: quantidade de garrafas em todo o mix de compras)
+    console.log("[WineProfile] productMix items:", JSON.stringify(insights.productMix.map(p => ({ id: p.productId, desc: p.description, qty: p.totalQuantity }))));
+    console.log("[WineProfile] productInfo keys:", Object.keys(productInfo));
     const typeTotals = new Map<string, number>();
     let totalQuantity = 0;
     for (const item of insights.productMix) {
       if (item.totalQuantity <= 0) continue;
-      const tipo = (item.productId ? productInfo[item.productId]?.type : null) ?? "OUTROS";
+      const info = item.productId ? productInfo[item.productId] : undefined;
+      const tipo = info?.type ?? "OUTROS";
+      console.log(`[WineProfile] item="${item.description}" productId=${item.productId} info=${JSON.stringify(info)} tipo=${tipo}`);
       typeTotals.set(tipo, (typeTotals.get(tipo) ?? 0) + item.totalQuantity);
       totalQuantity += item.totalQuantity;
     }
