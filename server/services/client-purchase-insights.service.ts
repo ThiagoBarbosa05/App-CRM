@@ -341,7 +341,8 @@ async function listAllOrderMetrics(clientId: string) {
       WHERE bo.deleted_at IS NULL
         AND bo.app_client_id = ${clientId}
       UNION ALL
-      SELECT to_char(co.sale_date, 'YYYY-MM-DD') AS sale_date, co.total_value::text AS total_value
+      SELECT to_char(co.sale_date, 'YYYY-MM-DD') AS sale_date,
+        NULLIF(co.total_value, 'NaN'::numeric)::text AS total_value
       FROM connect_orders co
       WHERE co.app_client_id = ${clientId}
     ) AS orders_union
@@ -375,8 +376,8 @@ async function listProductMix(clientId: string) {
         boi.product_code AS product_code,
         boi.description AS description,
         boi.order_id::text AS order_id,
-        boi.quantity::numeric AS quantity,
-        (boi.quantity * boi.value)::numeric AS total_value,
+        NULLIF(boi.quantity::numeric, 'NaN'::numeric) AS quantity,
+        NULLIF((boi.quantity * boi.value)::numeric, 'NaN'::numeric) AS total_value,
         bo.sale_date::text AS sale_date
       FROM bling_order_items boi
       INNER JOIN bling_orders bo ON boi.order_id = bo.id
@@ -393,8 +394,8 @@ async function listProductMix(clientId: string) {
         coi.product_code AS product_code,
         coi.product_name AS description,
         coi.order_id::text AS order_id,
-        coi.quantity::numeric AS quantity,
-        (coi.quantity * coi.unit_value)::numeric AS total_value,
+        NULLIF(coi.quantity::numeric, 'NaN'::numeric) AS quantity,
+        NULLIF((coi.quantity * coi.unit_value)::numeric, 'NaN'::numeric) AS total_value,
         to_char(co.sale_date, 'YYYY-MM-DD') AS sale_date
       FROM connect_order_items coi
       INNER JOIN connect_orders co ON coi.order_id = co.id
@@ -608,8 +609,9 @@ export const clientPurchaseInsightsService = {
     const predictiveAnalysis = buildPredictiveAnalysis(summary);
     const { productMix, inactiveProducts } = buildProductAnalytics(productRows);
 
-    const totalItems = productRows.reduce((sum, row) => sum + Number(row.totalQuantity ?? 0), 0);
-    const totalItemValue = productRows.reduce((sum, row) => sum + Number(row.totalValue ?? 0), 0);
+    const safeNum = (v: unknown) => { const n = Number(v ?? 0); return isNaN(n) ? 0 : n; };
+    const totalItems = productRows.reduce((sum, row) => sum + safeNum(row.totalQuantity), 0);
+    const totalItemValue = productRows.reduce((sum, row) => sum + safeNum(row.totalValue), 0);
     const avgItemsPerOrder = summary.purchaseCount > 0 && totalItems > 0
       ? roundTo(totalItems / summary.purchaseCount, 1)
       : null;
