@@ -105,6 +105,7 @@ import {
   getSalesHistoryController,
 } from "./controllers/sales";
 import { apiRouter } from "./routes/index";
+import { mcpRouter } from "./routes/mcp.routes";
 import {
   createObjectStorageApiRouter,
   objectEntitiesRouter,
@@ -112,6 +113,10 @@ import {
 } from "./routes/object-storage.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // MCP Server — também acessível em /mcp (sem prefixo /api)
+  // Clientes MCP externos (Claude Desktop, etc.) usam esta URL mais curta
+  app.use("/mcp", mcpRouter);
+
   // === NOVA ARQUITETURA REFATORADA ===
   // Usar novo sistema de rotas modular
   app.use("/api", apiRouter);
