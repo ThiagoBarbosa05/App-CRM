@@ -90,6 +90,7 @@ import { umblerTagImportRouter } from "./umbler-tag-import.routes";
 import { mediaLibraryRouter } from "./media-library.routes";
 import assertivaRouter from "./assertiva.routes";
 import openaiStatusRouter from "./openai.routes";
+import { mcpRouter } from "./mcp.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -100,6 +101,11 @@ export const apiRouter = Router();
 // === ROTAS PÚBLICAS (sem autenticação) ===
 // Devem ser registradas ANTES do middleware requireAuth
 apiRouter.use("/auth", authRouter);
+
+// MCP Server — usa autenticação própria por API key (não requer JWT)
+// Endpoint: POST /api/mcp  (para agentes de IA externos)
+// Endpoint: GET  /api/mcp  (informações públicas sobre o servidor)
+apiRouter.use("/mcp", mcpRouter);
 apiRouter.use("/health", healthRouter);
 // Webhook do Bling — sem autenticação de usuário (usa HMAC próprio)
 apiRouter.use("/bling", blingWebhookRouter);

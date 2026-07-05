@@ -1,1 +1,2 @@
 - [Assertiva API Integration](assertiva-integration.md) — Basic auth header + grant_type only in body; 403 = conta sem permissão, contatar suporte Assertiva.
+- [MCP Server](mcp-server.md) — Servidor MCP em server/routes/mcp.routes.ts, endpoint POST /api/mcp, autenticação por MCP_API_KEY, 10 ferramentas usando storage + clientPurchaseInsightsService + getAggregateDashboard.
