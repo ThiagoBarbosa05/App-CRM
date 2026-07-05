@@ -50,8 +50,10 @@ import {
   Download,
   Phone,
   Mail,
+  Pencil,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ProductFormModal } from "@/components/product-form-modal";
 
 interface WineAIProfile {
   corpo: string;
@@ -390,6 +392,7 @@ export default function ProductProfilePage() {
   const initialTab = new URLSearchParams(window.location.search).get("tab") ?? "details";
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showBuyersModal, setShowBuyersModal] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [period, setPeriod] = useState<"12m" | "6m" | "3m" | "last" | "current">("12m");
 
   const PERIOD_OPTIONS: { value: typeof period; label: string }[] = [
@@ -567,6 +570,19 @@ export default function ProductProfilePage() {
             )}
           </PageHeader.Text>
         </PageHeader.Info>
+
+        <PageHeader.Actions>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditModalOpen(true)}
+            disabled={isLoadingProduct || !product}
+            className="gap-1.5 font-medium"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Editar produto
+          </Button>
+        </PageHeader.Actions>
       </PageHeader>
 
       {/* Summary cards */}
@@ -1320,6 +1336,15 @@ export default function ProductProfilePage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal: editar produto */}
+      {product && (
+        <ProductFormModal
+          open={isEditModalOpen}
+          onOpenChange={setIsEditModalOpen}
+          product={product}
+        />
+      )}
     </div>
   );
 }

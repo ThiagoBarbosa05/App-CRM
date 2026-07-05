@@ -1,12 +1,13 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 
 import { storage } from "../storage";
-import { insertProductSchema, systemSettings } from "@shared/schema";
+import { insertProductSchema, products, systemSettings } from "@shared/schema";
 import { generateWineProductProfile } from "../ai-helpers";
 import { db } from "../db";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { requireAuth } from "../middleware/validation";
 
 async function getWineAIInstructions(): Promise<string | null> {
   try {
@@ -22,6 +23,13 @@ async function getWineAIInstructions(): Promise<string | null> {
 
 export const productsRouter = Router();
 export const companyProductsRouter = Router();
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Acesso restrito a administradores" });
+  }
+  return next();
+}
 
 productsRouter.get("/", async (req, res) => {
   try {
@@ -87,6 +95,39 @@ productsRouter.post("/", async (req, res) => {
     }
     console.error("Error creating product:", error);
     return res.status(500).json({ message: "Erro ao criar produto" });
+  }
+});
+
+const bulkUpdateProductsSchema = z.object({
+  productIds: z.array(z.string().min(1)).min(1).max(200),
+  updates: insertProductSchema
+    .pick({ category: true, country: true, volume: true, type: true })
+    .partial()
+    .refine((u) => Object.values(u).some((v) => v !== undefined && v !== null), {
+      message: "Informe ao menos um campo para alterar",
+    }),
+});
+
+// Edição em massa (somente admin). Não regenera perfis de IA para evitar
+// centenas de chamadas à OpenAI em uma única operação.
+productsRouter.patch("/bulk-update", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { productIds, updates } = bulkUpdateProductsSchema.parse(req.body);
+
+    const updated = await db
+      .update(products)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(inArray(products.id, productIds), isNull(products.deletedAt)))
+      .returning({ id: products.id });
+
+    return res.json({ updated: updated.length });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const validationError = fromZodError(error);
+      return res.status(400).json({ message: validationError.toString() });
+    }
+    console.error("Error bulk updating products:", error);
+    return res.status(500).json({ message: "Erro ao atualizar produtos em massa" });
   }
 });
 

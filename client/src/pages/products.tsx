@@ -7,16 +7,18 @@ import { ProductClientsModal } from "@/components/product-clients-modal";
 import ProductImportModal from "@/components/product-import-modal";
 import { BlingProductSyncModal } from "@/components/bling-product-sync-modal";
 import { queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-import { Download, Plus, RefreshCw, Upload, Wine } from "lucide-react";
+import { Download, Pencil, Plus, RefreshCw, Upload, Wine, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 
 // Extracted Components
 import { ProductsStatistics } from "@/components/products/products-statistics";
 import { ProductsFilters } from "@/components/products/products-filters";
 import { ProductsTable } from "@/components/products/products-table";
+import { ProductsBulkEditModal } from "@/components/products/products-bulk-edit-modal";
 import { Button } from "@/components/ui/button";
 
 interface Product {
@@ -35,6 +37,10 @@ interface Product {
 
 export default function Products() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -101,6 +107,37 @@ export default function Products() {
   const products = data?.data || [];
   const totalProducts = data?.totalItems || 0;
   const totalPages = data?.totalPages || 1;
+
+  // Seleção em massa vale só para a página visível — limpa ao trocar de página/filtro
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [currentPage, debouncedSearchQuery, debouncedTypeFilter, debouncedCountryFilter, debouncedVolumeFilter, debouncedCategoryFilter]);
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectPage = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const product of products as Product[]) {
+        if (checked) {
+          next.add(product.id);
+        } else {
+          next.delete(product.id);
+        }
+      }
+      return next;
+    });
+  };
 
   const {
     data: statistics,
@@ -322,6 +359,34 @@ export default function Products() {
             setCategoryFilter={setCategoryFilter}
           />
 
+          {isAdmin && selectedIds.size > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200/60 dark:border-violet-800/40">
+              <p className="text-sm font-semibold text-violet-800 dark:text-violet-300">
+                {selectedIds.size} produto{selectedIds.size > 1 ? "s" : ""} selecionado
+                {selectedIds.size > 1 ? "s" : ""}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="gap-1.5 text-slate-500"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Limpar seleção
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setIsBulkEditModalOpen(true)}
+                  className="gap-1.5"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Editar em massa
+                </Button>
+              </div>
+            </div>
+          )}
+
           <ProductsTable
             products={products}
             isFetching={isFetching}
@@ -337,9 +402,22 @@ export default function Products() {
             setCurrentPage={setCurrentPage}
             pageSize={pageSize}
             setPageSize={(size) => { setPageSize(size); setCurrentPage(1); }}
+            selectable={isAdmin}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onToggleSelectPage={handleToggleSelectPage}
           />
         </div>
       </div>
+
+      {isAdmin && (
+        <ProductsBulkEditModal
+          open={isBulkEditModalOpen}
+          onOpenChange={setIsBulkEditModalOpen}
+          productIds={Array.from(selectedIds)}
+          onSuccess={() => setSelectedIds(new Set())}
+        />
+      )}
 
       <ProductFormModal
         open={isProductModalOpen}

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Edit,
   Trash2,
@@ -68,6 +69,10 @@ interface ProductsTableProps {
   setCurrentPage: (page: number) => void;
   pageSize: number;
   setPageSize: (size: number) => void;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectPage?: (checked: boolean) => void;
 }
 
 function isWineProduct(category?: string) {
@@ -95,8 +100,15 @@ export function ProductsTable({
   setCurrentPage,
   pageSize,
   setPageSize,
+  selectable = false,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectPage,
 }: ProductsTableProps) {
   const [, navigate] = useLocation();
+  const allPageSelected =
+    products.length > 0 && products.every((p) => selectedIds?.has(p.id));
+  const columnCount = selectable ? 9 : 8;
   return (
     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 rounded-3xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
       {/* Mobile Card View */}
@@ -152,6 +164,14 @@ export function ProductsTable({
                 className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 shadow-sm flex flex-col gap-4 relative"
               >
                 <div className="flex justify-between items-start gap-4">
+                  {selectable && (
+                    <Checkbox
+                      className="mt-1 shrink-0"
+                      checked={selectedIds?.has(product.id) ?? false}
+                      onCheckedChange={() => onToggleSelect?.(product.id)}
+                      aria-label={`Selecionar ${product.name}`}
+                    />
+                  )}
                   <div
                     className="flex items-start gap-3 cursor-pointer flex-1 min-w-0"
                     onClick={() => navigate(`/products/${product.id}`)}
@@ -317,6 +337,15 @@ export function ProductsTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/80 dark:bg-slate-800/30 border-b border-slate-200/60 dark:border-slate-800/60 hover:bg-transparent">
+              {selectable && (
+                <TableHead className="py-5 pl-6 pr-0 w-10">
+                  <Checkbox
+                    checked={allPageSelected}
+                    onCheckedChange={(checked) => onToggleSelectPage?.(checked === true)}
+                    aria-label="Selecionar todos os produtos da página"
+                  />
+                </TableHead>
+              )}
               <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                 Produto
               </TableHead>
@@ -351,7 +380,7 @@ export function ProductsTable({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <TableCell colSpan={8} className="text-center py-32">
+                  <TableCell colSpan={columnCount} className="text-center py-32">
                     <div className="flex flex-col items-center gap-5">
                       <div className="relative">
                         <div className="animate-spin rounded-full h-14 w-14 border-[3px] border-primary/20 border-t-primary" />
@@ -374,7 +403,7 @@ export function ProductsTable({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
-                  <TableCell colSpan={8} className="text-center py-32">
+                  <TableCell colSpan={columnCount} className="text-center py-32">
                     <div className="flex flex-col items-center gap-5">
                       <div className="p-5 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800/80 dark:to-slate-900 rounded-3xl shadow-inner border border-slate-200/50 dark:border-slate-700/50">
                         <Wine className="h-10 w-10 text-slate-400 dark:text-slate-500" />
@@ -400,6 +429,15 @@ export function ProductsTable({
                     transition={{ delay: index * 0.03, duration: 0.3 }}
                     className="hover:bg-slate-50/80 dark:hover:bg-slate-800/80 border-b border-slate-200/50 dark:border-slate-800/50 transition-all duration-200 group"
                   >
+                    {selectable && (
+                      <TableCell className="py-5 pl-6 pr-0 w-10">
+                        <Checkbox
+                          checked={selectedIds?.has(product.id) ?? false}
+                          onCheckedChange={() => onToggleSelect?.(product.id)}
+                          aria-label={`Selecionar ${product.name}`}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="py-5 px-6">
                       <div
                         className="flex items-center gap-4 cursor-pointer"
