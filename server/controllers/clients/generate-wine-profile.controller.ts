@@ -59,23 +59,27 @@ export const generateWineProfileController = async (req: Request, res: Response)
         type: info?.type ?? null,
         country: info?.country ?? null,
         quantity: p.totalQuantity,
-        totalValue: p.totalValue,
+        unitPrice: p.totalQuantity > 0 ? p.totalValue / p.totalQuantity : 0,
         aiProfile: info?.aiProfile ?? null,
       };
     });
 
     // Distribuição real por tipo (base: quantidade de garrafas em todo o mix de compras)
-    console.log("[WineProfile] productMix items:", JSON.stringify(insights.productMix.map(p => ({ id: p.productId, desc: p.description, qty: p.totalQuantity }))));
-    console.log("[WineProfile] productInfo keys:", Object.keys(productInfo));
     const typeTotals = new Map<string, number>();
     let totalQuantity = 0;
+    // Preço unitário real (base: R$/garrafa de cada item do mix, não o valor total gasto no produto)
+    let minUnitPrice = Infinity;
+    let maxUnitPrice = -Infinity;
     for (const item of insights.productMix) {
       if (item.totalQuantity <= 0) continue;
       const info = item.productId ? productInfo[item.productId] : undefined;
       const tipo = info?.type ?? "OUTROS";
-      console.log(`[WineProfile] item="${item.description}" productId=${item.productId} info=${JSON.stringify(info)} tipo=${tipo}`);
       typeTotals.set(tipo, (typeTotals.get(tipo) ?? 0) + item.totalQuantity);
       totalQuantity += item.totalQuantity;
+
+      const unitPrice = item.totalValue / item.totalQuantity;
+      if (unitPrice < minUnitPrice) minUnitPrice = unitPrice;
+      if (unitPrice > maxUnitPrice) maxUnitPrice = unitPrice;
     }
     const distribuicaoTipos =
       totalQuantity > 0
@@ -87,9 +91,18 @@ export const generateWineProfileController = async (req: Request, res: Response)
             }))
             .sort((a, b) => b.quantidade - a.quantidade)
         : [];
+    const faixaDePrecoReal =
+      totalQuantity > 0
+        ? { min: Math.round(minUnitPrice * 100) / 100, max: Math.round(maxUnitPrice * 100) / 100 }
+        : null;
 
     const aiProfile = await generateClientWineProfile(client.name, productsForAI);
-    const wineProfile = { ...aiProfile, distribuicao_tipos: distribuicaoTipos };
+    const wineProfile = {
+      ...aiProfile,
+      // Sobrescreve a estimativa da IA com a faixa real de preço unitário (R$/garrafa) do histórico
+      faixa_de_preco: faixaDePrecoReal ?? aiProfile.faixa_de_preco,
+      distribuicao_tipos: distribuicaoTipos,
+    };
 
     const generatedAt = new Date();
     await storage.updateClient(clientId, {

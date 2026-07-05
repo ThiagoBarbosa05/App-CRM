@@ -27,6 +27,7 @@ export const clientWineProfileSchema = z.object({
   }),
   regioes_favoritas: z.array(z.string()).default([]),
   uvas_favoritas: z.array(z.string()).default([]),
+  // Estimativa da IA — o controller sobrescreve com a faixa real de preço unitário quando há histórico suficiente
   faixa_de_preco: z.object({
     min: z.coerce.number(),
     max: z.coerce.number(),
@@ -249,7 +250,7 @@ export async function generateClientWineProfile(
     type?: string | null;
     country?: string | null;
     quantity: number;
-    totalValue: number;
+    unitPrice: number;
     aiProfile?: WineAIProfile | null;
   }>,
 ): Promise<ClientWineProfile> {
@@ -263,7 +264,7 @@ export async function generateClientWineProfile(
         ? ` | corpo: ${p.aiProfile.corpo}, uvas: ${p.aiProfile.uvas.join(', ')}, região: ${p.aiProfile.regiao}`
         : '';
       const meta = [p.type, p.country].filter(Boolean).join(', ');
-      return `${i + 1}. ${p.name}${meta ? ` (${meta})` : ''} — ${p.quantity} compras, R$${p.totalValue.toFixed(2)}${profile}`;
+      return `${i + 1}. ${p.name}${meta ? ` (${meta})` : ''} — ${p.quantity} garrafas, preço unitário médio R$${p.unitPrice.toFixed(2)}${profile}`;
     })
     .join('\n');
 
