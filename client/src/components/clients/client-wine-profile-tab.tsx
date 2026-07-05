@@ -7,11 +7,20 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/utils";
 import { useTheme } from "@/contexts/theme-context";
+import { getCountryFlag } from "@/lib/country-flags";
 
 interface WineTypeShare {
   tipo: string;
   quantidade: number;
   percentual: number;
+}
+
+interface SuggestedWine {
+  id: string;
+  name: string;
+  type: string | null;
+  country: string | null;
+  negotiatedPrice: string;
 }
 
 interface WineProfile {
@@ -27,6 +36,7 @@ interface WineProfile {
   faixa_de_preco: { min: number; max: number };
   sugestao_abordagem: string;
   distribuicao_tipos?: WineTypeShare[];
+  vinhos_sugeridos?: SuggestedWine[];
 }
 
 interface ClientProp {
@@ -459,6 +469,26 @@ export function ClientWineProfileTab({ client }: { client: ClientProp }) {
                 <p className="text-sm text-amber-900 dark:text-amber-200 leading-relaxed">
                   {profile.sugestao_abordagem}
                 </p>
+                {profile.vinhos_sugeridos && profile.vinhos_sugeridos.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-amber-200/60 dark:border-amber-800/40 space-y-1.5">
+                    <p className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest mb-1.5">
+                      Exemplos do catálogo
+                    </p>
+                    {profile.vinhos_sugeridos.map((wine) => (
+                      <div key={wine.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-amber-900 dark:text-amber-200 font-medium truncate">
+                          {wine.country && (
+                            <span className="mr-1.5">{getCountryFlag(wine.country)}</span>
+                          )}
+                          {wine.name}
+                        </span>
+                        <span className="text-amber-700 dark:text-amber-400 font-bold shrink-0">
+                          {formatCurrency(parseFloat(wine.negotiatedPrice))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

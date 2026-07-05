@@ -37,6 +37,18 @@ export const clientWineProfileSchema = z.object({
   distribuicao_tipos: z
     .array(z.object({ tipo: z.string(), quantidade: z.number(), percentual: z.number() }))
     .optional(),
+  // Calculado pelo backend a partir do catálogo real de produtos — nunca vem da IA
+  vinhos_sugeridos: z
+    .array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        type: z.string().nullable(),
+        country: z.string().nullable(),
+        negotiatedPrice: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 export type ClientWineProfile = z.infer<typeof clientWineProfileSchema>;

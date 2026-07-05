@@ -1,10 +1,63 @@
 import { Request, Response } from "express";
 import { db } from "../../db";
 import { clients, products } from "@shared/schema";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, notInArray, sql } from "drizzle-orm";
 import { clientPurchaseInsightsService } from "../../services/client-purchase-insights.service";
 import { generateClientWineProfile, WineAIProfile } from "../../ai-helpers";
 import { storage } from "../../storage";
+
+interface SuggestedWine {
+  id: string;
+  name: string;
+  type: string | null;
+  country: string | null;
+  negotiatedPrice: string;
+}
+
+const PRODUCT_TYPES = ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] as const;
+type ProductType = (typeof PRODUCT_TYPES)[number];
+
+function asProductType(value: string | null): ProductType | null {
+  return value && (PRODUCT_TYPES as readonly string[]).includes(value) ? (value as ProductType) : null;
+}
+
+async function findSuggestedWines(
+  preferredTypeInput: string | null,
+  priceRange: { min: number; max: number } | null,
+  excludeProductIds: string[],
+): Promise<SuggestedWine[]> {
+  const preferredType = asProductType(preferredTypeInput);
+  const baseConditions = [isNull(products.deletedAt)];
+  if (excludeProductIds.length > 0) {
+    baseConditions.push(notInArray(products.id, excludeProductIds));
+  }
+
+  const runQuery = (withType: boolean, withPriceRange: boolean) => {
+    const conditions = [...baseConditions];
+    if (withType && preferredType) conditions.push(eq(products.type, preferredType));
+    if (withPriceRange && priceRange) {
+      conditions.push(gte(sql`${products.negotiatedPrice}::numeric`, priceRange.min * 0.6));
+      conditions.push(lte(sql`${products.negotiatedPrice}::numeric`, priceRange.max * 1.4));
+    }
+    return db
+      .select({
+        id: products.id,
+        name: products.name,
+        type: products.type,
+        country: products.country,
+        negotiatedPrice: products.negotiatedPrice,
+      })
+      .from(products)
+      .where(and(...conditions))
+      .orderBy(sql`RANDOM()`)
+      .limit(2);
+  };
+
+  let results = await runQuery(true, true);
+  if (results.length < 2) results = await runQuery(true, false);
+  if (results.length < 2) results = await runQuery(false, false);
+  return results;
+}
 
 export const generateWineProfileController = async (req: Request, res: Response) => {
   try {
@@ -97,11 +150,20 @@ export const generateWineProfileController = async (req: Request, res: Response)
         : null;
 
     const aiProfile = await generateClientWineProfile(client.name, productsForAI);
+
+    const preferredType = distribuicaoTipos[0]?.tipo ?? aiProfile.tipos_preferidos[0] ?? null;
+    const vinhosSugeridos = await findSuggestedWines(
+      preferredType,
+      faixaDePrecoReal ?? aiProfile.faixa_de_preco,
+      internalProductIds,
+    );
+
     const wineProfile = {
       ...aiProfile,
       // Sobrescreve a estimativa da IA com a faixa real de preço unitário (R$/garrafa) do histórico
       faixa_de_preco: faixaDePrecoReal ?? aiProfile.faixa_de_preco,
       distribuicao_tipos: distribuicaoTipos,
+      vinhos_sugeridos: vinhosSugeridos,
     };
 
     const generatedAt = new Date();

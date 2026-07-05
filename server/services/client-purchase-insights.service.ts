@@ -627,12 +627,12 @@ export const clientPurchaseInsightsService = {
 
     const safeNum = (v: unknown) => { const n = Number(v ?? 0); return isNaN(n) ? 0 : n; };
     const totalItems = productRows.reduce((sum, row) => sum + safeNum(row.totalQuantity), 0);
-    const totalItemValue = productRows.reduce((sum, row) => sum + safeNum(row.totalValue), 0);
+    const totalPurchased = allOrders.reduce((sum, order) => sum + order.totalValue, 0);
     const avgItemsPerOrder = summary.purchaseCount > 0 && totalItems > 0
       ? roundTo(totalItems / summary.purchaseCount, 1)
       : null;
     const avgItemPrice = totalItems > 0
-      ? roundTo(totalItemValue / totalItems)
+      ? roundTo(totalPurchased / totalItems)
       : null;
 
     const linkStatus: ClientPurchaseInsightsResponse["linkStatus"] =
