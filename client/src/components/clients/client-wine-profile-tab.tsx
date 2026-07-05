@@ -229,7 +229,23 @@ export function ClientWineProfileTab({ client }: { client: ClientProp }) {
   const hasPriceRange =
     typeof profile?.faixa_de_preco?.min === "number" && typeof profile?.faixa_de_preco?.max === "number";
 
-  const hasDistribution = (profile?.distribuicao_tipos?.length ?? 0) > 0;
+  // Usa distribuicao_tipos real se existir; caso contrário, constrói estimativa igualitária
+  // a partir de tipos_preferidos (cobre perfis antigos sem o campo)
+  const distribuicaoParaGrafico: WineTypeShare[] = (() => {
+    if ((profile?.distribuicao_tipos?.length ?? 0) > 0) return profile!.distribuicao_tipos!;
+    if ((profile?.tipos_preferidos?.length ?? 0) > 0) {
+      const n = profile!.tipos_preferidos.length;
+      return profile!.tipos_preferidos.map((tipo, i) => ({
+        tipo: tipo.toUpperCase(),
+        quantidade: n - i,
+        percentual: Math.round(((n - i) / ((n * (n + 1)) / 2)) * 1000) / 10,
+      }));
+    }
+    return [];
+  })();
+
+  const hasDistribution = distribuicaoParaGrafico.length > 0;
+  const isSyntheticDistribution = hasDistribution && (profile?.distribuicao_tipos?.length ?? 0) === 0;
 
   return (
     <div className="space-y-5">
@@ -321,17 +337,24 @@ export function ClientWineProfileTab({ client }: { client: ClientProp }) {
 
           {/* Distribuição por tipo + perfil sensorial */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {hasDistribution && profile.distribuicao_tipos && (
+            {hasDistribution && (
               <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-200/60 dark:border-slate-700/60">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/30">
-                    <ChartPie className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                <div className="flex items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-rose-100 dark:bg-rose-900/30">
+                      <ChartPie className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      O que este cliente bebe
+                    </p>
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    O que este cliente bebe
-                  </p>
+                  {isSyntheticDistribution && (
+                    <span className="text-[9px] font-semibold text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-full px-2 py-0.5">
+                      Estimativa — regenere o perfil para dados reais
+                    </span>
+                  )}
                 </div>
-                <WineTypeDonut data={profile.distribuicao_tipos} />
+                <WineTypeDonut data={distribuicaoParaGrafico} />
               </div>
             )}
 
