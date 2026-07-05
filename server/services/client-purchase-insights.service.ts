@@ -371,7 +371,8 @@ async function listProductMix(clientId: string) {
         COALESCE(
           p_direct.id,
           ctp.internal_id,
-          p_substr.id
+          p_substr.id,
+          p_btrgm.id
         )::text AS product_id,
         boi.product_code AS product_code,
         boi.description AS description,
@@ -392,13 +393,21 @@ async function listProductMix(clientId: string) {
             OR UPPER(p.name) LIKE '%' || UPPER(boi.description) || '%')
         ORDER BY LENGTH(p.name) DESC LIMIT 1
       ) p_substr ON true
+      LEFT JOIN LATERAL (
+        SELECT p.id FROM products p
+        WHERE p.deleted_at IS NULL
+          AND p_direct.id IS NULL AND ctp.internal_id IS NULL AND p_substr.id IS NULL
+          AND boi.description IS NOT NULL
+          AND similarity(UPPER(p.name), UPPER(boi.description)) > 0.5
+        ORDER BY similarity(UPPER(p.name), UPPER(boi.description)) DESC LIMIT 1
+      ) p_btrgm ON true
       WHERE bo.deleted_at IS NULL
         AND bo.app_client_id = ${clientId}
 
       UNION ALL
 
       SELECT
-        p_match.id::text AS product_id,
+        COALESCE(ctp_c.internal_id, p_like.id, p_trgm.id)::text AS product_id,
         coi.product_code AS product_code,
         coi.product_name AS description,
         coi.order_id::text AS order_id,
@@ -407,14 +416,25 @@ async function listProductMix(clientId: string) {
         to_char(co.sale_date, 'YYYY-MM-DD') AS sale_date
       FROM connect_order_items coi
       INNER JOIN connect_orders co ON coi.order_id = co.id
+      LEFT JOIN code_to_product ctp_c ON ctp_c.product_code = coi.product_code
       LEFT JOIN LATERAL (
         SELECT p.id FROM products p
         WHERE p.deleted_at IS NULL
+          AND ctp_c.internal_id IS NULL
           AND coi.product_name IS NOT NULL
           AND (UPPER(coi.product_name) LIKE '%' || UPPER(p.name) || '%'
             OR UPPER(p.name) LIKE '%' || UPPER(coi.product_name) || '%')
         ORDER BY LENGTH(p.name) DESC LIMIT 1
-      ) p_match ON true
+      ) p_like ON true
+      LEFT JOIN LATERAL (
+        SELECT p.id FROM products p
+        WHERE p.deleted_at IS NULL
+          AND ctp_c.internal_id IS NULL
+          AND p_like.id IS NULL
+          AND coi.product_name IS NOT NULL
+          AND similarity(UPPER(p.name), UPPER(coi.product_name)) > 0.5
+        ORDER BY similarity(UPPER(p.name), UPPER(coi.product_name)) DESC LIMIT 1
+      ) p_trgm ON true
       WHERE co.app_client_id = ${clientId}
     )
     SELECT
