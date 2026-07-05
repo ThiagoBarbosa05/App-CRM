@@ -113,8 +113,23 @@ import {
 } from "./routes/object-storage.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // MCP Server — também acessível em /mcp (sem prefixo /api)
-  // Clientes MCP externos (Claude Desktop, etc.) usam esta URL mais curta
+  // OAuth 2.0 discovery — exigido pelo Claude.ai para autenticar conectores MCP
+  // RFC 8414: https://www.rfc-editor.org/rfc/rfc8414
+  app.get("/.well-known/oauth-authorization-server", (_req, res) => {
+    const base = process.env.APP_URL ?? "https://crmgrandcru.replit.app";
+    res.json({
+      issuer: base,
+      authorization_endpoint: `${base}/mcp/authorize`,
+      token_endpoint: `${base}/mcp/token`,
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code"],
+      code_challenge_methods_supported: ["S256"],
+      token_endpoint_auth_methods_supported: ["none"],
+    });
+  });
+
+  // MCP Server — acessível em /mcp (sem prefixo /api)
+  // Inclui endpoints OAuth 2.0 PKCE para Claude.ai + handler MCP principal
   app.use("/mcp", mcpRouter);
 
   // === NOVA ARQUITETURA REFATORADA ===
