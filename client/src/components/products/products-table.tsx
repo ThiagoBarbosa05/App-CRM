@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CountryFlag } from "@/components/country-flag";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -203,9 +204,7 @@ export function ProductsTable({
                       <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {isWineProduct(product.category) && (
                           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md px-1.5 py-0.5">
-                            <span className="text-sm leading-none drop-shadow-sm">
-                              {getCountryFlag(product.country)}
-                            </span>
+                            <CountryFlag country={product.country} size={14} />
                             <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase truncate">
                               {product.country}
                             </span>
@@ -491,9 +490,7 @@ export function ProductsTable({
                         <span className="text-xs text-slate-400">—</span>
                       ) : (
                         <div className="flex items-center gap-2.5">
-                          <span className="text-2xl leading-none filter drop-shadow-sm">
-                            {getCountryFlag(product.country)}
-                          </span>
+                          <CountryFlag country={product.country} size={20} />
                           <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
                             {product.country}
                           </span>
