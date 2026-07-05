@@ -18,6 +18,8 @@ import {
   ChevronRight,
   User,
   MoreVertical,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -52,6 +54,7 @@ interface Product {
   createdAt: string;
   clientCount: number;
   imageUrl?: string | null;
+  blingProductId?: string | null;
 }
 
 interface ProductsTableProps {
@@ -70,6 +73,7 @@ interface ProductsTableProps {
   pageSize: number;
   setPageSize: (size: number) => void;
   selectable?: boolean;
+  canManage?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
   onToggleSelectPage?: (checked: boolean) => void;
@@ -101,6 +105,7 @@ export function ProductsTable({
   pageSize,
   setPageSize,
   selectable = false,
+  canManage = false,
   selectedIds,
   onToggleSelect,
   onToggleSelectPage,
@@ -108,7 +113,7 @@ export function ProductsTable({
   const [, navigate] = useLocation();
   const allPageSelected =
     products.length > 0 && products.every((p) => selectedIds?.has(p.id));
-  const columnCount = selectable ? 9 : 8;
+  const columnCount = selectable ? 10 : 9;
   return (
     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/60 rounded-3xl shadow-sm overflow-hidden flex flex-col min-h-[500px]">
       {/* Mobile Card View */}
@@ -221,69 +226,82 @@ export function ProductsTable({
                             {product.type}
                           </Badge>
                         )}
+                        {product.blingProductId ? (
+                          <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 rounded-md px-1.5 py-0.5">
+                            <CheckCircle2 className="h-2.5 w-2.5 text-blue-500" />
+                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">Bling</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-md px-1.5 py-0.5">
+                            <XCircle className="h-2.5 w-2.5 text-slate-400" />
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">Bling</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1 shrink-0 items-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-slate-600"
+                  {canManage && (
+                    <div className="flex flex-col gap-1 shrink-0 items-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-slate-600"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-40 rounded-xl"
                         >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-40 rounded-xl"
-                      >
-                        <DropdownMenuItem
-                          onClick={() => onEdit(product)}
-                          className="gap-2 cursor-pointer"
-                        >
-                          <Edit className="h-4 w-4" /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem
-                              onSelect={(e) => e.preventDefault()}
-                              className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
-                            >
-                              <Trash2 className="h-4 w-4" /> Excluir
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="rounded-3xl border-slate-200/60 dark:border-slate-800/60 p-6 max-w-[90vw]">
-                            <AlertDialogHeader className="gap-2">
-                              <div className="mx-auto bg-red-100 dark:bg-red-900/30 p-3 rounded-full mb-2">
-                                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-500" />
-                              </div>
-                              <AlertDialogTitle className="font-extrabold text-xl text-center text-slate-900 dark:text-white">
-                                Excluir Produto?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription className="text-slate-500 font-medium text-center text-sm">
-                                Tem certeza deseja excluir?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter className="gap-3 sm:justify-center mt-6">
-                              <AlertDialogCancel className="rounded-xl border-slate-200 hover:bg-slate-50 font-bold h-11 px-6">
-                                Cancelar
-                              </AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => onDelete(product.id)}
-                                className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-xl font-bold h-11 px-6 border-0 shadow-md shadow-red-500/20"
+                          <DropdownMenuItem
+                            onClick={() => onEdit(product)}
+                            className="gap-2 cursor-pointer"
+                          >
+                            <Edit className="h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem
+                                onSelect={(e) => e.preventDefault()}
+                                className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
                               >
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                                <Trash2 className="h-4 w-4" /> Excluir
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-3xl border-slate-200/60 dark:border-slate-800/60 p-6 max-w-[90vw]">
+                              <AlertDialogHeader className="gap-2">
+                                <div className="mx-auto bg-red-100 dark:bg-red-900/30 p-3 rounded-full mb-2">
+                                  <Trash2 className="h-6 w-6 text-red-600 dark:text-red-500" />
+                                </div>
+                                <AlertDialogTitle className="font-extrabold text-xl text-center text-slate-900 dark:text-white">
+                                  Excluir Produto?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription className="text-slate-500 font-medium text-center text-sm">
+                                  Tem certeza deseja excluir?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter className="gap-3 sm:justify-center mt-6">
+                                <AlertDialogCancel className="rounded-xl border-slate-200 hover:bg-slate-50 font-bold h-11 px-6">
+                                  Cancelar
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => onDelete(product.id)}
+                                  className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-xl font-bold h-11 px-6 border-0 shadow-md shadow-red-500/20"
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl p-3 border border-slate-100 dark:border-slate-800">
@@ -366,6 +384,9 @@ export function ProductsTable({
               </TableHead>
               <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden lg:table-cell">
                 Alcance
+              </TableHead>
+              <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden xl:table-cell">
+                Bling
               </TableHead>
               <TableHead className="text-right py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                 Ações
@@ -546,59 +567,74 @@ export function ProductsTable({
                         </div>
                       </div>
                     </TableCell>
+                    <TableCell className="py-5 px-6 hidden xl:table-cell">
+                      {product.blingProductId ? (
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="h-4 w-4 text-blue-500 shrink-0" />
+                          <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Sincronizado</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <XCircle className="h-4 w-4 text-slate-300 dark:text-slate-600 shrink-0" />
+                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500">Não sincronizado</span>
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right py-5 px-6">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onEdit(product)}
-                          className="h-10 w-10 text-slate-400 hover:text-primary hover:bg-accent rounded-xl transition-colors"
-                        >
-                          <Edit className="h-[18px] w-[18px]" />
-                        </Button>
+                      {canManage && (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onEdit(product)}
+                            className="h-10 w-10 text-slate-400 hover:text-primary hover:bg-accent rounded-xl transition-colors"
+                          >
+                            <Edit className="h-[18px] w-[18px]" />
+                          </Button>
 
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-10 w-10 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors"
-                            >
-                              <Trash2 className="h-[18px] w-[18px]" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="rounded-3xl border-slate-200/60 dark:border-slate-800/60 p-8">
-                            <AlertDialogHeader className="gap-2">
-                              <div className="mx-auto bg-red-100 dark:bg-red-900/30 p-3 rounded-full mb-2">
-                                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-500" />
-                              </div>
-                              <AlertDialogTitle className="font-extrabold text-2xl text-center text-slate-900 dark:text-white">
-                                Excluir Produto?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription className="text-slate-500 font-medium text-center text-base">
-                                Tem certeza que deseja remover o vinho
-                                <strong className="text-slate-900 dark:text-slate-100 font-bold mx-1">
-                                  {product.name}
-                                </strong>
-                                ?
-                                <br className="hidden sm:block" />
-                                Isso o removerá de todas as cartas vinculadas.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter className="gap-3 sm:justify-center mt-6">
-                              <AlertDialogCancel className="rounded-xl border-slate-200 hover:bg-slate-50 font-bold h-12 px-6">
-                                Cancelar
-                              </AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => onDelete(product.id)}
-                                className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-xl font-bold h-12 px-6 border-0 shadow-md shadow-red-500/20"
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-10 w-10 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl transition-colors"
                               >
-                                Sim, excluir vinho
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                                <Trash2 className="h-[18px] w-[18px]" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="rounded-3xl border-slate-200/60 dark:border-slate-800/60 p-8">
+                              <AlertDialogHeader className="gap-2">
+                                <div className="mx-auto bg-red-100 dark:bg-red-900/30 p-3 rounded-full mb-2">
+                                  <Trash2 className="h-6 w-6 text-red-600 dark:text-red-500" />
+                                </div>
+                                <AlertDialogTitle className="font-extrabold text-2xl text-center text-slate-900 dark:text-white">
+                                  Excluir Produto?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription className="text-slate-500 font-medium text-center text-base">
+                                  Tem certeza que deseja remover o vinho
+                                  <strong className="text-slate-900 dark:text-slate-100 font-bold mx-1">
+                                    {product.name}
+                                  </strong>
+                                  ?
+                                  <br className="hidden sm:block" />
+                                  Isso o removerá de todas as cartas vinculadas.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter className="gap-3 sm:justify-center mt-6">
+                                <AlertDialogCancel className="rounded-xl border-slate-200 hover:bg-slate-50 font-bold h-12 px-6">
+                                  Cancelar
+                                </AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => onDelete(product.id)}
+                                  className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-xl font-bold h-12 px-6 border-0 shadow-md shadow-red-500/20"
+                                >
+                                  Sim, excluir vinho
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
                     </TableCell>
                   </motion.tr>
                 ))

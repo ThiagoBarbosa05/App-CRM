@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -41,10 +40,14 @@ export default function ProductImportModal({
   open,
   onOpenChange,
 }: ProductImportModalProps) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: countries = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/tags/countries"],
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [file, setFile] = useState<File | null>(null);
   const [importData, setImportData] = useState<any[]>([]);
@@ -126,24 +129,13 @@ export default function ProductImportModal({
         total: products.length,
       };
 
-      // Buscar lista de usuários para mapear criador
-      const usersResponse = await fetch("/api/users", {
-        headers: {
-        },
-      });
-
-      const users = usersResponse.ok ? await usersResponse.json() : [];
-      const defaultUserId =
-        users.find((u: any) => u.role === "admin")?.id ||
-        user?.id;
+      const validCountries = countries.map((c) => c.name.toUpperCase());
 
       for (let i = 0; i < products.length; i++) {
         const product = products[i];
         setProgress(((i + 1) / products.length) * 100);
 
         try {
-          console.log(`Linha ${i + 1}: Dados da planilha:`, product);
-
           // Extrair e validar dados do produto
           const name =
             product["Nome do Vinho"] ||
@@ -188,19 +180,6 @@ export default function ProductImportModal({
           }
 
           // Validar valores permitidos
-          const validCountries = [
-            "CHILE",
-            "ARGENTINA",
-            "URUGUAI",
-            "BRASIL",
-            "EUA",
-            "FRANÇA",
-            "ITÁLIA",
-            "PORTUGAL",
-            "ESPANHA",
-            "ALEMANHA",
-            "OUTROS",
-          ];
           const validVolumes = ["187ml", "375ml", "750ml", "1500ml"];
           const validTypes = [
             "ESPUMANTE",
@@ -222,10 +201,7 @@ export default function ProductImportModal({
             volume: finalVolume,
             type: finalType,
             negotiatedPrice,
-            createdBy: defaultUserId,
           };
-
-          console.log(`Linha ${i + 1}: Dados processados:`, productData);
 
           // Criar produto
           const response = await fetch("/api/products", {
@@ -238,7 +214,6 @@ export default function ProductImportModal({
 
           if (response.ok) {
             results.success++;
-            console.log(`Linha ${i + 1}: Produto criado com sucesso`);
           } else {
             const errorText = await response.text();
             console.error(`Linha ${i + 1}: Erro ao criar produto:`, errorText);

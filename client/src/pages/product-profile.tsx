@@ -53,7 +53,9 @@ import {
   Pencil,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { ProductFormModal } from "@/components/product-form-modal";
+import { getCountryFlag } from "@/lib/country-flags";
 
 interface WineAIProfile {
   corpo: string;
@@ -141,20 +143,6 @@ const TYPE_COLORS: Record<string, string> = {
   ROSE: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400",
   "PÓS-REFEIÇÃO":
     "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-};
-
-const COUNTRY_FLAGS: Record<string, string> = {
-  CHILE: "🇨🇱",
-  ARGENTINA: "🇦🇷",
-  URUGUAI: "🇺🇾",
-  BRASIL: "🇧🇷",
-  EUA: "🇺🇸",
-  FRANÇA: "🇫🇷",
-  ITÁLIA: "🇮🇹",
-  PORTUGAL: "🇵🇹",
-  ESPANHA: "🇪🇸",
-  ALEMANHA: "🇩🇪",
-  OUTROS: "🌍",
 };
 
 function SummaryCard({
@@ -388,6 +376,8 @@ function SensoryGauge({
 
 export default function ProductProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [location, navigate] = useLocation();
   const initialTab = new URLSearchParams(window.location.search).get("tab") ?? "details";
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -498,7 +488,7 @@ export default function ProductProfilePage() {
 
   const typeColor =
     TYPE_COLORS[product?.type ?? ""] ?? "bg-gray-100 text-gray-800";
-  const flag = COUNTRY_FLAGS[product?.country ?? ""] ?? "🌍";
+  const flag = getCountryFlag(product?.country);
   const isWine = isWineCategory(product?.category);
 
   return (
@@ -571,18 +561,20 @@ export default function ProductProfilePage() {
           </PageHeader.Text>
         </PageHeader.Info>
 
-        <PageHeader.Actions>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditModalOpen(true)}
-            disabled={isLoadingProduct || !product}
-            className="gap-1.5 font-medium"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Editar produto
-          </Button>
-        </PageHeader.Actions>
+        {isAdmin && (
+          <PageHeader.Actions>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditModalOpen(true)}
+              disabled={isLoadingProduct || !product}
+              className="gap-1.5 font-medium"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Editar produto
+            </Button>
+          </PageHeader.Actions>
+        )}
       </PageHeader>
 
       {/* Summary cards */}

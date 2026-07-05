@@ -22,7 +22,6 @@ import {
 import { CheckCircle2, XCircle, RefreshCw, Link2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const COUNTRIES = ["CHILE", "ARGENTINA", "URUGUAI", "BRASIL", "EUA", "FRANÇA", "ITÁLIA", "PORTUGAL", "ESPANHA", "ALEMANHA", "OUTROS"] as const;
 const VOLUMES = ["187ml", "375ml", "750ml", "1500ml"] as const;
 const TYPES = ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] as const;
 
@@ -81,6 +80,11 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
       return body.data;
     },
     enabled: open && !!user,
+  });
+
+  const { data: countries = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/tags/countries"],
+    staleTime: 5 * 60 * 1000,
   });
 
   const connectedAccounts = (connectionsData ?? []).filter((c) => c.status === "connected");
@@ -274,8 +278,8 @@ export function BlingProductSyncModal({ open, onOpenChange }: Props) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {COUNTRIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    {countries.map((c) => (
+                      <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

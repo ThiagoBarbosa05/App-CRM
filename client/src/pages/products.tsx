@@ -3,7 +3,6 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ProductFormModal } from "@/components/product-form-modal";
-import { ProductClientsModal } from "@/components/product-clients-modal";
 import ProductImportModal from "@/components/product-import-modal";
 import { BlingProductSyncModal } from "@/components/bling-product-sync-modal";
 import { queryClient } from "@/lib/queryClient";
@@ -13,6 +12,7 @@ import { saveAs } from "file-saver";
 
 import { Download, Pencil, Plus, RefreshCw, Upload, Wine, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { getCountryFlag } from "@/lib/country-flags";
 
 // Extracted Components
 import { ProductsStatistics } from "@/components/products/products-statistics";
@@ -42,11 +42,8 @@ export default function Products() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [isClientsModalOpen, setIsClientsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isBlingModalOpen, setIsBlingModalOpen] = useState(false);
-  const [selectedProductForClients, setSelectedProductForClients] =
-    useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -247,23 +244,6 @@ export default function Products() {
     }
   }, [debouncedSearchQuery, debouncedTypeFilter, debouncedCountryFilter, debouncedVolumeFilter, debouncedCategoryFilter, toast]);
 
-  const getCountryFlag = (country: string) => {
-    const flags: { [key: string]: string } = {
-      CHILE: "🇨🇱",
-      ARGENTINA: "🇦🇷",
-      URUGUAI: "🇺🇾",
-      BRASIL: "🇧🇷",
-      EUA: "🇺🇸",
-      FRANÇA: "🇫🇷",
-      ITÁLIA: "🇮🇹",
-      PORTUGAL: "🇵🇹",
-      ESPANHA: "🇪🇸",
-      ALEMANHA: "🇩🇪",
-      OUTROS: "🌍",
-    };
-    return flags[country] || "🌍";
-  };
-
   const getTypeColor = (type: string) => {
     const colors: { [key: string]: string } = {
       ESPUMANTE:
@@ -307,15 +287,17 @@ export default function Products() {
             <RefreshCw className="mr-2 h-4 w-4 shrink-0" />
             Sincronizar Bling
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsImportModalOpen(true)}
-            className="h-11 px-5 rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
-          >
-            <Upload className="mr-2 h-4 w-4 shrink-0" />
-            Importar
-          </Button>
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsImportModalOpen(true)}
+              className="h-11 px-5 rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
+            >
+              <Upload className="mr-2 h-4 w-4 shrink-0" />
+              Importar
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -326,13 +308,15 @@ export default function Products() {
             <Download className={`mr-2 h-4 w-4 shrink-0 ${isExporting ? "animate-bounce" : ""}`} />
             {isExporting ? "Exportando..." : "Exportar"}
           </Button>
-          <Button
-            onClick={() => setIsProductModalOpen(true)}
-            className="h-11 px-6 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
-          >
-            <Plus className="mr-2 h-4 w-4 shrink-0" />
-            Novo Produto
-          </Button>
+          {isAdmin && (
+            <Button
+              onClick={() => setIsProductModalOpen(true)}
+              className="h-11 px-6 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl w-full sm:w-auto flex-1 sm:flex-none"
+            >
+              <Plus className="mr-2 h-4 w-4 shrink-0" />
+              Novo Produto
+            </Button>
+          )}
         </PageHeader.Actions>
       </PageHeader>
 
@@ -403,6 +387,7 @@ export default function Products() {
             pageSize={pageSize}
             setPageSize={(size) => { setPageSize(size); setCurrentPage(1); }}
             selectable={isAdmin}
+            canManage={isAdmin}
             selectedIds={selectedIds}
             onToggleSelect={handleToggleSelect}
             onToggleSelectPage={handleToggleSelectPage}
@@ -424,15 +409,6 @@ export default function Products() {
         onOpenChange={handleCloseModal}
         product={editingProduct}
       />
-
-      {selectedProductForClients && (
-        <ProductClientsModal
-          open={isClientsModalOpen}
-          onOpenChange={setIsClientsModalOpen}
-          productId={selectedProductForClients.id}
-          productName={selectedProductForClients.name}
-        />
-      )}
 
       <ProductImportModal
         open={isImportModalOpen}

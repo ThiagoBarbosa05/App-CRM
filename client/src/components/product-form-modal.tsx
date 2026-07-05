@@ -162,7 +162,8 @@ export function ProductFormModal({
   useEffect(() => {
     if (!isWine) {
       form.setValue("country", undefined);
-      form.setValue("volume", undefined);
+      // volume é NOT NULL no banco — produtos não-vinho recebem um valor padrão
+      form.setValue("volume", "750ml");
       form.setValue("type", undefined);
     }
   }, [isWine, form]);
@@ -228,7 +229,6 @@ export function ProductFormModal({
       negotiatedPrice: convertPrice(data.negotiatedPrice),
     };
 
-    console.log("Dados processados para envio:", processedData);
     productMutation.mutate(processedData);
   };
 

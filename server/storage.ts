@@ -1312,12 +1312,13 @@ export class DatabaseStorage implements IStorage {
           imageUrl: products.imageUrl,
           aiProfile: products.aiProfile,
           aiProfileGeneratedAt: products.aiProfileGeneratedAt,
+          blingProductId: products.blingProductId,
         })
         .from(products)
         .leftJoin(users, eq(products.createdBy, users.id))
         .orderBy(asc(products.name));
 
-      const conditions: any[] = [];
+      const conditions: any[] = [isNull(products.deletedAt)];
 
       if (filters.name) {
         conditions.push(ilike(products.name, `%${filters.name}%`));
@@ -1335,9 +1336,7 @@ export class DatabaseStorage implements IStorage {
         conditions.push(eq(products.category, filters.category));
       }
 
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as typeof query;
-      }
+      query = query.where(and(...conditions)) as typeof query;
 
       const totalQuery = this.db
         .select({ count: count() })
@@ -4718,7 +4717,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProduct(id: string): Promise<boolean> {
     try {
-      const result = await this.db.delete(products).where(eq(products.id, id));
+      const result = await this.db
+        .update(products)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(products.id, id), isNull(products.deletedAt)));
       return result.rowCount > 0;
     } catch (error) {
       console.error("Error deleting product:", error);
@@ -4869,7 +4871,7 @@ export class DatabaseStorage implements IStorage {
           eq(blingOrderItems.productId, products.blingProductId),
         )
         .where(
-          and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO")),
+          and(isNull(blingOrders.deletedAt), ilike(products.category, "VINHO%")),
         )
         .groupBy(
           products.id,
@@ -4888,10 +4890,10 @@ export class DatabaseStorage implements IStorage {
         startDate && endDate
           ? and(
               isNull(blingOrders.deletedAt),
-              eq(products.category, "VINHO"),
+              ilike(products.category, "VINHO%"),
               sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`,
             )
-          : and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO"));
+          : and(isNull(blingOrders.deletedAt), ilike(products.category, "VINHO%"));
 
       const revenueByType = await this.db
         .select({
@@ -4916,10 +4918,10 @@ export class DatabaseStorage implements IStorage {
         startDate && endDate
           ? and(
               isNull(blingOrders.deletedAt),
-              eq(products.category, "VINHO"),
+              ilike(products.category, "VINHO%"),
               sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`,
             )
-          : and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO"));
+          : and(isNull(blingOrders.deletedAt), ilike(products.category, "VINHO%"));
 
       const quantityByProduct = await this.db
         .select({
@@ -4943,10 +4945,10 @@ export class DatabaseStorage implements IStorage {
         startDate && endDate
           ? and(
               isNull(blingOrders.deletedAt),
-              eq(products.category, "VINHO"),
+              ilike(products.category, "VINHO%"),
               sql`${blingOrders.saleDate} >= ${startDate} AND ${blingOrders.saleDate} <= ${endDate}`,
             )
-          : and(isNull(blingOrders.deletedAt), eq(products.category, "VINHO"));
+          : and(isNull(blingOrders.deletedAt), ilike(products.category, "VINHO%"));
 
       const revenueByPriceRange = await this.db
         .select({

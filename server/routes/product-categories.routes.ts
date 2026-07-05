@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { storage } from "../storage";
@@ -7,6 +7,13 @@ import { insertProductCategorySchema } from "@shared/schema";
 export const productCategoriesRouter = Router();
 
 const DEFAULT_CATEGORIES = ["VINHOS", "RESTAURANTE", "ACESSORIOS", "NATAL", "OUTROS"];
+
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Acesso restrito a administradores" });
+  }
+  return next();
+}
 
 productCategoriesRouter.get("/", async (_req, res) => {
   try {
@@ -27,7 +34,7 @@ productCategoriesRouter.get("/", async (_req, res) => {
   }
 });
 
-productCategoriesRouter.post("/", async (req, res) => {
+productCategoriesRouter.post("/", requireAdmin, async (req, res) => {
   try {
     const validated = insertProductCategorySchema.parse(req.body);
     const category = await storage.createProductCategory(validated);
@@ -41,7 +48,7 @@ productCategoriesRouter.post("/", async (req, res) => {
   }
 });
 
-productCategoriesRouter.put("/:id", async (req, res) => {
+productCategoriesRouter.put("/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const validated = insertProductCategorySchema.partial().parse(req.body);
@@ -59,7 +66,7 @@ productCategoriesRouter.put("/:id", async (req, res) => {
   }
 });
 
-productCategoriesRouter.delete("/:id", async (req, res) => {
+productCategoriesRouter.delete("/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const success = await storage.deleteProductCategory(id);

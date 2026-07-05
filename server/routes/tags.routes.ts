@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { getCategoriesController } from "../controllers/tags/get-categories.controller";
 import { getOriginsController } from "../controllers/tags/get-origins.controller";
 import { getMarkersController } from "../controllers/tags/get-markers.controller";
@@ -463,11 +463,18 @@ markersRouter.delete("/:id", deleteMarkerController);
  */
 const countriesRouter = Router();
 
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Acesso restrito a administradores" });
+  }
+  return next();
+}
+
 tagsRouter.get("/countries", getCountriesController);
 
-countriesRouter.post("/", createCountryController);
-countriesRouter.put("/:id", updateCountryController);
-countriesRouter.delete("/:id", deleteCountryController);
+countriesRouter.post("/", requireAdmin, createCountryController);
+countriesRouter.put("/:id", requireAdmin, updateCountryController);
+countriesRouter.delete("/:id", requireAdmin, deleteCountryController);
 
 export default tagsRouter;
 export { categoriesRouter, originsRouter, markersRouter, countriesRouter };

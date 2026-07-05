@@ -72,7 +72,7 @@ async function triggerAIProfileGeneration(product: { id: string; name: string; t
   }
 }
 
-productsRouter.post("/", async (req, res) => {
+productsRouter.post("/", requireAdmin, async (req, res) => {
   try {
     const userId = req.user!.userId;
 
@@ -131,7 +131,7 @@ productsRouter.patch("/bulk-update", requireAuth, requireAdmin, async (req, res)
   }
 });
 
-productsRouter.put("/:id", async (req, res) => {
+productsRouter.put("/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const validatedData = insertProductSchema.partial().parse(req.body);
@@ -174,7 +174,7 @@ productsRouter.post("/:productId/generate-ai-profile", async (req, res) => {
   }
 });
 
-productsRouter.delete("/:id", async (req, res) => {
+productsRouter.delete("/:id", requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const success = await storage.deleteProduct(id);
@@ -226,11 +226,7 @@ productsRouter.get("/:productId/profile", async (req, res) => {
 productsRouter.get("/:productId/companies", async (req, res) => {
   try {
     const { productId } = req.params;
-    console.log(`API: Fetching companies for product ${productId}`);
     const companiesWithProduct = await storage.getCompaniesWithProduct(productId);
-    console.log(
-      `API: Found ${companiesWithProduct.length} companies for product ${productId}`,
-    );
     return res.json(companiesWithProduct);
   } catch (error) {
     console.error("Error fetching companies with product:", error);
@@ -242,7 +238,6 @@ productsRouter.get("/:productId/companies", async (req, res) => {
 
 productsRouter.get("/statistics", async (req, res) => {
   try {
-    console.log("Fetching products statistics...");
     const { startDate, endDate } = req.query;
     const statistics = await storage.getProductsStatistics(
       startDate as string | undefined,
@@ -332,12 +327,6 @@ companyProductsRouter.put(
       const { companyId, productId } = req.params;
       const { customPrice } = req.body;
 
-      console.log("Atualizando preço:", {
-        companyId,
-        productId,
-        customPrice,
-      });
-
       if (!companyId || !productId) {
         return res
           .status(400)
@@ -365,7 +354,6 @@ companyProductsRouter.put(
           .json({ message: "Produto não encontrado na carta da empresa" });
       }
 
-      console.log("Preço atualizado com sucesso:", result);
       return res.json({ message: "Preço atualizado com sucesso", data: result });
     } catch (error) {
       console.error("Erro ao atualizar preço customizado:", error);
