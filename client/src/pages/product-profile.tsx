@@ -51,6 +51,8 @@ import {
   Phone,
   Mail,
   Pencil,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -554,6 +556,17 @@ export default function ProductProfilePage() {
                     <Badge className="text-[10px] font-black uppercase border-0 h-5 px-2 bg-accent text-primary">
                       {product.category}
                     </Badge>
+                  )}
+                  {product?.blingProductId ? (
+                    <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-full px-2 py-0.5">
+                      <CheckCircle2 className="h-3 w-3 text-blue-500" />
+                      <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wide">Sincronizado com Bling</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-2 py-0.5">
+                      <XCircle className="h-3 w-3 text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Não sincronizado</span>
+                    </div>
                   )}
                 </div>
               </>
