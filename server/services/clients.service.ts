@@ -843,6 +843,13 @@ export class ClientsService {
   /**
    * Processa e normaliza dados do cliente antes da validação (para criação)
    */
+  private toTitleCase(name: string): string {
+    return name
+      .trim()
+      .toLowerCase()
+      .replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+  }
+
   private processClientData(
     clientData: any,
     userId?: string,
@@ -851,6 +858,9 @@ export class ClientsService {
     // Converter strings vazias em null para campos opcionais
     let processedData = {
       ...clientData,
+      name: typeof clientData.name === "string" && clientData.name.trim()
+        ? this.toTitleCase(clientData.name)
+        : clientData.name,
       responsavelId:
         clientData.responsavelId === "" ? null : clientData.responsavelId,
       cpf: clientData.cpf === "" ? null : clientData.cpf,
@@ -880,6 +890,9 @@ export class ClientsService {
     // Converter strings vazias em null para campos opcionais (sem defaults para atualização)
     let processedData = {
       ...updateData,
+      name: typeof updateData.name === "string" && updateData.name.trim()
+        ? this.toTitleCase(updateData.name)
+        : updateData.name,
       responsavelId:
         updateData.responsavelId === "" ? null : updateData.responsavelId,
       cpf: updateData.cpf === "" ? null : updateData.cpf,
