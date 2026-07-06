@@ -21,7 +21,10 @@ import {
   Loader2,
   ShieldCheck,
   AlertCircle,
+  Copy,
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const RFM_LABELS: Record<string, string> = {
   campiao: "Campeão",
@@ -73,6 +76,7 @@ interface ClientInfoTabProps {
 }
 
 export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
+  const { toast } = useToast();
   const [cpfVerify, setCpfVerify] = useState<{
     status: "idle" | "loading" | "success" | "error";
     mapped?: { name?: string; birthday?: string };
@@ -80,6 +84,13 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
     message?: string;
   }>({ status: "idle" });
   const [cpfDialogOpen, setCpfDialogOpen] = useState(false);
+
+  function handleCopyCpf() {
+    if (!client.cpf) return;
+    navigator.clipboard.writeText(client.cpf).then(() => {
+      toast({ title: "Copiado", description: `${client.documentType === "cnpj" ? "CNPJ" : "CPF"} copiado para a área de transferência.` });
+    });
+  }
 
   async function handleVerifyCpf() {
     setCpfVerify({ status: "loading" });
@@ -296,7 +307,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
         </CardHeader>
 
         <CardContent className="space-y-5 px-6 py-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             <InfoTile
               icon={Phone}
               accent="blue"
@@ -305,6 +316,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               href={`tel:${client.phone}`}
               interactive
               missing={!client.phone}
+              copyValue={client.phone ?? undefined}
             />
             {/* CPF / CNPJ tile com botão Assertiva */}
             <div className={cn(
@@ -322,16 +334,28 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className={cn("text-[11px] font-black uppercase tracking-[0.18em]", !client.cpf ? "text-red-400 dark:text-red-500" : "text-slate-400 dark:text-slate-500")}>
-                      {client.documentType === "cnpj" ? "CNPJ" : "CPF"}
-                    </p>
+                    <div className="flex min-w-0 items-center gap-1">
+                      <p className={cn("truncate text-[11px] font-black uppercase tracking-[0.18em]", !client.cpf ? "text-red-400 dark:text-red-500" : "text-slate-400 dark:text-slate-500")}>
+                        {client.documentType === "cnpj" ? "CNPJ" : "CPF"}
+                      </p>
+                      {client.cpf && (
+                        <button
+                          type="button"
+                          onClick={handleCopyCpf}
+                          title={`Copiar ${client.documentType === "cnpj" ? "CNPJ" : "CPF"}`}
+                          className="shrink-0 rounded-md p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                     {client.documentType !== "cnpj" && client.cpf && (
                       <button
                         type="button"
                         onClick={handleVerifyCpf}
                         disabled={cpfVerify.status === "loading"}
                         title="Consultar na Assertiva"
-                        className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500 transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+                        className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold text-slate-500 transition-colors hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-amber-700 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
                       >
                         {cpfVerify.status === "loading" ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -342,19 +366,29 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                       </button>
                     )}
                   </div>
-                  <p className="mt-2 break-words text-base font-black text-slate-900 dark:text-slate-100">
-                    {formatCPF(client.cpf || "")}
-                  </p>
-                  {cpfVerify.status === "success" && (
-                    <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-900/20">
-                      <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                        <CheckCircle2 className="h-3 w-3 shrink-0" />
-                        Verificado na Receita Federal
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p className="mt-2 truncate text-base font-black text-slate-900 dark:text-slate-100">
+                        {formatCPF(client.cpf || "")}
                       </p>
+                    </TooltipTrigger>
+                    <TooltipContent>{formatCPF(client.cpf || "")}</TooltipContent>
+                  </Tooltip>
+                  {cpfVerify.status === "success" && (
+                    <div className="mt-2 space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-900/20">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="flex items-center gap-1.5 truncate text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                            <CheckCircle2 className="h-3 w-3 shrink-0" />
+                            <span className="truncate">Verificado na Receita Federal</span>
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent>Verificado na Receita Federal</TooltipContent>
+                      </Tooltip>
                       <button
                         type="button"
                         onClick={() => setCpfDialogOpen(true)}
-                        className="shrink-0 text-[11px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                        className="text-[11px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
                       >
                         Ver detalhes
                       </button>
@@ -363,12 +397,14 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                   {cpfVerify.status === "error" && (
                     <div className="mt-2 flex items-start gap-1.5 overflow-hidden rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-900/20">
                       <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />
-                      <p
-                        className="line-clamp-2 text-[11px] text-rose-700 dark:text-rose-400"
-                        title={cpfVerify.message}
-                      >
-                        {cpfVerify.message}
-                      </p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="line-clamp-2 text-[11px] text-rose-700 dark:text-rose-400">
+                            {cpfVerify.message}
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">{cpfVerify.message}</TooltipContent>
+                      </Tooltip>
                     </div>
                   )}
                 </div>
@@ -387,6 +423,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               label="E-mail"
               value={client.email || "Não informado"}
               missing={!client.email}
+              copyValue={client.email ?? undefined}
             />
             <div
               className={cn(
@@ -428,11 +465,20 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                   >
                     {purchaseStatus === "ativo" ? "ATIVO" : "INATIVO"}
                   </Badge>
-                  <p className="mt-1.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                    {lastPurchaseDate
-                      ? `Última compra: ${format(new Date(lastPurchaseDate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}`
-                      : "Nenhuma compra registrada"}
-                  </p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p className="mt-1.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                        {lastPurchaseDate
+                          ? `Última compra: ${format(new Date(lastPurchaseDate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}`
+                          : "Nenhuma compra registrada"}
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {lastPurchaseDate
+                        ? `Última compra: ${format(new Date(lastPurchaseDate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}`
+                        : "Nenhuma compra registrada"}
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             </div>
@@ -705,6 +751,7 @@ function InfoTile({
   href,
   interactive = false,
   missing = false,
+  copyValue,
 }: {
   icon: typeof User;
   accent: TileAccent;
@@ -713,8 +760,17 @@ function InfoTile({
   href?: string;
   interactive?: boolean;
   missing?: boolean;
+  copyValue?: string;
 }) {
   const styles = tileAccentStyles[accent];
+  const { toast } = useToast();
+
+  function handleCopy() {
+    if (!copyValue) return;
+    navigator.clipboard.writeText(copyValue).then(() => {
+      toast({ title: "Copiado", description: `${label} copiado para a área de transferência.` });
+    });
+  }
 
   return (
     <div
@@ -734,25 +790,48 @@ function InfoTile({
         >
           <Icon className={cn("h-4 w-4", missing ? "text-red-500 dark:text-red-400" : styles.icon)} />
         </div>
-        <div className="min-w-0">
-          <p className={cn("text-[11px] font-black uppercase tracking-[0.18em]", missing ? "text-red-400 dark:text-red-500" : "text-slate-400 dark:text-slate-500")}>
-            {label}
-          </p>
-          {href && !missing ? (
-            <a
-              href={href}
-              className={cn(
-                "mt-2 block truncate text-base font-black transition-colors",
-                interactive ? styles.link : "text-slate-900 dark:text-slate-100",
-              )}
-              title={value}
-            >
-              {value}
-            </a>
-          ) : (
-            <p className={cn("mt-2 break-words text-base font-black", missing ? "text-red-500 dark:text-red-400" : "text-slate-900 dark:text-slate-100")}>
-              {value}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className={cn("text-[11px] font-black uppercase tracking-[0.18em]", missing ? "text-red-400 dark:text-red-500" : "text-slate-400 dark:text-slate-500")}>
+              {label}
             </p>
+            {copyValue && !missing && (
+              <button
+                type="button"
+                onClick={handleCopy}
+                title={`Copiar ${label.toLowerCase()}`}
+                className="shrink-0 rounded-md p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {href && !missing ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <a
+                  href={href}
+                  className={cn(
+                    "mt-2 block truncate text-base font-black transition-colors",
+                    interactive ? styles.link : "text-slate-900 dark:text-slate-100",
+                  )}
+                >
+                  {value}
+                </a>
+              </TooltipTrigger>
+              <TooltipContent>{value}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p
+                  className={cn("mt-2 truncate text-base font-black", missing ? "text-red-500 dark:text-red-400" : "text-slate-900 dark:text-slate-100")}
+                >
+                  {value}
+                </p>
+              </TooltipTrigger>
+              <TooltipContent>{value}</TooltipContent>
+            </Tooltip>
           )}
         </div>
       </div>
