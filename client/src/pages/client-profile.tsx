@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Loader2,
   Trash2,
+  Cake,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -77,6 +78,17 @@ interface BlingSellerMapping {
   connectionStatus: string;
   blingVendedorId: string;
   blingVendedorName: string | null;
+}
+
+function calculateAge(birthday: string | null | undefined): number | null {
+  if (!birthday) return null;
+  const birth = new Date(birthday);
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age >= 0 ? age : null;
 }
 
 /**
@@ -329,6 +341,21 @@ export default function ClientProfilePage() {
 
         {/* Centro: cadastro + vendedor + status */}
         <div className="hidden md:flex items-center gap-2">
+          {/* Card de Idade */}
+          {(() => {
+            const age = calculateAge(client.birthday);
+            if (age === null) return null;
+            return (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
+                <Cake className="h-3.5 w-3.5 text-pink-500 shrink-0" />
+                <div className="flex flex-col leading-tight">
+                  <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Idade</span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{age} anos</span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Card de qualidade de cadastro */}
           {(() => {
             const q = client.registrationQuality;
