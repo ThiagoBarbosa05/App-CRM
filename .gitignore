@@ -20,3 +20,4 @@ docs/analise-migracao-meta-api.md
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+swagger.json

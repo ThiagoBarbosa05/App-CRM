@@ -296,7 +296,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
         </CardHeader>
 
         <CardContent className="space-y-5 px-6 py-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <InfoTile
               icon={Phone}
               accent="blue"
@@ -361,9 +361,14 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                     </div>
                   )}
                   {cpfVerify.status === "error" && (
-                    <div className="mt-2 flex items-start gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-900/20">
+                    <div className="mt-2 flex items-start gap-1.5 overflow-hidden rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 dark:border-rose-800/40 dark:bg-rose-900/20">
                       <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-rose-500" />
-                      <p className="text-[11px] text-rose-700 dark:text-rose-400">{cpfVerify.message}</p>
+                      <p
+                        className="line-clamp-2 text-[11px] text-rose-700 dark:text-rose-400"
+                        title={cpfVerify.message}
+                      >
+                        {cpfVerify.message}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -385,48 +390,50 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
             />
             <div
               className={cn(
-                "flex flex-col gap-2 rounded-2xl border p-4 transition-all",
+                "group rounded-[22px] border p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)]",
                 purchaseStatus === "ativo"
                   ? "border-green-200 bg-green-50/60 dark:border-green-800/60 dark:bg-green-900/10"
                   : "border-red-200 bg-red-50/60 dark:border-red-800/60 dark:bg-red-900/10",
               )}
             >
-              <div
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-xl",
-                  purchaseStatus === "ativo"
-                    ? "bg-green-100 dark:bg-green-900/40"
-                    : "bg-red-100 dark:bg-red-900/40",
-                )}
-              >
-                <ShoppingCart
+              <div className="flex items-start gap-3">
+                <div
                   className={cn(
-                    "h-4 w-4",
+                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-inner",
                     purchaseStatus === "ativo"
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400",
-                  )}
-                />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Status de Compra
-                </p>
-                <Badge
-                  className={cn(
-                    "mt-1 font-black uppercase tracking-wider",
-                    purchaseStatus === "ativo"
-                      ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700"
-                      : "bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700",
+                      ? "bg-green-100 dark:bg-green-900/40"
+                      : "bg-red-100 dark:bg-red-900/40",
                   )}
                 >
-                  {purchaseStatus === "ativo" ? "ATIVO" : "INATIVO"}
-                </Badge>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {lastPurchaseDate
-                    ? `Última compra: ${format(new Date(lastPurchaseDate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}`
-                    : "Nenhuma compra registrada"}
-                </p>
+                  <ShoppingCart
+                    className={cn(
+                      "h-4 w-4",
+                      purchaseStatus === "ativo"
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-red-600 dark:text-red-400",
+                    )}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                    Status de Compra
+                  </p>
+                  <Badge
+                    className={cn(
+                      "mt-2 font-black uppercase tracking-wider",
+                      purchaseStatus === "ativo"
+                        ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700"
+                        : "bg-red-100 text-red-700 border-red-300 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700",
+                    )}
+                  >
+                    {purchaseStatus === "ativo" ? "ATIVO" : "INATIVO"}
+                  </Badge>
+                  <p className="mt-1.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                    {lastPurchaseDate
+                      ? `Última compra: ${format(new Date(lastPurchaseDate + "T00:00:00"), "dd/MM/yyyy", { locale: ptBR })}`
+                      : "Nenhuma compra registrada"}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

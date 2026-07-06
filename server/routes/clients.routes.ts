@@ -213,7 +213,8 @@ clientsRouter.get(
       if (err.message === "CPF_NOT_FOUND") {
         return res.status(404).json({ message: "CPF não encontrado na base Assertiva" });
       }
-      return res.status(500).json({ message: err.message ?? "Erro ao consultar Assertiva" });
+      console.error("[verify-cpf] Erro ao consultar Assertiva:", err.message);
+      return res.status(502).json({ message: "Não foi possível consultar a Assertiva no momento. Tente novamente mais tarde." });
     }
   },
 );

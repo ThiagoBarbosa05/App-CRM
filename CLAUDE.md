@@ -29,6 +29,9 @@ npx vitest                             # All tests
 
 No ESLint/Prettier — match surrounding code style and run `npm run check` for validation.
 
+> **IMPORTANTE — Teste visual:**
+> Pule a verificação visual em navegador (preview/browser) para mudanças de UI. Não inicie servidor de preview nem peça para o usuário testar manualmente — valide apenas via leitura de código e `npm run check`.
+
 ## Architecture
 
 Full-stack CRM: React 18 + Vite frontend, Express backend, PostgreSQL via Drizzle ORM (Neon serverless).
