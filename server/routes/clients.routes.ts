@@ -199,7 +199,9 @@ clientsRouter.get(
         userId: req.user!.userId,
         status: "success",
       });
-      return res.json({ raw: data, mapped: mapAssertivaCpfResponse(data) });
+      // Por segurança/LGPD, não repassamos a resposta bruta da Assertiva (que traz telefones,
+      // endereços, histórico profissional, etc.) — só os campos necessários para o preenchimento.
+      return res.json({ mapped: mapAssertivaCpfResponse(data) });
     } catch (err: any) {
       await logCpfVerification({
         clientId,

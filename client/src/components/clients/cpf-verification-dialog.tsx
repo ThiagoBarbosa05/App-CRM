@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle2, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { type Client } from "@shared/schema";
@@ -20,7 +20,6 @@ import { type Client } from "@shared/schema";
 interface CpfVerificationDialogProps {
   client: Client;
   mapped: { name?: string; birthday?: string };
-  raw: unknown;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -46,12 +45,10 @@ function formatBirthdayDisplay(value: string | null | undefined): string {
 export function CpfVerificationDialog({
   client,
   mapped,
-  raw,
   open,
   onOpenChange,
 }: CpfVerificationDialogProps) {
   const { toast } = useToast();
-  const [showRaw, setShowRaw] = useState(false);
 
   const items = useMemo<DiffItem[]>(() => {
     const result: DiffItem[] = [];
@@ -179,20 +176,6 @@ export function CpfVerificationDialog({
               </p>
             </div>
           ))}
-
-          <button
-            type="button"
-            onClick={() => setShowRaw((v) => !v)}
-            className="flex items-center gap-1 text-xs text-slate-500 hover:underline dark:text-slate-400"
-          >
-            {showRaw ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            Ver resposta completa da Assertiva
-          </button>
-          {showRaw && (
-            <pre className="max-h-56 overflow-auto rounded-lg bg-slate-900 p-3 text-[10px] text-slate-100">
-              {JSON.stringify(raw, null, 2)}
-            </pre>
-          )}
         </div>
 
         <DialogFooter>

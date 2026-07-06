@@ -80,7 +80,6 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
   const [cpfVerify, setCpfVerify] = useState<{
     status: "idle" | "loading" | "success" | "error";
     mapped?: { name?: string; birthday?: string };
-    raw?: unknown;
     message?: string;
   }>({ status: "idle" });
   const [cpfDialogOpen, setCpfDialogOpen] = useState(false);
@@ -105,7 +104,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
         setCpfVerify({ status: "error", message });
         return;
       }
-      setCpfVerify({ status: "success", mapped: json.mapped ?? {}, raw: json.raw });
+      setCpfVerify({ status: "success", mapped: json.mapped ?? {} });
       setCpfDialogOpen(true);
     } catch {
       setCpfVerify({ status: "error", message: "Erro ao conectar com a Assertiva" });
@@ -706,7 +705,6 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
         <CpfVerificationDialog
           client={client}
           mapped={cpfVerify.mapped}
-          raw={cpfVerify.raw}
           open={cpfDialogOpen}
           onOpenChange={setCpfDialogOpen}
         />
