@@ -35,13 +35,16 @@ const RFM_LABELS: Record<string, string> = {
 };
 
 const RFM_COLORS: Record<string, string> = {
-  campiao: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+  campiao:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
   fiel: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   promissor: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  em_risco: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  em_risco:
+    "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   perdido: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
   novo: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
-  hibernando: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  hibernando:
+    "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
   sem_compra: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
 };
 
@@ -50,7 +53,9 @@ function RfmBadge({ segment }: { segment: string | null | undefined }) {
   const label = RFM_LABELS[segment] ?? segment;
   const color = RFM_COLORS[segment] ?? "bg-gray-100 text-gray-500";
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${color}`}>
+    <span
+      className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${color}`}
+    >
       <TrendingUp className="h-2.5 w-2.5" />
       {label}
     </span>
@@ -116,7 +121,9 @@ export default function ClientsTableWithSelection({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [tagsModalClient, setTagsModalClient] = useState<Client | null>(null);
-  const [sortField, setSortField] = useState<"name" | "categoria" | "responsavel" | null>(null);
+  const [sortField, setSortField] = useState<
+    "name" | "categoria" | "responsavel" | null
+  >(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
   const { user } = useAuth();
@@ -244,8 +251,12 @@ export default function ClientsTableWithSelection({
       aValue = a.categoria?.toLowerCase() || "";
       bValue = b.categoria?.toLowerCase() || "";
     } else if (sortField === "responsavel") {
-      const aUser = (users as any[]).find((u) => u.id === (a as any).responsavelId);
-      const bUser = (users as any[]).find((u) => u.id === (b as any).responsavelId);
+      const aUser = (users as any[]).find(
+        (u) => u.id === (a as any).responsavelId,
+      );
+      const bUser = (users as any[]).find(
+        (u) => u.id === (b as any).responsavelId,
+      );
       aValue = aUser ? aUser.name.toLowerCase() : "";
       bValue = bUser ? bUser.name.toLowerCase() : "";
     } else {
@@ -557,7 +568,7 @@ export default function ClientsTableWithSelection({
                           {tag.emoji && (
                             <span className="mr-1">{tag.emoji}</span>
                           )}
-                          {tag.externalTagName || tag.name || "Tag"}
+                          {tag.name || "Tag"}
                         </Badge>
                       ))}
                       {client.tags.length > 3 && (
@@ -670,7 +681,7 @@ export default function ClientsTableWithSelection({
                 <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[150px]">
                   <div className="flex items-center gap-2">
                     <Tag className="h-4 w-4 text-gray-500 dark:text-slate-400" />
-                    Tags (Umbler)
+                    Tags (Whatsapp)
                   </div>
                 </th>
                 <th className="p-4 text-left font-semibold text-gray-700 dark:text-slate-300 min-w-[130px]">
@@ -893,12 +904,12 @@ export default function ClientsTableWithSelection({
                               key={tag.id || index}
                               variant="outline"
                               className="text-xs bg-gradient-to-r dark:from-blue-500 dark:to-blue-900 dark:text-slate-50 from-emerald-50 to-teal-50 border-emerald-300 text-emerald-800 px-2 py-1"
-                              title={`ID: ${tag.externalId}`}
+                              title={tag.name}
                             >
                               {tag.emoji && (
                                 <span className="mr-1">{tag.emoji}</span>
                               )}
-                              {tag.externalTagName || tag.name || "Tag"}
+                              {tag.name || "Tag"}
                             </Badge>
                           ))
                       ) : (
@@ -1064,7 +1075,10 @@ export default function ClientsTableWithSelection({
                 <span className="text-sm font-semibold text-gray-700 dark:text-slate-300">
                   {currentPage}
                   {totalPages ? (
-                    <span className="font-normal text-gray-400 dark:text-slate-500"> / {totalPages}</span>
+                    <span className="font-normal text-gray-400 dark:text-slate-500">
+                      {" "}
+                      / {totalPages}
+                    </span>
                   ) : null}
                 </span>
               </div>
@@ -1174,17 +1188,15 @@ export default function ClientsTableWithSelection({
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="font-semibold text-gray-900 dark:text-slate-100 text-base mb-2 truncate">
-                              {tag.externalTagName ||
-                                tag.name ||
-                                "Tag sem nome"}
+                              {tag.name || "Tag sem nome"}
                             </div>
-                            {tag.externalId && (
+                            {tag.umblerTagId && (
                               <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
                                 <Badge
                                   variant="outline"
                                   className="bg-white border-emerald-300 dark:bg-slate-800 text-emerald-800 font-mono"
                                 >
-                                  ID: {tag.externalId}
+                                  ID: {tag.umblerTagId}
                                 </Badge>
                               </div>
                             )}
