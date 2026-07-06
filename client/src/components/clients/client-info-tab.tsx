@@ -64,6 +64,7 @@ import { ptBR } from "date-fns/locale";
 import type { ReactNode } from "react";
 import { type Client } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
+import { CpfVerificationDialog } from "@/components/clients/cpf-verification-dialog";
 
 interface ClientInfoTabProps {
   client: Client;
@@ -74,10 +75,11 @@ interface ClientInfoTabProps {
 export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
   const [cpfVerify, setCpfVerify] = useState<{
     status: "idle" | "loading" | "success" | "error";
-    nome?: string;
-    dataNascimento?: string;
+    mapped?: { name?: string; birthday?: string };
+    raw?: unknown;
     message?: string;
   }>({ status: "idle" });
+  const [cpfDialogOpen, setCpfDialogOpen] = useState(false);
 
   async function handleVerifyCpf() {
     setCpfVerify({ status: "loading" });
@@ -85,14 +87,15 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
       const res = await fetch(`/api/clients/${client.id}/verify-cpf`, { credentials: "include" });
       const json = await res.json();
       if (!res.ok) {
-        setCpfVerify({ status: "error", message: json.message ?? "Erro na consulta" });
+        const message =
+          res.status === 429
+            ? (json.message ?? "Muitas consultas à Assertiva. Aguarde alguns minutos.")
+            : (json.message ?? "Erro na consulta");
+        setCpfVerify({ status: "error", message });
         return;
       }
-      setCpfVerify({
-        status: "success",
-        nome: json?.nome ?? json?.data?.nome ?? "—",
-        dataNascimento: json?.dataNascimento ?? json?.data?.dataNascimento ?? json?.data?.data_nascimento ?? "—",
-      });
+      setCpfVerify({ status: "success", mapped: json.mapped ?? {}, raw: json.raw });
+      setCpfDialogOpen(true);
     } catch {
       setCpfVerify({ status: "error", message: "Erro ao conectar com a Assertiva" });
     }
@@ -343,15 +346,18 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                     {formatCPF(client.cpf || "")}
                   </p>
                   {cpfVerify.status === "success" && (
-                    <div className="mt-2 space-y-0.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-900/20">
+                    <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-900/20">
                       <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                         <CheckCircle2 className="h-3 w-3 shrink-0" />
-                        Receita Federal
+                        Verificado na Receita Federal
                       </p>
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{cpfVerify.nome}</p>
-                      {cpfVerify.dataNascimento && cpfVerify.dataNascimento !== "—" && (
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">Nasc. {cpfVerify.dataNascimento}</p>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCpfDialogOpen(true)}
+                        className="shrink-0 text-[11px] font-semibold text-emerald-700 hover:underline dark:text-emerald-400"
+                      >
+                        Ver detalhes
+                      </button>
                     </div>
                   )}
                   {cpfVerify.status === "error" && (
@@ -642,6 +648,16 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
           </div>
         </CardContent>
       </Card>
+
+      {cpfVerify.status === "success" && cpfVerify.mapped && (
+        <CpfVerificationDialog
+          client={client}
+          mapped={cpfVerify.mapped}
+          raw={cpfVerify.raw}
+          open={cpfDialogOpen}
+          onOpenChange={setCpfDialogOpen}
+        />
+      )}
     </div>
   );
 }

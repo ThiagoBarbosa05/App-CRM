@@ -184,3 +184,46 @@ export async function consultarCPF(cpf: string) {
 
   return data;
 }
+
+/**
+ * Converte uma data em formato dd/MM/yyyy (comum em respostas de bureaus de dados) para
+ * ISO (yyyy-MM-dd), que é o formato já usado em `client.birthday`. Se já vier em ISO, mantém.
+ */
+function normalizeBirthdayToIso(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+
+  const brMatch = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (brMatch) {
+    const [, day, month, year] = brMatch;
+    return `${year}-${month}-${day}`;
+  }
+
+  const isoMatch = value.match(/^\d{4}-\d{2}-\d{2}/);
+  if (isoMatch) return isoMatch[0];
+
+  return undefined;
+}
+
+/**
+ * Mapeamento defensivo da resposta de `/v3/cpf/{cpf}` para os campos equivalentes do
+ * cliente. A documentação pública da Assertiva não pôde ser confirmada (SPA renderizada
+ * em JS), então tentamos múltiplos aliases de nome de campo; o que não for encontrado
+ * simplesmente não entra no objeto retornado.
+ */
+export function mapAssertivaCpfResponse(raw: any): { name?: string; birthday?: string } {
+  const nome = raw?.nome ?? raw?.data?.nome ?? raw?.Nome;
+  const dataNascimento =
+    raw?.dataNascimento ??
+    raw?.data?.dataNascimento ??
+    raw?.data?.data_nascimento ??
+    raw?.data_nascimento ??
+    raw?.DataNascimento;
+
+  const mapped: { name?: string; birthday?: string } = {};
+  if (typeof nome === "string" && nome.trim()) mapped.name = nome.trim();
+
+  const birthday = normalizeBirthdayToIso(dataNascimento);
+  if (birthday) mapped.birthday = birthday;
+
+  return mapped;
+}

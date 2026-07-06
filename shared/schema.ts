@@ -118,6 +118,23 @@ export const clients = pgTable("clients", {
   rfmCalculatedAt: timestamp("rfm_calculated_at"),
 });
 
+// Log de auditoria das consultas de CPF na Assertiva (LGPD: quem consultou, quando, e o que foi aplicado)
+export const cpfVerificationLogs = pgTable("cpf_verification_logs", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id")
+    .notNull()
+    .references(() => clients.id),
+  userId: varchar("user_id")
+    .notNull()
+    .references(() => users.id),
+  status: text("status", { enum: ["success", "error"] }).notNull(),
+  errorMessage: text("error_message"),
+  fieldsUpdated: text("fields_updated").array(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const sectors = pgTable("sectors", {
   id: varchar("id")
     .primaryKey()

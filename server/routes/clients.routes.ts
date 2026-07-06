@@ -24,7 +24,10 @@ import { deliverBenefitController } from "../controllers/referrals/deliver-benef
 import multer from "multer";
 import { syncClientToBling, BlingSyncError } from "../services/bling-clients-export.service";
 import { requireAuth } from "../middleware/validation";
-import { consultarCPF, testarCPF } from "../services/assertiva.service";
+import { rateLimit } from "../middleware/rate-limit";
+import { consultarCPF, testarCPF, mapAssertivaCpfResponse } from "../services/assertiva.service";
+import { logCpfVerification } from "../services/cpf-verification-log.service";
+import { clientsService } from "../services/clients.service";
 import { getClientsNeedingRegistrationUpdate } from "../services/registration-quality-panel.service";
 import { getClientsHealthController } from "../controllers/clients/get-clients-health.controller";
 import { storage } from "../storage";
@@ -171,26 +174,74 @@ clientsRouter.get(
   getClientPurchaseInsightsController,
 );
 
-clientsRouter.get("/:clientId/verify-cpf", requireAuth, async (req, res) => {
-  try {
+clientsRouter.get(
+  "/:clientId/verify-cpf",
+  requireAuth,
+  rateLimit({
+    windowMs: 5 * 60_000,
+    max: 5,
+    keyFn: (req) => `verify-cpf:${req.user?.userId ?? req.ip}`,
+    message: "Muitas consultas à Assertiva. Aguarde alguns minutos e tente novamente.",
+  }),
+  async (req, res) => {
     const { clientId } = req.params;
-    const client = await storage.getClient(clientId);
-    if (!client) {
-      return res.status(404).json({ message: "Cliente não encontrado" });
+    try {
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Cliente não encontrado" });
+      }
+      if (!client.cpf) {
+        return res.status(422).json({ message: "Cliente sem CPF cadastrado" });
+      }
+      const data = await consultarCPF(client.cpf);
+      await logCpfVerification({
+        clientId,
+        userId: req.user!.userId,
+        status: "success",
+      });
+      return res.json({ raw: data, mapped: mapAssertivaCpfResponse(data) });
+    } catch (err: any) {
+      await logCpfVerification({
+        clientId,
+        userId: req.user!.userId,
+        status: "error",
+        errorMessage: err.message,
+      });
+      if (err.message === "ASSERTIVA_NOT_CONFIGURED") {
+        return res.status(503).json({ message: "Integração Assertiva não configurada. Adicione ASSERTIVA_CLIENT_ID e ASSERTIVA_CLIENT_SECRET nos secrets." });
+      }
+      if (err.message === "CPF_NOT_FOUND") {
+        return res.status(404).json({ message: "CPF não encontrado na base Assertiva" });
+      }
+      return res.status(500).json({ message: err.message ?? "Erro ao consultar Assertiva" });
     }
-    if (!client.cpf) {
-      return res.status(422).json({ message: "Cliente sem CPF cadastrado" });
-    }
-    const data = await consultarCPF(client.cpf);
-    return res.json(data);
+  },
+);
+
+clientsRouter.post("/:clientId/apply-cpf-data", requireAuth, async (req, res) => {
+  const { clientId } = req.params;
+  const fields = req.body as Record<string, unknown>;
+  if (!fields || Object.keys(fields).length === 0) {
+    return res.status(400).json({ message: "Nenhum campo selecionado" });
+  }
+  try {
+    const client = await clientsService.updateClient({
+      clientId,
+      userId: req.user?.userId,
+      userRole: req.user?.role,
+      updateData: fields,
+    });
+    await logCpfVerification({
+      clientId,
+      userId: req.user!.userId,
+      status: "success",
+      fieldsUpdated: Object.keys(fields),
+    });
+    return res.json(client);
   } catch (err: any) {
-    if (err.message === "ASSERTIVA_NOT_CONFIGURED") {
-      return res.status(503).json({ message: "Integração Assertiva não configurada. Adicione ASSERTIVA_CLIENT_ID e ASSERTIVA_CLIENT_SECRET nos secrets." });
-    }
-    if (err.message === "CPF_NOT_FOUND") {
-      return res.status(404).json({ message: "CPF não encontrado na base Assertiva" });
-    }
-    return res.status(500).json({ message: err.message ?? "Erro ao consultar Assertiva" });
+    return res
+      .status(err.message === "CLIENT_NOT_FOUND" ? 404 : 400)
+      .json({ message: err.message ?? "Erro ao aplicar dados" });
   }
 });
 
