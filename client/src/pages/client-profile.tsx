@@ -341,16 +341,31 @@ export default function ClientProfilePage() {
 
         {/* Centro: cadastro + vendedor + status */}
         <div className="hidden md:flex items-center gap-2">
-          {/* Card de Idade */}
+          {/* Card de Idade + Aniversário */}
           {(() => {
             const age = calculateAge(client.birthday);
             if (age === null) return null;
+
+            const birth = new Date(client.birthday!);
+            const today = new Date();
+            const nextBirthday = new Date(today.getFullYear(), birth.getMonth(), birth.getDate());
+            if (nextBirthday < today) nextBirthday.setFullYear(today.getFullYear() + 1);
+            const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            const isNearBirthday = daysUntil <= 15;
+
+            const birthdayFormatted = birth.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+
             return (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
-                <Cake className="h-3.5 w-3.5 text-pink-500 shrink-0" />
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${isNearBirthday ? "animate-slow-pulse border-emerald-300 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-900/20" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"}`}>
+                <Cake className={`h-3.5 w-3.5 shrink-0 ${isNearBirthday ? "text-emerald-500" : "text-pink-500"}`} />
                 <div className="flex flex-col leading-tight">
-                  <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Idade</span>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{age} anos</span>
+                  <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isNearBirthday ? "text-emerald-500 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
+                    Idade {isNearBirthday ? `· 🎂 ${daysUntil}d` : ""}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`text-xs font-bold ${isNearBirthday ? "text-emerald-700 dark:text-emerald-300" : "text-slate-700 dark:text-slate-200"}`}>{age} anos</span>
+                    <span className={`text-[10px] ${isNearBirthday ? "text-emerald-500 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>· {birthdayFormatted}</span>
+                  </div>
                 </div>
               </div>
             );
