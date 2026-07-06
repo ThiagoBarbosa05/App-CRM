@@ -135,6 +135,16 @@ export const cpfVerificationLogs = pgTable("cpf_verification_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Token OAuth2 da Assertiva persistido (linha única, id fixo) — compartilhado entre instâncias e sobrevive a restarts
+export const assertivaTokens = pgTable("assertiva_tokens", {
+  id: text("id").primaryKey().default("singleton"),
+  accessToken: text("access_token"),
+  expiresAt: timestamp("expires_at"),
+  lastRefreshAt: timestamp("last_refresh_at"),
+  lastError: text("last_error"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const sectors = pgTable("sectors", {
   id: varchar("id")
     .primaryKey()

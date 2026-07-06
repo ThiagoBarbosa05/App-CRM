@@ -1,16 +1,45 @@
+import { db } from "server/db";
+import { assertivaTokens } from "@shared/schema";
+import { eq } from "drizzle-orm";
+
 const TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token";
-const CPF_URL = "https://integracao.assertivasolucoes.com.br/v3/cpf";
-const CPF_LOCALIZE_URL = "https://integracao.assertivasolucoes.com.br/v3/localize/pf";
+const CPF_URL = "https://api.assertivasolucoes.com.br/localize/v3/cpf";
 
 const PROACTIVE_REFRESH_WINDOW_MS = 5 * 60 * 1000;
+const TOKEN_ROW_ID = "singleton";
 
-let cachedToken: string | null = null;
-let tokenExpiresAt = 0;
-let lastRefreshAt: number | null = null;
-let lastError: string | null = null;
+// Deduplica chamadas concorrentes de refresh dentro do mesmo processo. Não precisa
+// ser persistido: o token em si (fonte da verdade) vive na tabela `assertiva_tokens`.
 let refreshInFlight: Promise<string> | null = null;
 
-async function fetchNewToken(): Promise<{ access_token: string; expires_in: number }> {
+async function readTokenRow() {
+  const [row] = await db
+    .select()
+    .from(assertivaTokens)
+    .where(eq(assertivaTokens.id, TOKEN_ROW_ID))
+    .limit(1);
+  return row;
+}
+
+async function upsertTokenRow(patch: {
+  accessToken?: string | null;
+  expiresAt?: Date | null;
+  lastRefreshAt?: Date | null;
+  lastError?: string | null;
+}) {
+  await db
+    .insert(assertivaTokens)
+    .values({ id: TOKEN_ROW_ID, ...patch, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: assertivaTokens.id,
+      set: { ...patch, updatedAt: new Date() },
+    });
+}
+
+async function fetchNewToken(): Promise<{
+  access_token: string;
+  expires_in: number;
+}> {
   const clientId = process.env.ASSERTIVA_CLIENT_ID?.trim();
   const clientSecret = process.env.ASSERTIVA_CLIENT_SECRET?.trim();
 
@@ -18,7 +47,9 @@ async function fetchNewToken(): Promise<{ access_token: string; expires_in: numb
     throw new Error("ASSERTIVA_NOT_CONFIGURED");
   }
 
-  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString("base64");
+  const basicAuth = Buffer.from(`${clientId}:${clientSecret}`, "utf8").toString(
+    "base64",
+  );
 
   const body = new URLSearchParams();
   body.append("grant_type", "client_credentials");
@@ -36,14 +67,18 @@ async function fetchNewToken(): Promise<{ access_token: string; expires_in: numb
   const responseText = await response.text();
 
   if (!response.ok) {
-    throw new Error(`Assertiva auth failed: ${response.status} - ${responseText}`);
+    throw new Error(
+      `Assertiva auth failed: ${response.status} - ${responseText}`,
+    );
   }
 
   let data: any;
   try {
     data = JSON.parse(responseText);
   } catch {
-    throw new Error("A Assertiva retornou uma resposta de autenticação que não é um JSON válido.");
+    throw new Error(
+      "A Assertiva retornou uma resposta de autenticação que não é um JSON válido.",
+    );
   }
 
   if (!data.access_token) {
@@ -57,27 +92,33 @@ async function refreshToken(): Promise<string> {
   try {
     const tokenData = await fetchNewToken();
 
-    cachedToken = tokenData.access_token;
-
-    const expiresInSeconds = Number(tokenData.expires_in) > 0 ? Number(tokenData.expires_in) : 1800;
+    const expiresInSeconds =
+      Number(tokenData.expires_in) > 0 ? Number(tokenData.expires_in) : 1800;
     const buffer = Math.min(60, Math.floor(expiresInSeconds / 2));
-    tokenExpiresAt = Date.now() + (expiresInSeconds - buffer) * 1000;
+    const expiresAt = new Date(Date.now() + (expiresInSeconds - buffer) * 1000);
 
-    lastRefreshAt = Date.now();
-    lastError = null;
+    await upsertTokenRow({
+      accessToken: tokenData.access_token,
+      expiresAt,
+      lastRefreshAt: new Date(),
+      lastError: null,
+    });
 
-    return cachedToken;
+    return tokenData.access_token;
   } catch (err: any) {
-    lastError = err?.message ?? "Erro desconhecido ao renovar token da Assertiva";
+    const message =
+      err?.message ?? "Erro desconhecido ao renovar token da Assertiva";
+    await upsertTokenRow({ lastError: message }).catch(() => {});
     throw err;
   }
 }
 
 async function getToken(): Promise<string> {
+  const row = await readTokenRow();
   const now = Date.now();
 
-  if (cachedToken && now < tokenExpiresAt) {
-    return cachedToken;
+  if (row?.accessToken && row.expiresAt && row.expiresAt.getTime() > now) {
+    return row.accessToken;
   }
 
   if (refreshInFlight) {
@@ -92,9 +133,12 @@ async function getToken(): Promise<string> {
 }
 
 export async function ensureFreshToken(): Promise<void> {
+  const row = await readTokenRow();
   const now = Date.now();
   const needsRefresh =
-    !cachedToken || tokenExpiresAt - now < PROACTIVE_REFRESH_WINDOW_MS;
+    !row?.accessToken ||
+    !row.expiresAt ||
+    row.expiresAt.getTime() - now < PROACTIVE_REFRESH_WINDOW_MS;
 
   if (!needsRefresh) {
     return;
@@ -107,60 +151,79 @@ export async function ensureFreshToken(): Promise<void> {
   }
 }
 
-export function getAssertivaStatus() {
+export async function getAssertivaStatus() {
   const configured = !!(
-    process.env.ASSERTIVA_CLIENT_ID?.trim() && process.env.ASSERTIVA_CLIENT_SECRET?.trim()
+    process.env.ASSERTIVA_CLIENT_ID?.trim() &&
+    process.env.ASSERTIVA_CLIENT_SECRET?.trim()
   );
+
+  const row = await readTokenRow();
+  const now = Date.now();
+  const connected = !!(row?.accessToken && row.expiresAt && row.expiresAt.getTime() > now);
 
   return {
     configured,
-    connected: !!cachedToken && Date.now() < tokenExpiresAt,
-    tokenExpiresAt: cachedToken ? new Date(tokenExpiresAt).toISOString() : null,
-    lastRefreshAt: lastRefreshAt ? new Date(lastRefreshAt).toISOString() : null,
-    lastError,
+    connected,
+    tokenExpiresAt: row?.expiresAt ? row.expiresAt.toISOString() : null,
+    lastRefreshAt: row?.lastRefreshAt ? row.lastRefreshAt.toISOString() : null,
+    lastError: row?.lastError ?? null,
   };
 }
 
 export async function forceRefreshAssertivaToken() {
-  cachedToken = null;
-  tokenExpiresAt = 0;
-  await getToken();
+  await refreshToken();
   return getAssertivaStatus();
 }
 
-async function doConsultarCPF(cpf: string, token: string) {
+function buildCpfUrl(cpf: string): string {
   const clean = cpf.replace(/\D/g, "");
-  const res = await fetch(`${CPF_URL}/${clean}`, {
+  return `${CPF_URL}?cpf=${clean}&idFinalidade=1`;
+}
+
+async function doConsultarCPF(cpf: string, token: string) {
+  const res = await fetch(buildCpfUrl(cpf), {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
   let data: any;
-  try { data = await res.json(); } catch { data = {}; }
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
   return { status: res.status, data };
 }
 
 export async function testarCPF(cpf: string) {
   const token = await getToken();
-  const clean = cpf.replace(/\D/g, "");
+  const url = buildCpfUrl(cpf);
 
-  const [r1, r2] = await Promise.all([
-    fetch(`${CPF_URL}/${clean}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }),
-    fetch(`${CPF_LOCALIZE_URL}/${clean}`, { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }),
-  ]);
-
-  const [t1, t2] = await Promise.all([r1.text(), r2.text()]);
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  const text = await res.text();
 
   return {
-    endpoint_cpf: { status: r1.status, url: `${CPF_URL}/${clean}`, body: safeJson(t1) },
-    endpoint_localize: { status: r2.status, url: `${CPF_LOCALIZE_URL}/${clean}`, body: safeJson(t2) },
+    endpoint_cpf: {
+      status: res.status,
+      url,
+      body: safeJson(text),
+    },
   };
 }
 
 function safeJson(text: string) {
-  try { return JSON.parse(text); } catch { return { raw: text.slice(0, 500) }; }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text.slice(0, 500) };
+  }
 }
 
 export async function consultarCPF(cpf: string) {
-  if (!process.env.ASSERTIVA_CLIENT_ID || !process.env.ASSERTIVA_CLIENT_SECRET) {
+  if (
+    !process.env.ASSERTIVA_CLIENT_ID ||
+    !process.env.ASSERTIVA_CLIENT_SECRET
+  ) {
     throw new Error("ASSERTIVA_NOT_CONFIGURED");
   }
 
@@ -168,9 +231,7 @@ export async function consultarCPF(cpf: string) {
   let { status, data } = await doConsultarCPF(cpf, token);
 
   if (status === 401) {
-    cachedToken = null;
-    tokenExpiresAt = 0;
-    token = await getToken();
+    token = await refreshToken();
     ({ status, data } = await doConsultarCPF(cpf, token));
   }
 
@@ -179,7 +240,9 @@ export async function consultarCPF(cpf: string) {
   }
 
   if (status !== 200) {
-    throw new Error(`Assertiva error: ${status} - ${JSON.stringify(data).slice(0, 200)}`);
+    throw new Error(
+      `Assertiva error: ${status} - ${JSON.stringify(data).slice(0, 200)}`,
+    );
   }
 
   return data;
@@ -205,19 +268,17 @@ function normalizeBirthdayToIso(value: unknown): string | undefined {
 }
 
 /**
- * Mapeamento defensivo da resposta de `/v3/cpf/{cpf}` para os campos equivalentes do
- * cliente. A documentação pública da Assertiva não pôde ser confirmada (SPA renderizada
- * em JS), então tentamos múltiplos aliases de nome de campo; o que não for encontrado
- * simplesmente não entra no objeto retornado.
+ * Mapeamento da resposta de `/localize/v3/cpf` (confirmado via chamada real — ver
+ * `docs`/`swagger.json`) para os campos equivalentes do cliente. Os dados cadastrais
+ * ficam em `resposta.dadosCadastrais`.
  */
-export function mapAssertivaCpfResponse(raw: any): { name?: string; birthday?: string } {
-  const nome = raw?.nome ?? raw?.data?.nome ?? raw?.Nome;
-  const dataNascimento =
-    raw?.dataNascimento ??
-    raw?.data?.dataNascimento ??
-    raw?.data?.data_nascimento ??
-    raw?.data_nascimento ??
-    raw?.DataNascimento;
+export function mapAssertivaCpfResponse(raw: any): {
+  name?: string;
+  birthday?: string;
+} {
+  const dadosCadastrais = raw?.resposta?.dadosCadastrais;
+  const nome = dadosCadastrais?.nome;
+  const dataNascimento = dadosCadastrais?.dataNascimento;
 
   const mapped: { name?: string; birthday?: string } = {};
   if (typeof nome === "string" && nome.trim()) mapped.name = nome.trim();

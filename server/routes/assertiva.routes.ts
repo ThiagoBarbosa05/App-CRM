@@ -6,8 +6,8 @@ import {
 
 const router = Router();
 
-router.get("/status", (req, res) => {
-  return res.json(getAssertivaStatus());
+router.get("/status", async (req, res) => {
+  return res.json(await getAssertivaStatus());
 });
 
 router.post("/refresh", async (req, res) => {
@@ -15,7 +15,7 @@ router.post("/refresh", async (req, res) => {
     const status = await forceRefreshAssertivaToken();
     return res.json(status);
   } catch (err: any) {
-    return res.status(502).json(getAssertivaStatus());
+    return res.status(502).json(await getAssertivaStatus());
   }
 });
 
