@@ -275,16 +275,20 @@ function normalizeBirthdayToIso(value: unknown): string | undefined {
 export function mapAssertivaCpfResponse(raw: any): {
   name?: string;
   birthday?: string;
+  sexo?: "M" | "F";
 } {
   const dadosCadastrais = raw?.resposta?.dadosCadastrais;
   const nome = dadosCadastrais?.nome;
   const dataNascimento = dadosCadastrais?.dataNascimento;
+  const sexoRaw = dadosCadastrais?.sexo;
 
-  const mapped: { name?: string; birthday?: string } = {};
+  const mapped: { name?: string; birthday?: string; sexo?: "M" | "F" } = {};
   if (typeof nome === "string" && nome.trim()) mapped.name = nome.trim();
 
   const birthday = normalizeBirthdayToIso(dataNascimento);
   if (birthday) mapped.birthday = birthday;
+
+  if (sexoRaw === "M" || sexoRaw === "F") mapped.sexo = sexoRaw;
 
   return mapped;
 }
