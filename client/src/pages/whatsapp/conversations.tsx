@@ -192,6 +192,14 @@ interface LocalMessage {
   localId: string;
   content: string;
   createdAt: string;
+  isNote?: boolean;
+}
+
+interface ConversationNote {
+  id: string;
+  content: string | null;
+  createdAt: string;
+  authorName: string | null;
 }
 
 const REACTION_EMOJIS = ["❤️", "😂", "👍", "😮", "😢", "🙏"];
@@ -2619,6 +2627,7 @@ function ConversationMessages({
   onWhatsappTagsChange: (clientId: string, tagIds: string[]) => void;
 }) {
   const [message, setMessage] = useState("");
+  const [composerMode, setComposerMode] = useState<"message" | "note">("message");
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const [replyingTo, setReplyingTo] = useState<WaMessage | null>(null);
@@ -2852,6 +2861,18 @@ function ConversationMessages({
       new Date(b.sentAt ?? b.createdAt).getTime(),
   );
 
+  const { data: conversationNotes = [] } = useQuery<ConversationNote[]>({
+    queryKey: ["/api/whatsapp/conversations", conversationKey, "notes"],
+    queryFn: async () => {
+      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}/notes`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+  const [notesBannerDismissed, setNotesBannerDismissed] = useState(false);
+  const [notesListOpen, setNotesListOpen] = useState(false);
+  const latestNote = conversationNotes[0] ?? null;
+
   // Ao abrir a conversa, pula direto para a última mensagem (sem animação);
   // mensagens que chegam depois (novas ou enviadas) rolam suavemente.
   const hasScrolledInitiallyRef = useRef(false);
@@ -2946,6 +2967,37 @@ function ConversationMessages({
       }
     },
     [conversationKey, queryClient, toast, userRole],
+  );
+
+  const attemptSendNote = useCallback(
+    async (text: string, localId: string) => {
+      try {
+        const res = await fetch(
+          `/api/whatsapp/conversations/${conversationKey}/notes`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ content: text }),
+          },
+        );
+        if (!res.ok) throw new Error();
+        setNotesBannerDismissed(false);
+      } catch {
+        setLocalMessages((prev) => prev.filter((m) => m.localId !== localId));
+        toast({
+          title: "Erro ao salvar a nota. Tente novamente.",
+          variant: "destructive",
+        });
+      } finally {
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations", conversationKey],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/whatsapp/conversations-list"],
+        });
+      }
+    },
+    [conversationKey, queryClient, toast],
   );
 
   const handleRetry = useCallback(
@@ -3261,6 +3313,17 @@ function ConversationMessages({
   const handleSend = () => {
     const text = message.trim();
     if (!text) return;
+    if (composerMode === "note") {
+      const localId = crypto.randomUUID();
+      setLocalMessages((prev) => [
+        ...prev,
+        { localId, content: text, createdAt: new Date().toISOString(), isNote: true },
+      ]);
+      setMessage("");
+      textareaRef.current?.focus();
+      attemptSendNote(text, localId);
+      return;
+    }
     if (!canSendMessages) return;
     if (windowClosed) return;
     const localId = crypto.randomUUID();
@@ -3567,6 +3630,41 @@ function ConversationMessages({
           </div>
         )}
       </div>
+
+      {/* Banner de nota interna fixada */}
+      {latestNote && !notesBannerDismissed && (
+        <div className="relative px-3 sm:px-4 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50 shrink-0">
+          <button
+            onClick={() => setNotesBannerDismissed(true)}
+            className="absolute top-2 right-2 h-5 w-5 rounded-full flex items-center justify-center text-amber-500/70 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+            title="Ocultar nota"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+          <div className="flex items-center gap-1.5 pr-6">
+            <StickyNote className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+              Nota interna
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5 pr-6">
+            <p className="text-xs text-amber-700/80 dark:text-amber-300/80 truncate flex-1 min-w-0">
+              {latestNote.content}
+            </p>
+            <button
+              onClick={() => setNotesListOpen(true)}
+              className="shrink-0 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 underline underline-offset-2"
+            >
+              Ver mais
+            </button>
+            {conversationNotes.length > 1 && (
+              <span className="shrink-0 flex items-center gap-1 text-[11px] text-amber-600/70 dark:text-amber-500/70">
+                <StickyNote className="h-3 w-3" />({conversationNotes.length})
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Banner de contato desconhecido */}
       {isUnknownContact && (
@@ -3986,21 +4084,41 @@ function ConversationMessages({
             ))}
 
             {/* Mensagens locais em trânsito (pending) */}
-            {localMessages.map((lm) => (
-              <div key={lm.localId} className="flex w-full justify-end">
-                <div className="max-w-[82%] sm:max-w-[70%] rounded-2xl shadow-sm px-3.5 py-2.5 rounded-tr-[4px] bg-primary/60 text-primary-foreground">
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
-                    {lm.content}
-                  </p>
-                  <div className="flex items-center justify-end gap-1 mt-1">
-                    <span className="text-[10px] text-primary-foreground/70">
-                      {format(toSP(lm.createdAt), "HH:mm")}
-                    </span>
-                    <Loader2 className="h-3 w-3 text-primary-foreground/60 animate-spin" />
+            {localMessages.map((lm) =>
+              lm.isNote ? (
+                <div key={lm.localId} className="flex justify-center py-1">
+                  <div className="max-w-[80%] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-900/20">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <StickyNote className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                        Nota interna
+                      </span>
+                      <span className="text-[10px] text-amber-600/70 dark:text-amber-500/70">
+                        {format(toSP(lm.createdAt), "HH:mm")}
+                      </span>
+                      <Loader2 className="h-3 w-3 text-amber-500 animate-spin" />
+                    </div>
+                    <p className="text-xs text-amber-900 dark:text-amber-100 whitespace-pre-wrap">
+                      {lm.content}
+                    </p>
                   </div>
                 </div>
-              </div>
-            ))}
+              ) : (
+                <div key={lm.localId} className="flex w-full justify-end">
+                  <div className="max-w-[82%] sm:max-w-[70%] rounded-2xl shadow-sm px-3.5 py-2.5 rounded-tr-[4px] bg-primary/60 text-primary-foreground">
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
+                      {lm.content}
+                    </p>
+                    <div className="flex items-center justify-end gap-1 mt-1">
+                      <span className="text-[10px] text-primary-foreground/70">
+                        {format(toSP(lm.createdAt), "HH:mm")}
+                      </span>
+                      <Loader2 className="h-3 w-3 text-primary-foreground/60 animate-spin" />
+                    </div>
+                  </div>
+                </div>
+              ),
+            )}
           </>
         )}
         <div ref={messagesEndRef} />
@@ -4008,7 +4126,7 @@ function ConversationMessages({
 
       {/* Input */}
       <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-        {!canSendMessages ? (
+        {!canSendMessages && composerMode === "message" ? (
           /* Sem canal selecionado ou canal desconectado: bloqueia envio/bots */
           <div className="flex items-center gap-3 px-4 py-4">
             <div className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900/30">
@@ -4029,8 +4147,38 @@ function ConversationMessages({
           </div>
         ) : (
         <>
+        {/* Toggle Mensagem / Notas */}
+        <div className="flex items-center justify-end px-3 sm:px-4 pt-2">
+          <div className="inline-flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5">
+            <button
+              onClick={() => setComposerMode("message")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                composerMode === "message"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200",
+              )}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Mensagem
+            </button>
+            <button
+              onClick={() => setComposerMode("note")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                composerMode === "note"
+                  ? "bg-amber-500 text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200",
+              )}
+            >
+              <StickyNote className="h-3.5 w-3.5" />
+              Notas
+            </button>
+          </div>
+        </div>
+
         {/* Preview da mensagem sendo respondida */}
-        {replyingTo && (
+        {replyingTo && composerMode === "message" && (
           <div className="flex items-start gap-2 px-3 sm:px-4 pt-2.5 pb-1">
             <div className="flex-1 border-l-[3px] border-primary pl-2.5 py-0.5 min-w-0">
               <p className="text-[11px] font-semibold text-primary mb-0.5">
@@ -4138,7 +4286,7 @@ function ConversationMessages({
             />
 
             {/* Aviso da janela de 24h fechada (somente canal oficial) */}
-            {windowClosed && (
+            {windowClosed && composerMode === "message" && (
               <div className="flex items-start gap-2 px-2.5 py-2 mb-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
                 <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
@@ -4162,24 +4310,35 @@ function ConversationMessages({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Digite uma mensagem…"
-                className="flex-1 resize-none min-h-[52px] sm:min-h-[80px] max-h-[160px] text-sm leading-relaxed"
+                placeholder={
+                  composerMode === "note"
+                    ? "Digite uma nota que só os atendentes podem ver…"
+                    : "Digite uma mensagem…"
+                }
+                className={cn(
+                  "flex-1 resize-none min-h-[52px] sm:min-h-[80px] max-h-[160px] text-sm leading-relaxed",
+                  composerMode === "note" &&
+                    "border-amber-300 focus-visible:ring-amber-400 dark:border-amber-800",
+                )}
                 rows={2}
                 disabled={isUploading}
               />
               {message.trim() ? (
                 <Button
                   onClick={handleSend}
-                  disabled={isUploading || windowClosed}
+                  disabled={isUploading || (windowClosed && composerMode === "message")}
                   size="icon"
-                  className="shrink-0 h-10 w-10 mb-0.5 rounded-full"
+                  className={cn(
+                    "shrink-0 h-10 w-10 mb-0.5 rounded-full",
+                    composerMode === "note" && "bg-amber-500 hover:bg-amber-600",
+                  )}
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               ) : (
                 <button
                   onClick={startRecording}
-                  disabled={isUploading || windowClosed}
+                  disabled={isUploading || windowClosed || composerMode === "note"}
                   className="shrink-0 h-10 w-10 mb-0.5 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                   title="Gravar áudio"
                 >
@@ -4190,41 +4349,45 @@ function ConversationMessages({
 
             {/* Toolbar inferior: anexo, figurinha, emoji + dica */}
             <div className="flex items-center gap-0.5 mt-1">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading || windowClosed}
-                className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
-                title="Enviar arquivo"
-              >
-                {isUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Paperclip className="h-4 w-4" />
-                )}
-              </button>
-              <Popover
-                open={stickerPickerOpen}
-                onOpenChange={setStickerPickerOpen}
-              >
-                <PopoverTrigger asChild>
+              {composerMode === "message" && (
+                <>
                   <button
+                    onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading || windowClosed}
                     className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
-                    title="Figurinhas"
+                    title="Enviar arquivo"
                   >
-                    <Sticker className="h-4 w-4" />
+                    {isUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
                   </button>
-                </PopoverTrigger>
-                <PopoverContent side="top" align="start" className="p-0 w-auto">
-                  <StickerPicker
-                    onPickFromDevice={() => {
-                      setStickerPickerOpen(false);
-                      stickerInputRef.current?.click();
-                    }}
-                    onPickSaved={sendSavedSticker}
-                  />
-                </PopoverContent>
-              </Popover>
+                  <Popover
+                    open={stickerPickerOpen}
+                    onOpenChange={setStickerPickerOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <button
+                        disabled={isUploading || windowClosed}
+                        className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                        title="Figurinhas"
+                      >
+                        <Sticker className="h-4 w-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="start" className="p-0 w-auto">
+                      <StickerPicker
+                        onPickFromDevice={() => {
+                          setStickerPickerOpen(false);
+                          stickerInputRef.current?.click();
+                        }}
+                        onPickSaved={sendSavedSticker}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </>
+              )}
               <Popover
                 open={emojiOpen}
                 onOpenChange={(o) => {
@@ -4291,7 +4454,7 @@ function ConversationMessages({
                   />
                 </PopoverContent>
               </Popover>
-              {isCloudApi && (
+              {composerMode === "message" && isCloudApi && (
                 <Popover
                   open={templatePickerOpen}
                   onOpenChange={setTemplatePickerOpen}
@@ -4320,7 +4483,7 @@ function ConversationMessages({
                   </PopoverContent>
                 </Popover>
               )}
-              {shortcutBots.length > 0 && (
+              {composerMode === "message" && shortcutBots.length > 0 && (
                 <>
                   <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0" />
                   <TooltipProvider delayDuration={300}>
@@ -4350,7 +4513,7 @@ function ConversationMessages({
                   </TooltipProvider>
                 </>
               )}
-              {activeBots.length > 0 && (
+              {composerMode === "message" && activeBots.length > 0 && (
                 <Popover open={botPickerOpen} onOpenChange={setBotPickerOpen}>
                   <PopoverTrigger asChild>
                     <button
@@ -4390,7 +4553,9 @@ function ConversationMessages({
                 </Popover>
               )}
               <p className="text-[10px] text-slate-400 dark:text-slate-600 ml-auto hidden sm:block">
-                Enter para enviar · Shift+Enter para nova linha
+                {composerMode === "note"
+                  ? "Visível apenas para atendentes"
+                  : "Enter para enviar · Shift+Enter para nova linha"}
               </p>
             </div>
           </div>
@@ -4412,6 +4577,45 @@ function ConversationMessages({
         open={contactDetailsOpen}
         onOpenChange={setContactDetailsOpen}
       />
+
+      <Dialog open={notesListOpen} onOpenChange={setNotesListOpen}>
+        <DialogContent className="max-w-md w-[calc(100vw-2rem)] sm:w-full max-h-[80dvh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StickyNote className="h-4 w-4 text-amber-500" />
+              Notas internas
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto min-h-0 -mx-1 px-1">
+            {conversationNotes.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Nenhuma nota registrada nesta conversa.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 py-1">
+                {conversationNotes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/40 dark:bg-amber-900/20"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                        {note.authorName ?? "Atendente"}
+                      </span>
+                      <span className="text-[10px] text-amber-600/70 dark:text-amber-500/70 shrink-0">
+                        {format(toSP(note.createdAt), "dd/MM/yyyy HH:mm")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-900 dark:text-amber-100 whitespace-pre-wrap">
+                      {note.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={closeConfirmOpen} onOpenChange={setCloseConfirmOpen}>
         <AlertDialogContent>

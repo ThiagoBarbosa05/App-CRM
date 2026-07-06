@@ -6,6 +6,8 @@ import {
   listWhatsappTagsForFilter,
   getConversation,
   sendConversationMessage,
+  addConversationNote,
+  listConversationNotes,
   sendConversationTemplate,
   sendConversationMedia,
   sendConversationReaction,
@@ -300,6 +302,59 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
   } catch (err) {
     console.error(`[WA Conversations] Erro ao enviar mensagem:`, err);
     res.status(500).json({ message: "Erro ao enviar mensagem", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+const sendNoteSchema = z.object({
+  content: z.string().min(1),
+});
+
+router.post("/conversations/:clientId/notes", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = sendNoteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ errors: parsed.error.flatten() });
+    }
+
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const result = await addConversationNote(
+      conversationId,
+      parsed.data.content,
+      user.userId,
+      user.role,
+    );
+
+    if (result === null) {
+      return res.status(400).json({ message: "Não foi possível adicionar a nota" });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error(`[WA Conversations] Erro ao adicionar nota:`, err);
+    res.status(500).json({ message: "Erro ao adicionar nota", detail: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+router.get("/conversations/:clientId/notes", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const notes = await listConversationNotes(conversationId, user.userId, user.role);
+    if (notes === null) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    res.json(notes);
+  } catch (err) {
+    console.error(`[WA Conversations] Erro ao buscar notas:`, err);
+    res.status(500).json({ message: "Erro ao buscar notas" });
   }
 });
 

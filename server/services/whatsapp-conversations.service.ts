@@ -749,6 +749,114 @@ export async function sendConversationMessage(
 }
 
 /**
+ * Adiciona uma nota interna à conversa — visível apenas para atendentes, nunca
+ * enviada ao contato pelo WhatsApp. Reaproveita a tabela whatsapp_messages
+ * (type: "note") para que a nota apareça inline no histórico da conversa.
+ */
+export async function addConversationNote(
+  conversationId: string,
+  content: string,
+  userId: string,
+  userRole: string,
+) {
+  const whereConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappConversations.id, conversationId),
+  ];
+  if (userRole === "vendedor") {
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) whereConditions.push(scope);
+  }
+
+  const [conv] = await db
+    .select({
+      id: whatsappConversations.id,
+      clientId: whatsappConversations.clientId,
+    })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (!conv) {
+    console.warn(
+      `[WA Conversations Service] Conversa ${conversationId} não encontrada ou sem permissão para usuário ${userId} (${userRole})`,
+    );
+    return null;
+  }
+
+  const [savedNote] = await db
+    .insert(whatsappMessages)
+    .values({
+      conversationId,
+      direction: "outbound",
+      type: "note",
+      content,
+      sentByUserId: userId,
+      sentAt: new Date(),
+    })
+    .returning({ id: whatsappMessages.id });
+
+  await db
+    .update(whatsappConversations)
+    .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId));
+
+  publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+
+  return { id: savedNote.id };
+}
+
+/**
+ * Lista todas as notas internas de uma conversa (mais recente primeiro), para
+ * o banner fixado no topo do chat e o modal "ver mais".
+ */
+export async function listConversationNotes(
+  conversationId: string,
+  userId: string,
+  userRole: string,
+) {
+  const whereConditions: ReturnType<typeof eq>[] = [
+    eq(whatsappConversations.id, conversationId),
+  ];
+  if (userRole === "vendedor") {
+    const scope = or(
+      eq(whatsappConversations.assignedAgentId, userId),
+      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+    );
+    if (scope) whereConditions.push(scope);
+  }
+
+  const [conv] = await db
+    .select({ id: whatsappConversations.id })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  if (!conv) return null;
+
+  return db
+    .select({
+      id: whatsappMessages.id,
+      content: whatsappMessages.content,
+      createdAt: whatsappMessages.createdAt,
+      authorName: users.name,
+    })
+    .from(whatsappMessages)
+    .leftJoin(users, eq(whatsappMessages.sentByUserId, users.id))
+    .where(
+      and(
+        eq(whatsappMessages.conversationId, conversationId),
+        eq(whatsappMessages.type, "note"),
+      ),
+    )
+    .orderBy(desc(whatsappMessages.createdAt));
+}
+
+/**
  * Envia um template aprovado da Meta para a conversa. Diferente do texto livre,
  * o template é o único formato permitido fora da janela de 24h e só pode sair
  * pelo canal oficial (cloud_api) — o Evolution (não oficial) não tem templates.
