@@ -11,6 +11,7 @@ export const WA_KEYS = [
   "wa_api_version",
   "wa_enabled",
   "wa_message_delay_ms",
+  "wa_bot_shortcut_ids",
 ] as const;
 
 export type WaKey = (typeof WA_KEYS)[number];

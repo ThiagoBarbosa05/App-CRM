@@ -90,6 +90,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useWhatsappSettings } from "@/hooks/use-whatsapp";
+import { BOT_SHORTCUT_ICONS, parseBotShortcuts } from "@/lib/bot-shortcut-icons";
 
 interface Channel {
   id: number;
@@ -2644,7 +2652,7 @@ function ConversationMessages({
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [botPickerOpen, setBotPickerOpen] = useState(false);
-  const [isTriggeringBot, setIsTriggeringBot] = useState(false);
+  const [triggeringBotId, setTriggeringBotId] = useState<string | null>(null);
   const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
@@ -2737,7 +2745,17 @@ function ConversationMessages({
     },
   });
 
+  const { data: waSettings } = useWhatsappSettings();
+
   const activeBots = bots.filter((b) => b.isActive);
+
+  const botShortcuts = parseBotShortcuts(waSettings?.wa_bot_shortcut_ids);
+  const shortcutBots = botShortcuts
+    .map((s) => {
+      const bot = activeBots.find((b) => b.id === s.botId);
+      return bot ? { ...bot, icon: s.icon } : null;
+    })
+    .filter((b): b is WhatsappBot & { icon: keyof typeof BOT_SHORTCUT_ICONS } => !!b);
 
   const handleTriggerBot = async (botId: string) => {
     if (!canSendMessages) {
@@ -2747,7 +2765,7 @@ function ConversationMessages({
       });
       return;
     }
-    setIsTriggeringBot(true);
+    setTriggeringBotId(botId);
     setBotPickerOpen(false);
     try {
       const res = await fetch(
@@ -2774,7 +2792,7 @@ function ConversationMessages({
         variant: "destructive",
       });
     } finally {
-      setIsTriggeringBot(false);
+      setTriggeringBotId(null);
     }
   };
 
@@ -4302,15 +4320,45 @@ function ConversationMessages({
                   </PopoverContent>
                 </Popover>
               )}
+              {shortcutBots.length > 0 && (
+                <>
+                  <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1 shrink-0" />
+                  <TooltipProvider delayDuration={300}>
+                    {shortcutBots.map((bot) => {
+                      const ShortcutIcon = BOT_SHORTCUT_ICONS[bot.icon] ?? Bot;
+                      return (
+                        <Tooltip key={bot.id}>
+                          <TooltipTrigger asChild>
+                            <button
+                              disabled={triggeringBotId !== null}
+                              onClick={() => handleTriggerBot(bot.id)}
+                              className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
+                            >
+                              {triggeringBotId === bot.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <ShortcutIcon className="h-4 w-4" />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p className="text-xs">{bot.name}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </TooltipProvider>
+                </>
+              )}
               {activeBots.length > 0 && (
                 <Popover open={botPickerOpen} onOpenChange={setBotPickerOpen}>
                   <PopoverTrigger asChild>
                     <button
-                      disabled={isTriggeringBot}
+                      disabled={triggeringBotId !== null}
                       className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                       title="Disparar bot"
                     >
-                      {isTriggeringBot ? (
+                      {triggeringBotId !== null ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Bot className="h-4 w-4" />

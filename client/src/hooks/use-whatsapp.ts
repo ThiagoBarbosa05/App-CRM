@@ -130,6 +130,7 @@ export interface WhatsappSettings {
   wa_api_version: string;
   wa_enabled: string;
   wa_message_delay_ms: string;
+  wa_bot_shortcut_ids?: string;
 }
 
 export interface WhatsappChannel {

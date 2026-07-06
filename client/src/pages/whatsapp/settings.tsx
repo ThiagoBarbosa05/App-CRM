@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Settings2, CheckCircle, AlertCircle, Eye, EyeOff, Plus, Pencil, Trash2,
   Phone, Download, RefreshCw, ShieldCheck, ShieldAlert, Wifi, WifiOff,
-  AlertTriangle, KeyRound, Loader2, UserCheck, MessageSquare, QrCode,
+  AlertTriangle, KeyRound, Loader2, UserCheck, MessageSquare, QrCode, Bot,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -57,14 +57,24 @@ import {
   useRequestVerificationCode,
   useVerifyPhoneNumber,
   useCreateEvolutionChannel,
+  useWhatsappBots,
   type WhatsappChannel,
   type MetaPhoneNumber,
   type CreateWhatsappChannelPayload,
 } from "@/hooks/use-whatsapp";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EvolutionChannelConnect } from "@/components/evolution-channel-connect";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  BOT_SHORTCUT_ICONS,
+  DEFAULT_BOT_SHORTCUT_ICON,
+  parseBotShortcuts,
+  type BotShortcut,
+  type BotShortcutIconKey,
+} from "@/lib/bot-shortcut-icons";
+import type { LucideIcon } from "lucide-react";
 
 const MASKED = "••••••••";
 const SENSITIVE_KEYS = ["wa_phone_number_id", "wa_access_token", "wa_waba_id", "wa_webhook_verify_token"] as const;
@@ -1063,6 +1073,176 @@ function EvolutionChannelDialog({
   );
 }
 
+// ── Card: atalhos de bots no chat ─────────────────────────────────────────────
+
+const MAX_BOT_SHORTCUTS = 6;
+
+function IconPickerPopover({
+  value,
+  onChange,
+}: {
+  value: BotShortcutIconKey;
+  onChange: (icon: BotShortcutIconKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ValueIcon = BOT_SHORTCUT_ICONS[value];
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="h-8 w-8 rounded-lg border border-border flex items-center justify-center shrink-0 text-primary hover:bg-muted transition-colors"
+          title="Escolher ícone"
+        >
+          <ValueIcon className="h-4 w-4" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start">
+        <div className="grid grid-cols-6 gap-1">
+          {(Object.entries(BOT_SHORTCUT_ICONS) as [BotShortcutIconKey, LucideIcon][]).map(
+            ([key, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  onChange(key);
+                  setOpen(false);
+                }}
+                className={cn(
+                  "h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
+                  key === value
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            ),
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function BotShortcutsCard() {
+  const { data: settings } = useWhatsappSettings();
+  const { data: bots = [], isLoading: botsLoading } = useWhatsappBots();
+  const updateSettings = useUpdateWhatsappSettings();
+
+  const [selected, setSelected] = useState<BotShortcut[]>([]);
+
+  useEffect(() => {
+    setSelected(parseBotShortcuts(settings?.wa_bot_shortcut_ids));
+  }, [settings?.wa_bot_shortcut_ids]);
+
+  const activeBots = bots.filter((b) => b.isActive);
+  const limitReached = selected.length >= MAX_BOT_SHORTCUTS;
+
+  const toggleBot = (botId: string) => {
+    setSelected((prev) =>
+      prev.some((s) => s.botId === botId)
+        ? prev.filter((s) => s.botId !== botId)
+        : [...prev, { botId, icon: DEFAULT_BOT_SHORTCUT_ICON }],
+    );
+  };
+
+  const setBotIcon = (botId: string, icon: BotShortcutIconKey) => {
+    setSelected((prev) => prev.map((s) => (s.botId === botId ? { ...s, icon } : s)));
+  };
+
+  const hasChanges =
+    JSON.stringify(selected) !== JSON.stringify(parseBotShortcuts(settings?.wa_bot_shortcut_ids));
+
+  const handleSave = () => {
+    updateSettings.mutate({ wa_bot_shortcut_ids: JSON.stringify(selected) });
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-start gap-3">
+          <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+            <Bot className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Atalhos de bots</CardTitle>
+            <CardDescription className="mt-0.5">
+              Escolha até {MAX_BOT_SHORTCUTS} bots e um ícone para cada um. Eles aparecem como
+              atalhos de um clique no chat de conversas.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {botsLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-9 bg-muted rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : activeBots.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            Nenhum bot ativo encontrado.
+          </p>
+        ) : (
+          <>
+            <div className="divide-y divide-border">
+              {activeBots.map((bot) => {
+                const shortcut = selected.find((s) => s.botId === bot.id);
+                const checked = !!shortcut;
+                const disabled = !checked && limitReached;
+                return (
+                  <div
+                    key={bot.id}
+                    className={cn(
+                      "flex items-center gap-3 py-2.5",
+                      disabled && "opacity-50",
+                    )}
+                  >
+                    <label className={cn("flex items-center gap-3 flex-1 min-w-0 cursor-pointer", disabled && "cursor-not-allowed")}>
+                      <Checkbox
+                        checked={checked}
+                        disabled={disabled}
+                        onCheckedChange={() => toggleBot(bot.id)}
+                      />
+                      <span className="text-sm font-medium truncate">{bot.name}</span>
+                    </label>
+                    {checked && (
+                      <IconPickerPopover
+                        value={shortcut.icon}
+                        onChange={(icon) => setBotIcon(bot.id, icon)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {limitReached && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                Limite de {MAX_BOT_SHORTCUTS} atalhos atingido. Remova um para adicionar outro.
+              </p>
+            )}
+            <div className="flex justify-end mt-4">
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={!hasChanges || updateSettings.isPending}
+              >
+                {updateSettings.isPending
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Salvando...</>
+                  : "Salvar atalhos"}
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Página principal ──────────────────────────────────────────────────────────
 
 export default function WhatsAppSettings() {
@@ -1572,6 +1752,9 @@ export default function WhatsAppSettings() {
             )}
           </CardContent>
         </Card>
+
+        {/* Bot shortcuts card */}
+        <BotShortcutsCard />
       </div>
 
       {/* Dialogs */}
