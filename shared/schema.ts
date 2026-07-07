@@ -749,10 +749,12 @@ export const emailCampaignRecipients = pgTable("email_campaign_recipients", {
   clientId: varchar("client_id")
     .references(() => clients.id, { onDelete: "cascade" })
     .notNull(),
-  status: text("status", { enum: ["pending", "sent", "failed", "bounced"] })
+  status: text("status", { enum: ["pending", "sent", "delivered", "opened", "failed", "bounced"] })
     .notNull()
     .default("pending"),
+  messageId: varchar("message_id"),
   sentAt: timestamp("sent_at"),
+  openedAt: timestamp("opened_at"),
   errorMessage: text("error_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

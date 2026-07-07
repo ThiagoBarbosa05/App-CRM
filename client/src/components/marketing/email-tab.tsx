@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Plus, Send, Trash2, Calendar, Users, Clock, User, Search, X, Eye, Pencil } from "lucide-react";
+import { Mail, Plus, Send, Trash2, Calendar, Users, Clock, User, Search, X, Eye, Pencil, CheckCircle2, MailOpen, AlertCircle } from "lucide-react";
 import { formatDate, cn } from "@/lib/utils";
 
 interface EmailCampaign {
@@ -27,6 +27,10 @@ interface EmailCampaign {
   scheduledAt: string | null;
   createdAt: string;
   creator: { name: string } | null;
+  deliveredCount?: number;
+  openedCount?: number;
+  failedCount?: number;
+  bouncedCount?: number;
 }
 
 const STATUS_CONFIG: Record<EmailCampaign["status"], { label: string; color: string }> = {
@@ -608,6 +612,28 @@ export function MarketingEmailTab() {
                     <Calendar className="h-3.5 w-3.5" />
                     {formatDate(campaign.createdAt)}
                   </div>
+                  {campaign.status === "sent" && (
+                    <>
+                      {(campaign.deliveredCount ?? 0) > 0 && (
+                        <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {campaign.deliveredCount} entregues
+                        </div>
+                      )}
+                      {(campaign.openedCount ?? 0) > 0 && (
+                        <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                          <MailOpen className="h-3.5 w-3.5" />
+                          {campaign.openedCount} abertos
+                        </div>
+                      )}
+                      {(campaign.failedCount ?? 0) > 0 && (
+                        <div className="flex items-center gap-1.5 text-red-500 dark:text-red-400">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          {campaign.failedCount} com erro
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">

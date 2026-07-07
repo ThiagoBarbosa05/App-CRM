@@ -1,16 +1,37 @@
 import { db } from "server/db";
 import { emailCampaigns, emailCampaignRecipients, clients, users, type EmailCampaign, type InsertEmailCampaign } from "@shared/schema";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 import { sendEmail, EmailApiError } from "../integrations/email";
 import { resolveTargetClients, type MarketingTargetType } from "./marketing-targeting.service";
 
-export async function listCampaigns(): Promise<(EmailCampaign & { creator: { name: string } | null })[]> {
+export async function listCampaigns(): Promise<(EmailCampaign & {
+  creator: { name: string } | null;
+  deliveredCount: number;
+  openedCount: number;
+  failedCount: number;
+  bouncedCount: number;
+})[]> {
   const rows = await db
-    .select({ campaign: emailCampaigns, creatorName: users.name })
+    .select({
+      campaign: emailCampaigns,
+      creatorName: users.name,
+      deliveredCount: sql<number>`(SELECT COUNT(*) FROM email_campaign_recipients WHERE campaign_id = ${emailCampaigns.id} AND status = 'delivered')`,
+      openedCount:   sql<number>`(SELECT COUNT(*) FROM email_campaign_recipients WHERE campaign_id = ${emailCampaigns.id} AND status = 'opened')`,
+      failedCount:   sql<number>`(SELECT COUNT(*) FROM email_campaign_recipients WHERE campaign_id = ${emailCampaigns.id} AND status IN ('failed','bounced'))`,
+      bouncedCount:  sql<number>`(SELECT COUNT(*) FROM email_campaign_recipients WHERE campaign_id = ${emailCampaigns.id} AND status = 'bounced')`,
+    })
     .from(emailCampaigns)
     .leftJoin(users, eq(emailCampaigns.createdBy, users.id))
     .orderBy(desc(emailCampaigns.createdAt));
-  return rows.map((r) => ({ ...r.campaign, creator: r.creatorName ? { name: r.creatorName } : null }));
+
+  return rows.map((r) => ({
+    ...r.campaign,
+    creator: r.creatorName ? { name: r.creatorName } : null,
+    deliveredCount: Number(r.deliveredCount),
+    openedCount: Number(r.openedCount),
+    failedCount: Number(r.failedCount),
+    bouncedCount: Number(r.bouncedCount),
+  }));
 }
 
 export async function getCampaign(id: string) {
@@ -133,10 +154,10 @@ export async function executeCampaign(
     }
 
     try {
-      await sendEmail({ to: client.email, subject: campaign.subject, html: campaign.content });
+      const { messageId } = await sendEmail({ to: client.email, subject: campaign.subject, html: campaign.content });
       await db
         .update(emailCampaignRecipients)
-        .set({ status: "sent", sentAt: new Date() })
+        .set({ status: "sent", sentAt: new Date(), messageId: messageId ?? null })
         .where(eq(emailCampaignRecipients.id, recipient.id));
       sent++;
     } catch (err) {

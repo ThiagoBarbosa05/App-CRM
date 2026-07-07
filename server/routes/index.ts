@@ -40,6 +40,7 @@ import blingWebhookRouter from "./bling-webhook.routes";
 import systemSettingsRouter from "./system-settings.routes";
 import telephonySettingsRouter from "./telephony-settings.routes";
 import twilioRouter from "./twilio.routes";
+import sendgridRouter from "./sendgrid.routes";
 import callsRouter from "./calls.routes";
 import campaignsRouter from "./campaigns.routes";
 import elevenLabsRouter from "./elevenlabs.routes";
@@ -116,6 +117,8 @@ apiRouter.use("/bling-accounts", blingAccountsRouter);
 // Webhooks Twilio/ElevenLabs — chamados pelos serviços externos sem JWT
 // Os handlers protegidos nesses routers verificam req.user manualmente
 apiRouter.use("/twilio", twilioRouter);
+// Webhook SendGrid — eventos de entrega, abertura e bounce de emails
+apiRouter.use("/sendgrid", sendgridRouter);
 // Webhook WhatsApp Cloud API — verificação GET e notificações POST do Meta
 apiRouter.use("/whatsapp", whatsappWebhookRouter);
 // Webhook Evolution API — eventos de instâncias Baileys (QR, mensagens, status)
