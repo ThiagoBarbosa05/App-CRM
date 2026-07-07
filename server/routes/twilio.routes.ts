@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import twilio from "twilio";
 import { db } from "server/db";
-import { calls, systemSettings } from "@shared/schema";
+import { calls, systemSettings, smsCampaignMessages, smsIndividualMessages } from "@shared/schema";
 import { and, eq, notInArray } from "drizzle-orm";
 import {
   getTwilioConfig,
@@ -989,6 +989,65 @@ router.get("/alerts", requireAuth, async (req: Request, res: Response) => {
     console.error("[twilio/alerts] erro:", e);
     const message = e instanceof Error ? e.message : "Erro interno";
     return res.status(500).json({ message });
+  }
+});
+
+// ─── Webhook de status de entrega de SMS ─────────────────────────────────────
+// Twilio chama este endpoint quando o status de uma mensagem SMS muda.
+// Corpo (application/x-www-form-urlencoded): SmsSid, MessageStatus, ErrorCode, ErrorMessage
+// Status possíveis: queued → sent → delivered | undelivered | failed
+
+router.post("/sms-status", async (req: Request, res: Response) => {
+  try {
+    const { SmsSid, MessageStatus, ErrorCode, ErrorMessage } = req.body as {
+      SmsSid?: string;
+      MessageStatus?: string;
+      ErrorCode?: string;
+      ErrorMessage?: string;
+    };
+
+    if (!SmsSid || !MessageStatus) {
+      return res.status(400).send("SmsSid e MessageStatus são obrigatórios");
+    }
+
+    const isFinal = ["delivered", "undelivered", "failed"].includes(MessageStatus);
+    if (!isFinal) {
+      // Status intermediários (queued, sending, sent) — não precisamos persistir
+      return res.sendStatus(204);
+    }
+
+    const normalized = MessageStatus === "delivered" ? "delivered" : "failed";
+    const errorMsg = ErrorMessage
+      ? `[${ErrorCode ?? "?"}] ${ErrorMessage}`
+      : ErrorCode
+        ? `Código de erro: ${ErrorCode}`
+        : null;
+
+    // Atualiza mensagem de campanha (se encontrada)
+    const campaignUpdate = await db
+      .update(smsCampaignMessages)
+      .set({
+        status: normalized,
+        ...(errorMsg ? { errorMessage: errorMsg } : {}),
+      })
+      .where(eq(smsCampaignMessages.twilioSid, SmsSid));
+
+    // Se não era mensagem de campanha, tenta mensagem avulsa
+    if ((campaignUpdate.rowCount ?? 0) === 0) {
+      await db
+        .update(smsIndividualMessages)
+        .set({
+          status: normalized,
+          ...(errorMsg ? { errorMessage: errorMsg } : {}),
+        })
+        .where(eq(smsIndividualMessages.twilioSid, SmsSid));
+    }
+
+    console.log(`[twilio/sms-status] ${SmsSid} → ${normalized}${errorMsg ? ` | ${errorMsg}` : ""}`);
+    res.sendStatus(204);
+  } catch (e) {
+    console.error("[twilio/sms-status] erro:", e);
+    res.sendStatus(500);
   }
 });
 

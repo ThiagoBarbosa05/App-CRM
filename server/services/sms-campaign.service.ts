@@ -12,6 +12,7 @@ import {
 import { eq, and, desc, count } from "drizzle-orm";
 import { sendSms, SmsApiError } from "../integrations/sms";
 import { resolveTargetClients, type MarketingTargetType } from "./marketing-targeting.service";
+import { getServerBaseUrl } from "../lib/twilio-config";
 
 function resolveCampaignMessage(template: string, clientName: string): string {
   const firstName = clientName ? clientName.split(" ")[0] : "";
@@ -165,7 +166,12 @@ export async function executeCampaign(
   for (const recipient of pending) {
     try {
       const body = resolveCampaignMessage(campaign.message, recipient.clientName ?? "");
-      const { sid } = await sendSms({ to: recipient.phone, body });
+      const baseUrl = await getServerBaseUrl();
+      const { sid } = await sendSms({
+        to: recipient.phone,
+        body,
+        statusCallback: `${baseUrl}/api/twilio/sms-status`,
+      });
       await db
         .update(smsCampaignMessages)
         .set({ status: "sent", sentAt: new Date(), twilioSid: sid })
@@ -230,7 +236,12 @@ export async function sendIndividualSms(input: {
   sentBy: string;
 }): Promise<SmsIndividualMessage> {
   try {
-    const { sid } = await sendSms({ to: input.to, body: input.message });
+    const baseUrl = await getServerBaseUrl();
+    const { sid } = await sendSms({
+      to: input.to,
+      body: input.message,
+      statusCallback: `${baseUrl}/api/twilio/sms-status`,
+    });
     const [row] = await db
       .insert(smsIndividualMessages)
       .values({

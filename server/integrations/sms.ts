@@ -29,9 +29,11 @@ async function getSmsFromNumber(fallback: string): Promise<string> {
 export async function sendSms({
   to,
   body,
+  statusCallback,
 }: {
   to: string;
   body: string;
+  statusCallback?: string;
 }): Promise<{ sid: string }> {
   const { accountSid, authToken, fromNumber: voiceFromNumber } = await getTwilioConfig();
   if (!accountSid || !authToken) {
@@ -54,6 +56,7 @@ export async function sendSms({
       to: toE164Brazil(to),
       from: fromNumber,
       body,
+      ...(statusCallback ? { statusCallback, statusCallbackMethod: "POST" } : {}),
     });
     return { sid: message.sid };
   } catch (err: any) {

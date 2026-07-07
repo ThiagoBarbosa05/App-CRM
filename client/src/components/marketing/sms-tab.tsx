@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown, Clock } from "lucide-react";
+import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown, Clock, Target } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 const SMS_VARIABLES = [
@@ -34,6 +34,7 @@ interface SmsCampaign {
   message: string;
   status: "draft" | "scheduled" | "sent" | "cancelled";
   targetType: string;
+  targetCriteria: string | null;
   totalRecipients: number;
   sentCount: number;
   createdAt: string;
@@ -56,6 +57,20 @@ const STATUS_CONFIG: Record<SmsCampaign["status"], { label: string; color: strin
   sent: { label: "Enviada", color: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" },
   cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300" },
 };
+
+const TARGET_TYPE_LABEL: Record<string, string> = {
+  all: "Todos os clientes",
+  category: "Categoria",
+  origin: "Origem",
+  markers: "Marcador",
+  custom: "Personalizado",
+};
+
+function describeTarget(targetType: string, targetCriteria: string | null): string {
+  if (targetType === "all") return "Todos os clientes";
+  const label = TARGET_TYPE_LABEL[targetType] ?? "Público";
+  return targetCriteria ? `${label}: ${targetCriteria}` : label;
+}
 
 interface ClientResult {
   id: string;
@@ -759,6 +774,10 @@ export function MarketingSmsTab() {
                   <div className="min-w-0">
                     <CardTitle className="text-base truncate">{campaign.name}</CardTitle>
                     <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{campaign.message}</p>
+                    <Badge variant="outline" className="mt-1.5 gap-1 text-xs font-normal max-w-full">
+                      <Target className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{describeTarget(campaign.targetType, campaign.targetCriteria)}</span>
+                    </Badge>
                   </div>
                   <Badge className={cfg.color}>{cfg.label}</Badge>
                 </div>

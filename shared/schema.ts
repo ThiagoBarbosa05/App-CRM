@@ -812,7 +812,7 @@ export const smsIndividualMessages = pgTable("sms_individual_messages", {
   }),
   phone: text("phone").notNull(),
   message: text("message").notNull(),
-  status: text("status", { enum: ["sent", "failed"] }).notNull(),
+  status: text("status", { enum: ["sent", "delivered", "failed"] }).notNull(),
   twilioSid: text("twilio_sid"),
   errorMessage: text("error_message"),
   sentBy: varchar("sent_by")
