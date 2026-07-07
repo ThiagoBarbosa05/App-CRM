@@ -63,6 +63,24 @@ smsCampaignsRouter.post(
 );
 
 /**
+ * @route GET /api/sms-campaigns/preview-count
+ * @description Retorna quantos clientes correspondem ao filtro de targeting (sem criar campanha)
+ * @access Private
+ */
+smsCampaignsRouter.get("/preview-count", async (req, res) => {
+  try {
+    const { resolveTargetClients } = await import("../services/marketing-targeting.service");
+    const targetType = (req.query.targetType as string) || "all";
+    const targetCriteria = (req.query.targetCriteria as string) || null;
+    const targets = await resolveTargetClients(targetType as any, targetCriteria || null);
+    const withPhone = targets.filter((c) => c.phone && c.phone.trim() !== "").length;
+    return res.json({ total: targets.length, withPhone });
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message ?? "Erro ao calcular preview" });
+  }
+});
+
+/**
  * @route GET /api/sms-campaigns/:id
  * @description Busca uma campanha de SMS com seus destinatários
  * @access Private

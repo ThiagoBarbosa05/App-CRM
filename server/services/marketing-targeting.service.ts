@@ -16,6 +16,8 @@ async function getClientIdsByTagName(
     .from(tags)
     .where(and(eq(tags.type, tagType), eq(tags.name, tagName)));
 
+  console.log(`[targeting] getClientIdsByTagName(${tagName}, ${tagType}) → ${matchingTags.length} tag(s) encontrada(s):`, matchingTags);
+
   if (matchingTags.length === 0) return new Set();
 
   const tagIds = matchingTags.map((t) => t.id);
@@ -24,6 +26,8 @@ async function getClientIdsByTagName(
     .select({ clientId: contactTags.clientId })
     .from(contactTags)
     .where(inArray(contactTags.tagId, tagIds));
+
+  console.log(`[targeting] contact_tags para tagIds [${tagIds.join(",")}] → ${linkedClients.length} cliente(s)`);
 
   return new Set(linkedClients.map((r) => r.clientId));
 }
@@ -39,28 +43,36 @@ export async function resolveTargetClients(
 ): Promise<Client[]> {
   const all = await db.select().from(clients);
 
+  console.log(`[targeting] resolveTargetClients(${targetType}, ${targetCriteria}) — total clientes: ${all.length}`);
+
   if (targetType === "all") return all;
   if (!targetCriteria) return [];
 
   if (targetType === "category") {
     const taggedIds = await getClientIdsByTagName(targetCriteria, "categoria");
-    return all.filter(
-      (c) => c.categoria === targetCriteria || taggedIds.has(c.id),
-    );
+    const directMatch = all.filter((c) => c.categoria === targetCriteria);
+    const tagMatch = all.filter((c) => taggedIds.has(c.id));
+    console.log(`[targeting] category="${targetCriteria}" → direto: ${directMatch.length}, via tag: ${tagMatch.length}`);
+    const seen = new Set<string>();
+    return [...directMatch, ...tagMatch].filter((c) => (seen.has(c.id) ? false : seen.add(c.id) && true));
   }
 
   if (targetType === "origin") {
     const taggedIds = await getClientIdsByTagName(targetCriteria, "origem");
-    return all.filter(
-      (c) => c.origem === targetCriteria || taggedIds.has(c.id),
-    );
+    const directMatch = all.filter((c) => c.origem === targetCriteria);
+    const tagMatch = all.filter((c) => taggedIds.has(c.id));
+    console.log(`[targeting] origin="${targetCriteria}" → direto: ${directMatch.length}, via tag: ${tagMatch.length}`);
+    const seen = new Set<string>();
+    return [...directMatch, ...tagMatch].filter((c) => (seen.has(c.id) ? false : seen.add(c.id) && true));
   }
 
   if (targetType === "markers") {
     const taggedIds = await getClientIdsByTagName(targetCriteria, "marcador");
-    return all.filter(
-      (c) => c.markers?.includes(targetCriteria) || taggedIds.has(c.id),
-    );
+    const directMatch = all.filter((c) => c.markers?.includes(targetCriteria));
+    const tagMatch = all.filter((c) => taggedIds.has(c.id));
+    console.log(`[targeting] markers="${targetCriteria}" → direto: ${directMatch.length}, via tag: ${tagMatch.length}`);
+    const seen = new Set<string>();
+    return [...directMatch, ...tagMatch].filter((c) => (seen.has(c.id) ? false : seen.add(c.id) && true));
   }
 
   if (targetType === "custom") {

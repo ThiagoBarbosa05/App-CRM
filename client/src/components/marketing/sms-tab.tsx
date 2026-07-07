@@ -286,6 +286,25 @@ export function MarketingSmsTab() {
     enabled: !!targetTagsEndpoint,
   });
 
+  const previewEnabled =
+    formData.targetType === "all" ||
+    (formData.targetType !== "all" && !!formData.targetCriteria);
+  const { data: previewCount, isLoading: previewLoading } = useQuery<{ total: number; withPhone: number }>({
+    queryKey: [
+      "/api/sms-campaigns/preview-count",
+      formData.targetType,
+      formData.targetCriteria,
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams({ targetType: formData.targetType });
+      if (formData.targetCriteria) params.set("targetCriteria", formData.targetCriteria);
+      const res = await fetch(`/api/sms-campaigns/preview-count?${params}`, { credentials: "include" });
+      return res.json();
+    },
+    enabled: previewEnabled,
+    staleTime: 30_000,
+  });
+
   const individualMutation = useMutation({
     mutationFn: async (data: typeof individualData) => {
       const resolvedMessage = data.clientName
@@ -526,7 +545,7 @@ export function MarketingSmsTab() {
           <Separator orientation="vertical" className="h-5" />
 
           {/* Nova Campanha */}
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <Dialog open={isCreateOpen} onOpenChange={(v) => { setIsCreateOpen(v); if (!v) setFormData(EMPTY_FORM); }}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
                 <Plus className="h-3.5 w-3.5" />
@@ -596,6 +615,30 @@ export function MarketingSmsTab() {
                     </div>
                   )}
                 </div>
+
+                {(previewEnabled && (previewLoading || !!previewCount)) && (
+                  <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
+                    previewLoading
+                      ? "bg-muted text-muted-foreground"
+                      : previewCount && previewCount.withPhone > 0
+                        ? "bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800"
+                        : "bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                  }`}>
+                    <Users className="h-3.5 w-3.5 shrink-0" />
+                    {previewLoading ? (
+                      <span>Calculando destinatários...</span>
+                    ) : previewCount ? (
+                      <span>
+                        <strong>{previewCount.withPhone}</strong> cliente{previewCount.withPhone !== 1 ? "s" : ""} com telefone receberão este SMS
+                        {previewCount.total !== previewCount.withPhone && (
+                          <span className="text-xs ml-1 opacity-75">
+                            ({previewCount.total - previewCount.withPhone} sem telefone cadastrado)
+                          </span>
+                        )}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
