@@ -268,27 +268,44 @@ function normalizeBirthdayToIso(value: unknown): string | undefined {
 }
 
 /**
+ * A Assertiva retorna o sexo como texto livre (ex.: "Masculino"/"Feminino" — ver
+ * `swagger.json`, exemplo em `dadosCadastrais.sexo`), não como o enum "M"/"F" usado
+ * no banco. Normaliza de forma case-insensitive, aceitando também "M"/"F" já prontos.
+ */
+function normalizeSexo(value: unknown): "M" | "F" | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "m" || normalized === "masculino") return "M";
+  if (normalized === "f" || normalized === "feminino") return "F";
+  return undefined;
+}
+
+/**
  * Mapeamento da resposta de `/localize/v3/cpf` (confirmado via chamada real — ver
  * `docs`/`swagger.json`) para os campos equivalentes do cliente. Os dados cadastrais
- * ficam em `resposta.dadosCadastrais`.
+ * ficam em `resposta.dadosCadastrais`; o e-mail (quando existe) em `resposta.emails`.
  */
 export function mapAssertivaCpfResponse(raw: any): {
   name?: string;
   birthday?: string;
   sexo?: "M" | "F";
+  email?: string;
 } {
   const dadosCadastrais = raw?.resposta?.dadosCadastrais;
   const nome = dadosCadastrais?.nome;
   const dataNascimento = dadosCadastrais?.dataNascimento;
-  const sexoRaw = dadosCadastrais?.sexo;
+  const emailEntry = raw?.resposta?.emails?.[0]?.email;
 
-  const mapped: { name?: string; birthday?: string; sexo?: "M" | "F" } = {};
+  const mapped: { name?: string; birthday?: string; sexo?: "M" | "F"; email?: string } = {};
   if (typeof nome === "string" && nome.trim()) mapped.name = nome.trim();
 
   const birthday = normalizeBirthdayToIso(dataNascimento);
   if (birthday) mapped.birthday = birthday;
 
-  if (sexoRaw === "M" || sexoRaw === "F") mapped.sexo = sexoRaw;
+  const sexo = normalizeSexo(dadosCadastrais?.sexo);
+  if (sexo) mapped.sexo = sexo;
+
+  if (typeof emailEntry === "string" && emailEntry.trim()) mapped.email = emailEntry.trim();
 
   return mapped;
 }

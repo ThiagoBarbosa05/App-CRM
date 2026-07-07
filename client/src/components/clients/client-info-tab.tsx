@@ -79,7 +79,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
   const { toast } = useToast();
   const [cpfVerify, setCpfVerify] = useState<{
     status: "idle" | "loading" | "success" | "error";
-    mapped?: { name?: string; birthday?: string };
+    mapped?: { name?: string; birthday?: string; sexo?: "M" | "F"; email?: string };
     message?: string;
   }>({ status: "idle" });
   const [cpfDialogOpen, setCpfDialogOpen] = useState(false);

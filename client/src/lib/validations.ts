@@ -97,6 +97,7 @@ export const clientValidationSchema = z.object({
       (val) => !val || validateAdultAge(val),
       "Cliente deve ser maior de idade (18 anos ou mais)",
     ),
+  sexo: z.enum(["M", "F"]).optional().or(z.literal("")),
   cep: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
   number: z.string().optional().or(z.literal("")),

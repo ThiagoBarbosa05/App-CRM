@@ -160,6 +160,45 @@ clientsRouter.get("/registration-quality-panel", requireAuth, async (req, res) =
   }
 });
 
+// Limite compartilhado entre a busca de cliente já cadastrado (/verify-cpf) e a busca
+// no modal de criação (/lookup-cpf) — ambas batem na mesma API paga da Assertiva.
+const assertivaCpfRateLimit = rateLimit({
+  windowMs: 5 * 60_000,
+  max: 5,
+  keyFn: (req) => `assertiva-cpf:${req.user?.userId ?? req.ip}`,
+  message: "Muitas consultas à Assertiva. Aguarde alguns minutos e tente novamente.",
+});
+
+// Busca de dados na Assertiva para preencher o formulário de um cliente ainda não
+// cadastrado (modal de criação) — por isso não recebe clientId nem grava auditoria
+// em `cpf_verification_logs` (não há client_id neste ponto).
+// IMPORTANTE: precisa ser registrada ANTES de "/:id" abaixo, senão o Express trataria
+// "lookup-cpf" como um valor de :id.
+clientsRouter.get(
+  "/lookup-cpf",
+  requireAuth,
+  assertivaCpfRateLimit,
+  async (req, res) => {
+    const cpf = String(req.query.cpf ?? "").replace(/\D/g, "");
+    if (cpf.length !== 11) {
+      return res.status(400).json({ message: "CPF inválido" });
+    }
+    try {
+      const data = await consultarCPF(cpf);
+      return res.json({ mapped: mapAssertivaCpfResponse(data) });
+    } catch (err: any) {
+      if (err.message === "ASSERTIVA_NOT_CONFIGURED") {
+        return res.status(503).json({ message: "Integração Assertiva não configurada. Adicione ASSERTIVA_CLIENT_ID e ASSERTIVA_CLIENT_SECRET nos secrets." });
+      }
+      if (err.message === "CPF_NOT_FOUND") {
+        return res.status(404).json({ message: "CPF não encontrado na base Assertiva" });
+      }
+      console.error("[lookup-cpf] Erro ao consultar Assertiva:", err.message);
+      return res.status(502).json({ message: "Não foi possível consultar a Assertiva no momento. Tente novamente mais tarde." });
+    }
+  },
+);
+
 /**
  * @route GET /api/clients/:id
  * @description Busca um cliente específico por ID
@@ -177,12 +216,7 @@ clientsRouter.get(
 clientsRouter.get(
   "/:clientId/verify-cpf",
   requireAuth,
-  rateLimit({
-    windowMs: 5 * 60_000,
-    max: 5,
-    keyFn: (req) => `verify-cpf:${req.user?.userId ?? req.ip}`,
-    message: "Muitas consultas à Assertiva. Aguarde alguns minutos e tente novamente.",
-  }),
+  assertivaCpfRateLimit,
   async (req, res) => {
     const { clientId } = req.params;
     try {

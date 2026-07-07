@@ -94,6 +94,7 @@ export default function ClientFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMarker, setNewMarker] = useState("");
   const [isLoadingCep, setIsLoadingCep] = useState(false);
+  const [isLoadingCpfLookup, setIsLoadingCpfLookup] = useState(false);
   const { user } = useAuth();
 
   // Buscar categorias das configurações
@@ -162,6 +163,7 @@ export default function ClientFormModal({
       inscricaoEstadual: client?.inscricaoEstadual || "",
       email: client?.email || "",
       birthday: convertBrazilianDateToISO(client?.birthday || ""),
+      sexo: (client?.sexo as "M" | "F") || "",
       cep: client?.cep || "",
       address: client?.address || "",
       number: client?.number || "",
@@ -303,6 +305,54 @@ export default function ClientFormModal({
       lookupCep(digits);
     }
   }, [watchedCep]);
+
+  const lookupCpfData = async (cpf: string) => {
+    setIsLoadingCpfLookup(true);
+    try {
+      const res = await fetch(`/api/clients/lookup-cpf?cpf=${cpf}`, {
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast({
+          title: res.status === 429 ? "Muitas consultas" : "Não foi possível consultar o CPF",
+          description: json.message ?? "Tente novamente mais tarde.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const mapped = json.mapped ?? {};
+      if (mapped.name) form.setValue("name", mapped.name);
+      if (mapped.birthday) form.setValue("birthday", mapped.birthday);
+      if (mapped.email) form.setValue("email", mapped.email);
+      if (mapped.sexo) form.setValue("sexo", mapped.sexo);
+      if (mapped.name || mapped.birthday || mapped.email || mapped.sexo) {
+        toast({
+          title: "Dados encontrados",
+          description: "Nome, nascimento, e-mail e sexo foram preenchidos automaticamente com base no CPF.",
+        });
+      }
+    } catch {
+      toast({
+        title: "Erro ao consultar CPF",
+        description: "Não foi possível consultar a Assertiva. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingCpfLookup(false);
+    }
+  };
+
+  // Auto-busca de dados na Assertiva quando um CPF completo (11 dígitos) é digitado —
+  // só no modo de criação, nunca ao editar um cliente já existente.
+  useEffect(() => {
+    if (client) return;
+    const digits = (watchedCpf || "").replace(/\D/g, "");
+    if (digits.length === 11) {
+      lookupCpfData(digits);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedCpf, client]);
 
   // Verificação de duplicatas com debounce
   const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
@@ -470,6 +520,7 @@ export default function ClientFormModal({
           ? data.inscricaoEstadual?.trim() || null
           : null,
         email: data.email?.trim() || null,
+        sexo: isCnpj ? null : data.sexo || null,
         cep: data.cep?.trim() || "",
         address: data.address?.trim() || "",
         number: data.number?.trim() || "",
@@ -661,36 +712,43 @@ export default function ClientFormModal({
                           )}
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            className="dark:bg-slate-950 focus-visible:ring-blue-500"
-                            placeholder={
-                              isCnpj ? "00.000.000/0000-00" : "000.000.000-00"
-                            }
-                            value={field.value}
-                            onChange={(e) => {
-                              const digits = e.target.value
-                                .replace(/\D/g, "")
-                                .slice(0, 14);
-                              let formatted = digits;
-                              if (digits.length <= 11) {
-                                // Formato CPF: 000.000.000-00
-                                formatted = digits
-                                  .replace(/(\d{3})(\d)/, "$1.$2")
-                                  .replace(/(\d{3})(\d)/, "$1.$2")
-                                  .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
-                              } else {
-                                // Formato CNPJ: 00.000.000/0000-00
-                                formatted = digits
-                                  .replace(/(\d{2})(\d)/, "$1.$2")
-                                  .replace(/(\d{3})(\d)/, "$1.$2")
-                                  .replace(/(\d{3})(\d)/, "$1/$2")
-                                  .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+                          <div className="relative">
+                            <Input
+                              className="dark:bg-slate-950 focus-visible:ring-blue-500"
+                              placeholder={
+                                isCnpj ? "00.000.000/0000-00" : "000.000.000-00"
                               }
-                              field.onChange(formatted);
-                            }}
-                            onBlur={field.onBlur}
-                            name={field.name}
-                          />
+                              value={field.value}
+                              onChange={(e) => {
+                                const digits = e.target.value
+                                  .replace(/\D/g, "")
+                                  .slice(0, 14);
+                                let formatted = digits;
+                                if (digits.length <= 11) {
+                                  // Formato CPF: 000.000.000-00
+                                  formatted = digits
+                                    .replace(/(\d{3})(\d)/, "$1.$2")
+                                    .replace(/(\d{3})(\d)/, "$1.$2")
+                                    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+                                } else {
+                                  // Formato CNPJ: 00.000.000/0000-00
+                                  formatted = digits
+                                    .replace(/(\d{2})(\d)/, "$1.$2")
+                                    .replace(/(\d{3})(\d)/, "$1.$2")
+                                    .replace(/(\d{3})(\d)/, "$1/$2")
+                                    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+                                }
+                                field.onChange(formatted);
+                              }}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
+                            {isLoadingCpfLookup && (
+                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                              </div>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -759,6 +817,35 @@ export default function ClientFormModal({
                       </FormItem>
                     )}
                   />
+
+                  {!isCnpj && (
+                    <FormField
+                      control={form.control}
+                      name="sexo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-slate-700 dark:text-slate-300">
+                            Sexo/Gênero
+                          </FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value || ""}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="dark:bg-slate-950">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="M">Masculino</SelectItem>
+                              <SelectItem value="F">Feminino</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
               </div>
 

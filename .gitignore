@@ -13,6 +13,7 @@ server/index.ts
 # *.png
 *.csv
 docs/analise-migracao-meta-api.md
+docs/lgpd-security-audit-plan.md
 /.playwright-mcp
 # Playwright
 /test-results/

@@ -19,13 +19,13 @@ import { type Client } from "@shared/schema";
 
 interface CpfVerificationDialogProps {
   client: Client;
-  mapped: { name?: string; birthday?: string };
+  mapped: { name?: string; birthday?: string; sexo?: "M" | "F"; email?: string };
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 interface DiffItem {
-  key: "name" | "birthday";
+  key: "name" | "birthday" | "sexo" | "email";
   label: string;
   currentDisplay: string;
   newDisplay: string;
@@ -40,6 +40,12 @@ function formatBirthdayDisplay(value: string | null | undefined): string {
   } catch {
     return value;
   }
+}
+
+function formatSexoDisplay(value: string | null | undefined): string {
+  if (value === "M") return "Masculino";
+  if (value === "F") return "Feminino";
+  return "Não informado";
 }
 
 export function CpfVerificationDialog({
@@ -78,8 +84,33 @@ export function CpfVerificationDialog({
       });
     }
 
+    if (mapped.sexo) {
+      const current = client.sexo ?? "";
+      result.push({
+        key: "sexo",
+        label: "Sexo/Gênero",
+        currentDisplay: formatSexoDisplay(current),
+        newDisplay: formatSexoDisplay(mapped.sexo),
+        newValue: mapped.sexo,
+        differs: current !== mapped.sexo,
+      });
+    }
+
+    if (mapped.email) {
+      const current = (client.email ?? "").trim();
+      const next = mapped.email.trim();
+      result.push({
+        key: "email",
+        label: "E-mail",
+        currentDisplay: current || "Não informado",
+        newDisplay: next,
+        newValue: next,
+        differs: current.toLowerCase() !== next.toLowerCase(),
+      });
+    }
+
     return result;
-  }, [client.name, client.birthday, mapped]);
+  }, [client.name, client.birthday, client.email, mapped]);
 
   const [selected, setSelected] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(items.filter((i) => i.differs).map((i) => [i.key, true])),
@@ -135,7 +166,7 @@ export function CpfVerificationDialog({
         <div className="space-y-3">
           {divergent.length === 0 && matching.length === 0 && (
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              A Assertiva não retornou nome ou data de nascimento para este CPF.
+              A Assertiva não retornou nome, data de nascimento, sexo ou e-mail para este CPF.
             </p>
           )}
 
