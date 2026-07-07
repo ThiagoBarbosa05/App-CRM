@@ -253,7 +253,7 @@ function HtmlContentField({
             sandbox=""
             srcDoc={srcDoc}
             className="w-full block"
-            style={{ height: `${rows * 28}px` }}
+            style={{ height: "420px" }}
           />
         </div>
       )}
@@ -275,6 +275,7 @@ export function MarketingEmailTab() {
   const [individualData, setIndividualData] = useState(EMPTY_INDIVIDUAL);
   const [scheduleTarget, setScheduleTarget] = useState<EmailCampaign | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
+  const [viewTarget, setViewTarget] = useState<EmailCampaign | null>(null);
 
   const { data: campaigns = [], isLoading } = useQuery<EmailCampaign[]>({
     queryKey: ["/api/email-campaigns"],
@@ -645,12 +646,42 @@ export function MarketingEmailTab() {
                       </Button>
                     </div>
                   )}
+                  {campaign.status === "sent" && (
+                    <Button variant="outline" size="sm" onClick={() => setViewTarget(campaign)}>
+                      <Eye className="h-3.5 w-3.5 mr-1.5" />
+                      Visualizar email
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {/* Dialog de visualização do email enviado */}
+      <Dialog open={!!viewTarget} onOpenChange={(v) => { if (!v) setViewTarget(null); }}>
+        <DialogContent className="max-w-none w-[98vw] h-[97vh] max-h-[97vh] overflow-hidden flex flex-col p-4">
+          <DialogHeader className="shrink-0 pb-2">
+            <DialogTitle className="truncate">{viewTarget?.name}</DialogTitle>
+            {viewTarget && (
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{viewTarget.subject}</span>
+              </p>
+            )}
+          </DialogHeader>
+          {viewTarget && (
+            <div className="rounded-md border overflow-hidden bg-white flex-1 min-h-0">
+              <iframe
+                title="Email enviado"
+                sandbox=""
+                srcDoc={buildEmailSrcDoc(viewTarget.content)}
+                className="w-full h-full block"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de agendamento */}
       <Dialog open={!!scheduleTarget} onOpenChange={(v) => { if (!v) { setScheduleTarget(null); setScheduleDate(""); } }}>
