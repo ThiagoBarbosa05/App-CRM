@@ -180,6 +180,11 @@ function EmailClientSearchField({ onSelect }: { onSelect: (client: ClientResult)
   );
 }
 
+/** Monta o documento isolado usado para pré-visualizar o HTML do email. */
+function buildEmailSrcDoc(html: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui,-apple-system,sans-serif;margin:16px;color:#111;background:#fff;word-break:break-word}img{max-width:100%}</style></head><body>${html}</body></html>`;
+}
+
 /**
  * Campo de conteúdo HTML do email com alternância Editar / Visualizar.
  * A prévia renderiza o HTML num iframe isolado (sandbox sem scripts), do jeito
@@ -200,7 +205,7 @@ function HtmlContentField({
 }) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const canPreview = value.trim() !== "";
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui,-apple-system,sans-serif;margin:16px;color:#111;background:#fff;word-break:break-word}img{max-width:100%}</style></head><body>${value}</body></html>`;
+  const srcDoc = buildEmailSrcDoc(value);
 
   return (
     <div>
