@@ -66,9 +66,14 @@ export async function getCampaign(id: string) {
 export async function createCampaign(
   input: Omit<InsertSmsCampaign, "status" | "sentAt" | "totalRecipients" | "sentCount">,
 ): Promise<SmsCampaign> {
+  const targetedClients = await resolveTargetClients(
+    (input.targetType ?? "all") as MarketingTargetType,
+    input.targetCriteria ?? null,
+  );
+  const withPhone = targetedClients.filter((c) => c.phone?.trim());
   const [campaign] = await db
     .insert(smsCampaigns)
-    .values({ ...input, status: "draft" })
+    .values({ ...input, status: "draft", totalRecipients: withPhone.length })
     .returning();
   return campaign;
 }
