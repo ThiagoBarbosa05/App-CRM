@@ -14,6 +14,7 @@ import {
   GitBranch,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   MessageCircle,
   PhoneCall,
   Settings,
@@ -65,6 +66,7 @@ const navItems: NavItem[] = [
     label: "Calculadora de Vinho",
   },
   { href: "/cashback", icon: Gift, label: "Cashback" },
+  { href: "/marketing", icon: Megaphone, label: "Marketing" },
   { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
   // {

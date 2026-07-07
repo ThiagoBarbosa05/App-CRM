@@ -1,0 +1,167 @@
+import { db } from "server/db";
+import { smsCampaigns, smsCampaignMessages, users, type SmsCampaign, type InsertSmsCampaign } from "@shared/schema";
+import { eq, and, desc, count } from "drizzle-orm";
+import { sendSms, SmsApiError } from "../integrations/sms";
+import { resolveTargetClients, type MarketingTargetType } from "./marketing-targeting.service";
+
+export async function listCampaigns(): Promise<(SmsCampaign & { creator: { name: string } | null })[]> {
+  const rows = await db
+    .select({ campaign: smsCampaigns, creatorName: users.name })
+    .from(smsCampaigns)
+    .leftJoin(users, eq(smsCampaigns.createdBy, users.id))
+    .orderBy(desc(smsCampaigns.createdAt));
+  return rows.map((r) => ({ ...r.campaign, creator: r.creatorName ? { name: r.creatorName } : null }));
+}
+
+export async function getCampaign(id: string) {
+  const [campaign] = await db.select().from(smsCampaigns).where(eq(smsCampaigns.id, id));
+  if (!campaign) return null;
+  const recipients = await db
+    .select()
+    .from(smsCampaignMessages)
+    .where(eq(smsCampaignMessages.campaignId, id));
+  return { ...campaign, recipients };
+}
+
+export async function createCampaign(
+  input: Omit<InsertSmsCampaign, "status" | "sentAt" | "totalRecipients" | "sentCount">,
+): Promise<SmsCampaign> {
+  const [campaign] = await db
+    .insert(smsCampaigns)
+    .values({ ...input, status: "draft" })
+    .returning();
+  return campaign;
+}
+
+export async function deleteCampaign(id: string): Promise<boolean> {
+  const result = await db.delete(smsCampaigns).where(eq(smsCampaigns.id, id));
+  return (result.rowCount ?? 0) > 0;
+}
+
+/**
+ * Enfileira uma campanha "draft" para envio: resolve os destinatários,
+ * cria uma linha pendente por destinatário e marca a campanha como
+ * "scheduled" — o dispatcher (server/jobs/sms-campaign-dispatcher.ts)
+ * processa as linhas pendentes em lotes.
+ */
+export async function queueCampaignForSend(id: string): Promise<SmsCampaign> {
+  const [campaign] = await db.select().from(smsCampaigns).where(eq(smsCampaigns.id, id));
+  if (!campaign) throw new Error(`Campanha ${id} não encontrada`);
+  if (campaign.status !== "draft") {
+    throw new Error(`Campanha ${id} já foi enviada ou está agendada`);
+  }
+
+  const targets = await resolveTargetClients(
+    campaign.targetType as MarketingTargetType,
+    campaign.targetCriteria,
+  );
+  const recipients = targets.filter((c) => c.phone && c.phone.trim() !== "");
+
+  if (recipients.length === 0) {
+    throw new Error("Nenhum destinatário com telefone cadastrado para os critérios selecionados");
+  }
+
+  await db.insert(smsCampaignMessages).values(
+    recipients.map((c) => ({
+      campaignId: id,
+      clientId: c.id,
+      phone: c.phone!,
+      status: "pending" as const,
+    })),
+  );
+
+  const [updated] = await db
+    .update(smsCampaigns)
+    .set({
+      status: "scheduled",
+      scheduledAt: campaign.scheduledAt ?? new Date(),
+      totalRecipients: recipients.length,
+      updatedAt: new Date(),
+    })
+    .where(eq(smsCampaigns.id, id))
+    .returning();
+  return updated;
+}
+
+/**
+ * Processa até `limit` destinatários pendentes de uma campanha "scheduled",
+ * enviando de fato o SMS via Twilio. Chamado pelo dispatcher (cron).
+ */
+export async function executeCampaign(
+  campaignId: string,
+  opts?: { limit?: number },
+): Promise<{ sent: number; failed: number }> {
+  const [campaign] = await db
+    .select()
+    .from(smsCampaigns)
+    .where(eq(smsCampaigns.id, campaignId));
+  if (!campaign || campaign.status !== "scheduled") return { sent: 0, failed: 0 };
+
+  const pendingQuery = db
+    .select()
+    .from(smsCampaignMessages)
+    .where(
+      and(
+        eq(smsCampaignMessages.campaignId, campaignId),
+        eq(smsCampaignMessages.status, "pending"),
+      ),
+    );
+  const pending = opts?.limit ? await pendingQuery.limit(opts.limit) : await pendingQuery;
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const recipient of pending) {
+    try {
+      const { sid } = await sendSms({ to: recipient.phone, body: campaign.message });
+      await db
+        .update(smsCampaignMessages)
+        .set({ status: "sent", sentAt: new Date(), twilioSid: sid })
+        .where(eq(smsCampaignMessages.id, recipient.id));
+      sent++;
+    } catch (err) {
+      const message = err instanceof SmsApiError ? err.message : err instanceof Error ? err.message : String(err);
+      await db
+        .update(smsCampaignMessages)
+        .set({ status: "failed", errorMessage: message })
+        .where(eq(smsCampaignMessages.id, recipient.id));
+      failed++;
+    }
+  }
+
+  return { sent, failed };
+}
+
+export async function countPendingRecipients(campaignId: string): Promise<number> {
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(smsCampaignMessages)
+    .where(
+      and(
+        eq(smsCampaignMessages.campaignId, campaignId),
+        eq(smsCampaignMessages.status, "pending"),
+      ),
+    );
+  return Number(value);
+}
+
+export async function countSentRecipients(campaignId: string): Promise<number> {
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(smsCampaignMessages)
+    .where(
+      and(
+        eq(smsCampaignMessages.campaignId, campaignId),
+        eq(smsCampaignMessages.status, "sent"),
+      ),
+    );
+  return Number(value);
+}
+
+export async function markCampaignSent(campaignId: string): Promise<void> {
+  const sentCount = await countSentRecipients(campaignId);
+  await db
+    .update(smsCampaigns)
+    .set({ status: "sent", sentAt: new Date(), sentCount, updatedAt: new Date() })
+    .where(eq(smsCampaigns.id, campaignId));
+}

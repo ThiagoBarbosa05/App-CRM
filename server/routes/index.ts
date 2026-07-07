@@ -91,6 +91,9 @@ import { mediaLibraryRouter } from "./media-library.routes";
 import assertivaRouter from "./assertiva.routes";
 import openaiStatusRouter from "./openai.routes";
 import { mcpRouter } from "./mcp.routes";
+import { marketingRouter } from "./marketing.routes";
+import { emailCampaignsRouter } from "./email-campaigns.routes";
+import { smsCampaignsRouter } from "./sms-campaigns.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -200,3 +203,6 @@ apiRouter.use("/task-files", taskFilesRouter);
 apiRouter.use("/media-library", mediaLibraryRouter);
 apiRouter.use("/integrations/assertiva", assertivaRouter);
 apiRouter.use("/integrations/openai", openaiStatusRouter);
+apiRouter.use("/marketing", marketingRouter);
+apiRouter.use("/email-campaigns", emailCampaignsRouter);
+apiRouter.use("/sms-campaigns", smsCampaignsRouter);

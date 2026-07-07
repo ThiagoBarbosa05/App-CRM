@@ -1,0 +1,55 @@
+import { Router } from "express";
+import { validateBody } from "../middleware/validation";
+import { insertSmsCampaignSchema } from "@shared/schema";
+import {
+  listSmsCampaignsController,
+  getSmsCampaignController,
+  createSmsCampaignController,
+  sendSmsCampaignController,
+  deleteSmsCampaignController,
+} from "../controllers/marketing/sms-campaigns.controller";
+
+export const smsCampaignsRouter = Router();
+
+const createSmsCampaignBodySchema = insertSmsCampaignSchema.omit({
+  createdBy: true,
+});
+
+/**
+ * @route GET /api/sms-campaigns
+ * @description Lista campanhas de SMS
+ * @access Private
+ */
+smsCampaignsRouter.get("/", listSmsCampaignsController);
+
+/**
+ * @route GET /api/sms-campaigns/:id
+ * @description Busca uma campanha de SMS com seus destinatários
+ * @access Private
+ */
+smsCampaignsRouter.get("/:id", getSmsCampaignController);
+
+/**
+ * @route POST /api/sms-campaigns
+ * @description Cria uma campanha de SMS (status draft)
+ * @access Private
+ */
+smsCampaignsRouter.post(
+  "/",
+  validateBody(createSmsCampaignBodySchema),
+  createSmsCampaignController,
+);
+
+/**
+ * @route POST /api/sms-campaigns/:id/send
+ * @description Resolve destinatários e enfileira o envio da campanha (processado pelo dispatcher)
+ * @access Private
+ */
+smsCampaignsRouter.post("/:id/send", sendSmsCampaignController);
+
+/**
+ * @route DELETE /api/sms-campaigns/:id
+ * @description Remove uma campanha de SMS
+ * @access Private
+ */
+smsCampaignsRouter.delete("/:id", deleteSmsCampaignController);

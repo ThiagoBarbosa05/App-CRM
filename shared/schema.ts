@@ -757,6 +757,51 @@ export const emailCampaignRecipients = pgTable("email_campaign_recipients", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// SMS Marketing Campaign tables
+export const smsCampaigns = pgTable("sms_campaigns", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  message: text("message").notNull(),
+  targetType: text("target_type", {
+    enum: ["all", "category", "origin", "markers", "custom"],
+  }).notNull(),
+  targetCriteria: text("target_criteria"), // JSON string with filter criteria
+  status: text("status", { enum: ["draft", "scheduled", "sent", "cancelled"] })
+    .notNull()
+    .default("draft"),
+  scheduledAt: timestamp("scheduled_at"),
+  sentAt: timestamp("sent_at"),
+  totalRecipients: integer("total_recipients").default(0),
+  sentCount: integer("sent_count").default(0),
+  createdBy: varchar("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const smsCampaignMessages = pgTable("sms_campaign_messages", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id")
+    .references(() => smsCampaigns.id, { onDelete: "cascade" })
+    .notNull(),
+  clientId: varchar("client_id")
+    .references(() => clients.id, { onDelete: "cascade" })
+    .notNull(),
+  phone: text("phone").notNull(),
+  status: text("status", { enum: ["pending", "sent", "delivered", "failed"] })
+    .notNull()
+    .default("pending"),
+  twilioSid: text("twilio_sid"),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Tabela de metas dos usuários
 export const userGoals = pgTable(
   "user_goals",
@@ -1487,6 +1532,21 @@ export const insertEmailCampaignRecipientSchema = createInsertSchema(
   createdAt: true,
 });
 
+export const insertSmsCampaignSchema = createInsertSchema(
+  smsCampaigns,
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertSmsCampaignMessageSchema = createInsertSchema(
+  smsCampaignMessages,
+).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUserGoalSchema = createInsertSchema(userGoals)
   .omit({
     id: true,
@@ -1726,6 +1786,12 @@ export type InsertEmailCampaignRecipient = z.infer<
 >;
 export type EmailCampaignRecipient =
   typeof emailCampaignRecipients.$inferSelect;
+export type InsertSmsCampaign = z.infer<typeof insertSmsCampaignSchema>;
+export type SmsCampaign = typeof smsCampaigns.$inferSelect;
+export type InsertSmsCampaignMessage = z.infer<
+  typeof insertSmsCampaignMessageSchema
+>;
+export type SmsCampaignMessage = typeof smsCampaignMessages.$inferSelect;
 export type InsertUserGoal = z.infer<typeof insertUserGoalSchema>;
 export type UserGoal = typeof userGoals.$inferSelect;
 export type InsertWeeklyResult = z.infer<typeof insertWeeklyResultSchema>;
@@ -1793,6 +1859,11 @@ export interface ClientInteractionWithUser extends ClientInteraction {
 export interface EmailCampaignWithStats extends EmailCampaign {
   creator: User;
   recipients: EmailCampaignRecipient[];
+}
+
+export interface SmsCampaignWithStats extends SmsCampaign {
+  creator: User;
+  recipients: SmsCampaignMessage[];
 }
 
 export interface UserWithGoals extends User {

@@ -326,15 +326,6 @@ export default function ClientProfilePage() {
               <PageHeader.Title className="whitespace-normal break-words">
                 {client.name}
               </PageHeader.Title>
-              {purchaseStatus === "inativo" && (
-                <Badge
-                  variant="outline"
-                  className="inline-flex items-center gap-1 border-red-200 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/60 text-[10px] font-semibold uppercase tracking-wide shrink-0"
-                >
-                  <AlertTriangle className="h-2.5 w-2.5" />
-                  Inativo
-                </Badge>
-              )}
             </div>
             <PageHeader.Description>
               Informações completas, funis e interações

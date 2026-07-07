@@ -20,6 +20,7 @@ import AIAssistant from "@/pages/ai-assistant";
 import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
+import Marketing from "@/pages/marketing";
 import Configurations from "@/pages/configurations";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
@@ -225,6 +226,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <Cashback />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/marketing"
+        component={() => (
+          <MainLayout>
+            <Marketing />
           </MainLayout>
         )}
       />
