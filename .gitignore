@@ -22,3 +22,4 @@ docs/lgpd-security-audit-plan.md
 /playwright/.cache/
 /playwright/.auth/
 swagger.json
+app.http
