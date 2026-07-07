@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2 } from "lucide-react";
+import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 interface SmsCampaign {
@@ -33,8 +33,136 @@ const STATUS_CONFIG: Record<SmsCampaign["status"], { label: string; color: strin
   cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300" },
 };
 
+interface ClientResult {
+  id: string;
+  name: string;
+  phone: string | null;
+}
+
+function ClientSearchField({
+  onSelect,
+}: {
+  onSelect: (client: ClientResult) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<ClientResult | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const { data, isFetching } = useQuery<{ clients: ClientResult[] }>({
+    queryKey: ["/api/clients", debouncedSearch],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/clients?search=${encodeURIComponent(debouncedSearch)}&pageSize=8`,
+        { credentials: "include" }
+      );
+      return res.json();
+    },
+    enabled: debouncedSearch.length >= 2,
+  });
+
+  const results = (data?.clients ?? []).filter((c) => c.phone);
+
+  const handleSelect = (client: ClientResult) => {
+    setSelected(client);
+    setOpen(false);
+    setSearch("");
+    onSelect(client);
+  };
+
+  const handleClear = () => {
+    setSelected(null);
+    setSearch("");
+    onSelect({ id: "", name: "", phone: null });
+  };
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  if (selected) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-muted/40">
+        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <span className="text-[11px] font-bold text-primary">
+            {selected.name.charAt(0).toUpperCase()}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{selected.name}</p>
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <Phone className="h-3 w-3" />{selected.phone}
+          </p>
+        </div>
+        <button type="button" onClick={handleClear} className="text-muted-foreground hover:text-foreground">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Buscar cliente pelo nome ou telefone..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+          onFocus={() => search.length >= 2 && setOpen(true)}
+          className="pl-9"
+        />
+      </div>
+      {open && debouncedSearch.length >= 2 && (
+        <div className="absolute z-50 mt-1 w-full rounded-lg border bg-popover shadow-lg overflow-hidden">
+          {isFetching && (
+            <div className="px-3 py-2 text-xs text-muted-foreground">Buscando...</div>
+          )}
+          {!isFetching && results.length === 0 && (
+            <div className="px-3 py-2 text-xs text-muted-foreground">
+              Nenhum cliente com telefone encontrado.
+            </div>
+          )}
+          {results.map((client) => (
+            <button
+              key={client.id}
+              type="button"
+              onClick={() => handleSelect(client)}
+              className="w-full text-left px-3 py-2.5 hover:bg-muted flex items-center gap-2.5 border-b last:border-0"
+            >
+              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <span className="text-[11px] font-bold text-primary">
+                  {client.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{client.name}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Phone className="h-3 w-3" />{client.phone}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const EMPTY_FORM = { name: "", message: "", targetType: "all", targetCriteria: "" };
-const EMPTY_INDIVIDUAL = { to: "", message: "" };
+const EMPTY_INDIVIDUAL = { to: "", clientName: "", message: "" };
 const SMS_MAX_LENGTH = 320;
 
 export function MarketingSmsTab() {
@@ -51,7 +179,10 @@ export function MarketingSmsTab() {
 
   const individualMutation = useMutation({
     mutationFn: async (data: typeof individualData) => {
-      const res = await apiRequest("POST", "/api/sms-campaigns/send-individual", data);
+      const res = await apiRequest("POST", "/api/sms-campaigns/send-individual", {
+        to: data.to,
+        message: data.message,
+      });
       return res.json();
     },
     onSuccess: () => {
@@ -144,18 +275,21 @@ export function MarketingSmsTab() {
                   className="space-y-4 pt-1"
                 >
                   <div>
-                    <Label htmlFor="ind-to">Destinatário</Label>
-                    <Input
-                      id="ind-to"
-                      placeholder="(21) 99999-9999 ou +5521999999999"
-                      value={individualData.to}
-                      onChange={(e) => setIndividualData((p) => ({ ...p, to: e.target.value }))}
-                      className="mt-1"
-                      required
+                    <Label className="mb-1.5 block">Destinatário</Label>
+                    <ClientSearchField
+                      onSelect={(client) =>
+                        setIndividualData((p) => ({
+                          ...p,
+                          to: client.phone ?? "",
+                          clientName: client.name,
+                        }))
+                      }
                     />
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      Digite o número do cliente com DDD ou no formato internacional.
-                    </p>
+                    {!individualData.to && (
+                      <p className="text-[11px] text-muted-foreground mt-1.5">
+                        Digite ao menos 2 letras para buscar um cliente.
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -178,7 +312,12 @@ export function MarketingSmsTab() {
                     <Button type="button" variant="outline" size="sm" onClick={() => setIsIndividualOpen(false)}>
                       Cancelar
                     </Button>
-                    <Button type="submit" size="sm" disabled={individualMutation.isPending} className="gap-2">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={individualMutation.isPending || !individualData.to || !individualData.message}
+                      className="gap-2"
+                    >
                       <Send className="h-3.5 w-3.5" />
                       {individualMutation.isPending ? "Enviando..." : "Enviar SMS"}
                     </Button>
