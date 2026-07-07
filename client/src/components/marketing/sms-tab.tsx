@@ -182,9 +182,11 @@ export function MarketingSmsTab() {
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isIndividualOpen, setIsIndividualOpen] = useState(false);
+  const [indDialogKey, setIndDialogKey] = useState(0);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [individualData, setIndividualData] = useState(EMPTY_INDIVIDUAL);
   const [sentSuccess, setSentSuccess] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [showVarsMenu, setShowVarsMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const varsMenuRef = useRef<HTMLDivElement>(null);
@@ -225,6 +227,7 @@ export function MarketingSmsTab() {
       const resolvedMessage = data.clientName
         ? resolveMessage(data.message, data.clientName)
         : data.message;
+      console.log("[SMS individual] enviando para:", data.to, "| mensagem:", resolvedMessage);
       const res = await apiRequest("POST", "/api/sms-campaigns/send-individual", {
         to: data.to,
         message: resolvedMessage,
@@ -232,6 +235,7 @@ export function MarketingSmsTab() {
       return res.json();
     },
     onSuccess: () => {
+      setSendError(null);
       setSentSuccess(true);
       setTimeout(() => {
         setSentSuccess(false);
@@ -241,6 +245,8 @@ export function MarketingSmsTab() {
       toast({ title: "SMS enviado!", description: "Mensagem entregue com sucesso." });
     },
     onError: (error: Error) => {
+      console.error("[SMS individual] erro:", error.message);
+      setSendError(error.message);
       toast({ title: "Erro ao enviar", description: error.message, variant: "destructive" });
     },
   });
@@ -296,7 +302,7 @@ export function MarketingSmsTab() {
         <div className="flex items-center gap-2">
 
           {/* Envio Individual */}
-          <Dialog open={isIndividualOpen} onOpenChange={(v) => { setIsIndividualOpen(v); if (!v) { setIndividualData(EMPTY_INDIVIDUAL); setSentSuccess(false); } }}>
+          <Dialog open={isIndividualOpen} onOpenChange={(v) => { setIsIndividualOpen(v); if (!v) { setIndividualData(EMPTY_INDIVIDUAL); setSentSuccess(false); setSendError(null); setIndDialogKey((k) => k + 1); } }}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
                 <Zap className="h-3.5 w-3.5" />
@@ -323,17 +329,24 @@ export function MarketingSmsTab() {
                   <div>
                     <Label className="mb-1.5 block">Destinatário</Label>
                     <ClientSearchField
-                      onSelect={(client) =>
+                      key={indDialogKey}
+                      onSelect={(client) => {
+                        console.log("[SMS individual] cliente selecionado:", client);
                         setIndividualData((p) => ({
                           ...p,
                           to: client.phone ?? "",
                           clientName: client.name,
-                        }))
-                      }
+                        }));
+                      }}
                     />
                     {!individualData.to && (
                       <p className="text-[11px] text-muted-foreground mt-1.5">
                         Digite ao menos 2 letras para buscar um cliente.
+                      </p>
+                    )}
+                    {individualData.to && (
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1.5">
+                        Número: {individualData.to}
                       </p>
                     )}
                   </div>
@@ -406,6 +419,13 @@ export function MarketingSmsTab() {
                       </p>
                     )}
                   </div>
+
+                  {sendError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800 px-3 py-2.5">
+                      <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-0.5">Erro ao enviar</p>
+                      <p className="text-xs text-red-600 dark:text-red-300 break-words">{sendError}</p>
+                    </div>
+                  )}
 
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" size="sm" onClick={() => setIsIndividualOpen(false)}>
