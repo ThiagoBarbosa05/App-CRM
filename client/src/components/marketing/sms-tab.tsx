@@ -55,7 +55,7 @@ function ClientSearchField({
     return () => clearTimeout(t);
   }, [search]);
 
-  const { data, isFetching } = useQuery<{ clients: ClientResult[] }>({
+  const { data, isFetching } = useQuery<{ data: ClientResult[] }>({
     queryKey: ["/api/clients", debouncedSearch],
     queryFn: async () => {
       const res = await fetch(
@@ -67,7 +67,7 @@ function ClientSearchField({
     enabled: debouncedSearch.length >= 2,
   });
 
-  const results = (data?.clients ?? []).filter((c) => c.phone);
+  const results = (data?.data ?? []).filter((c) => c.phone);
 
   const handleSelect = (client: ClientResult) => {
     setSelected(client);
