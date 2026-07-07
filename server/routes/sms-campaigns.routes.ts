@@ -53,3 +53,22 @@ smsCampaignsRouter.post("/:id/send", sendSmsCampaignController);
  * @access Private
  */
 smsCampaignsRouter.delete("/:id", deleteSmsCampaignController);
+
+/**
+ * @route POST /api/sms-campaigns/send-individual
+ * @description Envia SMS avulso para um número ou cliente específico
+ * @access Private
+ */
+smsCampaignsRouter.post("/send-individual", async (req, res) => {
+  const { to, message } = req.body as { to?: string; message?: string };
+  if (!to || !message?.trim()) {
+    return res.status(400).json({ message: "Destinatário e mensagem são obrigatórios" });
+  }
+  try {
+    const { sendSms } = await import("../integrations/sms");
+    const result = await sendSms({ to, body: message.trim() });
+    return res.json({ ok: true, sid: result.sid });
+  } catch (err: any) {
+    return res.status(502).json({ message: err.message ?? "Erro ao enviar SMS" });
+  }
+});
