@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { db } from "server/db";
 import { systemSettings } from "@shared/schema";
 import { inArray } from "drizzle-orm";
@@ -13,6 +13,13 @@ const MARKETING_SETTINGS_KEYS = [
   "marketing_sms_from_number",
 ];
 
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Acesso restrito a administradores" });
+  }
+  return next();
+}
+
 /**
  * @route GET /api/marketing/summary
  * @description Contadores de envio por canal (WhatsApp/Email/SMS) dos últimos 30 dias
@@ -25,7 +32,7 @@ marketingRouter.get("/summary", getMarketingSummaryController);
  * @description Retorna configurações de integrações de marketing
  * @access Private (admin)
  */
-marketingRouter.get("/settings", async (req, res) => {
+marketingRouter.get("/settings", requireAdmin, async (req, res) => {
   try {
     const rows = await db
       .select()
@@ -44,7 +51,7 @@ marketingRouter.get("/settings", async (req, res) => {
  * @description Salva configurações de integrações de marketing
  * @access Private (admin)
  */
-marketingRouter.put("/settings", async (req, res) => {
+marketingRouter.put("/settings", requireAdmin, async (req, res) => {
   try {
     const body = req.body as Record<string, string>;
     const entries = Object.entries(body).filter(([key]) =>

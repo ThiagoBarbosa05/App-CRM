@@ -39,6 +39,16 @@ interface SmsCampaign {
   creator: { name: string } | null;
 }
 
+interface ListCampaignsResult {
+  data: SmsCampaign[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+const CAMPAIGNS_PAGE_SIZE = 10;
+
 const STATUS_CONFIG: Record<SmsCampaign["status"], { label: string; color: string }> = {
   draft: { label: "Rascunho", color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" },
   scheduled: { label: "Enviando", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
@@ -51,6 +61,17 @@ interface ClientResult {
   name: string;
   phone: string | null;
 }
+
+interface Tag {
+  id: string;
+  name: string;
+}
+
+const TARGET_TYPE_ENDPOINT: Record<string, string> = {
+  category: "/api/tags/categories",
+  origin: "/api/tags/origins",
+  markers: "/api/tags/markers",
+};
 
 function ClientSearchField({
   onSelect,
@@ -218,8 +239,42 @@ export function MarketingSmsTab() {
     }, 0);
   }
 
-  const { data: campaigns = [], isLoading } = useQuery<SmsCampaign[]>({
-    queryKey: ["/api/sms-campaigns"],
+  const [campaignsPage, setCampaignsPage] = useState(1);
+  const [allCampaigns, setAllCampaigns] = useState<SmsCampaign[]>([]);
+
+  const { data: campaignsResult, isLoading, isFetching: isFetchingCampaigns } = useQuery<ListCampaignsResult>({
+    queryKey: ["/api/sms-campaigns", campaignsPage],
+    queryFn: async () => {
+      const res = await fetch(`/api/sms-campaigns?page=${campaignsPage}&pageSize=${CAMPAIGNS_PAGE_SIZE}`, {
+        credentials: "include",
+      });
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (!campaignsResult) return;
+    setAllCampaigns((prev) =>
+      campaignsResult.page === 1 ? campaignsResult.data : [...prev, ...campaignsResult.data],
+    );
+  }, [campaignsResult]);
+
+  const hasMoreCampaigns = !!campaignsResult && campaignsResult.page < campaignsResult.totalPages;
+
+  function reloadCampaigns() {
+    setCampaignsPage(1);
+    queryClient.invalidateQueries({ queryKey: ["/api/sms-campaigns"] });
+  }
+
+  const { data: balanceData, isLoading: balanceLoading, refetch: refetchBalance } = useQuery<{ balance: string; currency: string }>({
+    queryKey: ["/api/sms-campaigns/balance"],
+    staleTime: 60_000,
+  });
+
+  const targetTagsEndpoint = TARGET_TYPE_ENDPOINT[formData.targetType];
+  const { data: targetTags = [], isLoading: targetTagsLoading } = useQuery<Tag[]>({
+    queryKey: [targetTagsEndpoint],
+    enabled: !!targetTagsEndpoint,
   });
 
   const individualMutation = useMutation({
@@ -260,7 +315,7 @@ export function MarketingSmsTab() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sms-campaigns"] });
+      reloadCampaigns();
       setIsCreateOpen(false);
       setFormData(EMPTY_FORM);
       toast({ title: "Campanha criada", description: "Campanha de SMS salva como rascunho." });
@@ -276,7 +331,7 @@ export function MarketingSmsTab() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sms-campaigns"] });
+      reloadCampaigns();
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/summary"] });
       toast({ title: "Campanha enfileirada", description: "O envio será processado em background." });
     },
@@ -290,7 +345,7 @@ export function MarketingSmsTab() {
       await apiRequest("DELETE", `/api/sms-campaigns/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/sms-campaigns"] });
+      reloadCampaigns();
       toast({ title: "Campanha excluída" });
     },
   });
@@ -298,7 +353,26 @@ export function MarketingSmsTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-sm text-muted-foreground">Campanhas de SMS via Twilio.</p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">Campanhas de SMS via Twilio.</p>
+          <button
+            type="button"
+            onClick={() => refetchBalance()}
+            className="flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 font-medium transition-colors hover:bg-muted"
+            title="Clique para atualizar"
+          >
+            <span className="text-muted-foreground">Saldo Twilio:</span>
+            {balanceLoading ? (
+              <span className="text-muted-foreground animate-pulse">…</span>
+            ) : balanceData ? (
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                {Number(balanceData.balance).toLocaleString("en-US", { style: "currency", currency: balanceData.currency })}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </button>
+        </div>
         <div className="flex items-center gap-2">
 
           {/* Envio Individual */}
@@ -497,13 +571,25 @@ export function MarketingSmsTab() {
                         {formData.targetType === "origin" && "Origem"}
                         {formData.targetType === "markers" && "Marcador"}
                       </Label>
-                      <Input
-                        id="sms-target-criteria"
+                      <Select
                         value={formData.targetCriteria}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, targetCriteria: e.target.value }))}
-                        placeholder="Valor exato cadastrado no cliente"
-                        required
-                      />
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, targetCriteria: value }))}
+                        disabled={targetTagsLoading}
+                      >
+                        <SelectTrigger id="sms-target-criteria">
+                          <SelectValue placeholder={targetTagsLoading ? "Carregando..." : "Selecione"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetTags.length === 0 && !targetTagsLoading && (
+                            <div className="px-3 py-2 text-xs text-muted-foreground">Nenhuma opção cadastrada</div>
+                          )}
+                          {targetTags.map((tag) => (
+                            <SelectItem key={tag.id} value={tag.name}>
+                              {tag.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>
@@ -527,7 +613,13 @@ export function MarketingSmsTab() {
                   <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
+                  <Button
+                    type="submit"
+                    disabled={
+                      createMutation.isPending ||
+                      (formData.targetType !== "all" && !formData.targetCriteria)
+                    }
+                  >
                     {createMutation.isPending ? "Criando..." : "Criar campanha"}
                   </Button>
                 </div>
@@ -545,7 +637,7 @@ export function MarketingSmsTab() {
         </div>
       )}
 
-      {!isLoading && campaigns.length === 0 && (
+      {!isLoading && allCampaigns.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-14 text-center">
             <MessageSquare className="h-12 w-12 text-muted-foreground/40 mb-3" />
@@ -558,7 +650,7 @@ export function MarketingSmsTab() {
       )}
 
       <div className="space-y-3">
-        {campaigns.map((campaign) => {
+        {allCampaigns.map((campaign) => {
           const cfg = STATUS_CONFIG[campaign.status];
           return (
             <Card key={campaign.id}>
@@ -619,6 +711,19 @@ export function MarketingSmsTab() {
           );
         })}
       </div>
+
+      {hasMoreCampaigns && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCampaignsPage((p) => p + 1)}
+            disabled={isFetchingCampaigns}
+          >
+            {isFetchingCampaigns ? "Carregando..." : "Carregar mais"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,13 +4,37 @@ import { eq, and, desc, count } from "drizzle-orm";
 import { sendSms, SmsApiError } from "../integrations/sms";
 import { resolveTargetClients, type MarketingTargetType } from "./marketing-targeting.service";
 
-export async function listCampaigns(): Promise<(SmsCampaign & { creator: { name: string } | null })[]> {
-  const rows = await db
-    .select({ campaign: smsCampaigns, creatorName: users.name })
-    .from(smsCampaigns)
-    .leftJoin(users, eq(smsCampaigns.createdBy, users.id))
-    .orderBy(desc(smsCampaigns.createdAt));
-  return rows.map((r) => ({ ...r.campaign, creator: r.creatorName ? { name: r.creatorName } : null }));
+export interface ListCampaignsResult {
+  data: (SmsCampaign & { creator: { name: string } | null })[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export async function listCampaigns(page = 1, pageSize = 20): Promise<ListCampaignsResult> {
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(100, Math.max(1, pageSize));
+  const offset = (safePage - 1) * safePageSize;
+
+  const [rows, [{ value: totalItems }]] = await Promise.all([
+    db
+      .select({ campaign: smsCampaigns, creatorName: users.name })
+      .from(smsCampaigns)
+      .leftJoin(users, eq(smsCampaigns.createdBy, users.id))
+      .orderBy(desc(smsCampaigns.createdAt))
+      .limit(safePageSize)
+      .offset(offset),
+    db.select({ value: count() }).from(smsCampaigns),
+  ]);
+
+  return {
+    data: rows.map((r) => ({ ...r.campaign, creator: r.creatorName ? { name: r.creatorName } : null })),
+    page: safePage,
+    pageSize: safePageSize,
+    totalItems: Number(totalItems),
+    totalPages: Math.max(1, Math.ceil(Number(totalItems) / safePageSize)),
+  };
 }
 
 export async function getCampaign(id: string) {

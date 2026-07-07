@@ -3,8 +3,10 @@ import * as smsCampaignService from "../../services/sms-campaign.service";
 
 export async function listSmsCampaignsController(req: Request, res: Response) {
   try {
-    const campaigns = await smsCampaignService.listCampaigns();
-    res.json(campaigns);
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 20;
+    const result = await smsCampaignService.listCampaigns(page, pageSize);
+    res.json(result);
   } catch (error) {
     console.error("Erro ao listar campanhas de SMS:", error);
     res.status(500).json({ message: "Erro ao listar campanhas de SMS" });
