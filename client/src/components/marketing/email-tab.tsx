@@ -11,8 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Plus, Send, Trash2, Calendar, Users, Clock, User, Search, X } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { Mail, Plus, Send, Trash2, Calendar, Users, Clock, User, Search, X, Eye, Pencil } from "lucide-react";
+import { formatDate, cn } from "@/lib/utils";
 
 interface EmailCampaign {
   id: string;
@@ -175,6 +175,87 @@ function EmailClientSearchField({ onSelect }: { onSelect: (client: ClientResult)
             </button>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Campo de conteúdo HTML do email com alternância Editar / Visualizar.
+ * A prévia renderiza o HTML num iframe isolado (sandbox sem scripts), do jeito
+ * que o cliente receberá, sem afetar o layout da aplicação.
+ */
+function HtmlContentField({
+  id,
+  value,
+  onChange,
+  placeholder,
+  rows = 8,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  rows?: number;
+}) {
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const canPreview = value.trim() !== "";
+  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font-family:system-ui,-apple-system,sans-serif;margin:16px;color:#111;background:#fff;word-break:break-word}img{max-width:100%}</style></head><body>${value}</body></html>`;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <Label htmlFor={id}>Conteúdo (HTML)</Label>
+        <div className="inline-flex rounded-md border p-0.5 bg-background">
+          <button
+            type="button"
+            onClick={() => setMode("edit")}
+            className={cn(
+              "flex items-center gap-1 px-2.5 py-1 text-xs rounded transition-colors",
+              mode === "edit" ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Pencil className="h-3 w-3" /> Editar
+          </button>
+          <button
+            type="button"
+            onClick={() => canPreview && setMode("preview")}
+            disabled={!canPreview}
+            title={canPreview ? undefined : "Digite o conteúdo para visualizar"}
+            className={cn(
+              "flex items-center gap-1 px-2.5 py-1 text-xs rounded transition-colors",
+              mode === "preview" ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground",
+              !canPreview && "opacity-40 cursor-not-allowed hover:text-muted-foreground",
+            )}
+          >
+            <Eye className="h-3 w-3" /> Visualizar
+          </button>
+        </div>
+      </div>
+      {mode === "edit" ? (
+        <Textarea
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={rows}
+          required
+        />
+      ) : (
+        <div className="rounded-md border overflow-hidden bg-white">
+          <iframe
+            title="Prévia do email"
+            sandbox=""
+            srcDoc={srcDoc}
+            className="w-full block"
+            style={{ height: `${rows * 28}px` }}
+          />
+        </div>
+      )}
+      {mode === "preview" && (
+        <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
+          <Eye className="h-3 w-3" /> Prévia de como o cliente receberá o email.
+        </p>
       )}
     </div>
   );
@@ -349,17 +430,12 @@ export function MarketingEmailTab() {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="ind-content">Conteúdo (HTML)</Label>
-                  <Textarea
-                    id="ind-content"
-                    value={individualData.content}
-                    onChange={(e) => setIndividualData((p) => ({ ...p, content: e.target.value }))}
-                    placeholder="Digite o conteúdo do email..."
-                    rows={8}
-                    required
-                  />
-                </div>
+                <HtmlContentField
+                  id="ind-content"
+                  value={individualData.content}
+                  onChange={(v) => setIndividualData((p) => ({ ...p, content: v }))}
+                  placeholder="Digite o conteúdo do email..."
+                />
 
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsIndividualOpen(false)}>
@@ -450,17 +526,12 @@ export function MarketingEmailTab() {
                   )}
                 </div>
 
-                <div>
-                  <Label htmlFor="email-content">Conteúdo (HTML)</Label>
-                  <Textarea
-                    id="email-content"
-                    value={formData.content}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, content: e.target.value }))}
-                    placeholder="Digite o conteúdo do email..."
-                    rows={8}
-                    required
-                  />
-                </div>
+                <HtmlContentField
+                  id="email-content"
+                  value={formData.content}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, content: v }))}
+                  placeholder="Digite o conteúdo do email..."
+                />
 
                 <div className="flex justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
