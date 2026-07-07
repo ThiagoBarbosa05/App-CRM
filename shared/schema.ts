@@ -802,6 +802,25 @@ export const smsCampaignMessages = pgTable("sms_campaign_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Envios avulsos de SMS (fora de campanhas), disparados a partir da ficha do cliente
+export const smsIndividualMessages = pgTable("sms_individual_messages", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").references(() => clients.id, {
+    onDelete: "set null",
+  }),
+  phone: text("phone").notNull(),
+  message: text("message").notNull(),
+  status: text("status", { enum: ["sent", "failed"] }).notNull(),
+  twilioSid: text("twilio_sid"),
+  errorMessage: text("error_message"),
+  sentBy: varchar("sent_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Tabela de metas dos usuários
 export const userGoals = pgTable(
   "user_goals",
@@ -1547,6 +1566,22 @@ export const insertSmsCampaignMessageSchema = createInsertSchema(
   createdAt: true,
 });
 
+export const sendIndividualSmsSchema = z.object({
+  to: z
+    .string()
+    .trim()
+    .min(1, "Destinatário é obrigatório")
+    .refine((v) => v.replace(/\D/g, "").length >= 10, {
+      message: "Telefone inválido",
+    }),
+  message: z
+    .string()
+    .trim()
+    .min(1, "Mensagem é obrigatória")
+    .max(320, "Mensagem muito longa"),
+  clientId: z.string().trim().min(1).optional(),
+});
+
 export const insertUserGoalSchema = createInsertSchema(userGoals)
   .omit({
     id: true,
@@ -1792,6 +1827,8 @@ export type InsertSmsCampaignMessage = z.infer<
   typeof insertSmsCampaignMessageSchema
 >;
 export type SmsCampaignMessage = typeof smsCampaignMessages.$inferSelect;
+export type SendIndividualSmsInput = z.infer<typeof sendIndividualSmsSchema>;
+export type SmsIndividualMessage = typeof smsIndividualMessages.$inferSelect;
 export type InsertUserGoal = z.infer<typeof insertUserGoalSchema>;
 export type UserGoal = typeof userGoals.$inferSelect;
 export type InsertWeeklyResult = z.infer<typeof insertWeeklyResultSchema>;

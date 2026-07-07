@@ -3,8 +3,9 @@ import {
   whatsappCampaignMessages,
   emailCampaignRecipients,
   smsCampaignMessages,
+  smsIndividualMessages,
 } from "@shared/schema";
-import { and, count, gte, inArray } from "drizzle-orm";
+import { and, count, eq, gte, inArray } from "drizzle-orm";
 
 const WHATSAPP_SENT_STATUSES = ["sent", "delivered", "read"] as const;
 
@@ -83,9 +84,22 @@ export async function getMarketingSummary(): Promise<MarketingSummary> {
     .from(smsCampaignMessages)
     .where(and(inArray(smsCampaignMessages.status, ["pending"]), gte(smsCampaignMessages.createdAt, since)));
 
+  const [smsIndividualSent] = await db
+    .select({ value: count() })
+    .from(smsIndividualMessages)
+    .where(and(eq(smsIndividualMessages.status, "sent"), gte(smsIndividualMessages.createdAt, since)));
+  const [smsIndividualFailed] = await db
+    .select({ value: count() })
+    .from(smsIndividualMessages)
+    .where(and(eq(smsIndividualMessages.status, "failed"), gte(smsIndividualMessages.createdAt, since)));
+
   return {
     whatsapp: { sent: Number(waSent.value), failed: Number(waFailed.value), pending: Number(waPending.value) },
     email: { sent: Number(emailSent.value), failed: Number(emailFailed.value), pending: Number(emailPending.value) },
-    sms: { sent: Number(smsSent.value), failed: Number(smsFailed.value), pending: Number(smsPending.value) },
+    sms: {
+      sent: Number(smsSent.value) + Number(smsIndividualSent.value),
+      failed: Number(smsFailed.value) + Number(smsIndividualFailed.value),
+      pending: Number(smsPending.value),
+    },
   };
 }

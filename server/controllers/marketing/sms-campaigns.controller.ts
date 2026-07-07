@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import * as smsCampaignService from "../../services/sms-campaign.service";
+import { SmsApiError } from "../../integrations/sms";
+import type { SendIndividualSmsInput } from "@shared/schema";
 
 export async function listSmsCampaignsController(req: Request, res: Response) {
   try {
@@ -60,5 +62,23 @@ export async function deleteSmsCampaignController(req: Request, res: Response) {
   } catch (error) {
     console.error("Erro ao excluir campanha de SMS:", error);
     res.status(500).json({ message: "Erro ao excluir campanha de SMS" });
+  }
+}
+
+export async function sendIndividualSmsController(req: Request, res: Response) {
+  try {
+    const { to, message, clientId } = req.body as SendIndividualSmsInput;
+    const result = await smsCampaignService.sendIndividualSms({
+      to,
+      message,
+      clientId,
+      sentBy: req.user!.userId,
+    });
+    res.json({ ok: true, sid: result.twilioSid });
+  } catch (error) {
+    const status = error instanceof SmsApiError ? 502 : 500;
+    const message = error instanceof Error ? error.message : "Erro ao enviar SMS";
+    console.error("Erro ao enviar SMS individual:", error);
+    res.status(status).json({ message });
   }
 }

@@ -196,7 +196,7 @@ function ClientSearchField({
 }
 
 const EMPTY_FORM = { name: "", message: "", targetType: "all", targetCriteria: "" };
-const EMPTY_INDIVIDUAL = { to: "", clientName: "", message: "" };
+const EMPTY_INDIVIDUAL = { to: "", clientId: "", clientName: "", message: "" };
 const SMS_MAX_LENGTH = 320;
 
 export function MarketingSmsTab() {
@@ -209,13 +209,19 @@ export function MarketingSmsTab() {
   const [sentSuccess, setSentSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [showVarsMenu, setShowVarsMenu] = useState(false);
+  const [showCampaignVarsMenu, setShowCampaignVarsMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const varsMenuRef = useRef<HTMLDivElement>(null);
+  const campaignTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const campaignVarsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (varsMenuRef.current && !varsMenuRef.current.contains(e.target as Node)) {
         setShowVarsMenu(false);
+      }
+      if (campaignVarsMenuRef.current && !campaignVarsMenuRef.current.contains(e.target as Node)) {
+        setShowCampaignVarsMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClick);
@@ -232,6 +238,23 @@ export function MarketingSmsTab() {
     const newValue = (before + tag + after).slice(0, SMS_MAX_LENGTH);
     setIndividualData((p) => ({ ...p, message: newValue }));
     setShowVarsMenu(false);
+    setTimeout(() => {
+      el.focus();
+      const pos = start + tag.length;
+      el.setSelectionRange(pos, pos);
+    }, 0);
+  }
+
+  function insertCampaignVariable(tag: string) {
+    const el = campaignTextareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const before = el.value.slice(0, start);
+    const after = el.value.slice(end);
+    const newValue = (before + tag + after).slice(0, SMS_MAX_LENGTH);
+    setFormData((p) => ({ ...p, message: newValue }));
+    setShowCampaignVarsMenu(false);
     setTimeout(() => {
       el.focus();
       const pos = start + tag.length;
@@ -282,10 +305,10 @@ export function MarketingSmsTab() {
       const resolvedMessage = data.clientName
         ? resolveMessage(data.message, data.clientName)
         : data.message;
-      console.log("[SMS individual] enviando para:", data.to, "| mensagem:", resolvedMessage);
       const res = await apiRequest("POST", "/api/sms-campaigns/send-individual", {
         to: data.to,
         message: resolvedMessage,
+        clientId: data.clientId || undefined,
       });
       return res.json();
     },
@@ -405,10 +428,10 @@ export function MarketingSmsTab() {
                     <ClientSearchField
                       key={indDialogKey}
                       onSelect={(client) => {
-                        console.log("[SMS individual] cliente selecionado:", client);
                         setIndividualData((p) => ({
                           ...p,
                           to: client.phone ?? "",
+                          clientId: client.id,
                           clientName: client.name,
                         }));
                       }}
@@ -595,18 +618,55 @@ export function MarketingSmsTab() {
                 </div>
 
                 <div>
-                  <Label htmlFor="sms-message">Mensagem</Label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <Label htmlFor="sms-message">Mensagem</Label>
+                    <div ref={campaignVarsMenuRef} className="relative">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => setShowCampaignVarsMenu((v) => !v)}
+                      >
+                        <span className="text-primary font-mono text-[10px]">{"{{}}"}</span>
+                        Variável
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                      {showCampaignVarsMenu && (
+                        <div className="absolute right-0 top-8 z-50 w-44 rounded-lg border bg-popover shadow-lg overflow-hidden">
+                          {SMS_VARIABLES.map((v) => (
+                            <button
+                              key={v.tag}
+                              type="button"
+                              onClick={() => insertCampaignVariable(v.tag)}
+                              className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0"
+                            >
+                              <span className="block font-medium">{v.label}</span>
+                              <span className="text-[11px] text-muted-foreground font-mono">{v.tag}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <Textarea
+                    ref={campaignTextareaRef}
                     id="sms-message"
                     value={formData.message}
                     onChange={(e) => setFormData((prev) => ({ ...prev, message: e.target.value.slice(0, SMS_MAX_LENGTH) }))}
-                    placeholder="Digite a mensagem de SMS..."
+                    placeholder="Ex: Olá {{primeiro_nome}}, temos uma oferta especial para você!"
                     rows={4}
+                    className="resize-none font-mono text-sm"
                     required
                   />
-                  <p className="text-xs text-muted-foreground mt-1 text-right">
-                    {formData.message.length}/{SMS_MAX_LENGTH}
-                  </p>
+                  <div className="flex justify-between items-start mt-1.5 gap-2">
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      As variáveis serão substituídas pelo dado real de cada cliente no envio.
+                    </p>
+                    <p className="text-xs text-muted-foreground shrink-0">
+                      {formData.message.length}/{SMS_MAX_LENGTH}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-2">

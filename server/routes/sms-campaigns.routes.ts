@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { validateBody } from "../middleware/validation";
-import { insertSmsCampaignSchema } from "@shared/schema";
+import { rateLimit } from "../middleware/rate-limit";
+import { insertSmsCampaignSchema, sendIndividualSmsSchema } from "@shared/schema";
 import {
   listSmsCampaignsController,
   getSmsCampaignController,
   createSmsCampaignController,
   sendSmsCampaignController,
   deleteSmsCampaignController,
+  sendIndividualSmsController,
 } from "../controllers/marketing/sms-campaigns.controller";
 
 export const smsCampaignsRouter = Router();
@@ -48,19 +50,17 @@ smsCampaignsRouter.get("/balance", async (_req, res) => {
  * @description Envia SMS avulso para um número ou cliente específico
  * @access Private
  */
-smsCampaignsRouter.post("/send-individual", async (req, res) => {
-  const { to, message } = req.body as { to?: string; message?: string };
-  if (!to || !message?.trim()) {
-    return res.status(400).json({ message: "Destinatário e mensagem são obrigatórios" });
-  }
-  try {
-    const { sendSms } = await import("../integrations/sms");
-    const result = await sendSms({ to, body: message.trim() });
-    return res.json({ ok: true, sid: result.sid });
-  } catch (err: any) {
-    return res.status(502).json({ message: err.message ?? "Erro ao enviar SMS" });
-  }
-});
+smsCampaignsRouter.post(
+  "/send-individual",
+  rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 20,
+    keyFn: (req) => `sms-individual:${req.user?.userId ?? req.ip}`,
+    message: "Muitos envios individuais em pouco tempo. Aguarde alguns minutos.",
+  }),
+  validateBody(sendIndividualSmsSchema),
+  sendIndividualSmsController,
+);
 
 /**
  * @route GET /api/sms-campaigns/:id

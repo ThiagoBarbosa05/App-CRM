@@ -1,8 +1,24 @@
 import { db } from "server/db";
-import { smsCampaigns, smsCampaignMessages, users, type SmsCampaign, type InsertSmsCampaign } from "@shared/schema";
+import {
+  smsCampaigns,
+  smsCampaignMessages,
+  smsIndividualMessages,
+  clients,
+  users,
+  type SmsCampaign,
+  type InsertSmsCampaign,
+  type SmsIndividualMessage,
+} from "@shared/schema";
 import { eq, and, desc, count } from "drizzle-orm";
 import { sendSms, SmsApiError } from "../integrations/sms";
 import { resolveTargetClients, type MarketingTargetType } from "./marketing-targeting.service";
+
+function resolveCampaignMessage(template: string, clientName: string): string {
+  const firstName = clientName ? clientName.split(" ")[0] : "";
+  return template
+    .replaceAll("{{primeiro_nome}}", firstName)
+    .replaceAll("{{nome_completo}}", clientName);
+}
 
 export interface ListCampaignsResult {
   data: (SmsCampaign & { creator: { name: string } | null })[];
@@ -122,8 +138,13 @@ export async function executeCampaign(
   if (!campaign || campaign.status !== "scheduled") return { sent: 0, failed: 0 };
 
   const pendingQuery = db
-    .select()
+    .select({
+      id: smsCampaignMessages.id,
+      phone: smsCampaignMessages.phone,
+      clientName: clients.name,
+    })
     .from(smsCampaignMessages)
+    .leftJoin(clients, eq(smsCampaignMessages.clientId, clients.id))
     .where(
       and(
         eq(smsCampaignMessages.campaignId, campaignId),
@@ -137,7 +158,8 @@ export async function executeCampaign(
 
   for (const recipient of pending) {
     try {
-      const { sid } = await sendSms({ to: recipient.phone, body: campaign.message });
+      const body = resolveCampaignMessage(campaign.message, recipient.clientName ?? "");
+      const { sid } = await sendSms({ to: recipient.phone, body });
       await db
         .update(smsCampaignMessages)
         .set({ status: "sent", sentAt: new Date(), twilioSid: sid })
@@ -188,4 +210,43 @@ export async function markCampaignSent(campaignId: string): Promise<void> {
     .update(smsCampaigns)
     .set({ status: "sent", sentAt: new Date(), sentCount, updatedAt: new Date() })
     .where(eq(smsCampaigns.id, campaignId));
+}
+
+/**
+ * Envia um SMS avulso (fora de campanha) e registra o resultado em
+ * sms_individual_messages para auditoria e para contabilizar nos cards de
+ * resumo da página Marketing.
+ */
+export async function sendIndividualSms(input: {
+  to: string;
+  message: string;
+  clientId?: string;
+  sentBy: string;
+}): Promise<SmsIndividualMessage> {
+  try {
+    const { sid } = await sendSms({ to: input.to, body: input.message });
+    const [row] = await db
+      .insert(smsIndividualMessages)
+      .values({
+        clientId: input.clientId ?? null,
+        phone: input.to,
+        message: input.message,
+        status: "sent",
+        twilioSid: sid,
+        sentBy: input.sentBy,
+      })
+      .returning();
+    return row;
+  } catch (err) {
+    const message = err instanceof SmsApiError ? err.message : err instanceof Error ? err.message : String(err);
+    await db.insert(smsIndividualMessages).values({
+      clientId: input.clientId ?? null,
+      phone: input.to,
+      message: input.message,
+      status: "failed",
+      errorMessage: message,
+      sentBy: input.sentBy,
+    });
+    throw err instanceof SmsApiError ? err : new SmsApiError(message);
+  }
 }
