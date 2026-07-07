@@ -84,7 +84,7 @@ export async function deleteCampaign(id: string): Promise<boolean> {
  * "scheduled" — o dispatcher (server/jobs/sms-campaign-dispatcher.ts)
  * processa as linhas pendentes em lotes.
  */
-export async function queueCampaignForSend(id: string): Promise<SmsCampaign> {
+export async function queueCampaignForSend(id: string, scheduledAt?: Date): Promise<SmsCampaign> {
   const [campaign] = await db.select().from(smsCampaigns).where(eq(smsCampaigns.id, id));
   if (!campaign) throw new Error(`Campanha ${id} não encontrada`);
   if (campaign.status !== "draft") {
@@ -110,11 +110,12 @@ export async function queueCampaignForSend(id: string): Promise<SmsCampaign> {
     })),
   );
 
+  const resolvedScheduledAt = scheduledAt ?? campaign.scheduledAt ?? new Date();
   const [updated] = await db
     .update(smsCampaigns)
     .set({
       status: "scheduled",
-      scheduledAt: campaign.scheduledAt ?? new Date(),
+      scheduledAt: resolvedScheduledAt,
       totalRecipients: recipients.length,
       updatedAt: new Date(),
     })

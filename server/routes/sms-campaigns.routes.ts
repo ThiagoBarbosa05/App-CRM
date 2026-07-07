@@ -100,10 +100,34 @@ smsCampaignsRouter.post(
 
 /**
  * @route POST /api/sms-campaigns/:id/send
- * @description Resolve destinatários e enfileira o envio da campanha (processado pelo dispatcher)
+ * @description Resolve destinatários e enfileira o envio imediato da campanha
  * @access Private
  */
 smsCampaignsRouter.post("/:id/send", sendSmsCampaignController);
+
+/**
+ * @route POST /api/sms-campaigns/:id/schedule
+ * @description Agenda a campanha para envio em data/hora específica
+ * @access Private
+ */
+smsCampaignsRouter.post("/:id/schedule", async (req, res) => {
+  try {
+    const { scheduledAt } = req.body;
+    if (!scheduledAt) {
+      return res.status(400).json({ message: "Data de agendamento obrigatória" });
+    }
+    const date = new Date(scheduledAt);
+    if (isNaN(date.getTime()) || date <= new Date()) {
+      return res.status(400).json({ message: "Data de agendamento deve ser no futuro" });
+    }
+    const { queueCampaignForSend } = await import("../services/sms-campaign.service");
+    const campaign = await queueCampaignForSend(req.params.id, date);
+    return res.json(campaign);
+  } catch (err: any) {
+    const message = err instanceof Error ? err.message : "Erro ao agendar campanha";
+    return res.status(400).json({ message });
+  }
+});
 
 /**
  * @route DELETE /api/sms-campaigns/:id

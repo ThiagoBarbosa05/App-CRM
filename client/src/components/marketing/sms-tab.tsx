@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown } from "lucide-react";
+import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown, Clock } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 const SMS_VARIABLES = [
@@ -206,6 +206,8 @@ export function MarketingSmsTab() {
   const [isIndividualOpen, setIsIndividualOpen] = useState(false);
   const [indDialogKey, setIndDialogKey] = useState(0);
   const [formData, setFormData] = useState(EMPTY_FORM);
+  const [scheduleTarget, setScheduleTarget] = useState<SmsCampaign | null>(null);
+  const [scheduleDate, setScheduleDate] = useState("");
   const [individualData, setIndividualData] = useState(EMPTY_INDIVIDUAL);
   const [sentSuccess, setSentSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -336,26 +338,41 @@ export function MarketingSmsTab() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const createRes = await apiRequest("POST", "/api/sms-campaigns", {
+      const res = await apiRequest("POST", "/api/sms-campaigns", {
         ...data,
         targetCriteria: data.targetType === "all" ? null : data.targetCriteria,
       });
-      const campaign = await createRes.json();
-      const sendRes = await apiRequest("POST", `/api/sms-campaigns/${campaign.id}/send`);
-      return sendRes.json();
+      return res.json();
+    },
+    onSuccess: () => {
+      reloadCampaigns();
+      setIsCreateOpen(false);
+      setFormData(EMPTY_FORM);
+      toast({ title: "Campanha criada", description: "Use os botões no card para enviar agora ou agendar." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao criar campanha", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const scheduleMutation = useMutation({
+    mutationFn: async ({ id, scheduledAt }: { id: string; scheduledAt: string }) => {
+      const res = await apiRequest("POST", `/api/sms-campaigns/${id}/schedule`, { scheduledAt });
+      return res.json();
     },
     onSuccess: (result: any) => {
       reloadCampaigns();
       queryClient.invalidateQueries({ queryKey: ["/api/marketing/summary"] });
-      setIsCreateOpen(false);
-      setFormData(EMPTY_FORM);
+      setScheduleTarget(null);
+      setScheduleDate("");
+      const d = new Date(result.scheduledAt);
       toast({
-        title: "Campanha enviada!",
-        description: `${result.totalRecipients ?? 0} destinatário(s) adicionados. O envio será processado em breve.`,
+        title: "Campanha agendada!",
+        description: `${result.totalRecipients} destinatário(s) · Envio em ${d.toLocaleDateString("pt-BR")} às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`,
       });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro ao criar campanha", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao agendar", description: error.message, variant: "destructive" });
     },
   });
 
@@ -703,8 +720,7 @@ export function MarketingSmsTab() {
                       (formData.targetType !== "all" && !formData.targetCriteria)
                     }
                   >
-                    <Send className="h-3.5 w-3.5 mr-1.5" />
-                    {createMutation.isPending ? "Enviando..." : "Criar e enviar"}
+                    {createMutation.isPending ? "Criando..." : "Criar campanha"}
                   </Button>
                 </div>
               </form>
@@ -767,16 +783,26 @@ export function MarketingSmsTab() {
                     Criada por {campaign.creator?.name ?? "—"}
                   </span>
                   {campaign.status === "draft" && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button
                         variant="outline"
                         size="sm"
                         className="text-green-700 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800"
                         onClick={() => sendMutation.mutate(campaign.id)}
-                        disabled={sendMutation.isPending}
+                        disabled={sendMutation.isPending || scheduleMutation.isPending}
                       >
                         <Send className="h-3.5 w-3.5 mr-1.5" />
-                        Enviar
+                        Enviar agora
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-blue-700 border-blue-200 hover:bg-blue-50 dark:text-blue-400 dark:border-blue-800"
+                        onClick={() => { setScheduleTarget(campaign); setScheduleDate(""); }}
+                        disabled={sendMutation.isPending || scheduleMutation.isPending}
+                      >
+                        <Clock className="h-3.5 w-3.5 mr-1.5" />
+                        Agendar
                       </Button>
                       <Button
                         variant="outline"
@@ -808,6 +834,48 @@ export function MarketingSmsTab() {
           </Button>
         </div>
       )}
+
+      {/* Dialog de agendamento */}
+      <Dialog open={!!scheduleTarget} onOpenChange={(v) => { if (!v) { setScheduleTarget(null); setScheduleDate(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Agendar envio</DialogTitle>
+          </DialogHeader>
+          {scheduleTarget && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Campanha: <span className="font-medium text-foreground">{scheduleTarget.name}</span>
+              </p>
+              <div>
+                <Label htmlFor="schedule-datetime">Data e hora do envio</Label>
+                <Input
+                  id="schedule-datetime"
+                  type="datetime-local"
+                  value={scheduleDate}
+                  onChange={(e) => setScheduleDate(e.target.value)}
+                  min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  O envio será iniciado automaticamente na data/hora selecionada.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setScheduleTarget(null); setScheduleDate(""); }}>
+                  Cancelar
+                </Button>
+                <Button
+                  disabled={!scheduleDate || scheduleMutation.isPending}
+                  onClick={() => scheduleMutation.mutate({ id: scheduleTarget.id, scheduledAt: scheduleDate })}
+                >
+                  <Clock className="h-3.5 w-3.5 mr-1.5" />
+                  {scheduleMutation.isPending ? "Agendando..." : "Confirmar agendamento"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
