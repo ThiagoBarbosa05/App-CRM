@@ -9,7 +9,7 @@ import {
   type InsertSmsCampaign,
   type SmsIndividualMessage,
 } from "@shared/schema";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 import { sendSms, SmsApiError } from "../integrations/sms";
 import { resolveTargetClients, type MarketingTargetType } from "./marketing-targeting.service";
 import { getServerBaseUrl } from "../lib/twilio-config";
@@ -34,9 +34,24 @@ export async function listCampaigns(page = 1, pageSize = 20): Promise<ListCampai
   const safePageSize = Math.min(100, Math.max(1, pageSize));
   const offset = (safePage - 1) * safePageSize;
 
+  const deliveredSub = db
+    .select({ n: count() })
+    .from(smsCampaignMessages)
+    .where(and(eq(smsCampaignMessages.campaignId, smsCampaigns.id), eq(smsCampaignMessages.status, "delivered")));
+
+  const failedSub = db
+    .select({ n: count() })
+    .from(smsCampaignMessages)
+    .where(and(eq(smsCampaignMessages.campaignId, smsCampaigns.id), eq(smsCampaignMessages.status, "failed")));
+
   const [rows, [{ value: totalItems }]] = await Promise.all([
     db
-      .select({ campaign: smsCampaigns, creatorName: users.name })
+      .select({
+        campaign: smsCampaigns,
+        creatorName: users.name,
+        deliveredCount: sql<number>`(${deliveredSub})`.as("delivered_count"),
+        failedCount: sql<number>`(${failedSub})`.as("failed_count"),
+      })
       .from(smsCampaigns)
       .leftJoin(users, eq(smsCampaigns.createdBy, users.id))
       .orderBy(desc(smsCampaigns.createdAt))
@@ -46,11 +61,48 @@ export async function listCampaigns(page = 1, pageSize = 20): Promise<ListCampai
   ]);
 
   return {
-    data: rows.map((r) => ({ ...r.campaign, creator: r.creatorName ? { name: r.creatorName } : null })),
+    data: rows.map((r) => ({
+      ...r.campaign,
+      creator: r.creatorName ? { name: r.creatorName } : null,
+      deliveredCount: Number(r.deliveredCount ?? 0),
+      failedCount: Number(r.failedCount ?? 0),
+    })),
     page: safePage,
     pageSize: safePageSize,
     totalItems: Number(totalItems),
     totalPages: Math.max(1, Math.ceil(Number(totalItems) / safePageSize)),
+  };
+}
+
+export async function listIndividualMessages(page = 1, pageSize = 30) {
+  const safePage = Math.max(1, page);
+  const offset = (safePage - 1) * pageSize;
+
+  const [rows, [{ value: total }]] = await Promise.all([
+    db
+      .select({
+        msg: smsIndividualMessages,
+        clientName: clients.name,
+        sentByName: users.name,
+      })
+      .from(smsIndividualMessages)
+      .leftJoin(clients, eq(smsIndividualMessages.clientId, clients.id))
+      .leftJoin(users, eq(smsIndividualMessages.sentBy, users.id))
+      .orderBy(desc(smsIndividualMessages.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    db.select({ value: count() }).from(smsIndividualMessages),
+  ]);
+
+  return {
+    data: rows.map((r) => ({
+      ...r.msg,
+      clientName: r.clientName ?? null,
+      sentByName: r.sentByName ?? null,
+    })),
+    totalItems: Number(total),
+    totalPages: Math.max(1, Math.ceil(Number(total) / pageSize)),
+    page: safePage,
   };
 }
 

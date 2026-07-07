@@ -63,6 +63,22 @@ smsCampaignsRouter.post(
 );
 
 /**
+ * @route GET /api/sms-campaigns/individual-history
+ * @description Lista histórico de envios avulsos de SMS
+ * @access Private
+ */
+smsCampaignsRouter.get("/individual-history", async (req, res) => {
+  try {
+    const { listIndividualMessages } = await import("../services/sms-campaign.service");
+    const page = parseInt(req.query.page as string) || 1;
+    const result = await listIndividualMessages(page, 30);
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message ?? "Erro ao listar histórico" });
+  }
+});
+
+/**
  * @route GET /api/sms-campaigns/preview-count
  * @description Retorna quantos clientes correspondem ao filtro de targeting (sem criar campanha)
  * @access Private

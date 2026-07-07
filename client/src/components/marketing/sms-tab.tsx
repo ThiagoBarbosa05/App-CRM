@@ -37,8 +37,22 @@ interface SmsCampaign {
   targetCriteria: string | null;
   totalRecipients: number;
   sentCount: number;
+  deliveredCount: number;
+  failedCount: number;
   createdAt: string;
   creator: { name: string } | null;
+}
+
+interface IndividualMessage {
+  id: string;
+  phone: string;
+  message: string;
+  status: "sent" | "delivered" | "failed";
+  twilioSid: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  clientName: string | null;
+  sentByName: string | null;
 }
 
 interface ListCampaignsResult {
@@ -322,6 +336,15 @@ export function MarketingSmsTab() {
     staleTime: 30_000,
   });
 
+  const { data: individualHistory, refetch: refetchHistory } = useQuery<{
+    data: IndividualMessage[];
+    totalItems: number;
+    totalPages: number;
+  }>({
+    queryKey: ["/api/sms-campaigns/individual-history"],
+    staleTime: 30_000,
+  });
+
   const individualMutation = useMutation({
     mutationFn: async (data: typeof individualData) => {
       const resolvedMessage = data.clientName
@@ -337,6 +360,7 @@ export function MarketingSmsTab() {
     onSuccess: () => {
       setSendError(null);
       setSentSuccess(true);
+      refetchHistory();
       setTimeout(() => {
         setSentSuccess(false);
         setIsIndividualOpen(false);
@@ -783,7 +807,7 @@ export function MarketingSmsTab() {
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3 text-sm text-muted-foreground">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5" />
                     {campaign.totalRecipients} destinatários
@@ -792,6 +816,20 @@ export function MarketingSmsTab() {
                     <Send className="h-3.5 w-3.5" />
                     {campaign.sentCount} enviados
                   </div>
+                  {campaign.status !== "draft" && (
+                    <>
+                      <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {campaign.deliveredCount ?? 0} entregues
+                      </div>
+                      {(campaign.failedCount ?? 0) > 0 && (
+                        <div className="flex items-center gap-1.5 text-red-500 dark:text-red-400">
+                          <X className="h-3.5 w-3.5" />
+                          {campaign.failedCount} com erro
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div className="flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" />
                     {formatDate(campaign.createdAt)}
@@ -851,6 +889,68 @@ export function MarketingSmsTab() {
           >
             {isFetchingCampaigns ? "Carregando..." : "Carregar mais"}
           </Button>
+        </div>
+      )}
+
+      {/* Histórico de envios avulsos */}
+      {individualHistory && individualHistory.data.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide px-1">
+            Histórico de envios avulsos
+          </h3>
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {individualHistory.data.map((msg) => {
+                  const isDelivered = msg.status === "delivered";
+                  const isFailed = msg.status === "failed";
+                  return (
+                    <div key={msg.id} className="flex items-start gap-3 px-4 py-3">
+                      <div className={`mt-0.5 shrink-0 ${isDelivered ? "text-green-500" : isFailed ? "text-red-500" : "text-blue-400"}`}>
+                        {isDelivered ? (
+                          <CheckCircle2 className="h-4 w-4" />
+                        ) : isFailed ? (
+                          <X className="h-4 w-4" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium">
+                            {msg.clientName ?? msg.phone}
+                          </span>
+                          {msg.clientName && (
+                            <span className="text-xs text-muted-foreground">{msg.phone}</span>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] px-1.5 py-0 ${
+                              isDelivered
+                                ? "text-green-700 border-green-200 dark:text-green-400 dark:border-green-800"
+                                : isFailed
+                                  ? "text-red-600 border-red-200 dark:text-red-400 dark:border-red-800"
+                                  : "text-blue-600 border-blue-200 dark:text-blue-400"
+                            }`}
+                          >
+                            {isDelivered ? "Entregue" : isFailed ? "Falhou" : "Enviado"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{msg.message}</p>
+                        {msg.errorMessage && (
+                          <p className="text-xs text-red-500 mt-0.5">{msg.errorMessage}</p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                          {formatDate(msg.createdAt)}
+                          {msg.sentByName && ` · ${msg.sentByName}`}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
