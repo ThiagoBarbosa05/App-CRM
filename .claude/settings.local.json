@@ -79,7 +79,8 @@
       "Bash(python3 -)",
       "Bash(echo \"exit-filter: $?\")",
       "Skill(dataviz)",
-      "Bash(echo \"filter-exit: $?\")"
+      "Bash(echo \"filter-exit: $?\")",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=8192\" npx tsc --noEmit)"
     ]
   }
 }

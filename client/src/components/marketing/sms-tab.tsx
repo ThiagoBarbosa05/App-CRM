@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown } from "lucide-react";
 import { formatDate } from "@/lib/utils";
@@ -211,22 +212,7 @@ export function MarketingSmsTab() {
   const [showVarsMenu, setShowVarsMenu] = useState(false);
   const [showCampaignVarsMenu, setShowCampaignVarsMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const varsMenuRef = useRef<HTMLDivElement>(null);
   const campaignTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const campaignVarsMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (varsMenuRef.current && !varsMenuRef.current.contains(e.target as Node)) {
-        setShowVarsMenu(false);
-      }
-      if (campaignVarsMenuRef.current && !campaignVarsMenuRef.current.contains(e.target as Node)) {
-        setShowCampaignVarsMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
 
   function insertVariable(tag: string) {
     const el = textareaRef.current;
@@ -451,34 +437,28 @@ export function MarketingSmsTab() {
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <Label htmlFor="ind-message">Mensagem</Label>
-                      <div ref={varsMenuRef} className="relative">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1.5"
-                          onClick={() => setShowVarsMenu((v) => !v)}
-                        >
-                          <span className="text-primary font-mono text-[10px]">{"{{}}"}</span>
-                          Variável
-                          <ChevronDown className="h-3 w-3" />
-                        </Button>
-                        {showVarsMenu && (
-                          <div className="absolute right-0 top-8 z-50 w-44 rounded-lg border bg-popover shadow-lg overflow-hidden">
-                            {SMS_VARIABLES.map((v) => (
-                              <button
-                                key={v.tag}
-                                type="button"
-                                onClick={() => insertVariable(v.tag)}
-                                className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0"
-                              >
-                                <span className="block font-medium">{v.label}</span>
-                                <span className="text-[11px] text-muted-foreground font-mono">{v.tag}</span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <Popover open={showVarsMenu} onOpenChange={setShowVarsMenu}>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                            <span className="text-primary font-mono text-[10px]">{"{{}}"}</span>
+                            Variável
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 p-0" align="end">
+                          {SMS_VARIABLES.map((v) => (
+                            <button
+                              key={v.tag}
+                              type="button"
+                              onClick={() => insertVariable(v.tag)}
+                              className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0"
+                            >
+                              <span className="block font-medium">{v.label}</span>
+                              <span className="text-[11px] text-muted-foreground font-mono">{v.tag}</span>
+                            </button>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <Textarea
                       ref={textareaRef}
@@ -620,34 +600,28 @@ export function MarketingSmsTab() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <Label htmlFor="sms-message">Mensagem</Label>
-                    <div ref={campaignVarsMenuRef} className="relative">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs gap-1.5"
-                        onClick={() => setShowCampaignVarsMenu((v) => !v)}
-                      >
-                        <span className="text-primary font-mono text-[10px]">{"{{}}"}</span>
-                        Variável
-                        <ChevronDown className="h-3 w-3" />
-                      </Button>
-                      {showCampaignVarsMenu && (
-                        <div className="absolute right-0 top-8 z-50 w-44 rounded-lg border bg-popover shadow-lg overflow-hidden">
-                          {SMS_VARIABLES.map((v) => (
-                            <button
-                              key={v.tag}
-                              type="button"
-                              onClick={() => insertCampaignVariable(v.tag)}
-                              className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0"
-                            >
-                              <span className="block font-medium">{v.label}</span>
-                              <span className="text-[11px] text-muted-foreground font-mono">{v.tag}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <Popover open={showCampaignVarsMenu} onOpenChange={setShowCampaignVarsMenu}>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                          <span className="text-primary font-mono text-[10px]">{"{{}}"}</span>
+                          Variável
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-44 p-0" align="end">
+                        {SMS_VARIABLES.map((v) => (
+                          <button
+                            key={v.tag}
+                            type="button"
+                            onClick={() => insertCampaignVariable(v.tag)}
+                            className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0"
+                          >
+                            <span className="block font-medium">{v.label}</span>
+                            <span className="text-[11px] text-muted-foreground font-mono">{v.tag}</span>
+                          </button>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <Textarea
                     ref={campaignTextareaRef}
