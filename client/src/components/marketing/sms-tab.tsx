@@ -11,8 +11,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X } from "lucide-react";
+import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+
+const SMS_VARIABLES = [
+  { label: "Primeiro nome", tag: "{{primeiro_nome}}", resolve: (name: string) => name.split(" ")[0] },
+  { label: "Nome completo", tag: "{{nome_completo}}", resolve: (name: string) => name },
+];
+
+function resolveMessage(message: string, clientName: string): string {
+  let resolved = message;
+  for (const v of SMS_VARIABLES) {
+    resolved = resolved.replaceAll(v.tag, v.resolve(clientName));
+  }
+  return resolved;
+}
 
 interface SmsCampaign {
   id: string;
@@ -172,6 +185,36 @@ export function MarketingSmsTab() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [individualData, setIndividualData] = useState(EMPTY_INDIVIDUAL);
   const [sentSuccess, setSentSuccess] = useState(false);
+  const [showVarsMenu, setShowVarsMenu] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const varsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (varsMenuRef.current && !varsMenuRef.current.contains(e.target as Node)) {
+        setShowVarsMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function insertVariable(tag: string) {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const before = el.value.slice(0, start);
+    const after = el.value.slice(end);
+    const newValue = (before + tag + after).slice(0, SMS_MAX_LENGTH);
+    setIndividualData((p) => ({ ...p, message: newValue }));
+    setShowVarsMenu(false);
+    setTimeout(() => {
+      el.focus();
+      const pos = start + tag.length;
+      el.setSelectionRange(pos, pos);
+    }, 0);
+  }
 
   const { data: campaigns = [], isLoading } = useQuery<SmsCampaign[]>({
     queryKey: ["/api/sms-campaigns"],
@@ -179,9 +222,12 @@ export function MarketingSmsTab() {
 
   const individualMutation = useMutation({
     mutationFn: async (data: typeof individualData) => {
+      const resolvedMessage = data.clientName
+        ? resolveMessage(data.message, data.clientName)
+        : data.message;
       const res = await apiRequest("POST", "/api/sms-campaigns/send-individual", {
         to: data.to,
-        message: data.message,
+        message: resolvedMessage,
       });
       return res.json();
     },
@@ -293,19 +339,72 @@ export function MarketingSmsTab() {
                   </div>
 
                   <div>
-                    <Label htmlFor="ind-message">Mensagem</Label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Label htmlFor="ind-message">Mensagem</Label>
+                      <div ref={varsMenuRef} className="relative">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1.5"
+                          onClick={() => setShowVarsMenu((v) => !v)}
+                        >
+                          <span className="text-primary font-mono text-[10px]">{"{{}}"}</span>
+                          Variável
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                        {showVarsMenu && (
+                          <div className="absolute right-0 top-8 z-50 w-44 rounded-lg border bg-popover shadow-lg overflow-hidden">
+                            {SMS_VARIABLES.map((v) => (
+                              <button
+                                key={v.tag}
+                                type="button"
+                                onClick={() => insertVariable(v.tag)}
+                                className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0"
+                              >
+                                <span className="block font-medium">{v.label}</span>
+                                <span className="text-[11px] text-muted-foreground font-mono">{v.tag}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <Textarea
+                      ref={textareaRef}
                       id="ind-message"
-                      placeholder="Digite sua mensagem..."
+                      placeholder="Ex: Olá {{primeiro_nome}}, temos uma oferta especial para você!"
                       value={individualData.message}
                       onChange={(e) => setIndividualData((p) => ({ ...p, message: e.target.value.slice(0, SMS_MAX_LENGTH) }))}
                       rows={4}
-                      className="mt-1 resize-none"
+                      className="resize-none font-mono text-sm"
                       required
                     />
-                    <p className="text-xs text-muted-foreground mt-1 text-right">
-                      {individualData.message.length}/{SMS_MAX_LENGTH}
-                    </p>
+                    <div className="flex justify-between items-start mt-1.5 gap-2">
+                      <p className="text-[11px] text-muted-foreground leading-tight">
+                        Clique em <strong>Variável</strong> para inserir dados do cliente na mensagem.
+                      </p>
+                      <p className="text-xs text-muted-foreground shrink-0">
+                        {individualData.message.length}/{SMS_MAX_LENGTH}
+                      </p>
+                    </div>
+
+                    {/* Prévia da mensagem resolvida */}
+                    {individualData.message && individualData.clientName && individualData.message.includes("{{") && (
+                      <div className="mt-2 rounded-lg border border-dashed border-primary/30 bg-primary/5 px-3 py-2.5">
+                        <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wide mb-1">
+                          Prévia — como o cliente receberá
+                        </p>
+                        <p className="text-sm whitespace-pre-wrap break-words">
+                          {resolveMessage(individualData.message, individualData.clientName)}
+                        </p>
+                      </div>
+                    )}
+                    {individualData.message && !individualData.clientName && individualData.message.includes("{{") && (
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5">
+                        ⚠️ Selecione um destinatário para ver a prévia com as variáveis resolvidas.
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex justify-end gap-2">
