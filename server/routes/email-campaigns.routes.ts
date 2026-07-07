@@ -48,6 +48,30 @@ emailCampaignsRouter.post(
 emailCampaignsRouter.post("/:id/send", sendEmailCampaignController);
 
 /**
+ * @route POST /api/email-campaigns/:id/schedule
+ * @description Agenda a campanha para envio em data/hora específica
+ * @access Private
+ */
+emailCampaignsRouter.post("/:id/schedule", async (req, res) => {
+  try {
+    const { scheduledAt } = req.body;
+    if (!scheduledAt) {
+      return res.status(400).json({ message: "Data de agendamento obrigatória" });
+    }
+    const date = new Date(scheduledAt);
+    if (isNaN(date.getTime()) || date <= new Date()) {
+      return res.status(400).json({ message: "Data de agendamento deve ser no futuro" });
+    }
+    const { queueCampaignForSend } = await import("../services/email-campaign.service");
+    const campaign = await queueCampaignForSend(req.params.id, date);
+    return res.json(campaign);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao agendar campanha";
+    return res.status(400).json({ message });
+  }
+});
+
+/**
  * @route DELETE /api/email-campaigns/:id
  * @description Remove uma campanha de email
  * @access Private

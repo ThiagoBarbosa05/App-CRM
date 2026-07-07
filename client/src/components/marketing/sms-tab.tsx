@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown, Clock, Target } from "lucide-react";
+import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown, Clock, Target, RefreshCw } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 const SMS_VARIABLES = [
@@ -412,6 +412,23 @@ export function MarketingSmsTab() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao agendar", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const syncStatusMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/sms-campaigns/${id}/sync-status`);
+      return res.json();
+    },
+    onSuccess: (result: any, id: string) => {
+      reloadCampaigns();
+      toast({
+        title: "Status atualizado",
+        description: `${result.delivered} entregues · ${result.failed} com erro · ${result.unchanged} sem atualização`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Erro ao sincronizar", description: error.message, variant: "destructive" });
     },
   });
 
@@ -869,6 +886,20 @@ export function MarketingSmsTab() {
                       >
                         <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                         Excluir
+                      </Button>
+                    </div>
+                  )}
+                  {campaign.status === "sent" && (
+                    <div className="flex gap-2 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-amber-700 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800"
+                        onClick={() => syncStatusMutation.mutate(campaign.id)}
+                        disabled={syncStatusMutation.isPending}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncStatusMutation.isPending ? "animate-spin" : ""}`} />
+                        Sincronizar status
                       </Button>
                     </div>
                   )}

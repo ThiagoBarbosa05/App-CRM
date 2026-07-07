@@ -26,9 +26,18 @@ export async function getCampaign(id: string) {
 export async function createCampaign(
   input: Omit<InsertEmailCampaign, "status" | "sentAt" | "totalRecipients" | "sentCount">,
 ): Promise<EmailCampaign> {
+  // Resolve o público-alvo já na criação para que o card mostre quantos
+  // clientes (com e-mail) serão atingidos, mesmo enquanto a campanha é apenas
+  // um rascunho. O valor é recalculado no envio (queueCampaignForSend).
+  const targetedClients = await resolveTargetClients(
+    (input.targetType ?? "all") as MarketingTargetType,
+    input.targetCriteria ?? null,
+  );
+  const withEmail = targetedClients.filter((c) => c.email?.trim());
+
   const [campaign] = await db
     .insert(emailCampaigns)
-    .values({ ...input, status: "draft" })
+    .values({ ...input, status: "draft", totalRecipients: withEmail.length })
     .returning();
   return campaign;
 }
@@ -44,7 +53,7 @@ export async function deleteCampaign(id: string): Promise<boolean> {
  * "scheduled" — o dispatcher (server/jobs/email-campaign-dispatcher.ts)
  * processa as linhas pendentes em lotes.
  */
-export async function queueCampaignForSend(id: string): Promise<EmailCampaign> {
+export async function queueCampaignForSend(id: string, scheduledAt?: Date): Promise<EmailCampaign> {
   const [campaign] = await db.select().from(emailCampaigns).where(eq(emailCampaigns.id, id));
   if (!campaign) throw new Error(`Campanha ${id} não encontrada`);
   if (campaign.status !== "draft") {
@@ -69,11 +78,12 @@ export async function queueCampaignForSend(id: string): Promise<EmailCampaign> {
     })),
   );
 
+  const resolvedScheduledAt = scheduledAt ?? campaign.scheduledAt ?? new Date();
   const [updated] = await db
     .update(emailCampaigns)
     .set({
       status: "scheduled",
-      scheduledAt: campaign.scheduledAt ?? new Date(),
+      scheduledAt: resolvedScheduledAt,
       totalRecipients: recipients.length,
       updatedAt: new Date(),
     })

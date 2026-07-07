@@ -146,6 +146,60 @@ smsCampaignsRouter.post("/:id/schedule", async (req, res) => {
 });
 
 /**
+ * @route POST /api/sms-campaigns/:id/sync-status
+ * @description Consulta a Twilio pelo SmsSid e atualiza o status de entrega das mensagens presas em "sent"
+ * @access Private
+ */
+smsCampaignsRouter.post("/:id/sync-status", async (req, res) => {
+  try {
+    const { getTwilioConfig } = await import("../lib/twilio-config");
+    const { accountSid, authToken } = await getTwilioConfig();
+    if (!accountSid || !authToken) {
+      return res.status(503).json({ message: "Twilio não configurado" });
+    }
+    const twilio = (await import("twilio")).default;
+    const client = twilio(accountSid, authToken);
+    const { db } = await import("server/db");
+    const { smsCampaignMessages } = await import("@shared/schema");
+    const { eq, and } = await import("drizzle-orm");
+
+    // Busca mensagens ainda em "sent" para esta campanha
+    const pending = await db
+      .select({ id: smsCampaignMessages.id, twilioSid: smsCampaignMessages.twilioSid })
+      .from(smsCampaignMessages)
+      .where(and(eq(smsCampaignMessages.campaignId, req.params.id), eq(smsCampaignMessages.status, "sent")));
+
+    let delivered = 0;
+    let failed = 0;
+    let unchanged = 0;
+
+    for (const msg of pending) {
+      if (!msg.twilioSid) { unchanged++; continue; }
+      try {
+        const twilioMsg = await client.messages(msg.twilioSid).fetch();
+        const status = twilioMsg.status; // delivered | undelivered | failed | sent | queued
+        if (status === "delivered") {
+          await db.update(smsCampaignMessages).set({ status: "delivered" }).where(eq(smsCampaignMessages.id, msg.id));
+          delivered++;
+        } else if (status === "undelivered" || status === "failed") {
+          const errMsg = twilioMsg.errorMessage ? `[${twilioMsg.errorCode}] ${twilioMsg.errorMessage}` : null;
+          await db.update(smsCampaignMessages).set({ status: "failed", ...(errMsg ? { errorMessage: errMsg } : {}) }).where(eq(smsCampaignMessages.id, msg.id));
+          failed++;
+        } else {
+          unchanged++;
+        }
+      } catch {
+        unchanged++;
+      }
+    }
+
+    return res.json({ synced: pending.length, delivered, failed, unchanged });
+  } catch (err: any) {
+    return res.status(500).json({ message: err.message ?? "Erro ao sincronizar status" });
+  }
+});
+
+/**
  * @route DELETE /api/sms-campaigns/:id
  * @description Remove uma campanha de SMS
  * @access Private
