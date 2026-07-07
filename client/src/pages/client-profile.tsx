@@ -302,7 +302,8 @@ export default function ClientProfilePage() {
     <div className="space-y-6 pb-10">
       {/* ── Cabeçalho ── */}
       <PageHeader>
-        {/* Esquerda: breadcrumb + identidade */}
+        <div className="w-full flex flex-col gap-4">
+        {/* Identidade */}
         <PageHeader.Info className="flex-col sm:flex-row items-start sm:items-center">
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <Button
@@ -322,7 +323,9 @@ export default function ClientProfilePage() {
 
           <PageHeader.Text>
             <div className="flex items-center gap-2.5 flex-wrap">
-              <PageHeader.Title>{client.name}</PageHeader.Title>
+              <PageHeader.Title className="whitespace-normal break-words">
+                {client.name}
+              </PageHeader.Title>
               {purchaseStatus === "inativo" && (
                 <Badge
                   variant="outline"
@@ -339,8 +342,10 @@ export default function ClientProfilePage() {
           </PageHeader.Text>
         </PageHeader.Info>
 
-        {/* Centro: cadastro + vendedor + status */}
-        <div className="hidden md:flex items-center gap-2">
+        {/* Badges + Ações abaixo do nome */}
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        {/* Cards: idade + sexo + cadastro + vendedor + status */}
+        <div className="flex flex-wrap items-center gap-2">
           {/* Card de Idade + Aniversário */}
           {(() => {
             const age = calculateAge(client.birthday);
@@ -370,6 +375,19 @@ export default function ClientProfilePage() {
               </div>
             );
           })()}
+
+          {/* Card de Sexo */}
+          {client.sexo && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
+              <User className={`h-3.5 w-3.5 shrink-0 ${client.sexo === "M" ? "text-blue-500" : "text-pink-500"}`} />
+              <div className="flex flex-col leading-tight">
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Sexo</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                  {client.sexo === "M" ? "Masculino" : "Feminino"}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Card de qualidade de cadastro */}
           {(() => {
@@ -415,8 +433,8 @@ export default function ClientProfilePage() {
           </div>
         </div>
 
-        {/* Direita: ações rápidas */}
-        <PageHeader.Actions className="flex-wrap sm:flex-nowrap justify-end mt-4 md:mt-0">
+        {/* Ações rápidas */}
+        <PageHeader.Actions className="flex-wrap justify-start lg:justify-end lg:shrink-0">
           {whatsappUrl && (
             <Button
               variant="outline"
@@ -507,6 +525,8 @@ export default function ClientProfilePage() {
             </Button>
           )}
         </PageHeader.Actions>
+        </div>
+        </div>
       </PageHeader>
 
       {/* ── Tabs + Conteúdo ── */}
