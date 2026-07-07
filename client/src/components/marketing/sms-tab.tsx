@@ -336,20 +336,26 @@ export function MarketingSmsTab() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const res = await apiRequest("POST", "/api/sms-campaigns", {
+      const createRes = await apiRequest("POST", "/api/sms-campaigns", {
         ...data,
         targetCriteria: data.targetType === "all" ? null : data.targetCriteria,
       });
-      return res.json();
+      const campaign = await createRes.json();
+      const sendRes = await apiRequest("POST", `/api/sms-campaigns/${campaign.id}/send`);
+      return sendRes.json();
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       reloadCampaigns();
+      queryClient.invalidateQueries({ queryKey: ["/api/marketing/summary"] });
       setIsCreateOpen(false);
       setFormData(EMPTY_FORM);
-      toast({ title: "Campanha criada", description: "Campanha de SMS salva como rascunho." });
+      toast({
+        title: "Campanha enviada!",
+        description: `${result.totalRecipients ?? 0} destinatário(s) adicionados. O envio será processado em breve.`,
+      });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao criar campanha", description: error.message, variant: "destructive" });
     },
   });
 
@@ -697,7 +703,8 @@ export function MarketingSmsTab() {
                       (formData.targetType !== "all" && !formData.targetCriteria)
                     }
                   >
-                    {createMutation.isPending ? "Criando..." : "Criar campanha"}
+                    <Send className="h-3.5 w-3.5 mr-1.5" />
+                    {createMutation.isPending ? "Enviando..." : "Criar e enviar"}
                   </Button>
                 </div>
               </form>
