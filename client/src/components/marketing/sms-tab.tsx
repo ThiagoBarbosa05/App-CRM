@@ -229,12 +229,31 @@ const EMPTY_FORM = { name: "", message: "", targetType: "all", targetCriteria: "
 const EMPTY_INDIVIDUAL = { to: "", clientId: "", clientName: "", message: "" };
 const SMS_MAX_LENGTH = 320;
 
-export function MarketingSmsTab() {
+interface MarketingSmsTabProps {
+  prefilledSegment?: { segmentLabel: string; targetType: string; targetCriteria: string } | null;
+  onSegmentConsumed?: () => void;
+}
+
+export function MarketingSmsTab({ prefilledSegment, onSegmentConsumed }: MarketingSmsTabProps = {}) {
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isIndividualOpen, setIsIndividualOpen] = useState(false);
   const [indDialogKey, setIndDialogKey] = useState(0);
   const [formData, setFormData] = useState(EMPTY_FORM);
+
+  useEffect(() => {
+    if (!prefilledSegment) return;
+    const { targetType, targetCriteria, segmentLabel } = prefilledSegment;
+    const mappedType = ["markers", "category", "origin"].includes(targetType) ? targetType : "all";
+    setFormData({
+      name: `Campanha — ${segmentLabel}`,
+      message: "",
+      targetType: mappedType,
+      targetCriteria: mappedType !== "all" ? targetCriteria : "",
+    });
+    setIsCreateOpen(true);
+    onSegmentConsumed?.();
+  }, [prefilledSegment]);
   const [scheduleTarget, setScheduleTarget] = useState<SmsCampaign | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
   const [reportTarget, setReportTarget] = useState<SmsCampaign | null>(null);

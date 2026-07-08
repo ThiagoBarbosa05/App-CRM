@@ -341,12 +341,33 @@ function HtmlContentField({
   );
 }
 
-export function MarketingEmailTab() {
+interface MarketingEmailTabProps {
+  prefilledSegment?: { segmentLabel: string; targetType: string; targetCriteria: string } | null;
+  onSegmentConsumed?: () => void;
+}
+
+export function MarketingEmailTab({ prefilledSegment, onSegmentConsumed }: MarketingEmailTabProps = {}) {
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isIndividualOpen, setIsIndividualOpen] = useState(false);
   const [indDialogKey, setIndDialogKey] = useState(0);
   const [formData, setFormData] = useState(EMPTY_FORM);
+
+  useEffect(() => {
+    if (!prefilledSegment) return;
+    const { targetType, targetCriteria, segmentLabel } = prefilledSegment;
+    const mappedType = ["markers", "category", "origin"].includes(targetType) ? targetType : "all";
+    setFormData({
+      name: `Campanha — ${segmentLabel}`,
+      subject: "",
+      content: "",
+      templateType: "custom",
+      targetType: mappedType,
+      targetCriteria: mappedType !== "all" ? targetCriteria : "",
+    });
+    setIsCreateOpen(true);
+    onSegmentConsumed?.();
+  }, [prefilledSegment]);
   const [individualData, setIndividualData] = useState(EMPTY_INDIVIDUAL);
   const [scheduleTarget, setScheduleTarget] = useState<EmailCampaign | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
