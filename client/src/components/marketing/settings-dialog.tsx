@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Mail, MessageSquare, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
+import { Settings, Mail, MessageSquare, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2, Wifi } from "lucide-react";
 
 interface MarketingSettings {
   marketing_sendgrid_api_key?: string;
@@ -27,6 +27,7 @@ export function MarketingSettingsDialog() {
   const [open, setOpen] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [form, setForm] = useState<MarketingSettings>({});
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const { data: settings, isLoading } = useQuery<MarketingSettings>({
     queryKey: ["/api/marketing/settings"],
@@ -36,6 +37,10 @@ export function MarketingSettingsDialog() {
   useEffect(() => {
     if (settings) setForm(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (!open) setTestResult(null);
+  }, [open]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: MarketingSettings) => {
@@ -50,6 +55,17 @@ export function MarketingSettingsDialog() {
     onError: (err: Error) => {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
     },
+  });
+
+  const testMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/marketing/test-sendgrid", {});
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message ?? "Erro desconhecido");
+      return data as { ok: boolean; message: string };
+    },
+    onSuccess: (data) => setTestResult({ ok: true, message: data.message }),
+    onError: (err: Error) => setTestResult({ ok: false, message: err.message }),
   });
 
   const handleSave = () => saveMutation.mutate(form);
@@ -139,6 +155,31 @@ export function MarketingSettingsDialog() {
                       className="mt-1 text-sm"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    disabled={!form.marketing_sendgrid_api_key || testMutation.isPending}
+                    onClick={() => { setTestResult(null); testMutation.mutate(); }}
+                  >
+                    {testMutation.isPending
+                      ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testando...</>
+                      : <><Wifi className="h-3.5 w-3.5" /> Testar conexão</>
+                    }
+                  </Button>
+                  {testResult && (
+                    <span className={`flex items-center gap-1 text-xs font-medium ${testResult.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                      {testResult.ok
+                        ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        : <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      }
+                      {testResult.message}
+                    </span>
+                  )}
                 </div>
 
                 <p className="text-[11px] text-muted-foreground">

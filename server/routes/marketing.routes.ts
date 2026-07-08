@@ -47,6 +47,52 @@ marketingRouter.get("/settings", requireAdmin, async (req, res) => {
 });
 
 /**
+ * @route POST /api/marketing/test-sendgrid
+ * @description Verifica se a API Key do SendGrid é válida
+ * @access Private (admin)
+ */
+marketingRouter.post("/test-sendgrid", requireAdmin, async (req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(systemSettings)
+      .where(inArray(systemSettings.key, ["marketing_sendgrid_api_key", "marketing_sendgrid_from_email"]));
+    const map: Record<string, string> = {};
+    for (const row of rows) map[row.key] = row.value;
+
+    const apiKey = map["marketing_sendgrid_api_key"];
+    const fromEmail = map["marketing_sendgrid_from_email"];
+
+    if (!apiKey) {
+      return res.status(400).json({ ok: false, message: "API Key não configurada." });
+    }
+
+    const sgRes = await fetch("https://api.sendgrid.com/v3/user/profile", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+
+    if (sgRes.ok) {
+      const profile = await sgRes.json() as { username?: string; email?: string };
+      return res.json({
+        ok: true,
+        message: `Conexão bem-sucedida!${profile.username ? ` Conta: ${profile.username}` : ""}${fromEmail ? ` | Remetente: ${fromEmail}` : ""}`,
+      });
+    }
+
+    if (sgRes.status === 401) {
+      return res.status(400).json({ ok: false, message: "API Key inválida ou expirada." });
+    }
+    if (sgRes.status === 403) {
+      return res.status(400).json({ ok: false, message: "API Key sem permissão. Verifique os escopos no SendGrid." });
+    }
+
+    return res.status(400).json({ ok: false, message: `Erro do SendGrid: HTTP ${sgRes.status}` });
+  } catch (err) {
+    return res.status(500).json({ ok: false, message: "Não foi possível conectar ao SendGrid. Verifique sua conexão." });
+  }
+});
+
+/**
  * @route PUT /api/marketing/settings
  * @description Salva configurações de integrações de marketing
  * @access Private (admin)
