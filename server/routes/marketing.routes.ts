@@ -7,9 +7,9 @@ import { getMarketingSummaryController } from "../controllers/marketing/summary.
 export const marketingRouter = Router();
 
 const MARKETING_SETTINGS_KEYS = [
-  "marketing_sendgrid_api_key",
-  "marketing_sendgrid_from_email",
-  "marketing_sendgrid_from_name",
+  "sendgrid_api_key",
+  "sendgrid_from_email",
+  "sendgrid_from_name",
   "marketing_sms_from_number",
 ];
 
@@ -56,12 +56,12 @@ marketingRouter.post("/test-sendgrid", requireAdmin, async (req, res) => {
     const rows = await db
       .select()
       .from(systemSettings)
-      .where(inArray(systemSettings.key, ["marketing_sendgrid_api_key", "marketing_sendgrid_from_email"]));
+      .where(inArray(systemSettings.key, ["sendgrid_api_key", "sendgrid_from_email"]));
     const map: Record<string, string> = {};
     for (const row of rows) map[row.key] = row.value;
 
-    const apiKey = map["marketing_sendgrid_api_key"];
-    const fromEmail = map["marketing_sendgrid_from_email"];
+    const apiKey = map["sendgrid_api_key"] || process.env.SENDGRID_API_KEY || "";
+    const fromEmail = map["sendgrid_from_email"] || process.env.SENDGRID_FROM_EMAIL || "";
 
     if (!apiKey) {
       return res.status(400).json({ ok: false, message: "API Key não configurada." });

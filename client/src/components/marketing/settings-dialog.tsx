@@ -16,9 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Settings, Mail, MessageSquare, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2, Wifi } from "lucide-react";
 
 interface MarketingSettings {
-  marketing_sendgrid_api_key?: string;
-  marketing_sendgrid_from_email?: string;
-  marketing_sendgrid_from_name?: string;
+  sendgrid_api_key?: string;
+  sendgrid_from_email?: string;
+  sendgrid_from_name?: string;
   marketing_sms_from_number?: string;
 }
 
@@ -70,7 +70,7 @@ export function MarketingSettingsDialog() {
 
   const handleSave = () => saveMutation.mutate(form);
 
-  const isEmailConfigured = !!(form.marketing_sendgrid_api_key && form.marketing_sendgrid_from_email);
+  const isEmailConfigured = !!(form.sendgrid_api_key && form.sendgrid_from_email);
   const isSmsConfigured = !!form.marketing_sms_from_number;
 
   return (
@@ -119,8 +119,8 @@ export function MarketingSettingsDialog() {
                       id="sg-api-key"
                       type={showApiKey ? "text" : "password"}
                       placeholder="SG.xxxxxxxxxxxx"
-                      value={form.marketing_sendgrid_api_key ?? ""}
-                      onChange={(e) => setForm((p) => ({ ...p, marketing_sendgrid_api_key: e.target.value }))}
+                      value={form.sendgrid_api_key ?? ""}
+                      onChange={(e) => setForm((p) => ({ ...p, sendgrid_api_key: e.target.value }))}
                       className="pr-9 font-mono text-sm"
                     />
                     <button
@@ -140,8 +140,8 @@ export function MarketingSettingsDialog() {
                       id="sg-from-email"
                       type="email"
                       placeholder="marketing@suaempresa.com"
-                      value={form.marketing_sendgrid_from_email ?? ""}
-                      onChange={(e) => setForm((p) => ({ ...p, marketing_sendgrid_from_email: e.target.value }))}
+                      value={form.sendgrid_from_email ?? ""}
+                      onChange={(e) => setForm((p) => ({ ...p, sendgrid_from_email: e.target.value }))}
                       className="mt-1 text-sm"
                     />
                   </div>
@@ -150,8 +150,8 @@ export function MarketingSettingsDialog() {
                     <Input
                       id="sg-from-name"
                       placeholder="Grand Cru"
-                      value={form.marketing_sendgrid_from_name ?? ""}
-                      onChange={(e) => setForm((p) => ({ ...p, marketing_sendgrid_from_name: e.target.value }))}
+                      value={form.sendgrid_from_name ?? ""}
+                      onChange={(e) => setForm((p) => ({ ...p, sendgrid_from_name: e.target.value }))}
                       className="mt-1 text-sm"
                     />
                   </div>
