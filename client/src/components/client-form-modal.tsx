@@ -33,10 +33,6 @@ import { useToast } from "@/hooks/use-toast";
 import { InputMask } from "@/components/ui/input-mask";
 import { X, Tag, User, Phone, MapPin, Briefcase, Store, AlertCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import {
-  DuplicateWarning,
-  type DuplicateMatch,
-} from "@/components/duplicate-warning";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { TagSelector } from "@/components/ui/tag-selector";
@@ -354,47 +350,6 @@ export default function ClientFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedCpf, client]);
 
-  // Verificação de duplicatas com debounce
-  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Bloquear submit se houver match exato de CPF ou email (não de nome similar)
-  const hasBlockingDuplicate = duplicates.some((d) =>
-    d.matchReasons.some((r) => r.includes("CPF") || r.includes("E-mail")),
-  );
-
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      const name = watchedName?.trim();
-      const phone = watchedPhone?.replace(/\D/g, "");
-      const cpf = watchedCpf?.replace(/\D/g, "");
-      const email = watchedEmail?.trim();
-      if (!name && !phone && !cpf && !email) {
-        setDuplicates([]);
-        return;
-      }
-      try {
-        const res = await fetch("/api/clients/check-duplicate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            phone,
-            cpf,
-            email,
-            excludeId: client?.id,
-          }),
-        });
-        if (res.ok) setDuplicates(await res.json());
-      } catch {
-        /* silencioso */
-      }
-    }, 700);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [watchedName, watchedPhone, watchedCpf, watchedEmail, client?.id]);
 
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -587,8 +542,6 @@ export default function ClientFormModal({
               onSubmit={form.handleSubmit(onSubmit)}
               className="space-y-8"
             >
-              <DuplicateWarning matches={duplicates} />
-
               {/* Integração Bling — apenas na criação */}
               {!client && (
                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
@@ -1340,12 +1293,7 @@ export default function ClientFormModal({
           <Button
             type="submit"
             form="client-form"
-            disabled={isSubmitting || hasBlockingDuplicate}
-            title={
-              hasBlockingDuplicate
-                ? "Resolva a duplicidade de CPF/e-mail antes de salvar"
-                : undefined
-            }
+            disabled={isSubmitting}
             className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm px-6 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
