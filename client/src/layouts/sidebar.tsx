@@ -66,7 +66,7 @@ const navItems: NavItem[] = [
     label: "Calculadora de Vinho",
   },
   { href: "/cashback", icon: Gift, label: "Cashback" },
-  { href: "/marketing", icon: Megaphone, label: "Marketing" },
+  { href: "/marketing", icon: Megaphone, label: "Marketing", roles: ["admin", "administrador"] },
   { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
   // {

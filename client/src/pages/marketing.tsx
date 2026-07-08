@@ -12,10 +12,13 @@ import {
   AppTabsContent,
 } from "@/components/app-tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { Redirect } from "wouter";
 
 export default function Marketing() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin" || user?.role === "administrador";
+
+  if (user && !isAdmin) return <Redirect to="/dashboard" />;
 
   return (
     <div className="overflow-y-auto h-full p-4 sm:p-5 lg:p-6">
