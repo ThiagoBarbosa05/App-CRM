@@ -116,10 +116,7 @@ export default function ClientProfilePage() {
   const { id } = useParams<{ id: string }>();
   const [location, navigate] = useLocation();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState(() => {
-    const currentTab = new URLSearchParams(window.location.search).get("tab");
-    return currentTab || "info";
-  });
+  const [activeTab, setActiveTab] = useState("info");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
