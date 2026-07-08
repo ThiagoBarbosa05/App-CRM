@@ -157,6 +157,7 @@ export interface ClientFilters {
   responsavelId?: string;
   categoria?: string;
   origem?: string;
+  status?: string;
   markers?: string;
   tagIds?: string[];
   whatsappTagIds?: string[];

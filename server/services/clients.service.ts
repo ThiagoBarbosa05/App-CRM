@@ -140,6 +140,9 @@ export class ClientsService {
     if (rawFilters.origem && typeof rawFilters.origem === "string") {
       filters.origem = rawFilters.origem;
     }
+    if (rawFilters.status && typeof rawFilters.status === "string" && rawFilters.status !== "all") {
+      filters.status = rawFilters.status;
+    }
     if (rawFilters.markers && typeof rawFilters.markers === "string") {
       filters.markers = rawFilters.markers;
     }
@@ -1029,6 +1032,7 @@ export class ClientsService {
       responsavelId: req.query.responsavelId,
       categoria: req.query.categoria,
       origem: req.query.origem,
+      status: req.query.status,
       markers: req.query.markers,
       purchaseStatus: req.query.purchaseStatus,
       purchaseStatusDays: req.query.purchaseStatusDays,
@@ -1110,6 +1114,7 @@ export class ClientsService {
       responsavelId: req.query.responsavelId,
       categoria: req.query.categoria,
       origem: req.query.origem,
+      status: req.query.status,
       markers: req.query.markers,
       tagIds: req.query.tagIds,
       whatsappTagIds: req.query.whatsappTagIds,

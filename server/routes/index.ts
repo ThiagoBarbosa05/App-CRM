@@ -79,6 +79,7 @@ import {
 } from "./interaction-goals.routes";
 import { referralsRouter } from "./referrals.routes";
 import rfmRouter from "./rfm.routes";
+import segmentsRouter from "./segments.routes";
 import whatsappRouter from "./whatsapp-settings.routes";
 import whatsappWebhookRouter from "./whatsapp-webhook.routes";
 import evolutionWebhookRouter from "./evolution-webhook.routes";
@@ -133,6 +134,7 @@ apiRouter.use(requireAuth);
 // === ROTAS PROTEGIDAS ===
 apiRouter.use("/referrals", referralsRouter);
 apiRouter.use("/rfm", rfmRouter);
+apiRouter.use("/segments", segmentsRouter);
 apiRouter.use("/clients", clientsRouter);
 apiRouter.use("/files", filesRouter);
 apiRouter.use("/acompanhamento", acompanhamentoRouter);

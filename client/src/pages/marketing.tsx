@@ -1,9 +1,10 @@
-import { Megaphone, MessageCircle, Mail, MessageSquare } from "lucide-react";
+import { Megaphone, MessageCircle, Mail, MessageSquare, Layers } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { MarketingSummaryCards } from "@/components/marketing-summary-cards";
 import { MarketingWhatsappTab } from "@/components/marketing/whatsapp-tab";
 import { MarketingEmailTab } from "@/components/marketing/email-tab";
 import { MarketingSmsTab } from "@/components/marketing/sms-tab";
+import { MarketingSegmentationTab } from "@/components/marketing/segmentation-tab";
 import { MarketingSettingsDialog } from "@/components/marketing/settings-dialog";
 import {
   AppTabs,
@@ -46,8 +47,12 @@ export default function Marketing() {
 
         <MarketingSummaryCards />
 
-        <AppTabs defaultValue="whatsapp">
+        <AppTabs defaultValue="segmentacao">
           <UnderlineTabsList>
+            <UnderlineTabsTrigger value="segmentacao" color="amber">
+              <Layers className="h-4 w-4" />
+              Segmentação
+            </UnderlineTabsTrigger>
             <UnderlineTabsTrigger value="whatsapp" color="green">
               <MessageCircle className="h-4 w-4" />
               WhatsApp
@@ -62,6 +67,9 @@ export default function Marketing() {
             </UnderlineTabsTrigger>
           </UnderlineTabsList>
 
+          <AppTabsContent value="segmentacao">
+            <MarketingSegmentationTab />
+          </AppTabsContent>
           <AppTabsContent value="whatsapp">
             <MarketingWhatsappTab />
           </AppTabsContent>

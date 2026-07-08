@@ -81,6 +81,10 @@ export class ClientsRepository {
       conditions.push(eq(clients.origem, filters.origem));
     }
 
+    if (filters.status && filters.status !== "all") {
+      conditions.push(eq(clients.status, filters.status));
+    }
+
     if (filters.markers) {
       // Aceita um ou mais marcadores separados por vírgula (semântica OR).
       const markerList = filters.markers

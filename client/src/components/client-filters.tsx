@@ -36,6 +36,7 @@ export interface ClientFilters {
   responsavelId: string;
   categoria: string;
   origem: string;
+  status?: string;
   markers: string;
   purchaseStatus: string;
   wineGrape: string;

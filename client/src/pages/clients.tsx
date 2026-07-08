@@ -118,15 +118,17 @@ export default function Clients() {
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get("eventId") || "all";
     const isEventParticipant = params.get("isEventParticipant") === "true" || undefined;
+    // Filtros que podem chegar via deep-link (ex.: página de Segmentação).
     return {
       name: "",
       phone: "",
       cpf: "",
       responsavelId: "all",
-      categoria: "",
-      origem: "",
-      markers: "",
-      purchaseStatus: "all",
+      categoria: params.get("categoria") || "",
+      origem: params.get("origem") || "",
+      status: params.get("status") || "",
+      markers: params.get("markers") || "",
+      purchaseStatus: params.get("purchaseStatus") || "all",
       wineGrape: "",
       wineRegion: "",
       wineType: "all",
@@ -134,7 +136,7 @@ export default function Clients() {
       wineSweetness: "all",
       winePriceMin: "",
       winePriceMax: "",
-      rfmSegment: "all",
+      rfmSegment: params.get("rfmSegment") || "all",
       eventId,
       isEventParticipant,
     };
