@@ -93,6 +93,51 @@ marketingRouter.post("/test-sendgrid", requireAdmin, async (req, res) => {
 });
 
 /**
+ * @route POST /api/marketing/test-twilio
+ * @description Verifica se as credenciais Twilio são válidas
+ * @access Private (admin)
+ */
+marketingRouter.post("/test-twilio", requireAdmin, async (req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(systemSettings)
+      .where(inArray(systemSettings.key, ["twilio_account_sid", "twilio_auth_token", "marketing_sms_from_number"]));
+    const map: Record<string, string> = {};
+    for (const row of rows) map[row.key] = row.value;
+
+    const accountSid = map["twilio_account_sid"] || process.env.TWILIO_ACCOUNT_SID || "";
+    const authToken  = map["twilio_auth_token"]  || process.env.TWILIO_AUTH_TOKEN  || "";
+    const fromNumber = map["marketing_sms_from_number"] || "";
+
+    if (!accountSid || !authToken) {
+      return res.status(400).json({ ok: false, message: "Account SID e Auth Token não configurados." });
+    }
+
+    const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+    const twRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`, {
+      headers: { Authorization: `Basic ${credentials}` },
+    });
+
+    if (twRes.ok) {
+      const account = await twRes.json() as { friendly_name?: string; status?: string };
+      return res.json({
+        ok: true,
+        message: `Conexão bem-sucedida!${account.friendly_name ? ` Conta: ${account.friendly_name}` : ""}${fromNumber ? ` | Número: ${fromNumber}` : ""}`,
+      });
+    }
+
+    if (twRes.status === 401) {
+      return res.status(400).json({ ok: false, message: "Account SID ou Auth Token inválidos." });
+    }
+
+    return res.status(400).json({ ok: false, message: `Erro Twilio: HTTP ${twRes.status}` });
+  } catch {
+    return res.status(500).json({ ok: false, message: "Não foi possível conectar ao Twilio. Verifique sua conexão." });
+  }
+});
+
+/**
  * @route PUT /api/marketing/settings
  * @description Salva configurações de integrações de marketing
  * @access Private (admin)

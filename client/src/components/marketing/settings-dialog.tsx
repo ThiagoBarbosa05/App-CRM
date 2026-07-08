@@ -28,6 +28,7 @@ export function MarketingSettingsDialog() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [form, setForm] = useState<MarketingSettings>({});
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testSmsResult, setTestSmsResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const { data: settings, isLoading } = useQuery<MarketingSettings>({
     queryKey: ["/api/marketing/settings"],
@@ -39,7 +40,7 @@ export function MarketingSettingsDialog() {
   }, [settings]);
 
   useEffect(() => {
-    if (!open) setTestResult(null);
+    if (!open) { setTestResult(null); setTestSmsResult(null); }
   }, [open]);
 
   const saveMutation = useMutation({
@@ -69,6 +70,20 @@ export function MarketingSettingsDialog() {
     },
     onSuccess: (data) => setTestResult({ ok: data.ok, message: data.message }),
     onError: (err: Error) => setTestResult({ ok: false, message: err.message }),
+  });
+
+  const testSmsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/marketing/test-twilio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const data = await res.json() as { ok: boolean; message: string };
+      return data;
+    },
+    onSuccess: (data) => setTestSmsResult({ ok: data.ok, message: data.message }),
+    onError: (err: Error) => setTestSmsResult({ ok: false, message: err.message }),
   });
 
   const handleSave = () => saveMutation.mutate(form);
@@ -214,18 +229,45 @@ export function MarketingSettingsDialog() {
                 </div>
               </div>
 
-              <div className="pl-1">
-                <Label htmlFor="sms-from" className="text-xs">Número de origem (SMS)</Label>
-                <Input
-                  id="sms-from"
-                  placeholder="+14782105167"
-                  value={form.marketing_sms_from_number ?? ""}
-                  onChange={(e) => setForm((p) => ({ ...p, marketing_sms_from_number: e.target.value }))}
-                  className="mt-1 font-mono text-sm"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1.5">
-                  Use um número Twilio com SMS habilitado. O número de voz brasileiro não suporta SMS.
-                </p>
+              <div className="pl-1 space-y-3">
+                <div>
+                  <Label htmlFor="sms-from" className="text-xs">Número de origem (SMS)</Label>
+                  <Input
+                    id="sms-from"
+                    placeholder="+14782105167"
+                    value={form.marketing_sms_from_number ?? ""}
+                    onChange={(e) => setForm((p) => ({ ...p, marketing_sms_from_number: e.target.value }))}
+                    className="mt-1 font-mono text-sm"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Use um número Twilio com SMS habilitado. O número de voz brasileiro não suporta SMS.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    disabled={testSmsMutation.isPending}
+                    onClick={() => { setTestSmsResult(null); testSmsMutation.mutate(); }}
+                  >
+                    {testSmsMutation.isPending
+                      ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testando...</>
+                      : <><Wifi className="h-3.5 w-3.5" /> Testar conexão</>
+                    }
+                  </Button>
+                  {testSmsResult && (
+                    <span className={`flex items-center gap-1 text-xs font-medium ${testSmsResult.ok ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                      {testSmsResult.ok
+                        ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                        : <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      }
+                      {testSmsResult.message}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
