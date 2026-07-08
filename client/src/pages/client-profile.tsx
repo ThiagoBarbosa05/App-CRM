@@ -117,10 +117,6 @@ export default function ClientProfilePage() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("info");
-
-  useEffect(() => {
-    setActiveTab("info");
-  }, [id]);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -158,16 +154,16 @@ export default function ClientProfilePage() {
 
   useEffect(() => {
     const nextTab =
-      new URLSearchParams(window.location.search).get("tab") || "compras";
+      new URLSearchParams(window.location.search).get("tab") || "info";
     setActiveTab(nextTab);
   }, [location, id]);
 
   useEffect(() => {
     const currentTab =
-      new URLSearchParams(window.location.search).get("tab") || "compras";
+      new URLSearchParams(window.location.search).get("tab") || "info";
     if (currentTab !== activeTab) {
       const url = new URL(window.location.href);
-      if (activeTab === "compras") {
+      if (activeTab === "info") {
         url.searchParams.delete("tab");
       } else {
         url.searchParams.set("tab", activeTab);
