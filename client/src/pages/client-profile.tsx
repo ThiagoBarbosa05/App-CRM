@@ -117,6 +117,10 @@ export default function ClientProfilePage() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("info");
+
+  useEffect(() => {
+    setActiveTab("info");
+  }, [id]);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
