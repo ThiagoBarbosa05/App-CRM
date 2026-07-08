@@ -40,6 +40,7 @@ const allowedOrigins = Array.from(
       process.env.APP_URL,
       "https://crmgrandcru.replit.app",
       "http://localhost:5000",
+      "https://1f0bbde6-1c5c-4e9a-82c3-ec21ba583692-00-hgbt6xeiwp4q.janeway.replit.dev",
     ].filter((origin): origin is string => !!origin),
   ),
 );
