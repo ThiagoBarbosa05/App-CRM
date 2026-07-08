@@ -51,6 +51,18 @@ vi.mock("@aws-sdk/client-s3", async (importOriginal) => {
   };
 });
 
+vi.mock("../../middleware/validation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../middleware/validation")>();
+
+  return {
+    ...actual,
+    requireAuth: (req: any, _res: any, next: any) => {
+      req.user = { userId: "test-user-id", role: "admin", email: "test@example.com" };
+      next();
+    },
+  };
+});
+
 describe("object storage routers", () => {
   beforeEach(() => {
     searchPublicObjectMock.mockReset();

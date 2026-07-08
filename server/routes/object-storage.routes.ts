@@ -8,6 +8,9 @@ import {
 } from "@aws-sdk/client-s3";
 
 import { ObjectNotFoundError, ObjectStorageService } from "../objectStorage";
+import { requireAuth } from "../middleware/validation";
+
+const BUCKET = process.env.CLOUDFLARE_BUCKET_NAME || "crm-test";
 
 const upload = multer({
   limits: { fileSize: 15 * 1024 * 1024 },
@@ -37,7 +40,7 @@ export function createObjectStorageApiRouter() {
     }
   });
 
-  app.post("/api/upload", upload.single("file"), async (req, res) => {
+  app.post("/api/upload", requireAuth, upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "Arquivo não fornecido" });
@@ -47,11 +50,10 @@ export function createObjectStorageApiRouter() {
 
       await s3.send(
         new PutObjectCommand({
-          Bucket: "crm-test",
+          Bucket: BUCKET,
           Key: uniqueFileName,
           Body: req.file.buffer,
           ContentType: req.file.mimetype,
-          ACL: "public-read",
         }),
       );
 
@@ -70,7 +72,7 @@ export function createObjectStorageApiRouter() {
     }
   });
 
-  app.delete("/api/delete-file", async (req, res) => {
+  app.delete("/api/delete-file", requireAuth, async (req, res) => {
     try {
       const { fileUrl } = req.body;
 
@@ -80,7 +82,7 @@ export function createObjectStorageApiRouter() {
 
       await s3.send(
         new DeleteObjectCommand({
-          Bucket: "crm-test",
+          Bucket: BUCKET,
           Key: fileUrl,
         }),
       );

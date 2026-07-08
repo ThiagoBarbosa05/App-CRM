@@ -422,8 +422,8 @@ próxima compra com status do ciclo.`,
     `Busca pedidos (Bling + Connect) com filtros por período, cliente ou vendedor.
 Retorna data, valor, cliente, vendedor, fonte e número do pedido.`,
     {
-      dataInicio: z.string().optional().describe("Data de início no formato YYYY-MM-DD"),
-      dataFim: z.string().optional().describe("Data de fim no formato YYYY-MM-DD"),
+      dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato esperado: YYYY-MM-DD").optional().describe("Data de início no formato YYYY-MM-DD"),
+      dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato esperado: YYYY-MM-DD").optional().describe("Data de fim no formato YYYY-MM-DD"),
       clienteId: z.string().uuid().optional().describe("Filtrar por cliente (UUID)"),
       vendedorId: z.string().uuid().optional().describe("Filtrar por vendedor (UUID)"),
       fonte: z.enum(["all", "bling", "connect"]).default("all").describe("Fonte: 'bling', 'connect' ou 'all'"),
