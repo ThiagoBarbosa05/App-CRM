@@ -4,6 +4,12 @@ import { eq, and, desc, count, sql } from "drizzle-orm";
 import { sendEmail, EmailApiError } from "../integrations/email";
 import { resolveTargetClients, type MarketingTargetType } from "./marketing-targeting.service";
 
+function resolveEmailContent(content: string, clientName: string): string {
+  return content
+    .replace(/\{\{primeiro_nome\}\}/g, clientName.trim().split(/\s+/)[0])
+    .replace(/\{\{nome_completo\}\}/g, clientName.trim());
+}
+
 export async function listCampaigns(): Promise<(EmailCampaign & {
   creator: { name: string } | null;
   deliveredCount: number;
@@ -154,7 +160,7 @@ export async function executeCampaign(
     }
 
     try {
-      const { messageId } = await sendEmail({ to: client.email, subject: campaign.subject, html: campaign.content });
+      const { messageId } = await sendEmail({ to: client.email, subject: campaign.subject, html: resolveEmailContent(campaign.content, client.name) });
       await db
         .update(emailCampaignRecipients)
         .set({ status: "sent", sentAt: new Date(), messageId: messageId ?? null })

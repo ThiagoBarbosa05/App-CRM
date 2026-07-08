@@ -10,9 +10,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Plus, Send, Trash2, Calendar, Users, Clock, User, Search, X, Eye, Pencil, CheckCircle2, MailOpen, AlertCircle } from "lucide-react";
+import { Mail, Plus, Send, Trash2, Calendar, Users, Clock, User, Search, X, Eye, Pencil, CheckCircle2, MailOpen, AlertCircle, ChevronDown } from "lucide-react";
 import { formatDate, cn } from "@/lib/utils";
+
+const EMAIL_VARIABLES = [
+  { label: "Primeiro nome", tag: "{{primeiro_nome}}", resolve: (name: string) => name.trim().split(/\s+/)[0] },
+  { label: "Nome completo", tag: "{{nome_completo}}", resolve: (name: string) => name.trim() },
+];
+
+function resolveEmailContent(content: string, clientName: string): string {
+  let resolved = content;
+  for (const v of EMAIL_VARIABLES) {
+    resolved = resolved.replaceAll(v.tag, v.resolve(clientName));
+  }
+  return resolved;
+}
 
 interface EmailCampaign {
   id: string;
@@ -190,9 +204,8 @@ function buildEmailSrcDoc(html: string): string {
 }
 
 /**
- * Campo de conteúdo HTML do email com alternância Editar / Visualizar.
- * A prévia renderiza o HTML num iframe isolado (sandbox sem scripts), do jeito
- * que o cliente receberá, sem afetar o layout da aplicação.
+ * Campo de conteúdo HTML do email com alternância Editar / Visualizar
+ * e botão de inserção de variáveis (primeiro nome, nome completo).
  */
 function HtmlContentField({
   id,
@@ -200,49 +213,102 @@ function HtmlContentField({
   onChange,
   placeholder,
   rows = 8,
+  clientName,
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   rows?: number;
+  clientName?: string;
 }) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [showVarsMenu, setShowVarsMenu] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canPreview = value.trim() !== "";
-  const srcDoc = buildEmailSrcDoc(value);
+
+  const previewContent = clientName
+    ? resolveEmailContent(value, clientName)
+    : value
+        .replace(/\{\{primeiro_nome\}\}/g, "[primeiro nome]")
+        .replace(/\{\{nome_completo\}\}/g, "[nome completo]");
+  const srcDoc = buildEmailSrcDoc(previewContent);
+
+  const insertVariable = (tag: string) => {
+    const el = textareaRef.current;
+    if (!el) {
+      onChange(value + tag);
+      setShowVarsMenu(false);
+      return;
+    }
+    const start = el.selectionStart ?? value.length;
+    const end = el.selectionEnd ?? value.length;
+    const newVal = value.slice(0, start) + tag + value.slice(end);
+    onChange(newVal);
+    setShowVarsMenu(false);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + tag.length, start + tag.length);
+    });
+  };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
         <Label htmlFor={id}>Conteúdo (HTML)</Label>
-        <div className="inline-flex rounded-md border p-0.5 bg-background">
-          <button
-            type="button"
-            onClick={() => setMode("edit")}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1 text-xs rounded transition-colors",
-              mode === "edit" ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Pencil className="h-3 w-3" /> Editar
-          </button>
-          <button
-            type="button"
-            onClick={() => canPreview && setMode("preview")}
-            disabled={!canPreview}
-            title={canPreview ? undefined : "Digite o conteúdo para visualizar"}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1 text-xs rounded transition-colors",
-              mode === "preview" ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground",
-              !canPreview && "opacity-40 cursor-not-allowed hover:text-muted-foreground",
-            )}
-          >
-            <Eye className="h-3 w-3" /> Visualizar
-          </button>
+        <div className="flex items-center gap-2">
+          <Popover open={showVarsMenu} onOpenChange={setShowVarsMenu}>
+            <PopoverTrigger asChild>
+              <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1.5">
+                <span className="text-primary font-mono text-[10px]">{"{{}}"}</span>
+                Variável
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-44 p-0" align="end">
+              {EMAIL_VARIABLES.map((v) => (
+                <button
+                  key={v.tag}
+                  type="button"
+                  onClick={() => insertVariable(v.tag)}
+                  className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0"
+                >
+                  <span className="block font-medium">{v.label}</span>
+                  <span className="text-[11px] text-muted-foreground font-mono">{v.tag}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+          <div className="inline-flex rounded-md border p-0.5 bg-background">
+            <button
+              type="button"
+              onClick={() => setMode("edit")}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 text-xs rounded transition-colors",
+                mode === "edit" ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Pencil className="h-3 w-3" /> Editar
+            </button>
+            <button
+              type="button"
+              onClick={() => canPreview && setMode("preview")}
+              disabled={!canPreview}
+              title={canPreview ? undefined : "Digite o conteúdo para visualizar"}
+              className={cn(
+                "flex items-center gap-1 px-2.5 py-1 text-xs rounded transition-colors",
+                mode === "preview" ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground",
+                !canPreview && "opacity-40 cursor-not-allowed hover:text-muted-foreground",
+              )}
+            >
+              <Eye className="h-3 w-3" /> Visualizar
+            </button>
+          </div>
         </div>
       </div>
       {mode === "edit" ? (
         <Textarea
+          ref={textareaRef}
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -261,9 +327,14 @@ function HtmlContentField({
           />
         </div>
       )}
+      {mode === "edit" && (
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          Use <strong>Variável</strong> para inserir dados do cliente automaticamente no email.
+        </p>
+      )}
       {mode === "preview" && (
         <p className="text-[11px] text-muted-foreground mt-1.5 flex items-center gap-1">
-          <Eye className="h-3 w-3" /> Prévia de como o cliente receberá o email.
+          <Eye className="h-3 w-3" /> Prévia de como o cliente receberá o email{clientName ? ` (${clientName.trim().split(/\s+/)[0]})` : ""}.
         </p>
       )}
     </div>
@@ -444,7 +515,8 @@ export function MarketingEmailTab() {
                   id="ind-content"
                   value={individualData.content}
                   onChange={(v) => setIndividualData((p) => ({ ...p, content: v }))}
-                  placeholder="Digite o conteúdo do email..."
+                  placeholder="Olá {{primeiro_nome}}, temos uma novidade especial para você!"
+                  clientName={individualData.clientName || undefined}
                 />
 
                 <div className="flex justify-end gap-2">
@@ -540,7 +612,7 @@ export function MarketingEmailTab() {
                   id="email-content"
                   value={formData.content}
                   onChange={(v) => setFormData((prev) => ({ ...prev, content: v }))}
-                  placeholder="Digite o conteúdo do email..."
+                  placeholder="Olá {{primeiro_nome}}, temos uma novidade especial para você!"
                 />
 
                 <div className="flex justify-end gap-2">
