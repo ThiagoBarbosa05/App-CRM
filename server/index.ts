@@ -47,11 +47,13 @@ const allowedOrigins = Array.from(
 app.use(
   cors({
     origin(origin, callback) {
+      // Sem Origin (server-to-server, Twilio, Bling, etc.) ou origem permitida → OK
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
-      callback(new Error("Not allowed by CORS"));
+      // Retorna false em vez de lançar Error — evita "unhandled exception" nos logs
+      callback(null, false);
     },
     credentials: true,
   }),
