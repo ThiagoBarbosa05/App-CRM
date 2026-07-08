@@ -44,8 +44,21 @@ export async function getCampaign(id: string) {
   const [campaign] = await db.select().from(emailCampaigns).where(eq(emailCampaigns.id, id));
   if (!campaign) return null;
   const recipients = await db
-    .select()
+    .select({
+      id: emailCampaignRecipients.id,
+      campaignId: emailCampaignRecipients.campaignId,
+      clientId: emailCampaignRecipients.clientId,
+      status: emailCampaignRecipients.status,
+      messageId: emailCampaignRecipients.messageId,
+      sentAt: emailCampaignRecipients.sentAt,
+      openedAt: emailCampaignRecipients.openedAt,
+      errorMessage: emailCampaignRecipients.errorMessage,
+      createdAt: emailCampaignRecipients.createdAt,
+      clientName: clients.name,
+      clientEmail: clients.email,
+    })
     .from(emailCampaignRecipients)
+    .leftJoin(clients, eq(emailCampaignRecipients.clientId, clients.id))
     .where(eq(emailCampaignRecipients.campaignId, id));
   return { ...campaign, recipients };
 }

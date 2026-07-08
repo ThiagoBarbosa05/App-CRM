@@ -110,8 +110,20 @@ export async function getCampaign(id: string) {
   const [campaign] = await db.select().from(smsCampaigns).where(eq(smsCampaigns.id, id));
   if (!campaign) return null;
   const recipients = await db
-    .select()
+    .select({
+      id: smsCampaignMessages.id,
+      campaignId: smsCampaignMessages.campaignId,
+      clientId: smsCampaignMessages.clientId,
+      phone: smsCampaignMessages.phone,
+      status: smsCampaignMessages.status,
+      twilioSid: smsCampaignMessages.twilioSid,
+      errorMessage: smsCampaignMessages.errorMessage,
+      sentAt: smsCampaignMessages.sentAt,
+      createdAt: smsCampaignMessages.createdAt,
+      clientName: clients.name,
+    })
     .from(smsCampaignMessages)
+    .leftJoin(clients, eq(smsCampaignMessages.clientId, clients.id))
     .where(eq(smsCampaignMessages.campaignId, id));
   return { ...campaign, recipients };
 }

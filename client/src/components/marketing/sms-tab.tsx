@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown, Clock, Target, RefreshCw } from "lucide-react";
+import { MessageSquare, Plus, Send, Trash2, Calendar, Users, Zap, CheckCircle2, Search, Phone, X, ChevronDown, Clock, Target, RefreshCw, BarChart2, XCircle, CheckCheck, User } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
 const SMS_VARIABLES = [
@@ -237,6 +237,19 @@ export function MarketingSmsTab() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [scheduleTarget, setScheduleTarget] = useState<SmsCampaign | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
+  const [reportTarget, setReportTarget] = useState<SmsCampaign | null>(null);
+
+  interface SmsRecipientDetail {
+    id: string; clientId: string; phone: string; status: string;
+    sentAt: string | null; errorMessage: string | null;
+    twilioSid: string | null; clientName: string | null;
+  }
+  interface SmsCampaignDetail extends SmsCampaign { recipients: SmsRecipientDetail[]; }
+
+  const { data: smsReportDetail, isLoading: smsReportLoading } = useQuery<SmsCampaignDetail>({
+    queryKey: ["/api/sms-campaigns", reportTarget?.id],
+    enabled: !!reportTarget?.id,
+  });
   const [individualData, setIndividualData] = useState(EMPTY_INDIVIDUAL);
   const [sentSuccess, setSentSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
@@ -901,7 +914,17 @@ export function MarketingSmsTab() {
                         <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncStatusMutation.isPending ? "animate-spin" : ""}`} />
                         Sincronizar status
                       </Button>
+                      <Button variant="outline" size="sm" onClick={() => setReportTarget(campaign)}>
+                        <BarChart2 className="h-3.5 w-3.5 mr-1.5" />
+                        Relatório
+                      </Button>
                     </div>
+                  )}
+                  {(campaign.status === "scheduled" || campaign.status === "sending") && (
+                    <Button variant="outline" size="sm" onClick={() => setReportTarget(campaign)}>
+                      <BarChart2 className="h-3.5 w-3.5 mr-1.5" />
+                      Relatório
+                    </Button>
                   )}
                 </div>
               </CardContent>
@@ -984,6 +1007,117 @@ export function MarketingSmsTab() {
           </Card>
         </div>
       )}
+
+      {/* Dialog de relatório da campanha de SMS */}
+      <Dialog open={!!reportTarget} onOpenChange={(v) => { if (!v) setReportTarget(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart2 className="h-4 w-4 text-primary" />
+              Relatório da campanha
+            </DialogTitle>
+            {reportTarget && (
+              <p className="text-sm text-muted-foreground truncate">
+                {reportTarget.name}
+              </p>
+            )}
+          </DialogHeader>
+
+          {smsReportLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
+              Carregando relatório...
+            </div>
+          ) : smsReportDetail ? (() => {
+            const recps = smsReportDetail.recipients;
+            const total = smsReportDetail.totalRecipients ?? recps.length;
+            const sent = recps.filter(r => ["sent","delivered"].includes(r.status)).length;
+            const delivered = recps.filter(r => r.status === "delivered").length;
+            const failed = recps.filter(r => r.status === "failed").length;
+            const pct = total > 0 ? Math.round((sent / total) * 100) : 0;
+            const deliveryPct = sent > 0 ? Math.round((delivered / sent) * 100) : 0;
+
+            function statusLabel(s: string) {
+              switch (s) {
+                case "sent": return { label: "Enviado", color: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300" };
+                case "delivered": return { label: "Entregue", color: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300" };
+                case "failed": return { label: "Falhou", color: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300" };
+                default: return { label: "Pendente", color: "bg-muted text-muted-foreground" };
+              }
+            }
+
+            return (
+              <div className="flex flex-col gap-4 overflow-hidden min-h-0">
+                {/* Stats */}
+                <div className="grid grid-cols-4 gap-2 shrink-0">
+                  {[
+                    { label: "Total", value: total, icon: <Users className="h-4 w-4 text-muted-foreground" /> },
+                    { label: "Enviados", value: sent, icon: <Send className="h-4 w-4 text-blue-500" /> },
+                    { label: "Entregues", value: delivered, icon: <CheckCheck className="h-4 w-4 text-green-500" /> },
+                    { label: "Com erro", value: failed, icon: <XCircle className="h-4 w-4 text-red-500" /> },
+                  ].map(({ label, value, icon }) => (
+                    <div key={label} className="rounded-lg border bg-card p-3 text-center">
+                      <div className="flex justify-center mb-1">{icon}</div>
+                      <div className="text-xl font-bold">{value}</div>
+                      <div className="text-xs text-muted-foreground">{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Progress bars */}
+                <div className="space-y-2 shrink-0">
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Taxa de envio</span><span>{pct}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Taxa de entrega (dos enviados)</span><span>{deliveryPct}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${deliveryPct}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="shrink-0" />
+
+                {/* Recipients list */}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                  {recps.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">Nenhum destinatário encontrado.</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {recps.map((r) => {
+                        const st = statusLabel(r.status);
+                        return (
+                          <div key={r.id} className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
+                            <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{r.clientName ?? "—"}</p>
+                              <p className="text-xs text-muted-foreground truncate">{r.phone}</p>
+                            </div>
+                            <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
+                            {r.sentAt && (
+                              <span className="shrink-0 text-xs text-muted-foreground">{formatDate(r.sentAt)}</span>
+                            )}
+                            {r.errorMessage && (
+                              <span className="shrink-0 text-xs text-red-500 max-w-[180px] truncate" title={r.errorMessage}>{r.errorMessage}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })() : null}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de agendamento */}
       <Dialog open={!!scheduleTarget} onOpenChange={(v) => { if (!v) { setScheduleTarget(null); setScheduleDate(""); } }}>
