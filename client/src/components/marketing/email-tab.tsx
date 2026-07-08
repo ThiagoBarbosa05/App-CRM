@@ -356,6 +356,28 @@ export function MarketingEmailTab() {
     queryKey: ["/api/email-campaigns"],
   });
 
+  interface TagOption { id: string; name: string; type: string; }
+
+  const { data: categories = [] } = useQuery<TagOption[]>({
+    queryKey: ["/api/tags/categories"],
+    enabled: isCreateOpen,
+  });
+  const { data: origins = [] } = useQuery<TagOption[]>({
+    queryKey: ["/api/tags/origins"],
+    enabled: isCreateOpen,
+  });
+  const { data: markers = [] } = useQuery<TagOption[]>({
+    queryKey: ["/api/tags/markers"],
+    enabled: isCreateOpen,
+  });
+
+  const criteriaOptions = (() => {
+    if (formData.targetType === "category") return categories;
+    if (formData.targetType === "origin") return origins;
+    if (formData.targetType === "markers") return markers;
+    return [];
+  })();
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const res = await apiRequest("POST", "/api/email-campaigns", {
@@ -597,13 +619,21 @@ export function MarketingEmailTab() {
                         {formData.targetType === "origin" && "Origem"}
                         {formData.targetType === "markers" && "Marcador"}
                       </Label>
-                      <Input
-                        id="email-target-criteria"
+                      <Select
                         value={formData.targetCriteria}
-                        onChange={(e) => setFormData((prev) => ({ ...prev, targetCriteria: e.target.value }))}
-                        placeholder="Valor exato cadastrado no cliente"
-                        required
-                      />
+                        onValueChange={(v) => setFormData((prev) => ({ ...prev, targetCriteria: v }))}
+                      >
+                        <SelectTrigger id="email-target-criteria">
+                          <SelectValue placeholder={criteriaOptions.length === 0 ? "Nenhuma opção cadastrada" : "Selecione..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {criteriaOptions.map((opt) => (
+                            <SelectItem key={opt.id} value={opt.name}>
+                              {opt.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>
