@@ -82,6 +82,14 @@ const TARGET_TYPE_LABEL: Record<string, string> = {
 
 function describeTarget(targetType: string, targetCriteria: string | null): string {
   if (targetType === "all") return "Todos os clientes";
+  if (targetType === "segment_filters") {
+    try {
+      const p = JSON.parse(targetCriteria ?? "");
+      return `Segmento: ${p.label ?? "Personalizado"}`;
+    } catch {
+      return "Segmento personalizado";
+    }
+  }
   const label = TARGET_TYPE_LABEL[targetType] ?? "Público";
   return targetCriteria ? `${label}: ${targetCriteria}` : label;
 }
@@ -230,7 +238,7 @@ const EMPTY_INDIVIDUAL = { to: "", clientId: "", clientName: "", message: "" };
 const SMS_MAX_LENGTH = 320;
 
 interface MarketingSmsTabProps {
-  prefilledSegment?: { segmentLabel: string; targetType: string; targetCriteria: string } | null;
+  prefilledSegment?: { segmentLabel: string; filters: Record<string, string | boolean> } | null;
   onSegmentConsumed?: () => void;
 }
 
@@ -243,13 +251,12 @@ export function MarketingSmsTab({ prefilledSegment, onSegmentConsumed }: Marketi
 
   useEffect(() => {
     if (!prefilledSegment) return;
-    const { targetType, targetCriteria, segmentLabel } = prefilledSegment;
-    const mappedType = ["markers", "category", "origin"].includes(targetType) ? targetType : "all";
+    const { segmentLabel, filters } = prefilledSegment;
     setFormData({
       name: `Campanha — ${segmentLabel}`,
       message: "",
-      targetType: mappedType,
-      targetCriteria: mappedType !== "all" ? targetCriteria : "",
+      targetType: "segment_filters",
+      targetCriteria: JSON.stringify({ label: segmentLabel, filters }),
     });
     setIsCreateOpen(true);
     onSegmentConsumed?.();
@@ -679,53 +686,73 @@ export function MarketingSmsTab({ prefilledSegment, onSegmentConsumed }: Marketi
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {formData.targetType === "segment_filters" ? (
                   <div>
-                    <Label htmlFor="sms-target-type">Público-alvo</Label>
-                    <Select
-                      value={formData.targetType}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, targetType: value, targetCriteria: "" }))}
-                    >
-                      <SelectTrigger id="sms-target-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos os clientes</SelectItem>
-                        <SelectItem value="category">Por categoria</SelectItem>
-                        <SelectItem value="origin">Por origem</SelectItem>
-                        <SelectItem value="markers">Por marcador</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Público-alvo</Label>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="font-medium">
+                        {(() => {
+                          try {
+                            const p = JSON.parse(formData.targetCriteria);
+                            return `Segmento: ${p.label ?? "Personalizado"}`;
+                          } catch {
+                            return "Segmento personalizado";
+                          }
+                        })()}
+                      </span>
+                      <span className="text-muted-foreground text-xs ml-auto">(definido pelo segmento)</span>
+                    </div>
                   </div>
-                  {formData.targetType !== "all" && (
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="sms-target-criteria">
-                        {formData.targetType === "category" && "Categoria"}
-                        {formData.targetType === "origin" && "Origem"}
-                        {formData.targetType === "markers" && "Marcador"}
-                      </Label>
+                      <Label htmlFor="sms-target-type">Público-alvo</Label>
                       <Select
-                        value={formData.targetCriteria}
-                        onValueChange={(value) => setFormData((prev) => ({ ...prev, targetCriteria: value }))}
-                        disabled={targetTagsLoading}
+                        value={formData.targetType}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, targetType: value, targetCriteria: "" }))}
                       >
-                        <SelectTrigger id="sms-target-criteria">
-                          <SelectValue placeholder={targetTagsLoading ? "Carregando..." : "Selecione"} />
+                        <SelectTrigger id="sms-target-type">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {targetTags.length === 0 && !targetTagsLoading && (
-                            <div className="px-3 py-2 text-xs text-muted-foreground">Nenhuma opção cadastrada</div>
-                          )}
-                          {targetTags.map((tag) => (
-                            <SelectItem key={tag.id} value={tag.name}>
-                              {tag.name}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="all">Todos os clientes</SelectItem>
+                          <SelectItem value="category">Por categoria</SelectItem>
+                          <SelectItem value="origin">Por origem</SelectItem>
+                          <SelectItem value="markers">Por marcador</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
-                </div>
+                    {formData.targetType !== "all" && (
+                      <div>
+                        <Label htmlFor="sms-target-criteria">
+                          {formData.targetType === "category" && "Categoria"}
+                          {formData.targetType === "origin" && "Origem"}
+                          {formData.targetType === "markers" && "Marcador"}
+                        </Label>
+                        <Select
+                          value={formData.targetCriteria}
+                          onValueChange={(value) => setFormData((prev) => ({ ...prev, targetCriteria: value }))}
+                          disabled={targetTagsLoading}
+                        >
+                          <SelectTrigger id="sms-target-criteria">
+                            <SelectValue placeholder={targetTagsLoading ? "Carregando..." : "Selecione"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {targetTags.length === 0 && !targetTagsLoading && (
+                              <div className="px-3 py-2 text-xs text-muted-foreground">Nenhuma opção cadastrada</div>
+                            )}
+                            {targetTags.map((tag) => (
+                              <SelectItem key={tag.id} value={tag.name}>
+                                {tag.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {(previewEnabled && (previewLoading || !!previewCount)) && (
                   <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${

@@ -47,8 +47,7 @@ interface SegmentsOverview {
 
 export interface SegmentCampaignPayload {
   segmentLabel: string;
-  targetType: string;
-  targetCriteria: string;
+  filters: Record<string, string | boolean>;
   channel: "email" | "sms" | "whatsapp";
 }
 
@@ -92,26 +91,6 @@ const GROUP_STYLE: Record<
   },
 };
 
-/** Converte os filtros do segmento em targetType + targetCriteria para campanhas */
-function filtersToTarget(filters: Record<string, string | boolean>): {
-  targetType: string;
-  targetCriteria: string;
-} {
-  if (filters.markers) {
-    const markerStr = String(filters.markers);
-    const firstMarker = markerStr.split(",")[0].trim();
-    return { targetType: "markers", targetCriteria: firstMarker };
-  }
-  if (filters.categoria) {
-    return { targetType: "category", targetCriteria: String(filters.categoria) };
-  }
-  // Wine profile filters fallback to "all" (não existe targetType equivalente nas campanhas)
-  // O nome da campanha já identifica o segmento, o usuário pode refinar o público manualmente
-  if (filters.rfmSegment || filters.wineRegion || filters.wineGrape || filters.wineType || filters.status) {
-    return { targetType: "all", targetCriteria: "" };
-  }
-  return { targetType: "all", targetCriteria: "" };
-}
 
 /** Monta a URL de deep-link para a lista de clientes já filtrada. */
 function buildClientsUrl(filters: Record<string, string | boolean>): string {
@@ -172,13 +151,9 @@ export function MarketingSegmentationTab({ onCreateCampaign }: Props) {
 
   function handleChannelSelect(channel: "email" | "sms" | "whatsapp") {
     if (!channelDialogSegment || !onCreateCampaign) return;
-    const { targetType, targetCriteria } = filtersToTarget(
-      channelDialogSegment.filters,
-    );
     onCreateCampaign({
       segmentLabel: channelDialogSegment.label,
-      targetType,
-      targetCriteria,
+      filters: channelDialogSegment.filters,
       channel,
     });
     setChannelDialogSegment(null);

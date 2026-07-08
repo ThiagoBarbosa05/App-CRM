@@ -342,7 +342,7 @@ function HtmlContentField({
 }
 
 interface MarketingEmailTabProps {
-  prefilledSegment?: { segmentLabel: string; targetType: string; targetCriteria: string } | null;
+  prefilledSegment?: { segmentLabel: string; filters: Record<string, string | boolean> } | null;
   onSegmentConsumed?: () => void;
 }
 
@@ -355,15 +355,14 @@ export function MarketingEmailTab({ prefilledSegment, onSegmentConsumed }: Marke
 
   useEffect(() => {
     if (!prefilledSegment) return;
-    const { targetType, targetCriteria, segmentLabel } = prefilledSegment;
-    const mappedType = ["markers", "category", "origin"].includes(targetType) ? targetType : "all";
+    const { segmentLabel, filters } = prefilledSegment;
     setFormData({
       name: `Campanha — ${segmentLabel}`,
       subject: "",
       content: "",
       templateType: "custom",
-      targetType: mappedType,
-      targetCriteria: mappedType !== "all" ? targetCriteria : "",
+      targetType: "segment_filters",
+      targetCriteria: JSON.stringify({ label: segmentLabel, filters }),
     });
     setIsCreateOpen(true);
     onSegmentConsumed?.();
@@ -628,49 +627,69 @@ export function MarketingEmailTab({ prefilledSegment, onSegmentConsumed }: Marke
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {formData.targetType === "segment_filters" ? (
                   <div>
-                    <Label htmlFor="email-target-type">Público-alvo</Label>
-                    <Select
-                      value={formData.targetType}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, targetType: value, targetCriteria: "" }))}
-                    >
-                      <SelectTrigger id="email-target-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos os clientes</SelectItem>
-                        <SelectItem value="category">Por categoria</SelectItem>
-                        <SelectItem value="origin">Por origem</SelectItem>
-                        <SelectItem value="markers">Por marcador</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Público-alvo</Label>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="font-medium">
+                        {(() => {
+                          try {
+                            const p = JSON.parse(formData.targetCriteria);
+                            return `Segmento: ${p.label ?? "Personalizado"}`;
+                          } catch {
+                            return "Segmento personalizado";
+                          }
+                        })()}
+                      </span>
+                      <span className="text-muted-foreground text-xs ml-auto">(definido pelo segmento)</span>
+                    </div>
                   </div>
-                  {formData.targetType !== "all" && (
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="email-target-criteria">
-                        {formData.targetType === "category" && "Categoria"}
-                        {formData.targetType === "origin" && "Origem"}
-                        {formData.targetType === "markers" && "Marcador"}
-                      </Label>
+                      <Label htmlFor="email-target-type">Público-alvo</Label>
                       <Select
-                        value={formData.targetCriteria}
-                        onValueChange={(v) => setFormData((prev) => ({ ...prev, targetCriteria: v }))}
+                        value={formData.targetType}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, targetType: value, targetCriteria: "" }))}
                       >
-                        <SelectTrigger id="email-target-criteria">
-                          <SelectValue placeholder={criteriaOptions.length === 0 ? "Nenhuma opção cadastrada" : "Selecione..."} />
+                        <SelectTrigger id="email-target-type">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {criteriaOptions.map((opt) => (
-                            <SelectItem key={opt.id} value={opt.name}>
-                              {opt.name}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="all">Todos os clientes</SelectItem>
+                          <SelectItem value="category">Por categoria</SelectItem>
+                          <SelectItem value="origin">Por origem</SelectItem>
+                          <SelectItem value="markers">Por marcador</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
-                </div>
+                    {formData.targetType !== "all" && (
+                      <div>
+                        <Label htmlFor="email-target-criteria">
+                          {formData.targetType === "category" && "Categoria"}
+                          {formData.targetType === "origin" && "Origem"}
+                          {formData.targetType === "markers" && "Marcador"}
+                        </Label>
+                        <Select
+                          value={formData.targetCriteria}
+                          onValueChange={(v) => setFormData((prev) => ({ ...prev, targetCriteria: v }))}
+                        >
+                          <SelectTrigger id="email-target-criteria">
+                            <SelectValue placeholder={criteriaOptions.length === 0 ? "Nenhuma opção cadastrada" : "Selecione..."} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {criteriaOptions.map((opt) => (
+                              <SelectItem key={opt.id} value={opt.name}>
+                                {opt.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <HtmlContentField
                   id="email-content"
