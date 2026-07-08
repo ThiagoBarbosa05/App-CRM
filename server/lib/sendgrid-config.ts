@@ -13,16 +13,30 @@ async function getSettings(keys: string[]): Promise<Record<string, string>> {
 }
 
 export async function getSendGridConfig() {
+  // Lê tanto as chaves novas quanto as antigas (legadas) para compatibilidade
   const s = await getSettings([
     "sendgrid_api_key",
     "sendgrid_from_email",
     "sendgrid_from_name",
+    "marketing_sendgrid_api_key",
+    "marketing_sendgrid_from_email",
+    "marketing_sendgrid_from_name",
   ]);
   return {
-    apiKey: s["sendgrid_api_key"] || process.env.SENDGRID_API_KEY || "",
+    apiKey:
+      s["sendgrid_api_key"] ||
+      s["marketing_sendgrid_api_key"] ||
+      process.env.SENDGRID_API_KEY ||
+      "",
     fromEmail:
-      s["sendgrid_from_email"] || process.env.SENDGRID_FROM_EMAIL || "",
+      s["sendgrid_from_email"] ||
+      s["marketing_sendgrid_from_email"] ||
+      process.env.SENDGRID_FROM_EMAIL ||
+      "",
     fromName:
-      s["sendgrid_from_name"] || process.env.SENDGRID_FROM_NAME || "Marketing",
+      s["sendgrid_from_name"] ||
+      s["marketing_sendgrid_from_name"] ||
+      process.env.SENDGRID_FROM_NAME ||
+      "Marketing",
   };
 }

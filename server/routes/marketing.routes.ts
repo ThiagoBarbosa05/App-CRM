@@ -6,11 +6,16 @@ import { getMarketingSummaryController } from "../controllers/marketing/summary.
 
 export const marketingRouter = Router();
 
+// Chaves ativas (novas) + legadas (antigas) para compatibilidade com produção
 const MARKETING_SETTINGS_KEYS = [
   "sendgrid_api_key",
   "sendgrid_from_email",
   "sendgrid_from_name",
   "marketing_sms_from_number",
+  // legadas — salvas antes da renomeação
+  "marketing_sendgrid_api_key",
+  "marketing_sendgrid_from_email",
+  "marketing_sendgrid_from_name",
 ];
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -38,8 +43,21 @@ marketingRouter.get("/settings", requireAdmin, async (req, res) => {
       .select()
       .from(systemSettings)
       .where(inArray(systemSettings.key, MARKETING_SETTINGS_KEYS));
+    const raw: Record<string, string> = {};
+    for (const row of rows) raw[row.key] = row.value;
+
+    // Normaliza: expõe sempre as chaves novas, usando legadas como fallback
     const map: Record<string, string> = {};
-    for (const row of rows) map[row.key] = row.value;
+    map["sendgrid_api_key"]    = raw["sendgrid_api_key"]    || raw["marketing_sendgrid_api_key"]    || "";
+    map["sendgrid_from_email"] = raw["sendgrid_from_email"] || raw["marketing_sendgrid_from_email"] || "";
+    map["sendgrid_from_name"]  = raw["sendgrid_from_name"]  || raw["marketing_sendgrid_from_name"]  || "";
+    map["marketing_sms_from_number"] = raw["marketing_sms_from_number"] || "";
+
+    // Remove vazios para não poluir o frontend
+    for (const k of Object.keys(map)) {
+      if (!map[k]) delete map[k];
+    }
+
     res.json(map);
   } catch {
     res.status(500).json({ message: "Erro ao buscar configurações de marketing" });
@@ -56,12 +74,15 @@ marketingRouter.post("/test-sendgrid", requireAdmin, async (req, res) => {
     const rows = await db
       .select()
       .from(systemSettings)
-      .where(inArray(systemSettings.key, ["sendgrid_api_key", "sendgrid_from_email"]));
+      .where(inArray(systemSettings.key, [
+        "sendgrid_api_key", "sendgrid_from_email",
+        "marketing_sendgrid_api_key", "marketing_sendgrid_from_email",
+      ]));
     const map: Record<string, string> = {};
     for (const row of rows) map[row.key] = row.value;
 
-    const apiKey = map["sendgrid_api_key"] || process.env.SENDGRID_API_KEY || "";
-    const fromEmail = map["sendgrid_from_email"] || process.env.SENDGRID_FROM_EMAIL || "";
+    const apiKey   = map["sendgrid_api_key"]    || map["marketing_sendgrid_api_key"]    || process.env.SENDGRID_API_KEY    || "";
+    const fromEmail = map["sendgrid_from_email"] || map["marketing_sendgrid_from_email"] || process.env.SENDGRID_FROM_EMAIL || "";
 
     if (!apiKey) {
       return res.status(400).json({ ok: false, message: "API Key não configurada." });
