@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   User,
   Phone,
@@ -62,12 +62,16 @@ const RFM_DESCRIPTIONS: Record<string, string> = {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { ReactNode } from "react";
 import { type Client } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { CpfVerificationDialog } from "@/components/clients/cpf-verification-dialog";
 
 interface ClientInfoTabProps {
@@ -75,6 +79,15 @@ interface ClientInfoTabProps {
   onEdit?: (client: Client) => void;
   onClose: () => void;
 }
+
+type QuickFillField = "phone" | "cpf" | "birthday" | "email";
+
+const QUICK_FILL_CONFIG: Record<QuickFillField, { label: string; inputType: string; placeholder: string; hint?: string }> = {
+  phone: { label: "Telefone", inputType: "tel", placeholder: "(11) 99999-9999" },
+  cpf: { label: "CPF", inputType: "text", placeholder: "000.000.000-00" },
+  birthday: { label: "Aniversário", inputType: "date", placeholder: "" },
+  email: { label: "E-mail", inputType: "email", placeholder: "nome@email.com" },
+};
 
 export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
   const { toast } = useToast();
@@ -84,6 +97,38 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
     message?: string;
   }>({ status: "idle" });
   const [cpfDialogOpen, setCpfDialogOpen] = useState(false);
+
+  const [quickFillField, setQuickFillField] = useState<QuickFillField | null>(null);
+  const [quickFillValue, setQuickFillValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const quickFillMutation = useMutation({
+    mutationFn: async ({ field, value }: { field: QuickFillField; value: string }) => {
+      return apiRequest("PUT", `/api/clients/${client.id}`, { ...client, [field]: value });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      toast({ title: "Salvo!", description: `${QUICK_FILL_CONFIG[quickFillField!]?.label} atualizado com sucesso.` });
+      setQuickFillField(null);
+      setQuickFillValue("");
+    },
+    onError: () => {
+      toast({ title: "Erro", description: "Não foi possível salvar. Tente novamente.", variant: "destructive" });
+    },
+  });
+
+  function openQuickFill(field: QuickFillField) {
+    setQuickFillField(field);
+    setQuickFillValue(field === "birthday" && client.birthday ? client.birthday.slice(0, 10) : "");
+    setTimeout(() => inputRef.current?.focus(), 80);
+  }
+
+  function handleQuickFillSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!quickFillField || !quickFillValue.trim()) return;
+    quickFillMutation.mutate({ field: quickFillField, value: quickFillValue.trim() });
+  }
 
   function handleCopyCpf() {
     if (!client.cpf) return;
@@ -317,24 +362,24 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               interactive
               missing={!client.phone}
               copyValue={client.phone ?? undefined}
-              onFill={onEdit ? () => onEdit(client) : undefined}
+              onFill={() => openQuickFill("phone")}
             />
             {/* CPF / CNPJ tile com botão Assertiva */}
             <div
-              onClick={!client.cpf && onEdit ? () => onEdit(client) : undefined}
-              role={!client.cpf && onEdit ? "button" : undefined}
-              tabIndex={!client.cpf && onEdit ? 0 : undefined}
+              onClick={!client.cpf ? () => openQuickFill("cpf") : undefined}
+              role={!client.cpf ? "button" : undefined}
+              tabIndex={!client.cpf ? 0 : undefined}
               onKeyDown={
-                !client.cpf && onEdit
+                !client.cpf
                   ? (e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        onEdit(client);
+                        openQuickFill("cpf");
                       }
                     }
                   : undefined
               }
-              title={!client.cpf && onEdit ? `Clique para preencher ${client.documentType === "cnpj" ? "CNPJ" : "CPF"}` : undefined}
+              title={!client.cpf ? `Clique para preencher ${client.documentType === "cnpj" ? "CNPJ" : "CPF"}` : undefined}
               className={cn(
               "group rounded-[22px] border p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)]",
               !client.cpf
@@ -442,7 +487,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               label="Aniversário"
               value={client.birthday ? formatBirthday(client.birthday) : "Não informado"}
               missing={!client.birthday}
-              onFill={onEdit ? () => onEdit(client) : undefined}
+              onFill={() => openQuickFill("birthday")}
             />
             <InfoTile
               icon={Mail}
@@ -451,7 +496,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               value={client.email || "Não informado"}
               missing={!client.email}
               copyValue={client.email ?? undefined}
-              onFill={onEdit ? () => onEdit(client) : undefined}
+              onFill={() => openQuickFill("email")}
             />
             <div
               className={cn(
@@ -738,6 +783,62 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
           onOpenChange={setCpfDialogOpen}
         />
       )}
+
+      {/* Quick Fill Dialog — aparece ao clicar em um card de dado faltando */}
+      <Dialog open={!!quickFillField} onOpenChange={(open) => { if (!open) { setQuickFillField(null); setQuickFillValue(""); } }}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          {quickFillField && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-base font-black">
+                  {quickFillField === "phone" && <Phone className="h-4 w-4 text-blue-500" />}
+                  {quickFillField === "cpf" && <CreditCard className="h-4 w-4 text-slate-500" />}
+                  {quickFillField === "birthday" && <Calendar className="h-4 w-4 text-amber-500" />}
+                  {quickFillField === "email" && <Mail className="h-4 w-4 text-emerald-500" />}
+                  Preencher {QUICK_FILL_CONFIG[quickFillField].label}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleQuickFillSubmit} className="space-y-4 pt-1">
+                <div className="space-y-1.5">
+                  <Label htmlFor="quick-fill-input" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    {QUICK_FILL_CONFIG[quickFillField].label}
+                  </Label>
+                  <Input
+                    id="quick-fill-input"
+                    ref={inputRef}
+                    type={QUICK_FILL_CONFIG[quickFillField].inputType}
+                    placeholder={QUICK_FILL_CONFIG[quickFillField].placeholder}
+                    value={quickFillValue}
+                    onChange={(e) => setQuickFillValue(e.target.value)}
+                    className="h-11 rounded-xl text-sm"
+                    autoComplete="off"
+                    required
+                  />
+                </div>
+                <DialogFooter className="gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => { setQuickFillField(null); setQuickFillValue(""); }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="rounded-xl bg-gradient-to-r from-rose-600 to-red-500 text-white"
+                    disabled={quickFillMutation.isPending || !quickFillValue.trim()}
+                  >
+                    {quickFillMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
