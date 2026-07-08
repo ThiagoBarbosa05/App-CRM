@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   AlertCircle,
   Copy,
+  Plus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -316,13 +317,31 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               interactive
               missing={!client.phone}
               copyValue={client.phone ?? undefined}
+              onFill={onEdit ? () => onEdit(client) : undefined}
             />
             {/* CPF / CNPJ tile com botão Assertiva */}
-            <div className={cn(
+            <div
+              onClick={!client.cpf && onEdit ? () => onEdit(client) : undefined}
+              role={!client.cpf && onEdit ? "button" : undefined}
+              tabIndex={!client.cpf && onEdit ? 0 : undefined}
+              onKeyDown={
+                !client.cpf && onEdit
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onEdit(client);
+                      }
+                    }
+                  : undefined
+              }
+              title={!client.cpf && onEdit ? `Clique para preencher ${client.documentType === "cnpj" ? "CNPJ" : "CPF"}` : undefined}
+              className={cn(
               "group rounded-[22px] border p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)]",
               !client.cpf
                 ? "animate-slow-pulse border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20"
-                : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/75"
+                : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/75",
+              !client.cpf && onEdit &&
+                "cursor-pointer hover:border-red-400 dark:hover:border-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
             )}>
               <div className="flex items-start gap-3">
                 <div className={cn(
@@ -367,11 +386,19 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
                   </div>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <p className="mt-2 truncate text-base font-black text-slate-900 dark:text-slate-100">
-                        {formatCPF(client.cpf || "")}
+                      <p className={cn(
+                        "mt-2 flex items-center gap-1 truncate text-base font-black",
+                        !client.cpf ? "text-red-500 dark:text-red-400" : "text-slate-900 dark:text-slate-100",
+                      )}>
+                        {!client.cpf && onEdit && <Plus className="h-3.5 w-3.5 shrink-0" />}
+                        <span className="truncate">
+                          {!client.cpf && onEdit ? "Clique para preencher" : formatCPF(client.cpf || "")}
+                        </span>
                       </p>
                     </TooltipTrigger>
-                    <TooltipContent>{formatCPF(client.cpf || "")}</TooltipContent>
+                    <TooltipContent>
+                      {!client.cpf && onEdit ? "Clique para preencher" : formatCPF(client.cpf || "")}
+                    </TooltipContent>
                   </Tooltip>
                   {cpfVerify.status === "success" && (
                     <div className="mt-2 space-y-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-800/40 dark:bg-emerald-900/20">
@@ -415,6 +442,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               label="Aniversário"
               value={client.birthday ? formatBirthday(client.birthday) : "Não informado"}
               missing={!client.birthday}
+              onFill={onEdit ? () => onEdit(client) : undefined}
             />
             <InfoTile
               icon={Mail}
@@ -423,6 +451,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               value={client.email || "Não informado"}
               missing={!client.email}
               copyValue={client.email ?? undefined}
+              onFill={onEdit ? () => onEdit(client) : undefined}
             />
             <div
               className={cn(
@@ -750,6 +779,7 @@ function InfoTile({
   interactive = false,
   missing = false,
   copyValue,
+  onFill,
 }: {
   icon: typeof User;
   accent: TileAccent;
@@ -759,6 +789,7 @@ function InfoTile({
   interactive?: boolean;
   missing?: boolean;
   copyValue?: string;
+  onFill?: () => void;
 }) {
   const styles = tileAccentStyles[accent];
   const { toast } = useToast();
@@ -770,13 +801,31 @@ function InfoTile({
     });
   }
 
+  const clickable = missing && Boolean(onFill);
+
   return (
     <div
+      onClick={clickable ? onFill : undefined}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onFill!();
+              }
+            }
+          : undefined
+      }
+      title={clickable ? `Clique para preencher ${label.toLowerCase()}` : undefined}
       className={cn(
         "group rounded-[22px] border p-4 shadow-[0_18px_35px_-34px_rgba(15,23,42,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-34px_rgba(15,23,42,0.45)]",
         missing
           ? "animate-slow-pulse border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20"
           : "border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900/75",
+        clickable &&
+          "cursor-pointer hover:border-red-400 dark:hover:border-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400",
       )}
     >
       <div className="flex items-start gap-3">
@@ -823,12 +872,16 @@ function InfoTile({
             <Tooltip>
               <TooltipTrigger asChild>
                 <p
-                  className={cn("mt-2 truncate text-base font-black", missing ? "text-red-500 dark:text-red-400" : "text-slate-900 dark:text-slate-100")}
+                  className={cn(
+                    "mt-2 flex items-center gap-1 truncate text-base font-black",
+                    missing ? "text-red-500 dark:text-red-400" : "text-slate-900 dark:text-slate-100",
+                  )}
                 >
-                  {value}
+                  {clickable && <Plus className="h-3.5 w-3.5 shrink-0" />}
+                  <span className="truncate">{clickable ? "Clique para preencher" : value}</span>
                 </p>
               </TooltipTrigger>
-              <TooltipContent>{value}</TooltipContent>
+              <TooltipContent>{clickable ? "Clique para preencher" : value}</TooltipContent>
             </Tooltip>
           )}
         </div>

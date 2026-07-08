@@ -84,7 +84,8 @@
       "Bash(kill 3220 3237 3238 3249)",
       "Bash(pkill -9 -f \"tsx server/index.ts\")",
       "Bash(cp /tmp/claude-1000/-home-runner-workspace/2798ace8-2a24-4ed3-a20d-51dafe741d74/scratchpad/analyze-base.mjs /home/runner/workspace/scripts/_tmp-analyze-base.mjs)",
-      "Bash(rm -f /home/runner/workspace/scripts/_tmp-analyze-base.mjs)"
+      "Bash(rm -f /home/runner/workspace/scripts/_tmp-analyze-base.mjs)",
+      "Bash(NODE_OPTIONS=\"--max-old-space-size=6144\" npx tsc --noEmit -p tsconfig.json)"
     ]
   }
 }
