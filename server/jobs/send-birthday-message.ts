@@ -251,7 +251,7 @@ async function getBirthdayClients(daysBefore: number): Promise<ProcessedClient[]
     return birthdayClients
       .filter((client) => {
         if (!client.phone?.trim()) {
-          console.log(`[Birthday Job] Cliente ${client.name} sem telefone - ignorando`);
+          console.log(`[Birthday Job] Cliente ${client.id} sem telefone - ignorando`);
           return false;
         }
         return true;
@@ -285,7 +285,7 @@ async function processClientBirthday(
 
   try {
     if (config.logging.verboseMode) {
-      console.log(`[Birthday Job] Processando cliente ${client.name} (${client.phone})`);
+      console.log(`[Birthday Job] Processando cliente ${client.id}`);
     }
 
     const alreadySent = await hasAlreadySentBirthdayMessageThisYear(
@@ -296,7 +296,7 @@ async function processClientBirthday(
     );
 
     if (alreadySent) {
-      console.log(`[Birthday Job] Mensagem já enviada para ${client.name} neste ano - pulando`);
+      console.log(`[Birthday Job] Mensagem já enviada para ${client.id} neste ano - pulando`);
       jobLog.status = "falhou";
       jobLog.lastError = "Mensagem já enviada neste ano";
       return;
@@ -336,17 +336,17 @@ async function processClientBirthday(
     const sendResult = await retryWithBackoff(
       () => sendTemplateMessage(phoneE164, template.name, template.languageCode, components),
       retryConfig,
-      `envio de mensagem de aniversário para ${client.name}`,
+      `envio de mensagem de aniversário para cliente ${client.id}`,
     );
 
     jobLog.status = "enviado";
     jobLog.attempts = sendResult.attempts;
 
     if (config.logging.logSuccessfulSends) {
-      console.log(`[Birthday Job] Mensagem de aniversário enviada para ${client.name}`);
+      console.log(`[Birthday Job] Mensagem de aniversário enviada para ${client.id}`);
     }
   } catch (error) {
-    console.error(`[Birthday Job] Erro ao processar cliente ${client.name}:`, error);
+    console.error(`[Birthday Job] Erro ao processar cliente ${client.id}:`, error);
     jobLog.status = "falhou";
     jobLog.attempts = retryConfig.maxRetries;
     jobLog.lastError = error instanceof Error ? error.message : "Erro desconhecido";

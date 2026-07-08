@@ -4,8 +4,8 @@ import { sql } from "drizzle-orm";
 
 export const getClientsHealthController = async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string | undefined;
-    const userRole = req.query.userRole as string | undefined;
+    const userId = req.user?.userId;
+    const userRole = req.user?.role;
     const days = parseInt(req.query.purchaseStatusDays as string ?? "60", 10);
 
     const isVendedor =

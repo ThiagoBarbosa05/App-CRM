@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { registerRoutes } from "./routes";
@@ -22,13 +23,36 @@ import { users } from "@shared/schema";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import { getCachedPage, setCachedPage } from "./lib/landing-page-cache";
+import { redactPii } from "./lib/log-redaction";
 // import "./jobs/umbler-sync-scheduler";
 
 const app = express();
 
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// Lista explícita de origens do próprio frontend (produção + dev). Webhooks de
+// terceiros (Twilio, ElevenLabs, Bling) são chamadas servidor-a-servidor sem
+// header Origin e não passam por aqui — CORS só afeta requisições de navegador.
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      process.env.CLIENT_URL,
+      process.env.APP_URL,
+      "https://crmgrandcru.replit.app",
+      "http://localhost:5000",
+    ].filter((origin): origin is string => !!origin),
+  ),
+);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || true,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   }),
 );
@@ -59,7 +83,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        logLine += ` :: ${JSON.stringify(redactPii(capturedJsonResponse))}`;
       }
 
       if (logLine.length > 80) {

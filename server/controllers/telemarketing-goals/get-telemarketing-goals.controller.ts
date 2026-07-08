@@ -6,7 +6,7 @@ export const getTelemarketingGoalsController = async (
   res: Response
 ) => {
   try {
-    const userId = (req.query.userId as string) || req.user?.userId;
+    const userId = req.user?.userId;
     const userRole = req.user?.role;
 
     const goals = await telemarketingGoalsService.getGoals(userId, userRole);

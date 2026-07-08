@@ -1,6 +1,7 @@
 import { db } from "server/db";
 import { assertivaTokens } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { decryptToken, encryptToken } from "../lib/token-crypto";
 
 const TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token";
 const CPF_URL = "https://api.assertivasolucoes.com.br/localize/v3/cpf";
@@ -18,7 +19,13 @@ async function readTokenRow() {
     .from(assertivaTokens)
     .where(eq(assertivaTokens.id, TOKEN_ROW_ID))
     .limit(1);
-  return row;
+  if (!row) return row;
+  return {
+    ...row,
+    accessToken: row.accessTokenEncrypted
+      ? decryptToken(row.accessTokenEncrypted)
+      : null,
+  };
 }
 
 async function upsertTokenRow(patch: {
@@ -27,12 +34,17 @@ async function upsertTokenRow(patch: {
   lastRefreshAt?: Date | null;
   lastError?: string | null;
 }) {
+  const { accessToken, ...rest } = patch;
+  const dbPatch: typeof rest & { accessTokenEncrypted?: string | null } = { ...rest };
+  if (accessToken !== undefined) {
+    dbPatch.accessTokenEncrypted = accessToken ? encryptToken(accessToken) : null;
+  }
   await db
     .insert(assertivaTokens)
-    .values({ id: TOKEN_ROW_ID, ...patch, updatedAt: new Date() })
+    .values({ id: TOKEN_ROW_ID, ...dbPatch, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: assertivaTokens.id,
-      set: { ...patch, updatedAt: new Date() },
+      set: { ...dbPatch, updatedAt: new Date() },
     });
 }
 

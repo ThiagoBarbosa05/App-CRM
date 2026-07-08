@@ -3,11 +3,41 @@ import { whatsappChannels, whatsappConversations, whatsappMessages } from "../..
 import { and, eq } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
+import { decryptToken, encryptToken } from "../lib/token-crypto";
 
 /** Canal resolvido para envio — discrimina pelo provider */
 export type ResolvedChannel =
   | { id: number; provider: "cloud_api"; phoneNumberId: string; accessToken: string }
   | { id: number; provider: "evolution"; evolutionInstanceName: string };
+
+/**
+ * Payload de criação/atualização de canal usado pelas rotas — usa `accessToken` em
+ * texto plano (nunca persistido diretamente); o service cuida de criptografar antes
+ * de gravar em `whatsapp_channels.access_token_encrypted`.
+ */
+type ChannelWriteInput = Omit<InsertWhatsappChannel, "id" | "createdAt" | "accessTokenEncrypted"> & {
+  accessToken?: string | null;
+};
+
+function toDbPatch(data: Partial<ChannelWriteInput>) {
+  const { accessToken, ...rest } = data;
+  const patch: Partial<InsertWhatsappChannel> = { ...rest };
+  if (accessToken !== undefined) {
+    patch.accessTokenEncrypted = accessToken ? encryptToken(accessToken) : null;
+  }
+  return patch;
+}
+
+/** Decifra `accessTokenEncrypted` de uma linha de `whatsapp_channels`, expondo `accessToken` em texto plano. */
+function decryptChannelRow<T extends { accessTokenEncrypted?: string | null }>(
+  row: T,
+): Omit<T, "accessTokenEncrypted"> & { accessToken: string | null } {
+  const { accessTokenEncrypted, ...rest } = row;
+  return {
+    ...rest,
+    accessToken: accessTokenEncrypted ? decryptToken(accessTokenEncrypted) : null,
+  };
+}
 
 export async function listChannels() {
   return db
@@ -34,7 +64,7 @@ export async function getChannelById(id: number) {
     .from(whatsappChannels)
     .where(eq(whatsappChannels.id, id))
     .limit(1);
-  return channel ?? null;
+  return channel ? decryptChannelRow(channel) : null;
 }
 
 export async function getChannelByPhoneNumberId(phoneNumberId: string) {
@@ -43,42 +73,39 @@ export async function getChannelByPhoneNumberId(phoneNumberId: string) {
     .from(whatsappChannels)
     .where(eq(whatsappChannels.phoneNumberId, phoneNumberId))
     .limit(1);
-  return channel ?? null;
+  return channel ? decryptChannelRow(channel) : null;
 }
 
 export async function getChannelForConversation(conversationId: string): Promise<ChannelOverride | null> {
   const [row] = await db
     .select({
       phoneNumberId: whatsappChannels.phoneNumberId,
-      accessToken: whatsappChannels.accessToken,
+      accessTokenEncrypted: whatsappChannels.accessTokenEncrypted,
     })
     .from(whatsappConversations)
     .innerJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
     .where(eq(whatsappConversations.id, conversationId))
     .limit(1);
 
-  if (!row || !row.phoneNumberId || !row.accessToken) return null;
-  return { phoneNumberId: row.phoneNumberId, accessToken: row.accessToken };
+  if (!row || !row.phoneNumberId || !row.accessTokenEncrypted) return null;
+  return { phoneNumberId: row.phoneNumberId, accessToken: decryptToken(row.accessTokenEncrypted) };
 }
 
-export async function createChannel(data: Omit<InsertWhatsappChannel, "id" | "createdAt">) {
+export async function createChannel(data: ChannelWriteInput) {
   const [created] = await db
     .insert(whatsappChannels)
-    .values(data)
+    .values(toDbPatch(data) as InsertWhatsappChannel)
     .returning();
-  return created;
+  return decryptChannelRow(created);
 }
 
-export async function updateChannel(
-  id: number,
-  data: Partial<Omit<InsertWhatsappChannel, "id" | "createdAt">>,
-) {
+export async function updateChannel(id: number, data: Partial<ChannelWriteInput>) {
   const [updated] = await db
     .update(whatsappChannels)
-    .set(data)
+    .set(toDbPatch(data))
     .where(eq(whatsappChannels.id, id))
     .returning();
-  return updated ?? null;
+  return updated ? decryptChannelRow(updated) : null;
 }
 
 export async function deleteChannel(id: number) {
@@ -98,12 +125,12 @@ export async function deleteChannel(id: number) {
 
 export async function getChannelByUserId(userId: string): Promise<ChannelOverride | null> {
   const [row] = await db
-    .select({ phoneNumberId: whatsappChannels.phoneNumberId, accessToken: whatsappChannels.accessToken })
+    .select({ phoneNumberId: whatsappChannels.phoneNumberId, accessTokenEncrypted: whatsappChannels.accessTokenEncrypted })
     .from(whatsappChannels)
     .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true)))
     .limit(1);
-  if (!row || !row.phoneNumberId || !row.accessToken) return null;
-  return { phoneNumberId: row.phoneNumberId, accessToken: row.accessToken };
+  if (!row || !row.phoneNumberId || !row.accessTokenEncrypted) return null;
+  return { phoneNumberId: row.phoneNumberId, accessToken: decryptToken(row.accessTokenEncrypted) };
 }
 
 export async function listChannelsByUserId(userId: string): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string }[]> {
@@ -159,7 +186,7 @@ export async function getChannelByEvolutionInstance(instanceName: string) {
     .from(whatsappChannels)
     .where(eq(whatsappChannels.evolutionInstanceName, instanceName))
     .limit(1);
-  return channel ?? null;
+  return channel ? decryptChannelRow(channel) : null;
 }
 
 function toResolvedChannel(ch: { id: number; provider: string; phoneNumberId: string | null; accessToken: string | null; evolutionInstanceName: string | null }): ResolvedChannel | null {
@@ -184,14 +211,14 @@ export async function resolveChannelByUserId(userId: string): Promise<ResolvedCh
       id: whatsappChannels.id,
       provider: whatsappChannels.provider,
       phoneNumberId: whatsappChannels.phoneNumberId,
-      accessToken: whatsappChannels.accessToken,
+      accessTokenEncrypted: whatsappChannels.accessTokenEncrypted,
       evolutionInstanceName: whatsappChannels.evolutionInstanceName,
     })
     .from(whatsappChannels)
     .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true)))
     .limit(1);
   if (!row) return null;
-  return toResolvedChannel(row);
+  return toResolvedChannel(decryptChannelRow(row));
 }
 
 export async function resolveChannelForConversation(conversationId: string): Promise<ResolvedChannel | null> {
@@ -200,7 +227,7 @@ export async function resolveChannelForConversation(conversationId: string): Pro
       id: whatsappChannels.id,
       provider: whatsappChannels.provider,
       phoneNumberId: whatsappChannels.phoneNumberId,
-      accessToken: whatsappChannels.accessToken,
+      accessTokenEncrypted: whatsappChannels.accessTokenEncrypted,
       evolutionInstanceName: whatsappChannels.evolutionInstanceName,
     })
     .from(whatsappConversations)
@@ -208,7 +235,7 @@ export async function resolveChannelForConversation(conversationId: string): Pro
     .where(eq(whatsappConversations.id, conversationId))
     .limit(1);
   if (!row) return null;
-  return toResolvedChannel(row);
+  return toResolvedChannel(decryptChannelRow(row));
 }
 
 export async function updateConnectionStatus(channelId: number, status: string): Promise<void> {

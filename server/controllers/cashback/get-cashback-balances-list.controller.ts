@@ -37,7 +37,7 @@ export const getCashbackBalancesListController = async (
   res: Response
 ) => {
   try {
-    const userId = (req.query.userId as string) || req.user?.userId;
+    const userId = req.user?.userId;
     const userRole = req.user?.role;
 
     const balances = await storage.getAllCashbackBalances(userId, userRole);

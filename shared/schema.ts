@@ -139,7 +139,7 @@ export const cpfVerificationLogs = pgTable("cpf_verification_logs", {
 // Token OAuth2 da Assertiva persistido (linha única, id fixo) — compartilhado entre instâncias e sobrevive a restarts
 export const assertivaTokens = pgTable("assertiva_tokens", {
   id: text("id").primaryKey().default("singleton"),
-  accessToken: text("access_token"),
+  accessTokenEncrypted: text("access_token_encrypted"),
   expiresAt: timestamp("expires_at"),
   lastRefreshAt: timestamp("last_refresh_at"),
   lastError: text("last_error"),
@@ -4361,7 +4361,7 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   name: text("name").notNull(),
   provider: text("provider").notNull().default("cloud_api"),
   phoneNumberId: text("phone_number_id").unique(),
-  accessToken: text("access_token"),
+  accessTokenEncrypted: text("access_token_encrypted"),
   wabaId: text("waba_id"),
   displayPhone: text("display_phone"),
   userId: varchar("user_id").references(() => users.id),

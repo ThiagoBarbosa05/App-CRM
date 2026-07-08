@@ -90,6 +90,15 @@ clientsRouter.post("/import", clientsImportUpload.single("file"), async (req, re
   }
 });
 
+// Limita a taxa de busca por telefone — sem isso, um usuário autenticado poderia
+// enumerar a base de clientes por PII (telefone) em sequência.
+const clientByPhoneRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  keyFn: (req) => `client-by-phone:${req.user?.userId ?? req.ip}`,
+  message: "Muitas buscas por telefone. Aguarde um instante e tente novamente.",
+});
+
 /**
  * @route GET /api/clients/by-phone/:phone
  * @description Busca cliente específico por número de telefone
@@ -97,7 +106,7 @@ clientsRouter.post("/import", clientsImportUpload.single("file"), async (req, re
  * @urlParams {string} phone - Número de telefone do cliente
  * @returns {object} Cliente encontrado ou erro 404
  */
-clientsRouter.get("/by-phone/:phone", getClientByPhoneController);
+clientsRouter.get("/by-phone/:phone", clientByPhoneRateLimit, getClientByPhoneController);
 
 /**
  * @route GET /api/clients/without-contact

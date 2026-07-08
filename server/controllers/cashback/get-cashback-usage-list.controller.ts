@@ -32,7 +32,7 @@ export const getCashbackUsageListController = async (
   res: Response
 ) => {
   try {
-    const userId = (req.query.userId as string) || req.user?.userId;
+    const userId = req.user?.userId;
     const userRole = req.user?.role;
 
     const usage = await storage.getAllCashbackUsage(userId, userRole);

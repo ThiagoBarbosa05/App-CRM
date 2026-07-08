@@ -9,7 +9,7 @@ export const clientRegistrationStatsRouter = Router();
 
 clientRegistrationGoalsRouter.get("/", async (req, res) => {
   try {
-    const userId = (req.query.userId as string) || req.user?.userId;
+    const userId = req.user?.userId;
     const userRole = req.user?.role;
     const goals = await storage.getClientRegistrationGoals(userId, userRole);
     return res.json(goals);
@@ -25,7 +25,7 @@ clientRegistrationGoalsRouter.get(
   async (req, res) => {
     try {
       const { month, year } = req.params;
-      const userId = (req.query.userId as string) || req.user?.userId;
+      const userId = req.user?.userId;
       const userRole = req.user?.role;
 
       const goals = await storage.getClientRegistrationGoalsByMonthYear(

@@ -5,12 +5,20 @@ import { z } from "zod";
 import { storage } from "../storage";
 import { signToken } from "../lib/jwt";
 import { validateBody, requireAuth } from "../middleware/validation";
+import { rateLimit } from "../middleware/rate-limit";
 
 export const authRouter = Router();
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+});
+
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 10,
+  keyFn: (req) => `login:${req.ip}`,
+  message: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
 });
 
 const COOKIE_OPTIONS = {
@@ -20,7 +28,7 @@ const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias em ms
 };
 
-authRouter.post("/login", validateBody(loginSchema), async (req, res) => {
+authRouter.post("/login", loginRateLimit, validateBody(loginSchema), async (req, res) => {
   try {
     const { email, password } = req.body;
 
