@@ -153,6 +153,74 @@ export const SEGMENT_GROUPS: SegmentGroup[] = [
     ],
   },
   {
+    id: "wine_profile",
+    title: "Perfil de gosto (IA)",
+    description:
+      "Baseado na análise do histórico de compras via IA. Permite ações ultra-segmentadas por país, uva e tipo de vinho.",
+    segments: [
+      {
+        id: "wp_chile",
+        label: "Apreciadores de Chile",
+        description: "Perfil de gosto com regiões chilenas. Ideal para lançamentos e promoções de vinhos chilenos.",
+        filters: { wineRegion: "Chile" },
+      },
+      {
+        id: "wp_argentina",
+        label: "Apreciadores de Argentina",
+        description: "Perfil com regiões argentinas (Mendoza, Salta, Patagônia etc.).",
+        filters: { wineRegion: "Argentin" },
+      },
+      {
+        id: "wp_portugal",
+        label: "Apreciadores de Portugal",
+        description: "Perfil com regiões portuguesas. Bom para Alentejo, Douro e Vinho Verde.",
+        filters: { wineRegion: "Portugal" },
+      },
+      {
+        id: "wp_italia",
+        label: "Apreciadores de Itália",
+        description: "Perfil com regiões italianas (Toscana, Piemonte, Veneto etc.).",
+        filters: { wineRegion: "Itália" },
+      },
+      {
+        id: "wp_franca",
+        label: "Apreciadores de França",
+        description: "Perfil com regiões francesas (Bordeaux, Borgonha, Champagne etc.).",
+        filters: { wineRegion: "França" },
+      },
+      {
+        id: "wp_tempranillo",
+        label: "Fãs de Tempranillo",
+        description: "Uva favorita Tempranillo no perfil de gosto. Clientes de vinhos espanhóis e alguns portugueses.",
+        filters: { wineGrape: "Tempranillo" },
+      },
+      {
+        id: "wp_malbec",
+        label: "Fãs de Malbec",
+        description: "Uva favorita Malbec. Muito ligados à Argentina.",
+        filters: { wineGrape: "Malbec" },
+      },
+      {
+        id: "wp_cabernet",
+        label: "Fãs de Cabernet Sauvignon",
+        description: "Uva favorita Cabernet Sauvignon. Perfil encorpado e clássico.",
+        filters: { wineGrape: "Cabernet" },
+      },
+      {
+        id: "wp_espumante",
+        label: "Amantes de espumante",
+        description: "Tipo preferido é espumante no perfil de gosto.",
+        filters: { wineType: "ESPUMANTE" },
+      },
+      {
+        id: "wp_branco",
+        label: "Preferência por branco",
+        description: "Tipo preferido é branco. Bom para lançamentos de Chardonnay, Sauvignon Blanc etc.",
+        filters: { wineType: "BRANCO" },
+      },
+    ],
+  },
+  {
     id: "events",
     title: "Relacionamento & eventos",
     description:

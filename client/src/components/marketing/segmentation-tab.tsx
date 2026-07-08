@@ -15,6 +15,7 @@ import {
   Sparkles,
   Wine,
   CalendarHeart,
+  Globe,
   ArrowRight,
   Users,
   Megaphone,
@@ -83,6 +84,12 @@ const GROUP_STYLE: Record<
     iconColor: "text-violet-600 dark:text-violet-400",
     accent: "text-violet-600 dark:text-violet-400",
   },
+  wine_profile: {
+    icon: Globe,
+    iconBg: "bg-teal-50 dark:bg-teal-950/40",
+    iconColor: "text-teal-600 dark:text-teal-400",
+    accent: "text-teal-600 dark:text-teal-400",
+  },
 };
 
 /** Converte os filtros do segmento em targetType + targetCriteria para campanhas */
@@ -98,11 +105,10 @@ function filtersToTarget(filters: Record<string, string | boolean>): {
   if (filters.categoria) {
     return { targetType: "category", targetCriteria: String(filters.categoria) };
   }
-  if (filters.rfmSegment) {
-    return { targetType: "rfm_segment", targetCriteria: String(filters.rfmSegment) };
-  }
-  if (filters.status) {
-    return { targetType: "status", targetCriteria: String(filters.status) };
+  // Wine profile filters fallback to "all" (não existe targetType equivalente nas campanhas)
+  // O nome da campanha já identifica o segmento, o usuário pode refinar o público manualmente
+  if (filters.rfmSegment || filters.wineRegion || filters.wineGrape || filters.wineType || filters.status) {
+    return { targetType: "all", targetCriteria: "" };
   }
   return { targetType: "all", targetCriteria: "" };
 }
