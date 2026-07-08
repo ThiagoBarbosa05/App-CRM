@@ -59,12 +59,15 @@ export function MarketingSettingsDialog() {
 
   const testMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/marketing/test-sendgrid", {});
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? "Erro desconhecido");
-      return data as { ok: boolean; message: string };
+      const res = await fetch("/api/marketing/test-sendgrid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const data = await res.json() as { ok: boolean; message: string };
+      return data;
     },
-    onSuccess: (data) => setTestResult({ ok: true, message: data.message }),
+    onSuccess: (data) => setTestResult({ ok: data.ok, message: data.message }),
     onError: (err: Error) => setTestResult({ ok: false, message: err.message }),
   });
 
@@ -163,7 +166,7 @@ export function MarketingSettingsDialog() {
                     variant="outline"
                     size="sm"
                     className="h-8 text-xs gap-1.5"
-                    disabled={!form.marketing_sendgrid_api_key || testMutation.isPending}
+                    disabled={testMutation.isPending}
                     onClick={() => { setTestResult(null); testMutation.mutate(); }}
                   >
                     {testMutation.isPending
