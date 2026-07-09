@@ -7,7 +7,6 @@ import {
   Users,
   Mail,
   CreditCard,
-  UserCheck,
   Merge,
   Phone,
   SearchIcon,
@@ -94,19 +93,12 @@ const FIELD_OPTIONS: { id: SearchField; label: string; icon: React.ReactNode; de
     icon: <Phone className="h-4 w-4" />,
     description: "Números de telefone idênticos",
   },
-  {
-    id: "name",
-    label: "Nome Similar",
-    icon: <UserCheck className="h-4 w-4" />,
-    description: "Nomes com ≥75% de similaridade",
-  },
 ];
 
 const reasonIcon = (reason: string) => {
   if (reason.includes("CPF") || reason.includes("CNPJ")) return <CreditCard className="h-3.5 w-3.5" />;
   if (reason.includes("E-mail")) return <Mail className="h-3.5 w-3.5" />;
   if (reason.includes("Celular")) return <Phone className="h-3.5 w-3.5" />;
-  if (reason.includes("Nome")) return <UserCheck className="h-3.5 w-3.5" />;
   return <AlertTriangle className="h-3.5 w-3.5" />;
 };
 
