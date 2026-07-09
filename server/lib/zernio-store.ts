@@ -184,6 +184,19 @@ export async function linkConversationToClient(params: {
         updatedAt: values.updatedAt,
       },
     });
+
+  // Preenche automaticamente o campo Instagram do cliente com o usuário/participante
+  // vinculado, caso o campo ainda esteja vazio.
+  if (values.platform === "instagram") {
+    const conv = existing ?? (await db.select().from(zernioConversations).where(eq(zernioConversations.id, params.conversationId)).then((r) => r[0]));
+    const handle = conv?.participantUsername || conv?.participantName;
+    if (handle) {
+      const [clientRow] = await db.select({ instagram: clients.instagram }).from(clients).where(eq(clients.id, params.clientId));
+      if (clientRow && !clientRow.instagram) {
+        await db.update(clients).set({ instagram: handle }).where(eq(clients.id, params.clientId));
+      }
+    }
+  }
 }
 
 export async function getConversationsByClient(clientId: string): Promise<ZernioStoredConversation[]> {

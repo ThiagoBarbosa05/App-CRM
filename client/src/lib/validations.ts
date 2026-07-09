@@ -89,6 +89,7 @@ export const clientValidationSchema = z.object({
   nomeFantasia: z.string().optional().or(z.literal("")),
   inscricaoEstadual: z.string().optional().or(z.literal("")),
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
+  instagram: z.string().optional().or(z.literal("")),
   birthday: z
     .string()
     .optional()

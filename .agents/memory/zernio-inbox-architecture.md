@@ -11,4 +11,6 @@ Because conversations are DB rows keyed by the same `conversationId` Zernio uses
 
 **How to apply:** any new per-conversation metadata (tags, assigned seller, etc.) should follow the same pattern — add a column to `zernio_conversations` and merge it in `listConversations`, rather than trying to store it in the Zernio API.
 
+Client-side auto-fill pattern: when linking an Instagram conversation to a client, `linkConversationToClient` also copies the participant's username/name into `clients.instagram`, but only if that field is currently empty (never overwrites a manually-entered value).
+
 Separately: `npm run db:push` / `drizzle-kit push --force` in this project hangs on a non-TTY interactive prompt about an unrelated `bling_client_sync_client_id_unique` constraint. Workaround: apply schema changes via direct SQL through the `executeSql` code-execution callback instead of drizzle-kit push.

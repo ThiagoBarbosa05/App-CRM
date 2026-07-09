@@ -158,6 +158,7 @@ export default function ClientFormModal({
       nomeFantasia: client?.nomeFantasia || "",
       inscricaoEstadual: client?.inscricaoEstadual || "",
       email: client?.email || "",
+      instagram: client?.instagram || "",
       birthday: convertBrazilianDateToISO(client?.birthday || ""),
       sexo: (client?.sexo as "M" | "F") || "",
       cep: client?.cep || "",
@@ -475,6 +476,7 @@ export default function ClientFormModal({
           ? data.inscricaoEstadual?.trim() || null
           : null,
         email: data.email?.trim() || null,
+        instagram: data.instagram?.trim() || null,
         sexo: isCnpj ? null : data.sexo || null,
         cep: data.cep?.trim() || "",
         address: data.address?.trim() || "",
@@ -867,6 +869,26 @@ export default function ClientFormModal({
                             className="dark:bg-slate-950 focus-visible:ring-emerald-500"
                             type="email"
                             placeholder="email@exemplo.com"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="instagram"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel className="text-slate-700 dark:text-slate-300">
+                          Instagram
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            className="dark:bg-slate-950 focus-visible:ring-emerald-500"
+                            placeholder="@usuario"
                             {...field}
                           />
                         </FormControl>

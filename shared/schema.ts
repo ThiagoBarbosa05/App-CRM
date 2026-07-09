@@ -84,6 +84,7 @@ export const clients = pgTable("clients", {
   fixedPhone: text("fixed_phone"),
   cpf: text("cpf").unique(),
   email: text("email").unique(),
+  instagram: text("instagram"),
   birthday: text("birthday"),
   sexo: text("sexo", { enum: ["M", "F"] }),
   cep: text("cep"),
