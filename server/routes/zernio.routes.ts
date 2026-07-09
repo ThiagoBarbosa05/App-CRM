@@ -39,12 +39,19 @@ router.get("/conversations/:conversationId/messages", async (req, res) => {
   try {
     if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
     const { conversationId } = req.params;
-    const { cursor } = req.query;
+    const { cursor, accountId } = req.query;
     let url = `${ZERNIO_BASE}/inbox/conversations/${conversationId}/messages`;
-    if (cursor) url += `?cursor=${cursor}`;
+    const params = new URLSearchParams();
+    if (accountId) params.set("accountId", String(accountId));
+    if (cursor) params.set("cursor", String(cursor));
+    const qs = params.toString();
+    if (qs) url += `?${qs}`;
     const resp = await fetch(url, { headers: zernioHeaders() });
     const data = await resp.json();
-    if (!resp.ok) return res.status(resp.status).json(data);
+    if (!resp.ok) {
+      console.error(`[Zernio] messages 400 — url: ${url} — response:`, JSON.stringify(data));
+      return res.status(resp.status).json(data);
+    }
     return res.json(data);
   } catch (e: any) {
     return res.status(500).json({ message: e.message });

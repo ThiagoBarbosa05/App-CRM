@@ -151,11 +151,20 @@ export default function ZernioInboxPage() {
   const { data: msgsData, isLoading: msgsLoading } = useQuery<MessagesData>({
     queryKey: ["/api/zernio/conversations", activeConv?.id, "messages"],
     queryFn: async () => {
-      const resp = await fetch(`/api/zernio/conversations/${activeConv!.id}/messages`, { credentials: "include" });
-      if (!resp.ok) throw new Error("Erro ao carregar mensagens");
+      const params = new URLSearchParams();
+      if (activeConv!.accountId) params.set("accountId", activeConv!.accountId);
+      const resp = await fetch(
+        `/api/zernio/conversations/${activeConv!.id}/messages?${params.toString()}`,
+        { credentials: "include" }
+      );
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.message || err.error || "Erro ao carregar mensagens");
+      }
       return resp.json();
     },
     enabled: !!activeConv,
+    refetchInterval: 15_000,
   });
 
   // Enviar mensagem
