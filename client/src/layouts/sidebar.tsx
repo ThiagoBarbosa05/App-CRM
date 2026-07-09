@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Gift,
   GitBranch,
+  Inbox,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -75,6 +76,12 @@ const navItems: NavItem[] = [
   //   label: "WhatsApp",
   //   activeBasePath: "/whatsapp",
   // },
+  {
+    href: "/inbox",
+    icon: Inbox,
+    label: "Inbox Unificado",
+    roles: ["admin", "administrador"],
+  },
   {
     href: "/whatsapp/configuracoes",
     icon: MessageCircle,

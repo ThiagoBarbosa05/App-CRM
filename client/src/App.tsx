@@ -36,6 +36,7 @@ import TarefasPage from "./pages/tarefas";
 import RankingPage from "./pages/ranking";
 import TelemarketingPage from "./pages/telemarketing";
 import ReferralProgramPage from "./pages/referral-program";
+import ZernioInboxPage from "./pages/zernio-inbox";
 
 const WhatsAppCampaignsList = lazy(() => import("@/pages/whatsapp/campaigns-list"));
 const WhatsAppCreateCampaign = lazy(() => import("@/pages/whatsapp/create-campaign"));
@@ -275,6 +276,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <ReferralProgramPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/inbox"
+        component={() => (
+          <MainLayout>
+            <ZernioInboxPage />
           </MainLayout>
         )}
       />

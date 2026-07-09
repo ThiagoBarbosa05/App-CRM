@@ -96,6 +96,7 @@ import { mcpRouter } from "./mcp.routes";
 import { marketingRouter } from "./marketing.routes";
 import { emailCampaignsRouter } from "./email-campaigns.routes";
 import { smsCampaignsRouter } from "./sms-campaigns.routes";
+import zernioRouter, { zernioWebhookRouter } from "./zernio.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -114,6 +115,8 @@ apiRouter.use("/mcp", mcpRouter);
 apiRouter.use("/health", healthRouter);
 // Webhook do Bling — sem autenticação de usuário (usa HMAC próprio)
 apiRouter.use("/bling", blingWebhookRouter);
+// Webhook Zernio — mensagens recebidas em tempo real (sem JWT)
+apiRouter.use("/zernio-webhook", zernioWebhookRouter);
 apiRouter.use("/bling-accounts", blingAccountsRouter);
 // Webhooks Twilio/ElevenLabs — chamados pelos serviços externos sem JWT
 // Os handlers protegidos nesses routers verificam req.user manualmente
@@ -211,3 +214,4 @@ apiRouter.use("/integrations/openai", openaiStatusRouter);
 apiRouter.use("/marketing", marketingRouter);
 apiRouter.use("/email-campaigns", emailCampaignsRouter);
 apiRouter.use("/sms-campaigns", smsCampaignsRouter);
+apiRouter.use("/zernio", zernioRouter);
