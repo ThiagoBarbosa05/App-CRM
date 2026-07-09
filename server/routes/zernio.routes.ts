@@ -3,9 +3,11 @@ import { z } from "zod";
 import crypto from "crypto";
 import {
   addMessage,
+  linkConversationToClient,
   listConversations,
   listMessages,
   markConversationRead,
+  unlinkConversationFromClient,
   upsertConversation,
 } from "../lib/zernio-store";
 
@@ -73,6 +75,37 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
       timestamp: sentAt ?? new Date().toISOString(),
     });
     return res.json(data);
+  } catch (e: any) {
+    return res.status(400).json({ message: e.message });
+  }
+});
+
+// POST /api/zernio/conversations/:conversationId/link — vincula a conversa a um cliente do CRM
+router.post("/conversations/:conversationId/link", async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const body = z
+      .object({ clientId: z.string().min(1), platform: z.string().optional(), accountId: z.string().optional() })
+      .parse(req.body);
+    await linkConversationToClient({
+      conversationId,
+      clientId: body.clientId,
+      platform: body.platform ?? "",
+      accountId: body.accountId ?? "",
+      linkedByUserId: req.user?.userId,
+    });
+    return res.json({ ok: true });
+  } catch (e: any) {
+    return res.status(400).json({ message: e.message });
+  }
+});
+
+// DELETE /api/zernio/conversations/:conversationId/link — remove o vínculo
+router.delete("/conversations/:conversationId/link", async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    await unlinkConversationFromClient(conversationId);
+    return res.json({ ok: true });
   } catch (e: any) {
     return res.status(400).json({ message: e.message });
   }

@@ -19,6 +19,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import ClientFormModal from "@/components/client-form-modal";
+import type { Client } from "@shared/schema";
+import {
   MessageSquare,
   Send,
   Search,
@@ -32,6 +41,10 @@ import {
   WifiOff,
   AlertCircle,
   Loader2,
+  UserPlus,
+  UserCheck,
+  X,
+  Link2,
 } from "lucide-react";
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -95,6 +108,8 @@ interface ZernioConversation {
   lastMessage?: { text: string; timestamp: string; direction: "incoming" | "outgoing" };
   participant?: { id: string; name?: string; username?: string };
   unreadCount?: number;
+  clientId?: string | null;
+  clientName?: string | null;
 }
 
 interface ZernioMessage {
@@ -124,6 +139,9 @@ export default function ZernioInboxPage() {
   const [activeConv, setActiveConv] = useState<ZernioConversation | null>(null);
   const [replyText, setReplyText] = useState("");
   const [sseConnected, setSseConnected] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [newClientModalOpen, setNewClientModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sseRef = useRef<EventSource | null>(null);
 
@@ -188,6 +206,68 @@ export default function ZernioInboxPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/zernio/conversations"] });
     },
     onError: (e: Error) => toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" }),
+  });
+
+  // Busca de clientes para vincular
+  const { data: clientSearchData, isLoading: clientSearchLoading } = useQuery<{ data: Client[] }>({
+    queryKey: ["/api/clients", "zernio-link-search", clientSearch],
+    queryFn: async () => {
+      const resp = await fetch(`/api/clients?search=${encodeURIComponent(clientSearch)}&pageSize=10`, {
+        credentials: "include",
+      });
+      if (!resp.ok) throw new Error("Erro ao buscar clientes");
+      return resp.json();
+    },
+    enabled: linkDialogOpen && clientSearch.trim().length >= 2,
+  });
+
+  // Vincular conversa a um cliente
+  const linkMutation = useMutation({
+    mutationFn: async (client: Client) => {
+      const resp = await fetch(`/api/zernio/conversations/${activeConv!.id}/link`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: client.id,
+          platform: activeConv!.platform,
+          accountId: activeConv!.accountId,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.message || "Erro ao vincular cliente");
+      }
+      return client;
+    },
+    onSuccess: (client) => {
+      setActiveConv((prev) => (prev ? { ...prev, clientId: client.id, clientName: client.name } : prev));
+      queryClient.invalidateQueries({ queryKey: ["/api/zernio/conversations"] });
+      setLinkDialogOpen(false);
+      setClientSearch("");
+      toast({ title: "Contato vinculado", description: `Vinculado a ${client.name}.` });
+    },
+    onError: (e: Error) => toast({ title: "Erro ao vincular", description: e.message, variant: "destructive" }),
+  });
+
+  // Desvincular conversa
+  const unlinkMutation = useMutation({
+    mutationFn: async () => {
+      const resp = await fetch(`/api/zernio/conversations/${activeConv!.id}/link`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.message || "Erro ao desvincular cliente");
+      }
+    },
+    onSuccess: () => {
+      setActiveConv((prev) => (prev ? { ...prev, clientId: null, clientName: null } : prev));
+      queryClient.invalidateQueries({ queryKey: ["/api/zernio/conversations"] });
+      toast({ title: "Vínculo removido" });
+    },
+    onError: (e: Error) => toast({ title: "Erro ao desvincular", description: e.message, variant: "destructive" }),
   });
 
   // SSE — mensagens em tempo real
@@ -343,6 +423,11 @@ export default function ZernioInboxPage() {
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <PlatformBadge platform={conv.platform} />
+                    {conv.clientId && (
+                      <span title={conv.clientName ?? "Cliente vinculado"}>
+                        <UserCheck className="h-3 w-3 text-emerald-600" />
+                      </span>
+                    )}
                     {(conv.unreadCount ?? 0) > 0 && (
                       <Badge className="text-[9px] h-4 px-1.5 bg-rose-500 text-white hover:bg-rose-500">
                         {conv.unreadCount}
@@ -384,6 +469,34 @@ export default function ZernioInboxPage() {
               </p>
               <PlatformBadge platform={activeConv.platform} />
             </div>
+            {activeConv.clientId ? (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Badge className="text-[10px] gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                  <UserCheck className="h-3 w-3" />
+                  {activeConv.clientName ?? "Cliente vinculado"}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600"
+                  title="Remover vínculo"
+                  disabled={unlinkMutation.isPending}
+                  onClick={() => unlinkMutation.mutate()}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5 shrink-0"
+                onClick={() => setLinkDialogOpen(true)}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Vincular Cliente
+              </Button>
+            )}
           </div>
 
           {/* Mensagens */}
@@ -465,6 +578,98 @@ export default function ZernioInboxPage() {
           <MessageSquare className="h-14 w-14 opacity-20" />
           <p className="text-sm">Selecione uma conversa para responder</p>
         </div>
+      )}
+
+      {/* Dialog — Vincular Cliente */}
+      <Dialog open={linkDialogOpen} onOpenChange={(open) => { setLinkDialogOpen(open); if (!open) setClientSearch(""); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Vincular contato a um cliente</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                placeholder="Buscar por nome, telefone, e-mail ou CPF..."
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                className="pl-8"
+                autoFocus
+              />
+            </div>
+
+            <ScrollArea className="max-h-64">
+              {clientSearch.trim().length < 2 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">Digite ao menos 2 caracteres para buscar</p>
+              ) : clientSearchLoading ? (
+                <div className="space-y-2 py-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : (clientSearchData?.data ?? []).length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">Nenhum cliente encontrado</p>
+              ) : (
+                <div className="space-y-1">
+                  {(clientSearchData?.data ?? []).map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      disabled={linkMutation.isPending}
+                      onClick={() => linkMutation.mutate(c)}
+                      className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between gap-2 disabled:opacity-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{c.name}</p>
+                        <p className="text-xs text-slate-500 truncate">{c.phone || c.email || "—"}</p>
+                      </div>
+                      {linkMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      ) : (
+                        <UserCheck className="h-4 w-4 text-slate-400 shrink-0" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+
+          <DialogFooter className="sm:justify-start">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => { setLinkDialogOpen(false); setNewClientModalOpen(true); }}
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Cadastrar novo cliente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal — Cadastrar novo cliente a partir do contato */}
+      {newClientModalOpen && activeConv && (
+        <ClientFormModal
+          open={newClientModalOpen}
+          onOpenChange={(open) => {
+            setNewClientModalOpen(open);
+            if (!open) {
+              queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+              const name = convName(activeConv);
+              setClientSearch(name !== "Desconhecido" ? name : "");
+              setLinkDialogOpen(true);
+            }
+          }}
+          client={
+            {
+              name: convName(activeConv) !== "Desconhecido" ? convName(activeConv) : "",
+              phone: activeConv.platform === "whatsapp" ? (activeConv.participant?.id ?? "") : "",
+            } as unknown as Client
+          }
+        />
       )}
     </div>
   );

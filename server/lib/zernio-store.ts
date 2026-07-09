@@ -5,7 +5,7 @@
 // Requer as tabelas criadas por scripts/create-zernio-tables.mjs.
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
-import { zernioConversations, zernioMessages } from "@shared/schema";
+import { clients, zernioConversations, zernioMessages } from "@shared/schema";
 
 export interface ZernioStoredMessage {
   id: string;
@@ -23,6 +23,8 @@ export interface ZernioStoredConversation {
   participant?: { id: string; name?: string; username?: string };
   lastMessage?: { text: string; timestamp: string; direction: "incoming" | "outgoing" };
   unreadCount: number;
+  clientId?: string | null;
+  clientName?: string | null;
 }
 
 function toConversationDTO(row: typeof zernioConversations.$inferSelect): ZernioStoredConversation {
@@ -47,6 +49,7 @@ function toConversationDTO(row: typeof zernioConversations.$inferSelect): Zernio
           }
         : undefined,
     unreadCount: row.unreadCount,
+    clientId: row.clientId,
   };
 }
 
@@ -122,11 +125,12 @@ export async function addMessage(message: ZernioStoredMessage): Promise<boolean>
 
 export async function listConversations(platform?: string): Promise<ZernioStoredConversation[]> {
   const rows = await db
-    .select()
+    .select({ conversation: zernioConversations, clientName: clients.name })
     .from(zernioConversations)
+    .leftJoin(clients, eq(zernioConversations.clientId, clients.id))
     .where(platform && platform !== "all" ? eq(zernioConversations.platform, platform) : undefined)
     .orderBy(desc(zernioConversations.lastMessageAt));
-  return rows.map(toConversationDTO);
+  return rows.map((row) => ({ ...toConversationDTO(row.conversation), clientName: row.clientName ?? null }));
 }
 
 export async function listMessages(conversationId: string): Promise<ZernioStoredMessage[]> {
@@ -142,5 +146,49 @@ export async function markConversationRead(conversationId: string): Promise<void
   await db
     .update(zernioConversations)
     .set({ unreadCount: 0, updatedAt: new Date() })
+    .where(eq(zernioConversations.id, conversationId));
+}
+
+/** Vincula (ou cria) a conversa a um cliente do CRM. */
+export async function linkConversationToClient(params: {
+  conversationId: string;
+  platform: string;
+  accountId: string;
+  clientId: string;
+  linkedByUserId?: string;
+}): Promise<void> {
+  const [existing] = await db
+    .select()
+    .from(zernioConversations)
+    .where(eq(zernioConversations.id, params.conversationId));
+
+  const values = {
+    id: params.conversationId,
+    platform: params.platform || existing?.platform || "whatsapp",
+    accountId: params.accountId || existing?.accountId || "",
+    clientId: params.clientId,
+    linkedByUserId: params.linkedByUserId ?? null,
+    linkedAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await db
+    .insert(zernioConversations)
+    .values(values)
+    .onConflictDoUpdate({
+      target: zernioConversations.id,
+      set: {
+        clientId: values.clientId,
+        linkedByUserId: values.linkedByUserId,
+        linkedAt: values.linkedAt,
+        updatedAt: values.updatedAt,
+      },
+    });
+}
+
+export async function unlinkConversationFromClient(conversationId: string): Promise<void> {
+  await db
+    .update(zernioConversations)
+    .set({ clientId: null, linkedByUserId: null, linkedAt: null, updatedAt: new Date() })
     .where(eq(zernioConversations.id, conversationId));
 }

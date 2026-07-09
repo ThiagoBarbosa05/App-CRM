@@ -4492,6 +4492,9 @@ export const zernioConversations = pgTable("zernio_conversations", {
   lastMessageAt: timestamp("last_message_at"),
   lastMessageDirection: text("last_message_direction", { enum: ["incoming", "outgoing"] }),
   unreadCount: integer("unread_count").notNull().default(0),
+  clientId: varchar("client_id").references(() => clients.id, { onDelete: "set null" }),
+  linkedByUserId: varchar("linked_by_user_id").references(() => users.id),
+  linkedAt: timestamp("linked_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
