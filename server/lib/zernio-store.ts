@@ -186,6 +186,16 @@ export async function linkConversationToClient(params: {
     });
 }
 
+export async function getConversationsByClient(clientId: string): Promise<ZernioStoredConversation[]> {
+  const rows = await db
+    .select({ conversation: zernioConversations, clientName: clients.name })
+    .from(zernioConversations)
+    .leftJoin(clients, eq(zernioConversations.clientId, clients.id))
+    .where(eq(zernioConversations.clientId, clientId))
+    .orderBy(desc(zernioConversations.lastMessageAt));
+  return rows.map((row) => ({ ...toConversationDTO(row.conversation), clientName: row.clientName ?? null }));
+}
+
 export async function unlinkConversationFromClient(conversationId: string): Promise<void> {
   await db
     .update(zernioConversations)

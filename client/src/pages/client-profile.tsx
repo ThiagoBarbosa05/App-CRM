@@ -31,7 +31,7 @@ import {
   Trash2,
   Cake,
 } from "lucide-react";
-import { FaWhatsapp } from "react-icons/fa";
+import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { type Client } from "@shared/schema";
 import type { ClientRegistrationQuality } from "@shared/client-registration-quality";
 import { RegistrationQualityBar } from "@/components/clients/registration-quality-bar";
@@ -256,6 +256,17 @@ export default function ClientProfilePage() {
     ? `https://wa.me/55${client.phone.replace(/\D/g, "")}`
     : null;
 
+  // ── Conversas do Zernio Inbox vinculadas a este cliente (ex: Instagram) ────
+  const { data: zernioConvsData } = useQuery<{ data: { id: string; platform: string }[] }>({
+    queryKey: ["/api/zernio/clients", id, "conversations"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/zernio/clients/${id}/conversations`);
+      return res.json();
+    },
+    enabled: !!id,
+  });
+  const instagramConversation = (zernioConvsData?.data ?? []).find((c) => c.platform === "instagram");
+
   // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -444,6 +455,19 @@ export default function ClientProfilePage() {
               <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                 <FaWhatsapp className="h-4 w-4" />
                 WhatsApp
+              </a>
+            </Button>
+          )}
+          {instagramConversation && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-pink-600 border-pink-200 hover:bg-pink-50 hover:border-pink-300 dark:border-pink-800/60 dark:text-pink-400 dark:hover:bg-pink-900/20 font-medium w-full sm:w-auto"
+              asChild
+            >
+              <a href={`/zernio-inbox?conversationId=${instagramConversation.id}`}>
+                <FaInstagram className="h-4 w-4" />
+                Instagram
               </a>
             </Button>
           )}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -144,6 +145,9 @@ export default function ZernioInboxPage() {
   const [newClientModalOpen, setNewClientModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sseRef = useRef<EventSource | null>(null);
+  const searchParams = useSearch();
+  const requestedConversationId = new URLSearchParams(searchParams).get("conversationId");
+  const autoOpenedRef = useRef<string | null>(null);
 
   // Verifica status da integração
   const { data: status } = useQuery<{ configured: boolean; ok?: boolean }>({
@@ -164,6 +168,17 @@ export default function ZernioInboxPage() {
     enabled: status?.configured === true,
     refetchInterval: 30_000,
   });
+
+  // Abre automaticamente a conversa indicada via ?conversationId= (ex: link vindo do perfil do cliente)
+  useEffect(() => {
+    if (!requestedConversationId) return;
+    if (autoOpenedRef.current === requestedConversationId) return;
+    const conv = convsData?.data?.find((c) => c.id === requestedConversationId);
+    if (conv) {
+      setActiveConv(conv);
+      autoOpenedRef.current = requestedConversationId;
+    }
+  }, [requestedConversationId, convsData]);
 
   // Mensagens da conversa ativa
   const { data: msgsData, isLoading: msgsLoading } = useQuery<MessagesData>({

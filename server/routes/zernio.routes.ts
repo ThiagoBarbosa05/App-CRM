@@ -3,6 +3,7 @@ import { z } from "zod";
 import crypto from "crypto";
 import {
   addMessage,
+  getConversationsByClient,
   linkConversationToClient,
   listConversations,
   listMessages,
@@ -108,6 +109,17 @@ router.delete("/conversations/:conversationId/link", async (req, res) => {
     return res.json({ ok: true });
   } catch (e: any) {
     return res.status(400).json({ message: e.message });
+  }
+});
+
+// GET /api/zernio/clients/:clientId/conversations — conversas vinculadas a um cliente do CRM
+router.get("/clients/:clientId/conversations", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const data = await getConversationsByClient(clientId);
+    return res.json({ data });
+  } catch (e: any) {
+    return res.status(500).json({ message: e.message });
   }
 });
 
