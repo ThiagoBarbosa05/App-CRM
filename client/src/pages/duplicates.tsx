@@ -35,6 +35,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useState, useRef } from "react";
 
 type SearchField = "cpf" | "email" | "phone" | "name";
@@ -58,12 +66,6 @@ interface DuplicateGroup {
   clients: DuplicateClient[];
 }
 
-interface MergeTarget {
-  keepId: string;
-  keepName: string;
-  mergeId: string;
-  mergeName: string;
-}
 
 interface BulkProgress {
   total: number;
@@ -133,7 +135,8 @@ export default function DuplicatesPage() {
   const [selectedFields, setSelectedFields] = useState<SearchField[]>(["cpf", "email", "phone"]);
   const [searchTriggered, setSearchTriggered] = useState(false);
   const [activeFields, setActiveFields] = useState<SearchField[]>([]);
-  const [mergeTarget, setMergeTarget] = useState<MergeTarget | null>(null);
+  const [mergeGroup, setMergeGroup] = useState<DuplicateClient[] | null>(null);
+  const [selectedKeepId, setSelectedKeepId] = useState<string | null>(null);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulk, setBulk] = useState<BulkProgress>({ total: 0, done: 0, errors: 0, running: false, finished: false });
   const abortRef = useRef(false);
@@ -427,20 +430,16 @@ export default function DuplicatesPage() {
                   <Badge className="ml-auto text-[10px] bg-white/60 dark:bg-black/20 border-current text-current hover:bg-white/60">
                     {group.clients.length} clientes
                   </Badge>
-                  {group.clients.length === 2 && (
+                  {group.clients.length >= 2 && (
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={bulk.running}
                       className="h-7 text-[11px] gap-1 border-current text-current bg-white/50 hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40"
-                      onClick={() =>
-                        setMergeTarget({
-                          keepId: group.clients[0].id,
-                          keepName: group.clients[0].name,
-                          mergeId: group.clients[1].id,
-                          mergeName: group.clients[1].name,
-                        })
-                      }
+                      onClick={() => {
+                        setMergeGroup(group.clients);
+                        setSelectedKeepId(group.clients[0].id);
+                      }}
                     >
                       <Merge className="h-3 w-3" />
                       Unificar
@@ -504,30 +503,87 @@ export default function DuplicatesPage() {
         </>
       )}
 
-      {/* Diálogo: Unificar um par */}
-      <AlertDialog open={!!mergeTarget} onOpenChange={(open) => !open && setMergeTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unificar clientes</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <p>
-                  <strong className="text-slate-900 dark:text-slate-100">"{mergeTarget?.mergeName}"</strong>{" "}
-                  será removido e todos os seus dados serão transferidos para{" "}
-                  <strong className="text-slate-900 dark:text-slate-100">"{mergeTarget?.keepName}"</strong>.
-                </p>
-                <p className="text-red-600 dark:text-red-400 font-medium">Esta ação é irreversível.</p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700 text-white"
+      {/* Diálogo: Unificar par — com seleção do cadastro principal */}
+      <Dialog
+        open={!!mergeGroup}
+        onOpenChange={(open) => { if (!open) { setMergeGroup(null); setSelectedKeepId(null); } }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Merge className="h-5 w-5 text-amber-600" />
+              Escolha o cadastro principal
+            </DialogTitle>
+            <DialogDescription>
+              Clique no cadastro que deseja <strong>manter</strong>. O outro será removido e todos os seus dados transferidos para o principal.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 my-1">
+            {(mergeGroup ?? []).map((client) => {
+              const isKeep = client.id === selectedKeepId;
+              return (
+                <button
+                  key={client.id}
+                  type="button"
+                  onClick={() => setSelectedKeepId(client.id)}
+                  className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
+                    isKeep
+                      ? "border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-600"
+                      : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-500 bg-white dark:bg-slate-900"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`font-semibold text-sm ${isKeep ? "text-green-800 dark:text-green-300" : "text-slate-800 dark:text-slate-100"}`}>
+                          {client.name}
+                        </span>
+                        {client.categoria && (
+                          <Badge variant="outline" className="text-xs py-0">{client.categoria}</Badge>
+                        )}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        {client.cpf && <span>CPF {client.cpf}</span>}
+                        {client.phone && <span>{client.phone}</span>}
+                        {client.email && <span className="truncate">{client.email}</span>}
+                        <span>Cadastrado {format(new Date(client.createdAt), "dd/MM/yyyy", { locale: ptBR })}</span>
+                      </div>
+                    </div>
+                    <div className="shrink-0 mt-0.5">
+                      {isKeep ? (
+                        <Badge className="bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100">
+                          ★ PRINCIPAL
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-slate-400 dark:text-slate-500">clique para selecionar</span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 p-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>Esta ação é <strong>irreversível</strong>. O cadastro não selecionado será removido permanentemente após a fusão.</span>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setMergeGroup(null); setSelectedKeepId(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white gap-2"
+              disabled={!selectedKeepId}
               onClick={async () => {
-                if (!mergeTarget) return;
+                if (!mergeGroup || !selectedKeepId) return;
+                const others = mergeGroup.filter((c) => c.id !== selectedKeepId);
                 try {
-                  await mergeOnePair(mergeTarget.keepId, mergeTarget.mergeId);
+                  for (const other of others) {
+                    await mergeOnePair(selectedKeepId, other.id);
+                  }
                   toast({ title: "Clientes unificados com sucesso!" });
                   queryClient.invalidateQueries({ queryKey: ["/api/clients/duplicates"] });
                   queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
@@ -535,15 +591,17 @@ export default function DuplicatesPage() {
                 } catch (e: unknown) {
                   toast({ title: "Erro ao unificar", description: (e as Error).message, variant: "destructive" });
                 } finally {
-                  setMergeTarget(null);
+                  setMergeGroup(null);
+                  setSelectedKeepId(null);
                 }
               }}
             >
+              <CheckCircle2 className="h-4 w-4" />
               Confirmar Unificação
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Diálogo: Unificar Todos */}
       <AlertDialog open={showBulkConfirm} onOpenChange={(open) => !open && setShowBulkConfirm(false)}>
