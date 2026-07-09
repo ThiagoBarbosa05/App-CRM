@@ -88,7 +88,13 @@
       "Bash(NODE_OPTIONS=\"--max-old-space-size=6144\" npx tsc --noEmit -p tsconfig.json)",
       "Bash(NODE_OPTIONS=\"--max-old-space-size=6144\" npx tsc)",
       "Bash(echo \"EXIT: $?\")",
-      "Bash(pkill -f \"tsc --noEmit\")"
+      "Bash(pkill -f \"tsc --noEmit\")",
+      "Bash(awk '/export const sales = pgTable/,/^}\\\\\\);/' shared/schema.ts)",
+      "Bash(awk '/export const products = pgTable/,/^}\\\\\\);/' shared/schema.ts)",
+      "Bash(awk '/export const productCategories = pgTable/,/^}\\\\\\);/' shared/schema.ts)",
+      "Bash(awk '/export const cashbackSettings = pgTable/,/^}\\\\\\);/' shared/schema.ts)",
+      "Bash(awk '/export const cashbackTransactions = pgTable/,/^}\\\\\\);/' shared/schema.ts)",
+      "Bash(awk '/export const blingOrders = pgTable/,/^}?\\\\\\);/' shared/schema.ts)"
     ]
   }
 }
