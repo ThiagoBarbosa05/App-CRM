@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import crypto from "crypto";
 
 const router = Router();
 
@@ -113,14 +114,32 @@ export default router;
 // Webhook separado (sem autenticação JWT) para receber mensagens em tempo real
 export const zernioWebhookRouter = Router();
 
+const WEBHOOK_SECRET = process.env.ZERNIO_WEBHOOK_SECRET;
+
+function verifySignature(req: any): boolean {
+  if (!WEBHOOK_SECRET) return true; // sem segredo configurado, aceita tudo (não recomendado em produção)
+  const signature = req.headers["x-zernio-signature"] as string | undefined;
+  if (!signature) return false;
+  const rawBody: Buffer | undefined = req.rawBody;
+  if (!rawBody) return false;
+  const expected = crypto.createHmac("sha256", WEBHOOK_SECRET).update(rawBody).digest("hex");
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length) return false;
+  return crypto.timingSafeEqual(sigBuf, expBuf);
+}
+
 // POST /api/zernio-webhook/message
 zernioWebhookRouter.post("/message", (req, res) => {
   try {
+    if (!verifySignature(req)) {
+      return res.status(403).json({ message: "Assinatura inválida" });
+    }
     const event = req.body;
-    if (!event || event.event !== "message.received") return res.json({ ok: true });
+    if (!event) return res.json({ ok: true });
     // Emite o evento SSE para todos os clientes conectados ao inbox
     import("../lib/zernio-sse").then(({ publishZernioEvent }) => {
-      publishZernioEvent(event.data);
+      publishZernioEvent(event.data ?? event);
     });
     return res.json({ ok: true });
   } catch (e: any) {
