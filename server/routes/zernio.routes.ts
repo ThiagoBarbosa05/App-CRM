@@ -122,7 +122,12 @@ const WEBHOOK_SECRET = process.env.ZERNIO_WEBHOOK_SECRET;
 
 function verifySignature(req: any): boolean {
   if (!WEBHOOK_SECRET) return true; // sem segredo configurado, aceita tudo (não recomendado em produção)
-  const signature = req.headers["x-zernio-signature"] as string | undefined;
+  // Zernio herda a infraestrutura de webhooks do produto "Late" e ainda envia
+  // os headers com o prefixo legado X-Late-* em produção, apesar da doc atual
+  // descrever X-Zernio-Signature.
+  const signature =
+    (req.headers["x-zernio-signature"] as string | undefined) ??
+    (req.headers["x-late-signature"] as string | undefined);
   if (!signature) return false;
   const rawBody: Buffer | undefined = req.rawBody;
   if (!rawBody) return false;
@@ -137,6 +142,12 @@ function verifySignature(req: any): boolean {
 zernioWebhookRouter.post("/message", (req, res) => {
   try {
     if (!verifySignature(req)) {
+      console.warn("[zernio-webhook] assinatura inválida — headers recebidos:", {
+        "x-zernio-signature": req.headers["x-zernio-signature"],
+        "x-late-signature": req.headers["x-late-signature"],
+        "x-late-event": req.headers["x-late-event"],
+        "x-late-event-id": req.headers["x-late-event-id"],
+      });
       return res.status(403).json({ message: "Assinatura inválida" });
     }
     const event = req.body;
