@@ -48,10 +48,7 @@ router.get("/conversations/:conversationId/messages", async (req, res) => {
     if (qs) url += `?${qs}`;
     const resp = await fetch(url, { headers: zernioHeaders() });
     const data = await resp.json();
-    if (!resp.ok) {
-      console.error(`[Zernio] messages 400 — url: ${url} — response:`, JSON.stringify(data));
-      return res.status(resp.status).json(data);
-    }
+    if (!resp.ok) return res.status(resp.status).json(data);
     return res.json(data);
   } catch (e: any) {
     return res.status(500).json({ message: e.message });
