@@ -135,8 +135,10 @@ export default function DuplicatesPage() {
   const [selectedFields, setSelectedFields] = useState<SearchField[]>(["cpf", "email", "phone"]);
   const [searchTriggered, setSearchTriggered] = useState(false);
   const [activeFields, setActiveFields] = useState<SearchField[]>([]);
+  const [groupSelections, setGroupSelections] = useState<Record<string, string>>({});
   const [mergeGroup, setMergeGroup] = useState<DuplicateClient[] | null>(null);
   const [selectedKeepId, setSelectedKeepId] = useState<string | null>(null);
+  const [confirmingGroupKey, setConfirmingGroupKey] = useState<string | null>(null);
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulk, setBulk] = useState<BulkProgress>({ total: 0, done: 0, errors: 0, running: false, finished: false });
   const abortRef = useRef(false);
@@ -419,86 +421,138 @@ export default function DuplicatesPage() {
 
           {/* Grupos */}
           <div className="space-y-4">
-            {groups.map((group) => (
-              <div
-                key={group.key}
-                className={`rounded-xl border p-5 space-y-4 ${reasonColor(group.reason)}`}
-              >
-                <div className="flex items-center gap-2">
-                  {reasonIcon(group.reason)}
-                  <span className="text-sm font-semibold">{group.reason}</span>
-                  <Badge className="ml-auto text-[10px] bg-white/60 dark:bg-black/20 border-current text-current hover:bg-white/60">
-                    {group.clients.length} clientes
-                  </Badge>
-                  {group.clients.length >= 2 && (
+            {groups.map((group) => {
+              const keepId = groupSelections[group.key] ?? group.clients[0].id;
+              const isConfirming = confirmingGroupKey === group.key;
+              return (
+                <div
+                  key={group.key}
+                  className={`rounded-xl border p-5 space-y-4 ${reasonColor(group.reason)}`}
+                >
+                  <div className="flex items-center gap-2">
+                    {reasonIcon(group.reason)}
+                    <span className="text-sm font-semibold">{group.reason}</span>
+                    <Badge className="ml-auto text-[10px] bg-white/60 dark:bg-black/20 border-current text-current hover:bg-white/60">
+                      {group.clients.length} clientes
+                    </Badge>
+                  </div>
+
+                  <p className="text-xs text-slate-600 dark:text-slate-400 -mt-2">
+                    👇 Clique no cadastro que deseja <strong>manter</strong> como principal
+                  </p>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {group.clients.map((client) => {
+                      const isKeep = client.id === keepId;
+                      return (
+                        <button
+                          key={client.id}
+                          type="button"
+                          disabled={bulk.running}
+                          onClick={() => {
+                            setGroupSelections((prev) => ({ ...prev, [group.key]: client.id }));
+                            setConfirmingGroupKey(null);
+                          }}
+                          className={`rounded-lg border-2 p-4 text-left transition-all w-full ${
+                            isKeep
+                              ? "bg-white dark:bg-slate-900 border-green-400 dark:border-green-600 ring-2 ring-green-200 dark:ring-green-900 cursor-default"
+                              : "bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 cursor-pointer"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {isKeep ? (
+                                  <Badge className="text-[9px] px-1.5 py-0 h-4 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100">
+                                    ★ PRINCIPAL
+                                  </Badge>
+                                ) : (
+                                  <Badge className="text-[9px] px-1.5 py-0 h-4 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100">
+                                    clique para selecionar
+                                  </Badge>
+                                )}
+                                <p className={`text-sm font-semibold truncate ${isKeep ? "text-green-800 dark:text-green-300" : "text-slate-600 dark:text-slate-400"}`}>
+                                  {client.name}
+                                </p>
+                              </div>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{client.phone}</p>
+                              {client.email && (
+                                <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{client.email}</p>
+                              )}
+                              {client.cpf && (
+                                <p className="text-xs text-slate-400 dark:text-slate-500">Doc: {client.cpf}</p>
+                              )}
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">
+                                Cadastrado{" "}
+                                {format(new Date(client.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                                {client.responsavelName && ` · ${client.responsavelName}`}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              onClick={(e) => { e.stopPropagation(); navigate(`/clientes/${client.id}`); }}
+                              title="Abrir perfil"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Botão confirmar unificação */}
+                  {!isConfirming ? (
                     <Button
                       size="sm"
-                      variant="outline"
                       disabled={bulk.running}
-                      className="h-7 text-[11px] gap-1 border-current text-current bg-white/50 hover:bg-white/80 dark:bg-black/20 dark:hover:bg-black/40"
-                      onClick={() => {
-                        setMergeGroup(group.clients);
-                        setSelectedKeepId(group.clients[0].id);
-                      }}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white gap-2"
+                      onClick={() => setConfirmingGroupKey(group.key)}
                     >
-                      <Merge className="h-3 w-3" />
-                      Unificar
+                      <Merge className="h-4 w-4" />
+                      Unificar — manter <strong className="ml-1">{group.clients.find(c => c.id === keepId)?.name}</strong>
                     </Button>
-                  )}
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {group.clients.map((client, idx) => (
-                    <div
-                      key={client.id}
-                      className={`rounded-lg bg-white dark:bg-slate-900 border p-4 flex items-start justify-between gap-3 ${
-                        idx === 0
-                          ? "border-green-300 dark:border-green-800 ring-1 ring-green-200 dark:ring-green-900"
-                          : "border-slate-200/80 dark:border-slate-800"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          {idx === 0 ? (
-                            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100">
-                              MANTER
-                            </Badge>
-                          ) : (
-                            <Badge className="text-[9px] px-1.5 py-0 h-4 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50">
-                              REMOVER
-                            </Badge>
-                          )}
-                          <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
-                            {client.name}
-                          </p>
-                        </div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{client.phone}</p>
-                        {client.email && (
-                          <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{client.email}</p>
-                        )}
-                        {client.cpf && (
-                          <p className="text-xs text-slate-400 dark:text-slate-500">Doc: {client.cpf}</p>
-                        )}
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">
-                          Cadastrado{" "}
-                          {format(new Date(client.createdAt), "dd/MM/yyyy", { locale: ptBR })}
-                          {client.responsavelName && ` · ${client.responsavelName}`}
-                        </p>
-                      </div>
+                  ) : (
+                    <div className="flex gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="h-8 w-8 p-0 shrink-0 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-                        onClick={() => navigate(`/clientes/${client.id}`)}
-                        title="Abrir perfil"
+                        className="flex-1"
+                        onClick={() => setConfirmingGroupKey(null)}
                       >
-                        <ExternalLink className="h-3.5 w-3.5" />
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white gap-2"
+                        disabled={bulk.running}
+                        onClick={async () => {
+                          const others = group.clients.filter((c) => c.id !== keepId);
+                          try {
+                            for (const other of others) {
+                              await mergeOnePair(keepId, other.id);
+                            }
+                            toast({ title: "Clientes unificados com sucesso!" });
+                            queryClient.invalidateQueries({ queryKey: ["/api/clients/duplicates"] });
+                            queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+                            refetch();
+                          } catch (e: unknown) {
+                            toast({ title: "Erro ao unificar", description: (e as Error).message, variant: "destructive" });
+                          } finally {
+                            setConfirmingGroupKey(null);
+                          }
+                        }}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Confirmar
                       </Button>
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
