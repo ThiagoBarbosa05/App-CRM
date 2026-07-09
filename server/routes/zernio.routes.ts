@@ -1,6 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import crypto from "crypto";
+import {
+  addMessage,
+  listConversations,
+  listMessages,
+  markConversationRead,
+  upsertConversation,
+} from "../lib/zernio-store";
 
 const router = Router();
 
@@ -15,44 +22,20 @@ function zernioHeaders() {
 }
 
 // GET /api/zernio/conversations
-router.get("/conversations", async (req, res) => {
-  try {
-    if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
-    const { platform, cursor } = req.query;
-    let url = `${ZERNIO_BASE}/inbox/conversations`;
-    const params = new URLSearchParams();
-    if (platform && platform !== "all") params.set("platform", String(platform));
-    if (cursor) params.set("cursor", String(cursor));
-    const qs = params.toString();
-    if (qs) url += `?${qs}`;
-    const resp = await fetch(url, { headers: zernioHeaders() });
-    const data = await resp.json();
-    if (!resp.ok) return res.status(resp.status).json(data);
-    return res.json(data);
-  } catch (e: any) {
-    return res.status(500).json({ message: e.message });
-  }
+// Servido a partir do store em memória (populado pelo webhook) — apenas para testes,
+// não persiste em banco e some ao reiniciar o servidor.
+router.get("/conversations", (req, res) => {
+  if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
+  const { platform } = req.query;
+  return res.json({ data: listConversations(platform ? String(platform) : undefined) });
 });
 
 // GET /api/zernio/conversations/:conversationId/messages
-router.get("/conversations/:conversationId/messages", async (req, res) => {
-  try {
-    if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
-    const { conversationId } = req.params;
-    const { cursor, accountId } = req.query;
-    let url = `${ZERNIO_BASE}/inbox/conversations/${conversationId}/messages`;
-    const params = new URLSearchParams();
-    if (accountId) params.set("accountId", String(accountId));
-    if (cursor) params.set("cursor", String(cursor));
-    const qs = params.toString();
-    if (qs) url += `?${qs}`;
-    const resp = await fetch(url, { headers: zernioHeaders() });
-    const data = await resp.json();
-    if (!resp.ok) return res.status(resp.status).json(data);
-    return res.json(data);
-  } catch (e: any) {
-    return res.status(500).json({ message: e.message });
-  }
+router.get("/conversations/:conversationId/messages", (req, res) => {
+  if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
+  const { conversationId } = req.params;
+  markConversationRead(conversationId);
+  return res.json({ data: listMessages(conversationId) });
 });
 
 // POST /api/zernio/conversations/:conversationId/messages
@@ -68,6 +51,14 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
     });
     const data = await resp.json();
     if (!resp.ok) return res.status(resp.status).json(data);
+    upsertConversation({ id: conversationId, accountId: body.accountId });
+    addMessage({
+      id: crypto.randomUUID(),
+      conversationId,
+      direction: "outgoing",
+      text: body.message,
+      timestamp: new Date().toISOString(),
+    });
     return res.json(data);
   } catch (e: any) {
     return res.status(400).json({ message: e.message });
@@ -152,10 +143,49 @@ zernioWebhookRouter.post("/message", (req, res) => {
     }
     const event = req.body;
     if (!event) return res.json({ ok: true });
-    // Emite o evento SSE para todos os clientes conectados ao inbox
-    import("../lib/zernio-sse").then(({ publishZernioEvent }) => {
-      publishZernioEvent(event.data ?? event);
-    });
+    console.log("[zernio-webhook] payload recebido:", JSON.stringify(event));
+    const payload = event.data ?? event;
+    const rawMessage = payload.message ?? payload;
+    const conversationMeta = payload.conversation ?? {};
+    const sender = rawMessage.sender ?? {};
+    const account = payload.account ?? {};
+
+    if (rawMessage?.conversationId) {
+      const direction: "incoming" | "outgoing" = rawMessage.direction === "outgoing" ? "outgoing" : "incoming";
+      const hasAttachments = Array.isArray(rawMessage.attachments) && rawMessage.attachments.length > 0;
+      const text = rawMessage.text ?? rawMessage.message ?? rawMessage.body ?? (hasAttachments ? "📎 Anexo" : "");
+      const timestamp =
+        rawMessage.sentAt ?? rawMessage.createdAt ?? rawMessage.timestamp ?? payload.timestamp ?? new Date().toISOString();
+
+      upsertConversation({
+        id: rawMessage.conversationId,
+        platform: rawMessage.platform ?? account.platform,
+        accountId: account.id ?? account.accountId,
+        participant: {
+          id: conversationMeta.participantId ?? sender.id,
+          name: conversationMeta.participantName ?? sender.name,
+          username: conversationMeta.participantUsername ?? sender.username,
+        },
+      });
+
+      const storedMessage = {
+        id: rawMessage.id ?? payload.id ?? crypto.randomUUID(),
+        conversationId: rawMessage.conversationId,
+        direction,
+        text,
+        timestamp,
+        sender: sender.id || sender.name ? { id: sender.id, name: sender.name } : undefined,
+      };
+      const isNew = addMessage(storedMessage);
+
+      // Emite o evento SSE já normalizado no formato que o inbox espera
+      if (isNew) {
+        import("../lib/zernio-sse").then(({ publishZernioEvent }) => {
+          publishZernioEvent(storedMessage);
+        });
+      }
+    }
+
     return res.json({ ok: true });
   } catch (e: any) {
     return res.status(400).json({ message: e.message });
