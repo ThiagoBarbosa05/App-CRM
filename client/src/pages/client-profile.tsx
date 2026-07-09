@@ -80,10 +80,21 @@ interface BlingSellerMapping {
   blingVendedorName: string | null;
 }
 
+/**
+ * Faz o parse de uma data (string "YYYY-MM-DD" ou ISO completa) usando os
+ * componentes de ano/mês/dia em UTC, evitando que a conversão para o fuso
+ * horário local (ex.: UTC-3) faça a data "voltar" um dia.
+ */
+function parseDateAsLocal(dateStr: string): Date | null {
+  const raw = new Date(dateStr);
+  if (isNaN(raw.getTime())) return null;
+  return new Date(raw.getUTCFullYear(), raw.getUTCMonth(), raw.getUTCDate());
+}
+
 function calculateAge(birthday: string | null | undefined): number | null {
   if (!birthday) return null;
-  const birth = new Date(birthday);
-  if (isNaN(birth.getTime())) return null;
+  const birth = parseDateAsLocal(birthday);
+  if (!birth) return null;
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
@@ -339,7 +350,7 @@ export default function ClientProfilePage() {
             const age = calculateAge(client.birthday);
             if (age === null) return null;
 
-            const birth = new Date(client.birthday!);
+            const birth = parseDateAsLocal(client.birthday!)!;
             const today = new Date();
             const nextBirthday = new Date(today.getFullYear(), birth.getMonth(), birth.getDate());
             if (nextBirthday < today) nextBirthday.setFullYear(today.getFullYear() + 1);
