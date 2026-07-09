@@ -22,20 +22,28 @@ function zernioHeaders() {
 }
 
 // GET /api/zernio/conversations
-// Servido a partir do store em memória (populado pelo webhook) — apenas para testes,
-// não persiste em banco e some ao reiniciar o servidor.
-router.get("/conversations", (req, res) => {
-  if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
-  const { platform } = req.query;
-  return res.json({ data: listConversations(platform ? String(platform) : undefined) });
+router.get("/conversations", async (req, res) => {
+  try {
+    if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
+    const { platform } = req.query;
+    const data = await listConversations(platform ? String(platform) : undefined);
+    return res.json({ data });
+  } catch (e: any) {
+    return res.status(500).json({ message: e.message });
+  }
 });
 
 // GET /api/zernio/conversations/:conversationId/messages
-router.get("/conversations/:conversationId/messages", (req, res) => {
-  if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
-  const { conversationId } = req.params;
-  markConversationRead(conversationId);
-  return res.json({ data: listMessages(conversationId) });
+router.get("/conversations/:conversationId/messages", async (req, res) => {
+  try {
+    if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
+    const { conversationId } = req.params;
+    await markConversationRead(conversationId);
+    const data = await listMessages(conversationId);
+    return res.json({ data });
+  } catch (e: any) {
+    return res.status(500).json({ message: e.message });
+  }
 });
 
 // POST /api/zernio/conversations/:conversationId/messages
@@ -51,8 +59,8 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
     });
     const data = await resp.json();
     if (!resp.ok) return res.status(resp.status).json(data);
-    upsertConversation({ id: conversationId, accountId: body.accountId });
-    addMessage({
+    await upsertConversation({ id: conversationId, accountId: body.accountId });
+    await addMessage({
       id: crypto.randomUUID(),
       conversationId,
       direction: "outgoing",
@@ -130,7 +138,7 @@ function verifySignature(req: any): boolean {
 }
 
 // POST /api/zernio-webhook/message
-zernioWebhookRouter.post("/message", (req, res) => {
+zernioWebhookRouter.post("/message", async (req, res) => {
   try {
     if (!verifySignature(req)) {
       console.warn("[zernio-webhook] assinatura inválida — headers recebidos:", {
@@ -157,7 +165,7 @@ zernioWebhookRouter.post("/message", (req, res) => {
       const timestamp =
         rawMessage.sentAt ?? rawMessage.createdAt ?? rawMessage.timestamp ?? payload.timestamp ?? new Date().toISOString();
 
-      upsertConversation({
+      await upsertConversation({
         id: rawMessage.conversationId,
         platform: rawMessage.platform ?? account.platform,
         accountId: account.id ?? account.accountId,
@@ -176,7 +184,7 @@ zernioWebhookRouter.post("/message", (req, res) => {
         timestamp,
         sender: sender.id || sender.name ? { id: sender.id, name: sender.name } : undefined,
       };
-      const isNew = addMessage(storedMessage);
+      const isNew = await addMessage(storedMessage);
 
       // Emite o evento SSE já normalizado no formato que o inbox espera
       if (isNew) {

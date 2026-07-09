@@ -1,5 +1,11 @@
-// Armazenamento em memória para testes do inbox do Zernio.
-// Não persiste em banco — dados somem ao reiniciar o servidor.
+// Persistência do Inbox Unificado do Zernio (substituiu o armazenamento em
+// memória usado durante os testes iniciais). Os ids das linhas são os mesmos
+// ids que o Zernio usa (conversationId / message.id vindos do webhook).
+//
+// Requer as tabelas criadas por scripts/create-zernio-tables.mjs.
+import { asc, desc, eq, sql } from "drizzle-orm";
+import { db } from "../db";
+import { zernioConversations, zernioMessages } from "@shared/schema";
 
 export interface ZernioStoredMessage {
   id: string;
@@ -7,7 +13,7 @@ export interface ZernioStoredMessage {
   direction: "incoming" | "outgoing";
   text?: string;
   timestamp: string;
-  sender?: { id: string; name?: string };
+  sender?: { id?: string; name?: string };
 }
 
 export interface ZernioStoredConversation {
@@ -19,69 +25,122 @@ export interface ZernioStoredConversation {
   unreadCount: number;
 }
 
-const conversations = new Map<string, ZernioStoredConversation>();
-const messagesByConversation = new Map<string, ZernioStoredMessage[]>();
-
-export function upsertConversation(
-  partial: Partial<Omit<ZernioStoredConversation, "id">> & { id: string },
-): ZernioStoredConversation {
-  const existing = conversations.get(partial.id);
-  // Mescla campo a campo para não perder dados já conhecidos (ex.: nome do
-  // participante) quando um evento subsequente vem com informação parcial.
-  const participant =
-    partial.participant || existing?.participant
+function toConversationDTO(row: typeof zernioConversations.$inferSelect): ZernioStoredConversation {
+  const hasParticipant = !!(row.participantId || row.participantName || row.participantUsername);
+  return {
+    id: row.id,
+    platform: row.platform,
+    accountId: row.accountId,
+    participant: hasParticipant
       ? {
-          id: partial.participant?.id ?? existing?.participant?.id ?? "",
-          name: partial.participant?.name ?? existing?.participant?.name,
-          username: partial.participant?.username ?? existing?.participant?.username,
+          id: row.participantId ?? "",
+          name: row.participantName ?? undefined,
+          username: row.participantUsername ?? undefined,
         }
-      : undefined;
-  const merged: ZernioStoredConversation = {
+      : undefined,
+    lastMessage:
+      row.lastMessageAt && row.lastMessageDirection
+        ? {
+            text: row.lastMessageText ?? "",
+            timestamp: row.lastMessageAt.toISOString(),
+            direction: row.lastMessageDirection as "incoming" | "outgoing",
+          }
+        : undefined,
+    unreadCount: row.unreadCount,
+  };
+}
+
+function toMessageDTO(row: typeof zernioMessages.$inferSelect): ZernioStoredMessage {
+  return {
+    id: row.id,
+    conversationId: row.conversationId,
+    direction: row.direction as "incoming" | "outgoing",
+    text: row.text ?? undefined,
+    timestamp: row.sentAt.toISOString(),
+    sender: row.senderId || row.senderName ? { id: row.senderId ?? undefined, name: row.senderName ?? undefined } : undefined,
+  };
+}
+
+export async function upsertConversation(
+  partial: Partial<Omit<ZernioStoredConversation, "id">> & { id: string },
+): Promise<ZernioStoredConversation> {
+  const [existing] = await db.select().from(zernioConversations).where(eq(zernioConversations.id, partial.id));
+
+  const values = {
     id: partial.id,
     platform: partial.platform ?? existing?.platform ?? "whatsapp",
     accountId: partial.accountId ?? existing?.accountId ?? "",
-    participant,
-    lastMessage: existing?.lastMessage,
-    unreadCount: existing?.unreadCount ?? 0,
+    participantId: partial.participant?.id ?? existing?.participantId ?? null,
+    participantName: partial.participant?.name ?? existing?.participantName ?? null,
+    participantUsername: partial.participant?.username ?? existing?.participantUsername ?? null,
+    updatedAt: new Date(),
   };
-  conversations.set(partial.id, merged);
-  return merged;
+
+  const [row] = await db
+    .insert(zernioConversations)
+    .values(values)
+    .onConflictDoUpdate({ target: zernioConversations.id, set: values })
+    .returning();
+
+  return toConversationDTO(row);
 }
 
 /** Retorna `true` se a mensagem era nova (ignora reentregas do webhook com o mesmo id). */
-export function addMessage(message: ZernioStoredMessage): boolean {
-  const list = messagesByConversation.get(message.conversationId) ?? [];
-  if (list.some((m) => m.id === message.id)) return false;
-  list.push(message);
-  messagesByConversation.set(message.conversationId, list);
+export async function addMessage(message: ZernioStoredMessage): Promise<boolean> {
+  const inserted = await db
+    .insert(zernioMessages)
+    .values({
+      id: message.id,
+      conversationId: message.conversationId,
+      direction: message.direction,
+      text: message.text ?? null,
+      senderId: message.sender?.id ?? null,
+      senderName: message.sender?.name ?? null,
+      sentAt: new Date(message.timestamp),
+    })
+    .onConflictDoNothing()
+    .returning({ id: zernioMessages.id });
 
-  const conv = upsertConversation({ id: message.conversationId });
-  conv.lastMessage = {
-    text: message.text ?? "",
-    timestamp: message.timestamp,
-    direction: message.direction,
-  };
-  if (message.direction === "incoming") conv.unreadCount += 1;
+  if (inserted.length === 0) return false;
+
+  await db
+    .update(zernioConversations)
+    .set({
+      lastMessageText: message.text ?? "",
+      lastMessageAt: new Date(message.timestamp),
+      lastMessageDirection: message.direction,
+      unreadCount:
+        message.direction === "incoming"
+          ? sql`${zernioConversations.unreadCount} + 1`
+          : zernioConversations.unreadCount,
+      updatedAt: new Date(),
+    })
+    .where(eq(zernioConversations.id, message.conversationId));
+
   return true;
 }
 
-export function listConversations(platform?: string): ZernioStoredConversation[] {
-  const all = Array.from(conversations.values());
-  const filtered = platform && platform !== "all" ? all.filter((c) => c.platform === platform) : all;
-  return filtered.sort((a, b) => {
-    const at = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
-    const bt = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
-    return bt - at;
-  });
+export async function listConversations(platform?: string): Promise<ZernioStoredConversation[]> {
+  const rows = await db
+    .select()
+    .from(zernioConversations)
+    .where(platform && platform !== "all" ? eq(zernioConversations.platform, platform) : undefined)
+    .orderBy(desc(zernioConversations.lastMessageAt));
+  return rows.map(toConversationDTO);
 }
 
-export function listMessages(conversationId: string): ZernioStoredMessage[] {
-  return (messagesByConversation.get(conversationId) ?? [])
-    .slice()
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+export async function listMessages(conversationId: string): Promise<ZernioStoredMessage[]> {
+  const rows = await db
+    .select()
+    .from(zernioMessages)
+    .where(eq(zernioMessages.conversationId, conversationId))
+    .orderBy(asc(zernioMessages.sentAt));
+  return rows.map(toMessageDTO);
 }
 
-export function markConversationRead(conversationId: string): void {
-  const conv = conversations.get(conversationId);
-  if (conv) conv.unreadCount = 0;
+export async function markConversationRead(conversationId: string): Promise<void> {
+  await db
+    .update(zernioConversations)
+    .set({ unreadCount: 0, updatedAt: new Date() })
+    .where(eq(zernioConversations.id, conversationId));
 }

@@ -4477,4 +4477,45 @@ export type WhatsappConversation = typeof whatsappConversations.$inferSelect;
 export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
 export type WhatsappMedia = typeof whatsappMedia.$inferSelect;
 
+// ─── Zernio (Inbox Unificado) ─────────────────────────────────────────────────
+// O `id` das conversas/mensagens é o id que o próprio Zernio usa (vem no
+// webhook e é usado nas chamadas à API do Zernio) — não é gerado localmente.
+
+export const zernioConversations = pgTable("zernio_conversations", {
+  id: varchar("id").primaryKey(),
+  platform: text("platform").notNull(),
+  accountId: text("account_id").notNull().default(""),
+  participantId: text("participant_id"),
+  participantName: text("participant_name"),
+  participantUsername: text("participant_username"),
+  lastMessageText: text("last_message_text"),
+  lastMessageAt: timestamp("last_message_at"),
+  lastMessageDirection: text("last_message_direction", { enum: ["incoming", "outgoing"] }),
+  unreadCount: integer("unread_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const zernioMessages = pgTable(
+  "zernio_messages",
+  {
+    id: varchar("id").primaryKey(),
+    conversationId: varchar("conversation_id")
+      .notNull()
+      .references(() => zernioConversations.id, { onDelete: "cascade" }),
+    direction: text("direction", { enum: ["incoming", "outgoing"] }).notNull(),
+    text: text("text"),
+    senderId: text("sender_id"),
+    senderName: text("sender_name"),
+    sentAt: timestamp("sent_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({ conversationIdx: index("zernio_messages_conversation_idx").on(t.conversationId) }),
+);
+
+export type ZernioConversationRow = typeof zernioConversations.$inferSelect;
+export type InsertZernioConversationRow = typeof zernioConversations.$inferInsert;
+export type ZernioMessageRow = typeof zernioMessages.$inferSelect;
+export type InsertZernioMessageRow = typeof zernioMessages.$inferInsert;
+
 export type InsertCampaignClient = z.infer<typeof insertCampaignClientSchema>;
