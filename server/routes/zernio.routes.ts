@@ -60,12 +60,17 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
     const data = await resp.json();
     if (!resp.ok) return res.status(resp.status).json(data);
     await upsertConversation({ id: conversationId, accountId: body.accountId });
+    // Usa o messageId retornado pela API do Zernio (não um id gerado aqui) para que,
+    // quando o webhook "message.sent" chegar depois para essa mesma mensagem, o
+    // addMessage o deduplique pelo id em vez de criar uma segunda linha.
+    const sentMessageId = data?.data?.messageId ?? data?.messageId ?? data?.id ?? crypto.randomUUID();
+    const sentAt = data?.data?.sentAt ?? data?.sentAt;
     await addMessage({
-      id: crypto.randomUUID(),
+      id: sentMessageId,
       conversationId,
       direction: "outgoing",
       text: body.message,
-      timestamp: new Date().toISOString(),
+      timestamp: sentAt ?? new Date().toISOString(),
     });
     return res.json(data);
   } catch (e: any) {
