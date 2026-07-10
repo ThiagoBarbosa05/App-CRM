@@ -465,7 +465,7 @@ export default function ClientProfilePage() {
               className="gap-1.5 text-pink-600 border-pink-200 hover:bg-pink-50 hover:border-pink-300 dark:border-pink-800/60 dark:text-pink-400 dark:hover:bg-pink-900/20 font-medium w-full sm:w-auto"
               asChild
             >
-              <a href={`/zernio-inbox?conversationId=${instagramConversation.id}`}>
+              <a href={`/inbox?conversationId=${instagramConversation.id}`}>
                 <FaInstagram className="h-4 w-4" />
                 Instagram
               </a>
