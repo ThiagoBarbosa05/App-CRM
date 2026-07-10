@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Plus, Trash2, Pencil, MessageSquare, Mail } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, Pencil, MessageSquare, Mail, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,13 +31,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -46,6 +55,7 @@ import {
   useUpdateAutomationRule,
   useToggleAutomationRule,
   useDeleteAutomationRule,
+  useReorderAutomationRules,
   useMessageTemplates,
 } from "@/hooks/use-automations";
 import type { AutomationRule } from "@shared/schema";
@@ -89,6 +99,7 @@ export function AutomationRulesTab() {
   const updateMutation = useUpdateAutomationRule();
   const toggleMutation = useToggleAutomationRule();
   const deleteMutation = useDeleteAutomationRule();
+  const reorderMutation = useReorderAutomationRules();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -96,6 +107,27 @@ export function AutomationRulesTab() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [orderedRules, setOrderedRules] = useState<AutomationRule[]>([]);
+
+  useEffect(() => {
+    setOrderedRules(rules);
+  }, [rules]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = orderedRules.findIndex((r) => r.id === active.id);
+    const newIndex = orderedRules.findIndex((r) => r.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(orderedRules, oldIndex, newIndex);
+    setOrderedRules(newOrder);
+    reorderMutation.mutate(newOrder.map((r) => r.id));
+  };
 
   const smsTemplates = useMemo(
     () => templates.filter((t) => t.channel === "sms" && t.isActive),
@@ -262,115 +294,47 @@ export function AutomationRulesTab() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Gatilho</TableHead>
-                <TableHead>Canais</TableHead>
-                <TableHead>Ativa</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Carregando regras...
-                  </TableCell>
-                </TableRow>
-              )}
-              {!isLoading && rules.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhuma regra de automação cadastrada.
-                  </TableCell>
-                </TableRow>
-              )}
-              {rules.map((rule) => (
-                <TableRow key={rule.id}>
-                  <TableCell className="font-medium">{rule.name}</TableCell>
-                  <TableCell>
-                    {TRIGGER_LABELS[rule.trigger] ?? rule.trigger}
-                    {rule.trigger === "cashback_expiring" &&
-                      (rule.triggerParams as Record<string, unknown> | null)
-                        ?.daysBeforeExpiry !== undefined && (
-                        <span className="text-muted-foreground text-sm">
-                          {" "}
-                          (
-                          {String(
-                            (rule.triggerParams as Record<string, unknown>)
-                              .daysBeforeExpiry,
-                          )}{" "}
-                          dia(s) antes)
-                        </span>
-                      )}
-                    {rule.trigger === "inactivity_reengagement" &&
-                      (() => {
-                        const params = (rule.triggerParams ?? {}) as Record<
-                          string,
-                          unknown
-                        >;
-                        if (
-                          params.attemptNumber === undefined ||
-                          params.inactivityDays === undefined
-                        )
-                          return null;
-                        return (
-                          <span className="text-muted-foreground text-sm">
-                            {" "}
-                            (tentativa {String(params.attemptNumber)} —{" "}
-                            {String(params.inactivityDays)} dia(s) sem
-                            comprar)
-                          </span>
-                        );
-                      })()}
-                  </TableCell>
-                  <TableCell className="space-x-1">
-                    {rule.smsEnabled && (
-                      <Badge variant="outline" className="gap-1" title={templateName(rule.smsTemplateId)}>
-                        <MessageSquare className="h-3 w-3" />
-                        SMS
-                      </Badge>
-                    )}
-                    {rule.emailEnabled && (
-                      <Badge variant="outline" className="gap-1" title={templateName(rule.emailTemplateId)}>
-                        <Mail className="h-3 w-3" />
-                        E-mail
-                      </Badge>
-                    )}
-                    {!rule.smsEnabled && !rule.emailEnabled && (
-                      <span className="text-muted-foreground text-sm">Nenhum</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={rule.isActive}
-                      onCheckedChange={(checked) =>
-                        toggleMutation.mutate({ id: rule.id, isActive: checked })
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(rule)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeletingId(rule.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+      {isLoading && (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Carregando regras...
+          </CardContent>
+        </Card>
+      )}
+      {!isLoading && orderedRules.length === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Nenhuma regra de automação cadastrada.
+          </CardContent>
+        </Card>
+      )}
+      {!isLoading && orderedRules.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={orderedRules.map((r) => r.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {orderedRules.map((rule) => (
+                <SortableRuleCard
+                  key={rule.id}
+                  rule={rule}
+                  templateName={templateName}
+                  onEdit={() => openEdit(rule)}
+                  onDelete={() => setDeletingId(rule.id)}
+                  onToggle={(checked) =>
+                    toggleMutation.mutate({ id: rule.id, isActive: checked })
+                  }
+                />
               ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -574,5 +538,114 @@ export function AutomationRulesTab() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function SortableRuleCard({
+  rule,
+  templateName,
+  onEdit,
+  onDelete,
+  onToggle,
+}: {
+  rule: AutomationRule;
+  templateName: (id: string | null) => string;
+  onEdit: () => void;
+  onDelete: () => void;
+  onToggle: (checked: boolean) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: rule.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? "opacity-60 shadow-lg" : ""}
+    >
+      <CardContent className="flex items-center gap-3 p-4">
+        <button
+          type="button"
+          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <p className="font-medium">{rule.name}</p>
+          <p className="text-sm text-muted-foreground">
+            {TRIGGER_LABELS[rule.trigger] ?? rule.trigger}
+            {rule.trigger === "cashback_expiring" &&
+              (rule.triggerParams as Record<string, unknown> | null)
+                ?.daysBeforeExpiry !== undefined && (
+                <>
+                  {" "}
+                  (
+                  {String(
+                    (rule.triggerParams as Record<string, unknown>)
+                      .daysBeforeExpiry,
+                  )}{" "}
+                  dia(s) antes)
+                </>
+              )}
+            {rule.trigger === "inactivity_reengagement" &&
+              (() => {
+                const params = (rule.triggerParams ?? {}) as Record<
+                  string,
+                  unknown
+                >;
+                if (
+                  params.attemptNumber === undefined ||
+                  params.inactivityDays === undefined
+                )
+                  return null;
+                return (
+                  <>
+                    {" "}
+                    (tentativa {String(params.attemptNumber)} —{" "}
+                    {String(params.inactivityDays)} dia(s) sem comprar)
+                  </>
+                );
+              })()}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1">
+          {rule.smsEnabled && (
+            <Badge variant="outline" className="gap-1" title={templateName(rule.smsTemplateId)}>
+              <MessageSquare className="h-3 w-3" />
+              SMS
+            </Badge>
+          )}
+          {rule.emailEnabled && (
+            <Badge variant="outline" className="gap-1" title={templateName(rule.emailTemplateId)}>
+              <Mail className="h-3 w-3" />
+              E-mail
+            </Badge>
+          )}
+          {!rule.smsEnabled && !rule.emailEnabled && (
+            <span className="text-muted-foreground text-sm">Nenhum</span>
+          )}
+        </div>
+
+        <Switch checked={rule.isActive} onCheckedChange={onToggle} />
+
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onDelete}>
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

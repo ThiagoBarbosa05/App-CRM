@@ -4,13 +4,26 @@ import {
   type InsertMessageTemplate,
   type MessageTemplate,
 } from "@shared/schema";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 
 export async function listMessageTemplates(): Promise<MessageTemplate[]> {
   return db
     .select()
     .from(messageTemplates)
-    .orderBy(desc(messageTemplates.createdAt));
+    .orderBy(asc(messageTemplates.sortOrder), desc(messageTemplates.createdAt));
+}
+
+export async function reorderMessageTemplates(
+  orderedIds: string[],
+): Promise<void> {
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      db
+        .update(messageTemplates)
+        .set({ sortOrder: index, updatedAt: new Date() })
+        .where(eq(messageTemplates.id, id)),
+    ),
+  );
 }
 
 export async function getMessageTemplateById(

@@ -6,6 +6,7 @@ import {
   createAutomationRule,
   deleteAutomationRule,
   listAutomationRules,
+  reorderAutomationRules,
   toggleAutomationRuleActive,
   updateAutomationRule,
 } from "../services/automation-rules.service";
@@ -21,6 +22,20 @@ automationRulesRouter.get("/", async (_req, res) => {
     res.status(500).json({ message: "Erro ao buscar regras de automação" });
   }
 });
+
+automationRulesRouter.patch(
+  "/reorder",
+  validateBody(z.object({ orderedIds: z.array(z.string()).min(1) })),
+  async (req, res) => {
+    try {
+      await reorderAutomationRules(req.body.orderedIds);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao reordenar regras de automação:", error);
+      res.status(500).json({ message: "Erro ao reordenar regras de automação" });
+    }
+  },
+);
 
 automationRulesRouter.post(
   "/",

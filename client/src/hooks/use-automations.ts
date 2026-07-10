@@ -50,6 +50,17 @@ export function useDeleteMessageTemplate() {
   });
 }
 
+export function useReorderMessageTemplates() {
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await apiRequest("PATCH", "/api/message-templates/reorder", {
+        orderedIds,
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY }),
+  });
+}
+
 export function useTestSendMessageTemplate() {
   return useMutation({
     mutationFn: async ({ id, to }: { id: string; to: string }) => {
@@ -100,6 +111,17 @@ export function useToggleAutomationRule() {
         isActive,
       });
       return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: RULES_KEY }),
+  });
+}
+
+export function useReorderAutomationRules() {
+  return useMutation({
+    mutationFn: async (orderedIds: string[]) => {
+      await apiRequest("PATCH", "/api/automation-rules/reorder", {
+        orderedIds,
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: RULES_KEY }),
   });

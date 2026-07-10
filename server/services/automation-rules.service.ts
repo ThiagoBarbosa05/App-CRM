@@ -4,13 +4,26 @@ import {
   type InsertAutomationRule,
   type AutomationRule,
 } from "@shared/schema";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 
 export async function listAutomationRules(): Promise<AutomationRule[]> {
   return db
     .select()
     .from(automationRules)
-    .orderBy(desc(automationRules.createdAt));
+    .orderBy(asc(automationRules.sortOrder), desc(automationRules.createdAt));
+}
+
+export async function reorderAutomationRules(
+  orderedIds: string[],
+): Promise<void> {
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      db
+        .update(automationRules)
+        .set({ sortOrder: index, updatedAt: new Date() })
+        .where(eq(automationRules.id, id)),
+    ),
+  );
 }
 
 export async function getAutomationRuleById(

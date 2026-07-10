@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Pencil, Eye, MessageSquare, Mail, Send } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Trash2, Pencil, Eye, MessageSquare, Mail, Send, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,13 +31,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -45,6 +54,7 @@ import {
   useCreateMessageTemplate,
   useUpdateMessageTemplate,
   useDeleteMessageTemplate,
+  useReorderMessageTemplates,
   useTestSendMessageTemplate,
 } from "@/hooks/use-automations";
 import type { MessageTemplate } from "@shared/schema";
@@ -121,6 +131,7 @@ export function MessageTemplatesTab() {
   const createMutation = useCreateMessageTemplate();
   const updateMutation = useUpdateMessageTemplate();
   const deleteMutation = useDeleteMessageTemplate();
+  const reorderMutation = useReorderMessageTemplates();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -139,11 +150,39 @@ export function MessageTemplatesTab() {
     null,
   );
   const [testSendTo, setTestSendTo] = useState("");
+  const [orderedTemplates, setOrderedTemplates] = useState<MessageTemplate[]>([]);
+
+  useEffect(() => {
+    setOrderedTemplates(templates);
+  }, [templates]);
 
   const filteredTemplates = useMemo(() => {
-    if (channelFilter === "all") return templates;
-    return templates.filter((t) => t.channel === channelFilter);
-  }, [templates, channelFilter]);
+    if (channelFilter === "all") return orderedTemplates;
+    return orderedTemplates.filter((t) => t.channel === channelFilter);
+  }, [orderedTemplates, channelFilter]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = filteredTemplates.findIndex((t) => t.id === active.id);
+    const newIndex = filteredTemplates.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newFilteredOrder = arrayMove(filteredTemplates, oldIndex, newIndex);
+
+    let cursor = 0;
+    const filteredIds = new Set(filteredTemplates.map((t) => t.id));
+    const newFullOrder = orderedTemplates.map((t) =>
+      filteredIds.has(t.id) ? newFilteredOrder[cursor++] : t,
+    );
+
+    setOrderedTemplates(newFullOrder);
+    reorderMutation.mutate(newFullOrder.map((t) => t.id));
+  };
 
   const availableVariables =
     VARIABLES_BY_USE_CASE[form.useCase] ?? VARIABLES_BY_USE_CASE.custom;
@@ -315,93 +354,45 @@ export function MessageTemplatesTab() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Canal</TableHead>
-                <TableHead>Caso de uso</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Carregando modelos...
-                  </TableCell>
-                </TableRow>
-              )}
-              {!isLoading && filteredTemplates.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhum modelo de mensagem cadastrado.
-                  </TableCell>
-                </TableRow>
-              )}
+      {isLoading && (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Carregando modelos...
+          </CardContent>
+        </Card>
+      )}
+      {!isLoading && filteredTemplates.length === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Nenhum modelo de mensagem cadastrado.
+          </CardContent>
+        </Card>
+      )}
+      {!isLoading && filteredTemplates.length > 0 && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={filteredTemplates.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
               {filteredTemplates.map((template) => (
-                <TableRow key={template.id}>
-                  <TableCell className="font-medium">{template.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="gap-1">
-                      {template.channel === "sms" ? (
-                        <MessageSquare className="h-3 w-3" />
-                      ) : (
-                        <Mail className="h-3 w-3" />
-                      )}
-                      {template.channel === "sms" ? "SMS" : "E-mail"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {USE_CASE_LABELS[template.useCase] ?? template.useCase}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={
-                        template.isActive
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                      }
-                    >
-                      {template.isActive ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title="Testar envio"
-                      onClick={() => openTestSend(template)}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setPreviewTemplate(template)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(template)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeletingId(template.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
+                <SortableTemplateCard
+                  key={template.id}
+                  template={template}
+                  onTestSend={() => openTestSend(template)}
+                  onPreview={() => setPreviewTemplate(template)}
+                  onEdit={() => openEdit(template)}
+                  onDelete={() => setDeletingId(template.id)}
+                />
               ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -623,5 +614,87 @@ export function MessageTemplatesTab() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+function SortableTemplateCard({
+  template,
+  onTestSend,
+  onPreview,
+  onEdit,
+  onDelete,
+}: {
+  template: MessageTemplate;
+  onTestSend: () => void;
+  onPreview: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: template.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? "opacity-60 shadow-lg" : ""}
+    >
+      <CardContent className="flex items-center gap-3 p-4">
+        <button
+          type="button"
+          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <p className="font-medium">{template.name}</p>
+          <p className="text-sm text-muted-foreground">
+            {USE_CASE_LABELS[template.useCase] ?? template.useCase}
+          </p>
+        </div>
+
+        <Badge variant="outline" className="gap-1">
+          {template.channel === "sms" ? (
+            <MessageSquare className="h-3 w-3" />
+          ) : (
+            <Mail className="h-3 w-3" />
+          )}
+          {template.channel === "sms" ? "SMS" : "E-mail"}
+        </Badge>
+
+        <Badge
+          className={
+            template.isActive
+              ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+          }
+        >
+          {template.isActive ? "Ativo" : "Inativo"}
+        </Badge>
+
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" title="Testar envio" onClick={onTestSend}>
+            <Send className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onPreview}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onDelete}>
+            <Trash2 className="h-4 w-4 text-red-500" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

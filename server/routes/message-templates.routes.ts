@@ -8,6 +8,7 @@ import {
   getMessageTemplateById,
   listMessageTemplates,
   renderTemplate,
+  reorderMessageTemplates,
   updateMessageTemplate,
 } from "../services/message-templates.service";
 import { sendSms, SmsApiError } from "../integrations/sms";
@@ -36,6 +37,20 @@ messageTemplatesRouter.get("/", async (_req, res) => {
     res.status(500).json({ message: "Erro ao buscar modelos de mensagem" });
   }
 });
+
+messageTemplatesRouter.patch(
+  "/reorder",
+  validateBody(z.object({ orderedIds: z.array(z.string()).min(1) })),
+  async (req, res) => {
+    try {
+      await reorderMessageTemplates(req.body.orderedIds);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Erro ao reordenar modelos de mensagem:", error);
+      res.status(500).json({ message: "Erro ao reordenar modelos de mensagem" });
+    }
+  },
+);
 
 messageTemplatesRouter.post(
   "/",

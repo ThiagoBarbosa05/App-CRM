@@ -4548,6 +4548,7 @@ export const messageTemplates = pgTable("message_templates", {
   subject: text("subject"), // apenas para e-mail
   body: text("body").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
   createdBy: varchar("created_by")
     .references(() => users.id)
     .notNull(),
@@ -4579,6 +4580,7 @@ export const automationRules = pgTable("automation_rules", {
   emailEnabled: boolean("email_enabled").notNull().default(false),
   emailTemplateId: varchar("email_template_id").references(() => messageTemplates.id),
   isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
   createdBy: varchar("created_by")
     .references(() => users.id)
     .notNull(),
