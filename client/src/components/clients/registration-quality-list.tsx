@@ -1,11 +1,22 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
-import { User, Filter, BarChart3 } from "lucide-react";
+import { User, Filter, BarChart3, Trash2, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Pagination,
   PaginationContent,
@@ -20,6 +31,10 @@ import {
 } from "@/hooks/use-registration-quality-panel";
 import { formatCurrency } from "@/lib/utils";
 import { FaWhatsapp } from "react-icons/fa";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
 
 interface RegistrationQualityListProps {
   responsavelId?: string;
@@ -80,10 +95,45 @@ function combinationLabel(combo: FilterableFieldKey[]): string {
 export function RegistrationQualityList({
   responsavelId,
 }: RegistrationQualityListProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const isAdmin = user?.role === "admin";
   const { data: candidates, isLoading } = useRegistrationQualityPanel(responsavelId);
   // null = filtro inativo (mostra todos). Set vazio = filtro ativo pedindo
   // "nenhum campo além do nome" (caso contrário indistinguível de "sem filtro").
   const [fieldFilter, setFieldFilter] = useState<Set<FilterableFieldKey> | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 1) {
+        await apiRequest("DELETE", `/api/clients/${ids[0]}`);
+      } else {
+        await apiRequest("DELETE", "/api/clients", { clientIds: ids });
+      }
+    },
+    onSuccess: (_data, ids) => {
+      toast({
+        title: "Cliente(s) excluído(s)",
+        description: `${ids.length} cliente(s) removido(s) com sucesso.`,
+      });
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({
+        queryKey: ["/api/clients/registration-quality-panel"],
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao excluir cliente(s)",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setConfirmOpen(false);
+    },
+  });
 
   const isOnlyNameActive = fieldFilter !== null && fieldFilter.size === 0;
 
@@ -132,6 +182,36 @@ export function RegistrationQualityList({
     () => filteredCandidates.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
     [filteredCandidates, safePage],
   );
+
+  const pagedIds = useMemo(() => pagedCandidates.map((c) => c.id), [pagedCandidates]);
+  const allPagedSelected =
+    pagedIds.length > 0 && pagedIds.every((id) => selectedIds.has(id));
+  const somePagedSelected = pagedIds.some((id) => selectedIds.has(id));
+
+  const toggleSelectAllPaged = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allPagedSelected) {
+        pagedIds.forEach((id) => next.delete(id));
+      } else {
+        pagedIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    deleteMutation.mutate(Array.from(selectedIds));
+  };
 
   return (
     <div className="space-y-4">
@@ -206,6 +286,35 @@ export function RegistrationQualityList({
         </Card>
       )}
 
+      {isAdmin && !isLoading && filteredCandidates.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-sm">
+            <Checkbox
+              checked={allPagedSelected ? true : somePagedSelected ? "indeterminate" : false}
+              onCheckedChange={toggleSelectAllPaged}
+            />
+            <span className="text-slate-600 dark:text-slate-300">
+              Selecionar todos nesta página
+            </span>
+          </label>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={selectedIds.size === 0 || deleteMutation.isPending}
+            onClick={() => setConfirmOpen(true)}
+            className="gap-1.5"
+          >
+            {deleteMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+            Excluir {selectedIds.size > 0 ? `(${selectedIds.size})` : ""}
+          </Button>
+        </div>
+      )}
+
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-5 space-y-3">
@@ -232,6 +341,13 @@ export function RegistrationQualityList({
                   key={client.id}
                   className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                 >
+                  {isAdmin && (
+                    <Checkbox
+                      checked={selectedIds.has(client.id)}
+                      onCheckedChange={() => toggleSelectOne(client.id)}
+                      className="shrink-0"
+                    />
+                  )}
                   <Link href={`/clientes/${client.id}`} className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
                       <span className="truncate">{client.name}</span>
@@ -330,6 +446,36 @@ export function RegistrationQualityList({
           </Pagination>
         </div>
       )}
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você está prestes a excluir {selectedIds.size} cliente
+              {selectedIds.size === 1 ? "" : "s"} selecionado
+              {selectedIds.size === 1 ? "" : "s"}. Essa ação também remove
+              dados relacionados (deals, cashback, interações) e não pode ser
+              desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmDelete();
+              }}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
