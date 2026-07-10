@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AutomationRulesTab } from "./automation-rules-tab";
 import { MessageTemplatesTab } from "./message-templates-tab";
+import { AutomationMonitoringTab } from "./automation-monitoring-tab";
 
 export default function AutomationsPage() {
   return (
@@ -24,12 +25,16 @@ export default function AutomationsPage() {
         <TabsList>
           <TabsTrigger value="regras">Regras</TabsTrigger>
           <TabsTrigger value="modelos">Modelos de Mensagem</TabsTrigger>
+          <TabsTrigger value="monitoramento">Monitoramento</TabsTrigger>
         </TabsList>
         <TabsContent value="regras">
           <AutomationRulesTab />
         </TabsContent>
         <TabsContent value="modelos">
           <MessageTemplatesTab />
+        </TabsContent>
+        <TabsContent value="monitoramento">
+          <AutomationMonitoringTab />
         </TabsContent>
       </Tabs>
     </div>

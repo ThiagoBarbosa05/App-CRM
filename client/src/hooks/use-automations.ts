@@ -100,3 +100,94 @@ export function useDeleteAutomationRule() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: RULES_KEY }),
   });
 }
+
+export interface AutomationRuleOverview {
+  id: string;
+  name: string;
+  trigger: AutomationRule["trigger"];
+  triggerParams: Record<string, unknown> | null;
+  isActive: boolean;
+  activeClients: number;
+  sentRecent: number;
+  failedRecent: number;
+  lastFailureAt: string | null;
+  lastDispatchAt: string | null;
+}
+
+export interface AutomationRuleClientRow {
+  clientId: string;
+  clientName: string;
+  attemptsSent: number | null;
+  lastDispatchAt: string;
+  lastStatus: "success" | "failed";
+  successCount: number;
+  failedCount: number;
+}
+
+export interface AutomationHistoryRow {
+  id: string;
+  ruleId: string;
+  ruleName: string;
+  clientId: string | null;
+  clientName: string | null;
+  channel: "sms" | "email";
+  status: "success" | "failed";
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+export interface AutomationHistoryFilters {
+  clientId?: string;
+  ruleId?: string;
+  channel?: "sms" | "email";
+  status?: "success" | "failed";
+  page?: number;
+  pageSize?: number;
+}
+
+export function useAutomationOverview() {
+  return useQuery<AutomationRuleOverview[]>({
+    queryKey: ["/api/automation-monitoring/overview"],
+    refetchInterval: 60_000,
+  });
+}
+
+export function useAutomationRuleClients(ruleId: string | null) {
+  return useQuery<AutomationRuleClientRow[]>({
+    queryKey: ["/api/automation-monitoring/rules", ruleId, "clients"],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `/api/automation-monitoring/rules/${ruleId}/clients`,
+      );
+      return res.json();
+    },
+    enabled: !!ruleId,
+  });
+}
+
+export function useAutomationHistory(filters: AutomationHistoryFilters) {
+  const params = new URLSearchParams();
+  if (filters.clientId) params.set("clientId", filters.clientId);
+  if (filters.ruleId) params.set("ruleId", filters.ruleId);
+  if (filters.channel) params.set("channel", filters.channel);
+  if (filters.status) params.set("status", filters.status);
+  params.set("page", String(filters.page ?? 1));
+  params.set("pageSize", String(filters.pageSize ?? 20));
+
+  return useQuery<{
+    data: AutomationHistoryRow[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>({
+    queryKey: ["/api/automation-monitoring/history", filters],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        `/api/automation-monitoring/history?${params.toString()}`,
+      );
+      return res.json();
+    },
+  });
+}
