@@ -93,9 +93,13 @@ const saveFlowSchema = z.object({
     .default([]),
 });
 
-router.get("/bots", async (_req, res) => {
+router.get("/bots", async (req, res) => {
   try {
-    const bots = await listBots();
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+    const activeOnly = req.query.activeOnly === "true";
+    const bots = await listBots(
+      search || activeOnly ? { search: search || undefined, activeOnly } : undefined,
+    );
     res.json(bots);
   } catch {
     res.status(500).json({ message: "Erro ao listar bots" });

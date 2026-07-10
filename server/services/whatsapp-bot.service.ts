@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { db } from "server/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ilike } from "drizzle-orm";
 import {
   whatsappBots,
   whatsappBotNodes,
@@ -19,8 +19,21 @@ export interface BotWithFlow {
   edges: WhatsappBotEdge[];
 }
 
-export async function listBots(): Promise<WhatsappBot[]> {
-  return db.select().from(whatsappBots).orderBy(whatsappBots.createdAt);
+export async function listBots(options?: {
+  search?: string;
+  activeOnly?: boolean;
+}): Promise<WhatsappBot[]> {
+  const conditions = [];
+  if (options?.search) conditions.push(ilike(whatsappBots.name, `%${options.search}%`));
+  if (options?.activeOnly) conditions.push(eq(whatsappBots.isActive, true));
+
+  const query = db.select().from(whatsappBots).orderBy(whatsappBots.createdAt);
+  // Limita resultados só no modo "busca" (seletor de bot no composer) — a tela
+  // de gerenciamento de bots continua listando tudo, sem paginação.
+  if (conditions.length > 0) {
+    return query.where(and(...conditions)).limit(30);
+  }
+  return query;
 }
 
 export async function getBot(botId: string): Promise<BotWithFlow | null> {

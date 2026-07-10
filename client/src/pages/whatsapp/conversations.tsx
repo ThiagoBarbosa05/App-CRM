@@ -2697,6 +2697,7 @@ function ConversationMessages({
   const [quickReplyOpen, setQuickReplyOpen] = useState(false);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [botPickerOpen, setBotPickerOpen] = useState(false);
+  const [botSearch, setBotSearch] = useState("");
   const [triggeringBotId, setTriggeringBotId] = useState<string | null>(null);
   const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
   const [transferOpen, setTransferOpen] = useState(false);
@@ -2793,6 +2794,24 @@ function ConversationMessages({
   const { data: waSettings } = useWhatsappSettings();
 
   const activeBots = bots.filter((b) => b.isActive);
+
+  // Busca de bots no popover "Disparar bot" via API (em vez de filtrar
+  // client-side a lista inteira) — necessário conforme a quantidade de bots
+  // cresce. Só busca enquanto o popover está aberto.
+  const debouncedBotSearch = useDebounce(botSearch, 300);
+  const { data: filteredBots = [], isLoading: isBotSearchLoading } = useQuery<
+    WhatsappBot[]
+  >({
+    queryKey: ["/api/whatsapp/bots", "picker", debouncedBotSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ activeOnly: "true" });
+      if (debouncedBotSearch) params.set("search", debouncedBotSearch);
+      const res = await fetch(`/api/whatsapp/bots?${params}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: botPickerOpen,
+  });
 
   const botShortcuts = parseBotShortcuts(waSettings?.wa_bot_shortcut_ids);
   const shortcutBots = botShortcuts
@@ -4754,7 +4773,13 @@ function ConversationMessages({
                 </>
               )}
               {composerMode === "message" && activeBots.length > 0 && (
-                <Popover open={botPickerOpen} onOpenChange={setBotPickerOpen}>
+                <Popover
+                  open={botPickerOpen}
+                  onOpenChange={(next) => {
+                    setBotPickerOpen(next);
+                    if (!next) setBotSearch("");
+                  }}
+                >
                   <PopoverTrigger asChild>
                     <button
                       disabled={triggeringBotId !== null}
@@ -4768,26 +4793,47 @@ function ConversationMessages({
                       )}
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent side="top" align="start" className="p-0 w-56">
+                  <PopoverContent side="top" align="start" className="p-0 w-64">
                     <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
                       <Bot className="h-3.5 w-3.5 text-slate-400" />
                       <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                         Disparar bot
                       </span>
                     </div>
-                    <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-60 overflow-y-auto">
-                      {activeBots.map((bot) => (
-                        <button
-                          key={bot.id}
-                          className="flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
-                          onClick={() => handleTriggerBot(bot.id)}
-                        >
-                          <Bot className="h-3.5 w-3.5 text-primary shrink-0" />
-                          <span className="text-xs text-slate-700 dark:text-slate-200 truncate">
-                            {bot.name}
-                          </span>
-                        </button>
-                      ))}
+                    <div className="relative px-2 pt-2">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Buscar bot..."
+                        value={botSearch}
+                        onChange={(e) => setBotSearch(e.target.value)}
+                        autoFocus
+                        className="w-full pl-7 pr-2 py-1.5 text-xs rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 max-h-60 overflow-y-auto mt-2">
+                      {isBotSearchLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                        </div>
+                      ) : filteredBots.length === 0 ? (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">
+                          Nenhum bot encontrado
+                        </p>
+                      ) : (
+                        filteredBots.map((bot) => (
+                          <button
+                            key={bot.id}
+                            className="flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                            onClick={() => handleTriggerBot(bot.id)}
+                          >
+                            <Bot className="h-3.5 w-3.5 text-primary shrink-0" />
+                            <span className="text-xs text-slate-700 dark:text-slate-200 truncate">
+                              {bot.name}
+                            </span>
+                          </button>
+                        ))
+                      )}
                     </div>
                   </PopoverContent>
                 </Popover>
