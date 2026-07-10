@@ -143,17 +143,20 @@ export class ClientsRepository {
 
     if (filters.search) {
       const searchTerm = `%${filters.search}%`;
-      const normalizedSearchPhone = filters.search.replace(/\D/g, "");
+      const normalizedSearchDigits = filters.search.replace(/\D/g, "");
       conditions.push(
         or(
           ilike(clients.name, searchTerm),
           ilike(clients.email, searchTerm),
           ilike(clients.phone, searchTerm),
           ilike(clients.cpf, searchTerm),
-          ...(normalizedSearchPhone.length >= 5
+          ...(normalizedSearchDigits.length >= 5
             ? [
                 sql`regexp_replace(COALESCE(${clients.phone}, ''), '\\D', '', 'g') LIKE ${
-                  "%" + normalizedSearchPhone + "%"
+                  "%" + normalizedSearchDigits + "%"
+                }`,
+                sql`regexp_replace(COALESCE(${clients.cpf}, ''), '\\D', '', 'g') LIKE ${
+                  "%" + normalizedSearchDigits + "%"
                 }`,
               ]
             : []),
