@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Pencil, Eye, MessageSquare, Mail } from "lucide-react";
+import { Plus, Trash2, Pencil, Eye, MessageSquare, Mail, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +45,7 @@ import {
   useCreateMessageTemplate,
   useUpdateMessageTemplate,
   useDeleteMessageTemplate,
+  useTestSendMessageTemplate,
 } from "@/hooks/use-automations";
 import type { MessageTemplate } from "@shared/schema";
 
@@ -133,6 +134,11 @@ export function MessageTemplatesTab() {
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const subjectRef = useRef<HTMLInputElement | null>(null);
+  const testSendMutation = useTestSendMessageTemplate();
+  const [testSendTemplate, setTestSendTemplate] = useState<MessageTemplate | null>(
+    null,
+  );
+  const [testSendTo, setTestSendTo] = useState("");
 
   const filteredTemplates = useMemo(() => {
     if (channelFilter === "all") return templates;
@@ -249,6 +255,45 @@ export function MessageTemplatesTab() {
     }
   };
 
+  const openTestSend = (template: MessageTemplate) => {
+    setTestSendTemplate(template);
+    setTestSendTo("");
+  };
+
+  const handleTestSend = async () => {
+    if (!testSendTemplate || !testSendTo.trim()) {
+      toast({
+        title:
+          testSendTemplate?.channel === "sms"
+            ? "Informe um telefone para o teste"
+            : "Informe um e-mail para o teste",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await testSendMutation.mutateAsync({
+        id: testSendTemplate.id,
+        to: testSendTo.trim(),
+      });
+      toast({
+        title: "Mensagem de teste enviada",
+        description:
+          testSendTemplate.channel === "sms"
+            ? `SMS enviado para ${testSendTo.trim()}`
+            : `E-mail enviado para ${testSendTo.trim()}`,
+      });
+      setTestSendTemplate(null);
+    } catch (error) {
+      toast({
+        title: "Falha ao enviar mensagem de teste",
+        description: error instanceof Error ? error.message : undefined,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -325,6 +370,14 @@ export function MessageTemplatesTab() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Testar envio"
+                      onClick={() => openTestSend(template)}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -504,6 +557,52 @@ export function MessageTemplatesTab() {
               </p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!testSendTemplate}
+        onOpenChange={(open) => !open && setTestSendTemplate(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Testar envio</DialogTitle>
+          </DialogHeader>
+          {testSendTemplate && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Envia o modelo "{testSendTemplate.name}" com dados de exemplo
+                para o {testSendTemplate.channel === "sms" ? "telefone" : "e-mail"}{" "}
+                informado abaixo.
+              </p>
+              <div>
+                <Label>
+                  {testSendTemplate.channel === "sms"
+                    ? "Telefone (com DDD)"
+                    : "E-mail"}
+                </Label>
+                <Input
+                  value={testSendTo}
+                  onChange={(e) => setTestSendTo(e.target.value)}
+                  placeholder={
+                    testSendTemplate.channel === "sms"
+                      ? "(11) 99999-9999"
+                      : "voce@exemplo.com"
+                  }
+                  type={testSendTemplate.channel === "sms" ? "tel" : "email"}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTestSendTemplate(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleTestSend} disabled={testSendMutation.isPending}>
+              <Send className="h-4 w-4 mr-2" />
+              {testSendMutation.isPending ? "Enviando..." : "Enviar teste"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

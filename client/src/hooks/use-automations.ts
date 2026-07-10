@@ -50,6 +50,19 @@ export function useDeleteMessageTemplate() {
   });
 }
 
+export function useTestSendMessageTemplate() {
+  return useMutation({
+    mutationFn: async ({ id, to }: { id: string; to: string }) => {
+      const res = await apiRequest(
+        "POST",
+        `/api/message-templates/${id}/test-send`,
+        { to },
+      );
+      return res.json();
+    },
+  });
+}
+
 export function useAutomationRules() {
   return useQuery<AutomationRule[]>({ queryKey: RULES_KEY });
 }
