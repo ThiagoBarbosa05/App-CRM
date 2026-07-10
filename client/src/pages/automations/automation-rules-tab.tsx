@@ -59,6 +59,7 @@ const TRIGGER_LABELS: Record<string, string> = {
 interface FormState {
   name: string;
   trigger: AutomationRule["trigger"];
+  daysBeforeExpiry: string;
   smsEnabled: boolean;
   smsTemplateId: string;
   emailEnabled: boolean;
@@ -69,6 +70,7 @@ interface FormState {
 const EMPTY_FORM: FormState = {
   name: "",
   trigger: "cashback_earned",
+  daysBeforeExpiry: "7",
   smsEnabled: false,
   smsTemplateId: "",
   emailEnabled: false,
@@ -111,9 +113,14 @@ export function AutomationRulesTab() {
 
   const openEdit = (rule: AutomationRule) => {
     setEditingId(rule.id);
+    const triggerParams = (rule.triggerParams ?? {}) as Record<string, unknown>;
     setForm({
       name: rule.name,
       trigger: rule.trigger,
+      daysBeforeExpiry:
+        triggerParams.daysBeforeExpiry !== undefined
+          ? String(triggerParams.daysBeforeExpiry)
+          : "7",
       smsEnabled: rule.smsEnabled,
       smsTemplateId: rule.smsTemplateId ?? "",
       emailEnabled: rule.emailEnabled,
@@ -153,11 +160,24 @@ export function AutomationRulesTab() {
       });
       return;
     }
+    if (
+      form.trigger === "cashback_expiring" &&
+      (!form.daysBeforeExpiry.trim() || Number(form.daysBeforeExpiry) < 0)
+    ) {
+      toast({
+        title: "Informe quantos dias antes do vencimento enviar o lembrete",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const payload = {
       name: form.name.trim(),
       trigger: form.trigger,
-      triggerParams: {},
+      triggerParams:
+        form.trigger === "cashback_expiring"
+          ? { daysBeforeExpiry: Number(form.daysBeforeExpiry) }
+          : {},
       smsEnabled: form.smsEnabled,
       smsTemplateId: form.smsEnabled ? form.smsTemplateId : null,
       emailEnabled: form.emailEnabled,
@@ -235,7 +255,22 @@ export function AutomationRulesTab() {
               {rules.map((rule) => (
                 <TableRow key={rule.id}>
                   <TableCell className="font-medium">{rule.name}</TableCell>
-                  <TableCell>{TRIGGER_LABELS[rule.trigger] ?? rule.trigger}</TableCell>
+                  <TableCell>
+                    {TRIGGER_LABELS[rule.trigger] ?? rule.trigger}
+                    {rule.trigger === "cashback_expiring" &&
+                      (rule.triggerParams as Record<string, unknown> | null)
+                        ?.daysBeforeExpiry !== undefined && (
+                        <span className="text-muted-foreground text-sm">
+                          {" "}
+                          (
+                          {String(
+                            (rule.triggerParams as Record<string, unknown>)
+                              .daysBeforeExpiry,
+                          )}{" "}
+                          dia(s) antes)
+                        </span>
+                      )}
+                  </TableCell>
                   <TableCell className="space-x-1">
                     {rule.smsEnabled && (
                       <Badge variant="outline" className="gap-1" title={templateName(rule.smsTemplateId)}>
@@ -316,6 +351,27 @@ export function AutomationRulesTab() {
                 </SelectContent>
               </Select>
             </div>
+
+            {form.trigger === "cashback_expiring" && (
+              <div>
+                <Label>Dias antes do vencimento</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.daysBeforeExpiry}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, daysBeforeExpiry: e.target.value }))
+                  }
+                  placeholder="Ex.: 7"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  O lembrete é enviado quando faltarem esse número de dias
+                  para o cashback vencer. Crie uma regra para cada etapa da
+                  régua (ex.: 21, 14, 7 e 1 dia antes), cada uma com seu
+                  próprio texto.
+                </p>
+              </div>
+            )}
 
             <div className="rounded-md border p-3 space-y-3">
               <div className="flex items-center justify-between">

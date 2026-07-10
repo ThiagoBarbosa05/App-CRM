@@ -24,6 +24,7 @@ import type {
 import { eq, and, isNull, desc, sql, ne, or, gt } from "drizzle-orm";
 import { cashbackSettingsService } from "./cashback-settings.service";
 import { cashbackSettingsRepository } from "../repositories/cashback-settings.repository";
+import { dispatchCashbackEarnedAutomation } from "./cashback-automation.service";
 
 /**
  * Interface para parâmetros de criação de pedido
@@ -850,7 +851,7 @@ export class BlingOrdersService {
     const saleDate = new Date(`${order.data}T00:00:00-03:00`);
 
     try {
-      await cashbackSettingsService.createCashbackTransaction({
+      const transaction = await cashbackSettingsService.createCashbackTransaction({
         clientId: appClientId,
         purchaseAmount: order.total.toString(),
         cashbackAmount: cashbackAmount.toFixed(2),
@@ -863,6 +864,13 @@ export class BlingOrdersService {
         // Bling Control (externo) e não existe na tabela users do app.
         processedBy: undefined,
       });
+
+      dispatchCashbackEarnedAutomation(transaction).catch((err) =>
+        console.error(
+          "[BlingOrdersService] Erro ao disparar automação de cashback ganho:",
+          err,
+        ),
+      );
     } catch (error) {
       console.error(
         "[BlingOrdersService] Erro ao criar transação de cashback:",
