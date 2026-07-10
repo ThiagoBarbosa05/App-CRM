@@ -97,6 +97,8 @@ import { marketingRouter } from "./marketing.routes";
 import { emailCampaignsRouter } from "./email-campaigns.routes";
 import { smsCampaignsRouter } from "./sms-campaigns.routes";
 import zernioRouter, { zernioWebhookRouter } from "./zernio.routes";
+import { messageTemplatesRouter } from "./message-templates.routes";
+import { automationRulesRouter } from "./automation-rules.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -215,3 +217,5 @@ apiRouter.use("/marketing", marketingRouter);
 apiRouter.use("/email-campaigns", emailCampaignsRouter);
 apiRouter.use("/sms-campaigns", smsCampaignsRouter);
 apiRouter.use("/zernio", zernioRouter);
+apiRouter.use("/message-templates", messageTemplatesRouter);
+apiRouter.use("/automation-rules", automationRulesRouter);

@@ -4523,3 +4523,106 @@ export type ZernioMessageRow = typeof zernioMessages.$inferSelect;
 export type InsertZernioMessageRow = typeof zernioMessages.$inferInsert;
 
 export type InsertCampaignClient = z.infer<typeof insertCampaignClientSchema>;
+
+// ─── Automações (infraestrutura genérica) ─────────────────────────────────────
+// Modelos de mensagem reutilizáveis, multi-canal (SMS/e-mail), usados pelas
+// regras de automação. Cada template pertence a um canal e a um caso de uso
+// (útil para automações específicas encontrarem o template certo).
+
+export const messageTemplates = pgTable("message_templates", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  channel: text("channel", { enum: ["sms", "email"] }).notNull(),
+  useCase: text("use_case", {
+    enum: [
+      "cashback_earned",
+      "cashback_expiring",
+      "inactivity_reengagement",
+      "custom",
+    ],
+  })
+    .notNull()
+    .default("custom"),
+  subject: text("subject"), // apenas para e-mail
+  body: text("body").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertMessageTemplateSchema = createInsertSchema(
+  messageTemplates,
+).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
+
+// Regra de automação genérica: um gatilho (trigger) de negócio + canais
+// habilitados, cada canal apontando para um template. `triggerParams` guarda
+// configuração específica do gatilho (ex.: número de dias antes do vencimento
+// do cashback, intervalo de reengajamento) sem exigir nova tabela por tipo.
+export const automationRules = pgTable("automation_rules", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  trigger: text("trigger", {
+    enum: ["cashback_earned", "cashback_expiring", "inactivity_reengagement"],
+  }).notNull(),
+  triggerParams: jsonb("trigger_params").$type<Record<string, unknown>>().default({}),
+  smsEnabled: boolean("sms_enabled").notNull().default(false),
+  smsTemplateId: varchar("sms_template_id").references(() => messageTemplates.id),
+  emailEnabled: boolean("email_enabled").notNull().default(false),
+  emailTemplateId: varchar("email_template_id").references(() => messageTemplates.id),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by")
+    .references(() => users.id)
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAutomationRuleSchema = createInsertSchema(automationRules)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    triggerParams: z.record(z.unknown()).optional(),
+  });
+export type InsertAutomationRule = z.infer<typeof insertAutomationRuleSchema>;
+export type AutomationRule = typeof automationRules.$inferSelect;
+
+// Log de execução por canal: um registro por envio (SMS ou e-mail) disparado
+// por uma regra de automação, usado para o painel de monitoramento e para
+// deduplicação (ex.: não reenviar o mesmo lembrete de vencimento).
+export const automationExecutionLog = pgTable(
+  "automation_execution_log",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ruleId: varchar("rule_id")
+      .references(() => automationRules.id, { onDelete: "cascade" })
+      .notNull(),
+    clientId: varchar("client_id").references(() => clients.id, {
+      onDelete: "set null",
+    }),
+    channel: text("channel", { enum: ["sms", "email"] }).notNull(),
+    templateId: varchar("template_id").references(() => messageTemplates.id),
+    status: text("status", { enum: ["success", "failed"] }).notNull(),
+    errorMessage: text("error_message"),
+    externalId: varchar("external_id"),
+    dedupeKey: text("dedupe_key"), // ex.: `${trigger}:${clientId}:${transactionId}:${step}`
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("automation_execution_log_rule_idx").on(table.ruleId),
+    index("automation_execution_log_client_idx").on(table.clientId),
+    index("automation_execution_log_dedupe_idx").on(table.dedupeKey),
+  ],
+);
+
+export type AutomationExecutionLog = typeof automationExecutionLog.$inferSelect;
+export type InsertAutomationExecutionLog = typeof automationExecutionLog.$inferInsert;

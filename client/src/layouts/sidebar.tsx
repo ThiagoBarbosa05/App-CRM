@@ -23,6 +23,7 @@ import {
   ShoppingBag,
   Sparkles,
   Target,
+  Zap,
   User,
   Users,
   Video,
@@ -68,6 +69,7 @@ const navItems: NavItem[] = [
   },
   { href: "/cashback", icon: Gift, label: "Cashback" },
   { href: "/marketing", icon: Megaphone, label: "Marketing", roles: ["admin", "administrador"] },
+  { href: "/automacoes", icon: Zap, label: "Automações", roles: ["admin", "administrador"] },
   { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
   // {

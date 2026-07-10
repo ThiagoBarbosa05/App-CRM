@@ -21,6 +21,7 @@ import NotFound from "@/pages/not-found";
 import Trainings from "@/pages/trainings";
 import Cashback from "@/pages/cashback";
 import Marketing from "@/pages/marketing";
+import AutomationsPage from "@/pages/automations";
 import Configurations from "@/pages/configurations";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
@@ -235,6 +236,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <Marketing />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/automacoes"
+        component={() => (
+          <MainLayout>
+            <AutomationsPage />
           </MainLayout>
         )}
       />
