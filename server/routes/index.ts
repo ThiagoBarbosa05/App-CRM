@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/validation";
+import { requireAuth, requireAdmin } from "../middleware/validation";
 import { clientsRouter } from "./clients.routes";
 import { companiesRouter } from "./companies.routes";
 import { funnelsRouter } from "./funnels.routes";
@@ -218,6 +218,6 @@ apiRouter.use("/marketing", marketingRouter);
 apiRouter.use("/email-campaigns", emailCampaignsRouter);
 apiRouter.use("/sms-campaigns", smsCampaignsRouter);
 apiRouter.use("/zernio", zernioRouter);
-apiRouter.use("/message-templates", messageTemplatesRouter);
-apiRouter.use("/automation-rules", automationRulesRouter);
-apiRouter.use("/automation-monitoring", automationMonitoringRouter);
+apiRouter.use("/message-templates", requireAdmin, messageTemplatesRouter);
+apiRouter.use("/automation-rules", requireAdmin, automationRulesRouter);
+apiRouter.use("/automation-monitoring", requireAdmin, automationMonitoringRouter);

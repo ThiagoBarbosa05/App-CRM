@@ -158,6 +158,17 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+// Middleware de autorização por perfil (apenas administradores)
+export function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({
+      message: "Acesso restrito a administradores",
+      code: "FORBIDDEN",
+    });
+  }
+  return next();
+}
+
 // Middleware de tratamento de erros global
 export function errorHandler(
   error: Error,
