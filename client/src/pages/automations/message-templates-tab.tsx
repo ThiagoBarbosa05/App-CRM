@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Plus, Trash2, Pencil, Eye, MessageSquare, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,35 @@ const SAMPLE_VARIABLES: Record<string, string | number> = {
   nome: "Maria Silva",
   valor: "R$ 50,00",
   data: "15/07/2026",
+  dias: "30",
+  data_ultima_compra: "10/06/2026",
+};
+
+interface TemplateVariable {
+  key: string;
+  label: string;
+}
+
+const VARIABLES_BY_USE_CASE: Record<string, TemplateVariable[]> = {
+  cashback_earned: [
+    { key: "nome", label: "Primeiro nome" },
+    { key: "valor", label: "Valor" },
+  ],
+  cashback_expiring: [
+    { key: "nome", label: "Primeiro nome" },
+    { key: "valor", label: "Valor" },
+    { key: "data", label: "Data" },
+  ],
+  inactivity_reengagement: [
+    { key: "nome", label: "Primeiro nome" },
+    { key: "dias", label: "Dias inativo" },
+    { key: "data_ultima_compra", label: "Data da última compra" },
+  ],
+  custom: [
+    { key: "nome", label: "Primeiro nome" },
+    { key: "valor", label: "Valor" },
+    { key: "data", label: "Data" },
+  ],
 };
 
 function renderPreview(content: string) {
@@ -102,11 +131,43 @@ export function MessageTemplatesTab() {
   );
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [channelFilter, setChannelFilter] = useState<string>("all");
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const subjectRef = useRef<HTMLInputElement | null>(null);
 
   const filteredTemplates = useMemo(() => {
     if (channelFilter === "all") return templates;
     return templates.filter((t) => t.channel === channelFilter);
   }, [templates, channelFilter]);
+
+  const availableVariables =
+    VARIABLES_BY_USE_CASE[form.useCase] ?? VARIABLES_BY_USE_CASE.custom;
+
+  const insertVariable = (
+    field: "body" | "subject",
+    variableKey: string,
+  ) => {
+    const placeholder = `{{${variableKey}}}`;
+    const element = field === "body" ? bodyRef.current : subjectRef.current;
+    const currentValue = form[field];
+
+    if (!element) {
+      setForm((f) => ({ ...f, [field]: `${currentValue}${placeholder}` }));
+      return;
+    }
+
+    const start = element.selectionStart ?? currentValue.length;
+    const end = element.selectionEnd ?? currentValue.length;
+    const newValue =
+      currentValue.slice(0, start) + placeholder + currentValue.slice(end);
+
+    setForm((f) => ({ ...f, [field]: newValue }));
+
+    requestAnimationFrame(() => {
+      element.focus();
+      const cursorPos = start + placeholder.length;
+      element.setSelectionRange(cursorPos, cursorPos);
+    });
+  };
 
   const openCreate = () => {
     setEditingId(null);
@@ -351,22 +412,53 @@ export function MessageTemplatesTab() {
               <div>
                 <Label>Assunto</Label>
                 <Input
+                  ref={subjectRef}
                   value={form.subject}
                   onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
                   placeholder="Assunto do e-mail"
                 />
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {availableVariables.map((variable) => (
+                    <Button
+                      key={variable.key}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs font-medium"
+                      onClick={() => insertVariable("subject", variable.key)}
+                    >
+                      + {variable.label.toUpperCase()}
+                    </Button>
+                  ))}
+                </div>
               </div>
             )}
             <div>
               <Label>Corpo da mensagem</Label>
+              <div className="flex flex-wrap gap-1.5 mb-1.5">
+                {availableVariables.map((variable) => (
+                  <Button
+                    key={variable.key}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 px-2 text-xs font-medium"
+                    onClick={() => insertVariable("body", variable.key)}
+                  >
+                    + {variable.label.toUpperCase()}
+                  </Button>
+                ))}
+              </div>
               <Textarea
+                ref={bodyRef}
                 rows={5}
                 value={form.body}
                 onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
                 placeholder="Use variáveis como {{nome}} e {{valor}}"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Variáveis disponíveis dependem da automação: {"{{nome}}"}, {"{{valor}}"}, {"{{data}}"}
+                Clique em uma variável acima para inserir no texto, ou digite
+                manualmente no formato {"{{nome}}"}.
               </p>
             </div>
             {form.body && (
