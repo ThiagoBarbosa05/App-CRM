@@ -15,6 +15,7 @@ import "./jobs/email-campaign-dispatcher";
 import "./jobs/sms-campaign-dispatcher";
 import "./jobs/rfm-recalculate-scheduler";
 import "./jobs/cashback-automation-scheduler";
+import "./jobs/reengagement-automation-scheduler";
 import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
 import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";

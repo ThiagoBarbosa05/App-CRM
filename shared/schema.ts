@@ -4626,3 +4626,19 @@ export const automationExecutionLog = pgTable(
 
 export type AutomationExecutionLog = typeof automationExecutionLog.$inferSelect;
 export type InsertAutomationExecutionLog = typeof automationExecutionLog.$inferInsert;
+
+// Progresso da régua de reengajamento por inatividade: uma linha por cliente
+// guardando quantas tentativas já foram enviadas no ciclo de inatividade
+// atual e quando foi a última. Zerada sempre que o cliente registra uma nova
+// compra (ver bling-orders.service.ts / connect-orders.service.ts).
+export const reengagementProgress = pgTable("reengagement_progress", {
+  clientId: varchar("client_id")
+    .primaryKey()
+    .references(() => clients.id, { onDelete: "cascade" }),
+  attemptsSent: integer("attempts_sent").notNull().default(0),
+  lastAttemptAt: timestamp("last_attempt_at"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type ReengagementProgress = typeof reengagementProgress.$inferSelect;
+export type InsertReengagementProgress = typeof reengagementProgress.$inferInsert;

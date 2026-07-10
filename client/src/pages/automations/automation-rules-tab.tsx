@@ -60,6 +60,8 @@ interface FormState {
   name: string;
   trigger: AutomationRule["trigger"];
   daysBeforeExpiry: string;
+  attemptNumber: string;
+  inactivityDays: string;
   smsEnabled: boolean;
   smsTemplateId: string;
   emailEnabled: boolean;
@@ -71,6 +73,8 @@ const EMPTY_FORM: FormState = {
   name: "",
   trigger: "cashback_earned",
   daysBeforeExpiry: "7",
+  attemptNumber: "1",
+  inactivityDays: "15",
   smsEnabled: false,
   smsTemplateId: "",
   emailEnabled: false,
@@ -121,6 +125,14 @@ export function AutomationRulesTab() {
         triggerParams.daysBeforeExpiry !== undefined
           ? String(triggerParams.daysBeforeExpiry)
           : "7",
+      attemptNumber:
+        triggerParams.attemptNumber !== undefined
+          ? String(triggerParams.attemptNumber)
+          : "1",
+      inactivityDays:
+        triggerParams.inactivityDays !== undefined
+          ? String(triggerParams.inactivityDays)
+          : "15",
       smsEnabled: rule.smsEnabled,
       smsTemplateId: rule.smsTemplateId ?? "",
       emailEnabled: rule.emailEnabled,
@@ -170,6 +182,26 @@ export function AutomationRulesTab() {
       });
       return;
     }
+    if (
+      form.trigger === "inactivity_reengagement" &&
+      (!form.attemptNumber.trim() || Number(form.attemptNumber) < 1)
+    ) {
+      toast({
+        title: "Informe o número da tentativa (1, 2, 3...)",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (
+      form.trigger === "inactivity_reengagement" &&
+      (!form.inactivityDays.trim() || Number(form.inactivityDays) < 0)
+    ) {
+      toast({
+        title: "Informe quantos dias sem comprar disparam esta tentativa",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const payload = {
       name: form.name.trim(),
@@ -177,7 +209,12 @@ export function AutomationRulesTab() {
       triggerParams:
         form.trigger === "cashback_expiring"
           ? { daysBeforeExpiry: Number(form.daysBeforeExpiry) }
-          : {},
+          : form.trigger === "inactivity_reengagement"
+            ? {
+                attemptNumber: Number(form.attemptNumber),
+                inactivityDays: Number(form.inactivityDays),
+              }
+            : {},
       smsEnabled: form.smsEnabled,
       smsTemplateId: form.smsEnabled ? form.smsTemplateId : null,
       emailEnabled: form.emailEnabled,
@@ -270,6 +307,26 @@ export function AutomationRulesTab() {
                           dia(s) antes)
                         </span>
                       )}
+                    {rule.trigger === "inactivity_reengagement" &&
+                      (() => {
+                        const params = (rule.triggerParams ?? {}) as Record<
+                          string,
+                          unknown
+                        >;
+                        if (
+                          params.attemptNumber === undefined ||
+                          params.inactivityDays === undefined
+                        )
+                          return null;
+                        return (
+                          <span className="text-muted-foreground text-sm">
+                            {" "}
+                            (tentativa {String(params.attemptNumber)} —{" "}
+                            {String(params.inactivityDays)} dia(s) sem
+                            comprar)
+                          </span>
+                        );
+                      })()}
                   </TableCell>
                   <TableCell className="space-x-1">
                     {rule.smsEnabled && (
@@ -369,6 +426,42 @@ export function AutomationRulesTab() {
                   para o cashback vencer. Crie uma regra para cada etapa da
                   régua (ex.: 21, 14, 7 e 1 dia antes), cada uma com seu
                   próprio texto.
+                </p>
+              </div>
+            )}
+
+            {form.trigger === "inactivity_reengagement" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Número da tentativa</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.attemptNumber}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, attemptNumber: e.target.value }))
+                    }
+                    placeholder="Ex.: 1"
+                  />
+                </div>
+                <div>
+                  <Label>Dias sem comprar</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={form.inactivityDays}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, inactivityDays: e.target.value }))
+                    }
+                    placeholder="Ex.: 15"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground col-span-2">
+                  Crie uma regra para cada tentativa da régua (ex.: tentativa
+                  1 aos 15 dias, tentativa 2 aos 30 dias, tentativa 3 aos 45
+                  dias), cada uma com seu próprio texto. O disparo para
+                  automaticamente quando o cliente volta a comprar ou quando
+                  não houver mais tentativa configurada.
                 </p>
               </div>
             )}

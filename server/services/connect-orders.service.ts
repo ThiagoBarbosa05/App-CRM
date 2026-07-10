@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { connectOrders, connectOrderItems, users, clients } from "../../shared/schema";
+import { resetReengagementProgress } from "./reengagement-automation.service";
 import {
   eq,
   and,
@@ -368,6 +369,17 @@ export const connectOrdersService = {
             );
           }
         });
+
+        if (appClientId) {
+          try {
+            await resetReengagementProgress(appClientId);
+          } catch (error) {
+            console.error(
+              "[ConnectOrdersService] Erro ao zerar progresso de reengajamento:",
+              error,
+            );
+          }
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         errors.push({ row: i + 1, message });

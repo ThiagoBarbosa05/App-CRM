@@ -25,6 +25,7 @@ import { eq, and, isNull, desc, sql, ne, or, gt } from "drizzle-orm";
 import { cashbackSettingsService } from "./cashback-settings.service";
 import { cashbackSettingsRepository } from "../repositories/cashback-settings.repository";
 import { dispatchCashbackEarnedAutomation } from "./cashback-automation.service";
+import { resetReengagementProgress } from "./reengagement-automation.service";
 
 /**
  * Interface para parâmetros de criação de pedido
@@ -1101,6 +1102,15 @@ export class BlingOrdersService {
     }
 
     if (appClient) {
+      try {
+        await resetReengagementProgress(appClient.id);
+      } catch (error) {
+        console.error(
+          "[BlingOrdersService] Erro ao zerar progresso de reengajamento:",
+          error,
+        );
+      }
+
       let cashbackAmount = "0";
       try {
         cashbackAmount = await this.processOrderCashback({
