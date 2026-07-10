@@ -49,6 +49,8 @@ const ALLOWED_MIMETYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-excel",
+  "text/csv",
   "text/plain",
 ]);
 
@@ -564,7 +566,10 @@ router.delete("/quick-replies/:id", async (req, res) => {
 
 // ── Disparar bot em conversa ─────────────────────────────────────────────────
 
-const triggerBotSchema = z.object({ botId: z.string().min(1) });
+const triggerBotSchema = z.object({
+  botId: z.string().min(1),
+  channelId: z.number().int().positive().optional(),
+});
 
 router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
   try {
@@ -580,7 +585,14 @@ router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
     const phone = await getConversationPhone(conversationId);
     if (!phone) return res.status(404).json({ message: "Telefone da conversa não encontrado" });
 
-    const result = await startBotSession(parsed.data.botId, phone);
+    const result = await startBotSession(
+      parsed.data.botId,
+      phone,
+      undefined,
+      undefined,
+      parsed.data.channelId,
+      user.userId,
+    );
 
     if (result.status === "no_start_node") {
       return res.status(400).json({ message: "Bot sem nó inicial configurado" });

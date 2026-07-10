@@ -36,11 +36,14 @@ import {
 } from "@shared/schema";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage } from "../integrations/whatsapp";
+import type { ChannelOverride } from "../integrations/whatsapp";
+import { sendText as evoSendText, sendMedia as evoSendMedia } from "../integrations/evolution";
 import { toMetaWhatsAppId } from "@shared/phone";
-import { getActiveChannelIdByUserId } from "./whatsapp-channels.service";
+import { getActiveChannelIdByUserId, resolveChannelByUserId, resolveChannelForConversation } from "./whatsapp-channels.service";
+import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { r2, getPublicR2Url } from "../lib/r2";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { findOrCreateConversation } from "./whatsapp-conversations.service";
+import { findOrCreateConversation, resolveOutboundChannel } from "./whatsapp-conversations.service";
 import { classifyMessageIntent } from "../ai-helpers";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -83,6 +86,72 @@ async function isWithinCustomerWindow(phone: string): Promise<boolean> {
 }
 
 /**
+ * Resolve (sem persistir) o canal ATUAL da conversa deste telefone, para decidir
+ * por onde a próxima mensagem do bot deve sair. Chamado a cada envio dentro de
+ * executeNode — não só no disparo inicial — pois uma sessão de bot segue em
+ * turnos futuros (respostas do contato via webhook) que não passam de novo por
+ * startBotSession/resolveBotTriggerChannel.
+ */
+async function resolveBotSendChannel(phone: string): Promise<ResolvedChannel | null> {
+  const conversation = await findOrCreateConversation(phone);
+  return resolveChannelForConversation(conversation.id).catch(() => null);
+}
+
+/**
+ * Resolve o override Cloud API para recursos exclusivos da API oficial da Meta
+ * (templates, botões/listas interativas, WhatsApp Flow) sem equivalente no
+ * Evolution/Baileys. Se o canal resolvido da conversa for Evolution, lança um
+ * erro claro em vez de cair silenciosamente no canal Cloud API global.
+ */
+async function resolveCloudOnlyChannel(phone: string, featureLabel: string): Promise<ChannelOverride | undefined> {
+  const resolvedChannel = await resolveBotSendChannel(phone);
+  if (resolvedChannel?.provider === "evolution") {
+    throw new Error(
+      `Não é possível enviar ${featureLabel} pelo canal desta conversa: o canal conectado é um número pessoal ` +
+        `(Evolution/QR code), que não suporta ${featureLabel} — recurso exclusivo da API oficial da Meta. ` +
+        `Vincule a conversa a um canal Cloud API ou ajuste este nó do fluxo.`,
+    );
+  }
+  if (resolvedChannel?.provider === "cloud_api") {
+    return { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken };
+  }
+  return undefined;
+}
+
+/**
+ * Envia mídia (imagem/documento) pelo canal atualmente resolvido da conversa.
+ * Cloud API: upload prévio (uploadMedia) + sendMediaMessage. Evolution: mídia
+ * inline em base64 via sendMedia (sem upload prévio).
+ */
+async function sendBotMedia(
+  phone: string,
+  buffer: Buffer,
+  filename: string,
+  mimeType: string,
+  mediaType: "image" | "document",
+  caption?: string,
+): Promise<{ waMessageId: string | null; waMediaId: string | null }> {
+  const resolvedChannel = await resolveBotSendChannel(phone);
+  if (resolvedChannel?.provider === "evolution") {
+    const base64 = buffer.toString("base64");
+    const evoResult = await evoSendMedia(resolvedChannel.evolutionInstanceName, phone, mediaType, {
+      base64: `data:${mimeType};base64,${base64}`,
+      caption,
+      filename,
+      mimetype: mimeType,
+    });
+    return { waMessageId: evoResult?.key?.id ?? null, waMediaId: null };
+  }
+  const cloudOverride = resolvedChannel?.provider === "cloud_api"
+    ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
+    : undefined;
+  const waMediaId = await uploadMedia(buffer, filename, mimeType, cloudOverride);
+  const result = await sendMediaMessage(phone, waMediaId, mediaType, caption, filename, cloudOverride);
+  const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+  return { waMessageId, waMediaId };
+}
+
+/**
  * Envia texto livre apenas se a janela de 24h estiver aberta. Caso contrário,
  * lança erro descritivo (a Meta rejeitaria o envio) — o primeiro contato a frio
  * precisa ser feito por template aprovado.
@@ -95,7 +164,15 @@ async function sendFreeText(phone: string, text: string): Promise<string | null>
         "Configure o primeiro nó do fluxo como um template aprovado.",
     );
   }
-  const result = await sendTextMessage(phone, text);
+  const resolvedChannel = await resolveBotSendChannel(phone);
+  if (resolvedChannel?.provider === "evolution") {
+    const evoResult = await evoSendText(resolvedChannel.evolutionInstanceName, phone, text);
+    return evoResult?.key?.id ?? null;
+  }
+  const cloudOverride = resolvedChannel?.provider === "cloud_api"
+    ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
+    : undefined;
+  const result = await sendTextMessage(phone, text, cloudOverride);
   return (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
 }
 
@@ -413,6 +490,7 @@ async function executeNode(
     case "send_message": {
       const d = data as SendMessageNodeData;
       if (d.messageType === "template") {
+        const cloudOverride = await resolveCloudOnlyChannel(phone, "templates");
         try {
           if (d.metaTemplateName) {
             const interpolatedParams = (d.templateParams ?? []).map((component) => ({
@@ -445,6 +523,7 @@ async function executeNode(
               d.metaTemplateName,
               d.metaTemplateLanguage ?? "pt_BR",
               components,
+              cloudOverride,
             );
             const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
             await persistBotMessage(phone, {
@@ -468,7 +547,7 @@ async function executeNode(
                     parameters: bodyParams.map((p) => ({ type: "text", text: interpolate(p, variables) })),
                   }]
                 : [];
-              const result = await sendTemplateMessage(phone, tpl.name, tpl.languageCode, components);
+              const result = await sendTemplateMessage(phone, tpl.name, tpl.languageCode, components, cloudOverride);
               const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
               await persistBotMessage(phone, {
                 waMessageId: waId,
@@ -496,9 +575,14 @@ async function executeNode(
           const buffer = await readR2Buffer(d.attachment.storageKey);
           const mimeType = d.attachment.mimeType ?? (d.attachment.type === "image" ? "image/jpeg" : "application/octet-stream");
           const filename = d.attachment.name ?? d.attachment.storageKey.split("/").pop() ?? "file";
-          const mediaId = await uploadMedia(buffer, filename, mimeType);
-          const result = await sendMediaMessage(phone, mediaId, d.attachment.type, text, filename);
-          const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+          const { waMessageId: waId, waMediaId: mediaId } = await sendBotMedia(
+            phone,
+            buffer,
+            filename,
+            mimeType,
+            d.attachment.type,
+            text,
+          );
           await persistBotMessage(phone, {
             waMessageId: waId,
             type: d.attachment.type,
@@ -578,6 +662,7 @@ async function executeNode(
           headerText: d.headerText ? interpolate(d.headerText, variables) : undefined,
           footerText: d.footerText ? interpolate(d.footerText, variables) : undefined,
         };
+        const cloudOverride = await resolveCloudOnlyChannel(phone, "menus interativos (botões/lista)");
         let waId: string | null = null;
         if (useButtons) {
           const result = await sendButtonsMessage(
@@ -585,6 +670,7 @@ async function executeNode(
             body,
             options.slice(0, 3).map((o) => ({ id: o.handle, title: o.label })),
             opts,
+            cloudOverride,
           );
           waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
         } else {
@@ -594,6 +680,7 @@ async function executeNode(
             d.listButtonText || "Escolher",
             options.slice(0, 10).map((o) => ({ id: o.handle, title: o.label, description: o.description })),
             opts,
+            cloudOverride,
           );
           waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
         }
@@ -608,10 +695,11 @@ async function executeNode(
     case "flow_form": {
       const d = data as FlowFormNodeData;
       if (d.flowId) {
+        const cloudOverride = await resolveCloudOnlyChannel(phone, "formulários (WhatsApp Flow)");
         const result = await sendFlowMessage(phone, d.flowId, d.ctaText || "Abrir formulário", {
           bodyText: d.bodyText,
           flowToken: d.flowToken,
-        });
+        }, cloudOverride);
         const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
         await persistBotMessage(phone, { waMessageId: waId, type: "text", content: `[Formulário: ${d.flowName || d.flowId}]` });
         lastMessageId = waId;
@@ -782,6 +870,7 @@ async function executeNode(
         });
       }
 
+      const cloudOverride = await resolveCloudOnlyChannel(phone, "templates");
       let result: Awaited<ReturnType<typeof sendTemplateMessage>>;
       try {
         result = await sendTemplateMessage(
@@ -789,6 +878,7 @@ async function executeNode(
           d.metaTemplateName,
           d.metaTemplateLanguage ?? "pt_BR",
           components,
+          cloudOverride,
         );
       } catch (err) {
         console.error("[BotEngine] Falha ao enviar template:", err);
@@ -1172,11 +1262,49 @@ export function resolveMenuHandle(
   return byLabel?.handle ?? null;
 }
 
+/**
+ * Resolve (e persiste, se necessário) o canal pelo qual o bot deve responder ao
+ * ser disparado manualmente. Chamado UMA VEZ em startBotSession — turnos
+ * subsequentes leem o canal já persistido na conversa a cada envio (ver
+ * resolveBotSendChannel), pois podem ocorrer em webhooks futuros que não passam
+ * por startBotSession de novo.
+ *
+ * Ordem de resolução:
+ *  1. channelId explícito (override manual do admin/gerente na UI) — resolve e
+ *     persiste em whatsapp_conversations.channel_id.
+ *  2. Canal já persistido na conversa — usado como está.
+ *  3. Canal vinculado ao atendente que disparou o bot (whatsapp_channels.user_id)
+ *     — resolve e persiste.
+ *  4. Nenhum resolvido — retorna null; as integrações caem no canal Cloud API
+ *     global (comportamento legado, último fallback).
+ */
+async function resolveBotTriggerChannel(
+  conversationId: string,
+  channelId?: number,
+  triggeredByUserId?: string,
+): Promise<ResolvedChannel | null> {
+  const resolved = await resolveOutboundChannel(conversationId, channelId);
+  if (resolved) return resolved;
+  if (!triggeredByUserId) return null;
+
+  const attendantChannel = await resolveChannelByUserId(triggeredByUserId).catch(() => null);
+  if (!attendantChannel) return null;
+
+  await db
+    .update(whatsappConversations)
+    .set({ channelId: attendantChannel.id, updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId));
+
+  return attendantChannel;
+}
+
 export async function startBotSession(
   botId: string,
   phone: string,
   startNodeId?: string,
   campaignId?: string,
+  channelId?: number,
+  triggeredByUserId?: string,
 ): Promise<{
   status: "started" | "already_active" | "no_start_node";
   lastMessageId: string | null;
@@ -1248,6 +1376,7 @@ export async function startBotSession(
   // Registra no histórico da conversa que o bot foi iniciado
   try {
     const conversation = await findOrCreateConversation(phone);
+    await resolveBotTriggerChannel(conversation.id, channelId, triggeredByUserId);
     await db.insert(whatsappMessages).values({
       conversationId: conversation.id,
       direction: "outbound",

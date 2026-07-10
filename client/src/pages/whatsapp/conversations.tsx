@@ -193,6 +193,11 @@ interface LocalMessage {
   content: string;
   createdAt: string;
   isNote?: boolean;
+  media?: {
+    url: string;
+    kind: "image" | "video" | "document" | "sticker";
+    fileName: string;
+  };
 }
 
 interface ConversationNote {
@@ -890,6 +895,26 @@ function replySnippet(content: string | null, type: string | null) {
   if (content) return content;
   if (type && MEDIA_TYPE_LABELS[type]) return MEDIA_TYPE_LABELS[type];
   return "Mensagem";
+}
+
+// Classifica um arquivo de documento para decidir qual prévia mostrar antes
+// do envio: PDF renderiza via iframe nativo do navegador, planilhas (xlsx/xls/csv)
+// são parseadas com a lib "xlsx" e mostradas como tabela; os demais (docx, pptx…)
+// não têm renderização suportada no navegador, só o card com ícone + nome.
+function classifyDocumentPreview(file: File): "pdf" | "spreadsheet" | "other" {
+  const name = file.name.toLowerCase();
+  if (file.type === "application/pdf" || name.endsWith(".pdf")) return "pdf";
+  if (
+    name.endsWith(".xlsx") ||
+    name.endsWith(".xls") ||
+    name.endsWith(".csv") ||
+    file.type === "text/csv" ||
+    file.type === "application/vnd.ms-excel" ||
+    file.type ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  )
+    return "spreadsheet";
+  return "other";
 }
 
 export function getInitials(name: string | null, phone: string) {
@@ -2642,6 +2667,17 @@ function ConversationMessages({
     url: string;
     file: File;
   } | null>(null);
+  const [pendingMedia, setPendingMedia] = useState<{
+    file: File;
+    url: string;
+    kind: "image" | "video" | "document" | "sticker";
+  } | null>(null);
+  const [pendingMediaCaption, setPendingMediaCaption] = useState("");
+  const [spreadsheetPreview, setSpreadsheetPreview] = useState<{
+    rows: string[][];
+    truncated: boolean;
+  } | null>(null);
+  const [spreadsheetPreviewLoading, setSpreadsheetPreviewLoading] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [reactingToId, setReactingToId] = useState<string | null>(null);
   const cursorPosRef = useRef<number>(0);
@@ -2777,12 +2813,19 @@ function ConversationMessages({
     setTriggeringBotId(botId);
     setBotPickerOpen(false);
     try {
+      const body: { botId: string; channelId?: number } = { botId };
+      if (
+        (userRole === "admin" || userRole === "gerente") &&
+        selectedChannelId != null
+      ) {
+        body.channelId = selectedChannelId;
+      }
       const res = await fetch(
         `/api/whatsapp/conversations/${conversationKey}/trigger-bot`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ botId }),
+          body: JSON.stringify(body),
         },
       );
       if (!res.ok) {
@@ -2884,20 +2927,64 @@ function ConversationMessages({
     hasScrolledInitiallyRef.current = true;
   }, [isLoading, messages.length, localMessages.length]);
 
+  // Some localIds cuja troca (bolha local -> mensagem real) já foi disparada,
+  // pra não repetir o pré-carregamento se este efeito rodar de novo antes dele
+  // terminar (ex.: outro refetch/poll chegando enquanto a imagem real ainda
+  // está sendo buscada).
+  const swappingLocalIdsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (localMessages.length === 0) return;
-    setLocalMessages((prev) =>
-      prev.filter(
-        (lm) =>
-          !rawMessages.some(
-            (m) =>
-              m.direction === "outbound" &&
-              m.content === lm.content &&
-              new Date(m.sentAt ?? m.createdAt).getTime() >=
-                new Date(lm.createdAt).getTime() - 5_000,
-          ),
-      ),
-    );
+    for (const lm of localMessages) {
+      if (swappingLocalIdsRef.current.has(lm.localId)) continue;
+      const match = rawMessages.find((m) => {
+        if (m.direction !== "outbound") return false;
+        const withinWindow =
+          new Date(m.sentAt ?? m.createdAt).getTime() >=
+          new Date(lm.createdAt).getTime() - 5_000;
+        if (!withinWindow) return false;
+        return lm.media
+          ? m.type === lm.media.kind && (m.caption ?? "") === lm.content
+          : m.content === lm.content;
+      });
+      if (!match) continue;
+
+      swappingLocalIdsRef.current.add(lm.localId);
+      const remove = () => {
+        swappingLocalIdsRef.current.delete(lm.localId);
+        setLocalMessages((prev) => {
+          const target = prev.find((x) => x.localId === lm.localId);
+          if (!target) return prev;
+          if (target.media) URL.revokeObjectURL(target.media.url);
+          return prev.filter((x) => x.localId !== lm.localId);
+        });
+      };
+
+      // Trocar a bolha local (já carregada, é um blob local) pela real na
+      // hora que a mensagem é persistida faz a mídia "sumir" por um instante,
+      // pois <img>/<video> da bolha real ainda precisa buscar
+      // /api/whatsapp/media/:id pela primeira vez. Pré-carregamos essa mídia
+      // em segundo plano e só então removemos a bolha local — a troca fica
+      // instantânea e sem flash. Documentos (sem preview visual) e mensagens
+      // de texto trocam na hora, sem necessidade disso.
+      const mediaUrl = match.media?.id
+        ? `/api/whatsapp/media/${match.media.id}`
+        : null;
+      if (lm.media?.kind === "image" || lm.media?.kind === "sticker") {
+        if (!mediaUrl) {
+          remove();
+          continue;
+        }
+        const img = new Image();
+        img.onload = remove;
+        img.onerror = remove;
+        img.src = mediaUrl;
+      } else if (lm.media?.kind === "video" && mediaUrl) {
+        fetch(mediaUrl).then(remove, remove);
+      } else {
+        remove();
+      }
+    }
   }, [rawMessages]);
 
   useEffect(() => {
@@ -3062,12 +3149,15 @@ function ConversationMessages({
               (err as { message?: string }).message ?? "Erro ao enviar arquivo",
             variant: "destructive",
           });
+          return false;
         }
+        return true;
       } catch {
         toast({
           title: "Erro de conexão ao enviar arquivo",
           variant: "destructive",
         });
+        return false;
       } finally {
         setIsUploading(false);
         queryClient.invalidateQueries({
@@ -3093,9 +3183,15 @@ function ConversationMessages({
       const file = e.target.files?.[0];
       if (!file) return;
       e.target.value = "";
-      sendMedia(file);
+      const kind: "image" | "video" | "document" = file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+          ? "video"
+          : "document";
+      setPendingMedia({ file, url: URL.createObjectURL(file), kind });
+      setPendingMediaCaption("");
     },
-    [sendMedia],
+    [],
   );
 
   const handleStickerChange = useCallback(
@@ -3103,10 +3199,95 @@ function ConversationMessages({
       const file = e.target.files?.[0];
       if (!file) return;
       e.target.value = "";
-      sendMedia(file);
+      setPendingMedia({ file, url: URL.createObjectURL(file), kind: "sticker" });
+      setPendingMediaCaption("");
     },
-    [sendMedia],
+    [],
   );
+
+  const cancelPendingMedia = useCallback(() => {
+    if (pendingMedia) URL.revokeObjectURL(pendingMedia.url);
+    setPendingMedia(null);
+    setPendingMediaCaption("");
+  }, [pendingMedia]);
+
+  const confirmPendingMedia = useCallback(() => {
+    if (!pendingMedia) return;
+    const { file, url, kind } = pendingMedia;
+    const caption =
+      kind !== "sticker" && pendingMediaCaption.trim()
+        ? pendingMediaCaption.trim()
+        : undefined;
+    // Mostra a mídia (já disponível localmente como blob) e a legenda juntas,
+    // na hora — em vez de esperar o upload + refetch para a bolha aparecer,
+    // o que fazia a legenda surgir bem antes da imagem/vídeo.
+    const localId = crypto.randomUUID();
+    setLocalMessages((prev) => [
+      ...prev,
+      {
+        localId,
+        content: caption ?? "",
+        createdAt: new Date().toISOString(),
+        media: { url, kind, fileName: file.name },
+      },
+    ]);
+    setPendingMedia(null);
+    setPendingMediaCaption("");
+    void sendMedia(file, caption).then((ok) => {
+      if (ok) return;
+      // Falhou: remove a bolha "enviando…" e libera o blob local (o real
+      // nunca vai chegar para acionar a limpeza automática via rawMessages).
+      setLocalMessages((prev) => {
+        const target = prev.find((lm) => lm.localId === localId);
+        if (target?.media) URL.revokeObjectURL(target.media.url);
+        return prev.filter((lm) => lm.localId !== localId);
+      });
+    });
+  }, [pendingMedia, pendingMediaCaption, sendMedia]);
+
+  // Prévia de planilha (xlsx/xls/csv): parseia o arquivo localmente (nada é
+  // enviado à API) e mostra as primeiras linhas como tabela.
+  useEffect(() => {
+    if (
+      !pendingMedia ||
+      pendingMedia.kind !== "document" ||
+      classifyDocumentPreview(pendingMedia.file) !== "spreadsheet"
+    ) {
+      setSpreadsheetPreview(null);
+      setSpreadsheetPreviewLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setSpreadsheetPreviewLoading(true);
+    (async () => {
+      try {
+        const XLSX = await import("xlsx");
+        const buffer = new Uint8Array(await pendingMedia.file.arrayBuffer());
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const allRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+          header: 1,
+          blankrows: false,
+          defval: "",
+        });
+        if (cancelled) return;
+        const MAX_ROWS = 20;
+        setSpreadsheetPreview({
+          rows: allRows
+            .slice(0, MAX_ROWS)
+            .map((row) => row.map((cell) => String(cell))),
+          truncated: allRows.length > MAX_ROWS,
+        });
+      } catch {
+        if (!cancelled) setSpreadsheetPreview(null);
+      } finally {
+        if (!cancelled) setSpreadsheetPreviewLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingMedia]);
 
   const handleReact = useCallback(
     async (messageId: string, emoji: string) => {
@@ -4103,6 +4284,56 @@ function ConversationMessages({
                     </p>
                   </div>
                 </div>
+              ) : lm.media ? (
+                <div key={lm.localId} className="flex w-full justify-end">
+                  <div className="max-w-[82%] sm:max-w-[70%] rounded-2xl shadow-sm overflow-hidden rounded-tr-[4px] bg-primary/60 text-primary-foreground">
+                    {lm.media.kind === "image" && (
+                      <img
+                        src={lm.media.url}
+                        alt={lm.content || "imagem"}
+                        className="max-w-full object-cover"
+                        style={{ maxHeight: 300 }}
+                      />
+                    )}
+                    {lm.media.kind === "video" && (
+                      <video
+                        src={lm.media.url}
+                        muted
+                        className="max-w-full"
+                        style={{ maxHeight: 300 }}
+                      />
+                    )}
+                    {lm.media.kind === "sticker" && (
+                      <div className="p-1.5">
+                        <img
+                          src={lm.media.url}
+                          alt="figurinha"
+                          className="object-contain"
+                          style={{ width: 120, height: 120 }}
+                        />
+                      </div>
+                    )}
+                    {lm.media.kind === "document" && (
+                      <div className="flex items-center gap-2 px-3.5 py-2.5">
+                        <FileText className="h-5 w-5 shrink-0 opacity-70" />
+                        <span className="text-sm truncate flex-1">
+                          {lm.media.fileName}
+                        </span>
+                      </div>
+                    )}
+                    {lm.content && lm.media.kind !== "document" && (
+                      <p className="text-sm px-3.5 pt-1 pb-0.5 whitespace-pre-wrap break-words">
+                        {lm.content}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-end gap-1 px-3 pb-2 pt-1">
+                      <span className="text-[10px] text-primary-foreground/70">
+                        {format(toSP(lm.createdAt), "HH:mm")}
+                      </span>
+                      <Loader2 className="h-3 w-3 text-primary-foreground/60 animate-spin" />
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div key={lm.localId} className="flex w-full justify-end">
                   <div className="max-w-[82%] sm:max-w-[70%] rounded-2xl shadow-sm px-3.5 py-2.5 rounded-tr-[4px] bg-primary/60 text-primary-foreground">
@@ -4274,7 +4505,7 @@ function ConversationMessages({
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,audio/aac,audio/mp4,application/pdf,.docx,.xlsx,.pptx,text/plain"
+              accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,audio/aac,audio/mp4,application/pdf,.docx,.xlsx,.xls,.csv,.pptx,text/plain"
               onChange={handleFileChange}
             />
             <input
@@ -4321,12 +4552,16 @@ function ConversationMessages({
                     "border-amber-300 focus-visible:ring-amber-400 dark:border-amber-800",
                 )}
                 rows={2}
-                disabled={isUploading}
+                disabled={isUploading || pendingMedia != null}
               />
               {message.trim() ? (
                 <Button
                   onClick={handleSend}
-                  disabled={isUploading || (windowClosed && composerMode === "message")}
+                  disabled={
+                    isUploading ||
+                    (windowClosed && composerMode === "message") ||
+                    pendingMedia != null
+                  }
                   size="icon"
                   className={cn(
                     "shrink-0 h-10 w-10 mb-0.5 rounded-full",
@@ -4338,7 +4573,12 @@ function ConversationMessages({
               ) : (
                 <button
                   onClick={startRecording}
-                  disabled={isUploading || windowClosed || composerMode === "note"}
+                  disabled={
+                    isUploading ||
+                    windowClosed ||
+                    composerMode === "note" ||
+                    pendingMedia != null
+                  }
                   className="shrink-0 h-10 w-10 mb-0.5 rounded-full flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                   title="Gravar áudio"
                 >
@@ -4353,7 +4593,7 @@ function ConversationMessages({
                 <>
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading || windowClosed}
+                    disabled={isUploading || windowClosed || pendingMedia != null}
                     className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                     title="Enviar arquivo"
                   >
@@ -4369,7 +4609,7 @@ function ConversationMessages({
                   >
                     <PopoverTrigger asChild>
                       <button
-                        disabled={isUploading || windowClosed}
+                        disabled={isUploading || windowClosed || pendingMedia != null}
                         className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
                         title="Figurinhas"
                       >
@@ -4563,6 +4803,143 @@ function ConversationMessages({
         </>
         )}
       </div>
+
+      <Dialog
+        open={pendingMedia != null}
+        onOpenChange={(open) => {
+          if (!open) cancelPendingMedia();
+        }}
+      >
+        <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingMedia?.kind === "image" && "Enviar imagem"}
+              {pendingMedia?.kind === "video" && "Enviar vídeo"}
+              {pendingMedia?.kind === "document" && "Enviar arquivo"}
+              {pendingMedia?.kind === "sticker" && "Enviar figurinha"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {pendingMedia?.kind === "image" && (
+            <img
+              src={pendingMedia.url}
+              alt="Prévia"
+              className="max-h-[70vh] w-full object-contain rounded-lg bg-black/5"
+            />
+          )}
+          {pendingMedia?.kind === "video" && (
+            <video
+              src={pendingMedia.url}
+              controls
+              className="max-h-[70vh] w-full rounded-lg bg-black/5"
+            />
+          )}
+          {pendingMedia?.kind === "document" && (
+            <div className="flex flex-col gap-3">
+              {classifyDocumentPreview(pendingMedia.file) === "pdf" && (
+                <iframe
+                  src={pendingMedia.url}
+                  title="Prévia do PDF"
+                  className="w-full h-[65vh] rounded-lg border border-slate-200 dark:border-slate-700"
+                />
+              )}
+
+              {classifyDocumentPreview(pendingMedia.file) === "spreadsheet" && (
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 max-h-[65vh] overflow-auto">
+                  {spreadsheetPreviewLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                    </div>
+                  ) : spreadsheetPreview && spreadsheetPreview.rows.length > 0 ? (
+                    <>
+                      <table className="text-xs w-full border-collapse">
+                        <tbody>
+                          {spreadsheetPreview.rows.map((row, i) => (
+                            <tr
+                              key={i}
+                              className={
+                                i === 0
+                                  ? "bg-slate-50 dark:bg-slate-800 font-semibold"
+                                  : ""
+                              }
+                            >
+                              {row.map((cell, j) => (
+                                <td
+                                  key={j}
+                                  className="border border-slate-200 dark:border-slate-700 px-2 py-1 whitespace-nowrap"
+                                >
+                                  {cell}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {spreadsheetPreview.truncated && (
+                        <p className="text-[10px] text-slate-400 text-center py-1 border-t border-slate-100 dark:border-slate-800">
+                          Mostrando as primeiras {spreadsheetPreview.rows.length} linhas
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-slate-400 text-center py-6">
+                      Não foi possível gerar a prévia da planilha
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                <FileText className="h-8 w-8 text-slate-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium break-words">
+                    {pendingMedia.file.name}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {(pendingMedia.file.size / 1024).toFixed(0)} KB
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          {pendingMedia?.kind === "sticker" && (
+            <img
+              src={pendingMedia.url}
+              alt="Prévia da figurinha"
+              className="h-32 w-32 object-contain mx-auto"
+            />
+          )}
+
+          {pendingMedia && pendingMedia.kind !== "sticker" && (
+            <Input
+              placeholder="Adicionar legenda (opcional)"
+              value={pendingMediaCaption}
+              onChange={(e) => setPendingMediaCaption(e.target.value)}
+              disabled={isUploading}
+            />
+          )}
+
+          <div className="flex justify-end gap-2 mt-2">
+            <Button
+              variant="outline"
+              onClick={cancelPendingMedia}
+              disabled={isUploading}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={confirmPendingMedia} disabled={isUploading}>
+              {isUploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-1.5" />
+                  Enviar
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <CreateClientFromConversationDialog
         open={createClientOpen}

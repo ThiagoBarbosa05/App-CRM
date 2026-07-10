@@ -17,6 +17,7 @@ import {
 import { normalizePhoneE164 } from "@shared/phone";
 import { syncClientToBling, BlingSyncError } from "./bling-clients-export.service";
 import { ensureClientInDesvendandoVinhoFunnel } from "./desvendando-vinho-funnel.service";
+import { autoLinkConversationsByPhone } from "./whatsapp-conversations.service";
 
 export interface GetClientsParams {
   userId?: string;
@@ -467,6 +468,10 @@ export class ClientsService {
         ).catch((err) =>
           console.error("[Referral] Erro ao vincular indicação:", err),
         );
+
+        void autoLinkConversationsByPhone(client.phone, client.id).catch((err) =>
+          console.error("[WhatsApp] Erro ao vincular conversas existentes:", err),
+        );
       }
 
       void ensureClientInDesvendandoVinhoFunnel(client.id).catch((err) =>
@@ -608,6 +613,12 @@ export class ClientsService {
       void ensureClientInDesvendandoVinhoFunnel(clientId).catch((err) =>
         console.error("[DesvendandoVinhoFunnel] Erro ao incluir cliente atualizado:", err),
       );
+
+      if (client.phone) {
+        void autoLinkConversationsByPhone(client.phone, clientId).catch((err) =>
+          console.error("[WhatsApp] Erro ao vincular conversas existentes:", err),
+        );
+      }
 
       console.log("Cliente atualizado:", clientId);
       // console.log(

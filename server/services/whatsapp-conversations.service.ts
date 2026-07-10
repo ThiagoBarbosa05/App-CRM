@@ -72,10 +72,40 @@ export async function findOrCreateConversation(phone: string, channelId?: number
   return created;
 }
 
+// Vincula automaticamente conversas órfãs (client_id NULL) ao cliente cujo
+// telefone bate. Chamada ao criar/editar um cliente, pois a conversa pode ter
+// sido criada (por bot, campanha ou webhook) antes do cliente existir no CRM,
+// ou com o telefone salvo num formato que o match em findOrCreateConversation
+// não reconciliou na hora.
+export async function autoLinkConversationsByPhone(phone: string, clientId: string) {
+  const { digits, withoutCountry } = normalizePhone(phone);
+  if (!digits) return;
+
+  const linked = await db
+    .update(whatsappConversations)
+    .set({ clientId, updatedAt: new Date() })
+    .where(
+      and(
+        isNull(whatsappConversations.clientId),
+        or(
+          sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${digits}`,
+          sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
+        ),
+      ),
+    )
+    .returning({ id: whatsappConversations.id });
+
+  for (const row of linked) {
+    publishSseEvent("new_whatsapp_inbound", { conversationId: row.id, clientId });
+  }
+
+  return linked.length;
+}
+
 // Resolve o canal de envio de uma conversa. Se channelId for fornecido (override
 // manual de admin), usa esse canal e o grava como último canal da conversa.
 // Caso contrário, usa o último canal por onde o cliente escreveu (conversa).
-async function resolveOutboundChannel(
+export async function resolveOutboundChannel(
   conversationId: string,
   channelId?: number,
 ): Promise<ResolvedChannel | null> {
@@ -1650,10 +1680,14 @@ export async function startConversationByClientId(
 
   const conv = await findOrCreateConversation(client.phone);
 
-  if (!conv.clientId) {
+  // Sempre grava o clientId escolhido pelo atendente, mesmo que a conversa já
+  // tivesse um clientId diferente (ex.: telefone só foi conciliado depois que
+  // a conversa foi criada por um bot/campanha) — evita conversas que ficam
+  // presas a um vínculo desatualizado.
+  if (conv.clientId !== clientId) {
     await db
       .update(whatsappConversations)
-      .set({ clientId })
+      .set({ clientId, updatedAt: new Date() })
       .where(eq(whatsappConversations.id, conv.id));
   }
 
