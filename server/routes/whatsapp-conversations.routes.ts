@@ -34,6 +34,7 @@ import { startBotSession } from "../services/whatsapp-bot-engine.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
 import { clientsService } from "../services/clients.service";
 import { downloadMediaToBuffer } from "../integrations/whatsapp";
+import { resolveChannelById } from "../services/whatsapp-channels.service";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
 import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
 
@@ -115,7 +116,18 @@ router.get("/media/:mediaId", async (req, res) => {
 
     if (!media.whatsappMediaId) return res.status(404).json({ message: "Mídia indisponível" });
 
-    const { buffer, contentType, size } = await downloadMediaToBuffer(media.whatsappMediaId);
+    // O handle de mídia da Meta é válido apenas nas credenciais do canal que o
+    // gerou — buscar com as credenciais globais/padrão falha (502) quando a
+    // mensagem foi enviada por um canal WhatsApp não-padrão.
+    let channelOverride: { phoneNumberId: string; accessToken: string } | undefined;
+    if (media.channelId != null) {
+      const resolved = await resolveChannelById(media.channelId);
+      if (resolved?.provider === "cloud_api") {
+        channelOverride = { phoneNumberId: resolved.phoneNumberId, accessToken: resolved.accessToken };
+      }
+    }
+
+    const { buffer, contentType, size } = await downloadMediaToBuffer(media.whatsappMediaId, channelOverride);
 
     // Persiste em background (cache-on-read) — não bloqueia a resposta.
     uploadWhatsappMedia(buffer, media.mimeType ?? contentType)

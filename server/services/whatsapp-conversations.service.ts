@@ -1205,14 +1205,26 @@ export async function sendConversationMedia(
     })
     .returning({ id: whatsappMessages.id });
 
+  // Guardamos uma cópia própria no R2 no momento do envio: canais Evolution/Baileys
+  // nunca retornam um handle de mídia reutilizável (o buffer seria perdido depois do
+  // envio), e o handle da Meta expira — sem isso a mídia enviada dependeria só de
+  // terceiros e ficaria quebrada permanentemente assim que o handle/URL expirasse.
+  let storageKey: string | null = null;
+  try {
+    storageKey = await uploadWhatsappMedia(effectiveBuffer, effectiveMime);
+  } catch (err) {
+    console.error(`[sendConversationMedia] falha ao cachear mídia no R2:`, err);
+  }
+
   await db
     .insert(whatsappMedia)
     .values({
       messageId: savedMessage.id,
       whatsappMediaId: waMediaId,
-      mimeType: file.mimetype,
-      filename: file.originalname,
-      size: file.size,
+      storageKey,
+      mimeType: effectiveMime,
+      filename: effectiveName,
+      size: effectiveBuffer.length,
     });
 
   await db
@@ -1502,8 +1514,19 @@ export async function saveInboundMessage(data: {
 
 export async function getMediaById(id: string) {
   const [media] = await db
-    .select()
+    .select({
+      id: whatsappMedia.id,
+      messageId: whatsappMedia.messageId,
+      whatsappMediaId: whatsappMedia.whatsappMediaId,
+      storageKey: whatsappMedia.storageKey,
+      mimeType: whatsappMedia.mimeType,
+      filename: whatsappMedia.filename,
+      size: whatsappMedia.size,
+      createdAt: whatsappMedia.createdAt,
+      channelId: whatsappMessages.channelId,
+    })
     .from(whatsappMedia)
+    .leftJoin(whatsappMessages, eq(whatsappMedia.messageId, whatsappMessages.id))
     .where(eq(whatsappMedia.id, id))
     .limit(1);
   return media ?? null;

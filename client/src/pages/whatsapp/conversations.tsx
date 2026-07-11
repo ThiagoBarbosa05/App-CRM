@@ -1558,7 +1558,17 @@ function MessageContent({
   isOutbound: boolean;
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const mediaUrl = msg.media?.id ? `/api/whatsapp/media/${msg.media.id}` : null;
+  const [mediaError, setMediaError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const baseMediaUrl = msg.media?.id ? `/api/whatsapp/media/${msg.media.id}` : null;
+  // Cache-bust ao tentar de novo: sem isso, o navegador reusaria a mesma
+  // resposta de erro em cache em vez de refazer a requisição.
+  const mediaUrl =
+    baseMediaUrl && retryCount > 0 ? `${baseMediaUrl}?retry=${retryCount}` : baseMediaUrl;
+  const retryMedia = () => {
+    setMediaError(false);
+    setRetryCount((n) => n + 1);
+  };
 
   if (msg.type === "template") {
     return <TemplateBubble msg={msg} isOutbound={isOutbound} />;
@@ -1571,6 +1581,16 @@ function MessageContent({
           🎭 Figurinha não disponível
         </p>
       );
+    if (mediaError)
+      return (
+        <button
+          onClick={retryMedia}
+          className="flex flex-col items-center gap-1.5 px-4 py-3 text-xs text-slate-400 hover:text-primary transition-colors"
+        >
+          <AlertCircle className="h-5 w-5" />
+          Falha ao carregar. Toque para tentar de novo.
+        </button>
+      );
     return (
       <div className="p-1.5">
         <img
@@ -1578,6 +1598,7 @@ function MessageContent({
           alt="figurinha"
           className="object-contain"
           style={{ width: 120, height: 120 }}
+          onError={() => setMediaError(true)}
         />
       </div>
     );
@@ -1587,7 +1608,7 @@ function MessageContent({
     return (
       <>
         <div>
-          {mediaUrl ? (
+          {mediaUrl && !mediaError ? (
             <div
               className="relative group cursor-zoom-in"
               onClick={() => setLightboxOpen(true)}
@@ -1597,11 +1618,20 @@ function MessageContent({
                 alt={msg.caption ?? "imagem"}
                 className="max-w-full rounded-t-2xl object-cover"
                 style={{ maxHeight: 300 }}
+                onError={() => setMediaError(true)}
               />
               <div className="absolute inset-0 rounded-t-2xl bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                 <ZoomIn className="h-7 w-7 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
               </div>
             </div>
+          ) : mediaUrl && mediaError ? (
+            <button
+              onClick={retryMedia}
+              className="w-full flex flex-col items-center gap-1.5 px-4 py-6 text-xs text-slate-400 hover:text-primary transition-colors"
+            >
+              <AlertCircle className="h-6 w-6" />
+              Falha ao carregar imagem. Toque para tentar de novo.
+            </button>
           ) : (
             <div className="px-3.5 py-2.5 text-sm italic opacity-60">
               [imagem]
@@ -1635,13 +1665,22 @@ function MessageContent({
   if (msg.type === "video") {
     return (
       <div>
-        {mediaUrl ? (
+        {mediaUrl && !mediaError ? (
           <video
             controls
             src={mediaUrl}
             className="max-w-full rounded-t-2xl"
             style={{ maxHeight: 300 }}
+            onError={() => setMediaError(true)}
           />
+        ) : mediaUrl && mediaError ? (
+          <button
+            onClick={retryMedia}
+            className="w-full flex flex-col items-center gap-1.5 px-4 py-6 text-xs text-slate-400 hover:text-primary transition-colors"
+          >
+            <AlertCircle className="h-6 w-6" />
+            Falha ao carregar vídeo. Toque para tentar de novo.
+          </button>
         ) : (
           <div className="px-3.5 py-2.5 text-sm italic opacity-60">[vídeo]</div>
         )}
@@ -3029,6 +3068,14 @@ function ConversationMessages({
           return prev.filter((x) => x.localId !== lm.localId);
         });
       };
+      // Se o pré-carregamento da mídia real falhar (ex.: mídia ainda não
+      // disponível no servidor), NÃO removemos a bolha local — ela continua
+      // funcionando (é um blob local já carregado). Só liberamos o lock para
+      // este item ser reavaliado na próxima vez que rawMessages mudar (novo
+      // poll/SSE), em vez de trocar por uma mensagem que renderizaria quebrada.
+      const releaseLock = () => {
+        swappingLocalIdsRef.current.delete(lm.localId);
+      };
 
       // Trocar a bolha local (já carregada, é um blob local) pela real na
       // hora que a mensagem é persistida faz a mídia "sumir" por um instante,
@@ -3042,15 +3089,15 @@ function ConversationMessages({
         : null;
       if (lm.media?.kind === "image" || lm.media?.kind === "sticker") {
         if (!mediaUrl) {
-          remove();
+          releaseLock();
           continue;
         }
         const img = new Image();
         img.onload = remove;
-        img.onerror = remove;
+        img.onerror = releaseLock;
         img.src = mediaUrl;
       } else if (lm.media?.kind === "video" && mediaUrl) {
-        fetch(mediaUrl).then(remove, remove);
+        fetch(mediaUrl).then(remove, releaseLock);
       } else {
         remove();
       }
