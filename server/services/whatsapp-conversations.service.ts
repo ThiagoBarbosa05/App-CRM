@@ -451,6 +451,8 @@ export async function listClientsForChat(
     conditions.push(cursorCondition as unknown as ReturnType<typeof eq>);
   }
 
+  const responsavelUsers = alias(users, "responsavel_users");
+
   const rows = await db
     .with(readsSub, unreadSub, lastMsgSub)
     .select({
@@ -467,12 +469,15 @@ export async function listClientsForChat(
       channelName: whatsappChannels.name,
       channelDisplayPhone: whatsappChannels.displayPhone,
       status: whatsappConversations.status,
+      responsavelId: clients.responsavelId,
+      responsavelName: responsavelUsers.name,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .leftJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
     .leftJoin(lastMsgSub, eq(whatsappConversations.id, lastMsgSub.conversationId))
     .leftJoin(unreadSub, eq(whatsappConversations.id, unreadSub.conversationId))
+    .leftJoin(responsavelUsers, eq(clients.responsavelId, responsavelUsers.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(sql`${lastMsgSub.lastAt} DESC NULLS LAST`, desc(whatsappConversations.id))
     .limit(limit + 1);

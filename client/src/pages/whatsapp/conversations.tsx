@@ -137,6 +137,8 @@ export interface ChatClient {
   tags?: ChatClientTag[];
   whatsappTags?: WhatsappClientTag[];
   status?: "open" | "closed" | null;
+  responsavelId?: string | null;
+  responsavelName?: string | null;
 }
 
 interface WaMedia {
@@ -1038,7 +1040,7 @@ export function WhatsappTagBadge({ tag }: { tag: WhatsappClientTag }) {
   const emoji = resolveTagEmoji(tag.emoji);
   return (
     <span
-      className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold text-white max-w-[120px]"
+      className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold text-white max-w-[120px] shrink-0"
       style={{ backgroundColor: bg }}
       title={tag.name}
     >
@@ -1251,6 +1253,14 @@ function ClientListItem({
             )}
           </div>
 
+          {/* Linha do vendedor responsável pelo cliente */}
+          {client.responsavelName && (
+            <p className="flex items-center gap-1 text-xs leading-4 truncate mt-0.5 text-sky-600 dark:text-sky-400 font-medium">
+              <User className="h-3 w-3 shrink-0" />
+              <span className="truncate">{client.responsavelName}</span>
+            </p>
+          )}
+
           {/* Linha 2: última mensagem */}
           {client.lastMessageContent ? (
             <p
@@ -1284,23 +1294,64 @@ function ClientListItem({
               {client.tags?.slice(0, 3).map((tag) => (
                 <span
                   key={tag.id}
-                  className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 truncate max-w-[80px]"
+                  className="inline-flex shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 truncate max-w-[80px]"
                 >
                   {tag.name}
                 </span>
               ))}
               {(client.tags?.length ?? 0) > 3 && (
-                <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                  +{(client.tags?.length ?? 0) - 3}
-                </span>
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500 cursor-default hover:text-slate-600 dark:hover:text-slate-300"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        +{(client.tags?.length ?? 0) - 3}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      align="start"
+                      className="flex flex-wrap gap-1 max-w-[220px] px-2 py-1.5"
+                    >
+                      {client.tags?.slice(3).map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               {client.whatsappTags?.slice(0, 3).map((tag) => (
                 <WhatsappTagBadge key={tag.id} tag={tag} />
               ))}
               {(client.whatsappTags?.length ?? 0) > 3 && (
-                <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                  +{(client.whatsappTags?.length ?? 0) - 3}
-                </span>
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500 cursor-default hover:text-slate-600 dark:hover:text-slate-300"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        +{(client.whatsappTags?.length ?? 0) - 3}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      align="start"
+                      className="flex flex-wrap gap-1 max-w-[220px] px-2 py-1.5"
+                    >
+                      {client.whatsappTags?.slice(3).map((tag) => (
+                        <WhatsappTagBadge key={tag.id} tag={tag} />
+                      ))}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
           )}
