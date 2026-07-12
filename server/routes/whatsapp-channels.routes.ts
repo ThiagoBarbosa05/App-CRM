@@ -3,6 +3,7 @@ import {
   listChannels,
   listActiveChannels,
   listChannelsByUserId,
+  listAttendantsWithChannel,
   getChannelById,
   createChannel,
   updateChannel,
@@ -45,6 +46,15 @@ router.get("/channels/mine", async (req: Request, res: Response) => {
     const message = e instanceof Error ? e.message : "Erro ao buscar canais";
     res.status(500).json({ message });
   }
+});
+
+router.get("/attendants", async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (user?.role !== "admin" && user?.role !== "gerente") {
+    res.status(403).json({ message: "Acesso restrito a administradores e gerentes" });
+    return;
+  }
+  res.json(await listAttendantsWithChannel());
 });
 
 router.get("/channels/from-waba", async (_req: Request, res: Response) => {

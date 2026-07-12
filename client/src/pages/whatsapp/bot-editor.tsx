@@ -247,8 +247,8 @@ function useAgents() {
 
 function useSectors() {
   return useQuery<SectorOption[]>({
-    queryKey: ["/api/sectors"],
-    queryFn: () => authFetch("/api/sectors"),
+    queryKey: ["/api/whatsapp/sectors"],
+    queryFn: () => authFetch("/api/whatsapp/sectors"),
   });
 }
 

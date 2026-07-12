@@ -4375,13 +4375,42 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
 export type WhatsappChannel = typeof whatsappChannels.$inferSelect;
 export type InsertWhatsappChannel = typeof whatsappChannels.$inferInsert;
 
+// Setores de atendimento (agrupam atendentes/canais do WhatsApp) — distinto de `sectors`,
+// que classifica empresas. Usado para organizar a transferência de conversas entre atendentes.
+export const whatsappSectors = pgTable("whatsapp_sectors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull().default("#3B82F6"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const whatsappSectorMembers = pgTable(
+  "whatsapp_sector_members",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    sectorId: varchar("sector_id")
+      .notNull()
+      .references(() => whatsappSectors.id, { onDelete: "cascade" }),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({ sectorUserUnique: unique().on(t.sectorId, t.userId) }),
+);
+
+export type WhatsappSector = typeof whatsappSectors.$inferSelect;
+export type InsertWhatsappSector = typeof whatsappSectors.$inferInsert;
+export type WhatsappSectorMember = typeof whatsappSectorMembers.$inferSelect;
+
 export const whatsappConversations = pgTable("whatsapp_conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").references(() => clients.id),
   phone: text("phone").notNull(),
   channelId: integer("channel_id").references(() => whatsappChannels.id),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
-  sectorId: varchar("sector_id").references(() => sectors.id),
+  sectorId: varchar("sector_id").references(() => whatsappSectors.id),
   status: text("status").notNull().default("open"),
   lastMessageAt: timestamp("last_message_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

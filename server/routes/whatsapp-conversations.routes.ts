@@ -26,6 +26,8 @@ import {
   createQuickReply,
   deleteQuickReply,
   transferConversation,
+  transferConversationToUser,
+  transferConversationToSector,
   setContactWhatsappTags,
   closeConversation,
   reopenConversation,
@@ -704,12 +706,27 @@ router.put("/conversations/:clientId/whatsapp-tags", async (req, res) => {
   }
 });
 
-const transferSchema = z.object({ channelId: z.number().int().positive() });
+function requireAdminOrGerente(req: any, res: any): boolean {
+  const user = req.user;
+  if (!user?.userId) {
+    res.status(401).json({ message: "Não autenticado" });
+    return false;
+  }
+  if (user.role !== "admin" && user.role !== "gerente") {
+    res.status(403).json({ message: "Acesso restrito a administradores e gerentes" });
+    return false;
+  }
+  return true;
+}
+
+const transferSchema = z.object({
+  channelId: z.number().int().positive(),
+  reason: z.string().trim().min(1).optional(),
+});
 
 router.post("/conversations/:conversationId/transfer", async (req, res) => {
   try {
-    const user = (req as any).user;
-    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    if (!requireAdminOrGerente(req, res)) return;
 
     const parsed = transferSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
@@ -717,13 +734,65 @@ router.post("/conversations/:conversationId/transfer", async (req, res) => {
     const conversationId = await resolveConversationId(req.params.conversationId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
-    const updated = await transferConversation(conversationId, parsed.data.channelId);
+    const updated = await transferConversation(conversationId, parsed.data.channelId, parsed.data.reason);
     if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
 
     res.json({ ok: true });
   } catch (err) {
     console.error("[WA Conversations] Erro ao transferir conversa:", err);
     res.status(500).json({ message: "Erro ao transferir conversa" });
+  }
+});
+
+const transferAttendantSchema = z.object({
+  targetUserId: z.string().min(1),
+  reason: z.string().trim().min(1).optional(),
+});
+
+router.post("/conversations/:conversationId/transfer-attendant", async (req, res) => {
+  try {
+    if (!requireAdminOrGerente(req, res)) return;
+
+    const parsed = transferAttendantSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const conversationId = await resolveConversationId(req.params.conversationId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const updated = await transferConversationToUser(conversationId, parsed.data.targetUserId, parsed.data.reason);
+    if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    res.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao transferir conversa";
+    console.error("[WA Conversations] Erro ao transferir conversa por atendente:", err);
+    res.status(400).json({ message });
+  }
+});
+
+const transferSectorSchema = z.object({
+  sectorId: z.string().min(1),
+  reason: z.string().trim().min(1).optional(),
+});
+
+router.post("/conversations/:conversationId/transfer-sector", async (req, res) => {
+  try {
+    if (!requireAdminOrGerente(req, res)) return;
+
+    const parsed = transferSectorSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const conversationId = await resolveConversationId(req.params.conversationId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const updated = await transferConversationToSector(conversationId, parsed.data.sectorId, parsed.data.reason);
+    if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    res.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Erro ao transferir conversa";
+    console.error("[WA Conversations] Erro ao transferir conversa por setor:", err);
+    res.status(400).json({ message });
   }
 });
 

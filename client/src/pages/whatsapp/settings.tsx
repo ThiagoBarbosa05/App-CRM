@@ -64,6 +64,7 @@ import {
 } from "@/hooks/use-whatsapp";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EvolutionChannelConnect } from "@/components/evolution-channel-connect";
+import WhatsappSectorsManagement from "@/components/whatsapp-sectors-management";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -1752,6 +1753,9 @@ export default function WhatsAppSettings() {
             )}
           </CardContent>
         </Card>
+
+        {/* Setores de atendimento card */}
+        <WhatsappSectorsManagement />
 
         {/* Bot shortcuts card */}
         <BotShortcutsCard />

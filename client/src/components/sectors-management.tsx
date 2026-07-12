@@ -65,6 +65,8 @@ function SectorFormModal({ isOpen, onClose, sector }: SectorFormModalProps) {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SectorFormData>({
     resolver: zodResolver(sectorFormSchema),
@@ -73,6 +75,8 @@ function SectorFormModal({ isOpen, onClose, sector }: SectorFormModalProps) {
       color: sector?.color || "#3B82F6",
     },
   });
+
+  const colorValue = watch("color");
 
   const createMutation = useMutation({
     mutationFn: async (data: SectorFormData) => {
@@ -192,12 +196,14 @@ function SectorFormModal({ isOpen, onClose, sector }: SectorFormModalProps) {
                 <Input
                   id="color"
                   type="color"
-                  {...register("color")}
+                  value={colorValue}
+                  onChange={(e) => setValue("color", e.target.value, { shouldDirty: true, shouldValidate: true })}
                   className="w-12 h-10 border-2 border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer bg-transparent"
                 />
               </div>
               <Input
-                {...register("color")}
+                value={colorValue}
+                onChange={(e) => setValue("color", e.target.value, { shouldDirty: true, shouldValidate: true })}
                 placeholder="#3B82F6"
                 className="flex-1 border-slate-300 focus:border-purple-400 focus:ring-purple-400 dark:border-slate-600 dark:focus:border-purple-500 bg-white dark:bg-slate-800 font-mono"
               />

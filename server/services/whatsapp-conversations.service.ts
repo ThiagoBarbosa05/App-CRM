@@ -12,6 +12,7 @@ import {
   contactTags,
   tags,
   whatsappTags,
+  whatsappSectors,
   users,
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne } from "drizzle-orm";
@@ -21,7 +22,7 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } fr
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation } from "./whatsapp-channels.service";
+import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
@@ -154,11 +155,24 @@ export async function linkClientToConversation(conversationId: string, clientId:
   return updated ?? null;
 }
 
-export async function transferConversation(conversationId: string, targetChannelId: number) {
-  // Transferir para um canal = entregar ao atendente dono desse canal, com o
-  // canal vinculado. Assim a conversa passa a aparecer no inbox dele.
+// Registra uma mensagem de sistema no histórico da conversa marcando a transferência,
+// incluindo o motivo informado pelo atendente (se houver) — mesmo padrão usado por closeConversation.
+async function logTransferMessage(conversationId: string, description: string, reason?: string) {
+  await db.insert(whatsappMessages).values({
+    conversationId,
+    direction: "outbound",
+    type: "system",
+    content: reason ? `🔀 ${description}\nMotivo: ${reason}` : `🔀 ${description}`,
+    status: "sent",
+    sentAt: new Date(),
+  });
+}
+
+// Transferir para um canal = entregar ao atendente dono desse canal, com o
+// canal vinculado. Assim a conversa passa a aparecer no inbox dele.
+async function applyChannelTransfer(conversationId: string, targetChannelId: number) {
   const [channel] = await db
-    .select({ userId: whatsappChannels.userId })
+    .select({ userId: whatsappChannels.userId, name: whatsappChannels.name })
     .from(whatsappChannels)
     .where(eq(whatsappChannels.id, targetChannelId))
     .limit(1);
@@ -168,6 +182,51 @@ export async function transferConversation(conversationId: string, targetChannel
     .set({ channelId: targetChannelId, assignedAgentId: channel?.userId ?? null, updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId))
     .returning();
+
+  return { updated: updated ?? null, channelName: channel?.name ?? null };
+}
+
+export async function transferConversation(conversationId: string, targetChannelId: number, reason?: string) {
+  const { updated, channelName } = await applyChannelTransfer(conversationId, targetChannelId);
+  if (updated) {
+    await logTransferMessage(conversationId, `Conversa transferida para o canal ${channelName ?? "desconhecido"}.`, reason);
+  }
+  return updated;
+}
+
+/** Transfere a conversa diretamente para um atendente específico, resolvendo o canal ativo dele. */
+export async function transferConversationToUser(conversationId: string, targetUserId: string, reason?: string) {
+  const [targetUser] = await db.select({ name: users.name }).from(users).where(eq(users.id, targetUserId)).limit(1);
+
+  const targetChannelId = await getActiveChannelIdByUserId(targetUserId);
+  if (!targetChannelId) {
+    throw new Error("Atendente não possui canal de WhatsApp configurado");
+  }
+
+  const { updated } = await applyChannelTransfer(conversationId, targetChannelId);
+  if (updated) {
+    await logTransferMessage(conversationId, `Conversa transferida para ${targetUser?.name ?? "o atendente"}.`, reason);
+  }
+  return updated;
+}
+
+/** Transfere a conversa para um setor (fila) sem atribuir a um atendente específico. */
+export async function transferConversationToSector(conversationId: string, sectorId: string, reason?: string) {
+  const [sector] = await db
+    .select({ name: whatsappSectors.name })
+    .from(whatsappSectors)
+    .where(eq(whatsappSectors.id, sectorId))
+    .limit(1);
+
+  const [updated] = await db
+    .update(whatsappConversations)
+    .set({ sectorId, updatedAt: new Date() })
+    .where(eq(whatsappConversations.id, conversationId))
+    .returning();
+
+  if (updated) {
+    await logTransferMessage(conversationId, `Conversa transferida para o setor ${sector?.name ?? "desconhecido"}.`, reason);
+  }
   return updated ?? null;
 }
 

@@ -39,6 +39,7 @@ import { refreshFirstPage } from "@/lib/wa-chat-pagination";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
 import { ContactDetailsSheet } from "@/components/whatsapp/contact-details-sheet";
+import { TransferConversationSheet } from "@/components/whatsapp/transfer-conversation-sheet";
 import type { MediaType } from "@/hooks/use-media-library";
 import {
   MessageSquare,
@@ -2741,6 +2742,7 @@ function ConversationMessages({
   availableWhatsappTags: WhatsappClientTag[];
   onWhatsappTagsChange: (clientId: string, tagIds: string[]) => void;
 }) {
+  const isAdminOrGerente = userRole === "admin" || userRole === "gerente";
   const [message, setMessage] = useState("");
   const [composerMode, setComposerMode] = useState<"message" | "note">("message");
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
@@ -2790,38 +2792,10 @@ function ConversationMessages({
   const [botSearch, setBotSearch] = useState("");
   const [triggeringBotId, setTriggeringBotId] = useState<string | null>(null);
   const [savingStickers, setSavingStickers] = useState<Set<string>>(new Set());
-  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferSheetOpen, setTransferSheetOpen] = useState(false);
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const isUnknownContact = !client.clientId;
-
-  const transferMutation = useMutation({
-    mutationFn: async (channelId: number) => {
-      const res = await fetch(
-        `/api/whatsapp/conversations/${client.conversationId}/transfer`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ channelId }),
-        },
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? "Erro ao transferir conversa");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      setTransferOpen(false);
-      queryClient.invalidateQueries({
-        queryKey: ["/api/whatsapp/conversations-list"],
-      });
-      toast({ title: "Conversa transferida com sucesso" });
-    },
-    onError: (err: Error) => {
-      toast({ title: err.message, variant: "destructive" });
-    },
-  });
 
   const closeConversationMutation = useMutation({
     mutationFn: async () => {
@@ -3656,7 +3630,6 @@ function ConversationMessages({
 
   const displayName = client.clientName ?? client.phone;
 
-  const isAdminOrGerente = userRole === "admin" || userRole === "gerente";
   const showChannelSelect = isAdminOrGerente && channels.length > 0;
 
   const ChannelSelect = () => (
@@ -3845,48 +3818,17 @@ function ConversationMessages({
           )}
 
           {/* Transferir */}
-          {channels.length > 0 && (
-            <Popover open={transferOpen} onOpenChange={setTransferOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 sm:h-7 sm:w-auto sm:px-2.5 sm:gap-1.5 text-xs"
-                  title="Transferir conversa para outro canal"
-                >
-                  <ArrowRightLeft className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline text-xs">Transferir</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-56 p-1">
-                <p className="text-xs text-slate-500 dark:text-slate-400 px-2 py-1.5 font-medium">
-                  Transferir para canal:
-                </p>
-                {channels
-                  .filter((ch) => ch.id !== client.channelId)
-                  .map((ch) => (
-                    <button
-                      key={ch.id}
-                      className="w-full text-left px-2 py-2 text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 flex flex-col"
-                      disabled={transferMutation.isPending}
-                      onClick={() => transferMutation.mutate(ch.id)}
-                    >
-                      <span className="font-medium">{ch.name}</span>
-                      {ch.displayPhone && (
-                        <span className="text-xs text-slate-400">
-                          {ch.displayPhone}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                {channels.filter((ch) => ch.id !== client.channelId).length ===
-                  0 && (
-                  <p className="text-xs text-slate-400 px-2 py-1.5">
-                    Nenhum outro canal disponível.
-                  </p>
-                )}
-              </PopoverContent>
-            </Popover>
+          {isAdminOrGerente && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0 sm:h-7 sm:w-auto sm:px-2.5 sm:gap-1.5 text-xs"
+              title="Transferir conversa"
+              onClick={() => setTransferSheetOpen(true)}
+            >
+              <ArrowRightLeft className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline text-xs">Transferir</span>
+            </Button>
           )}
 
           {/* Encerrar / reabrir conversa */}
@@ -5097,6 +5039,18 @@ function ConversationMessages({
         client={client}
         open={contactDetailsOpen}
         onOpenChange={setContactDetailsOpen}
+      />
+
+      <TransferConversationSheet
+        open={transferSheetOpen}
+        onOpenChange={setTransferSheetOpen}
+        conversationId={client.conversationId}
+        channels={channels}
+        onTransferred={() => {
+          queryClient.invalidateQueries({
+            queryKey: ["/api/whatsapp/conversations", conversationKey],
+          });
+        }}
       />
 
       <Dialog open={notesListOpen} onOpenChange={setNotesListOpen}>

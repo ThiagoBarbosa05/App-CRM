@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { whatsappChannels, whatsappConversations, whatsappMessages } from "../../shared/schema";
+import { whatsappChannels, whatsappConversations, whatsappMessages, users } from "../../shared/schema";
 import { and, eq } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
@@ -243,4 +243,40 @@ export async function updateConnectionStatus(channelId: number, status: string):
     .update(whatsappChannels)
     .set({ connectionStatus: status })
     .where(eq(whatsappChannels.id, channelId));
+}
+
+/**
+ * Todos os usuários do sistema com o canal ativo de cada um (se houver).
+ * Usado pela picker "Atendente" da transferência de conversas — permite
+ * transferir diretamente para qualquer atendente, independente de setor.
+ */
+export async function listAttendantsWithChannel(): Promise<
+  {
+    userId: string;
+    name: string;
+    role: string;
+    channelId: number | null;
+    channelName: string | null;
+    channelDisplayPhone: string | null;
+    channelConnectionStatus: string | null;
+    channelProvider: string | null;
+  }[]
+> {
+  return db
+    .select({
+      userId: users.id,
+      name: users.name,
+      role: users.role,
+      channelId: whatsappChannels.id,
+      channelName: whatsappChannels.name,
+      channelDisplayPhone: whatsappChannels.displayPhone,
+      channelConnectionStatus: whatsappChannels.connectionStatus,
+      channelProvider: whatsappChannels.provider,
+    })
+    .from(users)
+    .leftJoin(
+      whatsappChannels,
+      and(eq(whatsappChannels.userId, users.id), eq(whatsappChannels.isActive, true)),
+    )
+    .orderBy(users.name);
 }
