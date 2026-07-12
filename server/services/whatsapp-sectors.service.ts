@@ -125,3 +125,12 @@ export async function listSectorsForUser(userId: string) {
     .where(and(eq(whatsappSectorMembers.userId, userId), eq(whatsappSectors.isActive, true)))
     .orderBy(whatsappSectors.name);
 }
+
+/** Ids dos setores de um usuário — usado para escopar a visibilidade de conversas de vendedores. */
+export async function listSectorIdsForUser(userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ sectorId: whatsappSectorMembers.sectorId })
+    .from(whatsappSectorMembers)
+    .where(eq(whatsappSectorMembers.userId, userId));
+  return rows.map((r) => r.sectorId);
+}

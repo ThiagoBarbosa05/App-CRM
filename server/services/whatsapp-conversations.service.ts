@@ -22,8 +22,9 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } fr
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { getChannelByUserId, getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId } from "./whatsapp-channels.service";
+import { getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
+import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
 
@@ -32,6 +33,23 @@ function normalizePhone(phone: string) {
   const withoutCountry =
     digits.startsWith("55") && digits.length >= 12 ? digits.slice(2) : digits;
   return { digits, withoutCountry };
+}
+
+// Escopo de visibilidade de um vendedor sobre conversas de WhatsApp: conversas
+// atribuídas a ele, conversas sem atribuição de clientes onde ele é o
+// responsável no CRM, e conversas dos setores de atendimento aos quais
+// pertence (setor = fila; transferir para um setor sem escolher atendente
+// deixa a conversa visível a todos os membros dele).
+async function vendorScopeCondition(userId: string) {
+  const sectorIds = await listSectorIdsForUser(userId);
+  const clauses = [
+    eq(whatsappConversations.assignedAgentId, userId),
+    and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
+  ];
+  if (sectorIds.length > 0) {
+    clauses.push(inArray(whatsappConversations.sectorId, sectorIds));
+  }
+  return or(...clauses);
 }
 
 export async function findOrCreateConversation(phone: string, channelId?: number | null) {
@@ -194,7 +212,7 @@ export async function transferConversation(conversationId: string, targetChannel
   return updated;
 }
 
-/** Transfere a conversa diretamente para um atendente específico, resolvendo o canal ativo dele. */
+/** Transfere a conversa diretamente para um atendente específico, passando a usar o canal dele. */
 export async function transferConversationToUser(conversationId: string, targetUserId: string, reason?: string) {
   const [targetUser] = await db.select({ name: users.name }).from(users).where(eq(users.id, targetUserId)).limit(1);
 
@@ -432,14 +450,10 @@ export async function listClientsForChat(
   }
 
   // Conversa é unificada por cliente; o vendedor vê as conversas atribuídas a ele
-  // (assignedAgentId) e, quando não há atribuição, as dos clientes sob sua
-  // responsabilidade. Ao transferir, a conversa passa a aparecer só para o
-  // atendente atribuído; o responsável anterior deixa de vê-la.
+  // (assignedAgentId), as dos setores de atendimento aos quais pertence, e,
+  // quando não há atribuição nem setor, as dos clientes sob sua responsabilidade.
   if (userRole === "vendedor" && userId) {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) conditions.push(scope);
   }
 
@@ -620,10 +634,7 @@ export async function getConversation(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) whereConditions.push(scope);
   }
 
@@ -744,10 +755,7 @@ export async function sendConversationMessage(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) whereConditions.push(scope);
   }
 
@@ -857,10 +865,7 @@ export async function addConversationNote(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) whereConditions.push(scope);
   }
 
@@ -916,10 +921,7 @@ export async function listConversationNotes(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) whereConditions.push(scope);
   }
 
@@ -972,10 +974,7 @@ export async function sendConversationTemplate(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) whereConditions.push(scope);
   }
 
@@ -1171,10 +1170,7 @@ export async function sendConversationMedia(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) whereConditions.push(scope);
   }
 
@@ -1341,10 +1337,7 @@ export async function retryFailedMessage(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) whereConditions.push(scope);
   }
 
@@ -1679,10 +1672,7 @@ export async function sendConversationReaction(
     eq(whatsappConversations.id, conversationId),
   ];
   if (userRole === "vendedor") {
-    const scope = or(
-      eq(whatsappConversations.assignedAgentId, userId),
-      and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-    );
+    const scope = await vendorScopeCondition(userId);
     if (scope) whereConditions.push(scope);
   }
 
@@ -1708,11 +1698,11 @@ export async function sendConversationReaction(
 
   if (!targetMsg?.waMessageId) return null;
 
+  // Canal explícito (override do admin/gerente via seletor) tem prioridade;
+  // senão usa sempre o canal atual da conversa — igual ao texto/mídia/template,
+  // sem preferir o canal pessoal do atendente.
   let channelOverride = null;
-  if (userRole === "vendedor") {
-    channelOverride = await getChannelByUserId(userId).catch(() => null)
-      ?? await getChannelForConversation(conversationId).catch(() => null);
-  } else if (channelId != null) {
+  if (channelId != null) {
     const ch = await getChannelById(channelId).catch(() => null);
     if (ch && ch.phoneNumberId && ch.accessToken) channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
   } else {

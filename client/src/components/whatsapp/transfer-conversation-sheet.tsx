@@ -311,7 +311,7 @@ export function TransferConversationSheet({
                       radioValue={a.userId}
                       icon={<User className="h-4 w-4" />}
                       label={a.name}
-                      statusLabel={hasChannel ? (isConnected ? "Online" : "Offline") : "Sem canal"}
+                      statusLabel={hasChannel ? (isConnected ? "Online" : "Offline") : "Sem canal configurado"}
                       statusOnline={hasChannel && isConnected}
                       disabled={!hasChannel}
                       selected={selectedUserId === a.userId}
