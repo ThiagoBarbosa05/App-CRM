@@ -222,6 +222,7 @@ const BOT_COMPLETION_REASON_LABELS: Record<BotSessionCompletionReason, string> =
   timed_out: "Sessão expirada por inatividade",
   delivery_failed: "Falha na entrega da mensagem",
   unsupported_node: "Erro: nó não suportado",
+  opted_out: "Cliente optou por não receber marketing",
 };
 
 /**

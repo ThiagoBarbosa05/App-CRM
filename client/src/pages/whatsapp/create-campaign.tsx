@@ -15,6 +15,7 @@ import {
   Bot,
   AlertTriangle,
   PhoneOff,
+  BellOff,
   Clock,
   User,
   Filter,
@@ -74,6 +75,7 @@ import {
   renderTemplateText,
   parseTemplateVars,
 } from "@/lib/whatsapp-template";
+import { WhatsappOptOutInfoBanner } from "@/components/whatsapp/opt-out-info-banner";
 
 type WhatsappFilterTag = {
   id: string;
@@ -92,6 +94,7 @@ type Client = {
   name: string;
   phone?: string | null;
   tags?: ClientTag[];
+  whatsappOptOutAt?: string | null;
 };
 
 type TemplateHeaderMediaValue = {
@@ -394,6 +397,8 @@ function StepClients({
   );
   const hasNextPage = clientsResponse?.hasNextPage ?? false;
   const hasPhone = (c: Client) => Boolean(c.phone?.trim());
+  const isOptedOut = (c: Client) => Boolean(c.whatsappOptOutAt);
+  const isSelectable = (c: Client) => hasPhone(c) && !isOptedOut(c);
 
   const toggleTag = (id: string) => {
     setSelectedTagIds((prev) =>
@@ -403,7 +408,7 @@ function StepClients({
   };
 
   const toggleClient = (client: Client) => {
-    if (!hasPhone(client)) return;
+    if (!isSelectable(client)) return;
     onChange(
       selectedIds.includes(client.id)
         ? selectedIds.filter((s) => s !== client.id)
@@ -412,7 +417,7 @@ function StepClients({
   };
 
   const selectableIds = useMemo(
-    () => clients.filter(hasPhone).map((c) => c.id),
+    () => clients.filter(isSelectable).map((c) => c.id),
     [clients],
   );
 
@@ -636,7 +641,8 @@ function StepClients({
             )}
             {!isFetching &&
               clients.map((client) => {
-                const selectable = hasPhone(client);
+                const selectable = isSelectable(client);
+                const optedOut = isOptedOut(client);
                 const selected = selectedIds.includes(client.id);
                 return (
                   <TableRow
@@ -676,6 +682,10 @@ function StepClients({
                           <span className="text-xs text-muted-foreground font-mono">
                             {client.phone}
                           </span>
+                        ) : optedOut ? (
+                          <span className="text-xs text-rose-600 flex items-center gap-1">
+                            <BellOff className="h-3 w-3" /> Optou por sair
+                          </span>
                         ) : (
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <PhoneOff className="h-3 w-3" /> Sem telefone
@@ -700,6 +710,14 @@ function StepClients({
                         <span className="text-sm text-muted-foreground font-mono">
                           {client.phone}
                         </span>
+                      ) : optedOut ? (
+                        <Badge
+                          variant="outline"
+                          className="gap-1 text-rose-600 border-rose-200 border-dashed font-normal text-xs"
+                        >
+                          <BellOff className="h-3 w-3" />
+                          Optou por sair
+                        </Badge>
                       ) : (
                         <Badge
                           variant="outline"
@@ -1517,6 +1535,8 @@ export default function WhatsAppCreateCampaign() {
                 </PageHeader.Text>
               </PageHeader.Info>
             </PageHeader>
+
+            {step === 1 && <WhatsappOptOutInfoBanner />}
 
             {/* Step indicator */}
             <StepIndicator current={step} />

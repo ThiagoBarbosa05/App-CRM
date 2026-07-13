@@ -65,6 +65,7 @@ import { AttachFileDialog } from "@/components/media-library/attach-file-dialog"
 import type { MediaType } from "@/hooks/use-media-library";
 import { useAuth } from "@/hooks/useAuth";
 import { MetaTemplateFormDialog } from "./meta-template-dialog";
+import { WhatsappOptOutInfoBanner } from "@/components/whatsapp/opt-out-info-banner";
 
 // ── Status helpers ──────────────────────────────────────────────────────────────
 
@@ -473,6 +474,8 @@ export default function WhatsAppTemplates() {
             )}
           </PageHeader.Actions>
         </PageHeader>
+
+        <WhatsappOptOutInfoBanner />
 
         {/* Resumo de status */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">

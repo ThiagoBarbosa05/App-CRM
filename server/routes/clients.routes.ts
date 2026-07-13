@@ -6,6 +6,7 @@ import { getClientsExportAllController } from "../controllers/clients/get-client
 import { getClientsExportFilteredController } from "../controllers/clients/get-clients-export-filtered.controller";
 import { postClientController } from "../controllers/clients/post-client.controller";
 import { putClientController } from "../controllers/clients/put-client.controller";
+import { patchWhatsappOptOutController } from "../controllers/clients/patch-whatsapp-opt-out.controller";
 import { deleteClientController } from "../controllers/clients/delete-client.controller";
 import { deleteClientsBulkController } from "../controllers/clients/delete-clients-bulk.controller";
 import { confirmClientController } from "../controllers/clients/confirm-client.controller";
@@ -371,6 +372,18 @@ clientsRouter.post("/", postClientController);
  * @returns {object} 500 - Erro interno do servidor
  */
 clientsRouter.put("/:id", putClientController);
+
+/**
+ * @route PATCH /api/clients/:id/whatsapp-opt-out
+ * @description Marca (ou reverte) manualmente o opt-out de marketing por WhatsApp
+ * @access Private
+ * @urlParams {string} id - ID do cliente
+ * @bodyParams {boolean} optedOut - true para opt-out, false para reverter
+ * @returns {object} 200 - Estado atualizado
+ * @returns {object} 400 - Erro de validação
+ * @returns {object} 500 - Erro interno do servidor
+ */
+clientsRouter.patch("/:id/whatsapp-opt-out", patchWhatsappOptOutController);
 
 /**
  * @route POST /api/clients/:id/confirm

@@ -12,8 +12,25 @@ import {
   updateTemplateMetaStatus,
   updateTemplateQualityScore,
 } from "../services/whatsapp-templates.service";
+import { sendTextMessage } from "../integrations/whatsapp";
+import { optOutClientByPhone, optInClientByPhone } from "../services/whatsapp-opt-out.service";
 
 const router = Router();
+
+// Palavras-chave de opt-out/opt-in de marketing, reconhecidas em resposta exata
+// (não substring, para não confundir "vou parar de comprar" com um pedido real).
+const OPT_OUT_KEYWORDS = new Set(["SAIR", "PARAR", "CANCELAR", "DESCADASTRAR"]);
+const OPT_IN_KEYWORDS = new Set(["VOLTAR", "QUERO RECEBER"]);
+
+const COMBINING_DIACRITICS_RE = /[̀-ͯ]/g;
+
+function normalizeOptKeyword(raw: string): string {
+  return raw
+    .normalize("NFD")
+    .replace(COMBINING_DIACRITICS_RE, "")
+    .trim()
+    .toUpperCase();
+}
 
 // Ordem das transições de status (não permite regredir: read não volta a delivered).
 const STATUS_RANK: Record<string, number> = {
@@ -316,6 +333,32 @@ async function handleIncomingMessage(
         }
       : undefined,
   }).catch((err) => console.error("[WA Webhook] Erro ao salvar mensagem:", err));
+
+  // Opt-out/opt-in de marketing via palavra-chave — verificado antes de acionar
+  // o bot para que a resposta encerre uma sessão ativa em vez de avançá-la.
+  if (text) {
+    const normalized = normalizeOptKeyword(text);
+    if (OPT_OUT_KEYWORDS.has(normalized)) {
+      await optOutClientByPhone(message.from, "keyword").catch((err) =>
+        console.error("[WA Webhook] Erro ao processar opt-out:", err),
+      );
+      await sendTextMessage(
+        message.from,
+        "Você não receberá mais mensagens de marketing. Para voltar a receber, envie VOLTAR.",
+      ).catch((err) => console.error("[WA Webhook] Erro ao enviar confirmação de opt-out:", err));
+      return;
+    }
+    if (OPT_IN_KEYWORDS.has(normalized)) {
+      await optInClientByPhone(message.from).catch((err) =>
+        console.error("[WA Webhook] Erro ao processar opt-in:", err),
+      );
+      await sendTextMessage(
+        message.from,
+        "Pronto! Você voltará a receber nossas mensagens de marketing.",
+      ).catch((err) => console.error("[WA Webhook] Erro ao enviar confirmação de opt-in:", err));
+      return;
+    }
+  }
 
   // Aciona o bot tanto para texto comum quanto para respostas de botão/lista,
   // que devem avançar o fluxo como se fossem uma mensagem do contato.

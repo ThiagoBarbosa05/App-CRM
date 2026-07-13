@@ -118,6 +118,8 @@ export const clients = pgTable("clients", {
   rfmMonetary: integer("rfm_monetary"),
   rfmSegment: text("rfm_segment"),
   rfmCalculatedAt: timestamp("rfm_calculated_at"),
+  whatsappOptOutAt: timestamp("whatsapp_opt_out_at"),
+  whatsappOptOutSource: text("whatsapp_opt_out_source", { enum: ["keyword", "manual"] }),
 });
 
 // Log de auditoria das consultas de CPF na Assertiva (LGPD: quem consultou, quando, e o que foi aplicado)

@@ -614,6 +614,9 @@ router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
     if (result.status === "already_active") {
       return res.status(409).json({ message: "Já existe uma sessão de bot ativa para este contato" });
     }
+    if (result.status === "opted_out") {
+      return res.status(409).json({ message: "Cliente optou por não receber mensagens de marketing" });
+    }
 
     res.json({ ok: true });
   } catch (err) {

@@ -123,11 +123,12 @@ export default function ClientDetailsModal({
                   )}
 
                   {activeTab === "whatsapp" && (
-                    <ClientWhatsAppTab 
+                    <ClientWhatsAppTab
                       clientId={client.id}
                       clientPhone={client.phone}
                       clientName={client.name}
                       clientEmail={client.email || undefined}
+                      whatsappOptOutAt={client.whatsappOptOutAt}
                       isOpen={isOpen && activeTab === "whatsapp"}
                     />
                   )}

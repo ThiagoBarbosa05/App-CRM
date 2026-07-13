@@ -27,6 +27,7 @@ import { useWhatsappCampaigns, useWhatsappStatus, type WhatsappCampaign } from "
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { WhatsappOptOutInfoBanner } from "@/components/whatsapp/opt-out-info-banner";
 
 const STATUS_CONFIG: Record<
   WhatsappCampaign["status"],
@@ -204,6 +205,8 @@ export default function WhatsAppCampaignsList() {
             </Button>
           </PageHeader.Actions>
         </PageHeader>
+
+        <WhatsappOptOutInfoBanner />
 
         {/* Not configured alert */}
         {status && !status.configured && (

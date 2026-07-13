@@ -78,6 +78,7 @@ import {
   useDuplicateBot,
   useToggleBotActive,
 } from "@/hooks/use-whatsapp-bots";
+import { WhatsappOptOutInfoBanner } from "@/components/whatsapp/opt-out-info-banner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { WhatsappBot } from "@shared/schema";
@@ -321,6 +322,8 @@ export default function WhatsAppBotsList() {
             </Button>
           </PageHeader.Actions>
         </PageHeader>
+
+        <WhatsappOptOutInfoBanner />
 
         {/* Toolbar: busca + filtro de status */}
         {(hasBots || isLoading) && (

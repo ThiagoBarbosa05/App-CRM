@@ -9,6 +9,10 @@ import {
 import { createCampaignSchema } from "./create-campaign.schema";
 import { logCampaignCreation, logMessageStatus } from "./campaign-logger";
 import { ZodError } from "zod";
+import { db } from "../../db";
+import { clients } from "@shared/schema";
+import { isNotNull } from "drizzle-orm";
+import { normalizePhoneE164 } from "@shared/phone";
 
 interface CreateCampaignRequest {
   title: string;
@@ -145,6 +149,30 @@ export async function createCampaignController(req: Request, res: Response) {
         error: "Nenhum contato encontrado com as tags selecionadas",
         tagIds,
         exclusiveTagFilter,
+      });
+    }
+
+    // Remove contatos que já optaram por não receber mensagens de marketing.
+    // Esse fluxo (legado, via Umbler) busca contatos direto na API da Umbler e
+    // não passa pela tabela local `clients` — por isso o cruzamento é feito aqui.
+    const optedOutClients = await db
+      .select({ phone: clients.phone })
+      .from(clients)
+      .where(isNotNull(clients.whatsappOptOutAt));
+    const optedOutPhones = new Set(
+      optedOutClients.map((c) => normalizePhoneE164(c.phone)).filter((p): p is string => !!p),
+    );
+    if (optedOutPhones.size > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      contacts = contacts.filter((contact: any) => {
+        const normalized = normalizePhoneE164(contact.phoneNumber);
+        return !normalized || !optedOutPhones.has(normalized);
+      });
+    }
+
+    if (contacts.length === 0) {
+      return res.status(400).json({
+        error: "Todos os contatos selecionados optaram por não receber mensagens de marketing",
       });
     }
 

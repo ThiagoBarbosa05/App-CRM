@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { FaWhatsapp } from "react-icons/fa";
 import {
   AlertCircle,
+  Bell,
+  BellOff,
   Bot,
   Check,
   ChevronRight,
@@ -32,24 +34,30 @@ import {
   UMBLER_CHAT_CONFIRMATION_TIMEOUT_MS,
 } from "@/hooks/use-umbler";
 import { toast } from "@/hooks/use-toast";
+import { useToggleWhatsappOptOut } from "@/hooks/use-whatsapp-opt-out";
 
 interface ClientWhatsAppTabProps {
   clientId: string;
   clientPhone: string;
   clientName: string;
   clientEmail?: string;
+  whatsappOptOutAt?: string | Date | null;
   isOpen: boolean;
 }
 
 export function ClientWhatsAppTab({
+  clientId,
   clientPhone,
   clientName,
   clientEmail,
+  whatsappOptOutAt,
   isOpen,
 }: ClientWhatsAppTabProps) {
   const [message, setMessage] = useState("");
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const toggleOptOut = useToggleWhatsappOptOut();
+  const isOptedOut = !!whatsappOptOutAt;
   const confirmationToastShownRef = useRef(false);
   const timeoutToastShownRef = useRef(false);
 
@@ -220,6 +228,12 @@ export function ClientWhatsAppTab({
                     {clientPhone}
                   </Badge>
                 )}
+                {isOptedOut && (
+                  <Badge className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-rose-700 shadow-sm hover:bg-rose-50 dark:border-rose-800/70 dark:bg-rose-500/10 dark:text-rose-300">
+                    <BellOff className="mr-1 h-3 w-3" />
+                    Não recebe marketing
+                  </Badge>
+                )}
               </div>
               <CardTitle className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
                 Conversa e automações
@@ -262,6 +276,51 @@ export function ClientWhatsAppTab({
       </CardHeader>
 
       <CardContent className="space-y-6 px-6 py-6">
+        <div
+          className={cn(
+            "flex flex-col gap-3 rounded-[20px] border px-5 py-4 sm:flex-row sm:items-center sm:justify-between",
+            isOptedOut
+              ? "border-rose-200 bg-rose-50/70 dark:border-rose-900/50 dark:bg-rose-950/20"
+              : "border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/60",
+          )}
+        >
+          <div className="flex items-start gap-3">
+            {isOptedOut ? (
+              <BellOff className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+            ) : (
+              <Bell className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+            )}
+            <div>
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                {isOptedOut
+                  ? "Cliente optou por não receber marketing"
+                  : "Cliente recebe mensagens de marketing"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Controla se este contato entra em campanhas e bots disparados por campanha no WhatsApp.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={toggleOptOut.isPending}
+            onClick={() => toggleOptOut.mutate({ clientId, optedOut: !isOptedOut })}
+            className={cn(
+              "h-9 shrink-0 rounded-lg text-xs font-bold",
+              isOptedOut
+                ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800/60 dark:text-emerald-300"
+                : "border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-800/60 dark:text-rose-300",
+            )}
+          >
+            {toggleOptOut.isPending
+              ? "Atualizando..."
+              : isOptedOut
+                ? "Reativar marketing"
+                : "Marcar opt-out"}
+          </Button>
+        </div>
+
         {isLoadingContact ? (
           <LoadingPanel />
         ) : (

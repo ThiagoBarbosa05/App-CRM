@@ -147,6 +147,21 @@ export async function executeCampaign(
       try {
         const { status, lastMessageId } = await startBotSession(campaign.waBotId, phoneE164, undefined, campaignId);
 
+        if (status === "opted_out") {
+          await db
+            .update(whatsappCampaignMessages)
+            .set({
+              status: "cancelled",
+              errorMessage: "Cliente optou por não receber mensagens de marketing",
+              updatedAt: new Date(),
+            })
+            .where(eq(whatsappCampaignMessages.id, msg.id));
+          skipped++;
+          console.log(`[WaCampaign] Bot ⊘ ${msg.contactName} (${msg.phoneNumber}): opt-out`);
+          if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
+          continue;
+        }
+
         if (status === "already_active" || status === "no_start_node") {
           const errorMessage =
             status === "already_active"

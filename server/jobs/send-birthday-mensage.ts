@@ -427,11 +427,18 @@ async function getBirthdayClients(
     // Buscar clientes com aniversário na data alvo usando função otimizada do storage
     const birthdayClients = await storage.getClientsByBirthdayDate(targetDate);
 
-    // Filtrar apenas clientes com telefone válido
+    // Filtrar apenas clientes com telefone válido que não optaram por não
+    // receber mensagens de marketing (mensagem de aniversário é promocional).
     const validClients = birthdayClients.filter((client) => {
       if (!client.phone || client.phone.trim() === "") {
         console.log(
           `[Birthday Job] Cliente ${client.name} não possui telefone válido - ignorando`
+        );
+        return false;
+      }
+      if (client.whatsappOptOutAt) {
+        console.log(
+          `[Birthday Job] Cliente ${client.name} optou por não receber marketing - ignorando`
         );
         return false;
       }

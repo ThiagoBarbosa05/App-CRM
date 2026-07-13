@@ -297,7 +297,8 @@ export type BotSessionCompletionReason =
   | "handed_off_to_bot"
   | "timed_out"
   | "delivery_failed"
-  | "unsupported_node";
+  | "unsupported_node"
+  | "opted_out";
 
 async function updateSession(
   sessionId: string,
@@ -316,6 +317,20 @@ async function updateSession(
     .update(whatsappBotSessions)
     .set({ ...data, lastActivityAt: new Date() })
     .where(eq(whatsappBotSessions.id, sessionId));
+}
+
+/**
+ * Encerra a sessão de bot ativa (se houver) para um telefone que acabou de
+ * optar por não receber mais mensagens de marketing.
+ */
+export async function terminateActiveSessionForOptOut(phone: string): Promise<void> {
+  const session = await getActiveSession(phone);
+  if (!session) return;
+  await updateSession(session.id, {
+    status: "completed",
+    completedAt: new Date(),
+    completionReason: "opted_out",
+  });
 }
 
 export type TransferAgentCtx = {
@@ -1306,7 +1321,7 @@ export async function startBotSession(
   channelId?: number,
   triggeredByUserId?: string,
 ): Promise<{
-  status: "started" | "already_active" | "no_start_node";
+  status: "started" | "already_active" | "no_start_node" | "opted_out";
   lastMessageId: string | null;
 }> {
   let entryNode: WhatsappBotNode | null = null;
@@ -1346,6 +1361,11 @@ export async function startBotSession(
     const [client] = await db.select().from(clients).where(eq(clients.id, convRow.clientId)).limit(1);
     clientRow = client ?? null;
   }
+
+  if (clientRow?.whatsappOptOutAt) {
+    return { status: "opted_out", lastMessageId: null };
+  }
+
   const clientVars = buildClientVariables(clientRow, phone);
 
   // O SELECT em getActiveSession acima é só fast-path; quem garante a

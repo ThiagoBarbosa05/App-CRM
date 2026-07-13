@@ -112,7 +112,7 @@ router.post("/campaigns", async (req, res) => {
     //    em formatos diferentes) também são descartados, mantendo só o primeiro,
     //    para não disparar duas vezes para a mesma pessoa.
     const clientRows = await db
-      .select({ id: clients.id, name: clients.name, phone: clients.phone })
+      .select({ id: clients.id, name: clients.name, phone: clients.phone, whatsappOptOutAt: clients.whatsappOptOutAt })
       .from(clients)
       .where(inArray(clients.id, clientIds));
 
@@ -120,8 +120,13 @@ router.post("/campaigns", async (req, res) => {
     const validClients: { id: string; name: string; phone: string; phoneE164: string }[] = [];
     let skippedInvalidPhone = 0;
     let skippedDuplicatePhone = 0;
+    let skippedOptedOut = 0;
 
     for (const c of clientRows) {
+      if (c.whatsappOptOutAt) {
+        skippedOptedOut++;
+        continue;
+      }
       const phoneE164 = c.phone?.trim() ? normalizePhoneE164(c.phone) : null;
       if (!phoneE164) {
         skippedInvalidPhone++;
@@ -136,7 +141,12 @@ router.post("/campaigns", async (req, res) => {
     }
 
     if (validClients.length === 0) {
-      return res.status(400).json({ message: "Nenhum dos clientes fornecidos possui telefone válido" });
+      return res.status(400).json({
+        message:
+          skippedOptedOut > 0 && skippedInvalidPhone === 0
+            ? "Todos os clientes fornecidos optaram por não receber mensagens de marketing"
+            : "Nenhum dos clientes fornecidos possui telefone válido",
+      });
     }
 
     // 3. Garantir entrada em whatsappCampaigns (satisfaz FK de whatsappCampaignMessages)
@@ -211,6 +221,7 @@ router.post("/campaigns", async (req, res) => {
       queued: messageValues.length,
       skippedNoPhone: skippedInvalidPhone,
       skippedDuplicatePhone,
+      skippedOptedOut,
       skippedAlreadyQueued: alreadyQueuedIds.size,
       scheduledAt: isScheduled ? scheduledDate?.toISOString() : null,
     });
