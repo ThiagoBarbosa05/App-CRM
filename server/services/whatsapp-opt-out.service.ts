@@ -7,7 +7,7 @@ import { normalizePhone } from "./whatsapp-conversations.service";
 
 /** Textos enviados ao cliente ao confirmar o pedido de opt-out/opt-in por palavra-chave. */
 export const OPT_OUT_CONFIRMATION_TEXT =
-  "Você não receberá mais mensagens de marketing. Para voltar a receber, envie VOLTAR.";
+  "Combinado! Você não vai mais receber nossas mensagens por aqui. Se mudar de ideia, é só enviar VOLTAR. 👋";
 export const OPT_IN_CONFIRMATION_TEXT =
   "Prontinho! Você voltará a receber nossas novidades e promoções por aqui. 🎉";
 
@@ -48,8 +48,8 @@ export function matchOptKeyword(text: string): OptKeywordMatch {
 function phoneCondition(column: PgColumn, phone: string) {
   const { digits, withoutCountry } = normalizePhone(phone);
   return or(
-    sql`regexp_replace(${column}, '\D', '', 'g') = ${digits}`,
-    sql`regexp_replace(${column}, '\D', '', 'g') = ${withoutCountry}`,
+    sql`regexp_replace(${column}, '\\D', '', 'g') = ${digits}`,
+    sql`regexp_replace(${column}, '\\D', '', 'g') = ${withoutCountry}`,
   );
 }
 
