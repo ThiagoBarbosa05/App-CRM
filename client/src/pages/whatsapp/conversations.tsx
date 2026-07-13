@@ -135,6 +135,11 @@ export interface ChatClient {
   channelId?: number | null;
   channelName?: string | null;
   channelDisplayPhone?: string | null;
+  channelConnectionStatus?: string | null;
+  channelProvider?: string | null;
+  sectorId?: string | null;
+  sectorName?: string | null;
+  sectorColor?: string | null;
   tags?: ChatClientTag[];
   whatsappTags?: WhatsappClientTag[];
   status?: "open" | "closed" | null;
@@ -3483,7 +3488,23 @@ function ConversationMessages({
   // Canal atualmente em uso na conversa. Só é possível enviar mensagens/disparar
   // bots quando há um canal selecionado E ele está conectado (cloud_api é sempre
   // considerado conectado; evolution depende de connectionStatus).
-  const activeChannel = channels.find((c) => c.id === selectedChannelId) ?? null;
+  //
+  // `channels` só traz os canais do próprio usuário (ou, para admin/gerente,
+  // todos) — não necessariamente o canal atual da conversa, que pode pertencer
+  // a outro atendente (ex.: conversa transferida por setor, que mantém o canal
+  // de quem transferiu). Nesse caso cai no fallback com os dados do canal que
+  // já vêm junto da conversa, em vez de tratar como "desconectado".
+  const activeChannel =
+    channels.find((c) => c.id === selectedChannelId) ??
+    (selectedChannelId != null && selectedChannelId === client.channelId && client.channelName
+      ? {
+          id: selectedChannelId,
+          name: client.channelName,
+          displayPhone: client.channelDisplayPhone ?? null,
+          connectionStatus: client.channelConnectionStatus ?? null,
+          provider: client.channelProvider ?? "cloud_api",
+        }
+      : null);
   const canSendMessages =
     activeChannel != null &&
     (activeChannel.provider === "cloud_api" ||
@@ -3867,6 +3888,49 @@ function ConversationMessages({
             <div className="flex-1 min-w-0">
               <ChannelSelect />
             </div>
+          </div>
+        )}
+
+        {/* Setor + canal desta conversa: sempre visível (não só admin/gerente),
+            para não depender da faixa "meus canais" da barra lateral — que é
+            sobre os canais do usuário logado, não necessariamente o desta
+            conversa (ex.: transferida por setor, canal de outro atendente). */}
+        {(client.sectorId || client.channelName) && (
+          <div className="px-2 sm:px-4 pb-2 flex items-center gap-2 flex-wrap">
+            {client.sectorId && (
+              <span
+                className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"
+                style={{ backgroundColor: client.sectorColor ?? "#3B82F6" }}
+              >
+                {client.sectorName ?? "Setor"}
+              </span>
+            )}
+            {client.channelName &&
+              (() => {
+                const connected =
+                  client.channelProvider === "cloud_api" ||
+                  client.channelConnectionStatus === "connected";
+                return (
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full shrink-0",
+                        connected ? "bg-green-500" : "bg-amber-500",
+                      )}
+                    />
+                    Canal desta conversa:{" "}
+                    <span className="font-medium text-slate-700 dark:text-slate-300">
+                      {client.channelName}
+                    </span>
+                    {client.channelDisplayPhone && ` (${client.channelDisplayPhone})`}
+                    {!connected && (
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">
+                        · Desconectado
+                      </span>
+                    )}
+                  </span>
+                );
+              })()}
           </div>
         )}
       </div>
@@ -5686,7 +5750,16 @@ export default function WhatsAppConversationsPage() {
           )}
         </div>
 
-        {/* Channel status strip — visible only for vendedores */}
+        {/* Channel status strip — visible only for vendedores. É sobre os canais
+            do próprio usuário, não necessariamente o da conversa aberta (que pode
+            ter sido transferida e usar o canal de outro atendente) — por isso o
+            rótulo explícito, para não parecer contraditório com o status mostrado
+            dentro do chat. */}
+        {!isAdminOrGerente && availableChannels.length > 0 && (
+          <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
+            Meus canais
+          </div>
+        )}
         {!isAdminOrGerente &&
           availableChannels.length > 0 &&
           availableChannels.map((ch) => {

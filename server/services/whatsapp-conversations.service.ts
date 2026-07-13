@@ -541,6 +541,11 @@ export async function listClientsForChat(
       channelId: whatsappConversations.channelId,
       channelName: whatsappChannels.name,
       channelDisplayPhone: whatsappChannels.displayPhone,
+      channelConnectionStatus: whatsappChannels.connectionStatus,
+      channelProvider: whatsappChannels.provider,
+      sectorId: whatsappConversations.sectorId,
+      sectorName: whatsappSectors.name,
+      sectorColor: whatsappSectors.color,
       status: whatsappConversations.status,
       responsavelId: clients.responsavelId,
       responsavelName: responsavelUsers.name,
@@ -548,6 +553,7 @@ export async function listClientsForChat(
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .leftJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
+    .leftJoin(whatsappSectors, eq(whatsappConversations.sectorId, whatsappSectors.id))
     .leftJoin(lastMsgSub, eq(whatsappConversations.id, lastMsgSub.conversationId))
     .leftJoin(unreadSub, eq(whatsappConversations.id, unreadSub.conversationId))
     .leftJoin(responsavelUsers, eq(clients.responsavelId, responsavelUsers.id))
