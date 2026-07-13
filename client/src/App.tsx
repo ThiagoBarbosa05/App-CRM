@@ -38,6 +38,8 @@ import RankingPage from "./pages/ranking";
 import TelemarketingPage from "./pages/telemarketing";
 import ReferralProgramPage from "./pages/referral-program";
 import ZernioInboxPage from "./pages/zernio-inbox";
+import RestaurantPos from "@/pages/restaurant-pdv/pos";
+import RestaurantPdvHub from "@/pages/restaurant-pdv/hub";
 
 const WhatsAppCampaignsList = lazy(() => import("@/pages/whatsapp/campaigns-list"));
 const WhatsAppCreateCampaign = lazy(() => import("@/pages/whatsapp/create-campaign"));
@@ -48,6 +50,8 @@ const WhatsAppBotsList = lazy(() => import("@/pages/whatsapp/bots-list"));
 const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
 const WhatsAppConversations = lazy(() => import("@/pages/whatsapp/conversations"));
 const WhatsAppMetaMonitor = lazy(() => import("@/pages/whatsapp/meta-monitor"));
+const RestaurantOrdersHistory = lazy(() => import("@/pages/restaurant-pdv/orders-history"));
+const RestaurantMenuManagement = lazy(() => import("@/pages/restaurant-pdv/menu-management"));
 
 function WhatsAppSection() {
   return (
@@ -68,6 +72,19 @@ function WhatsAppSection() {
   );
 }
 
+function RestaurantPdvSection() {
+  return (
+    <RestaurantPdvHub>
+      <Suspense fallback={null}>
+        <Switch>
+          <Route path="/pdv-restaurante/cardapio" component={RestaurantMenuManagement} />
+          <Route path="/pdv-restaurante/comandas" component={RestaurantOrdersHistory} />
+        </Switch>
+      </Suspense>
+    </RestaurantPdvHub>
+  );
+}
+
 function Router() {
   const { user, login, isLoading } = useAuth();
 
@@ -77,6 +94,15 @@ function Router() {
 
   if (!user) {
     return <Login onLogin={login} />;
+  }
+
+  if (user.role === "garcom") {
+    return (
+      <Switch>
+        <Route path="/pdv-restaurante" component={RestaurantPos} />
+        <Route component={() => <Redirect to="/pdv-restaurante" />} />
+      </Switch>
+    );
   }
 
   return (
@@ -296,6 +322,9 @@ function Router() {
           </MainLayout>
         )}
       />
+      {/* PDV Restaurante — hub próprio, separado do CRM (sem MainLayout/sidebar) */}
+      <Route path="/pdv-restaurante" component={RestaurantPos} />
+      <Route path="/pdv-restaurante/:rest*" component={RestaurantPdvSection} />
       <Route component={NotFound} />
     </Switch>
     </Suspense>

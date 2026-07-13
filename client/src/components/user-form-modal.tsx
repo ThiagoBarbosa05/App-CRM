@@ -216,6 +216,7 @@ export default function UserFormModal({
                       <SelectItem value="admin">Administrador</SelectItem>
                       <SelectItem value="gerente">Gerente</SelectItem>
                       <SelectItem value="vendedor">Vendedor</SelectItem>
+                      <SelectItem value="garcom">Garçom</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

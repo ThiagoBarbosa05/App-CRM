@@ -23,6 +23,7 @@ import {
   ShoppingBag,
   Sparkles,
   Target,
+  UtensilsCrossed,
   Zap,
   User,
   Users,
@@ -89,6 +90,12 @@ const navItems: NavItem[] = [
     icon: MessageCircle,
     label: "Meu WhatsApp",
     roles: ["vendedor"],
+  },
+  {
+    href: "/pdv-restaurante/comandas",
+    icon: UtensilsCrossed,
+    label: "PDV Restaurante",
+    roles: ["admin", "administrador", "gerente"],
   },
   {
     href: "/configuracoes",

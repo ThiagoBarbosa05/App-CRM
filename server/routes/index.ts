@@ -101,6 +101,7 @@ import zernioRouter, { zernioWebhookRouter } from "./zernio.routes";
 import { messageTemplatesRouter } from "./message-templates.routes";
 import { automationRulesRouter } from "./automation-rules.routes";
 import { automationMonitoringRouter } from "./automation-monitoring.routes";
+import { restaurantPdvRouter } from "./restaurant-pdv.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -138,7 +139,20 @@ apiRouter.use("/elevenlabs", elevenLabsRouter);
 // Todas as rotas registradas abaixo exigem JWT válido no cookie auth_token
 apiRouter.use(requireAuth);
 
+// Garçom só pode acessar as rotas do PDV Restaurante — mesmo com JWT válido,
+// qualquer outra rota da API retorna 403 (espelha a restrição já feita no frontend)
+apiRouter.use((req, res, next) => {
+  if (req.user?.role === "garcom" && !req.path.startsWith("/restaurant-pdv")) {
+    return res.status(403).json({
+      message: "Acesso restrito à tela de PDV",
+      code: "FORBIDDEN",
+    });
+  }
+  next();
+});
+
 // === ROTAS PROTEGIDAS ===
+apiRouter.use("/restaurant-pdv", restaurantPdvRouter);
 apiRouter.use("/referrals", referralsRouter);
 apiRouter.use("/rfm", rfmRouter);
 apiRouter.use("/segments", segmentsRouter);

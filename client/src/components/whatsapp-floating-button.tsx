@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,11 +12,102 @@ interface ChatClient {
   unreadCount?: number | null;
 }
 
+const POSITION_STORAGE_KEY = "whatsapp-floating-button-position";
+const BUTTON_SIZE = 56; // h-14 w-14
+const EDGE_MARGIN = 24; // equivalente ao right-6/bottom-6 usado como posição default
+const DRAG_THRESHOLD_PX = 6;
+
+function clampPosition(x: number, y: number) {
+  const maxX = Math.max(window.innerWidth - BUTTON_SIZE, 0);
+  const maxY = Math.max(window.innerHeight - BUTTON_SIZE, 0);
+  return { x: Math.min(Math.max(x, 0), maxX), y: Math.min(Math.max(y, 0), maxY) };
+}
+
+function getDefaultPosition() {
+  return clampPosition(
+    window.innerWidth - BUTTON_SIZE - EDGE_MARGIN,
+    window.innerHeight - BUTTON_SIZE - EDGE_MARGIN,
+  );
+}
+
+function loadStoredPosition() {
+  try {
+    const saved = localStorage.getItem(POSITION_STORAGE_KEY);
+    if (!saved) return getDefaultPosition();
+    const parsed = JSON.parse(saved);
+    if (typeof parsed?.x === "number" && typeof parsed?.y === "number") {
+      return clampPosition(parsed.x, parsed.y);
+    }
+  } catch {
+    // localStorage indisponível ou dado corrompido — usa o canto inferior direito
+  }
+  return getDefaultPosition();
+}
+
 export function WhatsAppFloatingButton() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [pulse, setPulse] = useState(false);
   const clientsRef = useRef<ChatClient[]>([]);
+
+  const [position, setPosition] = useState(loadStoredPosition);
+  const draggingRef = useRef(false);
+  const hasDraggedRef = useRef(false);
+  const dragStartRef = useRef({ pointerX: 0, pointerY: 0, originX: 0, originY: 0 });
+
+  // Mantém o botão visível caso a janela seja redimensionada após um arraste.
+  useEffect(() => {
+    function handleResize() {
+      setPosition((prev) => clampPosition(prev.x, prev.y));
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      draggingRef.current = true;
+      hasDraggedRef.current = false;
+      dragStartRef.current = {
+        pointerX: e.clientX,
+        pointerY: e.clientY,
+        originX: position.x,
+        originY: position.y,
+      };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [position],
+  );
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    const { pointerX, pointerY, originX, originY } = dragStartRef.current;
+    const dx = e.clientX - pointerX;
+    const dy = e.clientY - pointerY;
+    if (!hasDraggedRef.current && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+      hasDraggedRef.current = true;
+    }
+    if (hasDraggedRef.current) {
+      setPosition(clampPosition(originX + dx, originY + dy));
+    }
+  }, []);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // pointer já liberado — ignora
+    }
+    if (hasDraggedRef.current) {
+      setPosition((prev) => {
+        localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(prev));
+        return prev;
+      });
+    }
+  }, []);
 
   const { data: clientList = [] } = useQuery<ChatClient[]>({
     queryKey: ["/api/whatsapp/conversations-list-badge", user?.id],
@@ -52,18 +143,34 @@ export function WhatsAppFloatingButton() {
     toggleSoundBase();
   }
 
+  function handleButtonClick() {
+    // Um arraste real não deve disparar a navegação — apenas um clique/tap parado.
+    if (hasDraggedRef.current) {
+      hasDraggedRef.current = false;
+      return;
+    }
+    navigate("/whatsapp/conversas");
+  }
+
   return (
-    <div className="fixed top -6 left-6 z-50">
+    <div
+      className="fixed z-50 touch-none select-none"
+      style={{ left: position.x, top: position.y }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
       <button
-        onClick={() => navigate("/whatsapp/conversas")}
+        onClick={handleButtonClick}
         className={cn(
-          "relative h-14 w-14 rounded-full shadow-lg",
+          "relative h-14 w-14 rounded-full shadow-lg cursor-grab active:cursor-grabbing",
           "bg-[#25D366] hover:bg-[#20ba5a] active:bg-[#1da851]",
           "flex items-center justify-center",
           "transition-transform duration-150 hover:scale-105 active:scale-95",
           pulse && "animate-bounce",
         )}
-        aria-label="WhatsApp - ver conversas"
+        aria-label="WhatsApp - ver conversas (arraste para reposicionar)"
       >
         {/* WhatsApp SVG icon */}
         <svg
