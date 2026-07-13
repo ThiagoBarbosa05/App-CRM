@@ -69,8 +69,18 @@ const navItems: NavItem[] = [
     label: "Calculadora de Vinho",
   },
   { href: "/cashback", icon: Gift, label: "Cashback" },
-  { href: "/marketing", icon: Megaphone, label: "Marketing", roles: ["admin", "administrador"] },
-  { href: "/automacoes", icon: Zap, label: "Automações", roles: ["admin", "administrador"] },
+  {
+    href: "/marketing",
+    icon: Megaphone,
+    label: "Marketing",
+    roles: ["admin", "administrador"],
+  },
+  {
+    href: "/automacoes",
+    icon: Zap,
+    label: "Automações",
+    roles: ["admin", "administrador"],
+  },
   { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
   // {
@@ -91,12 +101,12 @@ const navItems: NavItem[] = [
     label: "Meu WhatsApp",
     roles: ["vendedor"],
   },
-  {
-    href: "/pdv-restaurante/comandas",
-    icon: UtensilsCrossed,
-    label: "PDV Restaurante",
-    roles: ["admin", "administrador", "gerente"],
-  },
+  // {
+  //   href: "/pdv-restaurante/comandas",
+  //   icon: UtensilsCrossed,
+  //   label: "PDV Restaurante",
+  //   roles: ["admin", "administrador", "gerente"],
+  // },
   {
     href: "/configuracoes",
     icon: Settings,
