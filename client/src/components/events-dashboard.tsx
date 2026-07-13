@@ -76,7 +76,13 @@ const EVENT_STATUS = [
   { value: "cancelado", label: "Cancelado", color: "bg-red-100 text-red-800" },
 ];
 
-export default function EventsDashboard() {
+interface EventsDashboardProps {
+  startDate?: string;
+  endDate?: string;
+  datePreset?: string;
+}
+
+export default function EventsDashboard({ startDate, endDate, datePreset }: EventsDashboardProps = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -855,9 +861,16 @@ export default function EventsDashboard() {
     }
   };
 
-  // Filtrar eventos próximos (próximos 30 dias) e ativos
+  // Filtrar eventos de acordo com o período selecionado no dashboard
   const upcomingEvents = events
     .filter((event) => {
+      const eventDate = new Date(event.eventDate);
+      if (startDate && endDate) {
+        const from = new Date(startDate + "T00:00:00");
+        const to = new Date(endDate + "T23:59:59");
+        return eventDate >= from && eventDate <= to;
+      }
+      // Padrão: próximos 30 dias, apenas planejados/ativos
       const daysUntil = getDaysUntilEvent(event.eventDate);
       return (
         (event.status === "planejado" || event.status === "ativo") &&
@@ -869,7 +882,29 @@ export default function EventsDashboard() {
       (a, b) =>
         new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime(),
     )
-    .slice(0, 10);
+    .slice(0, 50);
+
+  const cardTitle =
+    datePreset === "hoje"
+      ? "Eventos de Hoje"
+      : datePreset === "mes-passado"
+        ? "Eventos do Mês Passado"
+        : datePreset === "periodo"
+          ? "Eventos do Período"
+          : datePreset === "este-mes"
+            ? "Eventos deste Mês"
+            : "Próximos Eventos";
+
+  const cardDescription =
+    datePreset === "hoje"
+      ? "Todos os eventos com data de hoje"
+      : datePreset === "mes-passado"
+        ? "Eventos realizados no mês anterior"
+        : datePreset === "periodo"
+          ? `Eventos entre ${startDate} e ${endDate}`
+          : datePreset === "este-mes"
+            ? "Eventos com data neste mês"
+            : "Eventos planejados e ativos dos próximos 30 dias para acompanhamento";
 
   if (isLoading) {
     return <div>Carregando eventos...</div>;
@@ -883,10 +918,10 @@ export default function EventsDashboard() {
             <div className="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
               <CalendarIcon className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0" />
             </div>
-            <span className="truncate">Próximos Eventos</span>
+            <span className="truncate">{cardTitle}</span>
           </CardTitle>
           <CardDescription className="text-sm text-gray-600 dark:text-slate-400 mt-2">
-            Eventos planejados e ativos dos próximos 30 dias para acompanhamento
+            {cardDescription}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-6 pb-6">
@@ -896,10 +931,12 @@ export default function EventsDashboard() {
                 <CalendarIcon className="h-8 w-8 text-purple-600 dark:text-purple-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">
-                Nenhum evento próximo
+                Nenhum evento encontrado
               </h3>
               <p className="text-gray-500 dark:text-slate-400">
-                Não há eventos programados para os próximos 30 dias
+                {startDate
+                  ? "Não há eventos cadastrados para o período selecionado"
+                  : "Não há eventos programados para os próximos 30 dias"}
               </p>
             </div>
           ) : (
