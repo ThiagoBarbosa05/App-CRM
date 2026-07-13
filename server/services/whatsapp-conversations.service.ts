@@ -28,7 +28,7 @@ import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
 
-function normalizePhone(phone: string) {
+export function normalizePhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
   const withoutCountry =
     digits.startsWith("55") && digits.length >= 12 ? digits.slice(2) : digits;

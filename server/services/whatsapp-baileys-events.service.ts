@@ -3,7 +3,14 @@ import { saveInboundMessage } from "./whatsapp-conversations.service";
 import { publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
 import { sendText as evoSendText } from "../integrations/evolution";
-import { optOutClientByPhone, optInClientByPhone, matchOptKeyword } from "./whatsapp-opt-out.service";
+import {
+  optOutClientByPhone,
+  optInClientByPhone,
+  matchOptKeyword,
+  OPT_OUT_CONFIRMATION_TEXT,
+  OPT_IN_CONFIRMATION_TEXT,
+} from "./whatsapp-opt-out.service";
+import { persistBotMessage } from "./whatsapp-bot-engine.service";
 
 // Eventos do Baileys são processados in-process (sem webhook HTTP). Os nomes de
 // evento SSE e o shape dos payloads são preservados para não quebrar o frontend.
@@ -100,20 +107,28 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
       await optOutClientByPhone(phone, "keyword").catch((err) =>
         console.error("[Baileys Events] Erro ao processar opt-out:", err),
       );
-      await evoSendText(
-        instanceName,
-        phone,
-        "Você não receberá mais mensagens de marketing. Para voltar a receber, envie VOLTAR.",
-      ).catch((err) => console.error("[Baileys Events] Erro ao enviar confirmação de opt-out:", err));
+      const result = await evoSendText(instanceName, phone, OPT_OUT_CONFIRMATION_TEXT).catch((err) => {
+        console.error("[Baileys Events] Erro ao enviar confirmação de opt-out:", err);
+        return null;
+      });
+      await persistBotMessage(phone, {
+        waMessageId: result?.key?.id ?? null,
+        type: "text",
+        content: OPT_OUT_CONFIRMATION_TEXT,
+      });
     } else if (match === "opt_in") {
       await optInClientByPhone(phone).catch((err) =>
         console.error("[Baileys Events] Erro ao processar opt-in:", err),
       );
-      await evoSendText(
-        instanceName,
-        phone,
-        "Pronto! Você voltará a receber nossas mensagens de marketing.",
-      ).catch((err) => console.error("[Baileys Events] Erro ao enviar confirmação de opt-in:", err));
+      const result = await evoSendText(instanceName, phone, OPT_IN_CONFIRMATION_TEXT).catch((err) => {
+        console.error("[Baileys Events] Erro ao enviar confirmação de opt-in:", err);
+        return null;
+      });
+      await persistBotMessage(phone, {
+        waMessageId: result?.key?.id ?? null,
+        type: "text",
+        content: OPT_IN_CONFIRMATION_TEXT,
+      });
     }
   }
 }

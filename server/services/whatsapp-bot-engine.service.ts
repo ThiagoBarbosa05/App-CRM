@@ -190,7 +190,7 @@ interface PersistBotMessageOptions {
   };
 }
 
-async function persistBotMessage(
+export async function persistBotMessage(
   phone: string,
   options: PersistBotMessageOptions,
 ): Promise<void> {

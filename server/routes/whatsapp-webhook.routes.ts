@@ -4,7 +4,12 @@ import { db } from "../db";
 import { whatsappCampaignMessages, whatsappFlows, whatsappMessages } from "@shared/schema";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { upsertWhatsappSetting } from "../services/whatsapp-settings.service";
-import { handleIncomingMessage as runBotEngine, handleFlowResponse, handleTemplateDeliveryFailure } from "../services/whatsapp-bot-engine.service";
+import {
+  handleIncomingMessage as runBotEngine,
+  handleFlowResponse,
+  handleTemplateDeliveryFailure,
+  persistBotMessage,
+} from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage, saveInboundReaction } from "../services/whatsapp-conversations.service";
 import { getChannelByPhoneNumberId, getOwnChannelPhones } from "../services/whatsapp-channels.service";
 import { logAccountEvent } from "../services/whatsapp-account-events.service";
@@ -13,7 +18,13 @@ import {
   updateTemplateQualityScore,
 } from "../services/whatsapp-templates.service";
 import { sendTextMessage } from "../integrations/whatsapp";
-import { optOutClientByPhone, optInClientByPhone, matchOptKeyword } from "../services/whatsapp-opt-out.service";
+import {
+  optOutClientByPhone,
+  optInClientByPhone,
+  matchOptKeyword,
+  OPT_OUT_CONFIRMATION_TEXT,
+  OPT_IN_CONFIRMATION_TEXT,
+} from "../services/whatsapp-opt-out.service";
 
 const router = Router();
 
@@ -327,20 +338,24 @@ async function handleIncomingMessage(
       await optOutClientByPhone(message.from, "keyword").catch((err) =>
         console.error("[WA Webhook] Erro ao processar opt-out:", err),
       );
-      await sendTextMessage(
-        message.from,
-        "Você não receberá mais mensagens de marketing. Para voltar a receber, envie VOLTAR.",
-      ).catch((err) => console.error("[WA Webhook] Erro ao enviar confirmação de opt-out:", err));
+      const result = await sendTextMessage(message.from, OPT_OUT_CONFIRMATION_TEXT).catch((err) => {
+        console.error("[WA Webhook] Erro ao enviar confirmação de opt-out:", err);
+        return null;
+      });
+      const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+      await persistBotMessage(message.from, { waMessageId: waId, type: "text", content: OPT_OUT_CONFIRMATION_TEXT });
       return;
     }
     if (match === "opt_in") {
       await optInClientByPhone(message.from).catch((err) =>
         console.error("[WA Webhook] Erro ao processar opt-in:", err),
       );
-      await sendTextMessage(
-        message.from,
-        "Pronto! Você voltará a receber nossas mensagens de marketing.",
-      ).catch((err) => console.error("[WA Webhook] Erro ao enviar confirmação de opt-in:", err));
+      const result = await sendTextMessage(message.from, OPT_IN_CONFIRMATION_TEXT).catch((err) => {
+        console.error("[WA Webhook] Erro ao enviar confirmação de opt-in:", err);
+        return null;
+      });
+      const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+      await persistBotMessage(message.from, { waMessageId: waId, type: "text", content: OPT_IN_CONFIRMATION_TEXT });
       return;
     }
   }

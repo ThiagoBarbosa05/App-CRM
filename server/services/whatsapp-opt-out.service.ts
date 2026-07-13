@@ -1,7 +1,15 @@
 import { db } from "server/db";
-import { eq } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import { clients, whatsappConversations } from "@shared/schema";
 import { terminateActiveSessionForOptOut } from "./whatsapp-bot-engine.service";
+import { normalizePhone } from "./whatsapp-conversations.service";
+
+/** Textos enviados ao cliente ao confirmar o pedido de opt-out/opt-in por palavra-chave. */
+export const OPT_OUT_CONFIRMATION_TEXT =
+  "Você não receberá mais mensagens de marketing. Para voltar a receber, envie VOLTAR.";
+export const OPT_IN_CONFIRMATION_TEXT =
+  "Prontinho! Você voltará a receber nossas novidades e promoções por aqui. 🎉";
 
 export type WhatsappOptOutSource = "keyword" | "manual";
 
@@ -33,18 +41,30 @@ export function matchOptKeyword(text: string): OptKeywordMatch {
   return null;
 }
 
+// Mesma estratégia de casamento de telefone usada em findOrCreateConversation
+// (whatsapp-conversations.service.ts): compara dígitos normalizados, com e sem
+// DDI 55, pois clients.phone é salvo formatado (ex.: "(22) 98852-3633") enquanto
+// o telefone recebido do WhatsApp vem em dígitos puros.
+function phoneCondition(column: PgColumn, phone: string) {
+  const { digits, withoutCountry } = normalizePhone(phone);
+  return or(
+    sql`regexp_replace(${column}, '\D', '', 'g') = ${digits}`,
+    sql`regexp_replace(${column}, '\D', '', 'g') = ${withoutCountry}`,
+  );
+}
+
 async function resolveClientIdByPhone(phone: string): Promise<string | null> {
   const [convRow] = await db
     .select({ clientId: whatsappConversations.clientId })
     .from(whatsappConversations)
-    .where(eq(whatsappConversations.phone, phone))
+    .where(phoneCondition(whatsappConversations.phone, phone))
     .limit(1);
   if (convRow?.clientId) return convRow.clientId;
 
   const [clientRow] = await db
     .select({ id: clients.id })
     .from(clients)
-    .where(eq(clients.phone, phone))
+    .where(phoneCondition(clients.phone, phone))
     .limit(1);
   return clientRow?.id ?? null;
 }
