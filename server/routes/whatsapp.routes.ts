@@ -112,7 +112,7 @@ router.post("/campaigns", async (req, res) => {
     //    em formatos diferentes) também são descartados, mantendo só o primeiro,
     //    para não disparar duas vezes para a mesma pessoa.
     const clientRows = await db
-      .select({ id: clients.id, name: clients.name, phone: clients.phone, whatsappOptOutAt: clients.whatsappOptOutAt })
+      .select({ id: clients.id, name: clients.name, phone: clients.phone, whatsappOptOut: clients.whatsappOptOut })
       .from(clients)
       .where(inArray(clients.id, clientIds));
 
@@ -123,7 +123,7 @@ router.post("/campaigns", async (req, res) => {
     let skippedOptedOut = 0;
 
     for (const c of clientRows) {
-      if (c.whatsappOptOutAt) {
+      if (c.whatsappOptOut) {
         skippedOptedOut++;
         continue;
       }

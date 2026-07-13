@@ -118,6 +118,7 @@ export const clients = pgTable("clients", {
   rfmMonetary: integer("rfm_monetary"),
   rfmSegment: text("rfm_segment"),
   rfmCalculatedAt: timestamp("rfm_calculated_at"),
+  whatsappOptOut: boolean("whatsapp_opt_out").notNull().default(false),
   whatsappOptOutAt: timestamp("whatsapp_opt_out_at"),
   whatsappOptOutSource: text("whatsapp_opt_out_source", { enum: ["keyword", "manual"] }),
 });

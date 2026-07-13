@@ -13,24 +13,9 @@ import {
   updateTemplateQualityScore,
 } from "../services/whatsapp-templates.service";
 import { sendTextMessage } from "../integrations/whatsapp";
-import { optOutClientByPhone, optInClientByPhone } from "../services/whatsapp-opt-out.service";
+import { optOutClientByPhone, optInClientByPhone, matchOptKeyword } from "../services/whatsapp-opt-out.service";
 
 const router = Router();
-
-// Palavras-chave de opt-out/opt-in de marketing, reconhecidas em resposta exata
-// (não substring, para não confundir "vou parar de comprar" com um pedido real).
-const OPT_OUT_KEYWORDS = new Set(["SAIR", "PARAR", "CANCELAR", "DESCADASTRAR"]);
-const OPT_IN_KEYWORDS = new Set(["VOLTAR", "QUERO RECEBER"]);
-
-const COMBINING_DIACRITICS_RE = /[̀-ͯ]/g;
-
-function normalizeOptKeyword(raw: string): string {
-  return raw
-    .normalize("NFD")
-    .replace(COMBINING_DIACRITICS_RE, "")
-    .trim()
-    .toUpperCase();
-}
 
 // Ordem das transições de status (não permite regredir: read não volta a delivered).
 const STATUS_RANK: Record<string, number> = {
@@ -337,8 +322,8 @@ async function handleIncomingMessage(
   // Opt-out/opt-in de marketing via palavra-chave — verificado antes de acionar
   // o bot para que a resposta encerre uma sessão ativa em vez de avançá-la.
   if (text) {
-    const normalized = normalizeOptKeyword(text);
-    if (OPT_OUT_KEYWORDS.has(normalized)) {
+    const match = matchOptKeyword(text);
+    if (match === "opt_out") {
       await optOutClientByPhone(message.from, "keyword").catch((err) =>
         console.error("[WA Webhook] Erro ao processar opt-out:", err),
       );
@@ -348,7 +333,7 @@ async function handleIncomingMessage(
       ).catch((err) => console.error("[WA Webhook] Erro ao enviar confirmação de opt-out:", err));
       return;
     }
-    if (OPT_IN_KEYWORDS.has(normalized)) {
+    if (match === "opt_in") {
       await optInClientByPhone(message.from).catch((err) =>
         console.error("[WA Webhook] Erro ao processar opt-in:", err),
       );

@@ -11,7 +11,7 @@ import { logCampaignCreation, logMessageStatus } from "./campaign-logger";
 import { ZodError } from "zod";
 import { db } from "../../db";
 import { clients } from "@shared/schema";
-import { isNotNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { normalizePhoneE164 } from "@shared/phone";
 
 interface CreateCampaignRequest {
@@ -158,7 +158,7 @@ export async function createCampaignController(req: Request, res: Response) {
     const optedOutClients = await db
       .select({ phone: clients.phone })
       .from(clients)
-      .where(isNotNull(clients.whatsappOptOutAt));
+      .where(eq(clients.whatsappOptOut, true));
     const optedOutPhones = new Set(
       optedOutClients.map((c) => normalizePhoneE164(c.phone)).filter((p): p is string => !!p),
     );

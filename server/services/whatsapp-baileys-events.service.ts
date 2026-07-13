@@ -2,6 +2,8 @@ import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, g
 import { saveInboundMessage } from "./whatsapp-conversations.service";
 import { publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
+import { sendText as evoSendText } from "../integrations/evolution";
+import { optOutClientByPhone, optInClientByPhone, matchOptKeyword } from "./whatsapp-opt-out.service";
 
 // Eventos do Baileys são processados in-process (sem webhook HTTP). Os nomes de
 // evento SSE e o shape dos payloads são preservados para não quebrar o frontend.
@@ -87,6 +89,33 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   }).catch((err) =>
     console.error("[Baileys Events] Erro ao salvar mensagem:", err),
   );
+
+  // Opt-out/opt-in de marketing via palavra-chave, mesmo mecanismo do webhook
+  // da Cloud API (ver server/routes/whatsapp-webhook.routes.ts) — necessário
+  // aqui também porque mensagens de canais QR Code (Evolution/Baileys) não
+  // passam por aquele webhook.
+  if (!fromMe && text) {
+    const match = matchOptKeyword(text);
+    if (match === "opt_out") {
+      await optOutClientByPhone(phone, "keyword").catch((err) =>
+        console.error("[Baileys Events] Erro ao processar opt-out:", err),
+      );
+      await evoSendText(
+        instanceName,
+        phone,
+        "Você não receberá mais mensagens de marketing. Para voltar a receber, envie VOLTAR.",
+      ).catch((err) => console.error("[Baileys Events] Erro ao enviar confirmação de opt-out:", err));
+    } else if (match === "opt_in") {
+      await optInClientByPhone(phone).catch((err) =>
+        console.error("[Baileys Events] Erro ao processar opt-in:", err),
+      );
+      await evoSendText(
+        instanceName,
+        phone,
+        "Pronto! Você voltará a receber nossas mensagens de marketing.",
+      ).catch((err) => console.error("[Baileys Events] Erro ao enviar confirmação de opt-in:", err));
+    }
+  }
 }
 
 // ── messages.update ────────────────────────────────────────────────────────────

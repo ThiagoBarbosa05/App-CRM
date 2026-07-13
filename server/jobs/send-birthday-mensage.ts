@@ -436,7 +436,7 @@ async function getBirthdayClients(
         );
         return false;
       }
-      if (client.whatsappOptOutAt) {
+      if (client.whatsappOptOut) {
         console.log(
           `[Birthday Job] Cliente ${client.name} optou por não receber marketing - ignorando`
         );

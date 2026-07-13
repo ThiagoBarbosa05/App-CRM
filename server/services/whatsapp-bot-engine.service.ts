@@ -1362,7 +1362,7 @@ export async function startBotSession(
     clientRow = client ?? null;
   }
 
-  if (clientRow?.whatsappOptOutAt) {
+  if (clientRow?.whatsappOptOut) {
     return { status: "opted_out", lastMessageId: null };
   }
 

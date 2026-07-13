@@ -94,7 +94,7 @@ type Client = {
   name: string;
   phone?: string | null;
   tags?: ClientTag[];
-  whatsappOptOutAt?: string | null;
+  whatsappOptOut?: boolean | null;
 };
 
 type TemplateHeaderMediaValue = {
@@ -397,7 +397,7 @@ function StepClients({
   );
   const hasNextPage = clientsResponse?.hasNextPage ?? false;
   const hasPhone = (c: Client) => Boolean(c.phone?.trim());
-  const isOptedOut = (c: Client) => Boolean(c.whatsappOptOutAt);
+  const isOptedOut = (c: Client) => Boolean(c.whatsappOptOut);
   const isSelectable = (c: Client) => hasPhone(c) && !isOptedOut(c);
 
   const toggleTag = (id: string) => {

@@ -41,7 +41,7 @@ interface ClientWhatsAppTabProps {
   clientPhone: string;
   clientName: string;
   clientEmail?: string;
-  whatsappOptOutAt?: string | Date | null;
+  whatsappOptOut?: boolean | null;
   isOpen: boolean;
 }
 
@@ -50,14 +50,14 @@ export function ClientWhatsAppTab({
   clientPhone,
   clientName,
   clientEmail,
-  whatsappOptOutAt,
+  whatsappOptOut,
   isOpen,
 }: ClientWhatsAppTabProps) {
   const [message, setMessage] = useState("");
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const toggleOptOut = useToggleWhatsappOptOut();
-  const isOptedOut = !!whatsappOptOutAt;
+  const isOptedOut = !!whatsappOptOut;
   const confirmationToastShownRef = useRef(false);
   const timeoutToastShownRef = useRef(false);
 

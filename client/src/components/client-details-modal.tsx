@@ -128,7 +128,7 @@ export default function ClientDetailsModal({
                       clientPhone={client.phone}
                       clientName={client.name}
                       clientEmail={client.email || undefined}
-                      whatsappOptOutAt={client.whatsappOptOutAt}
+                      whatsappOptOut={client.whatsappOptOut}
                       isOpen={isOpen && activeTab === "whatsapp"}
                     />
                   )}
