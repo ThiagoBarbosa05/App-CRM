@@ -17,8 +17,10 @@ export function WhatsappOptOutInfoBanner() {
         maiúsculas/minúsculas) param de receber campanhas e bots de marketing automaticamente —
         o pedido também pode ser feito manualmente na ficha do cliente, aba WhatsApp. Eles são
         excluídos da seleção de audiência e de qualquer disparo, mesmo que já estejam
-        selecionados. Respondendo <strong>VOLTAR</strong> ou <strong>QUERO RECEBER</strong>, o
-        cliente volta a ser elegível.
+        selecionados. O cliente recebe automaticamente o marcador{" "}
+        <strong>"Opt-out WhatsApp"</strong> no cadastro, visível na ficha e nos filtros por
+        marcador. Respondendo <strong>VOLTAR</strong> ou <strong>QUERO RECEBER</strong>, o
+        cliente volta a ser elegível e o marcador é removido.
       </AlertDescription>
     </Alert>
   );

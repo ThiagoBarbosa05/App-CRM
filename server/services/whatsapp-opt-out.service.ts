@@ -5,6 +5,9 @@ import { terminateActiveSessionForOptOut } from "./whatsapp-bot-engine.service";
 
 export type WhatsappOptOutSource = "keyword" | "manual";
 
+/** Marcador aplicado/removido em `clients.markers` para identificar visualmente o cliente. */
+export const WHATSAPP_OPT_OUT_MARKER = "Opt-out WhatsApp";
+
 async function resolveClientIdByPhone(phone: string): Promise<string | null> {
   const [convRow] = await db
     .select({ clientId: whatsappConversations.clientId })
@@ -22,11 +25,24 @@ async function resolveClientIdByPhone(phone: string): Promise<string | null> {
 }
 
 async function setOptOut(clientId: string, optedOut: boolean, source?: WhatsappOptOutSource): Promise<void> {
+  const [current] = await db
+    .select({ markers: clients.markers })
+    .from(clients)
+    .where(eq(clients.id, clientId))
+    .limit(1);
+  const currentMarkers = current?.markers ?? [];
+  const markers = optedOut
+    ? currentMarkers.includes(WHATSAPP_OPT_OUT_MARKER)
+      ? currentMarkers
+      : [...currentMarkers, WHATSAPP_OPT_OUT_MARKER]
+    : currentMarkers.filter((m) => m !== WHATSAPP_OPT_OUT_MARKER);
+
   await db
     .update(clients)
     .set({
       whatsappOptOutAt: optedOut ? new Date() : null,
       whatsappOptOutSource: optedOut ? (source ?? "manual") : null,
+      markers,
     })
     .where(eq(clients.id, clientId));
 }
