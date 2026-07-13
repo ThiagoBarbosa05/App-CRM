@@ -549,6 +549,7 @@ export async function listClientsForChat(
       status: whatsappConversations.status,
       responsavelId: clients.responsavelId,
       responsavelName: responsavelUsers.name,
+      whatsappOptOut: clients.whatsappOptOut,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))

@@ -7,7 +7,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mail, MapPin, Calendar, Phone, ExternalLink, Tag, Cake } from "lucide-react";
+import { Mail, MapPin, Calendar, Phone, ExternalLink, Tag, Cake, BellOff } from "lucide-react";
 import { formatPhone, formatCpf, formatDate } from "@/lib/utils";
 import type { Client } from "@shared/schema";
 import {
@@ -65,6 +65,13 @@ export function ContactDetailsSheet({
               </p>
             </div>
           </div>
+
+          {(fullClient?.whatsappOptOut ?? client.whatsappOptOut) && (
+            <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 dark:border-rose-800/70 dark:bg-rose-500/10 dark:text-rose-300">
+              <BellOff className="h-3.5 w-3.5 shrink-0" />
+              Cliente não recebe mensagens de marketing
+            </div>
+          )}
 
           {/* Etiquetas */}
           <div>

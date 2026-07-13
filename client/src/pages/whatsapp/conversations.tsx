@@ -79,6 +79,7 @@ import {
   Radio,
   User,
   Lock,
+  BellOff,
 } from "lucide-react";
 import {
   Popover,
@@ -145,6 +146,7 @@ export interface ChatClient {
   status?: "open" | "closed" | null;
   responsavelId?: string | null;
   responsavelName?: string | null;
+  whatsappOptOut?: boolean | null;
 }
 
 interface WaMedia {
@@ -3777,9 +3779,20 @@ function ConversationMessages({
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate leading-tight">
-              {displayName}
-            </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate leading-tight">
+                {displayName}
+              </p>
+              {client.whatsappOptOut && (
+                <span
+                  title="Cliente não recebe mensagens de marketing"
+                  className="inline-flex items-center gap-1 shrink-0 rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:border-rose-800/70 dark:bg-rose-500/10 dark:text-rose-300"
+                >
+                  <BellOff className="h-2.5 w-2.5" />
+                  Não recebe marketing
+                </span>
+              )}
+            </div>
             {client.clientName && (
               <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
                 <Phone className="h-3 w-3 shrink-0" />

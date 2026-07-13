@@ -30,6 +30,7 @@ import {
   Loader2,
   Trash2,
   Cake,
+  BellOff,
 } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -441,6 +442,17 @@ export default function ClientProfilePage() {
               <span className={`text-xs font-bold ${purchaseStatus === "ativo" ? "text-emerald-700 dark:text-emerald-300" : "text-red-600 dark:text-red-400"}`}>{purchaseStatus === "ativo" ? "Ativo" : "Inativo"}</span>
             </div>
           </div>
+
+          {/* Card de opt-out de marketing */}
+          {client.whatsappOptOut && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-800/60 dark:bg-rose-900/20">
+              <BellOff className="h-3.5 w-3.5 text-rose-500 shrink-0" />
+              <div className="flex flex-col leading-tight">
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-rose-400 dark:text-rose-500">WhatsApp</span>
+                <span className="text-xs font-bold text-rose-700 dark:text-rose-300">Não recebe marketing</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Ações rápidas */}
@@ -633,6 +645,7 @@ export default function ClientProfilePage() {
                     clientPhone={client.phone}
                     clientName={client.name}
                     clientEmail={client.email || undefined}
+                    whatsappOptOut={client.whatsappOptOut}
                     isOpen={activeTab === "whatsapp"}
                   />
                 )}
