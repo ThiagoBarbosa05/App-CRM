@@ -154,7 +154,7 @@ export function WhatsAppFloatingButton() {
 
   return (
     <div
-      className="fixed z-50 touch-none select-none"
+      className="fixed z-50  select-none"
       style={{ left: position.x, top: position.y }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
