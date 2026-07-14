@@ -175,13 +175,21 @@ async function resolveRealJid(
   return jid;
 }
 
-async function createSocket(instanceName: string): Promise<void> {
+async function createSocket(instanceName: string, explicitLock?: PoolClient | null): Promise<void> {
   const existing = sessions.get(instanceName);
 
   // Garante que só esta réplica mantém um socket Baileys vivo para esta
-  // instância. Se outra réplica já é dona, não autentica — apenas reagenda
-  // uma nova tentativa mais tarde (ela pode escalar para baixo, cair, etc).
-  const lockClient = await tryAcquireInstanceLock(instanceName);
+  // instância. Se esta réplica já detém o lock (reconexão da própria sessão —
+  // ex.: restart 515 pós-pareamento, backoff genérico, ou um lock já
+  // adquirido explicitamente por forceRestartInstance), reaproveita a mesma
+  // conexão em vez de tentar adquirir de novo: uma segunda tentativa de
+  // pg_try_advisory_lock pela MESMA réplica sempre falharia (o Postgres trata
+  // cada conexão do pool como uma sessão distinta), fazendo a réplica "perder"
+  // seu próprio lock e cair no retry de 30s achando que outra réplica é dona.
+  let lockClient = explicitLock !== undefined ? explicitLock : existing?.lockClient ?? null;
+  if (!lockClient) {
+    lockClient = await tryAcquireInstanceLock(instanceName);
+  }
   if (!lockClient) {
     sessions.set(instanceName, {
       socket: existing?.socket ?? (null as unknown as WASocket),
@@ -226,7 +234,11 @@ async function createSocket(instanceName: string): Promise<void> {
   sock.ev.on("connection.update", async (update: { connection?: string; qr?: string; lastDisconnect?: { error: unknown } }) => {
     const { connection, qr, lastDisconnect } = update;
     const session = sessions.get(instanceName);
-    if (!session) return;
+    // Ignora eventos de um socket obsoleto: se um logout/reconexão explícito já
+    // substituiu a sessão desta instância por uma nova (novo socket), um evento
+    // tardio deste socket antigo não pode mais mutar o estado global — senão
+    // apaga a sessão/credenciais recém-criadas (race condition).
+    if (!session || session.socket !== sock) return;
 
     if (qr) {
       session.status = "qr";
@@ -392,7 +404,10 @@ export async function initSessionManager(): Promise<void> {
   }
 }
 
-export function startInstance(instanceName: string): { instanceId: string; status: string } {
+export function startInstance(
+  instanceName: string,
+  explicitLock?: PoolClient | null,
+): { instanceId: string; status: string } {
   if (sessions.has(instanceName)) {
     const s = sessions.get(instanceName)!;
     return { instanceId: s.instanceId, status: s.status };
@@ -405,9 +420,9 @@ export function startInstance(instanceName: string): { instanceId: string; statu
     qrBase64: null,
     qrCode: null,
     reconnectAttempts: 0,
-    lockClient: null,
+    lockClient: explicitLock ?? null,
   });
-  createSocket(instanceName).catch((err) =>
+  createSocket(instanceName, explicitLock).catch((err) =>
     console.error(`[Baileys] Erro ao criar "${instanceName}":`, err),
   );
   return { instanceId, status: "connecting" };
@@ -455,15 +470,33 @@ export async function forceRestartInstance(instanceName: string): Promise<{ inst
   if (existing?.status === "connected") {
     return { instanceId: existing.instanceId, status: existing.status };
   }
+
+  // `existing` só reflete o estado desta réplica. Se esta réplica não detém o
+  // lock da instância (sessão inexistente aqui, ou existente mas ainda
+  // aguardando o lock — lockClient null), outra réplica pode ter uma sessão
+  // viva e saudável. Adquirir o lock ANTES de apagar credenciais evita
+  // destruir uma conexão boa em outra réplica; se não conseguir, não mexe em
+  // nada e apenas reporta o estado atual conhecido.
+  let lockClient = existing?.lockClient ?? null;
+  if (!lockClient) {
+    lockClient = await tryAcquireInstanceLock(instanceName);
+    if (!lockClient) {
+      return {
+        instanceId: existing?.instanceId ?? crypto.randomUUID(),
+        status: getConnectionState(instanceName),
+      };
+    }
+  }
+
   // Encerra o socket atual sem chamar logout no WA (a sessão já está quebrada)
   if (existing?.socket) {
     try { existing.socket.end(undefined); } catch { /* ignore */ }
   }
-  if (existing?.lockClient) await releaseInstanceLock(instanceName, existing.lockClient).catch(() => {});
   sessions.delete(instanceName);
   // Limpa credenciais obsoletas para forçar novo par de chaves Signal
   await deleteInstanceCreds(pool, instanceName).catch(() => {});
-  return startInstance(instanceName);
+  // Reaproveita o lockClient já adquirido — createSocket não tenta de novo.
+  return startInstance(instanceName, lockClient);
 }
 
 export async function destroyInstance(instanceName: string): Promise<void> {

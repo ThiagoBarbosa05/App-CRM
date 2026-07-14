@@ -1,10 +1,16 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { QrCode, Wifi, WifiOff, Loader2, RefreshCw, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useEvolutionConnect, useEvolutionLogout, type WhatsappChannel } from "@/hooks/use-whatsapp";
 import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+
+// Tempo máximo aguardando o QR (ou a conexão) antes de destravar a UI e deixar
+// o usuário tentar de novo. Deve ser maior que o timeout do backend (30s em
+// waitForQr) para dar margem a retries de lock entre réplicas do Autoscale.
+const CONNECT_TIMEOUT_MS = 35_000;
 
 interface Props {
   channel: WhatsappChannel;
@@ -33,25 +39,57 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
   const connect = useEvolutionConnect();
   const logout = useEvolutionLogout();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearConnectTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
 
   // Propaga o status ao vivo para o componente pai (barra de cor do canal)
   useEffect(() => {
     onStatusChange?.(status);
   }, [status, onStatusChange]);
 
+  useEffect(() => clearConnectTimeout, [clearConnectTimeout]);
+
   const handleConnect = useCallback(async () => {
     setStatus("connecting");
     setQrBase64(null);
+    clearConnectTimeout();
+    // Destrava a UI se nenhum QR/confirmação chegar a tempo (ex.: instância
+    // gerenciada por outra réplica do Autoscale, sem lock nesta) — sem isso o
+    // botão fica desabilitado para sempre (status preso em "connecting").
+    timeoutRef.current = setTimeout(() => {
+      setStatus((current) => {
+        if (current === "connected") return current;
+        toast({
+          title: "Não foi possível gerar o QR Code",
+          description: "Tente novamente em alguns instantes.",
+          variant: "destructive",
+        });
+        return "disconnected";
+      });
+      setQrBase64(null);
+    }, CONNECT_TIMEOUT_MS);
+
     try {
       const result = await connect.mutateAsync(channel.id);
       if (result.base64) {
+        clearConnectTimeout();
         setQrBase64(result.base64);
         setStatus("qr");
       }
+      // Sem base64: mantém "connecting" até o timeout acima ou um evento SSE
+      // (evolution_qr_updated / evolution_connection_update) resolver o estado.
     } catch {
+      clearConnectTimeout();
       setStatus("disconnected");
     }
-  }, [connect, channel.id]);
+  }, [connect, channel.id, clearConnectTimeout, toast]);
 
   // Auto-dispara a geração do QR quando o canal não está conectado
   useEffect(() => {
@@ -72,6 +110,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
         code: string | null;
       };
       if (data.instanceName !== channel.evolutionInstanceName) return;
+      clearConnectTimeout();
       setQrBase64(data.base64);
       setStatus("qr");
     });
@@ -82,6 +121,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
         connectionStatus: string;
       };
       if (data.instanceName !== channel.evolutionInstanceName) return;
+      clearConnectTimeout();
       setStatus(data.connectionStatus);
       if (data.connectionStatus === "connected") {
         setQrBase64(null);
@@ -90,13 +130,14 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
     });
 
     return () => es.close();
-  }, [channel.evolutionInstanceName, queryClient]);
+  }, [channel.evolutionInstanceName, queryClient, clearConnectTimeout]);
 
   const handleLogout = useCallback(async () => {
+    clearConnectTimeout();
     await logout.mutateAsync(channel.id);
     setStatus("disconnected");
     setQrBase64(null);
-  }, [logout, channel.id]);
+  }, [logout, channel.id, clearConnectTimeout]);
 
   const isConnected = status === "connected";
   const isConnecting = status === "connecting" || status === "qr";
