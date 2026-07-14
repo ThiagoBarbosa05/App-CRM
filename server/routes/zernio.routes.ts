@@ -12,6 +12,10 @@ import {
   unlinkConversationFromClient,
   upsertConversation,
 } from "../lib/zernio-store";
+import { findClientMatch } from "../lib/zernio-client-match";
+import { redactPii } from "../lib/log-redaction";
+
+const ZERNIO_FETCH_TIMEOUT_MS = 15_000;
 
 const router = Router();
 
@@ -60,6 +64,7 @@ router.post("/conversations/:conversationId/messages", async (req, res) => {
       method: "POST",
       headers: zernioHeaders(),
       body: JSON.stringify({ accountId: body.accountId, message: body.message }),
+      signal: AbortSignal.timeout(ZERNIO_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json();
     if (!resp.ok) return res.status(resp.status).json(data);
@@ -128,7 +133,10 @@ router.get("/clients/:clientId/conversations", async (req, res) => {
 router.get("/accounts", async (req, res) => {
   try {
     if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
-    const resp = await fetch(`${ZERNIO_BASE}/accounts`, { headers: zernioHeaders() });
+    const resp = await fetch(`${ZERNIO_BASE}/accounts`, {
+      headers: zernioHeaders(),
+      signal: AbortSignal.timeout(ZERNIO_FETCH_TIMEOUT_MS),
+    });
     const data = await resp.json();
     if (!resp.ok) return res.status(resp.status).json(data);
     return res.json(data);
@@ -141,7 +149,10 @@ router.get("/accounts", async (req, res) => {
 router.get("/status", async (req, res) => {
   if (!ZERNIO_API_KEY) return res.json({ configured: false });
   try {
-    const resp = await fetch(`${ZERNIO_BASE}/accounts`, { headers: zernioHeaders() });
+    const resp = await fetch(`${ZERNIO_BASE}/accounts`, {
+      headers: zernioHeaders(),
+      signal: AbortSignal.timeout(ZERNIO_FETCH_TIMEOUT_MS),
+    });
     return res.json({ configured: true, ok: resp.ok, status: resp.status });
   } catch {
     return res.json({ configured: true, ok: false });
@@ -171,7 +182,14 @@ export const zernioWebhookRouter = Router();
 const WEBHOOK_SECRET = process.env.ZERNIO_WEBHOOK_SECRET;
 
 function verifySignature(req: any): boolean {
-  if (!WEBHOOK_SECRET) return true; // sem segredo configurado, aceita tudo (não recomendado em produção)
+  if (!WEBHOOK_SECRET) {
+    // Fail closed: sem segredo configurado, rejeita tudo. Em produção o webhook
+    // só deve funcionar depois que ZERNIO_WEBHOOK_SECRET estiver definida — aceitar
+    // tudo sem validar assinatura permitiria injetar mensagens falsas em conversas
+    // de clientes reais.
+    console.error("[zernio-webhook] ZERNIO_WEBHOOK_SECRET não configurada — rejeitando webhook");
+    return false;
+  }
   // Zernio herda a infraestrutura de webhooks do produto "Late" e ainda envia
   // os headers com o prefixo legado X-Late-* em produção, apesar da doc atual
   // descrever X-Zernio-Signature.
@@ -202,7 +220,19 @@ zernioWebhookRouter.post("/message", async (req, res) => {
     }
     const event = req.body;
     if (!event) return res.json({ ok: true });
-    console.log("[zernio-webhook] payload recebido:", JSON.stringify(event));
+    console.log("[zernio-webhook] payload recebido:", JSON.stringify(redactPii(event)));
+
+    // O mesmo endpoint recebe todos os tipos de evento inscritos (message.received,
+    // message.sent, message.delivered, message.read, message.failed, message.edited,
+    // message.deleted, e eventos não relacionados a mensagens). Só message.received/
+    // message.sent representam mensagens de chat novas — os demais têm payloads
+    // parecidos (mesmo `conversationId`) mas não devem virar linhas em zernio_messages,
+    // senão viram mensagens "fantasma" (ex: recibo de leitura registrado como incoming).
+    const eventType: string | undefined = event.event ?? event.data?.event;
+    if (eventType && eventType !== "message.received" && eventType !== "message.sent") {
+      return res.json({ ok: true });
+    }
+
     const payload = event.data ?? event;
     const rawMessage = payload.message ?? payload;
     const conversationMeta = payload.conversation ?? {};
@@ -216,7 +246,7 @@ zernioWebhookRouter.post("/message", async (req, res) => {
       const timestamp =
         rawMessage.sentAt ?? rawMessage.createdAt ?? rawMessage.timestamp ?? payload.timestamp ?? new Date().toISOString();
 
-      await upsertConversation({
+      const conversation = await upsertConversation({
         id: rawMessage.conversationId,
         platform: rawMessage.platform ?? account.platform,
         accountId: account.id ?? account.accountId,
@@ -227,6 +257,25 @@ zernioWebhookRouter.post("/message", async (req, res) => {
         },
       });
 
+      // Identificação automática do cliente do CRM: só na primeira mensagem de uma
+      // conversa nova (ainda sem vínculo manual) e só para mensagens realmente
+      // recebidas do contato — usa telefone (WhatsApp) ou @usuário (Instagram),
+      // que são os identificadores fortes que o Zernio expõe no webhook.
+      if (conversation.isNew && direction === "incoming" && !conversation.clientId) {
+        const match = await findClientMatch(conversation.platform, {
+          phoneNumber: sender.phoneNumber,
+          username: sender.username,
+        });
+        if (match) {
+          await linkConversationToClient({
+            conversationId: rawMessage.conversationId,
+            platform: conversation.platform,
+            accountId: conversation.accountId,
+            clientId: match.id,
+          });
+        }
+      }
+
       // Eco de uma mensagem outgoing que já enviamos via POST /conversations/:id/messages:
       // o webhook às vezes reporta um id diferente do id retornado na resposta síncrona
       // do envio, então o dedup por id (onConflictDoNothing) não pega — checamos por
@@ -235,8 +284,20 @@ zernioWebhookRouter.post("/message", async (req, res) => {
         return res.json({ ok: true });
       }
 
+      const rawId = rawMessage.id ?? payload.id;
+      if (!rawId) {
+        // Não deveria acontecer para message.received/message.sent (id é campo
+        // obrigatório na doc do Zernio) — loga para investigação, mas ainda insere
+        // com um id gerado para não perder a mensagem (não há como deduplicar retries
+        // deste caso específico sem um id estável vindo do Zernio).
+        console.warn("[zernio-webhook] mensagem sem id no payload — dedup de retry não garantida", {
+          conversationId: rawMessage.conversationId,
+          eventType,
+        });
+      }
+
       const storedMessage = {
-        id: rawMessage.id ?? payload.id ?? crypto.randomUUID(),
+        id: rawId ?? crypto.randomUUID(),
         conversationId: rawMessage.conversationId,
         direction,
         text,

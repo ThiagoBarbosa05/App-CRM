@@ -66,7 +66,7 @@ function toMessageDTO(row: typeof zernioMessages.$inferSelect): ZernioStoredMess
 
 export async function upsertConversation(
   partial: Partial<Omit<ZernioStoredConversation, "id">> & { id: string },
-): Promise<ZernioStoredConversation> {
+): Promise<ZernioStoredConversation & { isNew: boolean }> {
   const [existing] = await db.select().from(zernioConversations).where(eq(zernioConversations.id, partial.id));
 
   const values = {
@@ -85,7 +85,7 @@ export async function upsertConversation(
     .onConflictDoUpdate({ target: zernioConversations.id, set: values })
     .returning();
 
-  return toConversationDTO(row);
+  return { ...toConversationDTO(row), isNew: !existing };
 }
 
 /** Retorna `true` se a mensagem era nova (ignora reentregas do webhook com o mesmo id). */
