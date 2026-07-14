@@ -75,7 +75,12 @@ export function WhatsAppFloatingButton() {
         originX: position.x,
         originY: position.y,
       };
-      e.currentTarget.setPointerCapture(e.pointerId);
+      // Não captura o ponteiro aqui: um simples tap/clique não deve virar
+      // arraste. A captura só acontece em handlePointerMove, quando o
+      // movimento de fato ultrapassa o threshold — caso contrário o navegador
+      // redireciona o "click" subsequente para o elemento que capturou o
+      // ponteiro (este div) em vez do <button> interno, e o clique para de
+      // funcionar.
     },
     [position],
   );
@@ -87,6 +92,7 @@ export function WhatsAppFloatingButton() {
     const dy = e.clientY - pointerY;
     if (!hasDraggedRef.current && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
       hasDraggedRef.current = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
     }
     if (hasDraggedRef.current) {
       setPosition(clampPosition(originX + dx, originY + dy));
@@ -96,12 +102,12 @@ export function WhatsAppFloatingButton() {
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!draggingRef.current) return;
     draggingRef.current = false;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // pointer já liberado — ignora
-    }
     if (hasDraggedRef.current) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // pointer já liberado — ignora
+      }
       setPosition((prev) => {
         localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(prev));
         return prev;
@@ -154,7 +160,7 @@ export function WhatsAppFloatingButton() {
 
   return (
     <div
-      className="fixed z-50  select-none"
+      className="fixed z-50 touch-none select-none"
       style={{ left: position.x, top: position.y }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
