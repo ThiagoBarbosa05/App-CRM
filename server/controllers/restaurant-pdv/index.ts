@@ -9,3 +9,4 @@ export { addOrderItemController } from "./add-order-item.controller";
 export { updateOrderItemController } from "./update-order-item.controller";
 export { removeOrderItemController } from "./remove-order-item.controller";
 export { closeOrderController } from "./close-order.controller";
+export { syncMenuBlingController } from "./sync-menu-bling.controller";

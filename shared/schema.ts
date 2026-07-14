@@ -2308,6 +2308,7 @@ export const restaurantMenuItems = pgTable("restaurant_menu_items", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   category: text("category"),
   isActive: boolean("is_active").notNull().default(true),
+  blingProductId: text("bling_product_id"),
   createdBy: varchar("created_by")
     .references(() => users.id)
     .notNull(),
