@@ -3,14 +3,18 @@ import {
   restaurantMenuItems,
   restaurantOrders,
   restaurantOrderItems,
+  restaurantTables,
+  restaurantOrderPayments,
 } from "../../shared/schema";
-import { eq, and, desc, gte, lte } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import type {
   RestaurantMenuItem,
   InsertRestaurantMenuItem,
   RestaurantOrder,
   RestaurantOrderItem,
 } from "../../shared/schema";
+import { restaurantOrderAuditService } from "./restaurant-order-audit.service";
+import { restaurantOrderPaymentsService } from "./restaurant-order-payments.service";
 
 export interface RestaurantOrderWithItems extends RestaurantOrder {
   items: RestaurantOrderItem[];
@@ -63,14 +67,42 @@ export const restaurantPdvService = {
   },
 
   async openOrder(data: {
-    tableNumber: number;
+    tableId: string;
     peopleCount: number;
     waiterId: string;
   }): Promise<RestaurantOrder> {
+    const [table] = await db
+      .select()
+      .from(restaurantTables)
+      .where(eq(restaurantTables.id, data.tableId))
+      .limit(1);
+
+    if (!table || !table.isActive) {
+      throw Object.assign(new Error("Mesa não encontrada"), { code: "NOT_FOUND" });
+    }
+
+    const [existingOpenOrder] = await db
+      .select({ id: restaurantOrders.id })
+      .from(restaurantOrders)
+      .where(
+        and(
+          eq(restaurantOrders.tableId, data.tableId),
+          eq(restaurantOrders.status, "aberta"),
+        ),
+      )
+      .limit(1);
+
+    if (existingOpenOrder) {
+      throw Object.assign(new Error("Esta mesa já está ocupada"), {
+        code: "TABLE_OCCUPIED",
+      });
+    }
+
     const [created] = await db
       .insert(restaurantOrders)
       .values({
-        tableNumber: data.tableNumber,
+        tableId: data.tableId,
+        tableNumber: table.number,
         peopleCount: data.peopleCount,
         waiterId: data.waiterId,
       })
@@ -92,7 +124,12 @@ export const restaurantPdvService = {
     const items = await db
       .select()
       .from(restaurantOrderItems)
-      .where(eq(restaurantOrderItems.orderId, orderId))
+      .where(
+        and(
+          eq(restaurantOrderItems.orderId, orderId),
+          eq(restaurantOrderItems.status, "ativo"),
+        ),
+      )
       .orderBy(restaurantOrderItems.createdAt);
 
     return { ...order, items };
@@ -103,7 +140,7 @@ export const restaurantPdvService = {
     waiterId?: string;
     from?: Date;
     to?: Date;
-  }): Promise<RestaurantOrder[]> {
+  }): Promise<(RestaurantOrder & { paymentsCount: number })[]> {
     const conditions = [
       filters.status ? eq(restaurantOrders.status, filters.status) : undefined,
       filters.waiterId ? eq(restaurantOrders.waiterId, filters.waiterId) : undefined,
@@ -111,11 +148,21 @@ export const restaurantPdvService = {
       filters.to ? lte(restaurantOrders.openedAt, filters.to) : undefined,
     ].filter((c): c is NonNullable<typeof c> => c !== undefined);
 
-    return db
-      .select()
+    const rows = await db
+      .select({
+        order: restaurantOrders,
+        paymentsCount: sql<number>`count(${restaurantOrderPayments.id})`,
+      })
       .from(restaurantOrders)
+      .leftJoin(
+        restaurantOrderPayments,
+        eq(restaurantOrderPayments.orderId, restaurantOrders.id),
+      )
       .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(restaurantOrders.id)
       .orderBy(desc(restaurantOrders.openedAt));
+
+    return rows.map((row) => ({ ...row.order, paymentsCount: Number(row.paymentsCount) }));
   },
 
   async addItem(
@@ -127,7 +174,7 @@ export const restaurantPdvService = {
       quantity: number;
     },
   ): Promise<RestaurantOrderItem> {
-    await this.assertOrderOpen(orderId);
+    await this.assertOrderEditable(orderId);
 
     const [created] = await db
       .insert(restaurantOrderItems)
@@ -147,7 +194,7 @@ export const restaurantPdvService = {
     itemId: string,
     data: { unitPrice?: string; quantity?: number },
   ): Promise<RestaurantOrderItem | null> {
-    await this.assertOrderOpen(orderId);
+    await this.assertOrderEditable(orderId);
 
     const [updated] = await db
       .update(restaurantOrderItems)
@@ -162,29 +209,107 @@ export const restaurantPdvService = {
     return updated ?? null;
   },
 
-  async removeItem(orderId: string, itemId: string): Promise<void> {
-    await this.assertOrderOpen(orderId);
+  async cancelItem(
+    orderId: string,
+    itemId: string,
+    reason: string,
+    actorId: string,
+  ): Promise<void> {
+    await this.assertOrderEditable(orderId);
 
-    await db
-      .delete(restaurantOrderItems)
+    const [cancelled] = await db
+      .update(restaurantOrderItems)
+      .set({
+        status: "cancelado",
+        cancelReason: reason,
+        cancelledBy: actorId,
+        cancelledAt: new Date(),
+        updatedAt: new Date(),
+      })
       .where(
         and(
           eq(restaurantOrderItems.id, itemId),
           eq(restaurantOrderItems.orderId, orderId),
+          eq(restaurantOrderItems.status, "ativo"),
         ),
-      );
+      )
+      .returning({ id: restaurantOrderItems.id, name: restaurantOrderItems.name });
+
+    if (!cancelled) {
+      throw Object.assign(new Error("Item não encontrado ou já cancelado"), {
+        code: "NOT_FOUND",
+      });
+    }
+
+    await restaurantOrderAuditService.logOrderAudit(orderId, "item_cancelado", actorId, {
+      reason,
+      metadata: { itemId, itemName: cancelled.name },
+    });
+  },
+
+  async applyDiscount(
+    orderId: string,
+    data: { discountPercent?: string; discountAmount?: string; reason: string },
+    actorId: string,
+  ): Promise<RestaurantOrder> {
+    await this.assertOrderEditable(orderId);
+
+    const [updated] = await db
+      .update(restaurantOrders)
+      .set({
+        discountPercent: data.discountPercent ?? null,
+        discountAmount: data.discountAmount ?? null,
+        discountReason: data.reason,
+        discountAppliedBy: actorId,
+        updatedAt: new Date(),
+      })
+      .where(eq(restaurantOrders.id, orderId))
+      .returning();
+
+    await restaurantOrderAuditService.logOrderAudit(orderId, "desconto_aplicado", actorId, {
+      reason: data.reason,
+      metadata: { discountPercent: data.discountPercent, discountAmount: data.discountAmount },
+    });
+
+    return updated;
+  },
+
+  async removeDiscount(orderId: string, actorId: string): Promise<RestaurantOrder> {
+    await this.assertOrderEditable(orderId);
+
+    const [updated] = await db
+      .update(restaurantOrders)
+      .set({
+        discountPercent: null,
+        discountAmount: null,
+        discountReason: null,
+        discountAppliedBy: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(restaurantOrders.id, orderId))
+      .returning();
+
+    await restaurantOrderAuditService.logOrderAudit(orderId, "desconto_removido", actorId, {});
+
+    return updated;
   },
 
   async closeOrder(
     orderId: string,
-    paymentMethod: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro",
+    paymentMethod: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro" | undefined,
+    actorId: string,
   ): Promise<RestaurantOrder> {
     const order = await this.assertOrderOpen(orderId);
 
     const items = await db
       .select()
       .from(restaurantOrderItems)
-      .where(eq(restaurantOrderItems.orderId, orderId));
+      .where(
+        and(
+          eq(restaurantOrderItems.orderId, orderId),
+          eq(restaurantOrderItems.status, "ativo"),
+        ),
+      );
 
     if (items.length === 0) {
       throw Object.assign(new Error("Não é possível fechar uma comanda sem itens"), {
@@ -196,15 +321,57 @@ export const restaurantPdvService = {
       (sum, item) => sum + toCents(item.unitPrice) * item.quantity,
       0,
     );
+
+    let discountCents = 0;
+    if (order.discountAmount) {
+      discountCents = toCents(order.discountAmount);
+    } else if (order.discountPercent) {
+      discountCents = Math.round(subtotalCents * (Number(order.discountPercent) / 100));
+    }
+    discountCents = Math.min(discountCents, subtotalCents);
+
+    const discountedSubtotalCents = subtotalCents - discountCents;
     const serviceFeePercent = Number(order.serviceFeePercent);
-    const serviceFeeCents = Math.round(subtotalCents * (serviceFeePercent / 100));
-    const totalCents = subtotalCents + serviceFeeCents;
+    const serviceFeeCents = Math.round(discountedSubtotalCents * (serviceFeePercent / 100));
+    const totalCents = discountedSubtotalCents + serviceFeeCents;
+
+    const existingPayments = await restaurantOrderPaymentsService.listPayments(orderId);
+
+    let finalPaymentMethod: typeof paymentMethod | null = paymentMethod ?? null;
+
+    if (existingPayments.length === 0) {
+      if (!paymentMethod) {
+        throw Object.assign(
+          new Error("Informe a forma de pagamento ou registre os pagamentos da comanda"),
+          { code: "NO_PAYMENT_METHOD" },
+        );
+      }
+      await restaurantOrderPaymentsService.addPayment(orderId, {
+        method: paymentMethod,
+        amount: fromCents(totalCents),
+      });
+    } else {
+      const paymentsTotalCents = existingPayments.reduce(
+        (sum, p) => sum + toCents(p.amount),
+        0,
+      );
+      if (Math.abs(paymentsTotalCents - totalCents) > 1) {
+        throw Object.assign(
+          new Error(
+            `A soma dos pagamentos (${fromCents(paymentsTotalCents)}) não bate com o total da comanda (${fromCents(totalCents)})`,
+          ),
+          { code: "PAYMENTS_MISMATCH" },
+        );
+      }
+      const distinctMethods = new Set(existingPayments.map((p) => p.method));
+      finalPaymentMethod = distinctMethods.size === 1 ? existingPayments[0].method : null;
+    }
 
     const [closed] = await db
       .update(restaurantOrders)
       .set({
         status: "fechada",
-        paymentMethod,
+        paymentMethod: finalPaymentMethod,
         subtotal: fromCents(subtotalCents),
         serviceFeeAmount: fromCents(serviceFeeCents),
         total: fromCents(totalCents),
@@ -213,6 +380,10 @@ export const restaurantPdvService = {
       })
       .where(eq(restaurantOrders.id, orderId))
       .returning();
+
+    await restaurantOrderAuditService.logOrderAudit(orderId, "comanda_fechada", actorId, {
+      metadata: { paymentMethod: finalPaymentMethod, total: fromCents(totalCents) },
+    });
 
     return closed;
   },
@@ -235,5 +406,147 @@ export const restaurantPdvService = {
       });
     }
     return order;
+  },
+
+  async assertOrderEditable(orderId: string): Promise<RestaurantOrder> {
+    const order = await this.assertOrderOpen(orderId);
+    if (order.paymentRequestedAt) {
+      throw Object.assign(
+        new Error("A conta já foi solicitada — cancele o pedido de conta para editar a comanda"),
+        { code: "PAYMENT_REQUESTED" },
+      );
+    }
+    return order;
+  },
+
+  async requestPayment(orderId: string, actorId: string): Promise<RestaurantOrder> {
+    const order = await this.assertOrderOpen(orderId);
+    if (order.paymentRequestedAt) return order;
+
+    const [updated] = await db
+      .update(restaurantOrders)
+      .set({ paymentRequestedAt: new Date(), updatedAt: new Date() })
+      .where(eq(restaurantOrders.id, orderId))
+      .returning();
+
+    await restaurantOrderAuditService.logOrderAudit(orderId, "pagamento_solicitado", actorId, {});
+    return updated;
+  },
+
+  async cancelPaymentRequest(orderId: string, actorId: string): Promise<RestaurantOrder> {
+    const order = await this.assertOrderOpen(orderId);
+    if (!order.paymentRequestedAt) return order;
+
+    const [updated] = await db
+      .update(restaurantOrders)
+      .set({ paymentRequestedAt: null, updatedAt: new Date() })
+      .where(eq(restaurantOrders.id, orderId))
+      .returning();
+
+    await restaurantOrderAuditService.logOrderAudit(orderId, "pagamento_cancelado", actorId, {});
+    return updated;
+  },
+
+  async transferItems(
+    sourceOrderId: string,
+    itemIds: string[],
+    targetOrderId: string,
+    actorId: string,
+  ): Promise<void> {
+    if (sourceOrderId === targetOrderId) {
+      throw Object.assign(new Error("Mesa de origem e destino são a mesma"), {
+        code: "INVALID_TARGET",
+      });
+    }
+
+    await this.assertOrderEditable(sourceOrderId);
+    await this.assertOrderEditable(targetOrderId);
+
+    const moved = await db
+      .update(restaurantOrderItems)
+      .set({ orderId: targetOrderId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(restaurantOrderItems.orderId, sourceOrderId),
+          eq(restaurantOrderItems.status, "ativo"),
+          inArray(restaurantOrderItems.id, itemIds),
+        ),
+      )
+      .returning({ id: restaurantOrderItems.id });
+
+    if (moved.length === 0) {
+      throw Object.assign(new Error("Nenhum item válido para transferir"), {
+        code: "NOT_FOUND",
+      });
+    }
+
+    const metadata = { itemIds: moved.map((m) => m.id) };
+    await restaurantOrderAuditService.logOrderAudit(
+      sourceOrderId,
+      "itens_transferidos",
+      actorId,
+      { metadata: { ...metadata, direction: "saida", targetOrderId } },
+    );
+    await restaurantOrderAuditService.logOrderAudit(
+      targetOrderId,
+      "itens_transferidos",
+      actorId,
+      { metadata: { ...metadata, direction: "entrada", sourceOrderId } },
+    );
+  },
+
+  async mergeOrders(
+    sourceOrderId: string,
+    targetOrderId: string,
+    actorId: string,
+  ): Promise<void> {
+    if (sourceOrderId === targetOrderId) {
+      throw Object.assign(new Error("Mesa de origem e destino são a mesma"), {
+        code: "INVALID_TARGET",
+      });
+    }
+
+    await this.assertOrderEditable(sourceOrderId);
+    await this.assertOrderEditable(targetOrderId);
+
+    const sourcePaymentsCents = await restaurantOrderPaymentsService.getPaymentsTotalCents(
+      sourceOrderId,
+    );
+    const targetPaymentsCents = await restaurantOrderPaymentsService.getPaymentsTotalCents(
+      targetOrderId,
+    );
+    if (sourcePaymentsCents > 0 || targetPaymentsCents > 0) {
+      throw Object.assign(
+        new Error("Não é possível juntar mesas que já têm pagamentos registrados"),
+        { code: "PAYMENTS_ALREADY_REGISTERED" },
+      );
+    }
+
+    await db
+      .update(restaurantOrderItems)
+      .set({ orderId: targetOrderId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(restaurantOrderItems.orderId, sourceOrderId),
+          eq(restaurantOrderItems.status, "ativo"),
+        ),
+      );
+
+    await db
+      .update(restaurantOrders)
+      .set({
+        status: "mesclada",
+        mergedIntoOrderId: targetOrderId,
+        closedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(restaurantOrders.id, sourceOrderId));
+
+    await restaurantOrderAuditService.logOrderAudit(sourceOrderId, "mesas_mescladas", actorId, {
+      metadata: { direction: "origem", targetOrderId },
+    });
+    await restaurantOrderAuditService.logOrderAudit(targetOrderId, "mesas_mescladas", actorId, {
+      metadata: { direction: "destino", sourceOrderId },
+    });
   },
 };

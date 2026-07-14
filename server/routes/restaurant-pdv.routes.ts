@@ -9,9 +9,26 @@ import {
   listOrdersController,
   addOrderItemController,
   updateOrderItemController,
-  removeOrderItemController,
+  cancelOrderItemController,
   closeOrderController,
   syncMenuBlingController,
+  listTablesController,
+  listTablesMapController,
+  createTableController,
+  updateTableController,
+  deactivateTableController,
+  requestPaymentController,
+  cancelPaymentRequestController,
+  applyDiscountController,
+  removeDiscountController,
+  listOrderAuditLogController,
+  listOrderPaymentsController,
+  addOrderPaymentController,
+  removeOrderPaymentController,
+  transferOrderItemsController,
+  mergeOrdersController,
+  getDailySummaryController,
+  getSalesReportController,
 } from "../controllers/restaurant-pdv";
 
 export const restaurantPdvRouter = Router();
@@ -32,6 +49,12 @@ function requireGestor(req: Request, res: Response, next: NextFunction) {
   return next();
 }
 
+restaurantPdvRouter.get("/tables/map", requireGarcomOrGestor, listTablesMapController);
+restaurantPdvRouter.get("/tables", requireGestor, listTablesController);
+restaurantPdvRouter.post("/tables", requireGestor, createTableController);
+restaurantPdvRouter.put("/tables/:id", requireGestor, updateTableController);
+restaurantPdvRouter.delete("/tables/:id", requireGestor, deactivateTableController);
+
 restaurantPdvRouter.get("/menu-items", requireGarcomOrGestor, listMenuItemsController);
 restaurantPdvRouter.post("/menu-items", requireGestor, createMenuItemController);
 restaurantPdvRouter.put("/menu-items/:id", requireGestor, updateMenuItemController);
@@ -50,6 +73,55 @@ restaurantPdvRouter.put(
 restaurantPdvRouter.delete(
   "/orders/:id/items/:itemId",
   requireGarcomOrGestor,
-  removeOrderItemController,
+  cancelOrderItemController,
 );
 restaurantPdvRouter.post("/orders/:id/close", requireGarcomOrGestor, closeOrderController);
+restaurantPdvRouter.post(
+  "/orders/:id/request-payment",
+  requireGarcomOrGestor,
+  requestPaymentController,
+);
+restaurantPdvRouter.post(
+  "/orders/:id/cancel-payment-request",
+  requireGarcomOrGestor,
+  cancelPaymentRequestController,
+);
+restaurantPdvRouter.post("/orders/:id/discount", requireGestor, applyDiscountController);
+restaurantPdvRouter.delete("/orders/:id/discount", requireGestor, removeDiscountController);
+restaurantPdvRouter.get(
+  "/orders/:id/audit-log",
+  requireGestor,
+  listOrderAuditLogController,
+);
+restaurantPdvRouter.get(
+  "/orders/:id/payments",
+  requireGarcomOrGestor,
+  listOrderPaymentsController,
+);
+restaurantPdvRouter.post(
+  "/orders/:id/payments",
+  requireGarcomOrGestor,
+  addOrderPaymentController,
+);
+restaurantPdvRouter.delete(
+  "/orders/:id/payments/:paymentId",
+  requireGarcomOrGestor,
+  removeOrderPaymentController,
+);
+restaurantPdvRouter.post(
+  "/orders/:id/transfer-items",
+  requireGarcomOrGestor,
+  transferOrderItemsController,
+);
+restaurantPdvRouter.post(
+  "/orders/:id/merge-into/:targetId",
+  requireGarcomOrGestor,
+  mergeOrdersController,
+);
+
+restaurantPdvRouter.get(
+  "/reports/daily-summary",
+  requireGestor,
+  getDailySummaryController,
+);
+restaurantPdvRouter.get("/reports/sales", requireGestor, getSalesReportController);

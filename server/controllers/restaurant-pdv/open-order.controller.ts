@@ -3,7 +3,7 @@ import { z } from "zod";
 import { restaurantPdvService } from "../../services/restaurant-pdv.service";
 
 const openOrderSchema = z.object({
-  tableNumber: z.number().int().positive(),
+  tableId: z.string().min(1, "Mesa é obrigatória"),
   peopleCount: z.number().int().positive(),
 });
 
@@ -20,12 +20,18 @@ export const openOrderController = async (req: Request, res: Response) => {
     }
 
     const order = await restaurantPdvService.openOrder({
-      tableNumber: parsed.data.tableNumber,
+      tableId: parsed.data.tableId,
       peopleCount: parsed.data.peopleCount,
       waiterId,
     });
     return res.status(201).json(order);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === "NOT_FOUND") {
+      return res.status(404).json({ message: error.message });
+    }
+    if (error?.code === "TABLE_OCCUPIED") {
+      return res.status(409).json({ message: error.message });
+    }
     console.error("Erro ao abrir comanda:", error);
     return res.status(500).json({ message: "Erro ao abrir comanda" });
   }

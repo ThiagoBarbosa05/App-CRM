@@ -11,6 +11,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { RestaurantOrder } from "@shared/schema";
+import { OrderAuditLog } from "@/components/restaurant-pdv/order-audit-log";
+import { OrderReceiptPrint } from "@/components/restaurant-pdv/order-receipt-print";
+
+interface RestaurantOrderWithPaymentsCount extends RestaurantOrder {
+  paymentsCount: number;
+}
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   pix: "Pix",
@@ -20,7 +26,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 export default function RestaurantOrdersHistory() {
-  const { data: orders = [] } = useQuery<RestaurantOrder[]>({
+  const { data: orders = [] } = useQuery<RestaurantOrderWithPaymentsCount[]>({
     queryKey: ["/api/restaurant-pdv/orders"],
   });
 
@@ -40,6 +46,8 @@ export default function RestaurantOrdersHistory() {
                 <TableHead>Pagamento</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Aberta em</TableHead>
+                <TableHead />
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -53,7 +61,11 @@ export default function RestaurantOrdersHistory() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {order.paymentMethod ? PAYMENT_METHOD_LABELS[order.paymentMethod] : "—"}
+                    {order.paymentsCount > 1
+                      ? `Dividido (${order.paymentsCount}x)`
+                      : order.paymentMethod
+                        ? PAYMENT_METHOD_LABELS[order.paymentMethod]
+                        : "—"}
                   </TableCell>
                   <TableCell>{order.total ? formatCurrency(order.total) : "—"}</TableCell>
                   <TableCell>
@@ -61,11 +73,19 @@ export default function RestaurantOrdersHistory() {
                       timeZone: "America/Sao_Paulo",
                     })}
                   </TableCell>
+                  <TableCell>
+                    <OrderAuditLog orderId={order.id} />
+                  </TableCell>
+                  <TableCell>
+                    {order.status === "fechada" && (
+                      <OrderReceiptPrint orderId={order.id} label="Imprimir" />
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {orders.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     Nenhuma comanda registrada
                   </TableCell>
                 </TableRow>

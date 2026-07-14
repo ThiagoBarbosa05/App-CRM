@@ -2299,7 +2299,30 @@ export type Sale = typeof sales.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
 
-// PDV Restaurante — cardápio, comandas e itens de comanda (fluxo local, sem Bling)
+// PDV Restaurante — cardápio, mesas, comandas e itens de comanda (fluxo local, sem Bling)
+export const restaurantTables = pgTable(
+  "restaurant_tables",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    number: integer("number").notNull(),
+    capacity: integer("capacity").notNull().default(4),
+    section: text("section"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdBy: varchar("created_by")
+      .references(() => users.id)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    numberActiveUidx: uniqueIndex("restaurant_tables_number_active_uidx")
+      .on(table.number)
+      .where(sql`is_active = true`),
+  }),
+);
+
 export const restaurantMenuItems = pgTable("restaurant_menu_items", {
   id: varchar("id")
     .primaryKey()
@@ -2322,14 +2345,16 @@ export const restaurantOrders = pgTable(
     id: varchar("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    tableId: varchar("table_id").references(() => restaurantTables.id),
     tableNumber: integer("table_number").notNull(),
     peopleCount: integer("people_count").notNull(),
     waiterId: varchar("waiter_id")
       .references(() => users.id)
       .notNull(),
-    status: text("status", { enum: ["aberta", "fechada"] })
+    status: text("status", { enum: ["aberta", "fechada", "mesclada"] })
       .notNull()
       .default("aberta"),
+    paymentRequestedAt: timestamp("payment_requested_at"),
     paymentMethod: text("payment_method", {
       enum: ["pix", "cartao_credito", "cartao_debito", "dinheiro"],
     }),
@@ -2345,6 +2370,11 @@ export const restaurantOrders = pgTable(
       scale: 2,
     }),
     total: decimal("total", { precision: 10, scale: 2 }),
+    discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
+    discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
+    discountReason: text("discount_reason"),
+    discountAppliedBy: varchar("discount_applied_by").references(() => users.id),
+    mergedIntoOrderId: varchar("merged_into_order_id"),
     notes: text("notes"),
     openedAt: timestamp("opened_at").defaultNow().notNull(),
     closedAt: timestamp("closed_at"),
@@ -2353,6 +2383,7 @@ export const restaurantOrders = pgTable(
   },
   (table) => ({
     statusIdx: index("restaurant_orders_status_idx").on(table.status),
+    tableIdx: index("restaurant_orders_table_idx").on(table.tableId),
   }),
 );
 
@@ -2371,6 +2402,12 @@ export const restaurantOrderItems = pgTable(
     name: text("name").notNull(),
     unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
     quantity: integer("quantity").notNull().default(1),
+    status: text("status", { enum: ["ativo", "cancelado"] })
+      .notNull()
+      .default("ativo"),
+    cancelReason: text("cancel_reason"),
+    cancelledBy: varchar("cancelled_by").references(() => users.id),
+    cancelledAt: timestamp("cancelled_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -2378,6 +2415,68 @@ export const restaurantOrderItems = pgTable(
     orderIdx: index("restaurant_order_items_order_idx").on(table.orderId),
   }),
 );
+
+export const restaurantOrderPayments = pgTable(
+  "restaurant_order_payments",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    orderId: varchar("order_id")
+      .references(() => restaurantOrders.id)
+      .notNull(),
+    method: text("method", {
+      enum: ["pix", "cartao_credito", "cartao_debito", "dinheiro"],
+    }).notNull(),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    payerLabel: text("payer_label"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    orderIdx: index("restaurant_order_payments_order_idx").on(table.orderId),
+  }),
+);
+
+export const restaurantOrderAuditLog = pgTable(
+  "restaurant_order_audit_log",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    orderId: varchar("order_id")
+      .references(() => restaurantOrders.id)
+      .notNull(),
+    action: text("action", {
+      enum: [
+        "item_cancelado",
+        "desconto_aplicado",
+        "desconto_removido",
+        "itens_transferidos",
+        "mesas_mescladas",
+        "pagamento_solicitado",
+        "pagamento_cancelado",
+        "comanda_fechada",
+      ],
+    }).notNull(),
+    reason: text("reason"),
+    actorId: varchar("actor_id")
+      .references(() => users.id)
+      .notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    orderIdx: index("restaurant_order_audit_log_order_idx").on(table.orderId),
+  }),
+);
+
+export const insertRestaurantTableSchema = createInsertSchema(
+  restaurantTables,
+).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 export const insertRestaurantMenuItemSchema = createInsertSchema(
   restaurantMenuItems,
@@ -2404,6 +2503,22 @@ export const insertRestaurantOrderItemSchema = createInsertSchema(
   updatedAt: true,
 });
 
+export const insertRestaurantOrderAuditLogSchema = createInsertSchema(
+  restaurantOrderAuditLog,
+).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRestaurantOrderPaymentSchema = createInsertSchema(
+  restaurantOrderPayments,
+).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertRestaurantTable = z.infer<typeof insertRestaurantTableSchema>;
+export type RestaurantTable = typeof restaurantTables.$inferSelect;
 export type InsertRestaurantMenuItem = z.infer<
   typeof insertRestaurantMenuItemSchema
 >;
@@ -2414,6 +2529,14 @@ export type InsertRestaurantOrderItem = z.infer<
   typeof insertRestaurantOrderItemSchema
 >;
 export type RestaurantOrderItem = typeof restaurantOrderItems.$inferSelect;
+export type InsertRestaurantOrderAuditLog = z.infer<
+  typeof insertRestaurantOrderAuditLogSchema
+>;
+export type RestaurantOrderAuditLog = typeof restaurantOrderAuditLog.$inferSelect;
+export type InsertRestaurantOrderPayment = z.infer<
+  typeof insertRestaurantOrderPaymentSchema
+>;
+export type RestaurantOrderPayment = typeof restaurantOrderPayments.$inferSelect;
 
 export const messageAutomationSettings = pgTable(
   "message_automation_settings",

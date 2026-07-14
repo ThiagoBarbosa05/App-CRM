@@ -31,8 +31,27 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Minus, Plus, Trash2, UtensilsCrossed } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRightLeft,
+  Combine,
+  Minus,
+  Percent,
+  Plus,
+  Receipt,
+  Split,
+  Trash2,
+  UtensilsCrossed,
+  XCircle,
+} from "lucide-react";
 import type { RestaurantMenuItem, RestaurantOrderItem, RestaurantOrder } from "@shared/schema";
+import { TableMapGrid } from "./table-map";
+import { ReasonPromptDialog } from "@/components/restaurant-pdv/reason-prompt-dialog";
+import { ApplyDiscountDialog } from "@/components/restaurant-pdv/apply-discount-dialog";
+import { SplitBillDialog } from "@/components/restaurant-pdv/split-bill-dialog";
+import { TransferItemsDialog } from "@/components/restaurant-pdv/transfer-items-dialog";
+import { MergeTablesDialog } from "@/components/restaurant-pdv/merge-tables-dialog";
+import { OrderReceiptPrint } from "@/components/restaurant-pdv/order-receipt-print";
 
 interface RestaurantOrderWithItems extends RestaurantOrder {
   items: RestaurantOrderItem[];
@@ -53,11 +72,14 @@ export default function RestaurantPos() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(
     () => localStorage.getItem(ACTIVE_ORDER_KEY),
   );
-  const [tableNumber, setTableNumber] = useState("");
-  const [peopleCount, setPeopleCount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
+  const [itemToCancel, setItemToCancel] = useState<RestaurantOrderItem | null>(null);
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
 
   const setActiveOrder = (id: string | null) => {
     setActiveOrderId(id);
@@ -74,26 +96,33 @@ export default function RestaurantPos() {
     enabled: !!activeOrderId,
   });
 
-  const invalidateOrder = () =>
+  const invalidateOrder = () => {
     queryClient.invalidateQueries({
       queryKey: ["/api/restaurant-pdv/orders", activeOrderId],
     });
+    queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+  };
 
-  const openOrderMutation = useMutation({
+  const requestPaymentMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/restaurant-pdv/orders", {
-        tableNumber: Number(tableNumber),
-        peopleCount: Number(peopleCount),
-      });
-      return res.json() as Promise<RestaurantOrder>;
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/request-payment`);
     },
-    onSuccess: (created) => {
-      setActiveOrder(created.id);
-      setTableNumber("");
-      setPeopleCount("");
-    },
+    onSuccess: invalidateOrder,
     onError: (err: Error) => {
-      toast({ title: "Erro ao abrir mesa", description: err.message, variant: "destructive" });
+      toast({ title: "Erro ao pedir a conta", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const cancelPaymentRequestMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest(
+        "POST",
+        `/api/restaurant-pdv/orders/${activeOrderId}/cancel-payment-request`,
+      );
+    },
+    onSuccess: invalidateOrder,
+    onError: (err: Error) => {
+      toast({ title: "Erro ao cancelar pedido", description: err.message, variant: "destructive" });
     },
   });
 
@@ -132,16 +161,47 @@ export default function RestaurantPos() {
     },
   });
 
-  const removeItemMutation = useMutation({
-    mutationFn: async (itemId: string) => {
+  const cancelItemMutation = useMutation({
+    mutationFn: async ({ itemId, reason }: { itemId: string; reason: string }) => {
       await apiRequest(
         "DELETE",
         `/api/restaurant-pdv/orders/${activeOrderId}/items/${itemId}`,
+        { reason },
       );
+    },
+    onSuccess: () => {
+      invalidateOrder();
+      setItemToCancel(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao cancelar item", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const applyDiscountMutation = useMutation({
+    mutationFn: async (data: {
+      discountPercent?: string;
+      discountAmount?: string;
+      reason: string;
+    }) => {
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/discount`, data);
+    },
+    onSuccess: () => {
+      invalidateOrder();
+      setDiscountDialogOpen(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao aplicar desconto", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const removeDiscountMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/restaurant-pdv/orders/${activeOrderId}/discount`);
     },
     onSuccess: invalidateOrder,
     onError: (err: Error) => {
-      toast({ title: "Erro ao remover item", description: err.message, variant: "destructive" });
+      toast({ title: "Erro ao remover desconto", description: err.message, variant: "destructive" });
     },
   });
 
@@ -153,11 +213,74 @@ export default function RestaurantPos() {
     },
     onSuccess: () => {
       toast({ title: "Comanda fechada", description: "Venda registrada com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
       setActiveOrder(null);
       setPaymentMethod("");
     },
     onError: (err: Error) => {
       toast({ title: "Erro ao fechar comanda", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const splitCloseMutation = useMutation({
+    mutationFn: async (
+      payments: { method: string; amount: string; payerLabel: string }[],
+    ) => {
+      for (const payment of payments) {
+        await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/payments`, payment);
+      }
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/close`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "Comanda fechada", description: "Conta dividida com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+      setSplitDialogOpen(false);
+      setActiveOrder(null);
+      setPaymentMethod("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao dividir conta", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const transferItemsMutation = useMutation({
+    mutationFn: async ({
+      itemIds,
+      targetOrderId,
+    }: {
+      itemIds: string[];
+      targetOrderId: string;
+    }) => {
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/transfer-items`, {
+        itemIds,
+        targetOrderId,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Itens transferidos" });
+      invalidateOrder();
+      setTransferDialogOpen(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao transferir itens", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const mergeOrdersMutation = useMutation({
+    mutationFn: async (targetOrderId: string) => {
+      await apiRequest(
+        "POST",
+        `/api/restaurant-pdv/orders/${activeOrderId}/merge-into/${targetOrderId}`,
+      );
+    },
+    onSuccess: () => {
+      toast({ title: "Mesas mescladas com sucesso" });
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+      setMergeDialogOpen(false);
+      setActiveOrder(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao juntar mesas", description: err.message, variant: "destructive" });
     },
   });
 
@@ -196,8 +319,15 @@ export default function RestaurantPos() {
     (sum, item) => sum + Number(item.unitPrice) * item.quantity,
     0,
   );
-  const serviceFee = subtotal * 0.1;
-  const total = subtotal + serviceFee;
+  const discountAmount = order?.discountAmount
+    ? Number(order.discountAmount)
+    : order?.discountPercent
+      ? subtotal * (Number(order.discountPercent) / 100)
+      : 0;
+  const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
+  const serviceFee = discountedSubtotal * 0.1;
+  const total = discountedSubtotal + serviceFee;
+  const hasDiscount = !!order?.discountAmount || !!order?.discountPercent;
 
   const isGarcom = user?.role === "garcom";
 
@@ -231,67 +361,69 @@ export default function RestaurantPos() {
 
       <main className="flex-1 overflow-auto">
         {!activeOrderId ? (
-          <div className="flex min-h-full items-center justify-center p-4">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UtensilsCrossed className="h-5 w-5" />
-                  Abrir Mesa
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="table-number">Número da Mesa</Label>
-                  <Input
-                    id="table-number"
-                    type="number"
-                    min="1"
-                    value={tableNumber}
-                    onChange={(e) => setTableNumber(e.target.value)}
-                    placeholder="Ex: 5"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="people-count">Número de Pessoas</Label>
-                  <Input
-                    id="people-count"
-                    type="number"
-                    min="1"
-                    value={peopleCount}
-                    onChange={(e) => setPeopleCount(e.target.value)}
-                    placeholder="Ex: 4"
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  disabled={
-                    !tableNumber ||
-                    !peopleCount ||
-                    Number(tableNumber) <= 0 ||
-                    Number(peopleCount) <= 0 ||
-                    openOrderMutation.isPending
-                  }
-                  onClick={() => openOrderMutation.mutate()}
-                >
-                  Abrir Comanda
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+          <TableMapGrid onOrderOpened={(id) => setActiveOrder(id)} />
         ) : isLoadingOrder || !order ? (
           <div className="p-6 text-center text-muted-foreground">Carregando comanda...</div>
         ) : (
           <div className="mx-auto max-w-5xl space-y-6 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-muted-foreground"
+                    onClick={() => setActiveOrder(null)}
+                  >
+                    <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                    Mapa de mesas
+                  </Button>
+                </div>
                 <h1 className="text-xl font-bold">Mesa {order.tableNumber}</h1>
                 <p className="text-sm text-muted-foreground">
                   {order.peopleCount} pessoa(s)
                 </p>
               </div>
-              <Badge variant="outline" className="uppercase">
-                {order.status}
-              </Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={order.paymentRequestedAt ? "secondary" : "outline"} className="uppercase">
+                  {order.paymentRequestedAt ? "Aguardando pagamento" : order.status}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setTransferDialogOpen(true)}
+                  disabled={items.length === 0}
+                >
+                  <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5" />
+                  Transferir itens
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setMergeDialogOpen(true)}>
+                  <Combine className="mr-1.5 h-3.5 w-3.5" />
+                  Juntar mesa
+                </Button>
+                <OrderReceiptPrint orderId={order.id} label="Imprimir comanda" />
+                {order.paymentRequestedAt ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => cancelPaymentRequestMutation.mutate()}
+                    disabled={cancelPaymentRequestMutation.isPending}
+                  >
+                    <XCircle className="mr-1.5 h-3.5 w-3.5" />
+                    Cancelar pedido
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => requestPaymentMutation.mutate()}
+                    disabled={requestPaymentMutation.isPending || items.length === 0}
+                  >
+                    <Receipt className="mr-1.5 h-3.5 w-3.5" />
+                    Pedir a conta
+                  </Button>
+                )}
+              </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -416,7 +548,7 @@ export default function RestaurantPos() {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
-                              onClick={() => removeItemMutation.mutate(item.id)}
+                              onClick={() => setItemToCancel(item)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -438,6 +570,15 @@ export default function RestaurantPos() {
                       <span className="text-muted-foreground">Subtotal</span>
                       <span>{formatCurrency(subtotal)}</span>
                     </div>
+                    {hasDiscount && (
+                      <div className="flex justify-between text-sm text-emerald-600">
+                        <span>
+                          Desconto
+                          {order.discountReason ? ` (${order.discountReason})` : ""}
+                        </span>
+                        <span>-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Taxa de serviço (10%)</span>
                       <span>{formatCurrency(serviceFee)}</span>
@@ -446,6 +587,32 @@ export default function RestaurantPos() {
                       <span>Total</span>
                       <span>{formatCurrency(total)}</span>
                     </div>
+                    {!isGarcom && (
+                      <div className="pt-1">
+                        {hasDiscount ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs text-muted-foreground"
+                            onClick={() => removeDiscountMutation.mutate()}
+                            disabled={removeDiscountMutation.isPending}
+                          >
+                            Remover desconto
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs text-muted-foreground"
+                            onClick={() => setDiscountDialogOpen(true)}
+                            disabled={items.length === 0}
+                          >
+                            <Percent className="mr-1 h-3.5 w-3.5" />
+                            Aplicar desconto
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-4 space-y-2 border-t pt-4">
@@ -464,10 +631,21 @@ export default function RestaurantPos() {
                     </RadioGroup>
                   </div>
 
-                  <AlertDialog>
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="shrink-0"
+                      disabled={items.length === 0}
+                      onClick={() => setSplitDialogOpen(true)}
+                    >
+                      <Split className="mr-1.5 h-4 w-4" />
+                      Dividir Conta
+                    </Button>
+
+                    <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
-                        className="mt-4 w-full"
+                        className="flex-1"
                         disabled={items.length === 0 || !paymentMethod}
                       >
                         Fechar Comanda
@@ -492,13 +670,64 @@ export default function RestaurantPos() {
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
-                  </AlertDialog>
+                    </AlertDialog>
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
         )}
       </main>
+
+      <ReasonPromptDialog
+        open={!!itemToCancel}
+        onOpenChange={(open) => !open && setItemToCancel(null)}
+        title={`Cancelar "${itemToCancel?.name ?? ""}"?`}
+        confirmLabel="Cancelar Item"
+        isPending={cancelItemMutation.isPending}
+        onConfirm={(reason) =>
+          itemToCancel && cancelItemMutation.mutate({ itemId: itemToCancel.id, reason })
+        }
+      />
+
+      <ApplyDiscountDialog
+        open={discountDialogOpen}
+        onOpenChange={setDiscountDialogOpen}
+        isPending={applyDiscountMutation.isPending}
+        onConfirm={(data) => applyDiscountMutation.mutate(data)}
+      />
+
+      <SplitBillDialog
+        open={splitDialogOpen}
+        onOpenChange={setSplitDialogOpen}
+        items={items}
+        subtotal={subtotal}
+        discountAmount={discountAmount}
+        serviceFee={serviceFee}
+        total={total}
+        isPending={splitCloseMutation.isPending}
+        onConfirm={(payments) => splitCloseMutation.mutate(payments)}
+      />
+
+      <TransferItemsDialog
+        open={transferDialogOpen}
+        onOpenChange={setTransferDialogOpen}
+        items={items}
+        currentTableId={order?.tableId ?? null}
+        isPending={transferItemsMutation.isPending}
+        onConfirm={(itemIds, targetOrderId) =>
+          transferItemsMutation.mutate({ itemIds, targetOrderId })
+        }
+      />
+
+      <MergeTablesDialog
+        open={mergeDialogOpen}
+        onOpenChange={setMergeDialogOpen}
+        currentTableId={order?.tableId ?? null}
+        currentTableNumber={order?.tableNumber ?? 0}
+        isPending={mergeOrdersMutation.isPending}
+        onConfirm={(targetOrderId) => mergeOrdersMutation.mutate(targetOrderId)}
+      />
     </div>
   );
 }

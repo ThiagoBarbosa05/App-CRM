@@ -101,12 +101,12 @@ const navItems: NavItem[] = [
     label: "Meu WhatsApp",
     roles: ["vendedor"],
   },
-  // {
-  //   href: "/pdv-restaurante/comandas",
-  //   icon: UtensilsCrossed,
-  //   label: "PDV Restaurante",
-  //   roles: ["admin", "administrador", "gerente"],
-  // },
+  {
+    href: "/pdv-restaurante/comandas",
+    icon: UtensilsCrossed,
+    label: "PDV Restaurante",
+    roles: ["admin", "administrador", "gerente"],
+  },
   {
     href: "/configuracoes",
     icon: Settings,

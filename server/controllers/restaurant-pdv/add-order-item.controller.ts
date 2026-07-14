@@ -23,7 +23,7 @@ export const addOrderItemController = async (req: Request, res: Response) => {
     if (error?.code === "NOT_FOUND") {
       return res.status(404).json({ message: error.message });
     }
-    if (error?.code === "ORDER_CLOSED") {
+    if (error?.code === "ORDER_CLOSED" || error?.code === "PAYMENT_REQUESTED") {
       return res.status(409).json({ message: error.message });
     }
     console.error("Erro ao adicionar item à comanda:", error);

@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ClipboardList, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, BarChart3, ClipboardList, LayoutGrid, UtensilsCrossed } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,6 +15,8 @@ import { ChevronDown } from "lucide-react";
 const TABS = [
   { href: "/pdv-restaurante/comandas", label: "Comandas", icon: ClipboardList },
   { href: "/pdv-restaurante/cardapio", label: "Cardápio", icon: UtensilsCrossed },
+  { href: "/pdv-restaurante/mesas", label: "Mesas", icon: LayoutGrid },
+  { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3 },
 ];
 
 export default function RestaurantPdvHub({ children }: { children: ReactNode }) {
