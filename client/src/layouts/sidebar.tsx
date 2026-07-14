@@ -83,12 +83,13 @@ const navItems: NavItem[] = [
   },
   { href: "/indicacoes", icon: Share2, label: "Indicações" },
   { href: "/telemarketing", icon: PhoneCall, label: "Telemarketing" },
-  // {
-  //   href: "/whatsapp/conversas",
-  //   icon: MessageCircle,
-  //   label: "WhatsApp",
-  //   activeBasePath: "/whatsapp",
-  // },
+  {
+    href: "/whatsapp/conversas",
+    icon: MessageCircle,
+    label: "WhatsApp",
+    activeBasePath: "/whatsapp",
+    roles: ["admin"]
+  },
   {
     href: "/inbox",
     icon: Inbox,
