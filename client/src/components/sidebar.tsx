@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Trophy,
   ClipboardList,
+  QrCode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -263,6 +264,23 @@ export default function Sidebar() {
                   >
                     <GitBranch className="mr-3 h-4 w-4" />
                     <span className="mobile-text">Funil de Vendas</span>
+                  </button>
+                </Link>
+              )}
+
+              {user?.role === "vendedor" && (
+                <Link href="/whatsapp/configuracoes">
+                  <button
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                      isActive("/whatsapp/configuracoes")
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                    )}
+                  >
+                    <QrCode className="mr-3 h-4 w-4" />
+                    <span className="mobile-text">Meu WhatsApp</span>
                   </button>
                 </Link>
               )}

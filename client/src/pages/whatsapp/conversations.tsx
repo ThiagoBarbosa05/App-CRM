@@ -38,6 +38,8 @@ import { setActiveWaConversation } from "@/lib/wa-active-conversation";
 import { refreshFirstPage } from "@/lib/wa-chat-pagination";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
+import { EvolutionChannelConnect } from "@/components/evolution-channel-connect";
+import type { WhatsappChannel } from "@/hooks/use-whatsapp";
 import { ContactDetailsSheet } from "@/components/whatsapp/contact-details-sheet";
 import { TransferConversationSheet } from "@/components/whatsapp/transfer-conversation-sheet";
 import type { MediaType } from "@/hooks/use-media-library";
@@ -107,6 +109,7 @@ interface Channel {
   displayPhone: string | null;
   connectionStatus: string | null;
   provider: string;
+  evolutionInstanceName?: string | null;
 }
 
 export interface ChatClientTag {
@@ -5420,6 +5423,7 @@ export default function WhatsAppConversationsPage() {
   const [showTagFilter, setShowTagFilter] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"open" | "closed">("open");
+  const [qrDialogChannel, setQrDialogChannel] = useState<Channel | null>(null);
   const debouncedSearch = useDebounce(search, 300);
   const queryClient = useQueryClient();
 
@@ -5807,14 +5811,18 @@ export default function WhatsAppConversationsPage() {
                   <span className="text-[11px] text-green-600 dark:text-green-400 shrink-0 flex items-center gap-1">
                     <Wifi className="h-3 w-3" /> Conectado
                   </span>
-                ) : (
-                  <a
-                    href="/whatsapp/configuracoes"
+                ) : ch.provider === "evolution" ? (
+                  <button
+                    onClick={() => setQrDialogChannel(ch)}
                     className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:underline shrink-0 flex items-center gap-1"
                   >
                     <WifiOff className="h-3 w-3" />
                     {isConnecting ? "Conectando..." : "Reconectar"}
-                  </a>
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-amber-700 dark:text-amber-400 shrink-0 flex items-center gap-1">
+                    <WifiOff className="h-3 w-3" /> Desconectado
+                  </span>
                 )}
               </div>
             );
@@ -5824,6 +5832,38 @@ export default function WhatsAppConversationsPage() {
         {!isAdminOrGerente && availableChannels.length === 0 && (
           <div className="h-9 border-b border-slate-200 dark:border-slate-800 bg-muted/40 animate-pulse shrink-0" />
         )}
+
+        {/* QR Code dialog — vendedor reconnects their Evolution channel inline */}
+        <Dialog
+          open={qrDialogChannel != null}
+          onOpenChange={(open) => { if (!open) setQrDialogChannel(null); }}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Conectar WhatsApp</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground -mt-2">
+              Escaneie o QR Code com o seu celular para sincronizar o canal{" "}
+              <span className="font-medium text-foreground">
+                {qrDialogChannel?.displayPhone ?? qrDialogChannel?.name}
+              </span>
+              .
+            </p>
+            {qrDialogChannel && (
+              <EvolutionChannelConnect
+                channel={qrDialogChannel as unknown as WhatsappChannel}
+                onStatusChange={(status) => {
+                  if (status === "connected") {
+                    setQrDialogChannel(null);
+                    queryClient.invalidateQueries({
+                      queryKey: ["/api/whatsapp/channels/mine"],
+                    });
+                  }
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Client list — relative so the tag panel can overlay it */}
         <div className="flex-1 overflow-y-auto relative" ref={sidebarContainerRef}>
