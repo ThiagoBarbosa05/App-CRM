@@ -14,17 +14,25 @@ import {
 } from "../lib/zernio-store";
 import { findClientMatch } from "../lib/zernio-client-match";
 import { redactPii } from "../lib/log-redaction";
+import { requireAdmin } from "../middleware/validation";
+import {
+  ZERNIO_KEYS,
+  getZernioApiKey,
+  getZernioConfigured,
+  getZernioSettingsForClient,
+  getZernioWebhookSecret,
+  upsertZernioSetting,
+} from "../services/zernio-settings.service";
 
 const ZERNIO_FETCH_TIMEOUT_MS = 15_000;
 
 const router = Router();
 
-const ZERNIO_API_KEY = process.env.ZERNIO_API_KEY;
 const ZERNIO_BASE = "https://zernio.com/api/v1";
 
-function zernioHeaders() {
+async function zernioHeaders() {
   return {
-    Authorization: `Bearer ${ZERNIO_API_KEY}`,
+    Authorization: `Bearer ${await getZernioApiKey()}`,
     "Content-Type": "application/json",
   };
 }
@@ -32,7 +40,7 @@ function zernioHeaders() {
 // GET /api/zernio/conversations
 router.get("/conversations", async (req, res) => {
   try {
-    if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
+    if (!(await getZernioApiKey())) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
     const { platform } = req.query;
     const data = await listConversations(platform ? String(platform) : undefined);
     return res.json({ data });
@@ -44,7 +52,7 @@ router.get("/conversations", async (req, res) => {
 // GET /api/zernio/conversations/:conversationId/messages
 router.get("/conversations/:conversationId/messages", async (req, res) => {
   try {
-    if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
+    if (!(await getZernioApiKey())) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
     const { conversationId } = req.params;
     await markConversationRead(conversationId);
     const data = await listMessages(conversationId);
@@ -57,12 +65,12 @@ router.get("/conversations/:conversationId/messages", async (req, res) => {
 // POST /api/zernio/conversations/:conversationId/messages
 router.post("/conversations/:conversationId/messages", async (req, res) => {
   try {
-    if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
+    if (!(await getZernioApiKey())) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
     const { conversationId } = req.params;
     const body = z.object({ accountId: z.string(), message: z.string().min(1) }).parse(req.body);
     const resp = await fetch(`${ZERNIO_BASE}/inbox/conversations/${conversationId}/messages`, {
       method: "POST",
-      headers: zernioHeaders(),
+      headers: await zernioHeaders(),
       body: JSON.stringify({ accountId: body.accountId, message: body.message }),
       signal: AbortSignal.timeout(ZERNIO_FETCH_TIMEOUT_MS),
     });
@@ -132,9 +140,9 @@ router.get("/clients/:clientId/conversations", async (req, res) => {
 // GET /api/zernio/accounts — lista contas conectadas
 router.get("/accounts", async (req, res) => {
   try {
-    if (!ZERNIO_API_KEY) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
+    if (!(await getZernioApiKey())) return res.status(503).json({ message: "ZERNIO_API_KEY não configurada" });
     const resp = await fetch(`${ZERNIO_BASE}/accounts`, {
-      headers: zernioHeaders(),
+      headers: await zernioHeaders(),
       signal: AbortSignal.timeout(ZERNIO_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json();
@@ -147,15 +155,48 @@ router.get("/accounts", async (req, res) => {
 
 // GET /api/zernio/status — verifica se a chave está configurada e válida
 router.get("/status", async (req, res) => {
-  if (!ZERNIO_API_KEY) return res.json({ configured: false });
+  if (!(await getZernioConfigured())) return res.json({ configured: false });
   try {
     const resp = await fetch(`${ZERNIO_BASE}/accounts`, {
-      headers: zernioHeaders(),
+      headers: await zernioHeaders(),
       signal: AbortSignal.timeout(ZERNIO_FETCH_TIMEOUT_MS),
     });
     return res.json({ configured: true, ok: resp.ok, status: resp.status });
   } catch {
     return res.json({ configured: true, ok: false });
+  }
+});
+
+// GET /api/zernio/settings — credenciais mascaradas (só admin)
+router.get("/settings", requireAdmin, async (req, res) => {
+  try {
+    const settings = await getZernioSettingsForClient();
+    res.json(settings);
+  } catch {
+    res.status(500).json({ message: "Erro ao buscar configurações do Zernio" });
+  }
+});
+
+// PUT /api/zernio/settings — salva API key / webhook secret (só admin)
+router.put("/settings", requireAdmin, async (req, res) => {
+  try {
+    const body = req.body as Record<string, string>;
+    const updates: Array<{ key: string; value: string }> = [];
+
+    for (const key of ZERNIO_KEYS) {
+      const incoming = body[key];
+      if (incoming === undefined || incoming === null) continue;
+      updates.push({ key, value: String(incoming) });
+    }
+
+    if (updates.length === 0) {
+      return res.json({ updated: 0 });
+    }
+
+    await Promise.all(updates.map(({ key, value }) => upsertZernioSetting(key, value)));
+    res.json({ updated: updates.length });
+  } catch {
+    res.status(500).json({ message: "Erro ao salvar configurações do Zernio" });
   }
 });
 
@@ -179,15 +220,14 @@ export default router;
 // Webhook separado (sem autenticação JWT) para receber mensagens em tempo real
 export const zernioWebhookRouter = Router();
 
-const WEBHOOK_SECRET = process.env.ZERNIO_WEBHOOK_SECRET;
-
-function verifySignature(req: any): boolean {
-  if (!WEBHOOK_SECRET) {
+async function verifySignature(req: any): Promise<boolean> {
+  const webhookSecret = await getZernioWebhookSecret();
+  if (!webhookSecret) {
     // Fail closed: sem segredo configurado, rejeita tudo. Em produção o webhook
     // só deve funcionar depois que ZERNIO_WEBHOOK_SECRET estiver definida — aceitar
     // tudo sem validar assinatura permitiria injetar mensagens falsas em conversas
     // de clientes reais.
-    console.error("[zernio-webhook] ZERNIO_WEBHOOK_SECRET não configurada — rejeitando webhook");
+    console.error("[zernio-webhook] webhook secret não configurado — rejeitando webhook");
     return false;
   }
   // Zernio herda a infraestrutura de webhooks do produto "Late" e ainda envia
@@ -199,7 +239,7 @@ function verifySignature(req: any): boolean {
   if (!signature) return false;
   const rawBody: Buffer | undefined = req.rawBody;
   if (!rawBody) return false;
-  const expected = crypto.createHmac("sha256", WEBHOOK_SECRET).update(rawBody).digest("hex");
+  const expected = crypto.createHmac("sha256", webhookSecret).update(rawBody).digest("hex");
   const sigBuf = Buffer.from(signature);
   const expBuf = Buffer.from(expected);
   if (sigBuf.length !== expBuf.length) return false;
@@ -209,7 +249,7 @@ function verifySignature(req: any): boolean {
 // POST /api/zernio-webhook/message
 zernioWebhookRouter.post("/message", async (req, res) => {
   try {
-    if (!verifySignature(req)) {
+    if (!(await verifySignature(req))) {
       console.warn("[zernio-webhook] assinatura inválida — headers recebidos:", {
         "x-zernio-signature": req.headers["x-zernio-signature"],
         "x-late-signature": req.headers["x-late-signature"],

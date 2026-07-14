@@ -4669,6 +4669,17 @@ export type InsertZernioConversationRow = typeof zernioConversations.$inferInser
 export type ZernioMessageRow = typeof zernioMessages.$inferSelect;
 export type InsertZernioMessageRow = typeof zernioMessages.$inferInsert;
 
+// Credenciais do Zernio configuráveis pela tela de Integrações (mesmo padrão de
+// whatsapp_settings) — evita precisar definir ZERNIO_API_KEY/ZERNIO_WEBHOOK_SECRET
+// direto nas env vars do processo.
+export const zernioSettings = pgTable("zernio_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  description: text("description"),
+  isSensitive: boolean("is_sensitive").notNull().default(false),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export type InsertCampaignClient = z.infer<typeof insertCampaignClientSchema>;
 
 // ─── Automações (infraestrutura genérica) ─────────────────────────────────────

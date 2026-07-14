@@ -15,8 +15,10 @@ import { useAssertivaStatus } from "@/hooks/use-assertiva-status";
 import { AssertivaIntegrationManagement } from "@/components/assertiva-integration-management";
 import { useOpenAIStatus } from "@/hooks/use-openai-status";
 import { OpenAIIntegrationManagement } from "@/components/openai-integration-management";
+import { useZernioStatus } from "@/hooks/use-zernio-settings";
+import { ZernioIntegrationManagement } from "@/components/zernio-integration-management";
 import { cn } from "@/lib/utils";
-import { Sparkles } from "lucide-react";
+import { Sparkles, MessageSquare } from "lucide-react";
 
 interface TelephonyStatus {
   twilio: boolean;
@@ -84,6 +86,7 @@ export function IntegrationsManagement() {
   const { data: waStatus } = useWhatsappStatus();
   const { data: assertivaStatus } = useAssertivaStatus();
   const { data: openaiStatus } = useOpenAIStatus();
+  const { data: zernioStatus } = useZernioStatus();
 
   const blingConnected = blingConnections.some((c) => c.status === "connected");
   const twilioActive = telephonyStatus?.twilio ?? false;
@@ -91,6 +94,7 @@ export function IntegrationsManagement() {
   const waActive = (waStatus?.enabled && waStatus?.configured) ?? false;
   const assertivaActive = assertivaStatus?.connected ?? false;
   const openaiActive = openaiStatus?.configured ?? false;
+  const zernioActive = zernioStatus?.configured ?? false;
 
   return (
     <div className="space-y-6">
@@ -184,6 +188,19 @@ export function IntegrationsManagement() {
             </span>
             <StatusDot active={openaiActive} />
           </PillTabsTrigger>
+
+          <PillTabsTrigger
+            value="zernio"
+            color="wine"
+            className="gap-2.5 px-4 py-2.5"
+            title="Zernio"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="text-[0.8rem] font-bold leading-none tracking-tight">
+              Zernio
+            </span>
+            <StatusDot active={zernioActive} />
+          </PillTabsTrigger>
         </PillTabsList>
 
         <AppTabsContent value="bling" className="mt-0">
@@ -208,6 +225,10 @@ export function IntegrationsManagement() {
 
         <AppTabsContent value="openai" className="mt-0">
           <OpenAIIntegrationManagement />
+        </AppTabsContent>
+
+        <AppTabsContent value="zernio" className="mt-0">
+          <ZernioIntegrationManagement />
         </AppTabsContent>
       </AppTabs>
     </div>
