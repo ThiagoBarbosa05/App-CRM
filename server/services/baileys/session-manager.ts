@@ -7,8 +7,10 @@ import makeWASocket, {
   type WAMessageUpdate,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
+import type { PoolClient } from "@neondatabase/serverless";
 import QRCode from "qrcode";
 import { useNeonAuthState, getInstancesWithCreds, deleteInstanceCreds } from "./db-auth-state.js";
+import { tryAcquireInstanceLock, releaseInstanceLock } from "./instance-lock.js";
 import { normalizeToJid, jidToPhone, isIgnorableJid } from "./jid.js";
 import {
   handleConnectionUpdate,
@@ -29,7 +31,19 @@ interface SessionInfo {
   qrBase64: string | null;
   qrCode: string | null;
   reconnectAttempts: number;
+  // Advisory lock do Postgres que garante que só esta réplica mantém o
+  // socket Baileys vivo para esta instância (evita conflito 440 entre
+  // múltiplas réplicas do autoscale). null enquanto aguardando o lock.
+  lockClient: PoolClient | null;
 }
+
+// Retry espaçado para instâncias cujo lock pertence a outra réplica —
+// bem mais longo que o backoff normal de reconexão, pois aqui não houve
+// disconnect: estamos apenas esperando a outra réplica soltar o canal.
+const LOCK_RETRY_DELAY_MS = 30_000;
+// Backoff fixo após perder a sessão para outra réplica (reason 440/conflict).
+// Maior que o backoff genérico para não voltar a colidir imediatamente.
+const CONFLICT_RETRY_DELAY_MS = 30_000;
 
 const sessions = new Map<string, SessionInfo>();
 
@@ -162,6 +176,27 @@ async function resolveRealJid(
 }
 
 async function createSocket(instanceName: string): Promise<void> {
+  const existing = sessions.get(instanceName);
+
+  // Garante que só esta réplica mantém um socket Baileys vivo para esta
+  // instância. Se outra réplica já é dona, não autentica — apenas reagenda
+  // uma nova tentativa mais tarde (ela pode escalar para baixo, cair, etc).
+  const lockClient = await tryAcquireInstanceLock(instanceName);
+  if (!lockClient) {
+    sessions.set(instanceName, {
+      socket: existing?.socket ?? (null as unknown as WASocket),
+      instanceId: existing?.instanceId ?? crypto.randomUUID(),
+      status: "disconnected",
+      qrBase64: null,
+      qrCode: null,
+      reconnectAttempts: existing?.reconnectAttempts ?? 0,
+      lockClient: null,
+    });
+    console.log(`[Baileys] Instância ${instanceName}: gerenciada por outra réplica — aguardando (${LOCK_RETRY_DELAY_MS}ms)...`);
+    setTimeout(() => createSocket(instanceName).catch(console.error), LOCK_RETRY_DELAY_MS);
+    return;
+  }
+
   const { state, saveCreds } = await useNeonAuthState(pool, instanceName);
 
   const sock = makeWASocket({
@@ -176,7 +211,6 @@ async function createSocket(instanceName: string): Promise<void> {
     getMessage: async () => undefined,
   });
 
-  const existing = sessions.get(instanceName);
   sessions.set(instanceName, {
     socket: sock,
     instanceId: existing?.instanceId ?? crypto.randomUUID(),
@@ -184,6 +218,7 @@ async function createSocket(instanceName: string): Promise<void> {
     qrBase64: null,
     qrCode: null,
     reconnectAttempts: existing?.reconnectAttempts ?? 0,
+    lockClient,
   });
 
   sock.ev.on("creds.update", saveCreds);
@@ -230,13 +265,24 @@ async function createSocket(instanceName: string): Promise<void> {
       const reason = (lastDisconnect?.error as Boom)?.output?.statusCode;
       if (reason === DisconnectReason.loggedOut) {
         console.log(`[Baileys] Instância ${instanceName}: deslogada — removendo credenciais.`);
+        if (session.lockClient) await releaseInstanceLock(instanceName, session.lockClient).catch(() => {});
         sessions.delete(instanceName);
         await deleteInstanceCreds(pool, instanceName).catch(() => {});
       } else if (reason === DisconnectReason.restartRequired) {
         // 515 é esperado logo após o pareamento por QR: o Baileys exige reiniciar
         // o socket uma vez. Reconecta imediatamente, sem contar como falha de backoff.
+        // Mantém o lock: é a mesma réplica retomando a mesma instância.
         console.log(`[Baileys] Instância ${instanceName}: restart requerido (515) — reconectando imediatamente...`);
         setTimeout(() => createSocket(instanceName).catch(console.error), 100);
+      } else if (reason === DisconnectReason.connectionReplaced) {
+        // Outra réplica autenticou como este mesmo canal (WhatsApp só permite
+        // uma conexão viva por sessão). Esta réplica perdeu de verdade: libera
+        // o lock e espera um backoff maior antes de tentar de novo, em vez de
+        // reconectar imediatamente e colidir outra vez (loop infinito).
+        console.log(`[Baileys] Instância ${instanceName}: sessão substituída por outra conexão (440) — liberando lock e aguardando ${CONFLICT_RETRY_DELAY_MS}ms...`);
+        if (session.lockClient) await releaseInstanceLock(instanceName, session.lockClient).catch(() => {});
+        session.lockClient = null;
+        setTimeout(() => createSocket(instanceName).catch(console.error), CONFLICT_RETRY_DELAY_MS);
       } else {
         // Backoff exponencial: 5s, 10s, 20s, 40s (máx 60s) para evitar rate-limit do WA
         const attempts = (session.reconnectAttempts ?? 0) + 1;
@@ -359,6 +405,7 @@ export function startInstance(instanceName: string): { instanceId: string; statu
     qrBase64: null,
     qrCode: null,
     reconnectAttempts: 0,
+    lockClient: null,
   });
   createSocket(instanceName).catch((err) =>
     console.error(`[Baileys] Erro ao criar "${instanceName}":`, err),
@@ -391,6 +438,7 @@ export async function logoutInstance(instanceName: string): Promise<void> {
     return;
   }
   try { await s.socket?.logout(); } catch { /* ignore */ }
+  if (s.lockClient) await releaseInstanceLock(instanceName, s.lockClient).catch(() => {});
   sessions.delete(instanceName);
   await deleteInstanceCreds(pool, instanceName);
 }
@@ -411,6 +459,7 @@ export async function forceRestartInstance(instanceName: string): Promise<{ inst
   if (existing?.socket) {
     try { existing.socket.end(undefined); } catch { /* ignore */ }
   }
+  if (existing?.lockClient) await releaseInstanceLock(instanceName, existing.lockClient).catch(() => {});
   sessions.delete(instanceName);
   // Limpa credenciais obsoletas para forçar novo par de chaves Signal
   await deleteInstanceCreds(pool, instanceName).catch(() => {});
@@ -419,6 +468,23 @@ export async function forceRestartInstance(instanceName: string): Promise<{ inst
 
 export async function destroyInstance(instanceName: string): Promise<void> {
   await logoutInstance(instanceName);
+}
+
+/**
+ * Encerra todos os sockets Baileys ativos nesta réplica e libera seus locks,
+ * sem apagar credenciais (a sessão continua válida, só muda de dono).
+ * Deve ser chamado no shutdown (SIGTERM/SIGINT) para reduzir a janela de
+ * overlap com a réplica que está subindo no lugar desta.
+ */
+export async function shutdownAllSessions(): Promise<void> {
+  const entries = Array.from(sessions.entries());
+  await Promise.all(
+    entries.map(async ([instanceName, s]) => {
+      try { s.socket?.end(undefined); } catch { /* ignore */ }
+      if (s.lockClient) await releaseInstanceLock(instanceName, s.lockClient).catch(() => {});
+    }),
+  );
+  sessions.clear();
 }
 
 export async function sendText(

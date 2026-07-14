@@ -6,7 +6,7 @@ vite.config.ts.*
 *.tar.gz
 .env
 bling-control-0f37ef3dad78.json
-server/index.ts
+# server/index.ts
 *.sql
 .worktrees/
 .claude/
