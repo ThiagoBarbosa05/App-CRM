@@ -4,6 +4,7 @@ import crypto from "crypto";
 import {
   addMessage,
   getConversationsByClient,
+  hasRecentOutgoingMessage,
   linkConversationToClient,
   listConversations,
   listMessages,
@@ -225,6 +226,14 @@ zernioWebhookRouter.post("/message", async (req, res) => {
           username: conversationMeta.participantUsername ?? sender.username,
         },
       });
+
+      // Eco de uma mensagem outgoing que já enviamos via POST /conversations/:id/messages:
+      // o webhook às vezes reporta um id diferente do id retornado na resposta síncrona
+      // do envio, então o dedup por id (onConflictDoNothing) não pega — checamos por
+      // conteúdo + janela de tempo para não duplicar a mensagem na UI.
+      if (direction === "outgoing" && (await hasRecentOutgoingMessage(rawMessage.conversationId, text, timestamp))) {
+        return res.json({ ok: true });
+      }
 
       const storedMessage = {
         id: rawMessage.id ?? payload.id ?? crypto.randomUUID(),

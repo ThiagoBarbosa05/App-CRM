@@ -3,7 +3,7 @@
 // ids que o Zernio usa (conversationId / message.id vindos do webhook).
 //
 // Requer as tabelas criadas por scripts/create-zernio-tables.mjs.
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "../db";
 import { clients, zernioConversations, zernioMessages } from "@shared/schema";
 
@@ -121,6 +121,39 @@ export async function addMessage(message: ZernioStoredMessage): Promise<boolean>
     .where(eq(zernioConversations.id, message.conversationId));
 
   return true;
+}
+
+/**
+ * Detecta o eco de uma mensagem outgoing já registrada pela rota de envio síncrono
+ * (POST /conversations/:id/messages), cujo webhook do Zernio pode reportar com um
+ * `id` diferente do id retornado na resposta do envio. Usada para evitar inserir
+ * uma segunda linha (e duplicar a mensagem na UI) quando os ids não batem.
+ */
+export async function hasRecentOutgoingMessage(
+  conversationId: string,
+  text: string | undefined,
+  timestamp: string,
+  windowSeconds = 15,
+): Promise<boolean> {
+  const center = new Date(timestamp);
+  const from = new Date(center.getTime() - windowSeconds * 1000);
+  const to = new Date(center.getTime() + windowSeconds * 1000);
+
+  const rows = await db
+    .select({ id: zernioMessages.id })
+    .from(zernioMessages)
+    .where(
+      and(
+        eq(zernioMessages.conversationId, conversationId),
+        eq(zernioMessages.direction, "outgoing"),
+        eq(zernioMessages.text, text ?? ""),
+        gte(zernioMessages.sentAt, from),
+        lte(zernioMessages.sentAt, to),
+      ),
+    )
+    .limit(1);
+
+  return rows.length > 0;
 }
 
 export async function listConversations(platform?: string): Promise<ZernioStoredConversation[]> {
