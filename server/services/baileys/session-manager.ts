@@ -7,7 +7,7 @@ import makeWASocket, {
   type WAMessageUpdate,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
-import type { PoolClient } from "@neondatabase/serverless";
+import { Pool, type PoolClient } from "@neondatabase/serverless";
 import QRCode from "qrcode";
 import { useNeonAuthState, getInstancesWithCreds, deleteInstanceCreds } from "./db-auth-state.js";
 import { tryAcquireInstanceLock, releaseInstanceLock } from "./instance-lock.js";
@@ -23,6 +23,81 @@ import { uploadWhatsappMedia } from "../../lib/r2.js";
 
 // Baileys roda DENTRO do processo do CRM. Os eventos são entregues chamando
 // diretamente os handlers do service (sem webhook HTTP).
+
+// ── Comando de logout entre réplicas (Postgres LISTEN/NOTIFY) ───────────────────
+//
+// `logoutInstance` pode ser chamado numa réplica que não é dona do socket vivo
+// (bem comum em Autoscale, sem sticky sessions). Sem propagação, apenas as
+// credenciais no banco são apagadas — a réplica dona continua com o socket e o
+// advisory lock vivos "órfãos", travando qualquer tentativa futura de conectar
+// (nenhuma réplica consegue adquirir o lock). NOTIFY avisa todas as réplicas
+// para encerrarem localmente a instância, caso a possuam.
+const INSTANCE_CMD_CHANNEL = "baileys_instance_cmd";
+
+const cmdListenPool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 2,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+});
+cmdListenPool.on("error", (err: Error) => {
+  console.error("[Baileys cmd] Erro inesperado na conexão de listen/notify:", err);
+});
+
+let cmdListenClient: PoolClient | null = null;
+let cmdListenClientPromise: Promise<PoolClient> | null = null;
+
+async function getCmdListenClient(): Promise<PoolClient> {
+  if (cmdListenClient) return cmdListenClient;
+  if (!cmdListenClientPromise) {
+    cmdListenClientPromise = (async () => {
+      const client = await cmdListenPool.connect();
+      await client.query(`LISTEN ${INSTANCE_CMD_CHANNEL}`);
+      client.on("notification", (msg) => {
+        if (msg.channel !== INSTANCE_CMD_CHANNEL || !msg.payload) return;
+        try {
+          const { instanceName, action } = JSON.parse(msg.payload) as {
+            instanceName: string;
+            action: string;
+          };
+          if (action === "logout") teardownLocalSession(instanceName).catch(console.error);
+        } catch (err) {
+          console.error("[Baileys cmd] Payload de comando inválido:", err);
+        }
+      });
+      client.on("error", (err: Error) => {
+        console.error("[Baileys cmd] Conexão de listen caiu, será reconectada na próxima publicação:", err);
+        cmdListenClient = null;
+        cmdListenClientPromise = null;
+      });
+      cmdListenClient = client;
+      return client;
+    })();
+  }
+  return cmdListenClientPromise;
+}
+
+// Garante que esta réplica está ouvindo comandos desde o boot.
+getCmdListenClient().catch((err) =>
+  console.error("[Baileys cmd] Falha ao iniciar LISTEN de comandos de instância:", err),
+);
+
+function broadcastInstanceCommand(instanceName: string, action: string): void {
+  getCmdListenClient()
+    .then((client) => client.query("SELECT pg_notify($1, $2)", [INSTANCE_CMD_CHANNEL, JSON.stringify({ instanceName, action })]))
+    .catch((err) => console.error("[Baileys cmd] Falha ao propagar comando entre réplicas:", err));
+}
+
+// Encerra a sessão desta instância NESTA réplica, se ela existir aqui: fecha o
+// socket, libera o lock e remove do mapa local. Não mexe nas credenciais no
+// banco (isso é feito centralmente por quem originou o logout).
+async function teardownLocalSession(instanceName: string): Promise<void> {
+  const s = sessions.get(instanceName);
+  if (!s) return;
+  try { s.socket?.end(undefined); } catch { /* ignore */ }
+  if (s.lockClient) await releaseInstanceLock(instanceName, s.lockClient).catch(() => {});
+  sessions.delete(instanceName);
+}
 
 interface SessionInfo {
   socket: WASocket;
@@ -448,14 +523,16 @@ export function getConnectionState(instanceName: string): string {
 
 export async function logoutInstance(instanceName: string): Promise<void> {
   const s = sessions.get(instanceName);
-  if (!s) {
-    await deleteInstanceCreds(pool, instanceName).catch(() => {});
-    return;
+  if (s) {
+    try { await s.socket?.logout(); } catch { /* ignore */ }
+    if (s.lockClient) await releaseInstanceLock(instanceName, s.lockClient).catch(() => {});
+    sessions.delete(instanceName);
   }
-  try { await s.socket?.logout(); } catch { /* ignore */ }
-  if (s.lockClient) await releaseInstanceLock(instanceName, s.lockClient).catch(() => {});
-  sessions.delete(instanceName);
-  await deleteInstanceCreds(pool, instanceName);
+  // Sempre propaga: a réplica que atendeu a requisição pode não ser a dona do
+  // socket vivo. Sem isso, a réplica dona (se houver) fica com o socket e o
+  // lock "órfãos" — presos para sempre, travando qualquer conexão futura.
+  broadcastInstanceCommand(instanceName, "logout");
+  await deleteInstanceCreds(pool, instanceName).catch(() => {});
 }
 
 /**
