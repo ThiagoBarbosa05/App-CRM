@@ -11,6 +11,7 @@ import { Pool, type PoolClient } from "@neondatabase/serverless";
 import QRCode from "qrcode";
 import { useNeonAuthState, getInstancesWithCreds, deleteInstanceCreds } from "./db-auth-state.js";
 import { tryAcquireInstanceLock, releaseInstanceLock } from "./instance-lock.js";
+import { getDisconnectReasonLabel } from "./disconnect-reason.js";
 import { normalizeToJid, jidToPhone, isIgnorableJid } from "./jid.js";
 import {
   handleConnectionUpdate,
@@ -347,9 +348,16 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
       await handleConnectionUpdate(instanceName, { state: "open", phone }).catch(() => {});
     } else if (connection === "close") {
       session.status = "disconnected";
-      await handleConnectionUpdate(instanceName, { state: "close" }).catch(() => {});
-
       const reason = (lastDisconnect?.error as Boom)?.output?.statusCode;
+      // O restart automático pós-pareamento (515) não é uma queda real — não
+      // entra no histórico de conexão exibido ao vendedor.
+      await handleConnectionUpdate(instanceName, {
+        state: "close",
+        reasonCode: reason !== undefined ? String(reason) : undefined,
+        reasonLabel: getDisconnectReasonLabel(reason),
+        logEvent: reason !== DisconnectReason.restartRequired,
+      }).catch(() => {});
+
       if (reason === DisconnectReason.loggedOut) {
         console.log(`[Baileys] Instância ${instanceName}: deslogada — removendo credenciais.`);
         if (session.lockClient) await releaseInstanceLock(instanceName, session.lockClient).catch(() => {});

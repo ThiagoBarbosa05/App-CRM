@@ -842,6 +842,33 @@ export function useEvolutionLogout() {
   });
 }
 
+export interface WhatsappChannelConnectionEvent {
+  id: number;
+  channelId: number;
+  eventType: "connected" | "disconnected" | "connecting" | "qr";
+  reasonCode: string | null;
+  reasonLabel: string | null;
+  createdAt: string;
+}
+
+export interface WhatsappChannelConnectionEventsResult {
+  events: WhatsappChannelConnectionEvent[];
+  total: number;
+}
+
+export function useChannelConnectionEvents(channelId: number | null, limit = 20) {
+  return useQuery<WhatsappChannelConnectionEventsResult>({
+    queryKey: ["whatsapp", "channels", channelId, "connection-events"],
+    queryFn: async () => {
+      const res = await fetch(`/api/whatsapp/channels/${channelId}/connection-events?limit=${limit}`);
+      if (!res.ok) throw new Error("Erro ao buscar histórico de conexão");
+      return res.json();
+    },
+    enabled: channelId !== null,
+    refetchInterval: 60_000,
+  });
+}
+
 // ---- Flows ----
 
 export function useWhatsappFlows() {

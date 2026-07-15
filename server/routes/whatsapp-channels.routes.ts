@@ -23,6 +23,7 @@ import {
   deleteInstance as deleteEvolutionInstance,
 } from "../integrations/evolution";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
+import { listChannelConnectionEvents } from "../services/baileys/connection-events.service";
 
 const router = Router();
 
@@ -103,6 +104,31 @@ router.get("/channels/:id/status", async (req: Request, res: Response) => {
     res.json(details);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao buscar status do canal";
+    res.status(500).json({ message });
+  }
+});
+
+router.get("/channels/:id/connection-events", async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) { res.sendStatus(400); return; }
+    const channel = await getChannelById(id);
+    if (!channel) { res.sendStatus(404); return; }
+
+    const user = (req as any).user;
+    const isOwner = channel.userId && channel.userId === user?.userId;
+    const isAdmin = user?.role === "admin" || user?.role === "gerente";
+    if (!isOwner && !isAdmin) {
+      res.status(403).json({ message: "Acesso restrito ao dono do canal ou administradores" });
+      return;
+    }
+
+    const limit = Math.min(Number(req.query.limit) || 20, 100);
+    const offset = Number(req.query.offset) || 0;
+    const result = await listChannelConnectionEvents(id, limit, offset);
+    res.json(result);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao buscar histórico de conexão";
     res.status(500).json({ message });
   }
 });

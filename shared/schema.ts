@@ -4617,6 +4617,22 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
 export type WhatsappChannel = typeof whatsappChannels.$inferSelect;
 export type InsertWhatsappChannel = typeof whatsappChannels.$inferInsert;
 
+// Histórico de conexão/desconexão dos canais Baileys (QR Code), com o motivo
+// (DisconnectReason) traduzido, para o vendedor acompanhar a estabilidade do canal.
+export const whatsappChannelConnectionEvents = pgTable("whatsapp_channel_connection_events", {
+  id: serial("id").primaryKey(),
+  channelId: integer("channel_id")
+    .notNull()
+    .references(() => whatsappChannels.id),
+  eventType: text("event_type").notNull(), // "connected" | "disconnected" | "connecting" | "qr"
+  reasonCode: text("reason_code"),
+  reasonLabel: text("reason_label"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type WhatsappChannelConnectionEvent = typeof whatsappChannelConnectionEvents.$inferSelect;
+export type InsertWhatsappChannelConnectionEvent = typeof whatsappChannelConnectionEvents.$inferInsert;
+
 // Setores de atendimento (agrupam atendentes/canais do WhatsApp) — distinto de `sectors`,
 // que classifica empresas. Usado para organizar a transferência de conversas entre atendentes.
 export const whatsappSectors = pgTable("whatsapp_sectors", {

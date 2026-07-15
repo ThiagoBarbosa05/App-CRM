@@ -11,6 +11,7 @@ import {
   OPT_IN_CONFIRMATION_TEXT,
 } from "./whatsapp-opt-out.service";
 import { persistBotMessage } from "./whatsapp-bot-engine.service";
+import { logChannelConnectionEvent } from "./baileys/connection-events.service";
 
 // Eventos do Baileys são processados in-process (sem webhook HTTP). Os nomes de
 // evento SSE e o shape dos payloads são preservados para não quebrar o frontend.
@@ -167,7 +168,13 @@ export async function handleMessagesUpdate(data: unknown) {
 // ── connection.update ──────────────────────────────────────────────────────────
 
 export async function handleConnectionUpdate(instanceName: string, data: unknown) {
-  const update = data as { state?: string; phone?: string };
+  const update = data as {
+    state?: string;
+    phone?: string;
+    reasonCode?: string;
+    reasonLabel?: string;
+    logEvent?: boolean;
+  };
   const state = update.state ?? "disconnected";
 
   const stateMap: Record<string, string> = {
@@ -189,9 +196,24 @@ export async function handleConnectionUpdate(instanceName: string, data: unknown
     await updateChannel(channel.id, { displayPhone: `+${update.phone}` }).catch(() => {});
   }
 
+  // Histórico de conexão/desconexão (visível ao vendedor). `logEvent: false` é
+  // usado para o restart automático pós-pareamento (515) — não é uma queda real.
+  if (update.logEvent !== false) {
+    await logChannelConnectionEvent(
+      channel.id,
+      connectionStatus as "connected" | "disconnected" | "connecting",
+      update.reasonCode,
+      update.reasonLabel,
+    ).catch((err) => console.error("[Baileys] Falha ao registrar evento de conexão:", err));
+  }
+
   // Notifica o vendedor dono do canal via SSE
   if (channel.userId) {
-    publishSseEvent("evolution_connection_update", { instanceName, connectionStatus }, channel.userId);
+    publishSseEvent(
+      "evolution_connection_update",
+      { instanceName, connectionStatus, reasonLabel: update.reasonLabel },
+      channel.userId,
+    );
   }
 }
 

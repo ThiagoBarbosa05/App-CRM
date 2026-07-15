@@ -88,7 +88,7 @@ const navItems: NavItem[] = [
     icon: MessageCircle,
     label: "WhatsApp",
     activeBasePath: "/whatsapp",
-    roles: ["admin"]
+    roles: ["admin"],
   },
   {
     href: "/inbox",
@@ -102,12 +102,12 @@ const navItems: NavItem[] = [
     label: "Meu WhatsApp",
     roles: ["vendedor"],
   },
-  {
-    href: "/pdv-restaurante/comandas",
-    icon: UtensilsCrossed,
-    label: "PDV Restaurante",
-    roles: ["admin", "administrador", "gerente"],
-  },
+  // {
+  //   href: "/pdv-restaurante/comandas",
+  //   icon: UtensilsCrossed,
+  //   label: "PDV Restaurante",
+  //   roles: ["admin", "administrador", "gerente"],
+  // },
   {
     href: "/configuracoes",
     icon: Settings,

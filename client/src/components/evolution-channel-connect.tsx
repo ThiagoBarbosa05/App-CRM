@@ -1,11 +1,54 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { QrCode, Wifi, WifiOff, Loader2, RefreshCw, LogOut } from "lucide-react";
+import { QrCode, Wifi, WifiOff, Loader2, RefreshCw, LogOut, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useEvolutionConnect, useEvolutionLogout, type WhatsappChannel } from "@/hooks/use-whatsapp";
+import {
+  useEvolutionConnect,
+  useEvolutionLogout,
+  useChannelConnectionEvents,
+  type WhatsappChannel,
+} from "@/hooks/use-whatsapp";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+const EVENT_TYPE_LABEL: Record<string, string> = {
+  connected: "Conectado",
+  disconnected: "Desconectado",
+  connecting: "Conectando",
+  qr: "Aguardando QR",
+};
+
+function ConnectionHistory({ channelId }: { channelId: number }) {
+  const { data } = useChannelConnectionEvents(channelId, 10);
+  const events = data?.events ?? [];
+
+  if (events.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md border p-2.5">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <History className="h-3.5 w-3.5" />
+        Histórico de conexão
+      </div>
+      <ul className="flex flex-col gap-1">
+        {events.map((event) => (
+          <li key={event.id} className="flex items-baseline gap-2 text-xs">
+            <span className="text-muted-foreground shrink-0">
+              {format(new Date(event.createdAt), "dd/MM/yy HH:mm", { locale: ptBR })}
+            </span>
+            <span className="font-medium">{EVENT_TYPE_LABEL[event.eventType] ?? event.eventType}</span>
+            {event.reasonLabel && (
+              <span className="text-muted-foreground truncate">{event.reasonLabel}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 // Tempo máximo aguardando o QR (ou a conexão) antes de destravar a UI e deixar
 // o usuário tentar de novo. Deve ser maior que o timeout do backend (30s em
@@ -36,6 +79,7 @@ const STATUS_COLOR: Record<string, string> = {
 export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>(channel.connectionStatus ?? "disconnected");
+  const [disconnectReason, setDisconnectReason] = useState<string | null>(null);
   const connect = useEvolutionConnect();
   const logout = useEvolutionLogout();
   const queryClient = useQueryClient();
@@ -59,6 +103,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
   const handleConnect = useCallback(async () => {
     setStatus("connecting");
     setQrBase64(null);
+    setDisconnectReason(null);
     clearConnectTimeout();
     // Destrava a UI se nenhum QR/confirmação chegar a tempo (ex.: instância
     // gerenciada por outra réplica do Autoscale, sem lock nesta) — sem isso o
@@ -119,14 +164,19 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       const data = JSON.parse((e as MessageEvent).data) as {
         instanceName: string;
         connectionStatus: string;
+        reasonLabel?: string | null;
       };
       if (data.instanceName !== channel.evolutionInstanceName) return;
       clearConnectTimeout();
       setStatus(data.connectionStatus);
+      setDisconnectReason(data.connectionStatus === "disconnected" ? data.reasonLabel ?? null : null);
       if (data.connectionStatus === "connected") {
         setQrBase64(null);
         queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
       }
+      queryClient.invalidateQueries({
+        queryKey: ["whatsapp", "channels", channel.id, "connection-events"],
+      });
     });
 
     return () => es.close();
@@ -137,6 +187,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
     await logout.mutateAsync(channel.id);
     setStatus("disconnected");
     setQrBase64(null);
+    setDisconnectReason(null);
   }, [logout, channel.id, clearConnectTimeout]);
 
   const isConnected = status === "connected";
@@ -153,6 +204,9 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
           {STATUS_LABEL[status] ?? status}
         </Badge>
       </div>
+      {status === "disconnected" && disconnectReason && (
+        <p className="text-xs text-muted-foreground">{disconnectReason}</p>
+      )}
 
       {qrBase64 && (
         <div className="flex flex-col items-center gap-2 py-2">
@@ -209,6 +263,8 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
           </Button>
         )}
       </div>
+
+      <ConnectionHistory channelId={channel.id} />
     </div>
   );
 }
