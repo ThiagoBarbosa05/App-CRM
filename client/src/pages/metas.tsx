@@ -10,6 +10,7 @@ import {
   Users,
   Phone,
   MessageSquare,
+  Wine,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +34,7 @@ import { PageHeader } from "@/components/page-header";
 
 // Componentes de visualização
 import { SalesGoalsGrid } from "@/components/goals/sales-goals-grid";
+import { ProductGoalsTab } from "@/components/admin-goals/tabs/product-goals-tab";
 import { TelemarketingGoalsGrid } from "@/components/goals/telemarketing-goals-grid";
 import { ActivityGoalsSections } from "@/components/goals/activity-goals-sections";
 import { ClientRegistrationGoalsTab } from "@/components/admin-goals/tabs/registration-goals-tab";
@@ -315,6 +317,10 @@ export default function Metas() {
         setEditingSalesGoal(null);
         setIsSalesModalOpen(true);
         break;
+      case "products":
+        setEditingSalesGoal(null);
+        setIsSalesModalOpen(true);
+        break;
       case "telemarketing":
         setEditingTelemarketingGoal(null);
         setIsTelemarketingModalOpen(true);
@@ -361,6 +367,7 @@ export default function Metas() {
     color: TabColor;
   }[] = [
     { id: "sales", label: "Vendas", icon: Target, color: "blue" },
+    { id: "products", label: "Produtos", icon: Wine, color: "purple" },
     { id: "telemarketing", label: "Ligações", icon: Phone, color: "green" },
     { id: "registration", label: "Cadastros", icon: Users, color: "indigo" },
     { id: "markers", label: "Marcadores", icon: Package, color: "amber" },
@@ -598,6 +605,22 @@ export default function Metas() {
                 ? (goalId) => deleteSalesGoalMutation.mutate(goalId)
                 : undefined
             }
+          />
+        </TabsContent>
+
+        {/* Produtos */}
+        <TabsContent value="products" className="m-0 outline-none">
+          <ProductGoalsTab
+            goals={filterGoals(userGoals)}
+            isLoading={isUserGoalsLoading}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            onEdit={
+              isManager
+                ? (goal) => { setEditingSalesGoal(goal); setIsSalesModalOpen(true); }
+                : () => {}
+            }
+            isAdmin={isManager}
           />
         </TabsContent>
 
