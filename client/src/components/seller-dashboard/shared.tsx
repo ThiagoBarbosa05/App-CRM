@@ -144,6 +144,11 @@ export interface UserGoal {
   positivityTotal: number;
   userName: string;
   weeklyResults: WeeklyResult[];
+  // Meta de produto
+  productGoalId?: string | null;
+  productGoalQty?: number | null;
+  productGoalAchieved?: number | null;
+  productGoalName?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

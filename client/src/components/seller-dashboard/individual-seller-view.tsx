@@ -385,6 +385,79 @@ function GoalProgressBlock({ userId, source = "all" }: { userId: string; source?
               </div>
             );
           })()}
+
+          {/* Meta de Produto Específico */}
+          {goal.productGoalId && goal.productGoalQty && goal.productGoalQty > 0 && (() => {
+            const pgAchieved = goal.productGoalAchieved ?? 0;
+            const pgGoal = goal.productGoalQty ?? 0;
+            const pgPct = pct(pgAchieved, pgGoal);
+            const pgTone = getGoalMetricTone(pgPct);
+            const pgBarColor =
+              pgPct >= 100 ? "bg-violet-500" : pgPct >= 50 ? "bg-amber-400" : "bg-rose-500";
+            const pgTextColor =
+              pgPct >= 100
+                ? "text-violet-600 dark:text-violet-400"
+                : pgPct >= 50
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-rose-600 dark:text-rose-400";
+            return (
+              <div
+                className={`md:col-span-2 rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 shadow-sm ring-1 ${pgTone.ringClass}`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400">
+                      <Wine className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                        Meta de Produto
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 max-w-xs truncate">
+                        {goal.productGoalName ?? "Produto não identificado"}
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide ${pgTone.badgeClass}`}
+                  >
+                    {pgTone.badge}
+                  </span>
+                </div>
+                <div className="flex items-end justify-between gap-4 mb-3">
+                  <div>
+                    <p className={`text-3xl font-black tabular-nums leading-none ${pgTextColor}`}>
+                      {pgAchieved} <span className="text-base font-bold text-slate-400">un</span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      de {pgGoal} unidades no mês
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Progresso</p>
+                    <p className={`text-lg font-black tabular-nums ${pgTextColor}`}>
+                      {pgPct.toFixed(1)}%
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(pgPct, 100)}%` }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      className={`h-full rounded-full ${pgBarColor}`}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-medium text-slate-400">
+                    <span>0 un</span>
+                    <span className={`font-black ${pgTextColor}`}>{pgPct.toFixed(1)}% da meta</span>
+                    <span>{pgGoal} un</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
         <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 px-4 py-3">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">

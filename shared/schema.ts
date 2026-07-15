@@ -854,6 +854,9 @@ export const userGoals = pgTable(
       .notNull()
       .default("0.00"), // Meta: valor médio por garrafa vendida
     positivityGoal: integer("positivity_goal").notNull().default(0), // Meta: clientes únicos com compra no mês (positivação)
+    // Meta de produto específico: vender X unidades de um vinho no mês
+    productGoalId: varchar("product_goal_id").references(() => products.id),
+    productGoalQty: integer("product_goal_qty"),
     economicoGoalQty: integer("economico_goal_qty").notNull().default(0),
     intermediarioGoalQty: integer("intermediario_goal_qty")
       .notNull()
@@ -1609,6 +1612,8 @@ export const insertUserGoalSchema = createInsertSchema(userGoals)
     itemsPerSale: z.coerce.number().default(1),
     month: z.coerce.number(),
     year: z.coerce.number(),
+    productGoalId: z.string().nullable().optional(),
+    productGoalQty: z.coerce.number().int().min(0).nullable().optional(),
   });
 
 export const insertWeeklyResultSchema = createInsertSchema(weeklyResults)
