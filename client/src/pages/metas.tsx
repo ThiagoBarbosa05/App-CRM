@@ -46,6 +46,7 @@ import { TelemarketingGoalModal } from "@/components/admin-goals/modals/telemark
 import { ClientRegistrationGoalModal } from "@/components/admin-goals/modals/registration-goal-modal";
 import { MarkerGoalModal } from "@/components/admin-goals/modals/marker-goal-modal";
 import { InteractionGoalModal } from "@/components/admin-goals/modals/interaction-goal-modal";
+import { ProductGoalModal } from "@/components/admin-goals/modals/product-goal-modal";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 
@@ -96,6 +97,9 @@ export default function Metas() {
   const [isInteractionModalOpen, setIsInteractionModalOpen] = useState(false);
   const [editingInteractionGoal, setEditingInteractionGoal] =
     useState<any>(null);
+
+  const [isProductGoalModalOpen, setIsProductGoalModalOpen] = useState(false);
+  const [editingProductGoal, setEditingProductGoal] = useState<any>(null);
 
   // -------------------------------------------------------------------------
   // Queries.
@@ -617,7 +621,7 @@ export default function Metas() {
             selectedYear={selectedYear}
             onEdit={
               isManager
-                ? (goal) => { setEditingSalesGoal(goal); setIsSalesModalOpen(true); }
+                ? (goal) => { setEditingProductGoal(goal); setIsProductGoalModalOpen(true); }
                 : () => {}
             }
             isAdmin={isManager}
@@ -769,6 +773,14 @@ export default function Metas() {
             onOpenChange={setIsInteractionModalOpen}
             editingGoal={editingInteractionGoal}
             users={users}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+          />
+
+          <ProductGoalModal
+            open={isProductGoalModalOpen}
+            onOpenChange={setIsProductGoalModalOpen}
+            editingGoal={editingProductGoal}
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
           />
