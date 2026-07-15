@@ -2296,6 +2296,7 @@ export const products = pgTable("products", {
   type: text("type", {
     enum: ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"],
   }),
+  winery: text("winery"),
   negotiatedPrice: decimal("negotiated_price", {
     precision: 10,
     scale: 2,

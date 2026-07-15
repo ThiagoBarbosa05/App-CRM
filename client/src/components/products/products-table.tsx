@@ -46,6 +46,7 @@ import { useLocation } from "wouter";
 interface Product {
   id: string;
   name: string;
+  winery?: string | null;
   category?: string;
   country: string;
   volume: string;
@@ -197,6 +198,11 @@ export function ProductsTable({
                       <p className="font-bold text-slate-900 dark:text-slate-100 text-sm leading-tight break-words">
                         {product.name}
                       </p>
+                      {product.winery && (
+                        <p className="text-[11px] font-semibold text-wine-600 dark:text-wine-400 mt-0.5 truncate">
+                          {product.winery}
+                        </p>
+                      )}
                       <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider mt-1">
                         REF: {product.id.slice(0, 8)}
                       </p>
@@ -479,6 +485,11 @@ export function ProductsTable({
                           <p className="font-bold text-slate-900 dark:text-slate-100 leading-tight truncate group-hover:text-primary transition-colors text-sm sm:text-base">
                             {product.name}
                           </p>
+                          {product.winery && (
+                            <p className="text-[11px] font-semibold text-wine-600 dark:text-wine-400 truncate mt-0.5">
+                              {product.winery}
+                            </p>
+                          )}
                           <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider mt-1">
                             REF: {product.id.slice(0, 8)}
                           </p>

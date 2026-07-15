@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 interface Product {
   id: string;
   name: string;
+  winery?: string | null;
   category?: string;
   country: string;
   volume: string;

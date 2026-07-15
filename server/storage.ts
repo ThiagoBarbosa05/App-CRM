@@ -1308,6 +1308,7 @@ export class DatabaseStorage implements IStorage {
         .select({
           id: products.id,
           name: products.name,
+          winery: products.winery,
           category: products.category,
           type: products.type,
           country: products.country,
@@ -5162,6 +5163,7 @@ export class DatabaseStorage implements IStorage {
       .select({
         id: products.id,
         name: products.name,
+        winery: products.winery,
         category: products.category,
         type: products.type,
         country: products.country,
