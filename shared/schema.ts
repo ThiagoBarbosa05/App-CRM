@@ -1059,6 +1059,21 @@ export const interactionWeeklyResults = pgTable("interaction_weekly_results", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Tabela de metas de produto por vendedor (múltiplos produtos por meta de mês)
+export const productGoals = pgTable("product_goals", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  productGoalQty: integer("product_goal_qty").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Tabela de indicações (programa de referral)
 export const referrals = pgTable("referrals", {
   id: varchar("id")
@@ -1760,6 +1775,17 @@ export const insertCompanyProductSchema = createInsertSchema(
 
 export type InsertCompanyProduct = z.infer<typeof insertCompanyProductSchema>;
 export type CompanyProduct = typeof companyProducts.$inferSelect;
+
+export const insertProductGoalSchema = createInsertSchema(productGoals)
+  .omit({ id: true, createdAt: true })
+  .extend({
+    productGoalQty: z.coerce.number().int().min(1, "Mínimo 1 unidade"),
+    month: z.coerce.number().min(1).max(12),
+    year: z.coerce.number().min(2000),
+  });
+
+export type InsertProductGoal = z.infer<typeof insertProductGoalSchema>;
+export type ProductGoal = typeof productGoals.$inferSelect;
 
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;

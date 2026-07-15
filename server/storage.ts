@@ -69,6 +69,7 @@ import {
   markerWeeklyResults,
   interactionGoals,
   interactionWeeklyResults,
+  productGoals,
   learningImages,
   cashbackSettings,
   type CashbackSetting,
@@ -354,6 +355,11 @@ export interface IStorage {
   createUserGoal(goal: any): Promise<any>;
   updateUserGoal(id: string, goal: any): Promise<any>;
   deleteUserGoal(id: string): Promise<boolean>;
+
+  // Product Goals (multi-product per seller)
+  getProductGoalsByPeriod(month: number, year: number): Promise<any[]>;
+  createProductGoal(goal: any): Promise<any>;
+  deleteProductGoal(id: string): Promise<boolean>;
 
   // Weekly Results methods
   getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
@@ -2545,6 +2551,89 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUserGoal(id: string): Promise<boolean> {
     const result = await this.db.delete(userGoals).where(eq(userGoals.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getProductGoalsByPeriod(month: number, year: number): Promise<any[]> {
+    const goals = await this.db
+      .select({
+        id: productGoals.id,
+        userId: productGoals.userId,
+        month: productGoals.month,
+        year: productGoals.year,
+        productId: productGoals.productId,
+        productGoalQty: productGoals.productGoalQty,
+        createdAt: productGoals.createdAt,
+        userName: users.name,
+        userEmail: users.email,
+      })
+      .from(productGoals)
+      .leftJoin(users, eq(productGoals.userId, users.id))
+      .where(and(eq(productGoals.month, month), eq(productGoals.year, year)))
+      .orderBy(users.name);
+
+    if (goals.length === 0) return [];
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const startDate = `${year}-${pad(month)}-01`;
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
+
+    const productIds = [...new Set(goals.map((g) => g.productId))];
+    const userIds = [...new Set(goals.map((g) => g.userId))];
+    const productIdsIn = sql.join(productIds.map((id) => sql`${id}`), sql`, `);
+    const userIdsIn = sql.join(userIds.map((id) => sql`${id}`), sql`, `);
+
+    const productRows = await this.db.execute(
+      sql`SELECT id, name FROM products WHERE id IN (${productIdsIn})`,
+    );
+    const productNameById = new Map<string, string>(
+      (productRows.rows as { id: string; name: string }[]).map((r) => [r.id, r.name]),
+    );
+
+    const soldResult = await this.db.execute(sql`
+      SELECT bsm.user_id, bpm.product_id,
+             COALESCE(SUM(boi.quantity::numeric)::int, 0) AS qty_sold
+      FROM bling_order_items boi
+      JOIN bling_orders bo ON boi.order_id = bo.id
+      JOIN bling_seller_mappings bsm
+        ON bo.seller_id = bsm.bling_vendedor_id
+        AND bo.connection_id = bsm.connection_id
+      JOIN bling_product_mappings bpm
+        ON boi.product_id = bpm.bling_product_id
+        AND bo.connection_id = bpm.connection_id
+      WHERE bo.sale_date >= ${startDate}
+        AND bo.sale_date <= ${endDate}
+        AND bo.deleted_at IS NULL
+        AND bsm.user_id IN (${userIdsIn})
+        AND bpm.product_id IN (${productIdsIn})
+      GROUP BY bsm.user_id, bpm.product_id
+    `);
+
+    const soldMap = new Map<string, number>();
+    for (const r of soldResult.rows as { user_id: string; product_id: string; qty_sold: number }[]) {
+      soldMap.set(`${r.user_id}::${r.product_id}`, Number(r.qty_sold));
+    }
+
+    return goals.map((g) => ({
+      ...g,
+      productName: productNameById.get(g.productId) ?? "—",
+      achieved: soldMap.get(`${g.userId}::${g.productId}`) ?? 0,
+    }));
+  }
+
+  async createProductGoal(goal: any): Promise<any> {
+    const [result] = await this.db
+      .insert(productGoals)
+      .values(goal)
+      .returning();
+    return result;
+  }
+
+  async deleteProductGoal(id: string): Promise<boolean> {
+    const result = await this.db
+      .delete(productGoals)
+      .where(eq(productGoals.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 

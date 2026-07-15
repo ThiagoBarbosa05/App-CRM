@@ -102,6 +102,7 @@ import { messageTemplatesRouter } from "./message-templates.routes";
 import { automationRulesRouter } from "./automation-rules.routes";
 import { automationMonitoringRouter } from "./automation-monitoring.routes";
 import { restaurantPdvRouter } from "./restaurant-pdv.routes";
+import { productGoalsRouter } from "./product-goals.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -206,6 +207,7 @@ apiRouter.use("/marker-goals", markerGoalsRouter);
 apiRouter.use("/marker-stats", markerStatsRouter);
 apiRouter.use("/interaction-goals", interactionGoalsRouter);
 apiRouter.use("/interaction-stats", interactionStatsRouter);
+apiRouter.use("/product-goals", productGoalsRouter);
 apiRouter.use("/bling-products", blingProductsRouter);
 apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);

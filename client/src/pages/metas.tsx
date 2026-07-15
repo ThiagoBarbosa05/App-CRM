@@ -99,7 +99,7 @@ export default function Metas() {
     useState<any>(null);
 
   const [isProductGoalModalOpen, setIsProductGoalModalOpen] = useState(false);
-  const [editingProductGoal, setEditingProductGoal] = useState<any>(null);
+  const [editingProductSeller, setEditingProductSeller] = useState<{ userId: string; userName: string } | null>(null);
 
   // -------------------------------------------------------------------------
   // Queries.
@@ -119,6 +119,10 @@ export default function Metas() {
     any[]
   >({
     queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`],
+  });
+
+  const { data: productGoalsData = [], isLoading: isProductGoalsLoading } = useQuery<any[]>({
+    queryKey: [`/api/product-goals/${selectedMonth}/${selectedYear}`],
   });
 
   const { data: telemarketingGoals = [] } = useQuery<any[]>({
@@ -322,7 +326,7 @@ export default function Metas() {
         setIsSalesModalOpen(true);
         break;
       case "products":
-        setEditingProductGoal(null);
+        setEditingProductSeller(null);
         setIsProductGoalModalOpen(true);
         break;
       case "telemarketing":
@@ -615,13 +619,14 @@ export default function Metas() {
         {/* Produtos */}
         <TabsContent value="products" className="m-0 outline-none">
           <ProductGoalsTab
-            goals={filterGoals(userGoals)}
-            isLoading={isUserGoalsLoading}
+            productGoals={productGoalsData}
+            sellers={users}
+            isLoading={isProductGoalsLoading}
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
-            onEdit={
+            onManage={
               isManager
-                ? (goal) => { setEditingProductGoal(goal); setIsProductGoalModalOpen(true); }
+                ? (userId, userName) => { setEditingProductSeller({ userId, userName }); setIsProductGoalModalOpen(true); }
                 : () => {}
             }
             isAdmin={isManager}
@@ -780,8 +785,10 @@ export default function Metas() {
           <ProductGoalModal
             open={isProductGoalModalOpen}
             onOpenChange={setIsProductGoalModalOpen}
-            editingGoal={editingProductGoal}
-            userGoals={userGoals}
+            editingSellerId={editingProductSeller?.userId ?? null}
+            editingSellerName={editingProductSeller?.userName ?? null}
+            existingGoals={productGoalsData}
+            sellers={users}
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
           />
