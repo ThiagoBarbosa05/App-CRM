@@ -1,6 +1,5 @@
 import { db } from "../db";
-import { tags } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 const COUNTRIES = [
   { id: "d18a4911-0ef8-4af9-a3ab-9db59c0a28c7", name: "ALEMANHA" },
@@ -19,29 +18,58 @@ const COUNTRIES = [
 
 export async function seedCountries() {
   try {
-    const existing = await db
-      .select({ id: tags.id })
-      .from(tags)
-      .where(eq(tags.type, "pais"));
+    // 1. Corrigir a CHECK constraint se não incluir 'pais'
+    await fixTagsTypeConstraint();
 
-    if (existing.length >= COUNTRIES.length) return;
-
-    const existingIds = new Set(existing.map((r) => r.id));
+    // 2. Inserir países que ainda não existem
+    const existing = await db.execute<{ id: string }>(
+      sql`SELECT id FROM tags WHERE type = 'pais'`
+    );
+    const existingIds = new Set(existing.rows.map((r) => r.id));
     const toInsert = COUNTRIES.filter((c) => !existingIds.has(c.id));
 
-    if (toInsert.length === 0) return;
+    if (toInsert.length === 0) {
+      console.log("[Seed] Países já estão todos cadastrados.");
+      return;
+    }
 
-    await db.insert(tags).values(
-      toInsert.map((c) => ({
-        id: c.id,
-        name: c.name,
-        type: "pais" as const,
-        createdAt: new Date(),
-      }))
-    );
+    for (const c of toInsert) {
+      await db.execute(
+        sql`INSERT INTO tags (id, name, type, color, created_at)
+            VALUES (${c.id}, ${c.name}, 'pais', '#6B7280', NOW())
+            ON CONFLICT (id) DO NOTHING`
+      );
+    }
 
     console.log(`[Seed] ${toInsert.length} país(es) inserido(s) na tabela tags.`);
   } catch (err) {
-    console.error("[Seed] Erro ao inserir países:", err);
+    console.error("[Seed] Erro ao executar seedCountries:", err);
+  }
+}
+
+async function fixTagsTypeConstraint() {
+  try {
+    // Verifica se a constraint atual NÃO inclui 'pais'
+    const result = await db.execute<{ consrc: string }>(
+      sql`SELECT pg_get_constraintdef(oid) AS consrc
+          FROM pg_constraint
+          WHERE conrelid = 'tags'::regclass
+            AND conname = 'tags_type_check'`
+    );
+
+    if (result.rows.length === 0) return; // Sem constraint, ok
+
+    const consrc = result.rows[0].consrc;
+    if (consrc.includes("pais")) return; // Já inclui 'pais', nada a fazer
+
+    // Remove e recria com 'pais' incluído
+    await db.execute(sql`ALTER TABLE tags DROP CONSTRAINT IF EXISTS tags_type_check`);
+    await db.execute(
+      sql`ALTER TABLE tags ADD CONSTRAINT tags_type_check
+          CHECK (type IN ('marcador', 'origem', 'categoria', 'pais'))`
+    );
+    console.log("[Seed] CHECK constraint de tags.type atualizada para incluir 'pais'.");
+  } catch (err) {
+    console.error("[Seed] Erro ao corrigir constraint de tags.type:", err);
   }
 }
