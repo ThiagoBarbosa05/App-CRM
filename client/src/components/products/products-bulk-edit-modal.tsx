@@ -67,7 +67,11 @@ export function ProductsBulkEditModal({
   });
 
   const hasChanges =
-    category !== KEEP || country !== KEEP || volume !== KEEP || type !== KEEP || winery !== null;
+    category !== KEEP ||
+    country !== KEEP ||
+    volume !== KEEP ||
+    type !== KEEP ||
+    (winery !== null && winery !== "");
 
   const resetFields = () => {
     setCategory(KEEP);
@@ -84,7 +88,7 @@ export function ProductsBulkEditModal({
       if (country !== KEEP) updates.country = country;
       if (volume !== KEEP) updates.volume = volume;
       if (type !== KEEP) updates.type = type;
-      if (winery !== null) updates.winery = winery;
+      if (winery !== null && winery !== "") updates.winery = winery;
 
       const response = await fetch("/api/products/bulk-update", {
         method: "PATCH",
