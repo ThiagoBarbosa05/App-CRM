@@ -26,6 +26,7 @@ import Configurations from "@/pages/configurations";
 import DashboardPage from "./pages/dashboard";
 import Products from "./pages/products";
 import ProductProfilePage from "./pages/product-profile";
+import ProductDuplicatesPage from "./pages/product-duplicates";
 import SellerDashboardPage from "./pages/seller-dashboard";
 import SellerPerformancePage from "./pages/seller-performance";
 import ClientProfilePage from "./pages/client-profile";
@@ -210,6 +211,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <Products />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/products/duplicatas"
+        component={() => (
+          <MainLayout>
+            <ProductDuplicatesPage />
           </MainLayout>
         )}
       />

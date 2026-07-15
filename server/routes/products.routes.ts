@@ -108,6 +108,104 @@ const bulkUpdateProductsSchema = z.object({
     }),
 });
 
+// GET /duplicates — agrupa produtos com mesmo nome normalizado (case-insensitive, trim)
+productsRouter.get("/duplicates", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.execute(sql`
+      SELECT
+        p.id,
+        p.name,
+        p.type,
+        p.country,
+        p.volume,
+        p.image_url        AS "imageUrl",
+        p.negotiated_price AS "negotiatedPrice",
+        p.created_at       AS "createdAt",
+        lower(trim(p.name)) AS normalized_name,
+        (SELECT COUNT(*) FROM bling_product_mappings bpm WHERE bpm.product_id = p.id)::int AS mapping_count,
+        (SELECT COUNT(*) FROM bling_order_items     boi WHERE boi.product_id  = p.id)::int AS order_count,
+        (SELECT COUNT(*) FROM company_products       cp  WHERE cp.product_id   = p.id)::int AS company_count
+      FROM products p
+      WHERE p.deleted_at IS NULL
+      ORDER BY lower(trim(p.name)), p.created_at ASC
+    `);
+
+    const groupsMap = new Map<string, object[]>();
+    for (const row of rows.rows as Record<string, unknown>[]) {
+      const key = row.normalized_name as string;
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key)!.push(row);
+    }
+
+    const duplicateGroups = Array.from(groupsMap.entries())
+      .filter(([, prods]) => prods.length >= 2)
+      .map(([key, prods]) => ({ key, products: prods }));
+
+    return res.json(duplicateGroups);
+  } catch (error) {
+    console.error("[GET /products/duplicates]", error);
+    return res.status(500).json({ message: "Erro ao buscar duplicatas de produtos" });
+  }
+});
+
+// POST /:productId/merge/:duplicateId — mescla duplicata no produto canônico
+productsRouter.post("/:productId/merge/:duplicateId", requireAuth, requireAdmin, async (req, res) => {
+  const { productId, duplicateId } = req.params;
+
+  if (productId === duplicateId) {
+    return res.status(400).json({ message: "Produto principal e duplicata não podem ser iguais" });
+  }
+
+  try {
+    const [[canonical], [duplicate]] = await Promise.all([
+      db.select({ id: products.id }).from(products).where(and(eq(products.id, productId), isNull(products.deletedAt))).limit(1),
+      db.select({ id: products.id }).from(products).where(and(eq(products.id, duplicateId), isNull(products.deletedAt))).limit(1),
+    ]);
+
+    if (!canonical) return res.status(404).json({ message: "Produto principal não encontrado" });
+    if (!duplicate) return res.status(404).json({ message: "Produto duplicado não encontrado" });
+
+    // 1. Reatribui blingProductMappings → produto canônico
+    await db.update(blingProductMappings)
+      .set({ productId })
+      .where(eq(blingProductMappings.productId, duplicateId));
+
+    // 2. Reatribui companyProducts → produto canônico
+    //    Remove conflitos (empresa já tem o produto canônico) antes de atualizar
+    const existingCos = await db
+      .select({ companyId: companyProducts.companyId })
+      .from(companyProducts)
+      .where(eq(companyProducts.productId, productId));
+
+    if (existingCos.length > 0) {
+      await db.delete(companyProducts).where(
+        and(
+          eq(companyProducts.productId, duplicateId),
+          inArray(companyProducts.companyId, existingCos.map((r) => r.companyId)),
+        ),
+      );
+    }
+    await db.update(companyProducts)
+      .set({ productId })
+      .where(eq(companyProducts.productId, duplicateId));
+
+    // 3. Reatribui blingOrderItems → produto canônico
+    await db.update(blingOrderItems)
+      .set({ productId })
+      .where(eq(blingOrderItems.productId, duplicateId));
+
+    // 4. Soft-delete da duplicata
+    await db.update(products)
+      .set({ deletedAt: new Date() })
+      .where(eq(products.id, duplicateId));
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("[POST /products/merge]", error);
+    return res.status(500).json({ message: "Erro ao mesclar produtos" });
+  }
+});
+
 // Edição em massa (somente admin). Não regenera perfis de IA para evitar
 // centenas de chamadas à OpenAI em uma única operação.
 productsRouter.patch("/bulk-update", requireAuth, requireAdmin, async (req, res) => {

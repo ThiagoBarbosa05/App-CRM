@@ -10,7 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-import { Download, Pencil, Plus, RefreshCw, Upload, Wine, X } from "lucide-react";
+import { Download, Pencil, Plus, RefreshCw, Upload, Wine, X, Copy } from "lucide-react";
+import { Link } from "wouter";
 import { PageHeader } from "@/components/page-header";
 import { getCountryFlag } from "@/lib/country-flags";
 
@@ -278,6 +279,18 @@ export default function Products() {
           </PageHeader.Text>
         </PageHeader.Info>
         <PageHeader.Actions className="flex-wrap w-full md:w-auto mt-4 md:mt-0 justify-start sm:justify-end gap-2">
+          {isAdmin && (
+            <Link href="/products/duplicatas">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-11 px-5 rounded-xl w-full sm:w-auto flex-1 sm:flex-none border-purple-200 text-purple-700 hover:bg-purple-50 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-900/20"
+              >
+                <Copy className="mr-2 h-4 w-4 shrink-0" />
+                Duplicatas
+              </Button>
+            </Link>
+          )}
           <Button
             variant="outline"
             size="sm"
