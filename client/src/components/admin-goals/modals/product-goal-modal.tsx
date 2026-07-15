@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wine, X, Plus, Trash2, Factory, CalendarDays } from "lucide-react";
+import { Wine, X, Plus, Trash2, Factory, CalendarDays, Tag } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,16 @@ interface WineryGoalRow {
   achieved: number;
 }
 
+interface CategoryGoalRow {
+  id: string;
+  userId: string;
+  categoryName: string;
+  goalQty: number;
+  startDate: string;
+  endDate: string;
+  achieved: number;
+}
+
 interface ProductGoalModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,6 +55,7 @@ interface ProductGoalModalProps {
   editingSellerName: string | null;
   existingGoals: ProductGoalRow[];
   wineryGoals: WineryGoalRow[];
+  categoryGoals: CategoryGoalRow[];
   sellers: Seller[];
   selectedMonth: number;
   selectedYear: number;
@@ -63,6 +74,7 @@ export function ProductGoalModal({
   editingSellerName,
   existingGoals,
   wineryGoals,
+  categoryGoals,
   sellers,
   selectedMonth,
   selectedYear,
@@ -87,6 +99,14 @@ export function ProductGoalModal({
   const [wineryStartDate, setWineryStartDate] = useState("");
   const [wineryEndDate, setWineryEndDate] = useState("");
 
+  // ─── Categoria ─────────────────────────────────────────────────
+  const [categorySearch, setCategorySearch] = useState("");
+  const [showCategoryList, setShowCategoryList] = useState(false);
+  const [addCategoryName, setAddCategoryName] = useState("");
+  const [categoryQty, setCategoryQty] = useState("1");
+  const [categoryStartDate, setCategoryStartDate] = useState("");
+  const [categoryEndDate, setCategoryEndDate] = useState("");
+
   const sellerList = sellers.filter((u) => u.role === "vendedor");
   const isEditing = !!editingSellerId;
 
@@ -105,6 +125,12 @@ export function ProductGoalModal({
       setWineryQty("1");
       setWineryStartDate("");
       setWineryEndDate("");
+      setCategorySearch("");
+      setShowCategoryList(false);
+      setAddCategoryName("");
+      setCategoryQty("1");
+      setCategoryStartDate("");
+      setCategoryEndDate("");
     }
   }, [open, editingSellerId, editingSellerName]);
 
@@ -128,6 +154,16 @@ export function ProductGoalModal({
   const wineryOptions = winerySearch.trim().length >= 3
     ? (wineriesData ?? []).filter((w) =>
         w.name.toLowerCase().includes(winerySearch.toLowerCase())
+      )
+    : [];
+
+  const { data: categoriesData } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/categories"],
+    enabled: open,
+  });
+  const categoryOptions = categorySearch.trim().length >= 3
+    ? (categoriesData ?? []).filter((c) =>
+        c.name.toLowerCase().includes(categorySearch.toLowerCase())
       )
     : [];
 
@@ -193,6 +229,37 @@ export function ProductGoalModal({
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  // ─── Mutations categoria ───────────────────────────────────────
+  const addCategoryMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/category-goals", {
+        userId: selectedSellerId,
+        categoryName: addCategoryName,
+        goalQty: Number(categoryQty),
+        startDate: categoryStartDate,
+        endDate: categoryEndDate,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/category-goals"] });
+      toast({ title: "Meta de categoria adicionada", description: `Meta para ${addCategoryName} criada.` });
+      setAddCategoryName("");
+      setCategoryQty("1");
+      setCategoryStartDate("");
+      setCategoryEndDate("");
+      setCategorySearch("");
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (goalId: string) => apiRequest("DELETE", `/api/category-goals/${goalId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/category-goals"] });
+      toast({ title: "Meta de categoria removida" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const monthLabel = new Date(selectedYear, selectedMonth - 1).toLocaleDateString("pt-BR", {
     month: "long",
     year: "numeric",
@@ -206,9 +273,17 @@ export function ProductGoalModal({
     wineryStartDate &&
     wineryEndDate &&
     wineryStartDate <= wineryEndDate;
+  const canAddCategory =
+    selectedSellerId &&
+    addCategoryName &&
+    Number(categoryQty) >= 1 &&
+    categoryStartDate &&
+    categoryEndDate &&
+    categoryStartDate <= categoryEndDate;
 
   const sellerProductGoals = existingGoals.filter((g) => g.userId === selectedSellerId);
   const sellerWineryGoals = wineryGoals.filter((g) => g.userId === selectedSellerId);
+  const sellerCategoryGoals = categoryGoals.filter((g) => g.userId === selectedSellerId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -551,6 +626,173 @@ export function ProductGoalModal({
                           className="h-11 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest shadow-md shadow-amber-500/20 shrink-0"
                         >
                           {addWineryMutation.isPending ? "Adicionando..." : "Adicionar"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Divisor */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">ou</span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+              </div>
+
+              {/* ══════════════ SEÇÃO: CATEGORIA ══════════════ */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Tag className="h-4 w-4 text-emerald-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">
+                    Meta por Categoria
+                  </span>
+                </div>
+
+                {/* Categorias já adicionadas */}
+                {sellerCategoryGoals.length > 0 && (
+                  <div className="space-y-2">
+                    {sellerCategoryGoals.map((g) => (
+                      <div
+                        key={g.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/60 dark:bg-emerald-900/10 px-4 py-3"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Tag className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                              {g.categoryName}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-medium">
+                              Meta: {g.goalQty} un · Realizado: {g.achieved} un · {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteCategoryMutation.mutate(g.id)}
+                          disabled={deleteCategoryMutation.isPending}
+                          className="text-slate-300 hover:text-rose-500 transition-colors shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Form adicionar categoria */}
+                <div className="rounded-2xl border border-emerald-200/60 dark:border-emerald-900/30 bg-emerald-50/40 dark:bg-emerald-900/10 p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4 text-emerald-500" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Adicionar meta por categoria
+                    </Label>
+                  </div>
+
+                  {addCategoryName ? (
+                    <div className="flex items-center justify-between gap-2 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 px-4 py-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Tag className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {addCategoryName}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setAddCategoryName(""); setCategorySearch(""); }}
+                        className="text-slate-400 hover:text-rose-500 transition-colors shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Input
+                        placeholder="Digite 3 letras para buscar..."
+                        value={categorySearch}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCategorySearch(v);
+                          setShowCategoryList(v.trim().length >= 3);
+                        }}
+                        className="h-11 rounded-xl bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/50 font-medium focus:border-emerald-400 focus:ring-emerald-400/20"
+                      />
+                      {showCategoryList && categoryOptions.length > 0 && (
+                        <div className="absolute z-50 top-full mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl max-h-48 overflow-y-auto">
+                          {categoryOptions.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="w-full text-left px-4 py-2.5 text-sm hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors first:rounded-t-xl last:rounded-b-xl border-b border-slate-50 dark:border-slate-800 last:border-0"
+                              onClick={() => {
+                                setAddCategoryName(c.name);
+                                setShowCategoryList(false);
+                                setCategorySearch("");
+                              }}
+                            >
+                              <p className="font-bold text-slate-800 dark:text-slate-200">{c.name}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {showCategoryList && categoryOptions.length === 0 && categorySearch.length > 0 && (
+                        <div className="absolute z-50 top-full mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl px-4 py-3">
+                          <p className="text-xs text-slate-400 font-medium">Nenhuma categoria encontrada.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {addCategoryName && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" /> Data início
+                          </Label>
+                          <Input
+                            type="date"
+                            value={categoryStartDate}
+                            onChange={(e) => setCategoryStartDate(e.target.value)}
+                            className="h-11 rounded-xl bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/50 font-bold text-sm focus:border-emerald-400"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" /> Data fim
+                          </Label>
+                          <Input
+                            type="date"
+                            value={categoryEndDate}
+                            min={categoryStartDate}
+                            onChange={(e) => setCategoryEndDate(e.target.value)}
+                            className="h-11 rounded-xl bg-white dark:bg-slate-900 border-emerald-200 dark:border-emerald-900/50 font-bold text-sm focus:border-emerald-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-end gap-3">
+                        <div className="flex-1 space-y-1.5">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                            Quantidade alvo (un)
+                          </Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={categoryQty}
+                            onChange={(e) => setCategoryQty(e.target.value)}
+                            placeholder="Ex: 30"
+                            className="h-11 rounded-xl bg-white dark:bg-slate-900 font-bold border-emerald-200 dark:border-emerald-900/50"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => addCategoryMutation.mutate()}
+                          disabled={!canAddCategory || addCategoryMutation.isPending}
+                          className="h-11 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-widest shadow-md shadow-emerald-500/20 shrink-0"
+                        >
+                          {addCategoryMutation.isPending ? "Adicionando..." : "Adicionar"}
                         </Button>
                       </div>
                     </div>

@@ -129,6 +129,10 @@ export default function Metas() {
     queryKey: ["/api/winery-goals"],
   });
 
+  const { data: categoryGoalsData = [] } = useQuery<any[]>({
+    queryKey: ["/api/category-goals"],
+  });
+
   const { data: telemarketingGoals = [] } = useQuery<any[]>({
     queryKey: [`/api/telemarketing-goals/${selectedMonth}/${selectedYear}`],
   });
@@ -625,6 +629,7 @@ export default function Metas() {
           <ProductGoalsTab
             productGoals={productGoalsData}
             wineryGoals={wineryGoalsData}
+            categoryGoals={categoryGoalsData}
             sellers={users}
             isLoading={isProductGoalsLoading}
             selectedMonth={selectedMonth}
@@ -794,6 +799,7 @@ export default function Metas() {
             editingSellerName={editingProductSeller?.userName ?? null}
             existingGoals={productGoalsData}
             wineryGoals={wineryGoalsData}
+            categoryGoals={categoryGoalsData}
             sellers={users}
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}

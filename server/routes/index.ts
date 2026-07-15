@@ -105,6 +105,7 @@ import { automationMonitoringRouter } from "./automation-monitoring.routes";
 import { restaurantPdvRouter } from "./restaurant-pdv.routes";
 import { productGoalsRouter } from "./product-goals.routes";
 import { wineryGoalsRouter } from "./winery-goals.routes";
+import { categoryGoalsRouter } from "./category-goals.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -212,6 +213,7 @@ apiRouter.use("/interaction-goals", interactionGoalsRouter);
 apiRouter.use("/interaction-stats", interactionStatsRouter);
 apiRouter.use("/product-goals", productGoalsRouter);
 apiRouter.use("/winery-goals", wineryGoalsRouter);
+apiRouter.use("/category-goals", categoryGoalsRouter);
 apiRouter.use("/bling-products", blingProductsRouter);
 apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);

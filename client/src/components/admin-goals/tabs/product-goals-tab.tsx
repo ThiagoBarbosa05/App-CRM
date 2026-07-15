@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Wine, Settings, Target, Factory, Pencil } from "lucide-react";
+import { Wine, Target, Factory, Pencil, Tag } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,9 +37,22 @@ interface WineryGoalRow {
   achieved: number;
 }
 
+interface CategoryGoalRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  categoryName: string;
+  goalQty: number;
+  startDate: string;
+  endDate: string;
+  achieved: number;
+}
+
 interface ProductGoalsTabProps {
   productGoals: ProductGoalRow[];
   wineryGoals: WineryGoalRow[];
+  categoryGoals: CategoryGoalRow[];
   sellers: Seller[];
   isLoading: boolean;
   selectedMonth: number;
@@ -78,6 +91,7 @@ function formatDateBR(iso: string) {
 export function ProductGoalsTab({
   productGoals,
   wineryGoals,
+  categoryGoals,
   sellers,
   isLoading,
   selectedMonth,
@@ -110,9 +124,19 @@ export function ProductGoalsTab({
     wineryGoalsByUser.get(g.userId)!.push(g);
   }
 
+  // Group category goals by userId
+  const categoryGoalsByUser = new Map<string, CategoryGoalRow[]>();
+  for (const g of categoryGoals) {
+    if (!categoryGoalsByUser.has(g.userId)) {
+      categoryGoalsByUser.set(g.userId, []);
+    }
+    categoryGoalsByUser.get(g.userId)!.push(g);
+  }
+
   const sellerIdsWithGoals = new Set([
     ...goalsByUser.keys(),
     ...wineryGoalsByUser.keys(),
+    ...categoryGoalsByUser.keys(),
   ]);
   const sellersWithoutGoals = vendedores.filter((s) => !sellerIdsWithGoals.has(s.id));
 
@@ -188,16 +212,19 @@ export function ProductGoalsTab({
               .map((seller, idx) => {
                 const pg = goalsByUser.get(seller.id);
                 const wg = wineryGoalsByUser.get(seller.id) ?? [];
+                const cg = categoryGoalsByUser.get(seller.id) ?? [];
                 const userName = pg?.userName ?? seller.name;
                 const userEmail = pg?.userEmail ?? seller.email ?? "";
                 const productGoalsList = pg?.goals ?? [];
 
                 const totalGoal =
                   productGoalsList.reduce((s, g) => s + g.productGoalQty, 0) +
-                  wg.reduce((s, g) => s + g.goalQty, 0);
+                  wg.reduce((s, g) => s + g.goalQty, 0) +
+                  cg.reduce((s, g) => s + g.goalQty, 0);
                 const totalAchieved =
                   productGoalsList.reduce((s, g) => s + g.achieved, 0) +
-                  wg.reduce((s, g) => s + g.achieved, 0);
+                  wg.reduce((s, g) => s + g.achieved, 0) +
+                  cg.reduce((s, g) => s + g.achieved, 0);
                 const overallPct = totalGoal > 0 ? Math.min((totalAchieved / totalGoal) * 100, 100) : 0;
                 const tone = getProgressTone(overallPct);
 
@@ -295,6 +322,47 @@ export function ProductGoalsTab({
                                       <Factory className="h-3 w-3 text-amber-500 shrink-0" />
                                       <div className="min-w-0">
                                         <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{g.wineryName}</p>
+                                        <p className="text-[9px] text-slate-400 font-medium">
+                                          {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
+                                      {g.achieved}/{g.goalQty} un
+                                    </span>
+                                  </div>
+                                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${pct}%` }}
+                                      transition={{ duration: 0.8, ease: "easeOut" }}
+                                      className={`h-full rounded-full ${t.bar}`}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Metas por categoria */}
+                        {cg.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 ml-0.5 flex items-center gap-1">
+                              <Tag className="h-2.5 w-2.5" /> Por Categoria
+                            </p>
+                            {cg.map((g) => {
+                              const pct = g.goalQty > 0
+                                ? Math.min((g.achieved / g.goalQty) * 100, 100)
+                                : 0;
+                              const t = getProgressTone(pct);
+                              return (
+                                <div key={g.id} className="rounded-xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10 px-3 py-2.5 space-y-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <Tag className="h-3 w-3 text-emerald-500 shrink-0" />
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{g.categoryName}</p>
                                         <p className="text-[9px] text-slate-400 font-medium">
                                           {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
                                         </p>

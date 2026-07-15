@@ -1096,6 +1096,28 @@ export const insertWineryGoalSchema = createInsertSchema(wineryGoals).omit({
 export type InsertWineryGoal = z.infer<typeof insertWineryGoalSchema>;
 export type WineryGoal = typeof wineryGoals.$inferSelect;
 
+// Tabela de metas por categoria
+export const categoryGoals = pgTable("category_goals", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  categoryName: text("category_name").notNull(),
+  goalQty: integer("goal_qty").notNull().default(1),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCategoryGoalSchema = createInsertSchema(categoryGoals).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCategoryGoal = z.infer<typeof insertCategoryGoalSchema>;
+export type CategoryGoal = typeof categoryGoals.$inferSelect;
+
 // Tabela de indicações (programa de referral)
 export const referrals = pgTable("referrals", {
   id: varchar("id")

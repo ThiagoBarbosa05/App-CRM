@@ -366,6 +366,11 @@ export interface IStorage {
   createWineryGoal(goal: any): Promise<any>;
   deleteWineryGoal(id: string): Promise<boolean>;
 
+  // Category Goals (meta por categoria com período livre)
+  getCategoryGoals(): Promise<any[]>;
+  createCategoryGoal(goal: any): Promise<any>;
+  deleteCategoryGoal(id: string): Promise<boolean>;
+
   // Weekly Results methods
   getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
   createWeeklyResult(result: any): Promise<any>;
@@ -2712,6 +2717,76 @@ export class DatabaseStorage implements IStorage {
   async deleteWineryGoal(id: string): Promise<boolean> {
     const result = await this.db.execute(
       sql`DELETE FROM winery_goals WHERE id = ${id}`,
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getCategoryGoals(): Promise<any[]> {
+    const rows = await this.db.execute<{
+      id: string; user_id: string; category_name: string; goal_qty: number;
+      start_date: string; end_date: string; created_at: string;
+      user_name: string; user_email: string;
+    }>(sql`
+      SELECT cg.id, cg.user_id, cg.category_name, cg.goal_qty,
+             cg.start_date, cg.end_date, cg.created_at,
+             u.name AS user_name, u.email AS user_email
+      FROM category_goals cg
+      LEFT JOIN users u ON cg.user_id = u.id
+      ORDER BY u.name, cg.start_date
+    `);
+
+    if (rows.rows.length === 0) return [];
+
+    const results = await Promise.all(
+      rows.rows.map(async (g) => {
+        const soldResult = await this.db.execute<{ qty_sold: number }>(sql`
+          SELECT COALESCE(SUM(boi.quantity::numeric)::int, 0) AS qty_sold
+          FROM bling_order_items boi
+          JOIN bling_orders bo ON boi.order_id = bo.id
+          JOIN bling_seller_mappings bsm
+            ON bo.seller_id = bsm.bling_vendedor_id
+            AND bo.connection_id = bsm.connection_id
+          JOIN bling_product_mappings bpm
+            ON boi.product_id = bpm.bling_product_id
+            AND bo.connection_id = bpm.connection_id
+          JOIN products p ON bpm.product_id = p.id
+          WHERE bo.sale_date >= ${g.start_date}
+            AND bo.sale_date <= ${g.end_date}
+            AND bo.deleted_at IS NULL
+            AND bsm.user_id = ${g.user_id}
+            AND UPPER(p.category) = UPPER(${g.category_name})
+        `);
+        const achieved = soldResult.rows[0]?.qty_sold ?? 0;
+        return {
+          id: g.id,
+          userId: g.user_id,
+          userName: g.user_name,
+          userEmail: g.user_email,
+          categoryName: g.category_name,
+          goalQty: g.goal_qty,
+          startDate: g.start_date,
+          endDate: g.end_date,
+          createdAt: g.created_at,
+          achieved,
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  async createCategoryGoal(goal: any): Promise<any> {
+    const result = await this.db.execute<any>(sql`
+      INSERT INTO category_goals (user_id, category_name, goal_qty, start_date, end_date)
+      VALUES (${goal.userId}, ${goal.categoryName}, ${goal.goalQty}, ${goal.startDate}, ${goal.endDate})
+      RETURNING *
+    `);
+    return result.rows[0];
+  }
+
+  async deleteCategoryGoal(id: string): Promise<boolean> {
+    const result = await this.db.execute(
+      sql`DELETE FROM category_goals WHERE id = ${id}`,
     );
     return (result.rowCount ?? 0) > 0;
   }
