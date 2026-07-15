@@ -46,12 +46,21 @@ export async function getAutomationOverview(): Promise<RuleOverview[]> {
   const ruleIds = rules.map((r) => r.id);
   const since = new Date(Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-  // Para regras de inatividade: contagem real em reengagement_progress
-  // agrupada por attemptsSent para mapear à etapa de cada regra.
-  const [reengagementCountRow] = await db
-    .select({ total: count() })
-    .from(reengagementProgress);
-  const totalReengagement = Number(reengagementCountRow?.total ?? 0);
+  // Para regras de inatividade: contar clientes em reengagement_progress agrupados
+  // por attemptsSent. Clientes "no fluxo" da regra com attemptNumber=N são
+  // aqueles onde attemptsSent = N-1 (já receberam N-1 tentativas, aguardam a N-ésima).
+  const reengagementCountsRows = await db
+    .select({
+      attemptsSent: reengagementProgress.attemptsSent,
+      total: count(),
+    })
+    .from(reengagementProgress)
+    .groupBy(reengagementProgress.attemptsSent);
+
+  const reengagementByAttemptsSent = new Map<number, number>();
+  for (const row of reengagementCountsRows) {
+    reengagementByAttemptsSent.set(row.attemptsSent, Number(row.total));
+  }
 
   // Para cashback e outros triggers: clientes distintos com sucesso nos últimos 30 dias.
   const recentActiveClientsRows = await db
@@ -140,11 +149,19 @@ export async function getAutomationOverview(): Promise<RuleOverview[]> {
     const stats = statsByRule.get(rule.id);
     const recentInfo = recentActiveByRule.get(rule.id);
 
-    // activeClients: usa reengagement_progress para inatividade; janela 30d para demais
-    const activeClients =
-      rule.trigger === "inactivity_reengagement"
-        ? totalReengagement
-        : (recentInfo?.activeClients ?? 0);
+    // activeClients:
+    // - inactivity: clientes onde attemptsSent = attemptNumber - 1
+    //   (já receberam N-1 tentativas e aguardam a N-ésima desta regra)
+    // - cashback e outros: clientes distintos com sucesso nos últimos 30 dias
+    let activeClients = 0;
+    if (rule.trigger === "inactivity_reengagement") {
+      const attemptNumber = (rule.triggerParams as Record<string, unknown> | null)?.attemptNumber;
+      if (typeof attemptNumber === "number" && attemptNumber >= 1) {
+        activeClients = reengagementByAttemptsSent.get(attemptNumber - 1) ?? 0;
+      }
+    } else {
+      activeClients = recentInfo?.activeClients ?? 0;
+    }
 
     return {
       id: rule.id,
@@ -190,8 +207,13 @@ export async function getRuleClients(ruleId: string): Promise<RuleClientRow[]> {
 
   const since = new Date(Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-  // Para inatividade: buscar clientes que estão ativamente em reengagement_progress
+  // Para inatividade: filtrar por attemptsSent = attemptNumber - 1
+  // (clientes que já receberam N-1 tentativas e estão aguardando a N-ésima desta regra).
   if (rule.trigger === "inactivity_reengagement") {
+    const attemptNumber = (rule.triggerParams as Record<string, unknown> | null)?.attemptNumber;
+    const expectedAttemptsSent =
+      typeof attemptNumber === "number" && attemptNumber >= 1 ? attemptNumber - 1 : null;
+
     const progressRows = await db
       .select({
         clientId: reengagementProgress.clientId,
@@ -201,6 +223,11 @@ export async function getRuleClients(ruleId: string): Promise<RuleClientRow[]> {
       })
       .from(reengagementProgress)
       .innerJoin(clients, eq(reengagementProgress.clientId, clients.id))
+      .where(
+        expectedAttemptsSent !== null
+          ? eq(reengagementProgress.attemptsSent, expectedAttemptsSent)
+          : undefined,
+      )
       .orderBy(desc(reengagementProgress.lastAttemptAt));
 
     // Enriquecer com status do último disparo desta regra
