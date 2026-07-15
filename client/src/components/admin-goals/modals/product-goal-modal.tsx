@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wine, X, Plus, Trash2 } from "lucide-react";
+import { Wine, X, Plus, Trash2, Factory, CalendarDays } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,15 +28,32 @@ interface ProductGoalRow {
   achieved: number;
 }
 
+interface WineryGoalRow {
+  id: string;
+  userId: string;
+  wineryName: string;
+  goalQty: number;
+  startDate: string;
+  endDate: string;
+  achieved: number;
+}
+
 interface ProductGoalModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingSellerId: string | null;
   editingSellerName: string | null;
   existingGoals: ProductGoalRow[];
+  wineryGoals: WineryGoalRow[];
   sellers: Seller[];
   selectedMonth: number;
   selectedYear: number;
+}
+
+function formatDateBR(iso: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 export function ProductGoalModal({
@@ -45,6 +62,7 @@ export function ProductGoalModal({
   editingSellerId,
   editingSellerName,
   existingGoals,
+  wineryGoals,
   sellers,
   selectedMonth,
   selectedYear,
@@ -52,6 +70,7 @@ export function ProductGoalModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // ─── Produto ───────────────────────────────────────────────────
   const [selectedSellerId, setSelectedSellerId] = useState(editingSellerId ?? "");
   const [selectedSellerName, setSelectedSellerName] = useState(editingSellerName ?? "");
   const [productSearch, setProductSearch] = useState("");
@@ -59,6 +78,14 @@ export function ProductGoalModal({
   const [addProductId, setAddProductId] = useState("");
   const [addProductName, setAddProductName] = useState("");
   const [addQty, setAddQty] = useState("1");
+
+  // ─── Vinícola ──────────────────────────────────────────────────
+  const [winerySearch, setWinerySearch] = useState("");
+  const [showWineryList, setShowWineryList] = useState(false);
+  const [addWineryName, setAddWineryName] = useState("");
+  const [wineryQty, setWineryQty] = useState("1");
+  const [wineryStartDate, setWineryStartDate] = useState("");
+  const [wineryEndDate, setWineryEndDate] = useState("");
 
   const sellerList = sellers.filter((u) => u.role === "vendedor");
   const isEditing = !!editingSellerId;
@@ -72,9 +99,16 @@ export function ProductGoalModal({
       setAddProductId("");
       setAddProductName("");
       setAddQty("1");
+      setWinerySearch("");
+      setShowWineryList(false);
+      setAddWineryName("");
+      setWineryQty("1");
+      setWineryStartDate("");
+      setWineryEndDate("");
     }
   }, [open, editingSellerId, editingSellerName]);
 
+  // ─── Queries ───────────────────────────────────────────────────
   const { data: productsData } = useQuery<{ data: { id: string; name: string; type?: string }[] }>({
     queryKey: ["/api/products", productSearch],
     queryFn: async () => {
@@ -87,7 +121,16 @@ export function ProductGoalModal({
   });
   const productOptions = productsData?.data ?? [];
 
-  const addMutation = useMutation({
+  const { data: wineriesData } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/wineries"],
+    enabled: open,
+  });
+  const wineryOptions = (wineriesData ?? []).filter((w) =>
+    w.name.toLowerCase().includes(winerySearch.toLowerCase())
+  );
+
+  // ─── Mutations produto ─────────────────────────────────────────
+  const addProductMutation = useMutation({
     mutationFn: () =>
       apiRequest("POST", "/api/product-goals", {
         userId: selectedSellerId,
@@ -108,11 +151,42 @@ export function ProductGoalModal({
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const deleteMutation = useMutation({
+  const deleteProductMutation = useMutation({
     mutationFn: (goalId: string) => apiRequest("DELETE", `/api/product-goals/${goalId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/product-goals/${selectedMonth}/${selectedYear}`] });
       toast({ title: "Meta removida" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  // ─── Mutations vinícola ────────────────────────────────────────
+  const addWineryMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/winery-goals", {
+        userId: selectedSellerId,
+        wineryName: addWineryName,
+        goalQty: Number(wineryQty),
+        startDate: wineryStartDate,
+        endDate: wineryEndDate,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/winery-goals"] });
+      toast({ title: "Meta de vinícola adicionada", description: `Meta para ${addWineryName} criada.` });
+      setAddWineryName("");
+      setWineryQty("1");
+      setWineryStartDate("");
+      setWineryEndDate("");
+      setWinerySearch("");
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteWineryMutation = useMutation({
+    mutationFn: (goalId: string) => apiRequest("DELETE", `/api/winery-goals/${goalId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/winery-goals"] });
+      toast({ title: "Meta de vinícola removida" });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -122,9 +196,17 @@ export function ProductGoalModal({
     year: "numeric",
   });
 
-  const canAdd = selectedSellerId && addProductId && Number(addQty) >= 1;
+  const canAddProduct = selectedSellerId && addProductId && Number(addQty) >= 1;
+  const canAddWinery =
+    selectedSellerId &&
+    addWineryName &&
+    Number(wineryQty) >= 1 &&
+    wineryStartDate &&
+    wineryEndDate &&
+    wineryStartDate <= wineryEndDate;
 
-  const sellerGoals = existingGoals.filter((g) => g.userId === selectedSellerId);
+  const sellerProductGoals = existingGoals.filter((g) => g.userId === selectedSellerId);
+  const sellerWineryGoals = wineryGoals.filter((g) => g.userId === selectedSellerId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,17 +256,21 @@ export function ProductGoalModal({
             </div>
           )}
 
-          {/* Conteúdo visível apenas depois de escolher o vendedor */}
           {selectedSellerId && (
             <>
-              {/* Produtos já adicionados */}
-              {sellerGoals.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                    Produtos na meta ({sellerGoals.length})
-                  </Label>
+              {/* ══════════════ SEÇÃO: PRODUTO ══════════════ */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Wine className="h-4 w-4 text-violet-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-violet-500">
+                    Meta por Produto
+                  </span>
+                </div>
+
+                {/* Produtos já adicionados */}
+                {sellerProductGoals.length > 0 && (
                   <div className="space-y-2">
-                    {sellerGoals.map((g) => (
+                    {sellerProductGoals.map((g) => (
                       <div
                         key={g.id}
                         className="flex items-center justify-between gap-3 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/60 dark:bg-violet-900/10 px-4 py-3"
@@ -202,8 +288,8 @@ export function ProductGoalModal({
                         </div>
                         <button
                           type="button"
-                          onClick={() => deleteMutation.mutate(g.id)}
-                          disabled={deleteMutation.isPending}
+                          onClick={() => deleteProductMutation.mutate(g.id)}
+                          disabled={deleteProductMutation.isPending}
                           className="text-slate-300 hover:text-rose-500 transition-colors shrink-0"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -211,93 +297,257 @@ export function ProductGoalModal({
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Formulário para adicionar novo produto */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Plus className="h-4 w-4 text-violet-500" />
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    Adicionar produto
-                  </Label>
-                </div>
-
-                {/* Produto selecionado */}
-                {addProductName ? (
-                  <div className="flex items-center justify-between gap-2 rounded-xl bg-white dark:bg-slate-900 border border-violet-200 dark:border-violet-800 px-4 py-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Wine className="h-4 w-4 text-violet-500 shrink-0" />
-                      <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {addProductName}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setAddProductId(""); setAddProductName(""); setProductSearch(""); }}
-                      className="text-slate-400 hover:text-rose-500 transition-colors shrink-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
+                {/* Form adicionar produto */}
+                <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4 text-violet-500" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Adicionar produto
+                    </Label>
                   </div>
-                ) : (
-                  <div className="relative">
-                    <Input
-                      placeholder="Buscar vinho por nome..."
-                      value={productSearch}
-                      onChange={(e) => { setProductSearch(e.target.value); setShowProductList(true); }}
-                      onFocus={() => setShowProductList(true)}
-                      className="h-11 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-medium focus:border-violet-400 focus:ring-violet-400/20"
-                    />
-                    {showProductList && productOptions.length > 0 && (
-                      <div className="absolute z-50 top-full mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl max-h-48 overflow-y-auto">
-                        {productOptions.map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            className="w-full text-left px-4 py-2.5 text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors first:rounded-t-xl last:rounded-b-xl border-b border-slate-50 dark:border-slate-800 last:border-0"
-                            onClick={() => {
-                              setAddProductId(p.id);
-                              setAddProductName(p.name);
-                              setShowProductList(false);
-                              setProductSearch("");
-                            }}
-                          >
-                            <p className="font-bold text-slate-800 dark:text-slate-200">{p.name}</p>
-                            {p.type && <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">{p.type}</p>}
-                          </button>
-                        ))}
+
+                  {addProductName ? (
+                    <div className="flex items-center justify-between gap-2 rounded-xl bg-white dark:bg-slate-900 border border-violet-200 dark:border-violet-800 px-4 py-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Wine className="h-4 w-4 text-violet-500 shrink-0" />
+                        <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {addProductName}
+                        </span>
                       </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => { setAddProductId(""); setAddProductName(""); setProductSearch(""); }}
+                        className="text-slate-400 hover:text-rose-500 transition-colors shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Input
+                        placeholder="Buscar vinho por nome..."
+                        value={productSearch}
+                        onChange={(e) => { setProductSearch(e.target.value); setShowProductList(true); }}
+                        onFocus={() => setShowProductList(true)}
+                        className="h-11 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-medium focus:border-violet-400 focus:ring-violet-400/20"
+                      />
+                      {showProductList && productOptions.length > 0 && (
+                        <div className="absolute z-50 top-full mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl max-h-48 overflow-y-auto">
+                          {productOptions.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className="w-full text-left px-4 py-2.5 text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors first:rounded-t-xl last:rounded-b-xl border-b border-slate-50 dark:border-slate-800 last:border-0"
+                              onClick={() => {
+                                setAddProductId(p.id);
+                                setAddProductName(p.name);
+                                setShowProductList(false);
+                                setProductSearch("");
+                              }}
+                            >
+                              <p className="font-bold text-slate-800 dark:text-slate-200">{p.name}</p>
+                              {p.type && <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">{p.type}</p>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {addProductName && (
+                    <div className="flex items-end gap-3">
+                      <div className="flex-1 space-y-1.5">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                          Quantidade alvo (un)
+                        </Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={addQty}
+                          onChange={(e) => setAddQty(e.target.value)}
+                          placeholder="Ex: 10"
+                          className="h-11 rounded-xl bg-white dark:bg-slate-900 font-bold"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => addProductMutation.mutate()}
+                        disabled={!canAddProduct || addProductMutation.isPending}
+                        className="h-11 px-6 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[10px] tracking-widest shadow-md shadow-violet-500/20 shrink-0"
+                      >
+                        {addProductMutation.isPending ? "Adicionando..." : "Adicionar"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Divisor */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">ou</span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
+              </div>
+
+              {/* ══════════════ SEÇÃO: VINÍCOLA ══════════════ */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Factory className="h-4 w-4 text-amber-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">
+                    Meta por Vinícola
+                  </span>
+                </div>
+
+                {/* Vinícolas já adicionadas */}
+                {sellerWineryGoals.length > 0 && (
+                  <div className="space-y-2">
+                    {sellerWineryGoals.map((g) => (
+                      <div
+                        key={g.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-amber-100 dark:border-amber-900/30 bg-amber-50/60 dark:bg-amber-900/10 px-4 py-3"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Factory className="h-4 w-4 text-amber-500 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                              {g.wineryName}
+                            </p>
+                            <p className="text-[10px] text-slate-400 font-medium">
+                              Meta: {g.goalQty} un · Realizado: {g.achieved} un · {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteWineryMutation.mutate(g.id)}
+                          disabled={deleteWineryMutation.isPending}
+                          className="text-slate-300 hover:text-rose-500 transition-colors shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
 
-                {/* Quantidade */}
-                {addProductName && (
-                  <div className="flex items-end gap-3">
-                    <div className="flex-1 space-y-1.5">
-                      <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                        Quantidade alvo (un)
-                      </Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={addQty}
-                        onChange={(e) => setAddQty(e.target.value)}
-                        placeholder="Ex: 10"
-                        className="h-11 rounded-xl bg-white dark:bg-slate-900 font-bold"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={() => addMutation.mutate()}
-                      disabled={!canAdd || addMutation.isPending}
-                      className="h-11 px-6 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[10px] tracking-widest shadow-md shadow-violet-500/20 shrink-0"
-                    >
-                      {addMutation.isPending ? "Adicionando..." : "Adicionar"}
-                    </Button>
+                {/* Form adicionar vinícola */}
+                <div className="rounded-2xl border border-amber-200/60 dark:border-amber-900/30 bg-amber-50/40 dark:bg-amber-900/10 p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Plus className="h-4 w-4 text-amber-500" />
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      Adicionar meta por vinícola
+                    </Label>
                   </div>
-                )}
+
+                  {/* Seletor de vinícola */}
+                  {addWineryName ? (
+                    <div className="flex items-center justify-between gap-2 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 px-4 py-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Factory className="h-4 w-4 text-amber-500 shrink-0" />
+                        <span className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                          {addWineryName}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setAddWineryName(""); setWinerySearch(""); }}
+                        className="text-slate-400 hover:text-rose-500 transition-colors shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Input
+                        placeholder="Buscar vinícola..."
+                        value={winerySearch}
+                        onChange={(e) => { setWinerySearch(e.target.value); setShowWineryList(true); }}
+                        onFocus={() => setShowWineryList(true)}
+                        className="h-11 rounded-xl bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 font-medium focus:border-amber-400 focus:ring-amber-400/20"
+                      />
+                      {showWineryList && wineryOptions.length > 0 && (
+                        <div className="absolute z-50 top-full mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl max-h-48 overflow-y-auto">
+                          {wineryOptions.map((w) => (
+                            <button
+                              key={w.id}
+                              type="button"
+                              className="w-full text-left px-4 py-2.5 text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors first:rounded-t-xl last:rounded-b-xl border-b border-slate-50 dark:border-slate-800 last:border-0"
+                              onClick={() => {
+                                setAddWineryName(w.name);
+                                setShowWineryList(false);
+                                setWinerySearch("");
+                              }}
+                            >
+                              <p className="font-bold text-slate-800 dark:text-slate-200">{w.name}</p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {showWineryList && wineryOptions.length === 0 && winerySearch.length > 0 && (
+                        <div className="absolute z-50 top-full mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl px-4 py-3">
+                          <p className="text-xs text-slate-400 font-medium">Nenhuma vinícola encontrada.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Datas e quantidade */}
+                  {addWineryName && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" /> Data início
+                          </Label>
+                          <Input
+                            type="date"
+                            value={wineryStartDate}
+                            onChange={(e) => setWineryStartDate(e.target.value)}
+                            className="h-11 rounded-xl bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 font-bold text-sm focus:border-amber-400"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" /> Data fim
+                          </Label>
+                          <Input
+                            type="date"
+                            value={wineryEndDate}
+                            min={wineryStartDate}
+                            onChange={(e) => setWineryEndDate(e.target.value)}
+                            className="h-11 rounded-xl bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 font-bold text-sm focus:border-amber-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-end gap-3">
+                        <div className="flex-1 space-y-1.5">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                            Quantidade alvo (un)
+                          </Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={wineryQty}
+                            onChange={(e) => setWineryQty(e.target.value)}
+                            placeholder="Ex: 50"
+                            className="h-11 rounded-xl bg-white dark:bg-slate-900 font-bold border-amber-200 dark:border-amber-900/50"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => addWineryMutation.mutate()}
+                          disabled={!canAddWinery || addWineryMutation.isPending}
+                          className="h-11 px-6 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black uppercase text-[10px] tracking-widest shadow-md shadow-amber-500/20 shrink-0"
+                        >
+                          {addWineryMutation.isPending ? "Adicionando..." : "Adicionar"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}

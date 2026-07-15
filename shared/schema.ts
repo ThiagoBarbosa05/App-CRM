@@ -1074,6 +1074,28 @@ export const productGoals = pgTable("product_goals", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Tabela de metas de venda por vinícola (período livre com data início/fim)
+export const wineryGoals = pgTable("winery_goals", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  wineryName: text("winery_name").notNull(),
+  goalQty: integer("goal_qty").notNull().default(1),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWineryGoalSchema = createInsertSchema(wineryGoals).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWineryGoal = z.infer<typeof insertWineryGoalSchema>;
+export type WineryGoal = typeof wineryGoals.$inferSelect;
+
 // Tabela de indicações (programa de referral)
 export const referrals = pgTable("referrals", {
   id: varchar("id")

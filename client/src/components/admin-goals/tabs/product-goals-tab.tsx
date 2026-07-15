@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Wine, Settings, Target } from "lucide-react";
+import { Wine, Settings, Target, Factory } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +25,21 @@ interface ProductGoalRow {
   year: number;
 }
 
+interface WineryGoalRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  wineryName: string;
+  goalQty: number;
+  startDate: string;
+  endDate: string;
+  achieved: number;
+}
+
 interface ProductGoalsTabProps {
   productGoals: ProductGoalRow[];
+  wineryGoals: WineryGoalRow[];
   sellers: Seller[];
   isLoading: boolean;
   selectedMonth: number;
@@ -56,8 +69,15 @@ function getProgressTone(pct: number) {
   };
 }
 
+function formatDateBR(iso: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
 export function ProductGoalsTab({
   productGoals,
+  wineryGoals,
   sellers,
   isLoading,
   selectedMonth,
@@ -70,7 +90,6 @@ export function ProductGoalsTab({
     year: "numeric",
   });
 
-  // Sellers with vendedor role
   const vendedores = sellers.filter((s) => s.role === "vendedor");
 
   // Group product goals by userId
@@ -82,7 +101,19 @@ export function ProductGoalsTab({
     goalsByUser.get(g.userId)!.goals.push(g);
   }
 
-  const sellerIdsWithGoals = new Set(goalsByUser.keys());
+  // Group winery goals by userId
+  const wineryGoalsByUser = new Map<string, WineryGoalRow[]>();
+  for (const g of wineryGoals) {
+    if (!wineryGoalsByUser.has(g.userId)) {
+      wineryGoalsByUser.set(g.userId, []);
+    }
+    wineryGoalsByUser.get(g.userId)!.push(g);
+  }
+
+  const sellerIdsWithGoals = new Set([
+    ...goalsByUser.keys(),
+    ...wineryGoalsByUser.keys(),
+  ]);
   const sellersWithoutGoals = vendedores.filter((s) => !sellerIdsWithGoals.has(s.id));
 
   if (isLoading) {
@@ -132,7 +163,7 @@ export function ProductGoalsTab({
             </div>
             <div className="flex items-center gap-3">
               <div className="text-center px-4">
-                <p className="text-2xl font-black text-violet-600 dark:text-violet-400">{goalsByUser.size}</p>
+                <p className="text-2xl font-black text-violet-600 dark:text-violet-400">{sellerIdsWithGoals.size}</p>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Com meta</p>
               </div>
               <div className="w-px h-8 bg-slate-200 dark:bg-slate-700" />
@@ -145,100 +176,157 @@ export function ProductGoalsTab({
         </CardHeader>
       </Card>
 
-      {/* Sellers WITH product goals */}
-      {goalsByUser.size > 0 && (
+      {/* Sellers WITH goals */}
+      {sellerIdsWithGoals.size > 0 && (
         <div className="space-y-4">
           <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
-            Vendedores com meta de produto definida
+            Vendedores com meta definida
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {Array.from(goalsByUser.entries()).map(([userId, { userName, userEmail, goals }], idx) => {
-              // Compute overall progress as average pct across all products
-              const totalGoal = goals.reduce((s, g) => s + g.productGoalQty, 0);
-              const totalAchieved = goals.reduce((s, g) => s + g.achieved, 0);
-              const overallPct = totalGoal > 0 ? Math.min((totalAchieved / totalGoal) * 100, 100) : 0;
-              const tone = getProgressTone(overallPct);
+            {vendedores
+              .filter((s) => sellerIdsWithGoals.has(s.id))
+              .map((seller, idx) => {
+                const pg = goalsByUser.get(seller.id);
+                const wg = wineryGoalsByUser.get(seller.id) ?? [];
+                const userName = pg?.userName ?? seller.name;
+                const userEmail = pg?.userEmail ?? seller.email ?? "";
+                const productGoalsList = pg?.goals ?? [];
 
-              return (
-                <motion.div
-                  key={userId}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.06 }}
-                >
-                  <Card className="rounded-[2rem] border border-slate-200/80 dark:border-slate-800 shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-950 overflow-hidden group">
-                    <CardContent className="p-6 space-y-4">
-                      {/* Seller + badge */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 text-violet-700 dark:text-violet-300 text-xs font-black shadow-sm">
-                            {userName?.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-black text-sm uppercase tracking-tight text-slate-900 dark:text-white truncate">
-                              {userName}
-                            </p>
-                            <p className="text-[10px] font-bold text-slate-400 truncate">{userEmail}</p>
-                          </div>
-                        </div>
-                        <Badge className={`shrink-0 text-[9px] font-black uppercase tracking-wide border ${tone.badgeClass} rounded-full px-2.5 py-1`}>
-                          {tone.badge}
-                        </Badge>
-                      </div>
+                const totalGoal =
+                  productGoalsList.reduce((s, g) => s + g.productGoalQty, 0) +
+                  wg.reduce((s, g) => s + g.goalQty, 0);
+                const totalAchieved =
+                  productGoalsList.reduce((s, g) => s + g.achieved, 0) +
+                  wg.reduce((s, g) => s + g.achieved, 0);
+                const overallPct = totalGoal > 0 ? Math.min((totalAchieved / totalGoal) * 100, 100) : 0;
+                const tone = getProgressTone(overallPct);
 
-                      {/* Product list */}
-                      <div className="space-y-2">
-                        {goals.map((g) => {
-                          const pct = g.productGoalQty > 0
-                            ? Math.min((g.achieved / g.productGoalQty) * 100, 100)
-                            : 0;
-                          const t = getProgressTone(pct);
-                          return (
-                            <div key={g.id} className="rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-900/10 px-3 py-2.5 space-y-1.5">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <Wine className="h-3 w-3 text-violet-500 shrink-0" />
-                                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{g.productName}</p>
-                                </div>
-                                <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
-                                  {g.achieved}/{g.productGoalQty} un
-                                </span>
-                              </div>
-                              <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${pct}%` }}
-                                  transition={{ duration: 0.8, ease: "easeOut" }}
-                                  className={`h-full rounded-full ${t.bar}`}
-                                />
-                              </div>
+                return (
+                  <motion.div
+                    key={seller.id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.06 }}
+                  >
+                    <Card className="rounded-[2rem] border border-slate-200/80 dark:border-slate-800 shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-950 overflow-hidden group">
+                      <CardContent className="p-6 space-y-4">
+                        {/* Seller + badge */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/30 text-violet-700 dark:text-violet-300 text-xs font-black shadow-sm">
+                              {userName?.substring(0, 2).toUpperCase()}
                             </div>
-                          );
-                        })}
-                      </div>
+                            <div className="min-w-0">
+                              <p className="font-black text-sm uppercase tracking-tight text-slate-900 dark:text-white truncate">
+                                {userName}
+                              </p>
+                              <p className="text-[10px] font-bold text-slate-400 truncate">{userEmail}</p>
+                            </div>
+                          </div>
+                          <Badge className={`shrink-0 text-[9px] font-black uppercase tracking-wide border ${tone.badgeClass} rounded-full px-2.5 py-1`}>
+                            {tone.badge}
+                          </Badge>
+                        </div>
 
-                      {/* Manage button */}
-                      {isAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onManage(userId, userName)}
-                          className="w-full h-9 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Settings className="h-3.5 w-3.5 mr-2" />
-                          Gerenciar produtos
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
+                        {/* Metas por produto */}
+                        {productGoalsList.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-violet-400 ml-0.5 flex items-center gap-1">
+                              <Wine className="h-2.5 w-2.5" /> Por Produto
+                            </p>
+                            {productGoalsList.map((g) => {
+                              const pct = g.productGoalQty > 0
+                                ? Math.min((g.achieved / g.productGoalQty) * 100, 100)
+                                : 0;
+                              const t = getProgressTone(pct);
+                              return (
+                                <div key={g.id} className="rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-900/10 px-3 py-2.5 space-y-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <Wine className="h-3 w-3 text-violet-500 shrink-0" />
+                                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{g.productName}</p>
+                                    </div>
+                                    <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
+                                      {g.achieved}/{g.productGoalQty} un
+                                    </span>
+                                  </div>
+                                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${pct}%` }}
+                                      transition={{ duration: 0.8, ease: "easeOut" }}
+                                      className={`h-full rounded-full ${t.bar}`}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Metas por vinícola */}
+                        {wg.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-amber-500 ml-0.5 flex items-center gap-1">
+                              <Factory className="h-2.5 w-2.5" /> Por Vinícola
+                            </p>
+                            {wg.map((g) => {
+                              const pct = g.goalQty > 0
+                                ? Math.min((g.achieved / g.goalQty) * 100, 100)
+                                : 0;
+                              const t = getProgressTone(pct);
+                              return (
+                                <div key={g.id} className="rounded-xl border border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2.5 space-y-1.5">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <Factory className="h-3 w-3 text-amber-500 shrink-0" />
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{g.wineryName}</p>
+                                        <p className="text-[9px] text-slate-400 font-medium">
+                                          {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
+                                      {g.achieved}/{g.goalQty} un
+                                    </span>
+                                  </div>
+                                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <motion.div
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${pct}%` }}
+                                      transition={{ duration: 0.8, ease: "easeOut" }}
+                                      className={`h-full rounded-full ${t.bar}`}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Manage button */}
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onManage(seller.id, userName)}
+                            className="w-full h-9 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <Settings className="h-3.5 w-3.5 mr-2" />
+                            Gerenciar metas
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
           </div>
         </div>
       )}
 
-      {/* Sellers WITHOUT product goals */}
+      {/* Sellers WITHOUT goals */}
       {sellersWithoutGoals.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">

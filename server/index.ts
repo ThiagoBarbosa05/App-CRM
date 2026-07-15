@@ -26,6 +26,7 @@ import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import { getCachedPage, setCachedPage } from "./lib/landing-page-cache";
 import { seedCountries } from "./jobs/seed-countries";
+import { migrateWineryGoals } from "./jobs/migrate-winery-goals";
 import { redactPii } from "./lib/log-redaction";
 // import "./jobs/umbler-sync-scheduler";
 
@@ -164,6 +165,7 @@ app.use((req, res, next) => {
   });
   const server = await registerRoutes(app);
   seedCountries().catch((err) => console.error("[Seed] seedCountries falhou:", err));
+  migrateWineryGoals().catch((err) => console.error("[Migrate] migrateWineryGoals falhou:", err));
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();

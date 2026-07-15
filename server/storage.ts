@@ -361,6 +361,11 @@ export interface IStorage {
   createProductGoal(goal: any): Promise<any>;
   deleteProductGoal(id: string): Promise<boolean>;
 
+  // Winery Goals (meta por vinícola com período livre)
+  getWineryGoals(): Promise<any[]>;
+  createWineryGoal(goal: any): Promise<any>;
+  deleteWineryGoal(id: string): Promise<boolean>;
+
   // Weekly Results methods
   getWeeklyResultsByGoalId(goalId: string): Promise<any[]>;
   createWeeklyResult(result: any): Promise<any>;
@@ -2636,6 +2641,79 @@ export class DatabaseStorage implements IStorage {
       .delete(productGoals)
       .where(eq(productGoals.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async getWineryGoals(): Promise<any[]> {
+    const rows = await this.db.execute<{
+      id: string; user_id: string; winery_name: string; goal_qty: number;
+      start_date: string; end_date: string; created_at: string;
+      user_name: string; user_email: string;
+    }>(sql`
+      SELECT wg.id, wg.user_id, wg.winery_name, wg.goal_qty,
+             wg.start_date, wg.end_date, wg.created_at,
+             u.name AS user_name, u.email AS user_email
+      FROM winery_goals wg
+      LEFT JOIN users u ON wg.user_id = u.id
+      ORDER BY u.name, wg.start_date
+    `);
+
+    if (rows.rows.length === 0) return [];
+
+    const goals = rows.rows;
+
+    // Calcular realizado por meta
+    const results = await Promise.all(
+      goals.map(async (g) => {
+        const soldResult = await this.db.execute<{ qty_sold: number }>(sql`
+          SELECT COALESCE(SUM(boi.quantity::numeric)::int, 0) AS qty_sold
+          FROM bling_order_items boi
+          JOIN bling_orders bo ON boi.order_id = bo.id
+          JOIN bling_seller_mappings bsm
+            ON bo.seller_id = bsm.bling_vendedor_id
+            AND bo.connection_id = bsm.connection_id
+          JOIN bling_product_mappings bpm
+            ON boi.product_id = bpm.bling_product_id
+            AND bo.connection_id = bpm.connection_id
+          JOIN products p ON bpm.product_id = p.id
+          WHERE bo.sale_date >= ${g.start_date}
+            AND bo.sale_date <= ${g.end_date}
+            AND bo.deleted_at IS NULL
+            AND bsm.user_id = ${g.user_id}
+            AND p.winery = ${g.winery_name}
+        `);
+        const achieved = soldResult.rows[0]?.qty_sold ?? 0;
+        return {
+          id: g.id,
+          userId: g.user_id,
+          userName: g.user_name,
+          userEmail: g.user_email,
+          wineryName: g.winery_name,
+          goalQty: g.goal_qty,
+          startDate: g.start_date,
+          endDate: g.end_date,
+          createdAt: g.created_at,
+          achieved,
+        };
+      }),
+    );
+
+    return results;
+  }
+
+  async createWineryGoal(goal: any): Promise<any> {
+    const [result] = await this.db.execute<any>(sql`
+      INSERT INTO winery_goals (user_id, winery_name, goal_qty, start_date, end_date)
+      VALUES (${goal.userId}, ${goal.wineryName}, ${goal.goalQty}, ${goal.startDate}, ${goal.endDate})
+      RETURNING *
+    `);
+    return result;
+  }
+
+  async deleteWineryGoal(id: string): Promise<boolean> {
+    const result = await this.db.execute(
+      sql`DELETE FROM winery_goals WHERE id = ${id}`,
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async getUserGoalsWithResults(month: number, year: number): Promise<any[]> {
