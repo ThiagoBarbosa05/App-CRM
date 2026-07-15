@@ -172,13 +172,6 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
     }
   }, [product, open]);
 
-  useEffect(() => {
-    if (!isWine) {
-      form.setValue("country", undefined);
-      form.setValue("volume", "750ml");
-      form.setValue("type", undefined);
-    }
-  }, [isWine]);
 
   const productMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
@@ -331,66 +324,65 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
               )}
             />
 
-            {/* Campos específicos de vinho */}
-            {isWine && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FieldSection icon={Globe} label="País de origem">
-                          <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                            <FormControl>
-                              <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-semibold">
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {(countries as { id: string; name: string }[]).map((c) => (
-                                <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FieldSection>
-                      </FormItem>
-                    )}
-                  />
+            {/* País + Volume */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FieldSection icon={Globe} label="País de origem">
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <FormControl>
+                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-semibold">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(countries as { id: string; name: string }[]).map((c) => (
+                            <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FieldSection>
+                  </FormItem>
+                )}
+              />
 
-                  <FormField
-                    control={form.control}
-                    name="volume"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FieldSection icon={Ruler} label="Volume">
-                          <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                            <FormControl>
-                              <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-semibold">
-                                <SelectValue placeholder="Selecione" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="187ml">187 ml</SelectItem>
-                              <SelectItem value="375ml">375 ml</SelectItem>
-                              <SelectItem value="750ml">750 ml</SelectItem>
-                              <SelectItem value="1500ml">1500 ml</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FieldSection>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+              <FormField
+                control={form.control}
+                name="volume"
+                render={({ field }) => (
+                  <FormItem>
+                    <FieldSection icon={Ruler} label="Volume">
+                      <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                        <FormControl>
+                          <SelectTrigger className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-semibold">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="187ml">187 ml</SelectItem>
+                          <SelectItem value="375ml">375 ml</SelectItem>
+                          <SelectItem value="750ml">750 ml</SelectItem>
+                          <SelectItem value="1500ml">1500 ml</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FieldSection>
+                  </FormItem>
+                )}
+              />
+            </div>
 
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FieldSection icon={Wine} label="Tipo de vinho">
+            {/* Tipo */}
+            <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FieldSection icon={Wine} label="Tipo de vinho">
                         <div className="grid grid-cols-5 gap-2">
                           {(["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"] as const).map((t) => {
                             const labels: Record<string, string> = {
@@ -425,8 +417,6 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
                     </FormItem>
                   )}
                 />
-              </>
-            )}
 
             {/* Valor de tabela */}
             <FormField
