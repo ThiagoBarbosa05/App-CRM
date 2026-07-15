@@ -2,13 +2,14 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Target, Phone, Users, Package, MessageSquare } from "lucide-react";
+import { Target, Phone, Users, Package, MessageSquare, Wine } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 // Modular Components
 import { AdminGoalsHeader } from "@/components/admin-goals/admin-goals-header";
 import { SalesGoalsTab } from "@/components/admin-goals/tabs/sales-goals-tab";
+import { ProductGoalsTab } from "@/components/admin-goals/tabs/product-goals-tab";
 import { TelemarketingGoalsTab } from "@/components/admin-goals/tabs/telemarketing-goals-tab";
 import { ClientRegistrationGoalsTab } from "@/components/admin-goals/tabs/registration-goals-tab";
 import { MarkerGoalsTab } from "@/components/admin-goals/tabs/marker-goals-tab";
@@ -121,6 +122,7 @@ export default function AdminGoals() {
     switch (activeTab) {
       case "sales": setIsSalesModalOpen(true); setEditingSalesGoal(null); break;
       case "telemarketing": setIsTelemarketingModalOpen(true); setEditingTelemarketingGoal(null); break;
+      case "products": setEditingSalesGoal(null); setIsSalesModalOpen(true); break;
       case "registration": setIsRegistrationModalOpen(true); setEditingRegistrationGoal(null); break;
       case "markers": setIsMarkerModalOpen(true); setEditingMarkerGoal(null); break;
       case "interactions": setIsInteractionGoalModalOpen(true); setEditingInteractionGoal(null); break;
@@ -145,6 +147,7 @@ export default function AdminGoals() {
             <TabsList className="flex items-center justify-start gap-4 bg-transparent h-auto p-0 overflow-x-auto no-scrollbar">
               {[
                 { id: "sales", label: "Vendas", icon: Target, color: "blue" },
+                { id: "products", label: "Produtos", icon: Wine, color: "violet" },
                 { id: "telemarketing", label: "Ligações", icon: Phone, color: "purple" },
                 { id: "registration", label: "Cadastros", icon: Users, color: "emerald" },
                 { id: "markers", label: "Marcadores", icon: Package, color: "amber" },
@@ -178,6 +181,17 @@ export default function AdminGoals() {
                 onEdit={(goal) => { setEditingSalesGoal(goal); setIsSalesModalOpen(true); }}
                 onAddResult={(goal) => { setSelectedGoalForResults(goal); setIsResultModalOpen(true); }}
                 onDelete={(goalId) => deleteSalesGoalMutation.mutate(goalId)}
+                isAdmin={user.role === "admin" || user.role === "gerente"}
+              />
+            </TabsContent>
+
+            <TabsContent value="products" className="m-0 outline-none">
+              <ProductGoalsTab
+                goals={userGoals}
+                isLoading={isLoadingSales}
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+                onEdit={(goal) => { setEditingSalesGoal(goal); setIsSalesModalOpen(true); }}
                 isAdmin={user.role === "admin" || user.role === "gerente"}
               />
             </TabsContent>

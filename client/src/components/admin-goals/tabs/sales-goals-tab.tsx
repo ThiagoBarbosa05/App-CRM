@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Users, Target, Edit, Plus, Trash2, Wine } from "lucide-react";
+import { Users, Target, Edit, Plus, Trash2 } from "lucide-react";
 import { 
   Table, 
   TableBody, 
@@ -116,7 +116,6 @@ export function SalesGoalsTab({ goals, isLoading, selectedMonth, selectedYear, o
                 <TableHead className="py-6 px-8 text-[11px] font-black uppercase tracking-widest text-slate-400">Progresso</TableHead>
                 <TableHead className="py-6 px-8 text-[11px] font-black uppercase tracking-widest text-slate-400">Ticket Médio</TableHead>
                 <TableHead className="py-6 px-8 text-[11px] font-black uppercase tracking-widest text-slate-400">Itens/Venda</TableHead>
-                <TableHead className="py-6 px-8 text-[11px] font-black uppercase tracking-widest text-slate-400">Produto Meta</TableHead>
                 <TableHead className="py-6 px-8 text-[11px] font-black uppercase tracking-widest text-slate-400 text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -181,25 +180,6 @@ export function SalesGoalsTab({ goals, isLoading, selectedMonth, selectedYear, o
                     </TableCell>
                     <TableCell className="py-6 px-8">
                        <span className="text-[11px] font-black text-slate-600 dark:text-slate-300">{goal.itemsPerSale} ITENS</span>
-                    </TableCell>
-                    <TableCell className="py-6 px-8">
-                      {goal.productGoalId && goal.productGoalQty ? (
-                        <div className="flex items-center gap-2 max-w-[180px]">
-                          <div className="p-1.5 rounded-lg bg-violet-50 dark:bg-violet-900/20 shrink-0">
-                            <Wine className="h-3 w-3 text-violet-500" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black text-slate-700 dark:text-slate-200 truncate leading-tight">
-                              {goal.productGoalName ?? "—"}
-                            </p>
-                            <p className="text-[10px] text-violet-500 font-bold">
-                              {goal.productGoalQty} un
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-slate-300 dark:text-slate-600">—</span>
-                      )}
                     </TableCell>
                     <TableCell className="py-6 px-8 text-right">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
