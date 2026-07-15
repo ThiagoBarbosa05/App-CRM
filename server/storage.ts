@@ -2701,12 +2701,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createWineryGoal(goal: any): Promise<any> {
-    const [result] = await this.db.execute<any>(sql`
+    const result = await this.db.execute<any>(sql`
       INSERT INTO winery_goals (user_id, winery_name, goal_qty, start_date, end_date)
       VALUES (${goal.userId}, ${goal.wineryName}, ${goal.goalQty}, ${goal.startDate}, ${goal.endDate})
       RETURNING *
     `);
-    return result;
+    return result.rows[0];
   }
 
   async deleteWineryGoal(id: string): Promise<boolean> {
