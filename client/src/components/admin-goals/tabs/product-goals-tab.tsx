@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Wine, Settings, Target, Factory } from "lucide-react";
+import { Wine, Settings, Target, Factory, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -223,9 +223,22 @@ export function ProductGoalsTab({
                               <p className="text-[10px] font-bold text-slate-400 truncate">{userEmail}</p>
                             </div>
                           </div>
-                          <Badge className={`shrink-0 text-[9px] font-black uppercase tracking-wide border ${tone.badgeClass} rounded-full px-2.5 py-1`}>
-                            {tone.badge}
-                          </Badge>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Badge className={`text-[9px] font-black uppercase tracking-wide border ${tone.badgeClass} rounded-full px-2.5 py-1`}>
+                              {tone.badge}
+                            </Badge>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => onManage(seller.id, userName)}
+                                className="h-7 w-7 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                                title="Editar metas"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Metas por produto */}
@@ -305,18 +318,6 @@ export function ProductGoalsTab({
                           </div>
                         )}
 
-                        {/* Manage button */}
-                        {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onManage(seller.id, userName)}
-                            className="w-full h-9 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900 opacity-0 group-hover:opacity-100 transition-all"
-                          >
-                            <Settings className="h-3.5 w-3.5 mr-2" />
-                            Gerenciar metas
-                          </Button>
-                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
