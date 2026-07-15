@@ -2267,6 +2267,23 @@ export const sales = pgTable("sales", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const wineries = pgTable("wineries", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertWinerySchema = createInsertSchema(wineries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertWinery = z.infer<typeof insertWinerySchema>;
+export type Winery = typeof wineries.$inferSelect;
+
 export const productCategories = pgTable("product_categories", {
   id: varchar("id")
     .primaryKey()

@@ -29,7 +29,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import { Wine, Building2, Globe, Ruler, Tag, DollarSign, Image } from "lucide-react";
+import { Wine, Globe, Ruler, Tag, DollarSign, Image, Building2 } from "lucide-react";
+import { WinerySelector } from "@/components/winery-selector";
 
 interface ProductCategory {
   id: string;
@@ -286,13 +287,10 @@ export function ProductFormModal({ open, onOpenChange, product }: ProductFormMod
               render={({ field }) => (
                 <FormItem>
                   <FieldSection icon={Building2} label="Vinícola">
-                    <FormControl>
-                      <Input
-                        placeholder="Ex: Miolo, Salton, Don Melchor..."
-                        className="h-12 rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-semibold focus:ring-2 focus:ring-wine-500/20 focus:border-wine-500 outline-none"
-                        {...field}
-                      />
-                    </FormControl>
+                    <WinerySelector
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
                     <FormMessage />
                   </FieldSection>
                 </FormItem>
