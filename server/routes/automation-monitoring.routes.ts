@@ -41,9 +41,10 @@ automationMonitoringRouter.get("/rules/:ruleId/clients", async (req, res) => {
  */
 automationMonitoringRouter.get("/history", async (req, res) => {
   try {
-    const { clientId, ruleId, channel, status, page, pageSize } = req.query;
+    const { clientId, clientName, ruleId, channel, status, page, pageSize } = req.query;
     const result = await getExecutionHistory({
       clientId: typeof clientId === "string" ? clientId : undefined,
+      clientName: typeof clientName === "string" && clientName.trim() ? clientName.trim() : undefined,
       ruleId: typeof ruleId === "string" ? ruleId : undefined,
       channel: channel === "sms" || channel === "email" ? channel : undefined,
       status: status === "success" || status === "failed" ? status : undefined,

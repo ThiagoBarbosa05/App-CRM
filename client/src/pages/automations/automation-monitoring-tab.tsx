@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { AlertTriangle, ChevronRight, Mail, MessageSquare, Users } from "lucide-react";
+import { AlertTriangle, ChevronRight, Mail, MessageSquare, Users, Search, Banknote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -37,7 +38,12 @@ const TRIGGER_LABELS: Record<string, string> = {
   inactivity_reengagement: "Reengajamento por inatividade",
 };
 
-function formatDateTime(value: string | null): string {
+const CASHBACK_TRIGGER_LABELS: Record<string, string> = {
+  cashback_earned: "Cashback recebido",
+  cashback_expiring: "Cashback prestes a vencer",
+};
+
+function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
   return new Date(value).toLocaleString("pt-BR");
 }
@@ -54,6 +60,19 @@ function ruleStepLabel(rule: AutomationRuleOverview): string | null {
   return null;
 }
 
+/** Label e cor do activeClients dependem do trigger type */
+function activeClientsLabel(trigger: string): string {
+  if (trigger === "inactivity_reengagement") return "no fluxo";
+  return "alcançados (30d)";
+}
+
+function CashbackStatusBadge({ status }: { status: "active" | "expired" | "redeemed" | null }) {
+  if (!status) return <span className="text-muted-foreground">—</span>;
+  if (status === "active") return <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">Ativo</Badge>;
+  if (status === "redeemed") return <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">Resgatado</Badge>;
+  return <Badge variant="secondary">Expirado</Badge>;
+}
+
 function RuleDrillDown({
   rule,
   onClose,
@@ -62,20 +81,33 @@ function RuleDrillDown({
   onClose: () => void;
 }) {
   const { data: clients = [], isLoading } = useAutomationRuleClients(rule.id);
+  const isCashback = rule.trigger === "cashback_earned" || rule.trigger === "cashback_expiring";
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Clientes em: {rule.name}</DialogTitle>
         </DialogHeader>
+
+        {isCashback && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            Exibe clientes alcançados com sucesso nos últimos 30 dias, enriquecidos com o status atual do cashback.
+          </p>
+        )}
+        {rule.trigger === "inactivity_reengagement" && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            Exibe clientes atualmente no ciclo de reengajamento (reengagement_progress), ou seja, que não compraram desde a última tentativa.
+          </p>
+        )}
+
         {isLoading ? (
           <div className="py-8 text-center text-sm text-muted-foreground">
             Carregando clientes...
           </div>
         ) : clients.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground">
-            Nenhum cliente dentro deste fluxo ainda.
+            Nenhum cliente dentro deste fluxo no momento.
           </div>
         ) : (
           <div className="max-h-[60vh] overflow-y-auto">
@@ -84,8 +116,17 @@ function RuleDrillDown({
                 <TableRow>
                   <TableHead>Cliente</TableHead>
                   {rule.trigger === "inactivity_reengagement" && (
-                    <TableHead>Etapa atual</TableHead>
+                    <TableHead>Tentativas enviadas</TableHead>
                   )}
+                  {isCashback && (
+                    <TableHead>
+                      <div className="flex items-center gap-1">
+                        <Banknote className="h-3.5 w-3.5" />
+                        Cashback
+                      </div>
+                    </TableHead>
+                  )}
+                  {isCashback && <TableHead>Expira em</TableHead>}
                   <TableHead>Último disparo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Envios (ok/falha)</TableHead>
@@ -97,7 +138,17 @@ function RuleDrillDown({
                     <TableCell className="font-medium">{c.clientName}</TableCell>
                     {rule.trigger === "inactivity_reengagement" && (
                       <TableCell>
-                        {c.attemptsSent != null ? `Tentativa ${c.attemptsSent}` : "—"}
+                        {c.attemptsSent != null ? `${c.attemptsSent} tentativa(s)` : "—"}
+                      </TableCell>
+                    )}
+                    {isCashback && (
+                      <TableCell>
+                        <CashbackStatusBadge status={c.cashbackStatus} />
+                      </TableCell>
+                    )}
+                    {isCashback && (
+                      <TableCell className="text-xs text-muted-foreground">
+                        {c.cashbackExpiresAt ? formatDateTime(c.cashbackExpiresAt) : "—"}
                       </TableCell>
                     )}
                     <TableCell>{formatDateTime(c.lastDispatchAt)}</TableCell>
@@ -150,6 +201,7 @@ function OverviewCards() {
         {rules.map((rule) => {
           const stepLabel = ruleStepLabel(rule);
           const hasFailures = rule.failedRecent > 0;
+          const clientsLabel = activeClientsLabel(rule.trigger);
           return (
             <Card
               key={rule.id}
@@ -175,7 +227,7 @@ function OverviewCards() {
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1.5">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{rule.activeClients} no fluxo</span>
+                    <span>{rule.activeClients} {clientsLabel}</span>
                   </div>
                   <div className="text-muted-foreground">
                     {rule.sentRecent} disparo(s) em 30 dias
@@ -217,6 +269,8 @@ function HistoryTable() {
   const [ruleId, setRuleId] = useState<string>("all");
   const [channel, setChannel] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
+  const [clientNameInput, setClientNameInput] = useState("");
+  const [clientName, setClientName] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
@@ -224,16 +278,60 @@ function HistoryTable() {
     ruleId: ruleId === "all" ? undefined : ruleId,
     channel: channel === "all" ? undefined : (channel as "sms" | "email"),
     status: status === "all" ? undefined : (status as "success" | "failed"),
+    clientName: clientName.trim() || undefined,
     page,
     pageSize,
   });
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / pageSize)) : 1;
 
+  const handleClientSearch = () => {
+    setClientName(clientNameInput);
+    setPage(1);
+  };
+
+  const handleClientClear = () => {
+    setClientNameInput("");
+    setClientName("");
+    setPage(1);
+  };
+
   return (
     <Card>
       <CardContent className="p-4 space-y-4">
         <div className="flex flex-wrap gap-3">
+          {/* Filtro por cliente */}
+          <div className="flex gap-1.5">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Buscar por cliente…"
+                value={clientNameInput}
+                onChange={(e) => setClientNameInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleClientSearch()}
+                className="w-[200px] pl-8 h-9 text-sm"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClientSearch}
+              className="h-9"
+            >
+              Buscar
+            </Button>
+            {clientName && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClientClear}
+                className="h-9 text-muted-foreground"
+              >
+                ✕
+              </Button>
+            )}
+          </div>
+
           <Select
             value={ruleId}
             onValueChange={(v) => {
@@ -288,6 +386,12 @@ function HistoryTable() {
             </SelectContent>
           </Select>
         </div>
+
+        {clientName && (
+          <p className="text-xs text-muted-foreground">
+            Filtrando por cliente: <strong>"{clientName}"</strong>
+          </p>
+        )}
 
         {isLoading ? (
           <div className="py-8 text-center text-sm text-muted-foreground">

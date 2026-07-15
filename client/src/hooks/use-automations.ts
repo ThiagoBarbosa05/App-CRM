@@ -157,6 +157,8 @@ export interface AutomationRuleClientRow {
   lastStatus: "success" | "failed";
   successCount: number;
   failedCount: number;
+  cashbackStatus: "active" | "expired" | "redeemed" | null;
+  cashbackExpiresAt: string | null;
 }
 
 export interface AutomationHistoryRow {
@@ -173,6 +175,7 @@ export interface AutomationHistoryRow {
 
 export interface AutomationHistoryFilters {
   clientId?: string;
+  clientName?: string;
   ruleId?: string;
   channel?: "sms" | "email";
   status?: "success" | "failed";
@@ -204,6 +207,7 @@ export function useAutomationRuleClients(ruleId: string | null) {
 export function useAutomationHistory(filters: AutomationHistoryFilters) {
   const params = new URLSearchParams();
   if (filters.clientId) params.set("clientId", filters.clientId);
+  if (filters.clientName) params.set("clientName", filters.clientName);
   if (filters.ruleId) params.set("ruleId", filters.ruleId);
   if (filters.channel) params.set("channel", filters.channel);
   if (filters.status) params.set("status", filters.status);

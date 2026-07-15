@@ -3,10 +3,11 @@ import {
   automationRules,
   automationExecutionLog,
   reengagementProgress,
+  cashbackTransactions,
   clients,
   type AutomationRule,
 } from "@shared/schema";
-import { and, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, sql } from "drizzle-orm";
 
 const RECENT_WINDOW_DAYS = 30;
 
@@ -16,6 +17,10 @@ export interface RuleOverview {
   trigger: AutomationRule["trigger"];
   triggerParams: Record<string, unknown> | null;
   isActive: boolean;
+  /** Clientes atualmente dentro do fluxo:
+   *  - inactivity_reengagement → contagem em reengagement_progress (ciclo ativo)
+   *  - cashback_* → clientes distintos alcançados com sucesso nos últimos 30 dias
+   */
   activeClients: number;
   sentRecent: number;
   failedRecent: number;
@@ -24,9 +29,11 @@ export interface RuleOverview {
 }
 
 /**
- * Visão geral por regra: quantos clientes estão atualmente dentro do fluxo
- * (ao menos um disparo bem-sucedido registrado para a regra), quantos
- * disparos ocorreram nos últimos 30 dias e quantas falhas recentes existem.
+ * Visão geral por regra:
+ * - inactivity_reengagement → "no fluxo" = clientes em reengagement_progress
+ *   (ciclo atual, zerado a cada nova compra do cliente).
+ * - cashback_* → "no fluxo" = clientes distintos com disparo bem-sucedido
+ *   nos últimos 30 dias (janela temporal alinhada ao ciclo do cashback).
  */
 export async function getAutomationOverview(): Promise<RuleOverview[]> {
   const rules = await db
@@ -39,7 +46,15 @@ export async function getAutomationOverview(): Promise<RuleOverview[]> {
   const ruleIds = rules.map((r) => r.id);
   const since = new Date(Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-  const activeClientsRows = await db
+  // Para regras de inatividade: contagem real em reengagement_progress
+  // agrupada por attemptsSent para mapear à etapa de cada regra.
+  const [reengagementCountRow] = await db
+    .select({ total: count() })
+    .from(reengagementProgress);
+  const totalReengagement = Number(reengagementCountRow?.total ?? 0);
+
+  // Para cashback e outros triggers: clientes distintos com sucesso nos últimos 30 dias.
+  const recentActiveClientsRows = await db
     .select({
       ruleId: automationExecutionLog.ruleId,
       activeClients: sql<number>`count(distinct ${automationExecutionLog.clientId})`,
@@ -50,9 +65,41 @@ export async function getAutomationOverview(): Promise<RuleOverview[]> {
       and(
         inArray(automationExecutionLog.ruleId, ruleIds),
         eq(automationExecutionLog.status, "success"),
+        gte(automationExecutionLog.createdAt, since),
       ),
     )
     .groupBy(automationExecutionLog.ruleId);
+
+  // lastDispatchAt geral (all-time) para exibição informativa
+  const lastDispatchRows = await db
+    .select({
+      ruleId: automationExecutionLog.ruleId,
+      lastDispatchAt: sql<string | null>`max(${automationExecutionLog.createdAt})`,
+    })
+    .from(automationExecutionLog)
+    .where(
+      and(
+        inArray(automationExecutionLog.ruleId, ruleIds),
+        eq(automationExecutionLog.status, "success"),
+      ),
+    )
+    .groupBy(automationExecutionLog.ruleId);
+
+  const recentActiveByRule = new Map<
+    string,
+    { activeClients: number; lastDispatchAt: string | null }
+  >();
+  for (const row of recentActiveClientsRows) {
+    recentActiveByRule.set(row.ruleId, {
+      activeClients: Number(row.activeClients),
+      lastDispatchAt: row.lastDispatchAt,
+    });
+  }
+
+  const lastDispatchByRule = new Map<string, string | null>();
+  for (const row of lastDispatchRows) {
+    lastDispatchByRule.set(row.ruleId, row.lastDispatchAt);
+  }
 
   const recentStatsRows = await db
     .select({
@@ -69,17 +116,6 @@ export async function getAutomationOverview(): Promise<RuleOverview[]> {
       ),
     )
     .groupBy(automationExecutionLog.ruleId, automationExecutionLog.status);
-
-  const activeClientsByRule = new Map<
-    string,
-    { activeClients: number; lastDispatchAt: string | null }
-  >();
-  for (const row of activeClientsRows) {
-    activeClientsByRule.set(row.ruleId, {
-      activeClients: Number(row.activeClients),
-      lastDispatchAt: row.lastDispatchAt,
-    });
-  }
 
   const statsByRule = new Map<
     string,
@@ -101,19 +137,26 @@ export async function getAutomationOverview(): Promise<RuleOverview[]> {
   }
 
   return rules.map((rule) => {
-    const activeInfo = activeClientsByRule.get(rule.id);
     const stats = statsByRule.get(rule.id);
+    const recentInfo = recentActiveByRule.get(rule.id);
+
+    // activeClients: usa reengagement_progress para inatividade; janela 30d para demais
+    const activeClients =
+      rule.trigger === "inactivity_reengagement"
+        ? totalReengagement
+        : (recentInfo?.activeClients ?? 0);
+
     return {
       id: rule.id,
       name: rule.name,
       trigger: rule.trigger,
       triggerParams: (rule.triggerParams as Record<string, unknown>) ?? null,
       isActive: rule.isActive,
-      activeClients: activeInfo?.activeClients ?? 0,
+      activeClients,
       sentRecent: stats?.sentRecent ?? 0,
       failedRecent: stats?.failedRecent ?? 0,
       lastFailureAt: stats?.lastFailureAt ?? null,
-      lastDispatchAt: activeInfo?.lastDispatchAt ?? null,
+      lastDispatchAt: lastDispatchByRule.get(rule.id) ?? null,
     };
   });
 }
@@ -126,12 +169,17 @@ export interface RuleClientRow {
   lastStatus: "success" | "failed";
   successCount: number;
   failedCount: number;
+  /** Para fluxos de cashback: status atual do cashback do cliente */
+  cashbackStatus: "active" | "expired" | "redeemed" | null;
+  cashbackExpiresAt: string | null;
 }
 
 /**
- * Drill-down de clientes atualmente dentro de uma regra específica: para
- * cada cliente que já recebeu ao menos um disparo desta regra, mostra a
- * data do último disparo e (para reengajamento) a etapa atual da régua.
+ * Drill-down de clientes em uma regra:
+ * - inactivity_reengagement → clientes em reengagement_progress (ciclo ativo real)
+ *   enriquecidos com attemptsSent do log de execução.
+ * - cashback_* → clientes com disparo bem-sucedido nos últimos 30 dias,
+ *   enriquecidos com o status atual do cashback (ativo/expirado/resgatado).
  */
 export async function getRuleClients(ruleId: string): Promise<RuleClientRow[]> {
   const [rule] = await db
@@ -140,6 +188,65 @@ export async function getRuleClients(ruleId: string): Promise<RuleClientRow[]> {
     .where(eq(automationRules.id, ruleId));
   if (!rule) return [];
 
+  const since = new Date(Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  // Para inatividade: buscar clientes que estão ativamente em reengagement_progress
+  if (rule.trigger === "inactivity_reengagement") {
+    const progressRows = await db
+      .select({
+        clientId: reengagementProgress.clientId,
+        clientName: clients.name,
+        attemptsSent: reengagementProgress.attemptsSent,
+        lastAttemptAt: reengagementProgress.lastAttemptAt,
+      })
+      .from(reengagementProgress)
+      .innerJoin(clients, eq(reengagementProgress.clientId, clients.id))
+      .orderBy(desc(reengagementProgress.lastAttemptAt));
+
+    // Enriquecer com status do último disparo desta regra
+    const clientIds = progressRows.map((r) => r.clientId);
+    let lastStatusByClient = new Map<string, { lastStatus: "success" | "failed"; successCount: number; failedCount: number }>();
+    if (clientIds.length > 0) {
+      const logRows = await db
+        .select({
+          clientId: automationExecutionLog.clientId,
+          status: automationExecutionLog.status,
+        })
+        .from(automationExecutionLog)
+        .where(
+          and(
+            eq(automationExecutionLog.ruleId, ruleId),
+            inArray(automationExecutionLog.clientId, clientIds),
+          ),
+        )
+        .orderBy(desc(automationExecutionLog.createdAt));
+
+      for (const row of logRows) {
+        if (!row.clientId) continue;
+        const entry = lastStatusByClient.get(row.clientId) ?? { lastStatus: row.status, successCount: 0, failedCount: 0 };
+        if (row.status === "success") entry.successCount++;
+        else entry.failedCount++;
+        lastStatusByClient.set(row.clientId, entry);
+      }
+    }
+
+    return progressRows.map((p) => {
+      const logInfo = lastStatusByClient.get(p.clientId) ?? { lastStatus: "success" as const, successCount: 0, failedCount: 0 };
+      return {
+        clientId: p.clientId,
+        clientName: p.clientName,
+        attemptsSent: p.attemptsSent,
+        lastDispatchAt: p.lastAttemptAt as unknown as string | null,
+        lastStatus: logInfo.lastStatus,
+        successCount: logInfo.successCount,
+        failedCount: logInfo.failedCount,
+        cashbackStatus: null,
+        cashbackExpiresAt: null,
+      };
+    });
+  }
+
+  // Para cashback e outros: clientes com disparo bem-sucedido nos últimos 30 dias
   const rows = await db
     .select({
       clientId: automationExecutionLog.clientId,
@@ -149,7 +256,12 @@ export async function getRuleClients(ruleId: string): Promise<RuleClientRow[]> {
     })
     .from(automationExecutionLog)
     .innerJoin(clients, eq(automationExecutionLog.clientId, clients.id))
-    .where(eq(automationExecutionLog.ruleId, ruleId))
+    .where(
+      and(
+        eq(automationExecutionLog.ruleId, ruleId),
+        gte(automationExecutionLog.createdAt, since),
+      ),
+    )
     .orderBy(desc(automationExecutionLog.createdAt));
 
   const byClient = new Map<
@@ -177,33 +289,53 @@ export async function getRuleClients(ruleId: string): Promise<RuleClientRow[]> {
     byClient.set(row.clientId, entry);
   }
 
-  let attemptsByClient: Map<string, number> | null = null;
-  if (rule.trigger === "inactivity_reengagement") {
+  // Enriquecer cashback_earned / cashback_expiring com status atual do cashback
+  let cashbackByClient: Map<string, { cashbackStatus: "active" | "expired" | "redeemed"; cashbackExpiresAt: string }> | null = null;
+
+  if (rule.trigger === "cashback_earned" || rule.trigger === "cashback_expiring") {
     const clientIds = Array.from(byClient.keys());
     if (clientIds.length > 0) {
-      const progressRows = await db
-        .select()
-        .from(reengagementProgress)
-        .where(inArray(reengagementProgress.clientId, clientIds));
-      attemptsByClient = new Map(
-        progressRows.map((p) => [p.clientId, p.attemptsSent]),
-      );
+      const txRows = await db
+        .select({
+          clientId: cashbackTransactions.clientId,
+          status: cashbackTransactions.status,
+          expiresAt: cashbackTransactions.expiresAt,
+          createdAt: cashbackTransactions.createdAt,
+        })
+        .from(cashbackTransactions)
+        .where(inArray(cashbackTransactions.clientId, clientIds))
+        .orderBy(desc(cashbackTransactions.createdAt));
+
+      cashbackByClient = new Map();
+      const now = new Date();
+      for (const tx of txRows) {
+        if (cashbackByClient.has(tx.clientId)) continue; // apenas o mais recente
+        const isRedeemed = tx.status === "paid";
+        const isExpired = !isRedeemed && new Date(tx.expiresAt as unknown as string) < now;
+        cashbackByClient.set(tx.clientId, {
+          cashbackStatus: isRedeemed ? "redeemed" : isExpired ? "expired" : "active",
+          cashbackExpiresAt: tx.expiresAt as unknown as string,
+        });
+      }
     }
   }
 
   return Array.from(byClient.entries()).map(([clientId, info]) => ({
     clientId,
     clientName: info.clientName,
-    attemptsSent: attemptsByClient?.get(clientId) ?? null,
+    attemptsSent: null,
     lastDispatchAt: info.lastDispatchAt,
     lastStatus: info.lastStatus,
     successCount: info.successCount,
     failedCount: info.failedCount,
+    cashbackStatus: cashbackByClient?.get(clientId)?.cashbackStatus ?? null,
+    cashbackExpiresAt: cashbackByClient?.get(clientId)?.cashbackExpiresAt ?? null,
   }));
 }
 
 export interface HistoryFilters {
   clientId?: string;
+  clientName?: string;
   ruleId?: string;
   channel?: "sms" | "email";
   status?: "success" | "failed";
@@ -236,11 +368,15 @@ export async function getExecutionHistory(
   if (filters.ruleId) conditions.push(eq(automationExecutionLog.ruleId, filters.ruleId));
   if (filters.channel) conditions.push(eq(automationExecutionLog.channel, filters.channel));
   if (filters.status) conditions.push(eq(automationExecutionLog.status, filters.status));
+  // clientName usa ILIKE no join com clients (filtro aplicado apenas em registros com cliente)
+  if (filters.clientName) conditions.push(ilike(clients.name, `%${filters.clientName}%`));
+
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [{ total }] = await db
     .select({ total: count() })
     .from(automationExecutionLog)
+    .leftJoin(clients, eq(automationExecutionLog.clientId, clients.id))
     .where(where);
 
   const rows = await db
