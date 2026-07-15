@@ -18,7 +18,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Building2, X } from "lucide-react";
+import { WinerySelector } from "@/components/winery-selector";
 
 interface ProductCategory {
   id: string;
@@ -32,7 +33,6 @@ interface ProductsBulkEditModalProps {
   onSuccess: () => void;
 }
 
-// Sentinela para "não alterar este campo"
 const KEEP = "__keep__";
 
 interface Country {
@@ -41,7 +41,6 @@ interface Country {
 }
 
 const VOLUME_OPTIONS = ["187ml", "375ml", "750ml", "1500ml"];
-
 const TYPE_OPTIONS = ["ESPUMANTE", "BRANCO", "ROSE", "TINTO", "PÓS-REFEIÇÃO"];
 
 export function ProductsBulkEditModal({
@@ -55,6 +54,7 @@ export function ProductsBulkEditModal({
   const [country, setCountry] = useState(KEEP);
   const [volume, setVolume] = useState(KEEP);
   const [type, setType] = useState(KEEP);
+  const [winery, setWinery] = useState<string | null>(null); // null = não alterar
 
   const { data: productCategories = [] } = useQuery<ProductCategory[]>({
     queryKey: ["/api/product-categories"],
@@ -67,22 +67,24 @@ export function ProductsBulkEditModal({
   });
 
   const hasChanges =
-    category !== KEEP || country !== KEEP || volume !== KEEP || type !== KEEP;
+    category !== KEEP || country !== KEEP || volume !== KEEP || type !== KEEP || winery !== null;
 
   const resetFields = () => {
     setCategory(KEEP);
     setCountry(KEEP);
     setVolume(KEEP);
     setType(KEEP);
+    setWinery(null);
   };
 
   const bulkMutation = useMutation({
     mutationFn: async () => {
-      const updates: Record<string, string> = {};
+      const updates: Record<string, string | null> = {};
       if (category !== KEEP) updates.category = category;
       if (country !== KEEP) updates.country = country;
       if (volume !== KEEP) updates.volume = volume;
       if (type !== KEEP) updates.type = type;
+      if (winery !== null) updates.winery = winery;
 
       const response = await fetch("/api/products/bulk-update", {
         method: "PATCH",
@@ -132,6 +134,7 @@ export function ProductsBulkEditModal({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Categoria */}
           <div className="space-y-1.5">
             <Label>Categoria</Label>
             <Select value={category} onValueChange={setCategory}>
@@ -149,6 +152,41 @@ export function ProductsBulkEditModal({
             </Select>
           </div>
 
+          {/* Vinícola */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                Vinícola
+              </Label>
+              {winery !== null && (
+                <button
+                  type="button"
+                  onClick={() => setWinery(null)}
+                  className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-wide transition-colors"
+                >
+                  <X className="h-3 w-3" /> Não alterar
+                </button>
+              )}
+            </div>
+            {winery === null ? (
+              <button
+                type="button"
+                onClick={() => setWinery("")}
+                className="w-full h-10 flex items-center px-3 rounded-md border border-dashed border-slate-300 dark:border-slate-700 text-sm text-slate-400 hover:border-slate-400 hover:text-slate-500 transition-colors"
+              >
+                Clique para selecionar uma vinícola...
+              </button>
+            ) : (
+              <WinerySelector
+                value={winery}
+                onChange={setWinery}
+                placeholder="Selecione a vinícola..."
+              />
+            )}
+          </div>
+
+          {/* País */}
           <div className="space-y-1.5">
             <Label>País</Label>
             <Select value={country} onValueChange={setCountry}>
@@ -166,6 +204,7 @@ export function ProductsBulkEditModal({
             </Select>
           </div>
 
+          {/* Volume */}
           <div className="space-y-1.5">
             <Label>Volume</Label>
             <Select value={volume} onValueChange={setVolume}>
@@ -183,6 +222,7 @@ export function ProductsBulkEditModal({
             </Select>
           </div>
 
+          {/* Tipo */}
           <div className="space-y-1.5">
             <Label>Tipo</Label>
             <Select value={type} onValueChange={setType}>

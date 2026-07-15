@@ -108,7 +108,7 @@ productsRouter.post("/", requireAdmin, async (req, res) => {
 const bulkUpdateProductsSchema = z.object({
   productIds: z.array(z.string().min(1)).min(1).max(200),
   updates: insertProductSchema
-    .pick({ category: true, country: true, volume: true, type: true })
+    .pick({ category: true, country: true, volume: true, type: true, winery: true })
     .partial()
     .refine((u) => Object.values(u).some((v) => v !== undefined && v !== null), {
       message: "Informe ao menos um campo para alterar",
