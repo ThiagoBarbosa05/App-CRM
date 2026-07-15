@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-import { Download, Pencil, Plus, RefreshCw, Upload, Wine, X, Copy } from "lucide-react";
+import { Download, Merge, Pencil, Plus, RefreshCw, Upload, Wine, X, Copy } from "lucide-react";
 import { Link } from "wouter";
 import { PageHeader } from "@/components/page-header";
 import { getCountryFlag } from "@/lib/country-flags";
@@ -20,6 +20,7 @@ import { ProductsStatistics } from "@/components/products/products-statistics";
 import { ProductsFilters } from "@/components/products/products-filters";
 import { ProductsTable } from "@/components/products/products-table";
 import { ProductsBulkEditModal } from "@/components/products/products-bulk-edit-modal";
+import { MergeProductsModal } from "@/components/products/merge-products-modal";
 import { Button } from "@/components/ui/button";
 
 interface Product {
@@ -42,6 +43,7 @@ export default function Products() {
   const isAdmin = user?.role === "admin";
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isBlingModalOpen, setIsBlingModalOpen] = useState(false);
@@ -362,7 +364,7 @@ export default function Products() {
                 {selectedIds.size} produto{selectedIds.size > 1 ? "s" : ""} selecionado
                 {selectedIds.size > 1 ? "s" : ""}
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -375,11 +377,22 @@ export default function Products() {
                 <Button
                   size="sm"
                   onClick={() => setIsBulkEditModalOpen(true)}
+                  variant="outline"
                   className="gap-1.5"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Editar em massa
                 </Button>
+                {selectedIds.size >= 2 && (
+                  <Button
+                    size="sm"
+                    onClick={() => setIsMergeModalOpen(true)}
+                    className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white"
+                  >
+                    <Merge className="h-3.5 w-3.5" />
+                    Unificar
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -413,6 +426,15 @@ export default function Products() {
           open={isBulkEditModalOpen}
           onOpenChange={setIsBulkEditModalOpen}
           productIds={Array.from(selectedIds)}
+          onSuccess={() => setSelectedIds(new Set())}
+        />
+      )}
+
+      {isAdmin && isMergeModalOpen && (
+        <MergeProductsModal
+          open={isMergeModalOpen}
+          onOpenChange={setIsMergeModalOpen}
+          products={(products as Product[]).filter((p) => selectedIds.has(p.id))}
           onSuccess={() => setSelectedIds(new Set())}
         />
       )}

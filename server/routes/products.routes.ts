@@ -3,10 +3,17 @@ import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 
 import { storage } from "../storage";
-import { insertProductSchema, products, systemSettings } from "@shared/schema";
+import {
+  insertProductSchema,
+  products,
+  systemSettings,
+  blingProductMappings,
+  companyProducts,
+  blingOrderItems,
+} from "@shared/schema";
 import { generateWineProductProfile } from "../ai-helpers";
 import { db } from "../db";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { requireAuth } from "../middleware/validation";
 
 async function getWineAIInstructions(): Promise<string | null> {
@@ -203,6 +210,86 @@ productsRouter.post("/:productId/merge/:duplicateId", requireAuth, requireAdmin,
   } catch (error) {
     console.error("[POST /products/merge]", error);
     return res.status(500).json({ message: "Erro ao mesclar produtos" });
+  }
+});
+
+// POST /batch-merge — unifica N produtos em um canônico (admin)
+productsRouter.post("/batch-merge", requireAuth, requireAdmin, async (req, res) => {
+  const schema = z.object({
+    canonicalId: z.string().min(1),
+    duplicateIds: z.array(z.string().min(1)).min(1).max(50),
+  });
+
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: fromZodError(parsed.error).toString() });
+  }
+
+  const { canonicalId, duplicateIds } = parsed.data;
+
+  if (duplicateIds.includes(canonicalId)) {
+    return res.status(400).json({ message: "O produto principal não pode estar na lista de duplicatas" });
+  }
+
+  try {
+    // Valida que o produto canônico existe
+    const [canonical] = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(eq(products.id, canonicalId), isNull(products.deletedAt)))
+      .limit(1);
+    if (!canonical) return res.status(404).json({ message: "Produto principal não encontrado" });
+
+    // Valida que todos os duplicados existem
+    const existingDuplicates = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(inArray(products.id, duplicateIds), isNull(products.deletedAt)));
+    const foundIds = new Set(existingDuplicates.map((r) => r.id));
+    const missing = duplicateIds.filter((id) => !foundIds.has(id));
+    if (missing.length > 0) {
+      return res.status(404).json({ message: `Produto(s) não encontrado(s): ${missing.join(", ")}` });
+    }
+
+    // Para cada duplicata: reatribui vínculos e soft-delete
+    for (const duplicateId of duplicateIds) {
+      // 1. blingProductMappings
+      await db.update(blingProductMappings)
+        .set({ productId: canonicalId })
+        .where(eq(blingProductMappings.productId, duplicateId));
+
+      // 2. companyProducts (com deduplicação)
+      const existingCos = await db
+        .select({ companyId: companyProducts.companyId })
+        .from(companyProducts)
+        .where(eq(companyProducts.productId, canonicalId));
+      if (existingCos.length > 0) {
+        await db.delete(companyProducts).where(
+          and(
+            eq(companyProducts.productId, duplicateId),
+            inArray(companyProducts.companyId, existingCos.map((r) => r.companyId)),
+          ),
+        );
+      }
+      await db.update(companyProducts)
+        .set({ productId: canonicalId })
+        .where(eq(companyProducts.productId, duplicateId));
+
+      // 3. blingOrderItems
+      await db.update(blingOrderItems)
+        .set({ productId: canonicalId })
+        .where(eq(blingOrderItems.productId, duplicateId));
+
+      // 4. Soft-delete da duplicata
+      await db.update(products)
+        .set({ deletedAt: new Date() })
+        .where(eq(products.id, duplicateId));
+    }
+
+    return res.json({ success: true, merged: duplicateIds.length });
+  } catch (error) {
+    console.error("[POST /products/batch-merge]", error);
+    return res.status(500).json({ message: "Erro ao unificar produtos" });
   }
 });
 
