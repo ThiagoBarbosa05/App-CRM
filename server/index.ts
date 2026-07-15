@@ -25,6 +25,7 @@ import { users } from "@shared/schema";
 import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import { getCachedPage, setCachedPage } from "./lib/landing-page-cache";
+import { seedCountries } from "./jobs/seed-countries";
 import { redactPii } from "./lib/log-redaction";
 // import "./jobs/umbler-sync-scheduler";
 
@@ -162,6 +163,7 @@ app.use((req, res, next) => {
     }
   });
   const server = await registerRoutes(app);
+  seedCountries().catch((err) => console.error("[Seed] seedCountries falhou:", err));
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();
