@@ -17,6 +17,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const schema = z.object({
+  userGoalId: z.string().min(1, "Selecione um vendedor"),
   productGoalId: z.string().min(1, "Selecione um produto"),
   productGoalQty: z.coerce
     .number({ invalid_type_error: "Deve ser um número" })
@@ -29,7 +30,10 @@ type FormData = z.infer<typeof schema>;
 interface ProductGoalModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Quando não null → modo edição (vendedor já conhecido) */
   editingGoal: any | null;
+  /** Todas as metas do mês — usadas no modo "nova meta" para seletor de vendedor */
+  userGoals: any[];
   selectedMonth: number;
   selectedYear: number;
 }
@@ -38,6 +42,7 @@ export function ProductGoalModal({
   open,
   onOpenChange,
   editingGoal,
+  userGoals,
   selectedMonth,
   selectedYear,
 }: ProductGoalModalProps) {
@@ -46,6 +51,8 @@ export function ProductGoalModal({
   const [productSearch, setProductSearch] = useState("");
   const [showProductList, setShowProductList] = useState(false);
   const [selectedProductName, setSelectedProductName] = useState("");
+
+  const isEditing = !!editingGoal;
 
   const {
     register,
@@ -66,18 +73,19 @@ export function ProductGoalModal({
       const res = await fetch(`/api/products?${params}`);
       return res.json();
     },
-    enabled: showProductList || !!watchProductGoalId,
+    enabled: open && (showProductList || !!watchProductGoalId),
   });
   const productOptions = productsData?.data ?? [];
 
   useEffect(() => {
     if (!open) return;
-    if (editingGoal?.productGoalId) {
-      setValue("productGoalId", editingGoal.productGoalId);
-      setValue("productGoalQty", editingGoal.productGoalQty ?? 1);
+    if (editingGoal) {
+      setValue("userGoalId", editingGoal.id);
+      setValue("productGoalId", editingGoal.productGoalId ?? "");
+      setValue("productGoalQty", editingGoal.productGoalQty ?? undefined);
       setSelectedProductName(editingGoal.productGoalName ?? "");
     } else {
-      reset({ productGoalId: "", productGoalQty: undefined });
+      reset({ userGoalId: "", productGoalId: "", productGoalQty: undefined });
       setSelectedProductName("");
       setProductSearch("");
     }
@@ -85,8 +93,7 @@ export function ProductGoalModal({
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      if (!editingGoal?.id) throw new Error("Meta não encontrada");
-      return apiRequest("PUT", `/api/user-goals/${editingGoal.id}`, {
+      return apiRequest("PUT", `/api/user-goals/${data.userGoalId}`, {
         productGoalId: data.productGoalId,
         productGoalQty: data.productGoalQty,
       });
@@ -95,7 +102,7 @@ export function ProductGoalModal({
       queryClient.invalidateQueries({
         queryKey: [`/api/user-goals-with-results/${selectedMonth}/${selectedYear}`],
       });
-      toast({ title: "Meta de produto atualizada", description: "Produto alvo salvo com sucesso." });
+      toast({ title: "Meta de produto salva", description: "Produto alvo definido com sucesso." });
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -139,9 +146,15 @@ export function ProductGoalModal({
 
   const isPending = mutation.isPending || clearMutation.isPending;
 
+  const monthLabel = new Date(selectedYear, selectedMonth - 1).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md rounded-[2rem] border-0 shadow-2xl overflow-hidden p-0">
+        {/* Header */}
         <div className="bg-gradient-to-br from-violet-600 to-purple-700 p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-0 -ml-6 -mb-6 w-28 h-28 bg-white/5 rounded-full blur-2xl" />
@@ -152,20 +165,13 @@ export function ProductGoalModal({
               </div>
             </div>
             <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white text-balance">
-              Meta de Produto
+              {isEditing ? "Editar Meta de Produto" : "Nova Meta de Produto"}
             </DialogTitle>
-            {editingGoal && (
-              <p className="text-violet-200 text-sm font-medium mt-1">
-                {editingGoal.userName}
-                <span className="mx-2 opacity-50">·</span>
-                <span className="capitalize">
-                  {new Date(editingGoal.year, editingGoal.month - 1).toLocaleDateString("pt-BR", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-              </p>
-            )}
+            <p className="text-violet-200 text-sm font-medium mt-1 capitalize">
+              {isEditing
+                ? `${editingGoal.userName} · ${monthLabel}`
+                : monthLabel}
+            </p>
           </DialogHeader>
         </div>
 
@@ -173,6 +179,33 @@ export function ProductGoalModal({
           onSubmit={handleSubmit((data) => mutation.mutate(data))}
           className="p-8 space-y-6"
         >
+          {/* Seletor de vendedor — só no modo "nova meta" */}
+          {!isEditing && (
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Vendedor
+              </Label>
+              <select
+                {...register("userGoalId")}
+                className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
+              >
+                <option value="">Selecione um vendedor</option>
+                {userGoals.map((g: any) => (
+                  <option key={g.id} value={g.id}>
+                    {g.userName}
+                    {g.productGoalId ? " (já tem produto)" : ""}
+                  </option>
+                ))}
+              </select>
+              {errors.userGoalId && (
+                <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase">
+                  {errors.userGoalId.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Produto */}
           <div className="space-y-3">
             <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
               Vinho / Produto alvo
@@ -232,6 +265,7 @@ export function ProductGoalModal({
             )}
           </div>
 
+          {/* Quantidade */}
           {selectedProductName && (
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -252,8 +286,9 @@ export function ProductGoalModal({
             </div>
           )}
 
+          {/* Ações */}
           <div className="flex items-center justify-between gap-3 pt-2">
-            {editingGoal?.productGoalId && (
+            {isEditing && editingGoal?.productGoalId && (
               <Button
                 type="button"
                 variant="ghost"

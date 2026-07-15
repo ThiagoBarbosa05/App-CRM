@@ -322,8 +322,8 @@ export default function Metas() {
         setIsSalesModalOpen(true);
         break;
       case "products":
-        setEditingSalesGoal(null);
-        setIsSalesModalOpen(true);
+        setEditingProductGoal(null);
+        setIsProductGoalModalOpen(true);
         break;
       case "telemarketing":
         setEditingTelemarketingGoal(null);
@@ -781,6 +781,7 @@ export default function Metas() {
             open={isProductGoalModalOpen}
             onOpenChange={setIsProductGoalModalOpen}
             editingGoal={editingProductGoal}
+            userGoals={userGoals}
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
           />
