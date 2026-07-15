@@ -117,7 +117,7 @@ export function ProductGoalModal({
       const res = await fetch(`/api/products?${params}`);
       return res.json();
     },
-    enabled: open && showProductList,
+    enabled: open && showProductList && productSearch.trim().length >= 3,
   });
   const productOptions = productsData?.data ?? [];
 
@@ -327,10 +327,13 @@ export function ProductGoalModal({
                   ) : (
                     <div className="relative">
                       <Input
-                        placeholder="Buscar vinho por nome..."
+                        placeholder="Digite 3 letras para buscar..."
                         value={productSearch}
-                        onChange={(e) => { setProductSearch(e.target.value); setShowProductList(true); }}
-                        onFocus={() => setShowProductList(true)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setProductSearch(v);
+                          setShowProductList(v.trim().length >= 3);
+                        }}
                         className="h-11 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 font-medium focus:border-violet-400 focus:ring-violet-400/20"
                       />
                       {showProductList && productOptions.length > 0 && (
