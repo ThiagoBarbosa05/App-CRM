@@ -2620,8 +2620,14 @@ export class DatabaseStorage implements IStorage {
     if (goalsWithProduct.length > 0) {
       // Busca nome dos produtos em batch
       const productIds = [...new Set(goalsWithProduct.map((g) => g.productGoalId as string))];
+      const userIds = [...new Set(goalsWithProduct.map((g) => g.userId))];
+
+      // Usa sql.join para montar cláusulas IN com placeholders seguros
+      const productIdsIn = sql.join(productIds.map((id) => sql`${id}`), sql`, `);
+      const userIdsIn = sql.join(userIds.map((id) => sql`${id}`), sql`, `);
+
       const productRows = await this.db.execute(sql`
-        SELECT id, name FROM products WHERE id = ANY(${productIds}::varchar[])
+        SELECT id, name FROM products WHERE id IN (${productIdsIn})
       `);
       const productNameById = new Map<string, string>(
         (productRows.rows as { id: string; name: string }[]).map((r) => [r.id, r.name]),
@@ -2645,8 +2651,8 @@ export class DatabaseStorage implements IStorage {
         WHERE bo.sale_date >= ${startDate}
           AND bo.sale_date <= ${endDate}
           AND bo.deleted_at IS NULL
-          AND bsm.user_id = ANY(${goalsWithProduct.map((g) => g.userId)}::varchar[])
-          AND bpm.product_id = ANY(${productIds}::varchar[])
+          AND bsm.user_id IN (${userIdsIn})
+          AND bpm.product_id IN (${productIdsIn})
         GROUP BY bsm.user_id, bpm.product_id
       `);
 
