@@ -125,9 +125,11 @@ export function ProductGoalModal({
     queryKey: ["/api/wineries"],
     enabled: open,
   });
-  const wineryOptions = (wineriesData ?? []).filter((w) =>
-    w.name.toLowerCase().includes(winerySearch.toLowerCase())
-  );
+  const wineryOptions = winerySearch.trim().length >= 3
+    ? (wineriesData ?? []).filter((w) =>
+        w.name.toLowerCase().includes(winerySearch.toLowerCase())
+      )
+    : [];
 
   // ─── Mutations produto ─────────────────────────────────────────
   const addProductMutation = useMutation({
@@ -464,10 +466,13 @@ export function ProductGoalModal({
                   ) : (
                     <div className="relative">
                       <Input
-                        placeholder="Buscar vinícola..."
+                        placeholder="Digite 3 letras para buscar..."
                         value={winerySearch}
-                        onChange={(e) => { setWinerySearch(e.target.value); setShowWineryList(true); }}
-                        onFocus={() => setShowWineryList(true)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setWinerySearch(v);
+                          setShowWineryList(v.trim().length >= 3);
+                        }}
                         className="h-11 rounded-xl bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 font-medium focus:border-amber-400 focus:ring-amber-400/20"
                       />
                       {showWineryList && wineryOptions.length > 0 && (
