@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-import { Download, Merge, Pencil, Plus, RefreshCw, Upload, Wine, X, Copy } from "lucide-react";
+import { Download, Merge, Pencil, Plus, RefreshCw, Upload, Wine, X, Copy, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { PageHeader } from "@/components/page-header";
 import { getCountryFlag } from "@/lib/country-flags";
@@ -22,6 +22,17 @@ import { ProductsTable } from "@/components/products/products-table";
 import { ProductsBulkEditModal } from "@/components/products/products-bulk-edit-modal";
 import { MergeProductsModal } from "@/components/products/merge-products-modal";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Product {
   id: string;
@@ -176,6 +187,36 @@ export default function Products() {
         description: "Não foi possível excluir o produto.",
         variant: "destructive",
       });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/products/${id}`, { method: "DELETE" }).then((r) => {
+            if (!r.ok) throw new Error(`Falha ao excluir ${id}`);
+            return r.json();
+          })
+        )
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      return { total: ids.length, failed };
+    },
+    onSuccess: ({ total, failed }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      setSelectedIds(new Set());
+      if (failed === 0) {
+        toast({ title: `${total} produto(s) excluído(s) com sucesso.` });
+      } else {
+        toast({
+          title: `${total - failed} excluído(s), ${failed} falharam.`,
+          variant: "destructive",
+        });
+      }
+    },
+    onError: () => {
+      toast({ title: "Erro ao excluir produtos.", variant: "destructive" });
     },
   });
 
@@ -394,6 +435,43 @@ export default function Products() {
                     Unificar
                   </Button>
                 )}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={bulkDeleteMutation.isPending}
+                      className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {bulkDeleteMutation.isPending ? "Excluindo..." : "Excluir selecionados"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent className="rounded-3xl border-slate-200/60 dark:border-slate-800/60 p-6 max-w-sm">
+                    <AlertDialogHeader className="gap-2">
+                      <div className="mx-auto bg-red-100 dark:bg-red-900/30 p-3 rounded-full mb-2">
+                        <Trash2 className="h-6 w-6 text-red-600 dark:text-red-500" />
+                      </div>
+                      <AlertDialogTitle className="font-extrabold text-xl text-center text-slate-900 dark:text-white">
+                        Excluir {selectedIds.size} produto{selectedIds.size > 1 ? "s" : ""}?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="text-slate-500 font-medium text-center text-sm">
+                        Esta ação não pode ser desfeita. Os {selectedIds.size} produto{selectedIds.size > 1 ? "s" : ""} selecionado{selectedIds.size > 1 ? "s" : ""} serão removidos permanentemente.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-3 sm:justify-center mt-2">
+                      <AlertDialogCancel className="rounded-xl border-slate-200 hover:bg-slate-50 font-bold h-11 px-6">
+                        Cancelar
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+                        className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-xl font-bold h-11 px-6 border-0 shadow-md shadow-red-500/20"
+                      >
+                        Excluir tudo
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           )}
