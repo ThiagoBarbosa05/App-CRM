@@ -45,7 +45,7 @@ wineriesRouter.post("/", requireAuth, requireAdmin, async (req, res) => {
     const { name } = schema.parse(req.body);
     const [winery] = await db
       .insert(wineries)
-      .values({ name: name.trim(), createdBy: req.user!.id })
+      .values({ name: name.trim(), createdBy: req.user!.userId })
       .onConflictDoNothing()
       .returning();
     if (!winery) {
