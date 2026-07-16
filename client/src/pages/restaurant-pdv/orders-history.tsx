@@ -1,99 +1,64 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useLocation } from "wouter";
+import { ClipboardList } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import type { RestaurantOrder } from "@shared/schema";
-import { OrderAuditLog } from "@/components/restaurant-pdv/order-audit-log";
-import { OrderReceiptPrint } from "@/components/restaurant-pdv/order-receipt-print";
+import { OrdersHistoryStats } from "@/components/restaurant-pdv/orders-history-stats";
+import {
+  OrdersHistoryFilters,
+  EMPTY_FILTERS,
+  type OrdersHistoryFiltersValue,
+} from "@/components/restaurant-pdv/orders-history-filters";
+import { OrdersHistoryTable } from "@/components/restaurant-pdv/orders-history-table";
 
 interface RestaurantOrderWithPaymentsCount extends RestaurantOrder {
   paymentsCount: number;
 }
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  pix: "Pix",
-  cartao_credito: "Cartão de Crédito",
-  cartao_debito: "Cartão de Débito",
-  dinheiro: "Dinheiro",
-};
-
 export default function RestaurantOrdersHistory() {
+  const [, setLocation] = useLocation();
+  const [filters, setFilters] = useState<OrdersHistoryFiltersValue>(EMPTY_FILTERS);
+
   const { data: orders = [] } = useQuery<RestaurantOrderWithPaymentsCount[]>({
-    queryKey: ["/api/restaurant-pdv/orders"],
+    queryKey: ["/api/restaurant-pdv/orders", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.status !== "todas") params.append("status", filters.status);
+      if (filters.from) params.append("from", filters.from);
+      if (filters.to) params.append("to", filters.to);
+      const res = await fetch(`/api/restaurant-pdv/orders?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Erro ao buscar histórico de comandas");
+      return res.json();
+    },
   });
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico de Comandas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mesa</TableHead>
-                <TableHead>Pessoas</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Pagamento</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Aberta em</TableHead>
-                <TableHead />
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell>{order.tableNumber}</TableCell>
-                  <TableCell>{order.peopleCount}</TableCell>
-                  <TableCell>
-                    <Badge variant={order.status === "aberta" ? "default" : "outline"}>
-                      {order.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {order.paymentsCount > 1
-                      ? `Dividido (${order.paymentsCount}x)`
-                      : order.paymentMethod
-                        ? PAYMENT_METHOD_LABELS[order.paymentMethod]
-                        : "—"}
-                  </TableCell>
-                  <TableCell>{order.total ? formatCurrency(order.total) : "—"}</TableCell>
-                  <TableCell>
-                    {new Date(order.openedAt).toLocaleString("pt-BR", {
-                      timeZone: "America/Sao_Paulo",
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <OrderAuditLog orderId={order.id} />
-                  </TableCell>
-                  <TableCell>
-                    {order.status === "fechada" && (
-                      <OrderReceiptPrint orderId={order.id} label="Imprimir" />
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {orders.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    Nenhuma comanda registrada
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={ClipboardList}
+            color="text-orange-600 dark:text-orange-400"
+            bgColor="bg-orange-50 dark:bg-orange-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Histórico de Comandas</PageHeader.Title>
+            <PageHeader.Description>
+              Acompanhe comandas abertas e fechadas do PDV Restaurante
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+      </PageHeader>
+
+      <OrdersHistoryStats orders={orders} />
+      <OrdersHistoryFilters value={filters} onChange={setFilters} />
+      <OrdersHistoryTable
+        orders={orders}
+        onContinueOrder={(orderId) => setLocation(`/pdv-restaurante?orderId=${orderId}`)}
+      />
     </div>
   );
 }

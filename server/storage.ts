@@ -193,6 +193,7 @@ export interface ProductFilters {
   country?: string;
   volume?: string;
   category?: string;
+  connectionId?: string;
 }
 
 export type ClientWithProfile = Client & {
@@ -1352,6 +1353,15 @@ export class DatabaseStorage implements IStorage {
       }
       if (filters.category) {
         conditions.push(eq(products.category, filters.category));
+      }
+      if (filters.connectionId) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM bling_product_mappings bpm
+            WHERE bpm.product_id = ${products.id}
+              AND bpm.connection_id = ${filters.connectionId}
+          )`,
+        );
       }
 
       query = query.where(and(...conditions)) as typeof query;

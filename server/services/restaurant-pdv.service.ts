@@ -5,6 +5,9 @@ import {
   restaurantOrderItems,
   restaurantTables,
   restaurantOrderPayments,
+  systemSettings,
+  blingProductMappings,
+  products,
 } from "../../shared/schema";
 import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import type {
@@ -20,6 +23,9 @@ export interface RestaurantOrderWithItems extends RestaurantOrder {
   items: RestaurantOrderItem[];
 }
 
+export const RESTAURANT_PDV_BLING_CONNECTION_SETTING_KEY =
+  "restaurant_pdv_bling_connection_id";
+
 function toCents(value: string | number): number {
   return Math.round(Number(value) * 100);
 }
@@ -29,6 +35,15 @@ function fromCents(cents: number): string {
 }
 
 export const restaurantPdvService = {
+  async getRestaurantPdvBlingConnectionId(): Promise<string | undefined> {
+    const [setting] = await db
+      .select()
+      .from(systemSettings)
+      .where(
+        eq(systemSettings.key, RESTAURANT_PDV_BLING_CONNECTION_SETTING_KEY),
+      );
+    return setting?.value ?? undefined;
+  },
   async listMenuItems(activeOnly = true): Promise<RestaurantMenuItem[]> {
     return db
       .select()
@@ -98,6 +113,8 @@ export const restaurantPdvService = {
       });
     }
 
+    const blingConnectionId = await this.getRestaurantPdvBlingConnectionId();
+
     const [created] = await db
       .insert(restaurantOrders)
       .values({
@@ -105,6 +122,7 @@ export const restaurantPdvService = {
         tableNumber: table.number,
         peopleCount: data.peopleCount,
         waiterId: data.waiterId,
+        blingConnectionId: blingConnectionId ?? null,
       })
       .returning();
     return created;
@@ -169,20 +187,69 @@ export const restaurantPdvService = {
     orderId: string,
     data: {
       menuItemId?: string | null;
+      productId?: string | null;
       name: string;
       unitPrice: string;
       quantity: number;
     },
   ): Promise<RestaurantOrderItem> {
-    await this.assertOrderEditable(orderId);
+    const order = await this.assertOrderEditable(orderId);
+
+    let name = data.name;
+    let unitPrice = data.unitPrice;
+
+    if (data.productId) {
+      if (!order.blingConnectionId) {
+        throw Object.assign(
+          new Error(
+            "Esta comanda não tem uma conta Bling vinculada; não é possível adicionar produtos do catálogo.",
+          ),
+          { code: "NO_BLING_CONNECTION" },
+        );
+      }
+
+      const [mapping] = await db
+        .select({ id: blingProductMappings.id })
+        .from(blingProductMappings)
+        .where(
+          and(
+            eq(blingProductMappings.connectionId, order.blingConnectionId),
+            eq(blingProductMappings.productId, data.productId),
+          ),
+        )
+        .limit(1);
+
+      if (!mapping) {
+        throw Object.assign(
+          new Error("Produto não vinculado à conta Bling desta comanda."),
+          { code: "PRODUCT_NOT_LINKED" },
+        );
+      }
+
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(eq(products.id, data.productId))
+        .limit(1);
+
+      if (!product) {
+        throw Object.assign(new Error("Produto não encontrado"), {
+          code: "NOT_FOUND",
+        });
+      }
+
+      name = product.name;
+      unitPrice = product.negotiatedPrice;
+    }
 
     const [created] = await db
       .insert(restaurantOrderItems)
       .values({
         orderId,
         menuItemId: data.menuItemId ?? null,
-        name: data.name,
-        unitPrice: data.unitPrice,
+        productId: data.productId ?? null,
+        name,
+        unitPrice,
         quantity: data.quantity,
       })
       .returning();

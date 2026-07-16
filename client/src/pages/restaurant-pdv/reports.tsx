@@ -24,8 +24,9 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { Printer } from "lucide-react";
+import { BarChart3, Printer } from "lucide-react";
 import { PrintArea } from "@/components/restaurant-pdv/print-area";
+import { PageHeader } from "@/components/page-header";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   pix: "Pix",
@@ -93,27 +94,45 @@ export default function RestaurantReports() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4">
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={BarChart3}
+            color="text-orange-600 dark:text-orange-400"
+            bgColor="bg-orange-50 dark:bg-orange-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Relatórios</PageHeader.Title>
+            <PageHeader.Description>
+              Vendas, itens mais vendidos e fechamento de caixa do PDV Restaurante
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+      </PageHeader>
+
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-4 pt-6">
+          <div className="space-y-1">
+            <Label htmlFor="from-date">De</Label>
+            <Input
+              id="from-date"
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="to-date">Até</Label>
+            <Input id="to-date" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Relatórios de Vendas</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="from-date">De</Label>
-              <Input
-                id="from-date"
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="to-date">Até</Label>
-              <Input id="to-date" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card>
               <CardContent className="pt-6">

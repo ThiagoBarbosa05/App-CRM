@@ -1,10 +1,6 @@
 import { Request, Response } from "express";
-import { eq } from "drizzle-orm";
-import { db } from "../../db";
-import { systemSettings } from "../../../shared/schema";
 import { syncMenuFromBling } from "../../services/restaurant-menu-bling-sync.service";
-
-const CONNECTION_SETTING_KEY = "restaurant_pdv_bling_connection_id";
+import { restaurantPdvService } from "../../services/restaurant-pdv.service";
 
 export const syncMenuBlingController = async (req: Request, res: Response) => {
   try {
@@ -15,11 +11,7 @@ export const syncMenuBlingController = async (req: Request, res: Response) => {
 
     let connectionId: string | undefined = req.body?.connectionId;
     if (!connectionId) {
-      const [setting] = await db
-        .select()
-        .from(systemSettings)
-        .where(eq(systemSettings.key, CONNECTION_SETTING_KEY));
-      connectionId = setting?.value;
+      connectionId = await restaurantPdvService.getRestaurantPdvBlingConnectionId();
     }
 
     if (!connectionId) {

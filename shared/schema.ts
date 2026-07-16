@@ -2470,6 +2470,9 @@ export const restaurantOrders = pgTable(
     discountReason: text("discount_reason"),
     discountAppliedBy: varchar("discount_applied_by").references(() => users.id),
     mergedIntoOrderId: varchar("merged_into_order_id"),
+    // snapshot de system_settings.restaurant_pdv_bling_connection_id no momento
+    // da abertura — referência solta (sem FK), mesmo padrão de mergedIntoOrderId
+    blingConnectionId: varchar("bling_connection_id"),
     notes: text("notes"),
     openedAt: timestamp("opened_at").defaultNow().notNull(),
     closedAt: timestamp("closed_at"),
@@ -2491,9 +2494,13 @@ export const restaurantOrderItems = pgTable(
     orderId: varchar("order_id")
       .references(() => restaurantOrders.id)
       .notNull(),
+    // menuItemId preenchido = veio do cardápio; productId preenchido = veio do
+    // catálogo geral de produtos; ambos null = item avulso. Nunca ambos preenchidos
+    // (garantido pelo CHECK restaurant_order_items_source_check).
     menuItemId: varchar("menu_item_id").references(
       () => restaurantMenuItems.id,
     ),
+    productId: varchar("product_id").references(() => products.id),
     name: text("name").notNull(),
     unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
     quantity: integer("quantity").notNull().default(1),
@@ -2508,6 +2515,13 @@ export const restaurantOrderItems = pgTable(
   },
   (table) => ({
     orderIdx: index("restaurant_order_items_order_idx").on(table.orderId),
+    productIdx: index("restaurant_order_items_product_idx").on(
+      table.productId,
+    ),
+    sourceCheck: check(
+      "restaurant_order_items_source_check",
+      sql`(${table.menuItemId} IS NOT NULL)::int + (${table.productId} IS NOT NULL)::int <= 1`,
+    ),
   }),
 );
 
@@ -2565,6 +2579,32 @@ export const restaurantOrderAuditLog = pgTable(
   }),
 );
 
+// Cardápio do dia: subconjunto diário de restaurantMenuItems disponível para venda.
+// Não há tabela "cabeçalho" — o cardápio de uma data é o conjunto de linhas com essa data.
+export const restaurantDailyMenuItems = pgTable(
+  "restaurant_daily_menu_items",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    date: text("date").notNull(), // "YYYY-MM-DD"
+    menuItemId: varchar("menu_item_id")
+      .references(() => restaurantMenuItems.id)
+      .notNull(),
+    createdBy: varchar("created_by")
+      .references(() => users.id)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    dateItemUidx: uniqueIndex("restaurant_daily_menu_items_date_item_uidx").on(
+      table.date,
+      table.menuItemId,
+    ),
+    dateIdx: index("restaurant_daily_menu_items_date_idx").on(table.date),
+  }),
+);
+
 export const insertRestaurantTableSchema = createInsertSchema(
   restaurantTables,
 ).omit({
@@ -2612,6 +2652,13 @@ export const insertRestaurantOrderPaymentSchema = createInsertSchema(
   createdAt: true,
 });
 
+export const insertRestaurantDailyMenuItemSchema = createInsertSchema(
+  restaurantDailyMenuItems,
+).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertRestaurantTable = z.infer<typeof insertRestaurantTableSchema>;
 export type RestaurantTable = typeof restaurantTables.$inferSelect;
 export type InsertRestaurantMenuItem = z.infer<
@@ -2632,6 +2679,11 @@ export type InsertRestaurantOrderPayment = z.infer<
   typeof insertRestaurantOrderPaymentSchema
 >;
 export type RestaurantOrderPayment = typeof restaurantOrderPayments.$inferSelect;
+export type InsertRestaurantDailyMenuItem = z.infer<
+  typeof insertRestaurantDailyMenuItemSchema
+>;
+export type RestaurantDailyMenuItem =
+  typeof restaurantDailyMenuItems.$inferSelect;
 
 export const messageAutomationSettings = pgTable(
   "message_automation_settings",

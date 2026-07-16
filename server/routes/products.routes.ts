@@ -40,7 +40,7 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
 productsRouter.get("/", async (req, res) => {
   try {
-    const { name, type, country, volume, category } = req.query;
+    const { name, type, country, volume, category, connectionId } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
 
@@ -50,6 +50,7 @@ productsRouter.get("/", async (req, res) => {
       country: country as string | undefined,
       volume: volume as string | undefined,
       category: category as string | undefined,
+      connectionId: connectionId as string | undefined,
     };
 
     const { data, total } = await storage.getProducts(filters, page, pageSize);

@@ -1,13 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -17,140 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Plus, Trash2 } from "lucide-react";
+import { LayoutGrid, Plus, Trash2, Users } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import type { RestaurantTable } from "@shared/schema";
-
-const tableSchema = z.object({
-  number: z.coerce.number().int().positive("Número inválido"),
-  capacity: z.coerce.number().int().positive("Capacidade inválida"),
-  section: z.string().optional(),
-});
-
-type TableFormData = z.infer<typeof tableSchema>;
-
-function TableFormModal({
-  open,
-  onOpenChange,
-  table,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  table?: RestaurantTable | null;
-}) {
-  const isEditing = !!table;
-  const form = useForm<TableFormData>({
-    resolver: zodResolver(tableSchema),
-    defaultValues: { number: 1, capacity: 4, section: "" },
-  });
-
-  useEffect(() => {
-    if (table) {
-      form.reset({
-        number: table.number,
-        capacity: table.capacity,
-        section: table.section ?? "",
-      });
-    } else {
-      form.reset({ number: 1, capacity: 4, section: "" });
-    }
-  }, [table, form]);
-
-  const mutation = useMutation({
-    mutationFn: async (data: TableFormData) => {
-      const url = isEditing
-        ? `/api/restaurant-pdv/tables/${table.id}`
-        : "/api/restaurant-pdv/tables";
-      await apiRequest(isEditing ? "PUT" : "POST", url, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
-      toast({ title: isEditing ? "Mesa atualizada" : "Mesa criada" });
-      onOpenChange(false);
-    },
-    onError: (err: Error) => {
-      toast({ title: "Erro ao salvar mesa", description: err.message, variant: "destructive" });
-    },
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[380px]">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Editar Mesa" : "Nova Mesa"}</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
-            className="space-y-4"
-          >
-            <FormField
-              control={form.control}
-              name="number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número da mesa</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="1" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="capacity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Capacidade (pessoas)</FormLabel>
-                  <FormControl>
-                    <Input type="number" min="1" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="section"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Seção (opcional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Salão, Varanda" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Salvando..." : isEditing ? "Atualizar" : "Criar"}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
+import { TableFormModal } from "@/components/restaurant-pdv/table-form-modal";
 
 export default function RestaurantTablesManagement() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -181,11 +47,25 @@ export default function RestaurantTablesManagement() {
     },
   });
 
+  const activeCount = tables.filter((t) => t.isActive).length;
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Mesas</CardTitle>
+      <PageHeader>
+        <PageHeader.Info>
+          <PageHeader.Icon
+            icon={LayoutGrid}
+            color="text-orange-600 dark:text-orange-400"
+            bgColor="bg-orange-50 dark:bg-orange-900/30"
+          />
+          <PageHeader.Text>
+            <PageHeader.Title>Mesas</PageHeader.Title>
+            <PageHeader.Description>
+              {activeCount} mesa(s) ativa(s) no salão
+            </PageHeader.Description>
+          </PageHeader.Text>
+        </PageHeader.Info>
+        <PageHeader.Actions>
           <Button
             size="sm"
             onClick={() => {
@@ -196,6 +76,12 @@ export default function RestaurantTablesManagement() {
             <Plus className="mr-2 h-4 w-4" />
             Nova Mesa
           </Button>
+        </PageHeader.Actions>
+      </PageHeader>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Todas as mesas</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -220,8 +106,19 @@ export default function RestaurantTablesManagement() {
                   >
                     Mesa {table.number}
                   </TableCell>
-                  <TableCell>{table.capacity}</TableCell>
-                  <TableCell>{table.section ?? "—"}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                      <Users className="h-3.5 w-3.5" />
+                      {table.capacity}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {table.section ? (
+                      <Badge variant="secondary">{table.section}</Badge>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant={table.isActive ? "default" : "outline"}>
                       {table.isActive ? "Ativa" : "Inativa"}
@@ -251,8 +148,8 @@ export default function RestaurantTablesManagement() {
             </TableBody>
           </Table>
         </CardContent>
-        <TableFormModal open={modalOpen} onOpenChange={setModalOpen} table={editingTable} />
       </Card>
+      <TableFormModal open={modalOpen} onOpenChange={setModalOpen} table={editingTable} />
     </div>
   );
 }
