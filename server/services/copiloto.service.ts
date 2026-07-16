@@ -29,7 +29,7 @@ const MAX_CARDS_PER_SELLER = 15;
  * deixa de ser gerado e o contato simplesmente não aconteceu. Por isso estes
  * tipos ganham tratamento próprio no corte e no dedup abaixo.
  */
-const TIME_BOUND_TYPES = new Set<CopilotoSignalType>(["aniversario"]);
+const TIME_BOUND_TYPES = new Set<CopilotoSignalType>(["aniversario", "pos_venda"]);
 
 /**
  * Slots do teto diário garantidos a sinais com data marcada.
@@ -55,6 +55,8 @@ const CYCLE_OVERDUE_FACTOR = 1.3;
 const PRODUCT_ABANDON_FACTOR = 2;
 const CHAMPION_SILENCE_DAYS = 30;
 const BIRTHDAY_LOOKAHEAD_DAYS = 6;
+/** Janela de pós-venda: dispara para compras feitas há 1–N dias sem follow-up. */
+const POS_SALE_WINDOW_DAYS = 7;
 
 /**
  * Evidência mínima para afirmar um ritmo de compra.
@@ -347,6 +349,55 @@ async function findBirthdays(): Promise<CopilotoSignalCandidate[]> {
         daysAhead,
         avgTicket,
         orderCount,
+      },
+    };
+  });
+}
+
+/**
+ * Sinal 5 — cliente comprou nos últimos N dias e ainda não recebeu follow-up.
+ *
+ * Dispara uma vez por compra recente (cooldown de 15 dias via "done" bloqueia
+ * reoferta). O vendedor confirma a entrega, pede feedback e abre espaço para a
+ * próxima compra. A janela é curta (POS_SALE_WINDOW_DAYS), por isso pos_venda
+ * entra em TIME_BOUND_TYPES — garantia de que não fica represado no backlog.
+ */
+async function findPostSaleClients(): Promise<CopilotoSignalCandidate[]> {
+  const result = await db.execute(sql`
+    WITH stats AS (${clientStats})
+    SELECT c.id AS client_id,
+           c.name AS client_name,
+           c.responsavel_id AS seller_id,
+           COALESCE(s.avg_ticket, 0)::text AS avg_ticket,
+           COALESCE(s.order_count, 0) AS order_count,
+           COALESCE(s.total_spent, 0)::text AS total_spent,
+           (CURRENT_DATE - s.last_purchase)::int AS days_since_purchase
+    FROM stats s
+    INNER JOIN clients c ON c.id = s.client_id
+    WHERE c.responsavel_id IS NOT NULL
+      AND (CURRENT_DATE - s.last_purchase) BETWEEN 1 AND ${POS_SALE_WINDOW_DAYS}
+  `);
+
+  return (result.rows as Record<string, unknown>[]).map((row) => {
+    const avgTicket = toNumber(row.avg_ticket);
+    const orderCount = toNumber(row.order_count);
+    const daysSince = toNumber(row.days_since_purchase);
+
+    return {
+      clientId: String(row.client_id),
+      sellerId: String(row.seller_id),
+      type: "pos_venda" as const,
+      score: Math.round(avgTicket * 1.5),
+      estimatedValue: avgTicket,
+      reason:
+        `Comprou há ${daysSince} dia${daysSince > 1 ? "s" : ""}. ` +
+        `Confirme a entrega e reforce o relacionamento.`,
+      payload: {
+        clientName: String(row.client_name ?? ""),
+        daysSince,
+        avgTicket,
+        orderCount,
+        totalSpent: toNumber(row.total_spent),
       },
     };
   });
@@ -653,19 +704,20 @@ export async function scanCopilotoSignals(
 ): Promise<CopilotoScanResult> {
   const withAi = options.withAi ?? Boolean(process.env.OPENAI_API_KEY);
 
-  const [overdue, abandoned, birthdays, champions, cooldownKeys, sellerRows] =
+  const [overdue, abandoned, birthdays, champions, postSale, cooldownKeys, sellerRows] =
     await Promise.all([
       findOverdueCycle(),
       findAbandonedProducts(),
       findBirthdays(),
       findSilentChampions(),
+      findPostSaleClients(),
       loadCooldownKeys(),
       db.select({ id: users.id, name: users.name }).from(users),
     ]);
 
   const sellerNames = new Map(sellerRows.map((row) => [row.id, row.name]));
 
-  const candidates = [...overdue, ...abandoned, ...birthdays, ...champions];
+  const candidates = [...overdue, ...abandoned, ...birthdays, ...champions, ...postSale];
 
   const eligible = candidates.filter(
     (candidate) => !cooldownKeys.has(`${candidate.clientId}:${candidate.type}`),

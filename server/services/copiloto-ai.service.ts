@@ -69,6 +69,10 @@ function describeFacts(input: SuggestionInput): string {
           : `Sem contato registrado há ${p.daysSinceContact} dias`,
       );
       break;
+    case "pos_venda":
+      facts.push(`Comprou há ${p.daysSince} dia(s)`);
+      if (Number(p.orderCount ?? 0) > 0) facts.push(`Total de ${p.orderCount} pedidos`);
+      break;
   }
 
   return facts.map((fact) => `- ${fact}`).join("\n");

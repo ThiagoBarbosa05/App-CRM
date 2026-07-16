@@ -5114,6 +5114,7 @@ export const copilotoSignals = pgTable(
         "produto_abandonado",
         "aniversario",
         "campeao_silencioso",
+        "pos_venda",
       ],
     }).notNull(),
     score: integer("score").notNull().default(0),

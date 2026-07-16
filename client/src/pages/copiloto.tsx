@@ -42,7 +42,8 @@ type CopilotoSignalType =
   | "ciclo_vencido"
   | "produto_abandonado"
   | "aniversario"
-  | "campeao_silencioso";
+  | "campeao_silencioso"
+  | "pos_venda";
 
 /** Faixa factual do card. Ausente para quem ainda não comprou (ex.: aniversário). */
 interface ClientFacts {
@@ -104,6 +105,12 @@ const SIGNAL_META: Record<
     label: "Aniversário",
     icon: Cake,
     accent: "text-violet-600 dark:text-violet-400",
+    group: "oportunidade",
+  },
+  pos_venda: {
+    label: "Pós-Venda",
+    icon: Check,
+    accent: "text-teal-600 dark:text-teal-400",
     group: "oportunidade",
   },
 };
@@ -482,6 +489,7 @@ export default function CopilotoPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterKey>("todos");
+  const [rfmFilter, setRfmFilter] = useState<string>("todos");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [viewSellerId, setViewSellerId] = useState<string>(OWN_QUEUE);
 
@@ -583,12 +591,6 @@ export default function CopilotoPage() {
     },
   });
 
-  const cards = useMemo(() => {
-    const all = data?.cards ?? [];
-    if (filter === "todos") return all;
-    return all.filter((card) => card.type === filter);
-  }, [data?.cards, filter]);
-
   // Contagem por tipo de sinal (apenas os tipos que têm ao menos 1 card).
   const countsByType = useMemo(() => {
     const all = data?.cards ?? [];
@@ -599,6 +601,20 @@ export default function CopilotoPage() {
     return map;
   }, [data?.cards]);
 
+  // Segmentos RFM presentes na fila (ordenados pelo label pt-BR).
+  const activeRfmSegments = useMemo(() => {
+    const all = data?.cards ?? [];
+    const segments = new Set<string>();
+    for (const card of all) {
+      if (card.rfmSegment && RFM_LABELS[card.rfmSegment]) {
+        segments.add(card.rfmSegment);
+      }
+    }
+    return [...segments].sort((a, b) =>
+      (RFM_LABELS[a] ?? a).localeCompare(RFM_LABELS[b] ?? b, "pt-BR"),
+    );
+  }, [data?.cards]);
+
   // Tipos presentes na fila, na ordem definida por SIGNAL_META.
   const activeTypes = useMemo(
     () =>
@@ -607,6 +623,15 @@ export default function CopilotoPage() {
       ),
     [countsByType],
   );
+
+  const cards = useMemo(() => {
+    const all = data?.cards ?? [];
+    return all.filter(
+      (card) =>
+        (filter === "todos" || card.type === filter) &&
+        (rfmFilter === "todos" || card.rfmSegment === rfmFilter),
+    );
+  }, [data?.cards, filter, rfmFilter]);
 
   const totalCards = data?.cards.length ?? 0;
 
@@ -706,46 +731,80 @@ export default function CopilotoPage() {
         )}
       </header>
 
-      {totalCards > 0 && activeTypes.length > 1 && (
-        <div className="flex flex-wrap gap-2">
-          {/* Chip "Todos" */}
-          <button
-            onClick={() => setFilter("todos")}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-              filter === "todos"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
-          >
-            Todos
-            <Badge variant="secondary" className="ml-2">
-              {totalCards}
-            </Badge>
-          </button>
-          {/* Um chip por tipo de sinal presente na fila */}
-          {activeTypes.map((type) => {
-            const meta = SIGNAL_META[type];
-            const Icon = meta.icon;
-            return (
+      {totalCards > 0 && (
+        <div className="space-y-2">
+          {/* Filtro por tipo de sinal (só mostra quando há 2+ tipos) */}
+          {activeTypes.length > 1 && (
+            <div className="flex flex-wrap gap-2">
               <button
-                key={type}
-                onClick={() => setFilter(type)}
+                onClick={() => setFilter("todos")}
                 className={cn(
-                  "flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                  filter === type
+                  "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                  filter === "todos"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                 )}
               >
-                <Icon className="mr-1.5 h-3.5 w-3.5" />
-                {meta.label}
+                Todos
                 <Badge variant="secondary" className="ml-2">
-                  {countsByType[type] ?? 0}
+                  {totalCards}
                 </Badge>
               </button>
-            );
-          })}
+              {activeTypes.map((type) => {
+                const meta = SIGNAL_META[type];
+                const Icon = meta.icon;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setFilter(type)}
+                    className={cn(
+                      "flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                      filter === type
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                    )}
+                  >
+                    <Icon className="mr-1.5 h-3.5 w-3.5" />
+                    {meta.label}
+                    <Badge variant="secondary" className="ml-2">
+                      {countsByType[type] ?? 0}
+                    </Badge>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Filtro por segmento RFM (só mostra quando há 2+ segmentos) */}
+          {activeRfmSegments.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setRfmFilter("todos")}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  rfmFilter === "todos"
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                Todos perfis
+              </button>
+              {activeRfmSegments.map((seg) => (
+                <button
+                  key={seg}
+                  onClick={() => setRfmFilter(seg)}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                    rfmFilter === seg
+                      ? cn(RFM_COLORS[seg], "ring-1 ring-current")
+                      : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  {RFM_LABELS[seg]}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
