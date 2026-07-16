@@ -139,6 +139,17 @@ const RFM_COLORS: Record<string, string> = {
   sem_compra: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
 };
 
+const RFM_COLORS_ACTIVE: Record<string, string> = {
+  campiao: "bg-yellow-400 text-yellow-900 ring-2 ring-yellow-400 ring-offset-1",
+  fiel: "bg-emerald-500 text-white ring-2 ring-emerald-500 ring-offset-1",
+  promissor: "bg-blue-500 text-white ring-2 ring-blue-500 ring-offset-1",
+  em_risco: "bg-orange-500 text-white ring-2 ring-orange-500 ring-offset-1",
+  perdido: "bg-red-500 text-white ring-2 ring-red-500 ring-offset-1",
+  novo: "bg-violet-500 text-white ring-2 ring-violet-500 ring-offset-1",
+  hibernando: "bg-slate-500 text-white ring-2 ring-slate-500 ring-offset-1",
+  sem_compra: "bg-gray-400 text-white ring-2 ring-gray-400 ring-offset-1",
+};
+
 /** Usuário do dropdown de inspeção. Espelha o que GET /api/users devolve. */
 interface DirectoryUser {
   id: string;
@@ -746,14 +757,17 @@ export default function CopilotoPage() {
         <div className="space-y-2">
           {/* Filtro por tipo de sinal (só mostra quando há 2+ tipos) */}
           {activeTypes.length > 1 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-indigo-500 mr-1 select-none">
+                Motivo
+              </span>
               <button
                 onClick={() => setFilter("todos")}
                 className={cn(
                   "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                   filter === "todos"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 dark:hover:bg-indigo-900/40",
                 )}
               >
                 Todos
@@ -771,8 +785,8 @@ export default function CopilotoPage() {
                     className={cn(
                       "flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                       filter === type
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                        ? "bg-indigo-600 text-white shadow-sm"
+                        : "bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800 dark:hover:bg-indigo-900/40",
                     )}
                   >
                     <Icon className="mr-1.5 h-3.5 w-3.5" />
@@ -788,14 +802,17 @@ export default function CopilotoPage() {
 
           {/* Filtro por segmento RFM (só mostra quando há 2+ segmentos) */}
           {activeRfmSegments.length > 1 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-amber-500 mr-1 select-none">
+                Perfil
+              </span>
               <button
                 onClick={() => setRfmFilter("todos")}
                 className={cn(
                   "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                   rfmFilter === "todos"
-                    ? "bg-foreground text-background"
-                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                    ? "bg-amber-500 text-white shadow-sm ring-2 ring-amber-500 ring-offset-1"
+                    : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800 dark:hover:bg-amber-900/30",
                 )}
               >
                 Todos perfis
@@ -807,8 +824,8 @@ export default function CopilotoPage() {
                   className={cn(
                     "rounded-full px-3 py-1 text-xs font-medium transition-colors",
                     rfmFilter === seg
-                      ? cn(RFM_COLORS[seg], "ring-1 ring-current")
-                      : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                      ? RFM_COLORS_ACTIVE[seg] ?? cn(RFM_COLORS[seg], "ring-2 ring-current ring-offset-1")
+                      : cn(RFM_COLORS[seg], "opacity-70 hover:opacity-100"),
                   )}
                 >
                   {RFM_LABELS[seg]}
