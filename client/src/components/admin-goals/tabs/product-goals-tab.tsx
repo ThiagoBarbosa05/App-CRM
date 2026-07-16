@@ -156,6 +156,198 @@ export function ProductGoalsTab({
     );
   }
 
+  // ── Vista do vendedor (não-admin) ──────────────────────────────────────────
+  // A lista de sellers não é carregada para quem não é gestor; em vez de
+  // depender dela, renderizamos direto os goals já filtrados pelo backend.
+  if (!isAdmin) {
+    const hasAnyGoal =
+      productGoals.length > 0 || wineryGoals.length > 0 || categoryGoals.length > 0;
+
+    if (!hasAnyGoal) {
+      return (
+        <div className="text-center py-24 bg-white/50 dark:bg-slate-900/50 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-slate-800">
+          <div className="inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800 mb-6 text-slate-300">
+            <Wine className="h-10 w-10" />
+          </div>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+            Nenhuma meta de produto
+          </h3>
+          <p className="text-slate-500 mt-2 font-medium">
+            Você não tem metas de produto definidas para este período.
+          </p>
+        </div>
+      );
+    }
+
+    // Renderiza os cards de cada userId presente nos goals (normalmente só o próprio)
+    const userIds = Array.from(sellerIdsWithGoals);
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {userIds.map((uid, idx) => {
+            const pg = goalsByUser.get(uid);
+            const wg = wineryGoalsByUser.get(uid) ?? [];
+            const cg = categoryGoalsByUser.get(uid) ?? [];
+            const userName = pg?.userName ?? "";
+            const productGoalsList = pg?.goals ?? [];
+
+            const totalGoal =
+              productGoalsList.reduce((s, g) => s + g.productGoalQty, 0) +
+              wg.reduce((s, g) => s + g.goalQty, 0) +
+              cg.reduce((s, g) => s + g.goalQty, 0);
+            const totalAchieved =
+              productGoalsList.reduce((s, g) => s + g.achieved, 0) +
+              wg.reduce((s, g) => s + g.achieved, 0) +
+              cg.reduce((s, g) => s + g.achieved, 0);
+            const overallPct = totalGoal > 0 ? Math.min((totalAchieved / totalGoal) * 100, 100) : 0;
+            const tone = getProgressTone(overallPct);
+
+            return (
+              <motion.div
+                key={uid}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.06 }}
+              >
+                <Card className="rounded-[2rem] border border-slate-200/80 dark:border-slate-800 shadow-md bg-white dark:bg-slate-950 overflow-hidden">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-black text-sm uppercase tracking-tight text-slate-900 dark:text-white truncate">
+                        {userName || "Minhas metas"}
+                      </p>
+                      <Badge className={`text-[9px] font-black uppercase tracking-wide border ${tone.badgeClass} rounded-full px-2.5 py-1`}>
+                        {tone.badge}
+                      </Badge>
+                    </div>
+
+                    {/* Barra geral */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                        <span>Total</span>
+                        <span className={tone.text}>{totalAchieved}/{totalGoal} un</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${overallPct}%` }}
+                          transition={{ duration: 0.8, ease: "easeOut" }}
+                          className={`h-full rounded-full ${tone.bar}`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Por produto */}
+                    {productGoalsList.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-violet-400 ml-0.5 flex items-center gap-1">
+                          <Wine className="h-2.5 w-2.5" /> Por Produto
+                        </p>
+                        {productGoalsList.map((g) => {
+                          const pct = g.productGoalQty > 0 ? Math.min((g.achieved / g.productGoalQty) * 100, 100) : 0;
+                          const t = getProgressTone(pct);
+                          return (
+                            <div key={g.id} className="rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/50 dark:bg-violet-900/10 px-3 py-2.5 space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate flex items-center gap-1.5">
+                                  <Wine className="h-3 w-3 text-violet-500 shrink-0" />
+                                  {g.productName}
+                                </p>
+                                <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
+                                  {g.achieved}/{g.productGoalQty} un
+                                </span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${pct}%` }}
+                                  transition={{ duration: 0.8, ease: "easeOut" }}
+                                  className={`h-full rounded-full ${t.bar}`}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Por vinícola */}
+                    {wg.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-amber-500 ml-0.5 flex items-center gap-1">
+                          <Factory className="h-2.5 w-2.5" /> Por Vinícola
+                        </p>
+                        {wg.map((g) => {
+                          const pct = g.goalQty > 0 ? Math.min((g.achieved / g.goalQty) * 100, 100) : 0;
+                          const t = getProgressTone(pct);
+                          return (
+                            <div key={g.id} className="rounded-xl border border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2.5 space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate flex items-center gap-1.5">
+                                  <Factory className="h-3 w-3 text-amber-500 shrink-0" />
+                                  {g.wineryName}
+                                </p>
+                                <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
+                                  {g.achieved}/{g.goalQty} un
+                                </span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${pct}%` }}
+                                  transition={{ duration: 0.8, ease: "easeOut" }}
+                                  className={`h-full rounded-full ${t.bar}`}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Por categoria */}
+                    {cg.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 ml-0.5 flex items-center gap-1">
+                          <Tag className="h-2.5 w-2.5" /> Por Categoria
+                        </p>
+                        {cg.map((g) => {
+                          const pct = g.goalQty > 0 ? Math.min((g.achieved / g.goalQty) * 100, 100) : 0;
+                          const t = getProgressTone(pct);
+                          return (
+                            <div key={g.id} className="rounded-xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10 px-3 py-2.5 space-y-1.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate flex items-center gap-1.5">
+                                  <Tag className="h-3 w-3 text-emerald-500 shrink-0" />
+                                  {g.categoryName}
+                                </p>
+                                <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
+                                  {g.achieved}/{g.goalQty} un
+                                </span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${pct}%` }}
+                                  transition={{ duration: 0.8, ease: "easeOut" }}
+                                  className={`h-full rounded-full ${t.bar}`}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Vista do admin/gerente ───────────────────────────────────────────────────
   if (vendedores.length === 0) {
     return (
       <div className="text-center py-24 bg-white/50 dark:bg-slate-900/50 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-slate-800">
