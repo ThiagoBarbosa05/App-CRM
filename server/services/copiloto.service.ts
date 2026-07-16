@@ -412,6 +412,104 @@ async function loadCooldownKeys(): Promise<Set<string>> {
   );
 }
 
+/** Faixa factual do card: com quem o vendedor está falando, sem interpretação. */
+export interface ClientFacts {
+  firstPurchaseYear: number | null;
+  orderCount: number;
+  totalSpent: number;
+  /** Rótulos mais levados, por garrafa. */
+  topProducts: string[];
+}
+
+const TOP_PRODUCTS_PER_CLIENT = 3;
+
+/**
+ * Fatos de relacionamento dos clientes já selecionados para a fila.
+ *
+ * Usa o NOME do produto vindo da descrição do item do pedido, e nunca a tabela
+ * `products`: `products.type` classifica arroz, açúcar e balde de acrílico como
+ * TINTO, e `country`/`winery` estão vazios na maior parte do catálogo. Nome de
+ * item de pedido é confiável; atributo de produto não é. Por isso a faixa
+ * mostra rótulos e deixa a conclusão sobre gosto com o vendedor.
+ */
+async function loadClientFacts(clientIds: string[]): Promise<Map<string, ClientFacts>> {
+  if (clientIds.length === 0) return new Map();
+
+  const idList = sql.join(
+    clientIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
+
+  const result = await db.execute(sql`
+    WITH stats AS (
+      SELECT client_id,
+             MIN(order_date) AS first_purchase,
+             COUNT(*)::int AS order_count,
+             COALESCE(SUM(total_value), 0) AS total_spent
+      FROM (${unifiedOrders}) AS o
+      WHERE client_id IN (${idList})
+      GROUP BY client_id
+    ),
+    items AS (
+      SELECT bo.app_client_id AS client_id,
+             COALESCE(NULLIF(TRIM(boi.product_code), ''), TRIM(boi.description)) AS product_key,
+             boi.description AS description,
+             COALESCE(NULLIF(boi.quantity * boi.value, 'NaN'::numeric), 0) AS line_value
+      FROM bling_order_items boi
+      INNER JOIN bling_orders bo ON boi.order_id = bo.id
+      WHERE bo.deleted_at IS NULL AND bo.app_client_id IN (${idList})
+      UNION ALL
+      SELECT co.app_client_id AS client_id,
+             COALESCE(NULLIF(TRIM(coi.product_code), ''), TRIM(coi.product_name)) AS product_key,
+             coi.product_name AS description,
+             COALESCE(NULLIF(coi.quantity * coi.unit_value, 'NaN'::numeric), 0) AS line_value
+      FROM connect_order_items coi
+      INNER JOIN connect_orders co ON coi.order_id = co.id
+      WHERE co.app_client_id IN (${idList})
+    ),
+    -- Ordena por VALOR, não por quantidade: minis de 187ml comprados em fardo
+    -- (brinde de evento) enterram o que o cliente realmente bebe. No maior
+    -- cliente da base, por quantidade o topo é mini de 187ml; por valor é o
+    -- champagne que ele compra há anos — e que o sinal de produto abandonado
+    -- já aponta.
+    ranked AS (
+      SELECT client_id,
+             MAX(description) AS description,
+             ROW_NUMBER() OVER (
+               PARTITION BY client_id ORDER BY SUM(line_value) DESC, MAX(description)
+             ) AS rn
+      FROM items
+      WHERE product_key IS NOT NULL AND product_key <> ''
+      GROUP BY client_id, product_key
+    )
+    SELECT s.client_id,
+           EXTRACT(YEAR FROM s.first_purchase)::int AS first_year,
+           s.order_count,
+           s.total_spent::text AS total_spent,
+           COALESCE(
+             ARRAY_AGG(r.description ORDER BY r.rn) FILTER (WHERE r.description IS NOT NULL),
+             '{}'
+           ) AS top_products
+    FROM stats s
+    LEFT JOIN ranked r
+      ON r.client_id = s.client_id AND r.rn <= ${TOP_PRODUCTS_PER_CLIENT}
+    GROUP BY s.client_id, s.first_purchase, s.order_count, s.total_spent
+  `);
+
+  const facts = new Map<string, ClientFacts>();
+  for (const row of result.rows as Record<string, unknown>[]) {
+    facts.set(String(row.client_id), {
+      firstPurchaseYear: row.first_year === null ? null : toNumber(row.first_year),
+      orderCount: toNumber(row.order_count),
+      totalSpent: toNumber(row.total_spent),
+      topProducts: Array.isArray(row.top_products)
+        ? (row.top_products as string[]).filter(Boolean)
+        : [],
+    });
+  }
+  return facts;
+}
+
 export interface CopilotoScanResult {
   generated: number;
   skippedByCooldown: number;
@@ -484,6 +582,16 @@ export async function scanCopilotoSignals(
 
     selected.push(...strongestPerClient.slice(0, MAX_CARDS_PER_SELLER));
     cappedOut += Math.max(0, strongestPerClient.length - MAX_CARDS_PER_SELLER);
+  }
+
+  // Fatos de relacionamento só dos cards escolhidos (~1 query para ~100 ids),
+  // em vez de varrer a base inteira.
+  const facts = await loadClientFacts(
+    Array.from(new Set(selected.map((candidate) => candidate.clientId))),
+  );
+  for (const candidate of selected) {
+    const clientFacts = facts.get(candidate.clientId);
+    if (clientFacts) candidate.payload.facts = clientFacts;
   }
 
   // Redação da IA em cima dos cards já escolhidos. Só os selecionados gastam

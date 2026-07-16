@@ -35,6 +35,14 @@ type CopilotoSignalType =
   | "aniversario"
   | "campeao_silencioso";
 
+/** Faixa factual do card. Ausente para quem ainda não comprou (ex.: aniversário). */
+interface ClientFacts {
+  firstPurchaseYear: number | null;
+  orderCount: number;
+  totalSpent: number;
+  topProducts: string[];
+}
+
 interface CopilotoCard {
   id: string;
   clientId: string;
@@ -152,6 +160,7 @@ function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
   const Icon = meta?.icon ?? Sparkles;
   const digits = card.clientPhone?.replace(/\D/g, "") ?? "";
   const canWhatsapp = digits.length > 0 && !card.whatsappOptOut;
+  const facts = card.payload.facts as ClientFacts | undefined;
 
   /**
    * Abre a conversa no WhatsApp do próprio sistema, pelo canal da empresa.
@@ -222,6 +231,26 @@ function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
               {meta?.label ?? card.type}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">{card.reason}</p>
+            {facts && (
+              <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                <p>
+                  {[
+                    facts.firstPurchaseYear && `Cliente desde ${facts.firstPurchaseYear}`,
+                    facts.orderCount > 0 &&
+                      `${facts.orderCount} pedido${facts.orderCount > 1 ? "s" : ""}`,
+                    facts.totalSpent > 0 && formatCurrency(facts.totalSpent),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                {facts.topProducts.length > 0 && (
+                  <p>
+                    <span className="font-medium">Leva:</span>{" "}
+                    {facts.topProducts.join(" · ")}
+                  </p>
+                )}
+              </div>
+            )}
             {card.whatsappOptOut && (
               <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <BellOff className="h-3 w-3" />
