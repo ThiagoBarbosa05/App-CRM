@@ -158,7 +158,7 @@ export function ProductGoalModal({
     : [];
 
   const { data: categoriesData } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ["/api/categories"],
+    queryKey: ["/api/product-categories"],
     enabled: open,
   });
   const categoryOptions = categorySearch.trim().length >= 3

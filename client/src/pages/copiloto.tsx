@@ -18,6 +18,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
+import { Link } from "wouter";
 
 import { cn, formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -175,9 +176,11 @@ function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-semibold text-foreground truncate">
-                {card.clientName}
-              </h3>
+              <Link href={`/clientes/${card.clientId}`}>
+                <h3 className="cursor-pointer font-semibold text-foreground truncate hover:text-primary hover:underline">
+                  {card.clientName}
+                </h3>
+              </Link>
               {card.rfmSegment && RFM_LABELS[card.rfmSegment] && (
                 <span
                   className={cn(
