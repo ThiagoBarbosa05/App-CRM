@@ -488,10 +488,21 @@ export default function CopilotoPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [filter, setFilter] = useState<FilterKey>("todos");
-  const [rfmFilter, setRfmFilter] = useState<string>("todos");
+  const [filter, setFilterRaw] = useState<FilterKey>("todos");
+  const [rfmFilter, setRfmFilterRaw] = useState<string>("todos");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [viewSellerId, setViewSellerId] = useState<string>(OWN_QUEUE);
+
+  // Os dois filtros são mutuamente exclusivos: selecionar um tipo limpa o perfil
+  // e selecionar um perfil limpa o tipo. Assim nunca há AND entre eles.
+  const setFilter = (value: FilterKey) => {
+    setFilterRaw(value);
+    setRfmFilterRaw("todos");
+  };
+  const setRfmFilter = (value: string) => {
+    setRfmFilterRaw(value);
+    setFilterRaw("todos");
+  };
 
   const isManager = MANAGER_ROLES.has(user?.role ?? "");
   const isInspecting = isManager && viewSellerId !== OWN_QUEUE;
