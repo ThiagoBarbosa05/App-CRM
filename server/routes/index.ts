@@ -80,6 +80,7 @@ import {
 } from "./interaction-goals.routes";
 import { referralsRouter } from "./referrals.routes";
 import rfmRouter from "./rfm.routes";
+import copilotoRouter from "./copiloto.routes";
 import segmentsRouter from "./segments.routes";
 import whatsappRouter from "./whatsapp-settings.routes";
 import whatsappWebhookRouter from "./whatsapp-webhook.routes";
@@ -159,6 +160,7 @@ apiRouter.use((req, res, next) => {
 apiRouter.use("/restaurant-pdv", restaurantPdvRouter);
 apiRouter.use("/referrals", referralsRouter);
 apiRouter.use("/rfm", rfmRouter);
+apiRouter.use("/copiloto", copilotoRouter);
 apiRouter.use("/segments", segmentsRouter);
 apiRouter.use("/clients", clientsRouter);
 apiRouter.use("/files", filesRouter);

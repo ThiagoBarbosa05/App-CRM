@@ -14,6 +14,7 @@ import "./jobs/whatsapp-campaign-dispatcher";
 import "./jobs/email-campaign-dispatcher";
 import "./jobs/sms-campaign-dispatcher";
 import "./jobs/rfm-recalculate-scheduler";
+import "./jobs/copiloto-scan-scheduler";
 import "./jobs/cashback-automation-scheduler";
 import "./jobs/reengagement-automation-scheduler";
 import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";

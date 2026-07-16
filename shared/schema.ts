@@ -5037,3 +5037,59 @@ export const reengagementProgress = pgTable("reengagement_progress", {
 
 export type ReengagementProgress = typeof reengagementProgress.$inferSelect;
 export type InsertReengagementProgress = typeof reengagementProgress.$inferInsert;
+
+// COPILOTO — fila diária de contatos sugeridos ao vendedor.
+// Uma linha = um card ("ligue para X porque Y"). Os sinais são gerados por SQL
+// determinístico (sem IA) pelo job copiloto-scan-scheduler, que apaga os cards
+// `pending` e os regenera a cada varredura. Cards `done`/`snoozed`/`dismissed`
+// sobrevivem à varredura e funcionam como cooldown — ver copiloto.service.ts.
+export const copilotoSignals = pgTable(
+  "copiloto_signals",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    clientId: varchar("client_id")
+      .references(() => clients.id, { onDelete: "cascade" })
+      .notNull(),
+    sellerId: varchar("seller_id")
+      .references(() => users.id)
+      .notNull(),
+    type: text("type", {
+      enum: [
+        "ciclo_vencido",
+        "produto_abandonado",
+        "aniversario",
+        "campeao_silencioso",
+      ],
+    }).notNull(),
+    score: integer("score").notNull().default(0),
+    // Valor estimado do contato em reais (ticket médio do cliente), usado para
+    // somar o "potencial do dia" no topo da página.
+    estimatedValue: decimal("estimated_value", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0.00"),
+    reason: text("reason").notNull(),
+    // Números que sustentam o motivo (ciclo, dias de atraso, produto, etc.).
+    // Renderizados como detalhe do card e mantidos para auditoria do score.
+    payload: jsonb("payload"),
+    status: text("status", {
+      enum: ["pending", "done", "snoozed", "dismissed"],
+    })
+      .notNull()
+      .default("pending"),
+    dismissReason: text("dismiss_reason"),
+    snoozedUntil: timestamp("snoozed_until"),
+    generatedAt: timestamp("generated_at").defaultNow().notNull(),
+    actedAt: timestamp("acted_at"),
+    actedBy: varchar("acted_by").references(() => users.id),
+  },
+  (table) => [
+    index("copiloto_signals_seller_status_idx").on(table.sellerId, table.status),
+    index("copiloto_signals_client_type_idx").on(table.clientId, table.type),
+  ],
+);
+
+export type CopilotoSignal = typeof copilotoSignals.$inferSelect;
+export type InsertCopilotoSignal = typeof copilotoSignals.$inferInsert;
+export type CopilotoSignalType = CopilotoSignal["type"];
