@@ -14,6 +14,8 @@ import {
   X,
   Loader2,
   BellOff,
+  Copy,
+  Pencil,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -43,6 +45,7 @@ interface CopilotoCard {
   estimatedValue: number;
   reason: string;
   payload: Record<string, unknown>;
+  suggestedMessage: string | null;
   whatsappOptOut: boolean;
   generatedAt: string;
 }
@@ -140,10 +143,28 @@ interface SignalCardProps {
 }
 
 function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
+  const { toast } = useToast();
+  const [message, setMessage] = useState(card.suggestedMessage ?? "");
+  const [isEditing, setIsEditing] = useState(false);
   const meta = SIGNAL_META[card.type];
   const Icon = meta?.icon ?? Sparkles;
   const digits = card.clientPhone?.replace(/\D/g, "") ?? "";
   const canWhatsapp = digits.length > 0 && !card.whatsappOptOut;
+
+  // A mensagem vai pré-preenchida no WhatsApp; se a IA falhou para este card,
+  // o link abre a conversa em branco em vez de sumir.
+  const whatsappHref = message.trim()
+    ? `https://wa.me/${digits}?text=${encodeURIComponent(message.trim())}`
+    : `https://wa.me/${digits}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.trim());
+      toast({ title: "Mensagem copiada." });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
@@ -190,14 +211,53 @@ function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
         )}
       </div>
 
+      {card.suggestedMessage && (
+        <div className="mt-3 rounded-md border border-border bg-muted/50 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Sparkles className="h-3 w-3" />
+              Mensagem sugerida
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={() => setIsEditing((editing) => !editing)}
+              >
+                <Pencil className="mr-1 h-3 w-3" />
+                {isEditing ? "Pronto" : "Editar"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                onClick={handleCopy}
+              >
+                <Copy className="mr-1 h-3 w-3" />
+                Copiar
+              </Button>
+            </div>
+          </div>
+          {isEditing ? (
+            <textarea
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              rows={3}
+              className="mt-2 w-full resize-y rounded border border-border bg-background p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          ) : (
+            <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+              {message}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {canWhatsapp && (
           <Button size="sm" variant="default" asChild>
-            <a
-              href={`https://wa.me/${digits}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
               <FaWhatsapp className="mr-1.5 h-4 w-4" />
               WhatsApp
             </a>

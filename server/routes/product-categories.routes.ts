@@ -6,7 +6,7 @@ import { insertProductCategorySchema } from "@shared/schema";
 
 export const productCategoriesRouter = Router();
 
-const DEFAULT_CATEGORIES = ["VINHOS", "RESTAURANTE", "ACESSORIOS", "NATAL", "OUTROS"];
+const DEFAULT_CATEGORIES = ["VINHO", "RESTAURANTE", "ACESSORIOS", "NATAL", "OUTROS"];
 
 function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (req.user?.role !== "admin") {

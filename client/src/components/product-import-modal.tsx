@@ -303,7 +303,7 @@ export default function ProductImportModal({
     const templateData = [
       {
         "Nome do Vinho": "Vinho Tinto Exemplo",
-        Categoria: "VINHOS",
+        Categoria: "VINHO",
         País: "BRASIL",
         Volume: "750ml",
         Tipo: "TINTO",

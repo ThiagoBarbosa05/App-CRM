@@ -5074,6 +5074,12 @@ export const copilotoSignals = pgTable(
     // Números que sustentam o motivo (ciclo, dias de atraso, produto, etc.).
     // Renderizados como detalhe do card e mantidos para auditoria do score.
     payload: jsonb("payload"),
+    // Mensagem de WhatsApp redigida pela IA em cima dos fatos acima (ver
+    // copiloto-ai.service.ts). Opcional de propósito: se a OpenAI falhar ou
+    // estiver sem chave, o card continua válido exibindo `reason`, que é
+    // determinístico.
+    suggestedMessage: text("suggested_message"),
+    aiGeneratedAt: timestamp("ai_generated_at"),
     status: text("status", {
       enum: ["pending", "done", "snoozed", "dismissed"],
     })

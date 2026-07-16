@@ -10,6 +10,7 @@ import {
   CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Compass,
   Gift,
   GitBranch,
   Inbox,
@@ -48,6 +49,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  { href: "/copiloto", icon: Compass, label: "Copiloto" },
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/metas", icon: Target, label: "Metas" },
   { href: "/clientes", icon: Users, label: "Clientes" },

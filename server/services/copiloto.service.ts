@@ -3,9 +3,11 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import {
   copilotoSignals,
+  users,
   type CopilotoSignalType,
   type InsertCopilotoSignal,
 } from "@shared/schema";
+import { generateSuggestionsBatch } from "./copiloto-ai.service";
 
 /**
  * COPILOTO — geração da fila diária de contatos do vendedor.
@@ -415,6 +417,8 @@ export interface CopilotoScanResult {
   skippedByCooldown: number;
   cappedOut: number;
   dedupedByClient: number;
+  /** Cards que receberam redação da IA. O restante exibe só o motivo determinístico. */
+  withAiMessage: number;
   byType: Record<string, number>;
   sellers: number;
 }
@@ -424,15 +428,22 @@ export interface CopilotoScanResult {
  * ninguém tocou) e reinsere a partir do estado atual dos dados. Cards já
  * trabalhados pelo vendedor nunca são apagados — viram histórico e cooldown.
  */
-export async function scanCopilotoSignals(): Promise<CopilotoScanResult> {
-  const [overdue, abandoned, birthdays, champions, cooldownKeys] =
+export async function scanCopilotoSignals(
+  options: { withAi?: boolean } = {},
+): Promise<CopilotoScanResult> {
+  const withAi = options.withAi ?? Boolean(process.env.OPENAI_API_KEY);
+
+  const [overdue, abandoned, birthdays, champions, cooldownKeys, sellerRows] =
     await Promise.all([
       findOverdueCycle(),
       findAbandonedProducts(),
       findBirthdays(),
       findSilentChampions(),
       loadCooldownKeys(),
+      db.select({ id: users.id, name: users.name }).from(users),
     ]);
+
+  const sellerNames = new Map(sellerRows.map((row) => [row.id, row.name]));
 
   const candidates = [...overdue, ...abandoned, ...birthdays, ...champions];
 
@@ -475,10 +486,27 @@ export async function scanCopilotoSignals(): Promise<CopilotoScanResult> {
     cappedOut += Math.max(0, strongestPerClient.length - MAX_CARDS_PER_SELLER);
   }
 
+  // Redação da IA em cima dos cards já escolhidos. Só os selecionados gastam
+  // token, e uma falha aqui não derruba a varredura: o card entra sem mensagem
+  // e a página mostra o motivo determinístico.
+  const suggestions = withAi
+    ? await generateSuggestionsBatch(
+        selected.map((candidate) => ({
+          clientName: String(candidate.payload.clientName ?? ""),
+          sellerName: sellerNames.get(candidate.sellerId) ?? "",
+          type: candidate.type,
+          reason: candidate.reason,
+          payload: candidate.payload,
+        })),
+      )
+    : selected.map(() => null);
+
+  const aiGeneratedAt = new Date();
+
   await db.delete(copilotoSignals).where(eq(copilotoSignals.status, "pending"));
 
   if (selected.length > 0) {
-    const rows: InsertCopilotoSignal[] = selected.map((candidate) => ({
+    const rows: InsertCopilotoSignal[] = selected.map((candidate, index) => ({
       clientId: candidate.clientId,
       sellerId: candidate.sellerId,
       type: candidate.type,
@@ -487,6 +515,8 @@ export async function scanCopilotoSignals(): Promise<CopilotoScanResult> {
       reason: candidate.reason,
       payload: candidate.payload,
       status: "pending" as const,
+      suggestedMessage: suggestions[index]?.mensagem ?? null,
+      aiGeneratedAt: suggestions[index] ? aiGeneratedAt : null,
     }));
 
     // Lotes para não estourar o limite de parâmetros do driver em bases grandes.
@@ -506,6 +536,7 @@ export async function scanCopilotoSignals(): Promise<CopilotoScanResult> {
     skippedByCooldown,
     cappedOut,
     dedupedByClient,
+    withAiMessage: suggestions.filter((suggestion) => suggestion !== null).length,
     byType,
     sellers: bySeller.size,
   };
@@ -522,6 +553,7 @@ export interface CopilotoCard {
   estimatedValue: number;
   reason: string;
   payload: Record<string, unknown>;
+  suggestedMessage: string | null;
   whatsappOptOut: boolean;
   generatedAt: Date;
 }
@@ -543,6 +575,7 @@ export async function getCopilotoFeed(sellerId: string): Promise<CopilotoFeed> {
            s.estimated_value::text AS estimated_value,
            s.reason,
            s.payload,
+           s.suggested_message,
            s.generated_at,
            c.name AS client_name,
            c.phone AS client_phone,
@@ -567,6 +600,7 @@ export async function getCopilotoFeed(sellerId: string): Promise<CopilotoFeed> {
       estimatedValue: toNumber(row.estimated_value),
       reason: String(row.reason ?? ""),
       payload: (row.payload as Record<string, unknown> | null) ?? {},
+      suggestedMessage: (row.suggested_message as string | null) ?? null,
       whatsappOptOut: Boolean(row.whatsapp_opt_out),
       generatedAt: new Date(String(row.generated_at)),
     }),
