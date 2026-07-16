@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "server/types/express.d.ts",
+    "server/services/copiloto.service.ts",
+    "server/routes/copiloto.routes.ts",
+    "server/jobs/copiloto-scan-scheduler.ts",
+    "client/src/pages/copiloto.tsx",
+    "client/src/App.tsx",
+    "client/src/components/sidebar.tsx"
+  ],
+  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
+  "compilerOptions": {
+    "incremental": false
+  }
+}

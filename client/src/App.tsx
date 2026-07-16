@@ -36,6 +36,7 @@ import CalculadoraVinho from "./pages/calculadora-vinho";
 import EventsPage from "./pages/events";
 import TarefasPage from "./pages/tarefas";
 import RankingPage from "./pages/ranking";
+import CopilotoPage from "./pages/copiloto";
 import TelemarketingPage from "./pages/telemarketing";
 import ReferralProgramPage from "./pages/referral-program";
 import ZernioInboxPage from "./pages/zernio-inbox";
@@ -308,6 +309,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <CalculadoraVinho />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/copiloto"
+        component={() => (
+          <MainLayout>
+            <CopilotoPage />
           </MainLayout>
         )}
       />

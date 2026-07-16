@@ -30,6 +30,21 @@ const PRODUCT_ABANDON_FACTOR = 2;
 const CHAMPION_SILENCE_DAYS = 30;
 const BIRTHDAY_LOOKAHEAD_DAYS = 6;
 
+/**
+ * Evidência mínima para afirmar um ritmo de compra.
+ *
+ * Sem isto, dois pedidos feitos na mesma semana viram "compra a cada 5 dias" e
+ * o cliente aparece como 40x atrasado — número absurdo que destrói a confiança
+ * do vendedor na fila. Só falamos em ciclo com 3+ compras espalhadas por 60+
+ * dias; abaixo disso o histórico é um surto, não uma cadência.
+ */
+const MIN_ORDERS_FOR_CYCLE = 3;
+const MIN_SPAN_DAYS_FOR_CYCLE = 60;
+
+/** Mesma lógica para produto: exige recorrência espalhada e ausência relevante. */
+const MIN_PRODUCT_SPAN_DAYS = 45;
+const MIN_PRODUCT_ABSENCE_DAYS = 45;
+
 export interface CopilotoSignalCandidate {
   clientId: string;
   sellerId: string;
@@ -103,8 +118,8 @@ async function findOverdueCycle(): Promise<CopilotoSignalCandidate[]> {
     FROM stats s
     INNER JOIN clients c ON c.id = s.client_id
     WHERE c.responsavel_id IS NOT NULL
-      AND s.order_count >= 2
-      AND (s.last_purchase - s.first_purchase) > 0
+      AND s.order_count >= ${MIN_ORDERS_FOR_CYCLE}
+      AND (s.last_purchase - s.first_purchase) >= ${MIN_SPAN_DAYS_FOR_CYCLE}
       AND (CURRENT_DATE - s.last_purchase)::numeric >
           ((s.last_purchase - s.first_purchase)::numeric
             / (s.order_count - 1)) * ${CYCLE_OVERDUE_FACTOR}
@@ -205,7 +220,8 @@ async function findAbandonedProducts(): Promise<CopilotoSignalCandidate[]> {
     INNER JOIN clients c ON c.id = p.client_id
     WHERE c.responsavel_id IS NOT NULL
       AND p.times_bought >= 2
-      AND (p.last_bought - p.first_bought) > 0
+      AND (p.last_bought - p.first_bought) >= ${MIN_PRODUCT_SPAN_DAYS}
+      AND (CURRENT_DATE - p.last_bought) >= ${MIN_PRODUCT_ABSENCE_DAYS}
       AND (CURRENT_DATE - p.last_bought)::numeric >
           ((p.last_bought - p.first_bought)::numeric
             / (p.times_bought - 1)) * ${PRODUCT_ABANDON_FACTOR}
@@ -398,6 +414,7 @@ export interface CopilotoScanResult {
   generated: number;
   skippedByCooldown: number;
   cappedOut: number;
+  dedupedByClient: number;
   byType: Record<string, number>;
   sellers: number;
 }
@@ -434,10 +451,28 @@ export async function scanCopilotoSignals(): Promise<CopilotoScanResult> {
 
   const selected: CopilotoSignalCandidate[] = [];
   let cappedOut = 0;
-  for (const sellerCandidates of bySeller.values()) {
+  let dedupedByClient = 0;
+  for (const sellerCandidates of Array.from(bySeller.values())) {
     sellerCandidates.sort((left, right) => right.score - left.score);
-    selected.push(...sellerCandidates.slice(0, MAX_CARDS_PER_SELLER));
-    cappedOut += Math.max(0, sellerCandidates.length - MAX_CARDS_PER_SELLER);
+
+    // Um card por cliente: o vendedor faz uma ligação, não uma por sinal. Um
+    // cliente que dispara ciclo vencido + produto abandonado + campeão em
+    // silêncio ocuparia três slots para o mesmo telefonema. Fica o sinal de
+    // maior score — os demais voltam na próxima varredura se continuarem
+    // valendo.
+    const strongestPerClient: CopilotoSignalCandidate[] = [];
+    const seenClients = new Set<string>();
+    for (const candidate of sellerCandidates) {
+      if (seenClients.has(candidate.clientId)) {
+        dedupedByClient++;
+        continue;
+      }
+      seenClients.add(candidate.clientId);
+      strongestPerClient.push(candidate);
+    }
+
+    selected.push(...strongestPerClient.slice(0, MAX_CARDS_PER_SELLER));
+    cappedOut += Math.max(0, strongestPerClient.length - MAX_CARDS_PER_SELLER);
   }
 
   await db.delete(copilotoSignals).where(eq(copilotoSignals.status, "pending"));
@@ -470,6 +505,7 @@ export async function scanCopilotoSignals(): Promise<CopilotoScanResult> {
     generated: selected.length,
     skippedByCooldown,
     cappedOut,
+    dedupedByClient,
     byType,
     sellers: bySeller.size,
   };
