@@ -5132,8 +5132,12 @@ export const copilotoSignals = pgTable(
     // determinístico.
     suggestedMessage: text("suggested_message"),
     aiGeneratedAt: timestamp("ai_generated_at"),
+    // `backlog`: candidato acima do teto diário do vendedor. Fica guardado em
+    // vez de descartado, e o botão "Carregar mais" o promove para `pending`.
+    // Sem isto, quem termina a fila cedo fica sem trabalho até a varredura das
+    // 5h, com oportunidades reais paradas.
     status: text("status", {
-      enum: ["pending", "done", "snoozed", "dismissed"],
+      enum: ["pending", "backlog", "done", "snoozed", "dismissed"],
     })
       .notNull()
       .default("pending"),

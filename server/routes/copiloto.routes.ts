@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/validation";
 import {
   actOnSignal,
   getCopilotoFeed,
+  loadMoreFromBacklog,
   scanCopilotoSignals,
   type CopilotoAction,
 } from "../services/copiloto.service";
@@ -75,6 +76,22 @@ copilotoRouter.post(
     } catch (error) {
       console.error("[copiloto] Erro ao registrar ação:", error);
       return res.status(500).json({ message: "Erro ao registrar ação" });
+    }
+  },
+);
+
+/** Traz mais cards do backlog do próprio vendedor para a fila visível. */
+copilotoRouter.post(
+  "/load-more",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const user = req.user!;
+      const result = await loadMoreFromBacklog(user.userId);
+      return res.json(result);
+    } catch (error) {
+      console.error("[copiloto] Erro ao carregar mais cards:", error);
+      return res.status(500).json({ message: "Erro ao carregar mais cards" });
     }
   },
 );

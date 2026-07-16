@@ -16,6 +16,7 @@ import {
   BellOff,
   Copy,
   Pencil,
+  Plus,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { Link, useLocation } from "wouter";
@@ -64,6 +65,7 @@ interface CopilotoFeed {
   totalPotential: number;
   countsByType: Record<string, number>;
   lastScanAt: string | null;
+  backlogCount: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -433,6 +435,25 @@ export default function CopilotoPage() {
     onSettled: () => setBusyId(null),
   });
 
+  const loadMore = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/copiloto/load-more", {});
+      return (await res.json()) as { promoted: number; remaining: number };
+    },
+    onSuccess: (result) => {
+      toast({
+        title:
+          result.promoted > 0
+            ? `+${result.promoted} contato${result.promoted > 1 ? "s" : ""} na fila.`
+            : "Não há mais contatos guardados.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/copiloto/feed"] });
+    },
+    onError: () => {
+      toast({ title: "Não foi possível carregar mais", variant: "destructive" });
+    },
+  });
+
   const cards = useMemo(() => {
     const all = data?.cards ?? [];
     if (filter === "todos") return all;
@@ -469,6 +490,7 @@ export default function CopilotoPage() {
   }
 
   const totalCards = data?.cards.length ?? 0;
+  const backlogAvailable = data?.backlogCount ?? 0;
 
   return (
     <div className="mobile-responsive space-y-6 p-4 sm:p-6">
@@ -538,14 +560,18 @@ export default function CopilotoPage() {
         <div className="rounded-lg border border-dashed border-border p-10 text-center">
           <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 font-medium text-foreground">
-            {totalCards === 0
-              ? "Fila vazia por enquanto"
-              : "Nada neste filtro"}
+            {totalCards > 0
+              ? "Nada neste filtro"
+              : backlogAvailable > 0
+                ? "Fila do dia concluída"
+                : "Fila vazia por enquanto"}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {totalCards === 0
-              ? "O Copiloto varre sua carteira toda madrugada e monta a fila do dia aqui."
-              : "Escolha outro filtro para ver os demais contatos."}
+            {totalCards > 0
+              ? "Escolha outro filtro para ver os demais contatos."
+              : backlogAvailable > 0
+                ? `Você falou com todos os contatos de hoje. Há mais ${backlogAvailable} na sua carteira esperando.`
+                : "O Copiloto varre sua carteira toda madrugada e monta a fila do dia aqui."}
           </p>
         </div>
       ) : (
@@ -560,6 +586,23 @@ export default function CopilotoPage() {
               }
             />
           ))}
+        </div>
+      )}
+
+      {backlogAvailable > 0 && filter === "todos" && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="outline"
+            disabled={loadMore.isPending}
+            onClick={() => loadMore.mutate()}
+          >
+            {loadMore.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="mr-2 h-4 w-4" />
+            )}
+            Carregar mais ({backlogAvailable} na fila de espera)
+          </Button>
         </div>
       )}
     </div>

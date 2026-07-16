@@ -11,8 +11,8 @@ async function scanCopiloto(): Promise<void> {
     console.log("[Scheduler] Gerando fila do Copiloto...");
     const result = await scanCopilotoSignals();
     console.log(
-      `[Scheduler] Copiloto: ${result.generated} card(s) para ${result.sellers} vendedor(es). ` +
-        `${result.skippedByCooldown} em cooldown, ${result.cappedOut} acima do teto diário.`,
+      `[Scheduler] Copiloto: ${result.generated} card(s) para ${result.sellers} vendedor(es), ` +
+        `${result.backlogged} no backlog. ${result.skippedByCooldown} em cooldown.`,
       result.byType,
     );
   } catch (error) {

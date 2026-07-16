@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "../db";
 import {
@@ -511,9 +511,11 @@ async function loadClientFacts(clientIds: string[]): Promise<Map<string, ClientF
 }
 
 export interface CopilotoScanResult {
+  /** Cards visíveis na fila (`pending`). */
   generated: number;
+  /** Guardados acima do teto, disponíveis via "Carregar mais". */
+  backlogged: number;
   skippedByCooldown: number;
-  cappedOut: number;
   dedupedByClient: number;
   /** Cards que receberam redação da IA. O restante exibe só o motivo determinístico. */
   withAiMessage: number;
@@ -559,7 +561,7 @@ export async function scanCopilotoSignals(
   }
 
   const selected: CopilotoSignalCandidate[] = [];
-  let cappedOut = 0;
+  const backlog: CopilotoSignalCandidate[] = [];
   let dedupedByClient = 0;
   for (const sellerCandidates of Array.from(bySeller.values())) {
     sellerCandidates.sort((left, right) => right.score - left.score);
@@ -580,23 +582,27 @@ export async function scanCopilotoSignals(
       strongestPerClient.push(candidate);
     }
 
+    // O teto limita o que aparece de uma vez, não o que o vendedor pode fazer
+    // no dia: o excedente vira backlog e o botão "Carregar mais" o promove.
     selected.push(...strongestPerClient.slice(0, MAX_CARDS_PER_SELLER));
-    cappedOut += Math.max(0, strongestPerClient.length - MAX_CARDS_PER_SELLER);
+    backlog.push(...strongestPerClient.slice(MAX_CARDS_PER_SELLER));
   }
 
-  // Fatos de relacionamento só dos cards escolhidos (~1 query para ~100 ids),
-  // em vez de varrer a base inteira.
+  // Fatos para os dois grupos: o card do backlog já nasce completo e a
+  // promoção não precisa de outra query. É uma query para ~180 ids.
   const facts = await loadClientFacts(
-    Array.from(new Set(selected.map((candidate) => candidate.clientId))),
+    Array.from(
+      new Set([...selected, ...backlog].map((candidate) => candidate.clientId)),
+    ),
   );
-  for (const candidate of selected) {
+  for (const candidate of [...selected, ...backlog]) {
     const clientFacts = facts.get(candidate.clientId);
     if (clientFacts) candidate.payload.facts = clientFacts;
   }
 
-  // Redação da IA em cima dos cards já escolhidos. Só os selecionados gastam
-  // token, e uma falha aqui não derruba a varredura: o card entra sem mensagem
-  // e a página mostra o motivo determinístico.
+  // Só os 15 visíveis gastam token; o backlog é redigido na promoção, se o
+  // vendedor chegar lá. Uma falha aqui não derruba a varredura: o card entra
+  // sem mensagem e a página mostra o motivo determinístico.
   const suggestions = withAi
     ? await generateSuggestionsBatch(
         selected.map((candidate) => ({
@@ -611,22 +617,37 @@ export async function scanCopilotoSignals(
 
   const aiGeneratedAt = new Date();
 
-  await db.delete(copilotoSignals).where(eq(copilotoSignals.status, "pending"));
+  // Apaga também o backlog: ele é uma fotografia do dia anterior e precisa ser
+  // recalculado. Cards já trabalhados (done/snoozed/dismissed) sobrevivem.
+  await db
+    .delete(copilotoSignals)
+    .where(inArray(copilotoSignals.status, ["pending", "backlog"]));
 
-  if (selected.length > 0) {
-    const rows: InsertCopilotoSignal[] = selected.map((candidate, index) => ({
-      clientId: candidate.clientId,
-      sellerId: candidate.sellerId,
-      type: candidate.type,
-      score: candidate.score,
-      estimatedValue: candidate.estimatedValue.toFixed(2),
-      reason: candidate.reason,
-      payload: candidate.payload,
-      status: "pending" as const,
-      suggestedMessage: suggestions[index]?.mensagem ?? null,
-      aiGeneratedAt: suggestions[index] ? aiGeneratedAt : null,
-    }));
+  const toRow = (
+    candidate: CopilotoSignalCandidate,
+    status: "pending" | "backlog",
+    suggestion: { mensagem: string } | null,
+  ): InsertCopilotoSignal => ({
+    clientId: candidate.clientId,
+    sellerId: candidate.sellerId,
+    type: candidate.type,
+    score: candidate.score,
+    estimatedValue: candidate.estimatedValue.toFixed(2),
+    reason: candidate.reason,
+    payload: candidate.payload,
+    status,
+    suggestedMessage: suggestion?.mensagem ?? null,
+    aiGeneratedAt: suggestion ? aiGeneratedAt : null,
+  });
 
+  const rows: InsertCopilotoSignal[] = [
+    ...selected.map((candidate, index) =>
+      toRow(candidate, "pending", suggestions[index]),
+    ),
+    ...backlog.map((candidate) => toRow(candidate, "backlog", null)),
+  ];
+
+  if (rows.length > 0) {
     // Lotes para não estourar o limite de parâmetros do driver em bases grandes.
     const BATCH_SIZE = 500;
     for (let index = 0; index < rows.length; index += BATCH_SIZE) {
@@ -642,7 +663,7 @@ export async function scanCopilotoSignals(
   return {
     generated: selected.length,
     skippedByCooldown,
-    cappedOut,
+    backlogged: backlog.length,
     dedupedByClient,
     withAiMessage: suggestions.filter((suggestion) => suggestion !== null).length,
     byType,
@@ -671,6 +692,8 @@ export interface CopilotoFeed {
   totalPotential: number;
   countsByType: Record<string, number>;
   lastScanAt: string | null;
+  /** Cards guardados acima do teto, prontos para o "Carregar mais". */
+  backlogCount: number;
 }
 
 /** Fila pendente de um vendedor, ordenada por score. */
@@ -726,12 +749,100 @@ export async function getCopilotoFeed(sellerId: string): Promise<CopilotoFeed> {
     .orderBy(desc(copilotoSignals.generatedAt))
     .limit(1);
 
+  const [{ count: backlogCount }] = (
+    await db.execute(sql`
+      SELECT COUNT(*)::int AS count FROM copiloto_signals
+      WHERE seller_id = ${sellerId} AND status = 'backlog'
+    `)
+  ).rows as { count: number }[];
+
   return {
     cards,
     totalPotential: cards.reduce((sum, card) => sum + card.estimatedValue, 0),
     countsByType,
     lastScanAt: latest?.generatedAt ? latest.generatedAt.toISOString() : null,
+    backlogCount: toNumber(backlogCount),
   };
+}
+
+/** Quantos cards o "Carregar mais" promove por clique. */
+const BACKLOG_PAGE_SIZE = 5;
+
+export interface LoadMoreResult {
+  promoted: number;
+  remaining: number;
+}
+
+/**
+ * Promove os próximos cards do backlog para a fila visível e redige a mensagem
+ * de cada um (o backlog é gravado sem mensagem para não gastar token com card
+ * que talvez ninguém veja).
+ *
+ * O UPDATE seleciona e promove numa única instrução, com FOR UPDATE SKIP
+ * LOCKED: dois cliques simultâneos promovem lotes distintos em vez de brigar
+ * pelas mesmas linhas.
+ */
+export async function loadMoreFromBacklog(
+  sellerId: string,
+  options: { withAi?: boolean } = {},
+): Promise<LoadMoreResult> {
+  const withAi = options.withAi ?? Boolean(process.env.OPENAI_API_KEY);
+
+  const promotedRows = await db.execute(sql`
+    UPDATE copiloto_signals SET status = 'pending'
+    WHERE id IN (
+      SELECT id FROM copiloto_signals
+      WHERE seller_id = ${sellerId} AND status = 'backlog'
+      ORDER BY score DESC
+      LIMIT ${BACKLOG_PAGE_SIZE}
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING id, type, reason, payload
+  `);
+
+  const promoted = promotedRows.rows as Record<string, unknown>[];
+
+  if (promoted.length > 0 && withAi) {
+    const [seller] = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, sellerId))
+      .limit(1);
+
+    const suggestions = await generateSuggestionsBatch(
+      promoted.map((row) => {
+        const payload = (row.payload as Record<string, unknown> | null) ?? {};
+        return {
+          clientName: String(payload.clientName ?? ""),
+          sellerName: seller?.name ?? "",
+          type: row.type as CopilotoSignalType,
+          reason: String(row.reason ?? ""),
+          payload,
+        };
+      }),
+    );
+
+    const now = new Date();
+    await Promise.all(
+      promoted.map((row, index) => {
+        const suggestion = suggestions[index];
+        if (!suggestion) return Promise.resolve();
+        return db
+          .update(copilotoSignals)
+          .set({ suggestedMessage: suggestion.mensagem, aiGeneratedAt: now })
+          .where(eq(copilotoSignals.id, String(row.id)));
+      }),
+    );
+  }
+
+  const [{ count }] = (
+    await db.execute(sql`
+      SELECT COUNT(*)::int AS count FROM copiloto_signals
+      WHERE seller_id = ${sellerId} AND status = 'backlog'
+    `)
+  ).rows as { count: number }[];
+
+  return { promoted: promoted.length, remaining: toNumber(count) };
 }
 
 export type CopilotoAction = "done" | "snoozed" | "dismissed";

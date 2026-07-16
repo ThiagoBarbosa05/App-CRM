@@ -232,13 +232,15 @@ function ChannelDialog({
     }
   }, [open, channel]);
 
+  const isEvolution = channel?.provider === "evolution";
+
   const handleSubmit = () => {
     const accessToken = form.accessToken.trim();
     const payload: CreateWhatsappChannelPayload = {
       name: form.name.trim(),
-      phoneNumberId: form.phoneNumberId.trim(),
+      phoneNumberId: form.phoneNumberId.trim() || undefined,
       ...(accessToken ? { accessToken } : {}),
-      wabaId: form.wabaId.trim(),
+      wabaId: form.wabaId.trim() || undefined,
       displayPhone: form.displayPhone.trim() || undefined,
       userId: form.userId || null,
       isActive: form.isActive,
@@ -248,8 +250,7 @@ function ChannelDialog({
 
   const canSubmit =
     form.name.trim() &&
-    form.phoneNumberId.trim() &&
-    form.wabaId.trim() &&
+    (isEvolution || (form.phoneNumberId.trim() && form.wabaId.trim())) &&
     (!isEditing ? form.accessToken.trim() : true);
 
   return (
@@ -276,55 +277,59 @@ function ChannelDialog({
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="ch-phone-id">Phone Number ID</Label>
-                <Input
-                  id="ch-phone-id"
-                  placeholder="1234567890"
-                  value={form.phoneNumberId}
-                  onChange={(e) => setForm((p) => ({ ...p, phoneNumberId: e.target.value }))}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="ch-waba-id">WABA ID</Label>
-                <Input
-                  id="ch-waba-id"
-                  placeholder="987654321"
-                  value={form.wabaId}
-                  onChange={(e) => setForm((p) => ({ ...p, wabaId: e.target.value }))}
-                  className="font-mono text-sm"
-                />
-              </div>
-            </div>
+            {!isEvolution && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ch-phone-id">Phone Number ID</Label>
+                    <Input
+                      id="ch-phone-id"
+                      placeholder="1234567890"
+                      value={form.phoneNumberId}
+                      onChange={(e) => setForm((p) => ({ ...p, phoneNumberId: e.target.value }))}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ch-waba-id">WABA ID</Label>
+                    <Input
+                      id="ch-waba-id"
+                      placeholder="987654321"
+                      value={form.wabaId}
+                      onChange={(e) => setForm((p) => ({ ...p, wabaId: e.target.value }))}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="ch-token">
-                Access Token{" "}
-                {isEditing && (
-                  <span className="text-muted-foreground font-normal text-xs">(deixe em branco para não alterar)</span>
-                )}
-              </Label>
-              <div className="relative">
-                <Input
-                  id="ch-token"
-                  type={showToken ? "text" : "password"}
-                  placeholder={isEditing ? "••••••••" : "EAAxxxxx..."}
-                  value={form.accessToken}
-                  onChange={(e) => setForm((p) => ({ ...p, accessToken: e.target.value }))}
-                  className="pr-10 font-mono text-sm"
-                />
-                <button
-                  type="button"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setShowToken((v) => !v)}
-                  tabIndex={-1}
-                >
-                  {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ch-token">
+                    Access Token{" "}
+                    {isEditing && (
+                      <span className="text-muted-foreground font-normal text-xs">(deixe em branco para não alterar)</span>
+                    )}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="ch-token"
+                      type={showToken ? "text" : "password"}
+                      placeholder={isEditing ? "••••••••" : "EAAxxxxx..."}
+                      value={form.accessToken}
+                      onChange={(e) => setForm((p) => ({ ...p, accessToken: e.target.value }))}
+                      className="pr-10 font-mono text-sm"
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowToken((v) => !v)}
+                      tabIndex={-1}
+                    >
+                      {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
