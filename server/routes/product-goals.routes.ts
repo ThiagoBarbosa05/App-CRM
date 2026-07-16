@@ -1,26 +1,44 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
+import { requireAuth } from "../middleware/validation";
 
 export const productGoalsRouter = Router();
 
-productGoalsRouter.get("/:month/:year", async (req, res) => {
+const MANAGER_ROLES = new Set(["admin", "administrador", "gerente"]);
+
+productGoalsRouter.get("/:month/:year", requireAuth, async (req: Request, res: Response) => {
   try {
     const month = Number(req.params.month);
     const year = Number(req.params.year);
     if (isNaN(month) || isNaN(year)) {
       return res.status(400).json({ message: "Mês e ano inválidos" });
     }
+
+    const user = req.user!;
+    const isManager = MANAGER_ROLES.has(user.role ?? "");
+
     const goals = await storage.getProductGoalsByPeriod(month, year);
-    return res.json(goals);
+
+    // Vendedor só vê as metas atribuídas a ele; admin/gerente vê tudo.
+    const filtered = isManager
+      ? goals
+      : goals.filter((g: any) => g.userId === user.userId);
+
+    return res.json(filtered);
   } catch (error) {
     console.error("Erro ao buscar metas de produto:", error);
     return res.status(500).json({ message: "Erro ao buscar metas de produto" });
   }
 });
 
-productGoalsRouter.post("/", async (req, res) => {
+productGoalsRouter.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
+    const user = req.user!;
+    if (!MANAGER_ROLES.has(user.role ?? "")) {
+      return res.status(403).json({ message: "Sem permissão" });
+    }
+
     const schema = z.object({
       userId: z.string().min(1, "Vendedor obrigatório"),
       month: z.coerce.number().min(1).max(12),
@@ -40,8 +58,13 @@ productGoalsRouter.post("/", async (req, res) => {
   }
 });
 
-productGoalsRouter.delete("/:id", async (req, res) => {
+productGoalsRouter.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
+    const user = req.user!;
+    if (!MANAGER_ROLES.has(user.role ?? "")) {
+      return res.status(403).json({ message: "Sem permissão" });
+    }
+
     const success = await storage.deleteProductGoal(req.params.id);
     if (!success) {
       return res.status(404).json({ message: "Meta de produto não encontrada" });
