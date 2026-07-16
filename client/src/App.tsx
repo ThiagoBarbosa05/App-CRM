@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/theme-context";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { MainLayout } from "./layouts/main-layout";
 import { LoadingScreen } from "@/components/loading-screen";
+import { PageTitleUpdater } from "@/components/page-title-updater";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Clients from "@/pages/clients";
@@ -360,6 +361,7 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
+            <PageTitleUpdater />
             <Router />
           </TooltipProvider>
         </AuthProvider>

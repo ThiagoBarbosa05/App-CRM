@@ -1,16 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useWhatsAppNotifications } from "@/hooks/useWhatsAppNotifications.tsx";
+import { useWhatsappConversationsBadge, type WhatsappConversationSummary } from "@/hooks/use-whatsapp";
 import { cn } from "@/lib/utils";
 import { Bell, BellOff } from "lucide-react";
-
-interface ChatClient {
-  id: string;
-  name: string;
-  unreadCount?: number | null;
-}
 
 const POSITION_STORAGE_KEY = "whatsapp-floating-button-position";
 const BUTTON_SIZE = 56; // h-14 w-14
@@ -48,7 +42,7 @@ export function WhatsAppFloatingButton() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const [pulse, setPulse] = useState(false);
-  const clientsRef = useRef<ChatClient[]>([]);
+  const clientsRef = useRef<WhatsappConversationSummary[]>([]);
 
   const [position, setPosition] = useState(loadStoredPosition);
   const draggingRef = useRef(false);
@@ -115,17 +109,7 @@ export function WhatsAppFloatingButton() {
     }
   }, []);
 
-  const { data: clientList = [] } = useQuery<ChatClient[]>({
-    queryKey: ["/api/whatsapp/conversations-list-badge", user?.id],
-    queryFn: async () => {
-      const res = await fetch("/api/whatsapp/conversations?limit=100");
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.items ?? [];
-    },
-    enabled: !!user,
-    refetchInterval: 30_000,
-  });
+  const { data: clientList = [] } = useWhatsappConversationsBadge(user?.id);
 
   clientsRef.current = clientList;
 

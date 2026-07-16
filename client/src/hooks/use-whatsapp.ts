@@ -936,3 +936,36 @@ export function useWaMonitorEvents(params?: { severity?: string; field?: string;
     refetchInterval: 60_000,
   });
 }
+
+// ---- Badge de conversas não lidas (botão flutuante + título da aba) ----
+
+export interface WhatsappConversationSummary {
+  id: string;
+  name: string;
+  unreadCount?: number | null;
+}
+
+/**
+ * Lista resumida de conversas (limit 100) usada só para somar não lidas.
+ * queryKey compartilhada com a invalidação por SSE em useWhatsAppNotifications
+ * (["/api/whatsapp/conversations-list-badge", userId]) — qualquer consumidor
+ * ganha atualização em tempo real de graça.
+ */
+export function useWhatsappConversationsBadge(userId: string | null | undefined, enabled: boolean = true) {
+  return useQuery<WhatsappConversationSummary[]>({
+    queryKey: ["/api/whatsapp/conversations-list-badge", userId],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/conversations?limit=100");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.items ?? [];
+    },
+    enabled: enabled && !!userId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useWhatsappUnreadCount(userId: string | null | undefined, enabled: boolean = true) {
+  const { data } = useWhatsappConversationsBadge(userId, enabled);
+  return (data ?? []).reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
+}
