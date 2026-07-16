@@ -18,6 +18,7 @@ import {
   Pencil,
   Plus,
   Users,
+  RefreshCw,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { Link, useLocation } from "wouter";
@@ -613,6 +614,24 @@ export default function CopilotoPage() {
     },
   });
 
+  const scanSellerMutation = useMutation({
+    mutationFn: async (sellerId: string) => {
+      const res = await apiRequest("POST", "/api/copiloto/scan-seller", { sellerId });
+      return (await res.json()) as { generated: number };
+    },
+    onSuccess: (result, sellerId) => {
+      const sellerName = firstName(sellers.find((s) => s.id === sellerId)?.name || "");
+      toast({
+        title: `Fila gerada${sellerName ? ` para ${sellerName}` : ""}`,
+        description: `${result.generated} contato${result.generated !== 1 ? "s" : ""} na fila.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/copiloto/feed"] });
+    },
+    onError: () => {
+      toast({ title: "Erro ao gerar fila", variant: "destructive" });
+    },
+  });
+
   // Contagem por tipo de sinal (apenas os tipos que têm ao menos 1 card).
   const countsByType = useMemo(() => {
     const all = data?.cards ?? [];
@@ -686,20 +705,44 @@ export default function CopilotoPage() {
             <h1 className="text-xl font-bold text-foreground">Copiloto</h1>
           </div>
           {isManager && sellers.length > 0 && (
-            <Select value={viewSellerId} onValueChange={setViewSellerId}>
-              <SelectTrigger className="w-[240px]">
-                <Users className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={OWN_QUEUE}>Minha fila</SelectItem>
-                {sellers.map((seller) => (
-                  <SelectItem key={seller.id} value={seller.id}>
-                    {seller.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select value={viewSellerId} onValueChange={setViewSellerId}>
+                <SelectTrigger className="w-[220px]">
+                  <Users className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={OWN_QUEUE}>Minha fila</SelectItem>
+                  {sellers.map((seller) => (
+                    <SelectItem key={seller.id} value={seller.id}>
+                      {seller.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={viewSellerId === OWN_QUEUE || scanSellerMutation.isPending}
+                onClick={() => {
+                  if (viewSellerId !== OWN_QUEUE) {
+                    scanSellerMutation.mutate(viewSellerId);
+                  }
+                }}
+                title={
+                  viewSellerId === OWN_QUEUE
+                    ? "Selecione um vendedor primeiro"
+                    : `Gerar fila para ${viewedSellerName || "vendedor"}`
+                }
+              >
+                {scanSellerMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                <span className="ml-1.5 hidden sm:inline">Gerar fila</span>
+              </Button>
+            </div>
           )}
         </div>
         {isInspecting ? (

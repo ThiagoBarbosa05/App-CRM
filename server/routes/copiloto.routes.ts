@@ -114,7 +114,7 @@ copilotoRouter.post(
   },
 );
 
-/** Dispara a varredura manualmente (o normal é o cron das 5h). */
+/** Dispara a varredura completa (todos os vendedores) — normal é o cron das 9h. */
 copilotoRouter.post("/scan", requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user!;
@@ -127,7 +127,7 @@ copilotoRouter.post("/scan", requireAuth, async (req: Request, res: Response) =>
       return res.status(403).json({ message: "Sem permissão" });
     }
 
-    console.log(`[copiloto] Varredura manual disparada por ${user.userId}...`);
+    console.log(`[copiloto] Varredura manual completa disparada por ${user.userId}...`);
     const result = await scanCopilotoSignals();
     console.log(`[copiloto] Concluída: ${result.generated} card(s) gerados.`);
 
@@ -135,6 +135,38 @@ copilotoRouter.post("/scan", requireAuth, async (req: Request, res: Response) =>
   } catch (error) {
     console.error("[copiloto] Erro na varredura:", error);
     return res.status(500).json({ message: "Erro ao gerar fila do Copiloto" });
+  }
+});
+
+/**
+ * Gera (ou regenera) a fila de um vendedor específico.
+ * Só admins/gerentes podem chamar. Não afeta a fila dos demais.
+ */
+copilotoRouter.post("/scan-seller", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.user!;
+    const isManager =
+      user.role === "admin" ||
+      user.role === "administrador" ||
+      user.role === "gerente";
+
+    if (!isManager) {
+      return res.status(403).json({ message: "Sem permissão" });
+    }
+
+    const { sellerId } = req.body ?? {};
+    if (typeof sellerId !== "string" || !sellerId) {
+      return res.status(400).json({ message: "sellerId é obrigatório" });
+    }
+
+    console.log(`[copiloto] Regenerando fila do vendedor ${sellerId} (solicitado por ${user.userId})...`);
+    const result = await scanCopilotoSignals({ sellerId });
+    console.log(`[copiloto] Fila de ${sellerId}: ${result.generated} card(s) gerados.`);
+
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    console.error("[copiloto] Erro na varredura por vendedor:", error);
+    return res.status(500).json({ message: "Erro ao gerar fila do vendedor" });
   }
 });
 

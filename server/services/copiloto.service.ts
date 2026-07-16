@@ -700,9 +700,10 @@ export function buildSellerQueues(
  * trabalhados pelo vendedor nunca são apagados — viram histórico e cooldown.
  */
 export async function scanCopilotoSignals(
-  options: { withAi?: boolean } = {},
+  options: { withAi?: boolean; sellerId?: string } = {},
 ): Promise<CopilotoScanResult> {
   const withAi = options.withAi ?? Boolean(process.env.OPENAI_API_KEY);
+  const targetSellerId = options.sellerId ?? null;
 
   const [overdue, abandoned, birthdays, champions, postSale, cooldownKeys, sellerRows] =
     await Promise.all([
@@ -717,7 +718,12 @@ export async function scanCopilotoSignals(
 
   const sellerNames = new Map(sellerRows.map((row) => [row.id, row.name]));
 
-  const candidates = [...overdue, ...abandoned, ...birthdays, ...champions, ...postSale];
+  const allCandidates = [...overdue, ...abandoned, ...birthdays, ...champions, ...postSale];
+
+  // Se o admin pediu regeneração só para um vendedor, filtramos aqui.
+  const candidates = targetSellerId
+    ? allCandidates.filter((c) => c.sellerId === targetSellerId)
+    : allCandidates;
 
   const eligible = candidates.filter(
     (candidate) => !cooldownKeys.has(`${candidate.clientId}:${candidate.type}`),
@@ -788,9 +794,14 @@ export async function scanCopilotoSignals(
   await db.transaction(async (tx) => {
     // Apaga também o backlog: ele é uma fotografia do dia anterior e precisa
     // ser recalculado. Cards já trabalhados (done/snoozed/dismissed) sobrevivem.
-    await tx
-      .delete(copilotoSignals)
-      .where(inArray(copilotoSignals.status, ["pending", "backlog"]));
+    // Se for varredura parcial (um vendedor só), apaga apenas os cards dele.
+    const deleteCondition = targetSellerId
+      ? and(
+          inArray(copilotoSignals.status, ["pending", "backlog"]),
+          eq(copilotoSignals.sellerId, targetSellerId),
+        )
+      : inArray(copilotoSignals.status, ["pending", "backlog"]);
+    await tx.delete(copilotoSignals).where(deleteCondition);
 
     // Lotes para não estourar o limite de parâmetros do driver em bases grandes.
     const BATCH_SIZE = 500;

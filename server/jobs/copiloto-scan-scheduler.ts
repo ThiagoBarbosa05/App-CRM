@@ -26,7 +26,7 @@ async function scanCopiloto(): Promise<void> {
  * subir o servidor: a varredura é pesada e um deploy no meio do dia recriaria a
  * fila sob os pés do vendedor.
  */
-cron.schedule("0 5 * * *", scanCopiloto, {
+cron.schedule("0 9 * * *", scanCopiloto, {
   timezone: "America/Sao_Paulo",
 });
 
