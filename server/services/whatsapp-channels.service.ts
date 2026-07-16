@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { whatsappChannels, whatsappConversations, whatsappMessages, users } from "../../shared/schema";
-import { and, eq } from "drizzle-orm";
+import { whatsappChannels, whatsappConversations, users } from "../../shared/schema";
+import { and, eq, isNull } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
 import { decryptToken, encryptToken } from "../lib/token-crypto";
@@ -55,6 +55,7 @@ export async function listChannels() {
       connectionStatus: whatsappChannels.connectionStatus,
     })
     .from(whatsappChannels)
+    .where(isNull(whatsappChannels.deletedAt))
     .orderBy(whatsappChannels.createdAt);
 }
 
@@ -62,7 +63,7 @@ export async function getChannelById(id: number) {
   const [channel] = await db
     .select()
     .from(whatsappChannels)
-    .where(eq(whatsappChannels.id, id))
+    .where(and(eq(whatsappChannels.id, id), isNull(whatsappChannels.deletedAt)))
     .limit(1);
   return channel ? decryptChannelRow(channel) : null;
 }
@@ -84,7 +85,7 @@ export async function getChannelForConversation(conversationId: string): Promise
     })
     .from(whatsappConversations)
     .innerJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
-    .where(eq(whatsappConversations.id, conversationId))
+    .where(and(eq(whatsappConversations.id, conversationId), isNull(whatsappChannels.deletedAt)))
     .limit(1);
 
   if (!row || !row.phoneNumberId || !row.accessTokenEncrypted) return null;
@@ -108,19 +109,22 @@ export async function updateChannel(id: number, data: Partial<ChannelWriteInput>
   return updated ? decryptChannelRow(updated) : null;
 }
 
+/**
+ * Soft delete: mantém a linha (e o channelId em mensagens/conversas antigas,
+ * preservando o histórico) e apenas marca deletedAt + isActive=false. Libera
+ * phoneNumberId/evolutionInstanceName (colunas unique) para reimportação do
+ * mesmo número em um novo canal.
+ */
 export async function deleteChannel(id: number) {
-  await db.transaction(async (tx) => {
-    // Desvincula mensagens e conversas para preservá-las (channelId é metadado nullable)
-    await tx
-      .update(whatsappMessages)
-      .set({ channelId: null })
-      .where(eq(whatsappMessages.channelId, id));
-    await tx
-      .update(whatsappConversations)
-      .set({ channelId: null })
-      .where(eq(whatsappConversations.channelId, id));
-    await tx.delete(whatsappChannels).where(eq(whatsappChannels.id, id));
-  });
+  await db
+    .update(whatsappChannels)
+    .set({
+      deletedAt: new Date(),
+      isActive: false,
+      phoneNumberId: null,
+      evolutionInstanceName: null,
+    })
+    .where(eq(whatsappChannels.id, id));
 }
 
 export async function getChannelByUserId(userId: string): Promise<ChannelOverride | null> {
@@ -232,7 +236,7 @@ export async function resolveChannelForConversation(conversationId: string): Pro
     })
     .from(whatsappConversations)
     .innerJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
-    .where(eq(whatsappConversations.id, conversationId))
+    .where(and(eq(whatsappConversations.id, conversationId), isNull(whatsappChannels.deletedAt)))
     .limit(1);
   if (!row) return null;
   return toResolvedChannel(decryptChannelRow(row));

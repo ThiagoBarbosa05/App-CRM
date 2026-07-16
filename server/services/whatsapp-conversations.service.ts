@@ -88,7 +88,10 @@ export async function findOrCreateConversation(phone: string, channelId?: number
     .values({ phone, clientId: matchedClient?.id ?? null, channelId: channelId ?? null })
     .returning();
 
-  return created;
+  // Flag efêmera (não é coluna do banco) usada por saveInboundMessage para
+  // saber que este é o primeiro contato desse telefone, sem precisar de uma
+  // segunda query.
+  return { ...created, _wasCreated: true as const };
 }
 
 // Vincula automaticamente conversas órfãs (client_id NULL) ao cliente cujo
@@ -183,6 +186,54 @@ async function logTransferMessage(conversationId: string, description: string, r
     content: reason ? `🔀 ${description}\nMotivo: ${reason}` : `🔀 ${description}`,
     status: "sent",
     sentAt: new Date(),
+  });
+}
+
+// 🐨 é o emoji padrão do Umbler quando nenhum emoji foi definido — tratamos como ausente.
+function formatTagLabel(tag: { name: string; emoji: string | null }): string {
+  const emoji = tag.emoji && tag.emoji !== "🐨" ? tag.emoji : null;
+  return emoji ? `${emoji} ${tag.name}` : tag.name;
+}
+
+// Registra no histórico da conversa quais etiquetas do WhatsApp foram
+// adicionadas/removidas. Não loga nada se added/removed vierem vazios.
+async function logTagChangeMessage(
+  conversationId: string,
+  added: { name: string; emoji: string | null }[],
+  removed: { name: string; emoji: string | null }[],
+) {
+  if (added.length === 0 && removed.length === 0) return;
+
+  const parts: string[] = [];
+  if (added.length > 0) parts.push(`+ ${added.map(formatTagLabel).join(", ")}`);
+  if (removed.length > 0) parts.push(`- ${removed.map(formatTagLabel).join(", ")}`);
+
+  await db.insert(whatsappMessages).values({
+    conversationId,
+    direction: "outbound",
+    type: "system",
+    content: `🏷️ Etiquetas atualizadas: ${parts.join(" | ")}`,
+    status: "sent",
+    sentAt: new Date(),
+    rawPayload: {
+      kind: "tag_change",
+      added: added.map((t) => t.name),
+      removed: removed.map((t) => t.name),
+    },
+  });
+}
+
+// Registra que o contato voltou a escrever — seja porque nunca havia
+// conversado antes, seja porque a conversa estava fechada.
+async function logConversationStartedMessage(conversationId: string) {
+  await db.insert(whatsappMessages).values({
+    conversationId,
+    direction: "outbound",
+    type: "system",
+    content: "🆕 Contato iniciou uma nova conversa",
+    status: "sent",
+    sentAt: new Date(),
+    rawPayload: { kind: "conversation_started" },
   });
 }
 
@@ -1545,6 +1596,17 @@ export async function saveInboundMessage(data: {
     }
   }
 
+  // Detecta a transição closed→open com um UPDATE condicionado ao status
+  // atual (em vez de um SELECT prévio + UPDATE separado): se dois webhooks
+  // para a mesma conversa fechada chegarem quase ao mesmo tempo, o Postgres
+  // serializa as duas escritas na linha e só uma delas vê status = 'closed'
+  // e recebe a linha de volta — evita logar "nova conversa" duas vezes.
+  const [reopened] = await db
+    .update(whatsappConversations)
+    .set({ status: "open" })
+    .where(and(eq(whatsappConversations.id, conv.id), eq(whatsappConversations.status, "closed")))
+    .returning({ id: whatsappConversations.id });
+
   // Atualiza o "último canal usado" da conversa para refletir por onde o cliente
   // escreveu por último — usado como canal padrão de resposta.
   await db
@@ -1556,6 +1618,14 @@ export async function saveInboundMessage(data: {
       ...(data.channelId != null ? { channelId: data.channelId } : {}),
     })
     .where(eq(whatsappConversations.id, conv.id));
+
+  // Só loga "iniciou conversa" para mensagens que vieram de fato do contato —
+  // não quando o vendedor reabre a conversa escrevendo pelo próprio celular
+  // (direction "outbound" via _fromMe do Evolution/Baileys).
+  const isBrandNew = (conv as { _wasCreated?: boolean })._wasCreated === true;
+  if (direction === "inbound" && (reopened || isBrandNew)) {
+    await logConversationStartedMessage(conv.id);
+  }
 
   console.log(
     `[WA Webhook] Inbound de ${data.phone} → conversa: ${conv.id} (cliente: ${conv.clientId ?? "não encontrado"})`,
@@ -1784,6 +1854,17 @@ export async function startConversationByClientId(
 }
 
 export async function setContactWhatsappTags(clientId: string, whatsappTagIds: string[]): Promise<void> {
+  // Lê o estado atual ANTES de apagar, para poder calcular o diff depois.
+  const currentRows = await db
+    .select({ id: whatsappTags.id, name: whatsappTags.name, emoji: whatsappTags.emoji })
+    .from(contactTags)
+    .innerJoin(whatsappTags, eq(contactTags.whatsappTagId, whatsappTags.id))
+    .where(eq(contactTags.clientId, clientId));
+
+  const currentIds = new Set(currentRows.map((t) => t.id));
+  const newIds = new Set(whatsappTagIds);
+  const removedTags = currentRows.filter((t) => !newIds.has(t.id));
+
   await db
     .delete(contactTags)
     .where(and(eq(contactTags.clientId, clientId), isNotNull(contactTags.whatsappTagId)));
@@ -1792,6 +1873,23 @@ export async function setContactWhatsappTags(clientId: string, whatsappTagIds: s
       .insert(contactTags)
       .values(whatsappTagIds.map((whatsappTagId) => ({ clientId, whatsappTagId })));
   }
+
+  const addedIds = whatsappTagIds.filter((id) => !currentIds.has(id));
+  const addedTags =
+    addedIds.length > 0
+      ? await db
+          .select({ id: whatsappTags.id, name: whatsappTags.name, emoji: whatsappTags.emoji })
+          .from(whatsappTags)
+          .where(inArray(whatsappTags.id, addedIds))
+      : [];
+
+  if (addedTags.length === 0 && removedTags.length === 0) return; // nada mudou
+
+  const conversationId = await resolveConversationIdByClientId(clientId);
+  if (!conversationId) return; // contato sem conversa de WhatsApp ainda
+
+  await logTagChangeMessage(conversationId, addedTags, removedTags);
+  publishConversationEvent(clientId, "new_message", { clientId });
 }
 
 export async function markConversationRead(userId: string, conversationId: string) {

@@ -4707,6 +4707,7 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   evolutionInstanceName: text("evolution_instance_name").unique(),
   connectionStatus: text("connection_status").default("disconnected"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export type WhatsappChannel = typeof whatsappChannels.$inferSelect;
