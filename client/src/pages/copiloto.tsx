@@ -18,7 +18,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 import { cn, formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -145,6 +145,7 @@ interface SignalCardProps {
 
 function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [message, setMessage] = useState(card.suggestedMessage ?? "");
   const [isEditing, setIsEditing] = useState(false);
   const meta = SIGNAL_META[card.type];
@@ -152,11 +153,36 @@ function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
   const digits = card.clientPhone?.replace(/\D/g, "") ?? "";
   const canWhatsapp = digits.length > 0 && !card.whatsappOptOut;
 
-  // A mensagem vai pré-preenchida no WhatsApp; se a IA falhou para este card,
-  // o link abre a conversa em branco em vez de sumir.
-  const whatsappHref = message.trim()
-    ? `https://wa.me/${digits}?text=${encodeURIComponent(message.trim())}`
-    : `https://wa.me/${digits}`;
+  /**
+   * Abre a conversa no WhatsApp do próprio sistema, pelo canal da empresa.
+   *
+   * O start é obrigatório antes de navegar: só 1 dos ~97 clientes da fila já
+   * tem conversa, e a tela de conversas só consegue auto-selecionar pelo
+   * ?phone= o que já existe na lista. Sem isto, o vendedor cairia numa lista
+   * vazia. O endpoint é idempotente (findOrCreateConversation) e valida que o
+   * vendedor é o responsável pelo cliente.
+   */
+  const openConversation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/whatsapp/conversations/start", {
+        clientId: card.clientId,
+      });
+    },
+    onSuccess: () => {
+      const text = message.trim();
+      setLocation(
+        `/whatsapp/conversas?phone=${encodeURIComponent(digits)}` +
+          (text ? `&text=${encodeURIComponent(text)}` : ""),
+      );
+    },
+    onError: () => {
+      toast({
+        title: "Não foi possível abrir a conversa",
+        description: "Verifique se o cliente tem telefone e se você é o responsável.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleCopy = async () => {
     try {
@@ -259,19 +285,35 @@ function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {canWhatsapp && (
-          <Button size="sm" variant="default" asChild>
-            <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
+          <Button
+            size="sm"
+            variant="default"
+            disabled={openConversation.isPending}
+            onClick={() => openConversation.mutate()}
+          >
+            {openConversation.isPending ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
               <FaWhatsapp className="mr-1.5 h-4 w-4" />
-              WhatsApp
-            </a>
+            )}
+            WhatsApp
           </Button>
         )}
         {digits.length > 0 && (
           <Button size="sm" variant="outline" asChild>
-            <a href={`tel:${digits}`}>
+            {/* Mesmo contrato de deep-link que clients-table-with-selection.tsx
+                já usa: o discador lê phone/clientId/clientName da URL e
+                pré-preenche, sem discar sozinho. */}
+            <Link
+              href={
+                `/telemarketing?tab=dialer&clientId=${card.clientId}` +
+                `&phone=${encodeURIComponent(card.clientPhone ?? "")}` +
+                `&clientName=${encodeURIComponent(card.clientName)}`
+              }
+            >
               <Phone className="mr-1.5 h-4 w-4" />
               Ligar
-            </a>
+            </Link>
           </Button>
         )}
         <div className="ml-auto flex items-center gap-2">

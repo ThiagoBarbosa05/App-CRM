@@ -2742,6 +2742,7 @@ function ConversationMessages({
   onClientLinked,
   availableWhatsappTags,
   onWhatsappTagsChange,
+  initialDraft,
 }: {
   conversationKey: string;
   onBack: () => void;
@@ -2751,9 +2752,13 @@ function ConversationMessages({
   onClientLinked: (clientId: string) => void;
   availableWhatsappTags: WhatsappClientTag[];
   onWhatsappTagsChange: (clientId: string, tagIds: string[]) => void;
+  /** Texto que já chega escrito no composer, editável antes do envio. */
+  initialDraft?: string;
 }) {
   const isAdminOrGerente = userRole === "admin" || userRole === "gerente";
-  const [message, setMessage] = useState("");
+  // O componente é remontado a cada troca de conversa (key=conversationId no
+  // pai), então o rascunho é reavaliado por conversa em vez de grudar.
+  const [message, setMessage] = useState(initialDraft ?? "");
   const [composerMode, setComposerMode] = useState<"message" | "note">("message");
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
@@ -5412,9 +5417,14 @@ export default function WhatsAppConversationsPage() {
   // Normaliza para só dígitos — o telefone salvo em whatsapp_conversations
   // também é só dígitos (normalizePhone), e o "+" vindo de outras telas
   // (ex.: formatPhoneToDigits) quebraria o ILIKE no backend.
-  const rawPhoneParam = new URLSearchParams(useSearch()).get("phone");
+  const searchParams = new URLSearchParams(useSearch());
+  const rawPhoneParam = searchParams.get("phone");
   const phoneParam = rawPhoneParam ? rawPhoneParam.replace(/\D/g, "") : null;
+  // Rascunho vindo junto do deep-link (ex.: mensagem sugerida pelo Copiloto).
+  // Só é aplicado na conversa que o ?phone= selecionou — ver deepLinkedId.
+  const draftParam = searchParams.get("text");
   const autoSelectedPhoneRef = useRef(false);
+  const [deepLinkedId, setDeepLinkedId] = useState<string | null>(null);
   // selectedId holds either a clientId or a conversationId (for unknown contacts)
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState(phoneParam ?? "");
@@ -5568,7 +5578,9 @@ export default function WhatsAppConversationsPage() {
       return digits && (digits.endsWith(target) || target.endsWith(digits));
     });
     if (match) {
-      setSelectedId(match.clientId ?? match.conversationId);
+      const id = match.clientId ?? match.conversationId;
+      setSelectedId(id);
+      setDeepLinkedId(id);
       autoSelectedPhoneRef.current = true;
     }
   }, [clientList, phoneParam]);
@@ -6088,6 +6100,13 @@ export default function WhatsAppConversationsPage() {
             onBack={handleBack}
             channels={availableChannels}
             userRole={user?.role ?? "vendedor"}
+            initialDraft={
+              deepLinkedId &&
+              deepLinkedId ===
+                (selectedClient.clientId ?? selectedClient.conversationId)
+                ? (draftParam ?? undefined)
+                : undefined
+            }
             onClientLinked={handleClientLinked}
             availableWhatsappTags={availableWaTags}
             onWhatsappTagsChange={(clientId, tagIds) =>
