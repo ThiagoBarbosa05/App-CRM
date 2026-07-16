@@ -1,4 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from "react";
 import { useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -2795,6 +2801,8 @@ function ConversationMessages({
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeightRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { toast } = useToast();
@@ -2985,22 +2993,88 @@ function ConversationMessages({
     }
   };
 
-  const { data: rawMessages = [], isLoading } = useQuery<WaMessage[]>({
-    queryKey: ["/api/whatsapp/conversations", conversationKey],
-    queryFn: async () => {
-      const res = await fetch(`/api/whatsapp/conversations/${conversationKey}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data?.messages ?? (Array.isArray(data) ? data : []);
-    },
-    refetchInterval: 30_000,
+  interface MessagesPage {
+    messages: WaMessage[];
+    nextCursor: string | null;
+  }
+
+  const messagesQueryKey = ["/api/whatsapp/conversations", conversationKey];
+
+  async function fetchMessagesPage(cursor: string | null): Promise<MessagesPage> {
+    const params = new URLSearchParams();
+    if (cursor) params.set("cursor", cursor);
+    const res = await fetch(
+      `/api/whatsapp/conversations/${conversationKey}?${params}`,
+    );
+    if (!res.ok) return { messages: [], nextCursor: null };
+    const data = await res.json();
+    return {
+      messages: data?.messages ?? (Array.isArray(data) ? data : []),
+      nextCursor: data?.nextCursor ?? null,
+    };
+  }
+
+  const {
+    data: messagesData,
+    isLoading,
+    fetchNextPage: fetchOlderMessages,
+    hasNextPage: hasMoreMessages,
+    isFetchingNextPage: isFetchingOlderMessages,
+  } = useInfiniteQuery({
+    queryKey: messagesQueryKey,
+    queryFn: ({ pageParam }) => fetchMessagesPage(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
   });
+
+  // Página 0 (cursor null) é a mais recente; páginas seguintes são mais
+  // antigas. Invertendo a ordem das páginas e concatenando reconstrói a
+  // ordem cronológica completa (cada página já vem ascendente internamente).
+  const rawMessages =
+    messagesData?.pages.slice().reverse().flatMap((p) => p.messages) ?? [];
 
   const messages = [...rawMessages].sort(
     (a, b) =>
       new Date(a.sentAt ?? a.createdAt).getTime() -
       new Date(b.sentAt ?? b.createdAt).getTime(),
   );
+
+  // Reforço periódico: re-busca só a página mais recente, sem tocar nas
+  // páginas antigas já carregadas via scroll (mesmo padrão da lista de
+  // conversas, ver conversationsListQueryKey).
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshFirstPage(queryClient, messagesQueryKey, () =>
+        fetchMessagesPage(null),
+      );
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, [conversationKey, queryClient]);
+
+  const loadOlderMessages = useCallback(() => {
+    if (!hasMoreMessages || isFetchingOlderMessages) return;
+    prevScrollHeightRef.current =
+      messagesContainerRef.current?.scrollHeight ?? null;
+    fetchOlderMessages();
+  }, [hasMoreMessages, isFetchingOlderMessages, fetchOlderMessages]);
+
+  const olderMessagesSentinelRef = useInfiniteScrollSentinel(
+    messagesContainerRef,
+    loadOlderMessages,
+    hasMoreMessages === true,
+  );
+
+  // Ao prependar mensagens antigas, o navegador manteria o scroll no topo
+  // (posição 0), pulando visualmente para o conteúdo recém-inserido. Ajusta
+  // scrollTop pela diferença de scrollHeight antes/depois para preservar o
+  // ponto que o usuário estava vendo.
+  useLayoutEffect(() => {
+    const el = messagesContainerRef.current;
+    if (el && prevScrollHeightRef.current != null) {
+      el.scrollTop += el.scrollHeight - prevScrollHeightRef.current;
+      prevScrollHeightRef.current = null;
+    }
+  }, [messagesData?.pages.length]);
 
   const { data: conversationNotes = [] } = useQuery<ConversationNote[]>({
     queryKey: ["/api/whatsapp/conversations", conversationKey, "notes"],
@@ -3015,15 +3089,19 @@ function ConversationMessages({
   const latestNote = conversationNotes[0] ?? null;
 
   // Ao abrir a conversa, pula direto para a última mensagem (sem animação);
-  // mensagens que chegam depois (novas ou enviadas) rolam suavemente.
+  // mensagens que chegam depois (novas ou enviadas) rolam suavemente. Usa o
+  // id da última mensagem (não messages.length) para não disparar quando
+  // páginas antigas são prependadas via scroll-para-cima — nesse caso o
+  // comprimento muda mas a última mensagem continua a mesma.
   const hasScrolledInitiallyRef = useRef(false);
+  const lastMessageId = messages[messages.length - 1]?.id ?? null;
   useEffect(() => {
     if (isLoading) return;
     messagesEndRef.current?.scrollIntoView({
       behavior: hasScrolledInitiallyRef.current ? "smooth" : "auto",
     });
     hasScrolledInitiallyRef.current = true;
-  }, [isLoading, messages.length, localMessages.length]);
+  }, [isLoading, lastMessageId, localMessages.length]);
 
   // Some localIds cuja troca (bolha local -> mensagem real) já foi disparada,
   // pra não repetir o pré-carregamento se este efeito rodar de novo antes dele
@@ -3033,9 +3111,13 @@ function ConversationMessages({
 
   useEffect(() => {
     if (localMessages.length === 0) return;
+    // Mensagens otimistas só podem corresponder a mensagens recém-persistidas
+    // (janela de 5s) — limitar a busca às mais recentes evita rescanear todo
+    // o histórico conforme páginas antigas se acumulam via scroll.
+    const recentMessages = rawMessages.slice(-50);
     for (const lm of localMessages) {
       if (swappingLocalIdsRef.current.has(lm.localId)) continue;
-      const match = rawMessages.find((m) => {
+      const match = recentMessages.find((m) => {
         if (m.direction !== "outbound") return false;
         const withinWindow =
           new Date(m.sentAt ?? m.createdAt).getTime() >=
@@ -3098,9 +3180,9 @@ function ConversationMessages({
       `/api/whatsapp/conversations/${conversationKey}/stream`,
     );
     es.addEventListener("new_message", () => {
-      queryClient.invalidateQueries({
-        queryKey: ["/api/whatsapp/conversations", conversationKey],
-      });
+      refreshFirstPage(queryClient, messagesQueryKey, () =>
+        fetchMessagesPage(null),
+      );
       queryClient.invalidateQueries({
         queryKey: ["/api/whatsapp/conversations-list"],
       });
@@ -4014,7 +4096,10 @@ function ConversationMessages({
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-1 bg-slate-50 dark:bg-slate-950/30">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-1 bg-slate-50 dark:bg-slate-950/30"
+      >
         {isLoading ? (
           <div className="space-y-4 pt-2">
             {[1, 2, 3, 4].map((i) => (
@@ -4048,6 +4133,16 @@ function ConversationMessages({
           </div>
         ) : (
           <>
+            {hasMoreMessages && (
+              <div
+                ref={olderMessagesSentinelRef}
+                className="flex justify-center py-2"
+              >
+                {isFetchingOlderMessages && (
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                )}
+              </div>
+            )}
             {grouped.map(({ date, msgs }) => (
               <div key={date} className="space-y-1.5">
                 <div className="flex items-center gap-3 py-2">
