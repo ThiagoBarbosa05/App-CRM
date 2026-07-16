@@ -80,14 +80,32 @@ copilotoRouter.post(
   },
 );
 
-/** Traz mais cards do backlog do próprio vendedor para a fila visível. */
+/**
+ * Traz mais cards do backlog para a fila visível.
+ *
+ * Admin/gerente pode promover na fila de outro via ?sellerId — mesma regra de
+ * GET /feed. A promoção é do dono da fila, não de quem clica: o card promovido
+ * aparece para o vendedor, e a mensagem da IA é redigida em nome dele.
+ */
 copilotoRouter.post(
   "/load-more",
   requireAuth,
   async (req: Request, res: Response) => {
     try {
       const user = req.user!;
-      const result = await loadMoreFromBacklog(user.userId);
+      const isManager =
+        user.role === "admin" ||
+        user.role === "administrador" ||
+        user.role === "gerente";
+
+      const requestedSellerId =
+        typeof req.query.sellerId === "string" ? req.query.sellerId : null;
+
+      if (requestedSellerId && requestedSellerId !== user.userId && !isManager) {
+        return res.status(403).json({ message: "Sem permissão" });
+      }
+
+      const result = await loadMoreFromBacklog(requestedSellerId ?? user.userId);
       return res.json(result);
     } catch (error) {
       console.error("[copiloto] Erro ao carregar mais cards:", error);

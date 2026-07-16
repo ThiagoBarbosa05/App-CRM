@@ -17,6 +17,7 @@ import {
   Copy,
   Pencil,
   Plus,
+  Users,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { Link, useLocation } from "wouter";
@@ -27,6 +28,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +132,26 @@ const RFM_COLORS: Record<string, string> = {
   sem_compra: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
 };
 
+/** Usuário do dropdown de inspeção. Espelha o que GET /api/users devolve. */
+interface DirectoryUser {
+  id: string;
+  name: string;
+  role: string;
+  isActive: string;
+}
+
+/**
+ * Papéis que enxergam a fila alheia.
+ *
+ * Espelha a checagem de GET /api/copiloto/feed — a lista aqui é conveniência de
+ * UI; quem barra de verdade é o servidor, que devolve 403 para o resto.
+ * "administrador" é legado: o enum do schema hoje só emite "admin".
+ */
+const MANAGER_ROLES = new Set(["admin", "administrador", "gerente"]);
+
+/** Valor do Select para "minha própria fila" — o Radix não aceita item vazio. */
+const OWN_QUEUE = "__me__";
+
 type FilterKey = "todos" | "urgente" | "oportunidade";
 
 const FILTERS: { key: FilterKey; label: string }[] = [
@@ -151,9 +179,18 @@ interface SignalCardProps {
   card: CopilotoCard;
   isBusy: boolean;
   onAction: (action: "done" | "snoozed" | "dismissed") => void;
+  /**
+   * Inspeção da fila alheia: mostra o card como o vendedor o vê, sem agir.
+   *
+   * Não é só cosmético. As ações são escopadas ao vendedor logado no servidor —
+   * `actOnSignal` casa `sellerId` com quem chama, e o start de conversa exige
+   * ser o responsável pelo cliente. Um gerente clicando aqui só colheria erro,
+   * ou pior: registraria a ação em nome de quem não falou com o cliente.
+   */
+  readOnly?: boolean;
 }
 
-function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
+function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProps) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [message, setMessage] = useState(card.suggestedMessage ?? "");
@@ -279,15 +316,17 @@ function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
               Mensagem sugerida
             </span>
             <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 text-xs"
-                onClick={() => setIsEditing((editing) => !editing)}
-              >
-                <Pencil className="mr-1 h-3 w-3" />
-                {isEditing ? "Pronto" : "Editar"}
-              </Button>
+              {!readOnly && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setIsEditing((editing) => !editing)}
+                >
+                  <Pencil className="mr-1 h-3 w-3" />
+                  {isEditing ? "Pronto" : "Editar"}
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
@@ -314,76 +353,82 @@ function SignalCard({ card, isBusy, onAction }: SignalCardProps) {
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {canWhatsapp && (
-          <Button
-            size="sm"
-            variant="default"
-            disabled={openConversation.isPending}
-            onClick={() => openConversation.mutate()}
-          >
-            {openConversation.isPending ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <FaWhatsapp className="mr-1.5 h-4 w-4" />
-            )}
-            WhatsApp
-          </Button>
-        )}
-        {digits.length > 0 && (
-          <Button size="sm" variant="outline" asChild>
-            {/* Mesmo contrato de deep-link que clients-table-with-selection.tsx
-                já usa: o discador lê phone/clientId/clientName da URL e
-                pré-preenche, sem discar sozinho. */}
-            <Link
-              href={
-                `/telemarketing?tab=dialer&clientId=${card.clientId}` +
-                `&phone=${encodeURIComponent(card.clientPhone ?? "")}` +
-                `&clientName=${encodeURIComponent(card.clientName)}`
-              }
+      {readOnly ? (
+        <p className="mt-4 text-xs text-muted-foreground">
+          Somente o vendedor responsável pode agir neste card.
+        </p>
+      ) : (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {canWhatsapp && (
+            <Button
+              size="sm"
+              variant="default"
+              disabled={openConversation.isPending}
+              onClick={() => openConversation.mutate()}
             >
-              <Phone className="mr-1.5 h-4 w-4" />
-              Ligar
-            </Link>
-          </Button>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={isBusy}
-            onClick={() => onAction("done")}
-            title="Já falei com este cliente"
-          >
-            {isBusy ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <Check className="mr-1.5 h-4 w-4" />
-            )}
-            Já falei
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={isBusy}
-            onClick={() => onAction("snoozed")}
-            title="Adiar por 3 dias"
-          >
-            <CalendarClock className="mr-1.5 h-4 w-4" />
-            Adiar
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={isBusy}
-            onClick={() => onAction("dismissed")}
-            title="Este card não faz sentido"
-          >
-            <X className="mr-1.5 h-4 w-4" />
-            Não faz sentido
-          </Button>
+              {openConversation.isPending ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <FaWhatsapp className="mr-1.5 h-4 w-4" />
+              )}
+              WhatsApp
+            </Button>
+          )}
+          {digits.length > 0 && (
+            <Button size="sm" variant="outline" asChild>
+              {/* Mesmo contrato de deep-link que clients-table-with-selection.tsx
+                  já usa: o discador lê phone/clientId/clientName da URL e
+                  pré-preenche, sem discar sozinho. */}
+              <Link
+                href={
+                  `/telemarketing?tab=dialer&clientId=${card.clientId}` +
+                  `&phone=${encodeURIComponent(card.clientPhone ?? "")}` +
+                  `&clientName=${encodeURIComponent(card.clientName)}`
+                }
+              >
+                <Phone className="mr-1.5 h-4 w-4" />
+                Ligar
+              </Link>
+            </Button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={isBusy}
+              onClick={() => onAction("done")}
+              title="Já falei com este cliente"
+            >
+              {isBusy ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-1.5 h-4 w-4" />
+              )}
+              Já falei
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={isBusy}
+              onClick={() => onAction("snoozed")}
+              title="Adiar por 3 dias"
+            >
+              <CalendarClock className="mr-1.5 h-4 w-4" />
+              Adiar
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={isBusy}
+              onClick={() => onAction("dismissed")}
+              title="Este card não faz sentido"
+            >
+              <X className="mr-1.5 h-4 w-4" />
+              Não faz sentido
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -396,9 +441,42 @@ export default function CopilotoPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterKey>("todos");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [viewSellerId, setViewSellerId] = useState<string>(OWN_QUEUE);
 
+  const isManager = MANAGER_ROLES.has(user?.role ?? "");
+  const isInspecting = isManager && viewSellerId !== OWN_QUEUE;
+
+  const { data: directory = [] } = useQuery<DirectoryUser[]>({
+    queryKey: ["/api/users"],
+    enabled: isManager,
+  });
+
+  // Só quem pode ter fila. Inativo fora: a varredura não gera card para ele, e
+  // a lista de usuários da base é longa o bastante para o dropdown virar ruído.
+  const sellers = useMemo(
+    () =>
+      directory
+        .filter((entry) => entry.isActive === "true" && entry.id !== user?.id)
+        .sort((left, right) => left.name.localeCompare(right.name, "pt-BR")),
+    [directory, user?.id],
+  );
+
+  const viewedSellerName =
+    sellers.find((entry) => entry.id === viewSellerId)?.name ?? "";
+
+  // queryFn explícita: a padrão faz queryKey.join("/"), que viraria
+  // /api/copiloto/feed/<id> — path, não query param.
   const { data, isLoading, isError } = useQuery<CopilotoFeed>({
-    queryKey: ["/api/copiloto/feed"],
+    queryKey: ["/api/copiloto/feed", viewSellerId],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        isInspecting
+          ? `/api/copiloto/feed?sellerId=${encodeURIComponent(viewSellerId)}`
+          : "/api/copiloto/feed",
+      );
+      return (await res.json()) as CopilotoFeed;
+    },
   });
 
   const actionMutation = useMutation({
@@ -437,14 +515,23 @@ export default function CopilotoPage() {
 
   const loadMore = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/copiloto/load-more", {});
+      const res = await apiRequest(
+        "POST",
+        isInspecting
+          ? `/api/copiloto/load-more?sellerId=${encodeURIComponent(viewSellerId)}`
+          : "/api/copiloto/load-more",
+        {},
+      );
       return (await res.json()) as { promoted: number; remaining: number };
     },
     onSuccess: (result) => {
+      const target = isInspecting
+        ? `na fila de ${firstName(viewedSellerName) || "vendedor"}`
+        : "na fila";
       toast({
         title:
           result.promoted > 0
-            ? `+${result.promoted} contato${result.promoted > 1 ? "s" : ""} na fila.`
+            ? `+${result.promoted} contato${result.promoted > 1 ? "s" : ""} ${target}.`
             : "Não há mais contatos guardados.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/copiloto/feed"] });
@@ -495,25 +582,59 @@ export default function CopilotoPage() {
   return (
     <div className="mobile-responsive space-y-6 p-4 sm:p-6">
       <header className="rounded-lg border border-border bg-card p-5">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-bold text-foreground">Copiloto</h1>
-        </div>
-        <p className="mt-2 text-lg text-foreground">
-          {greeting()}
-          {firstName(user?.name) ? `, ${firstName(user?.name)}` : ""}.{" "}
-          {totalCards > 0 ? (
-            <>
-              Você tem{" "}
-              <strong>
-                {totalCards} contato{totalCards > 1 ? "s" : ""}
-              </strong>{" "}
-              para hoje.
-            </>
-          ) : (
-            <>Nenhum contato pendente para hoje.</>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h1 className="text-xl font-bold text-foreground">Copiloto</h1>
+          </div>
+          {isManager && sellers.length > 0 && (
+            <Select value={viewSellerId} onValueChange={setViewSellerId}>
+              <SelectTrigger className="w-[240px]">
+                <Users className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={OWN_QUEUE}>Minha fila</SelectItem>
+                {sellers.map((seller) => (
+                  <SelectItem key={seller.id} value={seller.id}>
+                    {seller.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
-        </p>
+        </div>
+        {isInspecting ? (
+          <p className="mt-2 text-lg text-foreground">
+            Fila de <strong>{viewedSellerName || "vendedor"}</strong>:{" "}
+            {totalCards > 0 ? (
+              <>
+                <strong>
+                  {totalCards} contato{totalCards > 1 ? "s" : ""}
+                </strong>{" "}
+                para hoje.
+              </>
+            ) : (
+              <>nenhum contato pendente hoje.</>
+            )}
+          </p>
+        ) : (
+          <p className="mt-2 text-lg text-foreground">
+            {greeting()}
+            {firstName(user?.name) ? `, ${firstName(user?.name)}` : ""}.{" "}
+            {totalCards > 0 ? (
+              <>
+                Você tem{" "}
+                <strong>
+                  {totalCards} contato{totalCards > 1 ? "s" : ""}
+                </strong>{" "}
+                para hoje.
+              </>
+            ) : (
+              <>Nenhum contato pendente para hoje.</>
+            )}
+          </p>
+        )}
         {totalCards > 0 && (
           <p className="mt-1 text-sm text-muted-foreground">
             Potencial estimado:{" "}
@@ -569,9 +690,13 @@ export default function CopilotoPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             {totalCards > 0
               ? "Escolha outro filtro para ver os demais contatos."
-              : backlogAvailable > 0
-                ? `Você falou com todos os contatos de hoje. Há mais ${backlogAvailable} na sua carteira esperando.`
-                : "O Copiloto varre sua carteira toda madrugada e monta a fila do dia aqui."}
+              : isInspecting
+                ? backlogAvailable > 0
+                  ? `${firstName(viewedSellerName) || "Este vendedor"} já trabalhou a fila de hoje. Há mais ${backlogAvailable} na carteira esperando.`
+                  : "Nenhum sinal para este vendedor na última varredura."
+                : backlogAvailable > 0
+                  ? `Você falou com todos os contatos de hoje. Há mais ${backlogAvailable} na sua carteira esperando.`
+                  : "O Copiloto varre sua carteira toda madrugada e monta a fila do dia aqui."}
           </p>
         </div>
       ) : (
@@ -581,6 +706,7 @@ export default function CopilotoPage() {
               key={card.id}
               card={card}
               isBusy={busyId === card.id && actionMutation.isPending}
+              readOnly={isInspecting}
               onAction={(action) =>
                 actionMutation.mutate({ signalId: card.id, action })
               }
@@ -601,7 +727,9 @@ export default function CopilotoPage() {
             ) : (
               <Plus className="mr-2 h-4 w-4" />
             )}
-            Carregar mais ({backlogAvailable} na fila de espera)
+            {isInspecting
+              ? `Carregar mais na fila de ${firstName(viewedSellerName) || "vendedor"} (${backlogAvailable} em espera)`
+              : `Carregar mais (${backlogAvailable} na fila de espera)`}
           </Button>
         </div>
       )}

@@ -21,6 +21,30 @@ import { generateSuggestionsBatch } from "./copiloto-ai.service";
 /** Máximo de cards entregues por vendedor por dia. Fila infinita é fila ignorada. */
 const MAX_CARDS_PER_SELLER = 15;
 
+/**
+ * Sinais que morrem numa data em vez de esperar a próxima varredura.
+ *
+ * Um ciclo vencido continua vencido amanhã; um aniversário, não. Se o card do
+ * aniversário perde a vez hoje, ele não "volta depois" — a data passa, o sinal
+ * deixa de ser gerado e o contato simplesmente não aconteceu. Por isso estes
+ * tipos ganham tratamento próprio no corte e no dedup abaixo.
+ */
+const TIME_BOUND_TYPES = new Set<CopilotoSignalType>(["aniversario"]);
+
+/**
+ * Slots do teto diário garantidos a sinais com data marcada.
+ *
+ * O score não é comparável entre tipos: aniversário tem teto de ~1.100
+ * (500 + proximidade + 30% do ticket), enquanto ciclo vencido vale até 3x o
+ * ticket médio e campeão silencioso soma 5% de todo o histórico do cliente —
+ * um campeão de R$200k pontua 10.000+. Ordenando só por score, qualquer
+ * vendedor com 15 cards de ticket alto empurra todo aniversário para o backlog,
+ * e como a varredura recria a fila todo dia, ele fica lá até a data passar. O
+ * vendedor nunca veria o card. A reserva vale só quando há disputa: com poucos
+ * candidatos, todos entram normalmente.
+ */
+const RESERVED_TIME_BOUND_SLOTS = 3;
+
 /** Não repetir um card do mesmo tipo para o mesmo cliente dentro destas janelas. */
 const COOLDOWN_DAYS = {
   done: 15,
@@ -524,6 +548,102 @@ export interface CopilotoScanResult {
 }
 
 /**
+ * Qual sinal representa o cliente quando ele dispara mais de um.
+ *
+ * Sinal com data marcada ganha do de maior score, e não é desempate arbitrário:
+ * o vendedor vai fazer um contato só, e o aniversário é o único pretexto que
+ * expira. Ligar hoje falando do aniversário não perde nada — se o cliente
+ * também está com o ciclo vencido, esse card volta na próxima varredura com o
+ * mesmo número. O inverso não é verdade: a data passa e não volta.
+ */
+function beatsForClient(
+  candidate: CopilotoSignalCandidate,
+  current: CopilotoSignalCandidate,
+): boolean {
+  const candidateTimeBound = TIME_BOUND_TYPES.has(candidate.type);
+  const currentTimeBound = TIME_BOUND_TYPES.has(current.type);
+  if (candidateTimeBound !== currentTimeBound) return candidateTimeBound;
+  return candidate.score > current.score;
+}
+
+export interface SellerQueues {
+  selected: CopilotoSignalCandidate[];
+  backlog: CopilotoSignalCandidate[];
+  dedupedByClient: number;
+  /** Vendedores que receberam ao menos um candidato. */
+  sellers: number;
+}
+
+/**
+ * Reparte os candidatos elegíveis em fila visível e backlog, por vendedor.
+ *
+ * É a regra que decide o que o vendedor vê no dia; fica pura e exportada para
+ * poder ser testada sem banco.
+ */
+export function buildSellerQueues(
+  eligible: CopilotoSignalCandidate[],
+): SellerQueues {
+  const bySeller = new Map<string, CopilotoSignalCandidate[]>();
+  for (const candidate of eligible) {
+    const current = bySeller.get(candidate.sellerId) ?? [];
+    current.push(candidate);
+    bySeller.set(candidate.sellerId, current);
+  }
+
+  const selected: CopilotoSignalCandidate[] = [];
+  const backlog: CopilotoSignalCandidate[] = [];
+  let dedupedByClient = 0;
+
+  for (const sellerCandidates of Array.from(bySeller.values())) {
+    // Um card por cliente: o vendedor faz uma ligação, não uma por sinal. Um
+    // cliente que dispara ciclo vencido + produto abandonado + campeão em
+    // silêncio ocuparia três slots para o mesmo telefonema.
+    const bestPerClient = new Map<string, CopilotoSignalCandidate>();
+    for (const candidate of sellerCandidates) {
+      const current = bestPerClient.get(candidate.clientId);
+      if (!current) {
+        bestPerClient.set(candidate.clientId, candidate);
+        continue;
+      }
+      if (beatsForClient(candidate, current)) {
+        bestPerClient.set(candidate.clientId, candidate);
+      }
+      dedupedByClient++;
+    }
+
+    const strongestPerClient = Array.from(bestPerClient.values()).sort(
+      (left, right) => right.score - left.score,
+    );
+
+    // Garante a vez dos sinais com data marcada antes de preencher o resto por
+    // score. Os excedentes seguem em `remainder`, na disputa normal: reserva
+    // ociosa não pode roubar slot de quem pontuou.
+    const reserved = strongestPerClient
+      .filter((candidate) => TIME_BOUND_TYPES.has(candidate.type))
+      .slice(0, RESERVED_TIME_BOUND_SLOTS);
+    const reservedSet = new Set(reserved);
+    const remainder = strongestPerClient.filter(
+      (candidate) => !reservedSet.has(candidate),
+    );
+
+    // O teto limita o que aparece de uma vez, não o que o vendedor pode fazer
+    // no dia: o excedente vira backlog e o botão "Carregar mais" o promove.
+    const sellerSelected = [...reserved, ...remainder].slice(
+      0,
+      MAX_CARDS_PER_SELLER,
+    );
+    const selectedSet = new Set(sellerSelected);
+
+    selected.push(...sellerSelected);
+    backlog.push(
+      ...strongestPerClient.filter((candidate) => !selectedSet.has(candidate)),
+    );
+  }
+
+  return { selected, backlog, dedupedByClient, sellers: bySeller.size };
+}
+
+/**
  * Varre a base e regenera a fila. Idempotente: apaga os cards `pending` (que
  * ninguém tocou) e reinsere a partir do estado atual dos dados. Cards já
  * trabalhados pelo vendedor nunca são apagados — viram histórico e cooldown.
@@ -552,41 +672,8 @@ export async function scanCopilotoSignals(
   );
   const skippedByCooldown = candidates.length - eligible.length;
 
-  // Agrupa por vendedor e corta no teto diário, mantendo os de maior score.
-  const bySeller = new Map<string, CopilotoSignalCandidate[]>();
-  for (const candidate of eligible) {
-    const current = bySeller.get(candidate.sellerId) ?? [];
-    current.push(candidate);
-    bySeller.set(candidate.sellerId, current);
-  }
-
-  const selected: CopilotoSignalCandidate[] = [];
-  const backlog: CopilotoSignalCandidate[] = [];
-  let dedupedByClient = 0;
-  for (const sellerCandidates of Array.from(bySeller.values())) {
-    sellerCandidates.sort((left, right) => right.score - left.score);
-
-    // Um card por cliente: o vendedor faz uma ligação, não uma por sinal. Um
-    // cliente que dispara ciclo vencido + produto abandonado + campeão em
-    // silêncio ocuparia três slots para o mesmo telefonema. Fica o sinal de
-    // maior score — os demais voltam na próxima varredura se continuarem
-    // valendo.
-    const strongestPerClient: CopilotoSignalCandidate[] = [];
-    const seenClients = new Set<string>();
-    for (const candidate of sellerCandidates) {
-      if (seenClients.has(candidate.clientId)) {
-        dedupedByClient++;
-        continue;
-      }
-      seenClients.add(candidate.clientId);
-      strongestPerClient.push(candidate);
-    }
-
-    // O teto limita o que aparece de uma vez, não o que o vendedor pode fazer
-    // no dia: o excedente vira backlog e o botão "Carregar mais" o promove.
-    selected.push(...strongestPerClient.slice(0, MAX_CARDS_PER_SELLER));
-    backlog.push(...strongestPerClient.slice(MAX_CARDS_PER_SELLER));
-  }
+  const { selected, backlog, dedupedByClient, sellers } =
+    buildSellerQueues(eligible);
 
   // Fatos para os dois grupos: o card do backlog já nasce completo e a
   // promoção não precisa de outra query. É uma query para ~180 ids.
@@ -617,12 +704,6 @@ export async function scanCopilotoSignals(
 
   const aiGeneratedAt = new Date();
 
-  // Apaga também o backlog: ele é uma fotografia do dia anterior e precisa ser
-  // recalculado. Cards já trabalhados (done/snoozed/dismissed) sobrevivem.
-  await db
-    .delete(copilotoSignals)
-    .where(inArray(copilotoSignals.status, ["pending", "backlog"]));
-
   const toRow = (
     candidate: CopilotoSignalCandidate,
     status: "pending" | "backlog",
@@ -647,13 +728,24 @@ export async function scanCopilotoSignals(
     ...backlog.map((candidate) => toRow(candidate, "backlog", null)),
   ];
 
-  if (rows.length > 0) {
+  // Troca a fila inteira de uma vez. Sem a transação, o DELETE e os INSERTs em
+  // lote são operações independentes: um lote que falhe no meio (queda de
+  // conexão, timeout) deixaria TODOS os vendedores com a fila apagada ou pela
+  // metade até a varredura do dia seguinte — e a fila do dia é o trabalho deles.
+  // Aqui, ou a nova fila entra inteira, ou a anterior continua de pé.
+  await db.transaction(async (tx) => {
+    // Apaga também o backlog: ele é uma fotografia do dia anterior e precisa
+    // ser recalculado. Cards já trabalhados (done/snoozed/dismissed) sobrevivem.
+    await tx
+      .delete(copilotoSignals)
+      .where(inArray(copilotoSignals.status, ["pending", "backlog"]));
+
     // Lotes para não estourar o limite de parâmetros do driver em bases grandes.
     const BATCH_SIZE = 500;
     for (let index = 0; index < rows.length; index += BATCH_SIZE) {
-      await db.insert(copilotoSignals).values(rows.slice(index, index + BATCH_SIZE));
+      await tx.insert(copilotoSignals).values(rows.slice(index, index + BATCH_SIZE));
     }
-  }
+  });
 
   const byType: Record<string, number> = {};
   for (const candidate of selected) {
@@ -667,7 +759,7 @@ export async function scanCopilotoSignals(
     dedupedByClient,
     withAiMessage: suggestions.filter((suggestion) => suggestion !== null).length,
     byType,
-    sellers: bySeller.size,
+    sellers,
   };
 }
 
