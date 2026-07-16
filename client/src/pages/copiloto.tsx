@@ -152,15 +152,27 @@ const MANAGER_ROLES = new Set(["admin", "administrador", "gerente"]);
 /** Valor do Select para "minha própria fila" — o Radix não aceita item vazio. */
 const OWN_QUEUE = "__me__";
 
-type FilterKey = "todos" | "urgente" | "oportunidade";
-
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: "todos", label: "Todos" },
-  { key: "urgente", label: "Urgente" },
-  { key: "oportunidade", label: "Oportunidade" },
-];
+type FilterKey = "todos" | CopilotoSignalType;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Faixa visual de prioridade baseada no valor potencial estimado.
+ * Alto  ≥ R$3 000 → borda vermelha
+ * Médio ≥ R$500  → borda âmbar
+ * Baixo           → borda sutil
+ */
+function priorityTier(card: CopilotoCard): "high" | "medium" | "low" {
+  if (card.estimatedValue >= 3000) return "high";
+  if (card.estimatedValue >= 500) return "medium";
+  return "low";
+}
+
+const TIER_BORDER: Record<string, string> = {
+  high: "border-l-4 border-l-red-500",
+  medium: "border-l-4 border-l-amber-400",
+  low: "border-l-4 border-l-slate-200 dark:border-l-slate-700",
+};
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -198,6 +210,28 @@ function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProp
   const meta = SIGNAL_META[card.type];
   const Icon = meta?.icon ?? Sparkles;
   const digits = card.clientPhone?.replace(/\D/g, "") ?? "";
+  const tier = priorityTier(card);
+
+  // Badge de data/hora para aniversário usa daysAhead do payload;
+  // para os demais, exibe tempo relativo a partir de generatedAt.
+  const daysAhead =
+    card.type === "aniversario"
+      ? (card.payload.daysAhead as number | undefined)
+      : undefined;
+  const birthdayLabel =
+    daysAhead === 0
+      ? "Aniversário hoje 🎂"
+      : daysAhead === 1
+        ? "Amanhã"
+        : daysAhead != null
+          ? `Em ${daysAhead} dias`
+          : null;
+  const dateLabel =
+    birthdayLabel ??
+    formatDistanceToNow(new Date(card.generatedAt), {
+      addSuffix: true,
+      locale: ptBR,
+    });
   const canWhatsapp = digits.length > 0 && !card.whatsappOptOut;
   const facts = card.payload.facts as ClientFacts | undefined;
 
@@ -242,7 +276,12 @@ function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProp
   };
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div
+      className={cn(
+        "rounded-lg border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md overflow-hidden",
+        TIER_BORDER[tier],
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <div className={cn("mt-0.5 shrink-0", meta?.accent)}>
@@ -266,9 +305,12 @@ function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProp
                 </span>
               )}
             </div>
-            <p className={cn("mt-0.5 text-xs font-medium", meta?.accent)}>
-              {meta?.label ?? card.type}
-            </p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+              <p className={cn("text-xs font-medium", meta?.accent)}>
+                {meta?.label ?? card.type}
+              </p>
+              <span className="text-xs text-muted-foreground">{dateLabel}</span>
+            </div>
             <p className="mt-2 text-sm text-muted-foreground">{card.reason}</p>
             {facts && (
               <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
@@ -544,19 +586,29 @@ export default function CopilotoPage() {
   const cards = useMemo(() => {
     const all = data?.cards ?? [];
     if (filter === "todos") return all;
-    return all.filter((card) => SIGNAL_META[card.type]?.group === filter);
+    return all.filter((card) => card.type === filter);
   }, [data?.cards, filter]);
 
-  const counts = useMemo(() => {
+  // Contagem por tipo de sinal (apenas os tipos que têm ao menos 1 card).
+  const countsByType = useMemo(() => {
     const all = data?.cards ?? [];
-    return {
-      todos: all.length,
-      urgente: all.filter((c) => SIGNAL_META[c.type]?.group === "urgente").length,
-      oportunidade: all.filter(
-        (c) => SIGNAL_META[c.type]?.group === "oportunidade",
-      ).length,
-    };
+    const map: Partial<Record<CopilotoSignalType, number>> = {};
+    for (const card of all) {
+      map[card.type] = (map[card.type] ?? 0) + 1;
+    }
+    return map;
   }, [data?.cards]);
+
+  // Tipos presentes na fila, na ordem definida por SIGNAL_META.
+  const activeTypes = useMemo(
+    () =>
+      (Object.keys(SIGNAL_META) as CopilotoSignalType[]).filter(
+        (t) => (countsByType[t] ?? 0) > 0,
+      ),
+    [countsByType],
+  );
+
+  const totalCards = data?.cards.length ?? 0;
 
   if (isLoading) {
     return (
@@ -576,7 +628,6 @@ export default function CopilotoPage() {
     );
   }
 
-  const totalCards = data?.cards.length ?? 0;
   const backlogAvailable = data?.backlogCount ?? 0;
 
   return (
@@ -655,25 +706,46 @@ export default function CopilotoPage() {
         )}
       </header>
 
-      {totalCards > 0 && (
+      {totalCards > 0 && activeTypes.length > 1 && (
         <div className="flex flex-wrap gap-2">
-          {FILTERS.map((option) => (
-            <button
-              key={option.key}
-              onClick={() => setFilter(option.key)}
-              className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-                filter === option.key
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-              )}
-            >
-              {option.label}
-              <Badge variant="secondary" className="ml-2">
-                {counts[option.key]}
-              </Badge>
-            </button>
-          ))}
+          {/* Chip "Todos" */}
+          <button
+            onClick={() => setFilter("todos")}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              filter === "todos"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+            )}
+          >
+            Todos
+            <Badge variant="secondary" className="ml-2">
+              {totalCards}
+            </Badge>
+          </button>
+          {/* Um chip por tipo de sinal presente na fila */}
+          {activeTypes.map((type) => {
+            const meta = SIGNAL_META[type];
+            const Icon = meta.icon;
+            return (
+              <button
+                key={type}
+                onClick={() => setFilter(type)}
+                className={cn(
+                  "flex items-center rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                  filter === type
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                <Icon className="mr-1.5 h-3.5 w-3.5" />
+                {meta.label}
+                <Badge variant="secondary" className="ml-2">
+                  {countsByType[type] ?? 0}
+                </Badge>
+              </button>
+            );
+          })}
         </div>
       )}
 
