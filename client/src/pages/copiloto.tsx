@@ -620,7 +620,10 @@ export default function CopilotoPage() {
       return (await res.json()) as { generated: number };
     },
     onSuccess: (result, sellerId) => {
-      const sellerName = firstName(sellers.find((s) => s.id === sellerId)?.name || "");
+      const isOwnScan = sellerId === user?.id;
+      const sellerName = isOwnScan
+        ? "você"
+        : firstName(sellers.find((s) => s.id === sellerId)?.name || "");
       toast({
         title: `Fila gerada${sellerName ? ` para ${sellerName}` : ""}`,
         description: `${result.generated} contato${result.generated !== 1 ? "s" : ""} na fila.`,
@@ -723,15 +726,14 @@ export default function CopilotoPage() {
               <Button
                 size="sm"
                 variant="outline"
-                disabled={viewSellerId === OWN_QUEUE || scanSellerMutation.isPending}
+                disabled={scanSellerMutation.isPending}
                 onClick={() => {
-                  if (viewSellerId !== OWN_QUEUE) {
-                    scanSellerMutation.mutate(viewSellerId);
-                  }
+                  const targetId = viewSellerId === OWN_QUEUE ? user?.id : viewSellerId;
+                  if (targetId) scanSellerMutation.mutate(targetId);
                 }}
                 title={
                   viewSellerId === OWN_QUEUE
-                    ? "Selecione um vendedor primeiro"
+                    ? "Gerar fila para meus clientes"
                     : `Gerar fila para ${viewedSellerName || "vendedor"}`
                 }
               >
