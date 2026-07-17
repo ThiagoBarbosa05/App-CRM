@@ -88,6 +88,9 @@ import {
   User,
   Lock,
   BellOff,
+  ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import {
   Popover,
@@ -123,6 +126,7 @@ export interface ChatClientTag {
   name: string;
   color: string | null;
   type: string;
+  createdAt?: string;
 }
 
 export interface WhatsappClientTag {
@@ -130,6 +134,7 @@ export interface WhatsappClientTag {
   name: string;
   emoji: string | null;
   color: string | null;
+  createdAt?: string;
 }
 
 export interface ChatClient {
@@ -1052,6 +1057,32 @@ function getTagColor(id: string): string {
   return resolveTagColor(null, id);
 }
 
+type CombinedClientTag =
+  | { kind: "crm"; tag: ChatClientTag }
+  | { kind: "whatsapp"; tag: WhatsappClientTag };
+
+// Etiquetas CRM e do WhatsApp vêm em duas listas separadas; aqui juntamos e
+// ordenamos pela data em que cada uma foi vinculada ao contato (mais recente
+// primeiro) para decidir qual mostrar em destaque no item da lista.
+function getOrderedClientTags(
+  client: Pick<ChatClient, "tags" | "whatsappTags">,
+): CombinedClientTag[] {
+  const combined: (CombinedClientTag & { createdAt: number })[] = [
+    ...(client.tags ?? []).map((tag) => ({
+      kind: "crm" as const,
+      tag,
+      createdAt: tag.createdAt ? new Date(tag.createdAt).getTime() : 0,
+    })),
+    ...(client.whatsappTags ?? []).map((tag) => ({
+      kind: "whatsapp" as const,
+      tag,
+      createdAt: tag.createdAt ? new Date(tag.createdAt).getTime() : 0,
+    })),
+  ];
+  combined.sort((a, b) => b.createdAt - a.createdAt);
+  return combined;
+}
+
 export function WhatsappTagBadge({ tag }: { tag: WhatsappClientTag }) {
   const bg = resolveTagColor(tag.color, tag.id);
   const emoji = resolveTagEmoji(tag.emoji);
@@ -1227,6 +1258,7 @@ function ClientListItem({
 }) {
   const hasUnread = (client.unreadCount ?? 0) > 0;
   const displayName = client.clientName ?? client.phone;
+  const [mostRecentTag, ...olderTags] = getOrderedClientTags(client);
 
   return (
     <div
@@ -1288,19 +1320,12 @@ function ClientListItem({
             )}
           </div>
 
-          {/* Linha do setor + vendedor responsável */}
-          {(client.sectorId || client.responsavelName) && (
-            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-              {client.sectorId && (
-                <SectorBadge name={client.sectorName} color={client.sectorColor} />
-              )}
-              {client.responsavelName && (
-                <p className="flex items-center gap-1 min-w-0 text-xs leading-4 truncate text-sky-600 dark:text-sky-400 font-medium">
-                  <User className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{client.responsavelName}</span>
-                </p>
-              )}
-            </div>
+          {/* Linha do vendedor responsável pelo cliente */}
+          {client.responsavelName && (
+            <p className="flex items-center gap-1 text-xs leading-4 truncate mt-0.5 text-sky-600 dark:text-sky-400 font-medium">
+              <User className="h-3 w-3 shrink-0" />
+              <span className="truncate">{client.responsavelName}</span>
+            </p>
           )}
 
           {/* Linha 2: última mensagem */}
@@ -1329,19 +1354,19 @@ function ClientListItem({
             </p>
           )}
 
-          {/* Linha 3: tags (seção separada) */}
-          {((client.tags && client.tags.length > 0) ||
-            (client.whatsappTags && client.whatsappTags.length > 0)) && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {client.tags?.slice(0, 3).map((tag) => (
-                <span
-                  key={tag.id}
-                  className="inline-flex shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 truncate max-w-[80px]"
-                >
-                  {tag.name}
-                </span>
-              ))}
-              {(client.tags?.length ?? 0) > 3 && (
+          {/* Linha 3: etiqueta mais recente (demais no tooltip) + setor (canto direito) */}
+          {(mostRecentTag || client.sectorId) && (
+            <div className="flex items-start justify-between gap-2 mt-2">
+              <div className="flex items-center gap-1 min-w-0">
+              {mostRecentTag &&
+                (mostRecentTag.kind === "crm" ? (
+                  <span className="inline-flex shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 truncate max-w-[100px]">
+                    {mostRecentTag.tag.name}
+                  </span>
+                ) : (
+                  <WhatsappTagBadge tag={mostRecentTag.tag} />
+                ))}
+              {olderTags.length > 0 && (
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1349,7 +1374,7 @@ function ClientListItem({
                         className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500 cursor-default hover:text-slate-600 dark:hover:text-slate-300"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        +{(client.tags?.length ?? 0) - 3}
+                        +{olderTags.length}
                       </span>
                     </TooltipTrigger>
                     <TooltipContent
@@ -1357,44 +1382,41 @@ function ClientListItem({
                       align="start"
                       className="flex flex-wrap gap-1 max-w-[220px] px-2 py-1.5"
                     >
-                      {client.tags?.slice(3).map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
-                        >
-                          {tag.name}
-                        </span>
-                      ))}
+                      {olderTags.map((item) =>
+                        item.kind === "crm" ? (
+                          <span
+                            key={item.tag.id}
+                            className="inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                          >
+                            {item.tag.name}
+                          </span>
+                        ) : (
+                          <WhatsappTagBadge key={item.tag.id} tag={item.tag} />
+                        ),
+                      )}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
-              {client.whatsappTags?.slice(0, 3).map((tag) => (
-                <WhatsappTagBadge key={tag.id} tag={tag} />
-              ))}
-              {(client.whatsappTags?.length ?? 0) > 3 && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span
-                        className="shrink-0 text-[10px] text-slate-400 dark:text-slate-500 cursor-default hover:text-slate-600 dark:hover:text-slate-300"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        +{(client.whatsappTags?.length ?? 0) - 3}
+            </div>
+
+            {client.sectorId && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex items-center gap-0.5 shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700/70 text-slate-500 dark:text-slate-400 max-w-[110px] cursor-default">
+                      <span className="truncate">
+                        {client.sectorName ?? "Setor"}
                       </span>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      align="start"
-                      className="flex flex-wrap gap-1 max-w-[220px] px-2 py-1.5"
-                    >
-                      {client.whatsappTags?.slice(3).map((tag) => (
-                        <WhatsappTagBadge key={tag.id} tag={tag} />
-                      ))}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
+                      <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" align="end">
+                    Setor: {client.sectorName ?? "Setor"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             </div>
           )}
         </div>
@@ -5785,6 +5807,7 @@ export default function WhatsAppConversationsPage() {
   }, [selectedClient]);
 
   const showList = !selectedId;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const sidebarContainerRef = useRef<HTMLDivElement>(null);
   const loadMoreConversations = useCallback(() => {
@@ -5802,12 +5825,30 @@ export default function WhatsAppConversationsPage() {
       {/* Left panel — contact list */}
       <div
         className={cn(
-          "flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900",
-          showList
-            ? "flex w-full md:w-72 lg:w-80 md:flex"
-            : "hidden md:flex md:w-72 lg:w-80",
+          "flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-[width] duration-200",
+          showList ? "flex w-full md:flex" : "hidden md:flex",
+          sidebarCollapsed ? "md:w-14" : "md:w-80 lg:w-96",
         )}
       >
+        {sidebarCollapsed && (
+          <div className="hidden md:flex flex-col items-center pt-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-500 hover:text-primary"
+              onClick={() => setSidebarCollapsed(false)}
+              title="Expandir lista de conversas"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        <div
+          className={cn(
+            "flex flex-col flex-1 min-h-0",
+            sidebarCollapsed && "hidden",
+          )}
+        >
         {/* Search header */}
         <div className="px-3 py-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
           <div className="flex items-center justify-between mb-2.5">
@@ -5849,6 +5890,15 @@ export default function WhatsAppConversationsPage() {
                 title="Nova conversa"
               >
                 <PlusCircle className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden md:inline-flex h-8 w-8 text-slate-500 hover:text-primary"
+                onClick={() => setSidebarCollapsed(true)}
+                title="Recolher lista de conversas"
+              >
+                <ChevronsLeft className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -6195,6 +6245,7 @@ export default function WhatsAppConversationsPage() {
             </div>
           )}
           {hasNextClientsPage && <div ref={sidebarSentinelRef} className="h-4" />}
+        </div>
         </div>
       </div>
 

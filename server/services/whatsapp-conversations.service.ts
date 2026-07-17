@@ -626,8 +626,8 @@ export async function listClientsForChat(
 
   const clientIds = pageRows.map((r) => r.clientId).filter((id): id is string => !!id);
 
-  const tagsByClient = new Map<string, { id: string; name: string; color: string | null; type: string }[]>();
-  const whatsappTagsByClient = new Map<string, { id: string; name: string; emoji: string | null; color: string | null }[]>();
+  const tagsByClient = new Map<string, { id: string; name: string; color: string | null; type: string; createdAt: Date }[]>();
+  const whatsappTagsByClient = new Map<string, { id: string; name: string; emoji: string | null; color: string | null; createdAt: Date }[]>();
 
   if (clientIds.length > 0) {
     const tagsData = await db
@@ -637,15 +637,17 @@ export async function listClientsForChat(
         name: tags.name,
         color: tags.color,
         type: tags.type,
+        createdAt: contactTags.createdAt,
       })
       .from(contactTags)
       .innerJoin(tags, eq(contactTags.tagId, tags.id))
-      .where(inArray(contactTags.clientId, clientIds));
+      .where(inArray(contactTags.clientId, clientIds))
+      .orderBy(desc(contactTags.createdAt));
 
     for (const row of tagsData) {
       if (!row.clientId) continue;
       const list = tagsByClient.get(row.clientId) ?? [];
-      list.push({ id: row.id, name: row.name, color: row.color, type: row.type });
+      list.push({ id: row.id, name: row.name, color: row.color, type: row.type, createdAt: row.createdAt });
       tagsByClient.set(row.clientId, list);
     }
 
@@ -656,15 +658,17 @@ export async function listClientsForChat(
         name: whatsappTags.name,
         emoji: whatsappTags.emoji,
         color: whatsappTags.color,
+        createdAt: contactTags.createdAt,
       })
       .from(contactTags)
       .innerJoin(whatsappTags, eq(contactTags.whatsappTagId, whatsappTags.id))
-      .where(inArray(contactTags.clientId, clientIds));
+      .where(inArray(contactTags.clientId, clientIds))
+      .orderBy(desc(contactTags.createdAt));
 
     for (const row of waTagsData) {
       if (!row.clientId) continue;
       const list = whatsappTagsByClient.get(row.clientId) ?? [];
-      list.push({ id: row.id, name: row.name, emoji: row.emoji, color: row.color });
+      list.push({ id: row.id, name: row.name, emoji: row.emoji, color: row.color, createdAt: row.createdAt });
       whatsappTagsByClient.set(row.clientId, list);
     }
   }
