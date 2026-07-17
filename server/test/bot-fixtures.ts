@@ -14,6 +14,7 @@ import {
   whatsappBots,
   whatsappConversations,
   whatsappMessages,
+  whatsappSectors,
   whatsappTags,
   whatsappTemplates,
   type BotNodeData,
@@ -48,6 +49,7 @@ const TRUNCATE_TABLES = [
   "whatsapp_media",
   "whatsapp_messages",
   "whatsapp_conversations",
+  "whatsapp_sectors",
   "contact_tags",
   "whatsapp_tags",
   "tags",
@@ -151,6 +153,16 @@ export async function createTemplate(
     })
     .returning();
   return tpl;
+}
+
+export async function createSector(
+  overrides: Partial<typeof whatsappSectors.$inferInsert> = {},
+): Promise<typeof whatsappSectors.$inferSelect> {
+  const [sector] = await db
+    .insert(whatsappSectors)
+    .values({ name: overrides.name ?? `Setor Teste ${randomUUID()}`, ...overrides })
+    .returning();
+  return sector;
 }
 
 export async function createBot(

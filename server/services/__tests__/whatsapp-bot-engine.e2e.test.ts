@@ -65,6 +65,7 @@ import {
   attachWhatsappTag,
   createBot,
   createClient,
+  createSector,
   createUser,
   createWhatsappTag,
   describeBotE2E,
@@ -855,6 +856,74 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
     const session = await getSession(phone);
     expect(session?.status).toBe("completed");
     expect(sentTexts()).toContain("Nenhum agente disponível no momento.");
+  });
+
+  // ── transfer_sector ──────────────────────────────────────────────────────────
+
+  it("transfer_sector (specific): atribui o setor, registra mensagem de transferência e conclui a sessão", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const sector = await createSector();
+    const phone = nextPhone();
+    const { conversationId } = await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const transfer = await addNode(bot.id, {
+      type: "transfer_sector",
+      data: { rule: "specific", sectorId: sector.id },
+    });
+    await addEdge(bot.id, start.id, transfer.id);
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(session?.completionReason).toBe("transferred_to_sector");
+
+    const [conv] = await db
+      .select()
+      .from(whatsappConversations)
+      .where(eq(whatsappConversations.id, conversationId));
+    expect(conv.sectorId).toBe(sector.id);
+
+    const notes = await db
+      .select()
+      .from(whatsappMessages)
+      .where(
+        and(
+          eq(whatsappMessages.conversationId, conversationId),
+          eq(whatsappMessages.type, "system"),
+        ),
+      );
+    expect(notes.length).toBeGreaterThan(0);
+  });
+
+  it("transfer_sector: setor não resolvido com activateFlowIfFailed segue para o próximo nó", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const transfer = await addNode(bot.id, {
+      type: "transfer_sector",
+      // specific sem sectorId → não resolve
+      data: { rule: "specific", activateFlowIfFailed: true },
+    });
+    const fallback = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Nenhum setor disponível no momento." },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, transfer.id);
+    await addEdge(bot.id, transfer.id, fallback.id);
+    await addEdge(bot.id, fallback.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Nenhum setor disponível no momento.");
   });
 
   // ── distribute_flow ───────────────────────────────────────────────────────────

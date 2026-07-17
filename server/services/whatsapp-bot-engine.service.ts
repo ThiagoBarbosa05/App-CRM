@@ -31,6 +31,7 @@ import {
   type DistributeFlowNodeData,
   type SendTemplateNodeData,
   type TransferAgentNodeData,
+  type TransferSectorNodeData,
   type TriggerFlowNodeData,
   users,
 } from "@shared/schema";
@@ -43,7 +44,8 @@ import { getActiveChannelIdByUserId, resolveChannelByUserId, resolveChannelForCo
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { r2, getPublicR2Url } from "../lib/r2";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { findOrCreateConversation, resolveOutboundChannel } from "./whatsapp-conversations.service";
+import { findOrCreateConversation, resolveOutboundChannel, transferConversationToSector } from "./whatsapp-conversations.service";
+import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { classifyMessageIntent } from "../ai-helpers";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -294,6 +296,7 @@ export type BotSessionCompletionReason =
   | "end_of_flow"
   | "end_conversation"
   | "transferred_to_agent"
+  | "transferred_to_sector"
   | "handed_off_to_bot"
   | "timed_out"
   | "delivery_failed"
@@ -357,6 +360,27 @@ export function resolveTransferAgent(
       const idx = Math.floor(ctx.rng() * ctx.attendantIds.length);
       return ctx.attendantIds[idx];
     }
+    default:
+      return null;
+  }
+}
+
+export type TransferSectorCtx = {
+  currentConversationSectorId: string | null;
+  clientPreviousSectorId: string | null;
+};
+
+export function resolveTransferSector(
+  data: TransferSectorNodeData,
+  ctx: TransferSectorCtx,
+): string | null {
+  switch (data.rule) {
+    case "specific":
+      return data.sectorId ?? null;
+    case "previous_same_conversation":
+      return ctx.currentConversationSectorId;
+    case "previous_conversation":
+      return ctx.clientPreviousSectorId;
     default:
       return null;
   }
@@ -987,6 +1011,56 @@ async function executeNode(
           sentAt: new Date(),
         });
         await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "transferred_to_agent" });
+      } else if (d.activateFlowIfFailed) {
+        const next = await getNextNode(botId, node.id);
+        if (next) {
+          lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+        } else {
+          await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
+        }
+      } else {
+        await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
+      }
+      break;
+    }
+
+    case "transfer_sector": {
+      const d = data as TransferSectorNodeData;
+      const conversation = await findOrCreateConversation(phone);
+
+      // Busca o setor da conversa anterior do cliente (para regra previous_conversation)
+      let clientPreviousSectorId: string | null = null;
+      if (d.rule === "previous_conversation" && conversation.clientId) {
+        const [prev] = await db
+          .select({ sectorId: whatsappConversations.sectorId })
+          .from(whatsappConversations)
+          .where(
+            and(
+              eq(whatsappConversations.clientId, conversation.clientId),
+              // exclui a conversa atual
+              sql`${whatsappConversations.id} != ${conversation.id}`,
+            ),
+          )
+          .orderBy(desc(whatsappConversations.createdAt))
+          .limit(1);
+        clientPreviousSectorId = prev?.sectorId ?? null;
+      }
+
+      let sectorId = resolveTransferSector(d, {
+        currentConversationSectorId: conversation.sectorId ?? null,
+        clientPreviousSectorId,
+      });
+
+      // Toggle de permissão: só transfere se o atendente atual da conversa for
+      // membro do setor alvo. Sem atendente atribuído ainda, não há o que checar.
+      if (sectorId && d.onlyIfCurrentHasPermission && conversation.assignedAgentId) {
+        const memberSectorIds = await listSectorIdsForUser(conversation.assignedAgentId);
+        if (!memberSectorIds.includes(sectorId)) sectorId = null;
+      }
+
+      if (sectorId) {
+        await transferConversationToSector(conversation.id, sectorId);
+        await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "transferred_to_sector" });
       } else if (d.activateFlowIfFailed) {
         const next = await getNextNode(botId, node.id);
         if (next) {

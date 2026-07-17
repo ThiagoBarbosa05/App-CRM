@@ -38,6 +38,7 @@ import {
   ListChecks,
   CheckCircle2,
   UserRoundCog,
+  Users,
   Shuffle,
   Lock,
   Unlock,
@@ -74,6 +75,14 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -98,6 +107,7 @@ import {
   WaitNode,
   EndConversationNode,
   TransferAgentNode,
+  TransferSectorNode,
   DistributeFlowNode,
   EditTagsNode,
   SendTemplateNode,
@@ -118,6 +128,7 @@ import type {
   WaitNodeData,
   EndConversationNodeData,
   TransferAgentNodeData,
+  TransferSectorNodeData,
   DistributeFlowNodeData,
   DistributeFlowOutput,
   EditTagsNodeData,
@@ -143,6 +154,7 @@ const NODE_TYPES = {
   end: EndNode,
   end_conversation: EndConversationNode,
   transfer_agent: TransferAgentNode,
+  transfer_sector: TransferSectorNode,
   distribute_flow: DistributeFlowNode,
   edit_tags: EditTagsNode,
   send_template: SendTemplateNode,
@@ -159,6 +171,7 @@ const PALETTE = [
   { type: "wait", label: "Aguardar", icon: Hourglass, color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" },
   { type: "flow_form", label: "Formulário WA", icon: LayoutTemplate, color: "bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100" },
   { type: "transfer_agent", label: "Transferir p/ atendente", icon: UserRoundCog, color: "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100" },
+  { type: "transfer_sector", label: "Transferir p/ setor", icon: Users, color: "bg-pink-50 border-pink-200 text-pink-700 hover:bg-pink-100" },
   { type: "distribute_flow", label: "Distribuir fluxo", icon: Shuffle, color: "bg-violet-50 border-violet-200 text-violet-700 hover:bg-violet-100" },
   { type: "edit_tags", label: "Editar etiquetas", icon: Tag, color: "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100" },
   { type: "send_template", label: "Enviar template", icon: SendHorizonal, color: "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100" },
@@ -795,6 +808,14 @@ function PropertiesPanel({
           data={d as Partial<TransferAgentNodeData>}
           onChange={update}
           agents={agents}
+        />
+      )}
+
+      {node.type === "transfer_sector" && (
+        <TransferSectorEditor
+          data={d as Partial<TransferSectorNodeData>}
+          onChange={update}
+          sectors={sectors}
         />
       )}
 
@@ -2869,6 +2890,116 @@ function TransferAgentEditor({
   );
 }
 
+function TransferSectorEditor({
+  data,
+  onChange,
+  sectors,
+}: {
+  data: Partial<TransferSectorNodeData>;
+  onChange: (patch: Partial<TransferSectorNodeData>) => void;
+  sectors: SectorOption[];
+}) {
+  const rule = data.rule ?? "specific";
+  const [sectorPickerOpen, setSectorPickerOpen] = useState(false);
+  const [sectorSearch, setSectorSearch] = useState("");
+  const filteredSectors = sectors.filter((s) =>
+    s.name.toLowerCase().includes(sectorSearch.toLowerCase()),
+  );
+  const selectedSector = sectors.find((s) => s.id === data.sectorId);
+
+  return (
+    <div className="space-y-3 p-4">
+      {/* Regra */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">Regra</Label>
+        <Select
+          value={rule}
+          onValueChange={(v) => onChange({ rule: v as TransferSectorNodeData["rule"], sectorId: undefined })}
+        >
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="specific" className="text-xs">Específico</SelectItem>
+            <SelectItem value="previous_conversation" className="text-xs">Setor da conversa anterior</SelectItem>
+            <SelectItem value="previous_same_conversation" className="text-xs">Setor anterior na mesma conversa</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Setor específico — com busca */}
+      {rule === "specific" && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Setor</Label>
+          <Popover open={sectorPickerOpen} onOpenChange={setSectorPickerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                role="combobox"
+                aria-expanded={sectorPickerOpen}
+                className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-xs"
+              >
+                {selectedSector?.name ?? "Selecione o setor"}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-[--radix-popover-trigger-width]">
+              <Command>
+                <CommandInput
+                  placeholder="Pesquisar setor..."
+                  value={sectorSearch}
+                  onValueChange={setSectorSearch}
+                />
+                <CommandList>
+                  <CommandEmpty>Nenhum setor encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredSectors.map((s) => (
+                      <CommandItem
+                        key={s.id}
+                        value={s.name}
+                        onSelect={() => {
+                          onChange({ sectorId: s.id });
+                          setSectorPickerOpen(false);
+                        }}
+                      >
+                        {s.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      {/* Toggle: somente se atendente atual tem permissão no setor */}
+      <div className="flex items-start gap-2.5">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={!!data.onlyIfCurrentHasPermission}
+          onClick={() => onChange({ onlyIfCurrentHasPermission: !data.onlyIfCurrentHasPermission })}
+          className={`relative inline-flex h-5 w-9 shrink-0 mt-0.5 cursor-pointer rounded-full border-2 border-transparent transition-colors ${data.onlyIfCurrentHasPermission ? "bg-primary" : "bg-input"}`}
+        >
+          <span className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${data.onlyIfCurrentHasPermission ? "translate-x-4" : "translate-x-0"}`} />
+        </button>
+        <span className="text-xs leading-snug">Transferir somente se atendente atual tem permissão</span>
+      </div>
+
+      {/* Checkbox: ativar fluxo se falhar */}
+      <div className="flex items-start gap-2.5">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer"
+          checked={!!data.activateFlowIfFailed}
+          onChange={(e) => onChange({ activateFlowIfFailed: e.target.checked })}
+        />
+        <span className="text-xs leading-snug">Ativar fluxo se não for possível transferir para o setor</span>
+      </div>
+    </div>
+  );
+}
+
 function EndConversationEditor({
   data,
   onChange,
@@ -3340,6 +3471,7 @@ export default function BotEditor() {
       wait: "Aguardar",
       flow_form: "Formulário WA",
       transfer_agent: "Transferir p/ atendente",
+      transfer_sector: "Transferir p/ setor",
       distribute_flow: "Distribuir fluxo",
       edit_tags: "Editar etiquetas",
       send_template: "Enviar template",
@@ -3375,6 +3507,9 @@ export default function BotEditor() {
     }
     if (type === "transfer_agent") {
       (defaultData as Partial<TransferAgentNodeData>).rule = "specific";
+    }
+    if (type === "transfer_sector") {
+      (defaultData as Partial<TransferSectorNodeData>).rule = "specific";
     }
     if (type === "send_template") {
       (defaultData as Partial<SendTemplateNodeData>).buttonHandles = [];

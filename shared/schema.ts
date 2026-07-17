@@ -3947,7 +3947,7 @@ export const whatsappBotNodes = pgTable("whatsapp_bot_nodes", {
   type: text("type", {
     // "question" mantido apenas para compatibilidade com fluxos legados;
     // o nó não é mais criável no editor.
-    enum: ["start", "send_message", "question", "condition", "menu", "action", "flow_form", "wait", "end", "end_conversation", "transfer_agent", "distribute_flow", "edit_tags", "send_template", "trigger_flow"],
+    enum: ["start", "send_message", "question", "condition", "menu", "action", "flow_form", "wait", "end", "end_conversation", "transfer_agent", "transfer_sector", "distribute_flow", "edit_tags", "send_template", "trigger_flow"],
   }).notNull(),
   label: text("label").notNull(),
   positionX: integer("position_x").notNull().default(0),
@@ -4248,6 +4248,13 @@ export type TransferAgentNodeData = {
   activateFlowIfFailed?: boolean;
 };
 
+export type TransferSectorNodeData = {
+  rule: "specific" | "previous_conversation" | "previous_same_conversation";
+  sectorId?: string;
+  onlyIfCurrentHasPermission?: boolean;
+  activateFlowIfFailed?: boolean;
+};
+
 export type TriggerFlowNodeData = {
   targetBotId?: string;
   targetNodeId?: string;
@@ -4266,6 +4273,7 @@ export type BotNodeData =
   | WaitNodeData
   | EndConversationNodeData
   | TransferAgentNodeData
+  | TransferSectorNodeData
   | DistributeFlowNodeData
   | EditTagsNodeData
   | SendTemplateNodeData

@@ -6,9 +6,10 @@ import {
   pickDistributeHandle,
   resolveMenuHandle,
   resolveTransferAgent,
+  resolveTransferSector,
   validateAnswer,
 } from "../whatsapp-bot-engine.service";
-import type { DistributeFlowOutput, MenuNodeData, TransferAgentNodeData, WhatsappBotNode } from "@shared/schema";
+import type { DistributeFlowOutput, MenuNodeData, TransferAgentNodeData, TransferSectorNodeData, WhatsappBotNode } from "@shared/schema";
 
 /**
  * Testes UNITÁRIOS da lógica pura de decisão do engine do bot.
@@ -202,5 +203,37 @@ describe("resolveTransferAgent", () => {
   it("any_available: retorna null quando não há atendentes", () => {
     const data: TransferAgentNodeData = { rule: "any_available" };
     expect(resolveTransferAgent(data, { ...ctx, attendantIds: [] })).toBeNull();
+  });
+});
+
+describe("resolveTransferSector", () => {
+  const ctx = {
+    currentConversationSectorId: "sector-current",
+    clientPreviousSectorId: "sector-previous",
+  };
+
+  it("specific: retorna o sectorId configurado", () => {
+    const data: TransferSectorNodeData = { rule: "specific", sectorId: "sector-x" };
+    expect(resolveTransferSector(data, ctx)).toBe("sector-x");
+  });
+
+  it("specific: retorna null quando sectorId não está configurado", () => {
+    const data: TransferSectorNodeData = { rule: "specific" };
+    expect(resolveTransferSector(data, ctx)).toBeNull();
+  });
+
+  it("previous_same_conversation: retorna o setor da conversa atual", () => {
+    const data: TransferSectorNodeData = { rule: "previous_same_conversation" };
+    expect(resolveTransferSector(data, ctx)).toBe("sector-current");
+  });
+
+  it("previous_same_conversation: retorna null quando conversa não tem setor", () => {
+    const data: TransferSectorNodeData = { rule: "previous_same_conversation" };
+    expect(resolveTransferSector(data, { ...ctx, currentConversationSectorId: null })).toBeNull();
+  });
+
+  it("previous_conversation: retorna o setor da conversa anterior do cliente", () => {
+    const data: TransferSectorNodeData = { rule: "previous_conversation" };
+    expect(resolveTransferSector(data, ctx)).toBe("sector-previous");
   });
 });

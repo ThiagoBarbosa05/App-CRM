@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { MessageCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText, Hourglass, ListChecks, CheckCircle2, UserRoundCog, Shuffle, Tag, SendHorizonal, ArrowRightLeft } from "lucide-react";
+import { MessageCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText, Hourglass, ListChecks, CheckCircle2, UserRoundCog, Users, Shuffle, Tag, SendHorizonal, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, ConditionNodeData, ConditionRule, MenuNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData, EndConversationNodeData, TransferAgentNodeData, DistributeFlowNodeData, EditTagsNodeData, SendTemplateNodeData, SendTemplateButtonHandle, TriggerFlowNodeData } from "@shared/schema";
+import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, ConditionNodeData, ConditionRule, MenuNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData, EndConversationNodeData, TransferAgentNodeData, TransferSectorNodeData, DistributeFlowNodeData, EditTagsNodeData, SendTemplateNodeData, SendTemplateButtonHandle, TriggerFlowNodeData } from "@shared/schema";
 
 interface NodeData extends Record<string, unknown> {
   label: string;
@@ -367,6 +367,47 @@ export function TransferAgentNode({ data, selected }: NodeProps) {
           {d.rule === "specific" && d.agentId && (
             <div className="text-[11px] text-gray-500 truncate">
               <span className="font-medium text-gray-700">Atendente selecionado</span>
+            </div>
+          )}
+        </div>
+      </div>
+      <Handle type="source" position={Position.Bottom} />
+    </>
+  );
+}
+
+const TRANSFER_SECTOR_RULE_LABELS: Record<string, string> = {
+  specific: "Específico",
+  previous_conversation: "Setor da conversa anterior",
+  previous_same_conversation: "Setor anterior na mesma conversa",
+};
+
+export function TransferSectorNode({ data, selected }: NodeProps) {
+  const d = data as NodeData & TransferSectorNodeData;
+  const ruleLabel = TRANSFER_SECTOR_RULE_LABELS[d.rule] ?? "Específico";
+
+  return (
+    <>
+      <Handle type="target" position={Position.Top} />
+      <div
+        className={cn(
+          "rounded-lg border-2 bg-white shadow-sm w-[210px]",
+          selected ? "border-blue-500 shadow-blue-200 shadow-md" : "border-gray-200",
+        )}
+      >
+        <div className="flex items-center gap-2 rounded-t-md px-3 py-2 bg-pink-500">
+          <Users className="h-4 w-4 text-white" />
+          <span className="text-xs font-semibold text-white truncate">
+            {d.label || "Transferir para setor"}
+          </span>
+        </div>
+        <div className="px-3 py-2 space-y-1">
+          <div className="text-[11px] text-gray-500">
+            <span className="font-medium text-gray-700">Regra: </span>{ruleLabel}
+          </div>
+          {d.rule === "specific" && d.sectorId && (
+            <div className="text-[11px] text-gray-500 truncate">
+              <span className="font-medium text-gray-700">Setor selecionado</span>
             </div>
           )}
         </div>

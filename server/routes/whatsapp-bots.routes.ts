@@ -67,6 +67,7 @@ const saveFlowSchema = z.object({
           "end",
           "end_conversation",
           "transfer_agent",
+          "transfer_sector",
           "distribute_flow",
           "edit_tags",
           "send_template",

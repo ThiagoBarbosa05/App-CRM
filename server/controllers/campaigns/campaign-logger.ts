@@ -218,6 +218,7 @@ const BOT_COMPLETION_REASON_LABELS: Record<BotSessionCompletionReason, string> =
   end_of_flow: "Chegou no final do fluxo",
   end_conversation: "Atendimento encerrado pelo bot",
   transferred_to_agent: "Transferido para atendente",
+  transferred_to_sector: "Transferido para setor",
   handed_off_to_bot: "Encaminhado para outro bot",
   timed_out: "Sessão expirada por inatividade",
   delivery_failed: "Falha na entrega da mensagem",
