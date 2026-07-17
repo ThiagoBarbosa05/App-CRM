@@ -1067,6 +1067,24 @@ export function WhatsappTagBadge({ tag }: { tag: WhatsappClientTag }) {
   );
 }
 
+export function SectorBadge({
+  name,
+  color,
+}: {
+  name?: string | null;
+  color?: string | null;
+}) {
+  return (
+    <span
+      className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0 max-w-[110px] truncate"
+      style={{ backgroundColor: color ?? "#3B82F6" }}
+      title={name ?? "Setor"}
+    >
+      {name ?? "Setor"}
+    </span>
+  );
+}
+
 export function WhatsappTagsEditPopover({
   clientId,
   currentTags,
@@ -1270,12 +1288,19 @@ function ClientListItem({
             )}
           </div>
 
-          {/* Linha do vendedor responsável pelo cliente */}
-          {client.responsavelName && (
-            <p className="flex items-center gap-1 text-xs leading-4 truncate mt-0.5 text-sky-600 dark:text-sky-400 font-medium">
-              <User className="h-3 w-3 shrink-0" />
-              <span className="truncate">{client.responsavelName}</span>
-            </p>
+          {/* Linha do setor + vendedor responsável */}
+          {(client.sectorId || client.responsavelName) && (
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              {client.sectorId && (
+                <SectorBadge name={client.sectorName} color={client.sectorColor} />
+              )}
+              {client.responsavelName && (
+                <p className="flex items-center gap-1 min-w-0 text-xs leading-4 truncate text-sky-600 dark:text-sky-400 font-medium">
+                  <User className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{client.responsavelName}</span>
+                </p>
+              )}
+            </div>
           )}
 
           {/* Linha 2: última mensagem */}
@@ -4001,12 +4026,7 @@ function ConversationMessages({
         {(client.sectorId || client.channelName) && (
           <div className="px-2 sm:px-4 pb-2 flex items-center gap-2 flex-wrap">
             {client.sectorId && (
-              <span
-                className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"
-                style={{ backgroundColor: client.sectorColor ?? "#3B82F6" }}
-              >
-                {client.sectorName ?? "Setor"}
-              </span>
+              <SectorBadge name={client.sectorName} color={client.sectorColor} />
             )}
             {client.channelName &&
               (() => {
