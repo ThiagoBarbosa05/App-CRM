@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
-import { getActiveWaConversation } from "@/lib/wa-active-conversation";
+import { isOnWaConversationsPage } from "@/lib/wa-active-conversation";
 
 interface ChatClient {
   id: string;
@@ -71,15 +71,10 @@ export function useWhatsAppNotifications(
 
       onNewMessageRef.current?.();
 
-      // Mensagem da conversa atualmente aberta na página de conversas:
-      // o usuário já está vendo o thread — não notificar.
-      const active = getActiveWaConversation();
-      const isActiveConversation =
-        active != null &&
-        ((data.clientId != null && data.clientId === active.clientId) ||
-          (data.conversationId != null &&
-            data.conversationId === active.conversationId));
-      if (isActiveConversation) return;
+      // Usuário está na página de conversas: a lista lá já atualiza em tempo
+      // real (badge, negrito, preview) — toast/som de qualquer conversa
+      // seria redundante, não só da que está aberta.
+      if (isOnWaConversationsPage()) return;
 
       const client = data.clientId
         ? clientsRef.current.find((c) => c.id === data.clientId)

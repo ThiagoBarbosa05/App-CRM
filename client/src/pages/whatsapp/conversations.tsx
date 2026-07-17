@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { setActiveWaConversation } from "@/lib/wa-active-conversation";
+import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
 import { refreshFirstPage } from "@/lib/wa-chat-pagination";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
@@ -5792,19 +5792,13 @@ export default function WhatsAppConversationsPage() {
         ) ?? null)
       : null;
 
-  // Registra a conversa aberta para o hook de notificações globais suprimir
-  // toast/som de mensagens desta conversa. Limpa ao desmontar a página.
+  // Marca que a página inteira de conversas está montada (independente de
+  // qual conversa está selecionada) — o hook global de notificações usa isso
+  // para suprimir toda notificação toast/som enquanto o usuário está aqui.
   useEffect(() => {
-    setActiveWaConversation(
-      selectedClient
-        ? {
-            clientId: selectedClient.clientId,
-            conversationId: selectedClient.conversationId,
-          }
-        : null,
-    );
-    return () => setActiveWaConversation(null);
-  }, [selectedClient]);
+    setOnWaConversationsPage(true);
+    return () => setOnWaConversationsPage(false);
+  }, []);
 
   const showList = !selectedId;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
