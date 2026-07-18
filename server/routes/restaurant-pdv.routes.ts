@@ -29,8 +29,6 @@ import {
   mergeOrdersController,
   getDailySummaryController,
   getSalesReportController,
-  getDailyMenuController,
-  setDailyMenuController,
 } from "../controllers/restaurant-pdv";
 
 export const restaurantPdvRouter = Router();
@@ -62,9 +60,6 @@ restaurantPdvRouter.post("/menu-items", requireGestor, createMenuItemController)
 restaurantPdvRouter.put("/menu-items/:id", requireGestor, updateMenuItemController);
 restaurantPdvRouter.delete("/menu-items/:id", requireGestor, deactivateMenuItemController);
 restaurantPdvRouter.post("/menu-items/sync-bling", requireGestor, syncMenuBlingController);
-
-restaurantPdvRouter.get("/daily-menu", requireGarcomOrGestor, getDailyMenuController);
-restaurantPdvRouter.put("/daily-menu", requireGestor, setDailyMenuController);
 
 restaurantPdvRouter.get("/orders", requireGestor, listOrdersController);
 restaurantPdvRouter.post("/orders", requireGarcomOrGestor, openOrderController);

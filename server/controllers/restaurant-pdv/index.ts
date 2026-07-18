@@ -27,5 +27,3 @@ export { transferOrderItemsController } from "./transfer-order-items.controller"
 export { mergeOrdersController } from "./merge-orders.controller";
 export { getDailySummaryController } from "./get-daily-summary.controller";
 export { getSalesReportController } from "./get-sales-report.controller";
-export { getDailyMenuController } from "./get-daily-menu.controller";
-export { setDailyMenuController } from "./set-daily-menu.controller";

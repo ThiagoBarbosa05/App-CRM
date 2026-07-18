@@ -27,8 +27,8 @@ export function OrderItemSelector({
   onAddProduct,
   onAddCustomItem,
 }: OrderItemSelectorProps) {
-  const { data: dailyMenuItems = [] } = useQuery<RestaurantMenuItem[]>({
-    queryKey: ["/api/restaurant-pdv/daily-menu"],
+  const { data: menuItems = [] } = useQuery<RestaurantMenuItem[]>({
+    queryKey: ["/api/restaurant-pdv/menu-items"],
   });
 
   const [productSearch, setProductSearch] = useState("");
@@ -72,11 +72,11 @@ export function OrderItemSelector({
   };
 
   return (
-    <Tabs defaultValue="cardapio-dia">
+    <Tabs defaultValue="cardapio">
       <TabsList className="w-full">
-        <TabsTrigger value="cardapio-dia" className="flex-1 gap-1.5">
+        <TabsTrigger value="cardapio" className="flex-1 gap-1.5">
           <UtensilsCrossed className="h-3.5 w-3.5" />
-          Cardápio do Dia
+          Cardápio
         </TabsTrigger>
         <TabsTrigger value="produtos" className="flex-1 gap-1.5">
           <ShoppingBag className="h-3.5 w-3.5" />
@@ -88,9 +88,9 @@ export function OrderItemSelector({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="cardapio-dia" className="mt-3">
+      <TabsContent value="cardapio" className="mt-3">
         <div className="grid grid-cols-2 gap-2">
-          {dailyMenuItems.map((item) => (
+          {menuItems.map((item) => (
             <Button
               key={item.id}
               variant="outline"
@@ -104,12 +104,12 @@ export function OrderItemSelector({
               </span>
             </Button>
           ))}
-          {dailyMenuItems.length === 0 && (
+          {menuItems.length === 0 && (
             <div className="col-span-2 flex flex-col items-center gap-2 rounded-lg border border-dashed p-6 text-center">
               <UtensilsCrossed className="h-8 w-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">
-                Nenhum item marcado para o cardápio de hoje. Peça a um gestor para
-                configurar em Cardápio → Cardápio do Dia.
+                Nenhum item cadastrado no cardápio. Peça a um gestor para
+                cadastrar em Cardápio → Itens do Cardápio.
               </p>
             </div>
           )}

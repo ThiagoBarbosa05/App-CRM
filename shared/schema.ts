@@ -2582,32 +2582,6 @@ export const restaurantOrderAuditLog = pgTable(
   }),
 );
 
-// Cardápio do dia: subconjunto diário de restaurantMenuItems disponível para venda.
-// Não há tabela "cabeçalho" — o cardápio de uma data é o conjunto de linhas com essa data.
-export const restaurantDailyMenuItems = pgTable(
-  "restaurant_daily_menu_items",
-  {
-    id: varchar("id")
-      .primaryKey()
-      .default(sql`gen_random_uuid()`),
-    date: text("date").notNull(), // "YYYY-MM-DD"
-    menuItemId: varchar("menu_item_id")
-      .references(() => restaurantMenuItems.id)
-      .notNull(),
-    createdBy: varchar("created_by")
-      .references(() => users.id)
-      .notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => ({
-    dateItemUidx: uniqueIndex("restaurant_daily_menu_items_date_item_uidx").on(
-      table.date,
-      table.menuItemId,
-    ),
-    dateIdx: index("restaurant_daily_menu_items_date_idx").on(table.date),
-  }),
-);
-
 export const insertRestaurantTableSchema = createInsertSchema(
   restaurantTables,
 ).omit({
@@ -2655,13 +2629,6 @@ export const insertRestaurantOrderPaymentSchema = createInsertSchema(
   createdAt: true,
 });
 
-export const insertRestaurantDailyMenuItemSchema = createInsertSchema(
-  restaurantDailyMenuItems,
-).omit({
-  id: true,
-  createdAt: true,
-});
-
 export type InsertRestaurantTable = z.infer<typeof insertRestaurantTableSchema>;
 export type RestaurantTable = typeof restaurantTables.$inferSelect;
 export type InsertRestaurantMenuItem = z.infer<
@@ -2682,11 +2649,6 @@ export type InsertRestaurantOrderPayment = z.infer<
   typeof insertRestaurantOrderPaymentSchema
 >;
 export type RestaurantOrderPayment = typeof restaurantOrderPayments.$inferSelect;
-export type InsertRestaurantDailyMenuItem = z.infer<
-  typeof insertRestaurantDailyMenuItemSchema
->;
-export type RestaurantDailyMenuItem =
-  typeof restaurantDailyMenuItems.$inferSelect;
 
 export const messageAutomationSettings = pgTable(
   "message_automation_settings",

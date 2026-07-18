@@ -2,9 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { UtensilsCrossed } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { RestaurantMenuItem } from "@shared/schema";
-import { DailyMenuTab } from "@/components/restaurant-pdv/daily-menu-tab";
 import { BlingIntegrationCard } from "@/components/restaurant-pdv/bling-integration-card";
 import { MenuItemsTable } from "@/components/restaurant-pdv/menu-items-table";
 import { MenuItemFormModal } from "@/components/restaurant-pdv/menu-item-form-modal";
@@ -36,36 +34,27 @@ export default function RestaurantMenuManagement() {
           <PageHeader.Text>
             <PageHeader.Title>Cardápio</PageHeader.Title>
             <PageHeader.Description>
-              Gerencie os itens do cardápio mestre e defina o que está disponível hoje
+              Gerencie os itens do cardápio do restaurante
             </PageHeader.Description>
           </PageHeader.Text>
         </PageHeader.Info>
       </PageHeader>
 
-      <Tabs defaultValue="itens">
-        <TabsList>
-          <TabsTrigger value="itens">Itens do Cardápio</TabsTrigger>
-          <TabsTrigger value="dia">Cardápio do Dia</TabsTrigger>
-        </TabsList>
-        <TabsContent value="itens" className="space-y-6">
-          <BlingIntegrationCard />
-          <MenuItemsTable
-            items={items}
-            onEditItem={(item) => {
-              setEditingItem(item);
-              setModalOpen(true);
-            }}
-            onNewItem={() => {
-              setEditingItem(null);
-              setModalOpen(true);
-            }}
-          />
-          <MenuItemFormModal open={modalOpen} onOpenChange={setModalOpen} item={editingItem} />
-        </TabsContent>
-        <TabsContent value="dia">
-          <DailyMenuTab />
-        </TabsContent>
-      </Tabs>
+      <div className="space-y-6">
+        <BlingIntegrationCard />
+        <MenuItemsTable
+          items={items}
+          onEditItem={(item) => {
+            setEditingItem(item);
+            setModalOpen(true);
+          }}
+          onNewItem={() => {
+            setEditingItem(null);
+            setModalOpen(true);
+          }}
+        />
+        <MenuItemFormModal open={modalOpen} onOpenChange={setModalOpen} item={editingItem} />
+      </div>
     </div>
   );
 }
