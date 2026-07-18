@@ -292,6 +292,13 @@ export function useWhatsappBotDispatchHistory(filters: BotDispatchHistoryFilters
       if (!res.ok) throw new Error("Erro ao buscar histórico de bots");
       return res.json();
     },
+    // Enquanto houver disparo "Em execução" na página atual, repolla para o
+    // status (Finalizado/Erro/Expirado) aparecer sem precisar recarregar.
+    refetchInterval: (query) => {
+      const data = query.state.data as BotDispatchHistoryResult | undefined;
+      if (!data) return false;
+      return data.rows.some((row) => row.status === "active") ? 4000 : false;
+    },
   });
 }
 

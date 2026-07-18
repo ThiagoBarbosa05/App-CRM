@@ -301,7 +301,8 @@ export type BotSessionCompletionReason =
   | "timed_out"
   | "delivery_failed"
   | "unsupported_node"
-  | "opted_out";
+  | "opted_out"
+  | "closed_by_agent";
 
 async function updateSession(
   sessionId: string,
@@ -354,6 +355,21 @@ export async function terminateActiveSessionForOptOut(phone: string): Promise<vo
     status: "completed",
     completedAt: new Date(),
     completionReason: "opted_out",
+  });
+}
+
+/**
+ * Encerra a sessão de bot ativa (se houver) quando um atendente encerra
+ * manualmente a conversa — sem isso, a sessão fica "Em execução" para sempre
+ * no histórico de bots até o timeout por inatividade expirá-la.
+ */
+export async function terminateActiveSessionForConversationClose(phone: string): Promise<void> {
+  const session = await getActiveSession(phone);
+  if (!session) return;
+  await updateSession(session.id, {
+    status: "completed",
+    completedAt: new Date(),
+    completionReason: "closed_by_agent",
   });
 }
 

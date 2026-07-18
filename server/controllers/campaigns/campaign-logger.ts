@@ -224,6 +224,7 @@ export const BOT_COMPLETION_REASON_LABELS: Record<BotSessionCompletionReason, st
   delivery_failed: "Falha na entrega da mensagem",
   unsupported_node: "Erro: nó não suportado",
   opted_out: "Cliente optou por não receber marketing",
+  closed_by_agent: "Atendimento encerrado manualmente pelo atendente",
 };
 
 /**

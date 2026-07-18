@@ -32,7 +32,7 @@ import {
   closeConversation,
   reopenConversation,
 } from "../services/whatsapp-conversations.service";
-import { startBotSession } from "../services/whatsapp-bot-engine.service";
+import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
 import { clientsService } from "../services/clients.service";
 import { downloadMediaToBuffer } from "../integrations/whatsapp";
@@ -809,6 +809,12 @@ router.post("/conversations/:conversationId/close", async (req, res) => {
 
     const updated = await closeConversation(conversationId, user.userId);
     if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    // Sem isso, uma sessão de bot ainda ativa nesse telefone ficaria "Em
+    // execução" para sempre no histórico de bots, mesmo com a conversa encerrada.
+    await terminateActiveSessionForConversationClose(updated.phone).catch((err) =>
+      console.error("[WA Conversations] Erro ao encerrar sessão de bot ao fechar conversa:", err),
+    );
 
     res.json({ ok: true });
   } catch (err) {
