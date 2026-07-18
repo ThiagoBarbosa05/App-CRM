@@ -125,7 +125,12 @@ export async function listBotDispatchHistory(
       channelId: whatsappConversations.channelId,
     })
     .from(whatsappConversations)
-    .where(sql`regexp_replace(${whatsappConversations.phone}, '\D', '', 'g') = ANY(${digitsList})`);
+    .where(
+      inArray(
+        sql`regexp_replace(${whatsappConversations.phone}, '\D', '', 'g')`,
+        digitsList,
+      ),
+    );
 
   const convByDigits = new Map(convRows.map((c) => [normalizePhone(c.phone).digits, c]));
 
