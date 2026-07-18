@@ -47,7 +47,7 @@ export function MenuItemsTable({ items, onEditItem, onNewItem }: MenuItemsTableP
         </div>
         <Button size="sm" onClick={onNewItem}>
           <Plus className="mr-2 h-4 w-4" />
-          Novo Item
+          Adicionar Itens
         </Button>
       </CardHeader>
       <CardContent>

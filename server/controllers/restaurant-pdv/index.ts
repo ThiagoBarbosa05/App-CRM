@@ -9,7 +9,6 @@ export { addOrderItemController } from "./add-order-item.controller";
 export { updateOrderItemController } from "./update-order-item.controller";
 export { cancelOrderItemController } from "./cancel-order-item.controller";
 export { closeOrderController } from "./close-order.controller";
-export { syncMenuBlingController } from "./sync-menu-bling.controller";
 export { listTablesController } from "./list-tables.controller";
 export { listTablesMapController } from "./list-tables-map.controller";
 export { createTableController } from "./create-table.controller";

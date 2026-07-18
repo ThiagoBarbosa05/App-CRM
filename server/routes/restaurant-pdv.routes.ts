@@ -11,7 +11,6 @@ import {
   updateOrderItemController,
   cancelOrderItemController,
   closeOrderController,
-  syncMenuBlingController,
   listTablesController,
   listTablesMapController,
   createTableController,
@@ -59,7 +58,6 @@ restaurantPdvRouter.get("/menu-items", requireGarcomOrGestor, listMenuItemsContr
 restaurantPdvRouter.post("/menu-items", requireGestor, createMenuItemController);
 restaurantPdvRouter.put("/menu-items/:id", requireGestor, updateMenuItemController);
 restaurantPdvRouter.delete("/menu-items/:id", requireGestor, deactivateMenuItemController);
-restaurantPdvRouter.post("/menu-items/sync-bling", requireGestor, syncMenuBlingController);
 
 restaurantPdvRouter.get("/orders", requireGestor, listOrdersController);
 restaurantPdvRouter.post("/orders", requireGarcomOrGestor, openOrderController);

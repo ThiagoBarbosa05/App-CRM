@@ -38,9 +38,8 @@ export function MenuItemFormModal({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  item?: RestaurantMenuItem | null;
+  item: RestaurantMenuItem | null;
 }) {
-  const isEditing = !!item;
   const form = useForm<MenuItemFormData>({
     resolver: zodResolver(menuItemSchema),
     defaultValues: { name: "", price: "", category: "" },
@@ -49,21 +48,17 @@ export function MenuItemFormModal({
   useEffect(() => {
     if (item) {
       form.reset({ name: item.name, price: item.price, category: item.category ?? "" });
-    } else {
-      form.reset({ name: "", price: "", category: "" });
     }
   }, [item, form]);
 
   const mutation = useMutation({
     mutationFn: async (data: MenuItemFormData) => {
-      const url = isEditing
-        ? `/api/restaurant-pdv/menu-items/${item.id}`
-        : "/api/restaurant-pdv/menu-items";
-      await apiRequest(isEditing ? "PUT" : "POST", url, data);
+      if (!item) return;
+      await apiRequest("PUT", `/api/restaurant-pdv/menu-items/${item.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/menu-items"] });
-      toast({ title: isEditing ? "Item atualizado" : "Item criado" });
+      toast({ title: "Item atualizado" });
       onOpenChange(false);
     },
     onError: (err: Error) => {
@@ -75,7 +70,7 @@ export function MenuItemFormModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Editar Item" : "Novo Item"}</DialogTitle>
+          <DialogTitle>Editar Item</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form
@@ -126,7 +121,7 @@ export function MenuItemFormModal({
                 Cancelar
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Salvando..." : isEditing ? "Atualizar" : "Criar"}
+                {mutation.isPending ? "Salvando..." : "Atualizar"}
               </Button>
             </div>
           </form>

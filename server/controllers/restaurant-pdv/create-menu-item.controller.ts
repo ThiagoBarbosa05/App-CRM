@@ -7,6 +7,7 @@ const createMenuItemSchema = z.object({
   price: z.string().min(1, "Preço é obrigatório"),
   category: z.string().optional(),
   isActive: z.boolean().optional(),
+  blingProductId: z.string().optional(),
 });
 
 export const createMenuItemController = async (req: Request, res: Response) => {
@@ -26,6 +27,7 @@ export const createMenuItemController = async (req: Request, res: Response) => {
       price: parsed.data.price,
       category: parsed.data.category ?? null,
       isActive: parsed.data.isActive ?? true,
+      blingProductId: parsed.data.blingProductId ?? null,
       createdBy,
     });
     return res.status(201).json(item);

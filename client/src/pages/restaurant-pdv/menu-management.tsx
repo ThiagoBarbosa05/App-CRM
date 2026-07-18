@@ -3,13 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { UtensilsCrossed } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import type { RestaurantMenuItem } from "@shared/schema";
-import { BlingIntegrationCard } from "@/components/restaurant-pdv/bling-integration-card";
+import {
+  BlingIntegrationCard,
+  BLING_CONNECTION_SETTING_KEY,
+} from "@/components/restaurant-pdv/bling-integration-card";
 import { MenuItemsTable } from "@/components/restaurant-pdv/menu-items-table";
 import { MenuItemFormModal } from "@/components/restaurant-pdv/menu-item-form-modal";
+import { AddMenuItemsModal } from "@/components/restaurant-pdv/add-menu-items-modal";
 
 export default function RestaurantMenuManagement() {
-  const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RestaurantMenuItem | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   const { data: items = [] } = useQuery<RestaurantMenuItem[]>({
     queryKey: ["/api/restaurant-pdv/menu-items", { includeInactive: true }],
@@ -21,6 +26,11 @@ export default function RestaurantMenuManagement() {
       return res.json();
     },
   });
+
+  const { data: settings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/system-settings"],
+  });
+  const connectionId = settings?.[BLING_CONNECTION_SETTING_KEY] ?? "";
 
   return (
     <div className="w-full space-y-6 p-4">
@@ -46,14 +56,21 @@ export default function RestaurantMenuManagement() {
           items={items}
           onEditItem={(item) => {
             setEditingItem(item);
-            setModalOpen(true);
+            setEditModalOpen(true);
           }}
-          onNewItem={() => {
-            setEditingItem(null);
-            setModalOpen(true);
-          }}
+          onNewItem={() => setAddModalOpen(true)}
         />
-        <MenuItemFormModal open={modalOpen} onOpenChange={setModalOpen} item={editingItem} />
+        <MenuItemFormModal
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          item={editingItem}
+        />
+        <AddMenuItemsModal
+          open={addModalOpen}
+          onOpenChange={setAddModalOpen}
+          connectionId={connectionId}
+          existingMenuItems={items}
+        />
       </div>
     </div>
   );
