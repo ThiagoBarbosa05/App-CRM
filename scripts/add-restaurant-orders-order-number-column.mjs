@@ -36,6 +36,7 @@ await sql`
   SET order_number = numbered.rn
   FROM numbered
   WHERE o.id = numbered.id
+  RETURNING o.id
 `;
 
 // Sincroniza a sequence para continuar depois do maior número já usado.
