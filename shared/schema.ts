@@ -3981,7 +3981,7 @@ export const whatsappBotSessions = pgTable(
     phoneNumber: text("phone_number").notNull(),
     currentNodeId: varchar("current_node_id").notNull(),
     status: text("status", {
-      enum: ["active", "completed", "timed_out"],
+      enum: ["active", "completed", "timed_out", "failed"],
     })
       .notNull()
       .default("active"),
@@ -3995,6 +3995,12 @@ export const whatsappBotSessions = pgTable(
     // Motivo da finalização (valores livres controlados em código — ver
     // BOT_SESSION_COMPLETION_REASONS em whatsapp-bot-engine.service.ts).
     completionReason: text("completion_reason"),
+    // Canal usado no disparo, capturado logo após resolveBotTriggerChannel —
+    // é um snapshot: mantém o histórico preciso mesmo se o canal da conversa
+    // mudar depois.
+    channelId: integer("channel_id").references(() => whatsappChannels.id),
+    // Mensagem de erro da exceção quando status = "failed".
+    errorMessage: text("error_message"),
     startedAt: timestamp("started_at").defaultNow().notNull(),
     lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),

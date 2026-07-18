@@ -240,6 +240,61 @@ export function useWhatsappCampaignBotStats(id: string | undefined) {
   });
 }
 
+// ---- Histórico de disparos de bot ----
+
+export interface BotDispatchHistoryRow {
+  id: string;
+  botId: string;
+  botName: string;
+  phoneNumber: string;
+  clientName: string | null;
+  status: "active" | "completed" | "timed_out" | "failed";
+  statusLabel: string;
+  completionReason: string | null;
+  completionReasonLabel: string | null;
+  errorMessage: string | null;
+  channelId: number | null;
+  channelName: string | null;
+  channelProvider: string | null;
+  conversationId: string | null;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface BotDispatchHistoryResult {
+  rows: BotDispatchHistoryRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface BotDispatchHistoryFilters {
+  botIds?: string[];
+  status?: "active" | "completed" | "timed_out" | "failed";
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  pageSize: number;
+}
+
+export function useWhatsappBotDispatchHistory(filters: BotDispatchHistoryFilters) {
+  return useQuery<BotDispatchHistoryResult>({
+    queryKey: ["whatsapp", "bot-sessions", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      filters.botIds?.forEach((id) => params.append("botIds", id));
+      if (filters.status) params.set("status", filters.status);
+      if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+      if (filters.dateTo) params.set("dateTo", filters.dateTo);
+      params.set("page", String(filters.page));
+      params.set("pageSize", String(filters.pageSize));
+      const res = await fetch(`/api/whatsapp/bot-sessions?${params}`);
+      if (!res.ok) throw new Error("Erro ao buscar histórico de bots");
+      return res.json();
+    },
+  });
+}
+
 export function useExecuteCampaign() {
   const { toast } = useToast();
   return useMutation({

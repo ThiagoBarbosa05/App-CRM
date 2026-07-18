@@ -2,7 +2,7 @@ import { type ReactNode, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useWhatsAppNotifications } from "@/hooks/useWhatsAppNotifications.tsx";
 import { cn } from "@/lib/utils";
-import { Activity, Bot, FileText, MessageCircle, Send, Settings2, ArrowLeft, ChevronDown } from "lucide-react";
+import { Activity, Bot, FileText, History, MessageCircle, Send, Settings2, ArrowLeft, ChevronDown } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +17,7 @@ const ALL_TABS = [
   { href: "/whatsapp/conversas",     label: "Conversas",    icon: MessageCircle, hideForRoles: [] as string[] },
   { href: "/whatsapp/campanhas",     label: "Campanhas",    icon: Send,          hideForRoles: ["vendedor"] },
   { href: "/whatsapp/bots",          label: "Bots",         icon: Bot,           hideForRoles: ["vendedor"] },
+  { href: "/whatsapp/historico-bots",label: "Histórico de Bots", icon: History, hideForRoles: ["vendedor"] },
   { href: "/whatsapp/templates",     label: "Templates",    icon: FileText,      hideForRoles: ["vendedor"] },
   { href: "/whatsapp/configuracoes", label: "Configurações",icon: Settings2,     hideForRoles: ["vendedor"] },
   { href: "/whatsapp/monitor",      label: "Monitor Meta", icon: Activity,      hideForRoles: ["vendedor"] },

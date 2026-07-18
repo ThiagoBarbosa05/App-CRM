@@ -214,7 +214,7 @@ export async function getCampaignStats(campaignId: string): Promise<{
 
 // Rótulos amigáveis dos motivos de finalização de sessão de bot, exibidos no
 // bloco "Motivos de finalização dos bots" da página de detalhes da campanha.
-const BOT_COMPLETION_REASON_LABELS: Record<BotSessionCompletionReason, string> = {
+export const BOT_COMPLETION_REASON_LABELS: Record<BotSessionCompletionReason, string> = {
   end_of_flow: "Chegou no final do fluxo",
   end_conversation: "Atendimento encerrado pelo bot",
   transferred_to_agent: "Transferido para atendente",

@@ -183,6 +183,168 @@ export async function getBlingPedidoVenda(
 }
 
 // ---------------------------------------------------------------------------
+// Criação de pedido de venda
+// ---------------------------------------------------------------------------
+
+export interface BlingPedidoVendaItemPayload {
+  codigo?: string;
+  unidade?: string;
+  quantidade: number;
+  desconto?: number;
+  valor?: number;
+  aliquotaIPI?: number;
+  descricao?: string;
+  descricaoDetalhada?: string;
+  produto: { id: number };
+  comissao?: { base?: number; aliquota?: number; valor?: number };
+  naturezaOperacao?: { id: number };
+}
+
+export interface BlingPedidoVendaParcelaPayload {
+  dataVencimento: string;
+  valor: number;
+  observacoes?: string;
+  caut?: string;
+  formaPagamento?: { id: number };
+}
+
+export interface BlingPedidoVendaPayload {
+  numero?: number;
+  numeroLoja?: string;
+  data: string;
+  dataSaida: string;
+  dataPrevista: string;
+  contato: { id: number; tipoPessoa?: string; numeroDocumento?: string };
+  situacao?: { id: number };
+  loja?: { id: number; unidadeNegocio?: { id: number } };
+  numeroPedidoCompra?: string;
+  outrasDespesas?: number;
+  observacoes?: string;
+  observacoesInternas?: string;
+  desconto?: { valor: number; unidade: "REAL" | "PERCENTUAL" };
+  categoria?: { id: number };
+  tributacao?: { totalICMS?: number; totalIPI?: number };
+  itens: BlingPedidoVendaItemPayload[];
+  parcelas: BlingPedidoVendaParcelaPayload[];
+  transporte?: {
+    fretePorConta?: number;
+    frete?: number;
+    quantidadeVolumes?: number;
+    pesoBruto?: number;
+    prazoEntrega?: number;
+    contato?: { id: number; nome?: string };
+    etiqueta?: {
+      nome?: string;
+      endereco?: string;
+      numero?: string;
+      complemento?: string;
+      municipio?: string;
+      uf?: string;
+      cep?: string;
+      bairro?: string;
+      nomePais?: string;
+    };
+    volumes?: Array<{
+      id?: number;
+      servico?: string;
+      codigoRastreamento?: string;
+    }>;
+  };
+  vendedor?: { id: number };
+  intermediador?: { cnpj: string; nomeUsuario: string };
+  taxas?: { taxaComissao?: number; custoFrete?: number; valorBase?: number };
+}
+
+interface BlingCreatePedidoVendaResponse {
+  data: {
+    id: number;
+    alertas?: BlingApiErrorField[];
+    rastreamento?: unknown;
+  };
+}
+
+/**
+ * Converte os `alertas` retornados por um pedido de venda criado com sucesso
+ * (201) em mensagens legíveis. Tem a mesma forma de `fields` no corpo de
+ * erro 400 (code/msg/element/namespace/collection), mas sem o wrapper
+ * `{ error: ... }` — por isso não reaproveita `formatBlingApiError`.
+ */
+function formatBlingAlertas(alertas: BlingApiErrorField[] | undefined): string[] {
+  const parts: string[] = [];
+
+  for (const alerta of alertas ?? []) {
+    if (alerta.msg) {
+      parts.push(alerta.element ? `${alerta.element}: ${alerta.msg}` : alerta.msg);
+    }
+    for (const item of alerta.collection ?? []) {
+      if (item.msg) {
+        parts.push(item.element ? `${item.element}: ${item.msg}` : item.msg);
+      }
+    }
+  }
+
+  return parts;
+}
+
+/**
+ * Cria um pedido de venda no Bling (POST /pedidos/vendas).
+ *
+ * Em caso de sucesso (201) o Bling pode retornar `alertas` (ex: parcela com
+ * forma de pagamento inválida) mesmo com o pedido criado — são repassados
+ * como strings legíveis ao chamador, que decide se trata como aviso ou
+ * falha. Erros de validação (400) chegam no formato
+ * `{ error: { fields: [...] } }` e são convertidos em `BlingApiError` com
+ * mensagem legível via `formatBlingApiError`.
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param payload        - Dados do pedido de venda.
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function createBlingPedidoVenda(
+  accessToken: string,
+  payload: BlingPedidoVendaPayload,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<{ id: number; alertas: string[] }> {
+  let token = accessToken;
+
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  };
+
+  let response = await fetchBlingApi(
+    token,
+    "/pedidos/vendas",
+    undefined,
+    requestInit,
+  );
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(
+      token,
+      "/pedidos/vendas",
+      undefined,
+      requestInit,
+    );
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new BlingApiError(
+      response.status,
+      `Falha ao criar pedido de venda no Bling: ${formatBlingApiError(errorText, response.statusText)}`,
+    );
+  }
+
+  const body = (await response.json()) as BlingCreatePedidoVendaResponse;
+  return { id: body.data.id, alertas: formatBlingAlertas(body.data.alertas) };
+}
+
+// ---------------------------------------------------------------------------
 // Lista paginada de pedidos de venda
 // ---------------------------------------------------------------------------
 

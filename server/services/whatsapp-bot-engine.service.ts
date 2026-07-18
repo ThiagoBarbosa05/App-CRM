@@ -307,19 +307,40 @@ async function updateSession(
   sessionId: string,
   data: {
     currentNodeId?: string;
-    status?: "active" | "completed" | "timed_out";
+    status?: "active" | "completed" | "timed_out" | "failed";
     completedAt?: Date;
     sessionData?: Record<string, string>;
     resumeAt?: Date | null;
     pendingMessageId?: string | null;
     responseDeadlineAt?: Date | null;
     completionReason?: BotSessionCompletionReason | null;
+    channelId?: number | null;
+    errorMessage?: string | null;
   },
 ): Promise<void> {
   await db
     .update(whatsappBotSessions)
     .set({ ...data, lastActivityAt: new Date() })
     .where(eq(whatsappBotSessions.id, sessionId));
+}
+
+/**
+ * Marca uma sessão de bot como falha e persiste o erro — chamado sempre que
+ * a execução de um nó lança uma exceção não tratada em qualquer ponto do
+ * ciclo de vida da sessão (disparo inicial, resposta de webhook, job de
+ * retomada, timeout de template). Não relança — quem chama decide se relança.
+ */
+async function markSessionFailed(sessionId: string, err: unknown): Promise<void> {
+  const errorMessage = err instanceof Error ? err.message : String(err);
+  try {
+    await updateSession(sessionId, {
+      status: "failed",
+      completedAt: new Date(),
+      errorMessage: errorMessage.slice(0, 4000),
+    });
+  } catch (updateErr) {
+    console.error("[BotEngine] Falha ao persistir status=failed da sessão:", updateErr);
+  }
 }
 
 /**
@@ -1470,7 +1491,8 @@ export async function startBotSession(
   // Registra no histórico da conversa que o bot foi iniciado
   try {
     const conversation = await findOrCreateConversation(phone);
-    await resolveBotTriggerChannel(conversation.id, channelId, triggeredByUserId);
+    const resolvedChannel = await resolveBotTriggerChannel(conversation.id, channelId, triggeredByUserId);
+    await updateSession(newSession.id, { channelId: resolvedChannel?.id ?? null });
     await db.insert(whatsappMessages).values({
       conversationId: conversation.id,
       direction: "outbound",
@@ -1488,8 +1510,13 @@ export async function startBotSession(
     console.error("[WaBot] Erro ao registrar início do bot:", err);
   }
 
-  const lastMessageId = await executeNode(entryNode, phone, newSession.id, botId, clientVars);
-  return { status: "started", lastMessageId };
+  try {
+    const lastMessageId = await executeNode(entryNode, phone, newSession.id, botId, clientVars);
+    return { status: "started", lastMessageId };
+  } catch (err) {
+    await markSessionFailed(newSession.id, err);
+    throw err;
+  }
 }
 
 /**
@@ -1500,9 +1527,11 @@ export async function handleFlowResponse(
   phone: string,
   responseJson: Record<string, unknown>,
 ): Promise<void> {
+  let sessionId: string | undefined;
   try {
     const session = await getActiveSession(phone);
     if (!session) return;
+    sessionId = session.id;
 
     const currentNode = await getNode(session.currentNodeId);
     if (!currentNode || currentNode.type !== "flow_form") return;
@@ -1525,6 +1554,7 @@ export async function handleFlowResponse(
     await executeNode(next, phone, session.id, session.botId, variables);
   } catch (err) {
     console.error("[BotEngine] Erro ao processar resposta de Flow:", err);
+    if (sessionId) await markSessionFailed(sessionId, err);
   }
 }
 
@@ -1533,8 +1563,10 @@ export async function handleIncomingMessage(
   messageText: string,
   replyId?: string | null,
 ): Promise<void> {
+  let sessionId: string | undefined;
   try {
     const session = await getActiveSession(phone);
+    sessionId = session?.id;
     console.log(
       `[WaBot][Condition] handleIncomingMessage: phone=${phone} sessão=${session?.id ?? "(nenhuma)"} currentNodeId=${session?.currentNodeId ?? "-"}`,
     );
@@ -1677,6 +1709,7 @@ export async function handleIncomingMessage(
     // startBotSession(). Mensagens recebidas apenas avançam sessões já ativas.
   } catch (err) {
     console.error("[BotEngine] Error handling message:", err);
+    if (sessionId) await markSessionFailed(sessionId, err);
   }
 }
 
@@ -1736,6 +1769,7 @@ export async function resumeWaitingSessions(): Promise<number> {
       }
     } catch (err) {
       console.error("[BotEngine] Erro ao retomar sessão em espera:", err);
+      await markSessionFailed(session.id, err);
     }
   }
 
@@ -1777,6 +1811,7 @@ export async function processTemplateTimeouts(): Promise<number> {
       }
     } catch (err) {
       console.error("[BotEngine] Erro ao processar timeout de template:", err);
+      await markSessionFailed(session.id, err);
     }
   }
 

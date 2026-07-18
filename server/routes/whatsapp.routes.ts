@@ -16,6 +16,10 @@ import {
   getCampaignBotStats,
 } from "../controllers/campaigns/campaign-logger";
 import { normalizePhoneE164 } from "@shared/phone";
+import {
+  listBotDispatchHistory,
+  parseBotSessionHistoryQuery,
+} from "../controllers/whatsapp/bot-session-history.controller";
 
 const router = Router();
 
@@ -377,6 +381,22 @@ router.get("/campaigns/:id/bot-stats", async (req, res) => {
     res.json({ campaignId: req.params.id, stats, timestamp: new Date().toISOString() });
   } catch (e) {
     res.status(500).json({ message: "Erro ao buscar estatísticas de bot da campanha" });
+  }
+});
+
+// ── Histórico de disparos de bot (manuais + via campanha) ────────────────────
+
+router.get("/bot-sessions", async (req, res) => {
+  try {
+    const filters = parseBotSessionHistoryQuery(req.query as Record<string, unknown>);
+    const result = await listBotDispatchHistory(filters);
+    res.json(result);
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return res.status(400).json({ message: "Parâmetros inválidos", errors: e.flatten() });
+    }
+    console.error("[WA BotSessions] Erro ao listar histórico:", e);
+    res.status(500).json({ message: "Erro ao buscar histórico de bots" });
   }
 });
 
