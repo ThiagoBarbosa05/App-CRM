@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import type { RestaurantOrder } from "@shared/schema";
-import { OrdersHistoryStats } from "@/components/restaurant-pdv/orders-history-stats";
 import {
   OrdersHistoryFilters,
   EMPTY_FILTERS,
@@ -14,6 +14,7 @@ import { OrdersHistoryTable } from "@/components/restaurant-pdv/orders-history-t
 
 interface RestaurantOrderWithPaymentsCount extends RestaurantOrder {
   paymentsCount: number;
+  waiterName: string | null;
 }
 
 export default function RestaurantOrdersHistory() {
@@ -36,7 +37,7 @@ export default function RestaurantOrdersHistory() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4">
+    <div className="w-full space-y-6 p-4">
       <PageHeader>
         <PageHeader.Info>
           <PageHeader.Icon
@@ -53,12 +54,16 @@ export default function RestaurantOrdersHistory() {
         </PageHeader.Info>
       </PageHeader>
 
-      <OrdersHistoryStats orders={orders} />
       <OrdersHistoryFilters value={filters} onChange={setFilters} />
       <OrdersHistoryTable
         orders={orders}
         onContinueOrder={(orderId) => setLocation(`/pdv-restaurante?orderId=${orderId}`)}
       />
+
+      <Button onClick={() => setLocation("/pdv-restaurante")}>
+        <Plus className="mr-1.5 h-4 w-4" />
+        Nova Comanda
+      </Button>
     </div>
   );
 }

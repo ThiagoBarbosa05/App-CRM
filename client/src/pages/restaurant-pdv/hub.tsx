@@ -1,118 +1,61 @@
-import { type ReactNode } from "react";
-import { cn } from "@/lib/utils";
-import { ArrowLeft, BarChart3, ClipboardList, LayoutGrid, UtensilsCrossed } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { type ReactNode, useState } from "react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
-
-const TABS = [
-  { href: "/pdv-restaurante/comandas", label: "Comandas", icon: ClipboardList },
-  { href: "/pdv-restaurante/cardapio", label: "Cardápio", icon: UtensilsCrossed },
-  { href: "/pdv-restaurante/mesas", label: "Mesas", icon: LayoutGrid },
-  { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3 },
-];
+import { PdvSidebar } from "./pdv-sidebar";
 
 export default function RestaurantPdvHub({ children }: { children: ReactNode }) {
-  const [location, navigate] = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem("pdv-sidebar-collapsed") === "true",
+  );
 
-  const isActive = (tab: (typeof TABS)[number]) =>
-    location === tab.href || location.startsWith(tab.href + "/");
-
-  const activeTab = TABS.find(isActive) ?? TABS[0];
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("pdv-sidebar-collapsed", String(next));
+      return next;
+    });
+  };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background">
-      <header className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 h-12 border-b border-border bg-card shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-muted-foreground shrink-0"
-          onClick={() => navigate("/")}
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          <span className="hidden sm:inline">CRM</span>
-        </Button>
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-        <Separator orientation="vertical" className="h-5 shrink-0" />
+      {/* Sidebar */}
+      <div
+        className={`
+          fixed inset-y-0 left-0 z-50 shadow-lg
+          transform transition-all duration-300 ease-in-out
+          lg:translate-x-0 lg:static lg:inset-0
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          ${collapsed ? "w-16" : "w-64"}
+        `}
+      >
+        <PdvSidebar
+          collapsed={collapsed}
+          onToggleCollapse={toggleCollapsed}
+          onCloseSidebar={() => setSidebarOpen(false)}
+        />
+      </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <UtensilsCrossed className="h-4 w-4 text-orange-500" />
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobile header */}
+        <header className="lg:hidden flex items-center p-3 bg-card shadow-sm border-b border-border gap-3 shrink-0">
+          <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(true)}>
+            <Menu className="h-5 w-5 text-muted-foreground" />
+          </Button>
           <span className="text-sm font-semibold">PDV Restaurante</span>
-        </div>
+        </header>
 
-        <Separator orientation="vertical" className="h-5 shrink-0" />
-
-        {/* Desktop tabs — hidden on small screens */}
-        <nav className="hidden sm:flex items-center gap-1 flex-1 overflow-x-auto">
-          {TABS.map((tab) => (
-            <Link key={tab.href} href={tab.href}>
-              <button
-                className={cn(
-                  "flex items-center px-3 py-1.5 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
-                  isActive(tab)
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                <tab.icon className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-                {tab.label}
-              </button>
-            </Link>
-          ))}
-        </nav>
-
-        {/* Mobile dropdown — visible only on small screens */}
-        <div className="flex sm:hidden flex-1 justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1.5 text-sm font-medium max-w-[160px]"
-              >
-                <activeTab.icon className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{activeTab.label}</span>
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {TABS.map((tab) => (
-                <Link key={tab.href} href={tab.href}>
-                  <DropdownMenuItem
-                    className={cn(
-                      "gap-2 cursor-pointer",
-                      isActive(tab) && "bg-accent font-medium",
-                    )}
-                  >
-                    <tab.icon className="h-4 w-4 shrink-0" />
-                    {tab.label}
-                  </DropdownMenuItem>
-                </Link>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <Separator orientation="vertical" className="h-5 shrink-0 hidden sm:block" />
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-sm shrink-0 hidden sm:inline-flex"
-          onClick={() => navigate("/pdv-restaurante")}
-        >
-          Abrir PDV
-        </Button>
-      </header>
-
-      <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
     </div>
   );
 }

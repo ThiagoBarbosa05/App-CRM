@@ -1,10 +1,9 @@
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Table,
   TableBody,
@@ -24,14 +23,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Minus, Percent, Plus, Split, Trash2 } from "lucide-react";
+import {
+  Banknote,
+  ClipboardList,
+  CreditCard,
+  Minus,
+  Percent,
+  Plus,
+  QrCode,
+  Split,
+  Trash2,
+} from "lucide-react";
 import type { RestaurantOrder, RestaurantOrderItem } from "@shared/schema";
 
-const PAYMENT_METHODS: { value: string; label: string }[] = [
-  { value: "pix", label: "Pix" },
-  { value: "cartao_credito", label: "Cartão de Crédito" },
-  { value: "cartao_debito", label: "Cartão de Débito" },
-  { value: "dinheiro", label: "Dinheiro" },
+const PAYMENT_METHODS: { value: string; label: string; icon: typeof QrCode }[] = [
+  { value: "pix", label: "Pix", icon: QrCode },
+  { value: "cartao_credito", label: "Cartão de Crédito", icon: CreditCard },
+  { value: "cartao_debito", label: "Cartão de Débito", icon: CreditCard },
+  { value: "dinheiro", label: "Dinheiro", icon: Banknote },
 ];
 
 function itemSourceLabel(item: RestaurantOrderItem): string {
@@ -100,7 +109,7 @@ export function OrderSummaryCard({
           </TableHeader>
           <TableBody>
             {items.map((item) => (
-              <TableRow key={item.id}>
+              <TableRow key={item.id} className="hover:bg-muted/40">
                 <TableCell>
                   <div className="flex flex-col gap-0.5">
                     <span>{item.name}</span>
@@ -157,8 +166,11 @@ export function OrderSummaryCard({
             ))}
             {items.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  Nenhum item adicionado
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  <div className="flex flex-col items-center gap-2">
+                    <ClipboardList className="h-8 w-8 text-muted-foreground/40" />
+                    <span>Nenhum item adicionado</span>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -217,16 +229,24 @@ export function OrderSummaryCard({
 
         <div className="mt-4 space-y-2 border-t pt-4">
           <Label className="text-xs uppercase text-muted-foreground">Forma de pagamento</Label>
-          <RadioGroup value={paymentMethod} onValueChange={onPaymentMethodChange}>
+          <div className="grid grid-cols-2 gap-2">
             {PAYMENT_METHODS.map((method) => (
-              <div key={method.value} className="flex items-center gap-2">
-                <RadioGroupItem value={method.value} id={method.value} />
-                <Label htmlFor={method.value} className="font-normal">
-                  {method.label}
-                </Label>
-              </div>
+              <button
+                key={method.value}
+                type="button"
+                onClick={() => onPaymentMethodChange(method.value)}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg border-2 p-2.5 text-sm font-medium transition-colors",
+                  paymentMethod === method.value
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                )}
+              >
+                <method.icon className="h-4 w-4 shrink-0" />
+                {method.label}
+              </button>
             ))}
-          </RadioGroup>
+          </div>
         </div>
 
         <div className="mt-4 flex gap-2">

@@ -2440,6 +2440,9 @@ export const restaurantOrders = pgTable(
     id: varchar("id")
       .primaryKey()
       .default(sql`gen_random_uuid()`),
+    orderNumber: integer("order_number")
+      .notNull()
+      .default(sql`nextval('restaurant_orders_order_number_seq')`),
     tableId: varchar("table_id").references(() => restaurantTables.id),
     tableNumber: integer("table_number").notNull(),
     peopleCount: integer("people_count").notNull(),

@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,15 @@ import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
   ArrowRightLeft,
+  Clock,
   Combine,
   Receipt,
+  Users,
   UtensilsCrossed,
   XCircle,
 } from "lucide-react";
+import { formatDistanceToNowStrict } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import type {
   Product,
   RestaurantMenuItem,
@@ -37,14 +41,17 @@ interface RestaurantOrderWithItems extends RestaurantOrder {
   items: RestaurantOrderItem[];
 }
 
-const ACTIVE_ORDER_KEY = "restaurant-pdv-active-order-id";
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  aberta: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400",
+  fechada: "bg-slate-100 text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300",
+  mesclada: "bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400",
+  aguardando_pagamento: "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400",
+};
 
 export default function RestaurantPos() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(
-    () => localStorage.getItem(ACTIVE_ORDER_KEY),
-  );
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [itemToCancel, setItemToCancel] = useState<RestaurantOrderItem | null>(null);
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
@@ -54,12 +61,11 @@ export default function RestaurantPos() {
 
   const setActiveOrder = (id: string | null) => {
     setActiveOrderId(id);
-    if (id) localStorage.setItem(ACTIVE_ORDER_KEY, id);
-    else localStorage.removeItem(ACTIVE_ORDER_KEY);
   };
 
   // Permite reabrir uma comanda em aberto a partir do histórico
-  // (/pdv-restaurante?orderId=xxx), com prioridade sobre o localStorage.
+  // (/pdv-restaurante?orderId=xxx). Fora isso, a página sempre inicia
+  // no mapa de mesas — nunca reabre a última comanda automaticamente.
   useEffect(() => {
     const orderIdFromUrl = new URLSearchParams(window.location.search).get(
       "orderId",
@@ -356,29 +362,45 @@ export default function RestaurantPos() {
         ) : isLoadingOrder || !order ? (
           <div className="p-6 text-center text-muted-foreground">Carregando comanda...</div>
         ) : (
-          <div className="mx-auto max-w-5xl space-y-6 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-muted-foreground"
-                    onClick={() => setActiveOrder(null)}
+          <div className="w-full space-y-6 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 -ml-2 px-2 text-muted-foreground"
+                  onClick={() => setActiveOrder(null)}
+                >
+                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                  Mapa de mesas
+                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl font-bold">Mesa {order.tableNumber}</h1>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "uppercase",
+                      STATUS_BADGE_CLASS[
+                        order.paymentRequestedAt ? "aguardando_pagamento" : order.status
+                      ],
+                    )}
                   >
-                    <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                    Mapa de mesas
-                  </Button>
+                    {order.paymentRequestedAt ? "Aguardando pagamento" : order.status}
+                  </Badge>
                 </div>
-                <h1 className="text-xl font-bold">Mesa {order.tableNumber}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {order.peopleCount} pessoa(s)
-                </p>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" />
+                    {order.peopleCount} pessoa(s)
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    Aberta há{" "}
+                    {formatDistanceToNowStrict(new Date(order.openedAt), { locale: ptBR })}
+                  </span>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={order.paymentRequestedAt ? "secondary" : "outline"} className="uppercase">
-                  {order.paymentRequestedAt ? "Aguardando pagamento" : order.status}
-                </Badge>
                 <Button
                   size="sm"
                   variant="outline"
@@ -417,7 +439,7 @@ export default function RestaurantPos() {
               </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
               <Card>
                 <CardHeader>
                   <CardTitle>Adicionar Item</CardTitle>

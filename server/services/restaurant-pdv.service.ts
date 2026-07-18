@@ -8,6 +8,7 @@ import {
   systemSettings,
   blingProductMappings,
   products,
+  users,
 } from "../../shared/schema";
 import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import type {
@@ -158,7 +159,7 @@ export const restaurantPdvService = {
     waiterId?: string;
     from?: Date;
     to?: Date;
-  }): Promise<(RestaurantOrder & { paymentsCount: number })[]> {
+  }): Promise<(RestaurantOrder & { paymentsCount: number; waiterName: string | null })[]> {
     const conditions = [
       filters.status ? eq(restaurantOrders.status, filters.status) : undefined,
       filters.waiterId ? eq(restaurantOrders.waiterId, filters.waiterId) : undefined,
@@ -170,17 +171,23 @@ export const restaurantPdvService = {
       .select({
         order: restaurantOrders,
         paymentsCount: sql<number>`count(${restaurantOrderPayments.id})`,
+        waiterName: users.name,
       })
       .from(restaurantOrders)
       .leftJoin(
         restaurantOrderPayments,
         eq(restaurantOrderPayments.orderId, restaurantOrders.id),
       )
+      .leftJoin(users, eq(restaurantOrders.waiterId, users.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .groupBy(restaurantOrders.id)
+      .groupBy(restaurantOrders.id, users.name)
       .orderBy(desc(restaurantOrders.openedAt));
 
-    return rows.map((row) => ({ ...row.order, paymentsCount: Number(row.paymentsCount) }));
+    return rows.map((row) => ({
+      ...row.order,
+      paymentsCount: Number(row.paymentsCount),
+      waiterName: row.waiterName,
+    }));
   },
 
   async addItem(

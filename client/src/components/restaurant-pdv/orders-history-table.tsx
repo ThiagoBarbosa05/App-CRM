@@ -17,6 +17,7 @@ import { OrderReceiptPrint } from "@/components/restaurant-pdv/order-receipt-pri
 
 interface RestaurantOrderWithPaymentsCount extends RestaurantOrder {
   paymentsCount: number;
+  waiterName: string | null;
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -47,7 +48,9 @@ export function OrdersHistoryTable({ orders, onContinueOrder }: OrdersHistoryTab
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Nº</TableHead>
               <TableHead>Mesa</TableHead>
+              <TableHead>Vendedor</TableHead>
               <TableHead>Pessoas</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Pagamento</TableHead>
@@ -60,7 +63,11 @@ export function OrdersHistoryTable({ orders, onContinueOrder }: OrdersHistoryTab
           <TableBody>
             {orders.map((order) => (
               <TableRow key={order.id}>
+                <TableCell className="font-medium text-muted-foreground">
+                  #{order.orderNumber}
+                </TableCell>
                 <TableCell>{order.tableNumber}</TableCell>
+                <TableCell>{order.waiterName ?? "—"}</TableCell>
                 <TableCell>{order.peopleCount}</TableCell>
                 <TableCell>
                   <Badge className={STATUS_BADGE_CLASS[order.status] ?? ""} variant="outline">
@@ -97,7 +104,7 @@ export function OrdersHistoryTable({ orders, onContinueOrder }: OrdersHistoryTab
             ))}
             {orders.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                <TableCell colSpan={10} className="text-center text-muted-foreground">
                   Nenhuma comanda encontrada
                 </TableCell>
               </TableRow>
