@@ -15,7 +15,7 @@ import {
   whatsappSectors,
   users,
 } from "../../shared/schema";
-import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
@@ -429,6 +429,13 @@ export async function listClientsForChat(
   whatsappTagIds?: string[],
   pagination: { cursor?: Cursor | null; limit?: number } = {},
   status?: "open" | "closed",
+  filters: {
+    sectorIds?: string[];
+    attendantId?: string;
+    channelIds?: number[];
+    dateFrom?: string;
+    dateTo?: string;
+  } = {},
 ) {
   // .mapWith aplica o mapper de timestamp do Drizzle ao SQL cru — sem ele o
   // valor chega ao cliente como string sem fuso ("2026-07-02 23:16:00") e o
@@ -559,6 +566,37 @@ export async function listClientsForChat(
         ) as unknown as ReturnType<typeof eq>,
       );
     }
+  }
+
+  if (filters.sectorIds && filters.sectorIds.length > 0) {
+    conditions.push(
+      inArray(whatsappConversations.sectorId, filters.sectorIds) as unknown as ReturnType<typeof eq>,
+    );
+  }
+
+  if (filters.attendantId) {
+    conditions.push(eq(whatsappConversations.assignedAgentId, filters.attendantId));
+  }
+
+  if (filters.channelIds && filters.channelIds.length > 0) {
+    conditions.push(
+      inArray(whatsappConversations.channelId, filters.channelIds) as unknown as ReturnType<typeof eq>,
+    );
+  }
+
+  // "Data" filtra pela última mensagem (lastMsgSub.lastAt), o mesmo campo já
+  // exibido/ordenado na lista — não pela criação da conversa. dateTo cobre o
+  // dia inteiro (< início do dia seguinte).
+  if (filters.dateFrom) {
+    conditions.push(
+      gte(lastMsgSub.lastAt, sql`${filters.dateFrom}::date`) as unknown as ReturnType<typeof eq>,
+    );
+  }
+
+  if (filters.dateTo) {
+    conditions.push(
+      lt(lastMsgSub.lastAt, sql`${filters.dateTo}::date + interval '1 day'`) as unknown as ReturnType<typeof eq>,
+    );
   }
 
   if (cursor) {

@@ -9,6 +9,7 @@ import { useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
@@ -75,7 +76,6 @@ import {
   Bookmark,
   BookmarkCheck,
   Tag,
-  Filter,
   Trash2,
   Zap,
   Bot,
@@ -89,14 +89,18 @@ import {
   Lock,
   BellOff,
   ChevronDown,
+  ChevronUp,
   ChevronsLeft,
   ChevronsRight,
+  SlidersHorizontal,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -119,6 +123,19 @@ interface Channel {
   connectionStatus: string | null;
   provider: string;
   evolutionInstanceName?: string | null;
+}
+
+interface WaSector {
+  id: string;
+  name: string;
+  color: string;
+  isActive: boolean;
+}
+
+interface WaAttendant {
+  userId: string;
+  name: string;
+  role: string;
 }
 
 export interface ChatClientTag {
@@ -5567,14 +5584,33 @@ export default function WhatsAppConversationsPage() {
   const [search, setSearch] = useState(phoneParam ?? "");
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [showTagFilter, setShowTagFilter] = useState(false);
-  const [tagSearch, setTagSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"open" | "closed">("open");
   const [qrDialogChannel, setQrDialogChannel] = useState<Channel | null>(null);
+  const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
+  const [selectedAttendantId, setSelectedAttendantId] = useState<string | null>(null);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<number[]>([]);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [dateRangeOpen, setDateRangeOpen] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const [tagPickerSearch, setTagPickerSearch] = useState("");
+  const [sectorPickerOpen, setSectorPickerOpen] = useState(false);
+  const [sectorPickerSearch, setSectorPickerSearch] = useState("");
+  const [attendantPickerOpen, setAttendantPickerOpen] = useState(false);
+  const [attendantPickerSearch, setAttendantPickerSearch] = useState("");
+  const [channelPickerOpen, setChannelPickerOpen] = useState(false);
+  const [channelPickerSearch, setChannelPickerSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const queryClient = useQueryClient();
 
   const isAdminOrGerente = user?.role === "admin" || user?.role === "gerente";
+
+  const activeMoreFiltersCount =
+    selectedTagIds.length +
+    selectedSectorIds.length +
+    (selectedAttendantId ? 1 : 0) +
+    selectedChannelIds.length +
+    (dateRange?.from ? 1 : 0);
 
   const setTagsMutation = useMutation({
     mutationFn: async ({
@@ -5643,6 +5679,25 @@ export default function WhatsAppConversationsPage() {
     refetchInterval: 30_000,
   });
 
+  const { data: availableSectors = [] } = useQuery<WaSector[]>({
+    queryKey: ["/api/whatsapp/sectors"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/sectors");
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: availableAttendants = [] } = useQuery<WaAttendant[]>({
+    queryKey: ["/api/whatsapp/attendants"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/attendants");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: isAdminOrGerente,
+  });
+
   interface ConversationsListPage {
     items: ChatClient[];
     nextCursor: string | null;
@@ -5653,6 +5708,11 @@ export default function WhatsAppConversationsPage() {
     debouncedSearch,
     selectedTagIds,
     statusFilter,
+    selectedSectorIds,
+    selectedAttendantId,
+    selectedChannelIds,
+    dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : null,
+    dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : null,
     user?.id,
   ];
 
@@ -5664,6 +5724,11 @@ export default function WhatsAppConversationsPage() {
     for (const id of selectedTagIds) params.append("tagIds", id);
     // Com busca ativa, ignora a aba Abertas/Encerradas — busca em todas.
     if (!debouncedSearch) params.set("status", statusFilter);
+    for (const id of selectedSectorIds) params.append("sectorIds", id);
+    if (selectedAttendantId) params.set("attendantId", selectedAttendantId);
+    for (const id of selectedChannelIds) params.append("channelIds", String(id));
+    if (dateRange?.from) params.set("dateFrom", format(dateRange.from, "yyyy-MM-dd"));
+    if (dateRange?.to) params.set("dateTo", format(dateRange.to, "yyyy-MM-dd"));
     if (cursor) params.set("cursor", cursor);
     const res = await fetch(`/api/whatsapp/conversations?${params}`);
     if (!res.ok) return { items: [], nextCursor: null };
@@ -5703,7 +5768,17 @@ export default function WhatsAppConversationsPage() {
       );
     }, 15_000);
     return () => clearInterval(interval);
-  }, [queryClient, debouncedSearch, selectedTagIds, statusFilter, user?.id]);
+  }, [
+    queryClient,
+    debouncedSearch,
+    selectedTagIds,
+    statusFilter,
+    selectedSectorIds,
+    selectedAttendantId,
+    selectedChannelIds,
+    dateRange,
+    user?.id,
+  ]);
 
   // Assim que a busca por telefone (vinda do parâmetro ?phone=) retornar,
   // seleciona automaticamente a conversa correspondente — uma única vez.
@@ -5850,32 +5925,27 @@ export default function WhatsAppConversationsPage() {
               Conversas
             </h2>
             <div className="flex items-center gap-0.5">
-              {availableWaTags.length > 0 && (
-                <div className="relative">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "h-8 w-8",
-                      selectedTagIds.length > 0
-                        ? "text-green-600 dark:text-green-400"
-                        : "text-slate-500 hover:text-primary",
-                    )}
-                    onClick={() => {
-                      setShowTagFilter((v) => !v);
-                      setTagSearch("");
-                    }}
-                    title="Filtrar por etiqueta"
-                  >
-                    <Filter className="h-4 w-4" />
-                  </Button>
-                  {selectedTagIds.length > 0 && (
-                    <span className="pointer-events-none absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 text-[9px] font-bold text-white flex items-center justify-center">
-                      {selectedTagIds.length}
-                    </span>
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-8 w-8",
+                    activeMoreFiltersCount > 0
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-slate-500 hover:text-primary",
                   )}
-                </div>
-              )}
+                  onClick={() => setShowMoreFilters((v) => !v)}
+                  title="Filtros"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                </Button>
+                {activeMoreFiltersCount > 0 && (
+                  <span className="pointer-events-none absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 text-[9px] font-bold text-white flex items-center justify-center">
+                    {activeMoreFiltersCount}
+                  </span>
+                )}
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -6036,135 +6106,567 @@ export default function WhatsAppConversationsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Client list — relative so the tag panel can overlay it */}
+        {/* Client list — relative so the filters panel can overlay it */}
         <div className="flex-1 overflow-y-auto relative" ref={sidebarContainerRef}>
-          {/* Tag filter overlay panel */}
-          {showTagFilter && (
+          {/* Filters overlay panel (etiquetas, setor, atendente, canal, data) */}
+          {showMoreFilters && (
             <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-slate-900">
               {/* Panel header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Etiquetas
-                </h3>
                 <button
-                  onClick={() => setShowTagFilter(false)}
+                  onClick={() => setShowMoreFilters(false)}
+                  className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-slate-100"
+                >
+                  <ChevronUp className="h-4 w-4 text-slate-400" />
+                  Filtros
+                </button>
+                <button
+                  onClick={() => setShowMoreFilters(false)}
                   className="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Tag search */}
-              <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                  <Input
-                    value={tagSearch}
-                    onChange={(e) => setTagSearch(e.target.value)}
-                    placeholder="Pesquisar"
-                    className="pl-9 text-sm h-9"
-                    autoFocus
-                  />
-                </div>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
-                  {tagSearch
-                    ? `${availableWaTags.filter((t) => t.name.toLowerCase().includes(tagSearch.toLowerCase())).length} resultado(s)`
-                    : "Exibindo todos os itens"}
-                </p>
-              </div>
-
-              {/* Tag list */}
-              <div className="flex-1 overflow-y-auto py-2">
-                {/* "Sem etiquetas" option */}
-                <div className="px-4 py-1.5">
-                  <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">
-                    Sem etiquetas
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedTagIds((prev) =>
-                        prev.includes("__none__")
-                          ? prev.filter((id) => id !== "__none__")
-                          : [...prev, "__none__"],
-                      )
-                    }
-                    className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
-                      selectedTagIds.includes("__none__")
-                        ? "bg-slate-700 border-slate-700 text-white dark:bg-slate-200 dark:border-slate-200 dark:text-slate-900"
-                        : "bg-slate-100 dark:bg-slate-800 border-transparent text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700",
-                    )}
-                  >
-                    Sem etiquetas
-                  </button>
-                </div>
-
-                <div className="h-px bg-slate-100 dark:bg-slate-800 mx-4 my-2" />
-
-                {/* All tags */}
-                <div className="px-4 flex flex-col gap-2">
-                  {availableWaTags
-                    .filter(
-                      (t) =>
-                        !tagSearch ||
-                        t.name.toLowerCase().includes(tagSearch.toLowerCase()),
-                    )
-                    .map((tag) => {
-                      const active = selectedTagIds.includes(tag.id);
-                      const tagColor = resolveTagColor(tag.color, tag.id);
-                      const tagEmoji = resolveTagEmoji(tag.emoji);
-                      return (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          onClick={() =>
-                            setSelectedTagIds((prev) =>
-                              prev.includes(tag.id)
-                                ? prev.filter((id) => id !== tag.id)
-                                : [...prev, tag.id],
-                            )
-                          }
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-white transition-all self-start max-w-full",
-                            active
-                              ? "ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900"
-                              : "opacity-90 hover:opacity-100",
-                          )}
-                          style={{ backgroundColor: tagColor }}
-                        >
-                          {tagEmoji && (
-                            <span className="shrink-0 leading-none">
-                              {tagEmoji}
-                            </span>
-                          )}
-                          <span className="truncate">{tag.name}</span>
-                          {active && (
-                            <Check className="h-3 w-3 shrink-0 ml-auto" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  {availableWaTags.filter(
-                    (t) =>
-                      !tagSearch ||
-                      t.name.toLowerCase().includes(tagSearch.toLowerCase()),
-                  ).length === 0 && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
-                      Nenhuma etiqueta encontrada
+              <div className="flex-1 overflow-y-auto py-3 flex flex-col gap-3">
+                {/* Etiquetas */}
+                {availableWaTags.length > 0 && (
+                  <div className="px-4">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                      Etiquetas
                     </p>
-                  )}
+                    <Popover
+                      open={tagPickerOpen}
+                      onOpenChange={(v) => {
+                        setTagPickerOpen(v);
+                        if (v) setTagPickerSearch("");
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-between text-xs font-normal h-10 rounded-full"
+                        >
+                          <span className="truncate">
+                            {selectedTagIds.length === 0
+                              ? "Todos"
+                              : selectedTagIds.length === 1
+                                ? (selectedTagIds[0] === "__none__"
+                                    ? "Sem etiquetas"
+                                    : (availableWaTags.find((t) => t.id === selectedTagIds[0])
+                                        ?.name ?? "1 selecionada"))
+                                : `${selectedTagIds.length} selecionadas`}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="start">
+                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            Etiquetas
+                          </span>
+                          <button
+                            onClick={() => setTagPickerOpen(false)}
+                            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                            <Input
+                              value={tagPickerSearch}
+                              onChange={(e) => setTagPickerSearch(e.target.value)}
+                              placeholder="Pesquisar"
+                              className="pl-9 text-sm h-9"
+                              autoFocus
+                            />
+                          </div>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                            {tagPickerSearch
+                              ? `${availableWaTags.filter((t) => t.name.toLowerCase().includes(tagPickerSearch.toLowerCase())).length} resultado(s)`
+                              : "Exibindo todos os itens"}
+                          </p>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto py-1">
+                          {!tagPickerSearch && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedTagIds((prev) =>
+                                  prev.includes("__none__")
+                                    ? prev.filter((id) => id !== "__none__")
+                                    : [...prev, "__none__"],
+                                )
+                              }
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <span className="flex-1 truncate">Sem etiquetas</span>
+                              {selectedTagIds.includes("__none__") && (
+                                <Check className="h-4 w-4 shrink-0 text-primary" />
+                              )}
+                            </button>
+                          )}
+                          {availableWaTags
+                            .filter((t) =>
+                              !tagPickerSearch ||
+                              t.name.toLowerCase().includes(tagPickerSearch.toLowerCase()),
+                            )
+                            .map((tag) => {
+                              const active = selectedTagIds.includes(tag.id);
+                              const tagColor = resolveTagColor(tag.color, tag.id);
+                              const tagEmoji = resolveTagEmoji(tag.emoji);
+                              return (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedTagIds((prev) =>
+                                      prev.includes(tag.id)
+                                        ? prev.filter((id) => id !== tag.id)
+                                        : [...prev, tag.id],
+                                    )
+                                  }
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <span
+                                    className="h-2 w-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: tagColor }}
+                                  />
+                                  {tagEmoji && (
+                                    <span className="shrink-0 leading-none">{tagEmoji}</span>
+                                  )}
+                                  <span className="flex-1 truncate">{tag.name}</span>
+                                  {active && (
+                                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          {availableWaTags.filter(
+                            (t) =>
+                              !tagPickerSearch ||
+                              t.name.toLowerCase().includes(tagPickerSearch.toLowerCase()),
+                          ).length === 0 && (
+                            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                              Nenhuma etiqueta encontrada
+                            </p>
+                          )}
+                        </div>
+                        {selectedTagIds.length > 0 && (
+                          <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                            <button
+                              onClick={() => setSelectedTagIds([])}
+                              className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                            >
+                              Limpar
+                            </button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
+                {/* Setor */}
+                {availableSectors.length > 0 && (
+                  <div className="px-4">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                      Setor
+                    </p>
+                    <Popover
+                      open={sectorPickerOpen}
+                      onOpenChange={(v) => {
+                        setSectorPickerOpen(v);
+                        if (v) setSectorPickerSearch("");
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-between text-xs font-normal h-10 rounded-full"
+                        >
+                          <span className="truncate">
+                            {selectedSectorIds.length === 0
+                              ? "Todos"
+                              : selectedSectorIds.length === 1
+                                ? (availableSectors.find((s) => s.id === selectedSectorIds[0])
+                                    ?.name ?? "1 selecionado")
+                                : `${selectedSectorIds.length} selecionados`}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="start">
+                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            Setores
+                          </span>
+                          <button
+                            onClick={() => setSectorPickerOpen(false)}
+                            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                            <Input
+                              value={sectorPickerSearch}
+                              onChange={(e) => setSectorPickerSearch(e.target.value)}
+                              placeholder="Pesquisar"
+                              className="pl-9 text-sm h-9"
+                              autoFocus
+                            />
+                          </div>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                            {sectorPickerSearch
+                              ? `${availableSectors.filter((s) => s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase())).length} resultado(s)`
+                              : "Exibindo todos os itens"}
+                          </p>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto py-1">
+                          {availableSectors
+                            .filter((s) =>
+                              !sectorPickerSearch ||
+                              s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase()),
+                            )
+                            .map((sector) => {
+                              const active = selectedSectorIds.includes(sector.id);
+                              return (
+                                <button
+                                  key={sector.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedSectorIds((prev) =>
+                                      prev.includes(sector.id)
+                                        ? prev.filter((id) => id !== sector.id)
+                                        : [...prev, sector.id],
+                                    )
+                                  }
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <span
+                                    className="h-2 w-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: sector.color }}
+                                  />
+                                  <span className="flex-1 truncate">{sector.name}</span>
+                                  {active && (
+                                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          {availableSectors.filter(
+                            (s) =>
+                              !sectorPickerSearch ||
+                              s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase()),
+                          ).length === 0 && (
+                            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                              Nenhum setor encontrado
+                            </p>
+                          )}
+                        </div>
+                        {selectedSectorIds.length > 0 && (
+                          <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                            <button
+                              onClick={() => setSelectedSectorIds([])}
+                              className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                            >
+                              Limpar
+                            </button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
+                {/* Atendente — só admin/gerente */}
+                {isAdminOrGerente && availableAttendants.length > 0 && (
+                  <div className="px-4">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                      Atendente
+                    </p>
+                    <Popover
+                      open={attendantPickerOpen}
+                      onOpenChange={(v) => {
+                        setAttendantPickerOpen(v);
+                        if (v) setAttendantPickerSearch("");
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-between text-xs font-normal h-10 rounded-full"
+                        >
+                          <span className="truncate">
+                            {selectedAttendantId
+                              ? (availableAttendants.find((a) => a.userId === selectedAttendantId)
+                                  ?.name ?? "Todos")
+                              : "Todos"}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="start">
+                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            Atendentes
+                          </span>
+                          <button
+                            onClick={() => setAttendantPickerOpen(false)}
+                            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                            <Input
+                              value={attendantPickerSearch}
+                              onChange={(e) => setAttendantPickerSearch(e.target.value)}
+                              placeholder="Pesquisar"
+                              className="pl-9 text-sm h-9"
+                              autoFocus
+                            />
+                          </div>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                            {attendantPickerSearch
+                              ? `${availableAttendants.filter((a) => a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase())).length} resultado(s)`
+                              : "Exibindo todos os itens"}
+                          </p>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto py-1">
+                          {availableAttendants
+                            .filter((a) =>
+                              !attendantPickerSearch ||
+                              a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase()),
+                            )
+                            .map((attendant) => {
+                              const active = selectedAttendantId === attendant.userId;
+                              return (
+                                <button
+                                  key={attendant.userId}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedAttendantId(active ? null : attendant.userId);
+                                    setAttendantPickerOpen(false);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <span className="flex-1 truncate">{attendant.name}</span>
+                                  {active && (
+                                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          {availableAttendants.filter(
+                            (a) =>
+                              !attendantPickerSearch ||
+                              a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase()),
+                          ).length === 0 && (
+                            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                              Nenhum atendente encontrado
+                            </p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
+                {/* Canal */}
+                {availableChannels.length > 0 && (
+                  <div className="px-4">
+                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                      Canal
+                    </p>
+                    <Popover
+                      open={channelPickerOpen}
+                      onOpenChange={(v) => {
+                        setChannelPickerOpen(v);
+                        if (v) setChannelPickerSearch("");
+                      }}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-between text-xs font-normal h-10 rounded-full"
+                        >
+                          <span className="truncate">
+                            {selectedChannelIds.length === 0
+                              ? "Todos"
+                              : selectedChannelIds.length === 1
+                                ? (availableChannels.find((c) => c.id === selectedChannelIds[0])
+                                    ?.name ?? "1 selecionado")
+                                : `${selectedChannelIds.length} selecionados`}
+                          </span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-0" align="start">
+                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            Canais
+                          </span>
+                          <button
+                            onClick={() => setChannelPickerOpen(false)}
+                            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                            <Input
+                              value={channelPickerSearch}
+                              onChange={(e) => setChannelPickerSearch(e.target.value)}
+                              placeholder="Pesquisar"
+                              className="pl-9 text-sm h-9"
+                              autoFocus
+                            />
+                          </div>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                            {channelPickerSearch
+                              ? `${availableChannels.filter((c) => c.name.toLowerCase().includes(channelPickerSearch.toLowerCase())).length} resultado(s)`
+                              : "Exibindo todos os itens"}
+                          </p>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto py-1">
+                          {availableChannels
+                            .filter((c) =>
+                              !channelPickerSearch ||
+                              c.name.toLowerCase().includes(channelPickerSearch.toLowerCase()),
+                            )
+                            .map((channel) => {
+                              const active = selectedChannelIds.includes(channel.id);
+                              return (
+                                <button
+                                  key={channel.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedChannelIds((prev) =>
+                                      prev.includes(channel.id)
+                                        ? prev.filter((id) => id !== channel.id)
+                                        : [...prev, channel.id],
+                                    )
+                                  }
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                  <span className="flex-1 truncate">
+                                    {channel.name}
+                                    {channel.displayPhone ? ` · ${channel.displayPhone}` : ""}
+                                  </span>
+                                  {active && (
+                                    <Check className="h-4 w-4 shrink-0 text-primary" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          {availableChannels.filter(
+                            (c) =>
+                              !channelPickerSearch ||
+                              c.name.toLowerCase().includes(channelPickerSearch.toLowerCase()),
+                          ).length === 0 && (
+                            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                              Nenhum canal encontrado
+                            </p>
+                          )}
+                        </div>
+                        {selectedChannelIds.length > 0 && (
+                          <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                            <button
+                              onClick={() => setSelectedChannelIds([])}
+                              className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                            >
+                              Limpar
+                            </button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
+                {/* Período */}
+                <div className="px-4">
+                  <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                    Período
+                  </p>
+                  <Popover open={dateRangeOpen} onOpenChange={setDateRangeOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-between gap-2 text-xs font-normal h-10 rounded-full"
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                          {dateRange?.from ? (
+                            dateRange.to ? (
+                              <span>
+                                {format(dateRange.from, "dd/MM/yy")} –{" "}
+                                {format(dateRange.to, "dd/MM/yy")}
+                              </span>
+                            ) : (
+                              <span>{format(dateRange.from, "dd/MM/yy")}</span>
+                            )
+                          ) : (
+                            <span>Todos</span>
+                          )}
+                        </span>
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="range"
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        locale={ptBR}
+                        numberOfMonths={1}
+                        initialFocus
+                      />
+                      {dateRange?.from && (
+                        <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setDateRange(undefined)}
+                            className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                          >
+                            Limpar período
+                          </button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
               {/* Footer */}
-              {selectedTagIds.length > 0 && (
+              {activeMoreFiltersCount > 0 && (
                 <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-between">
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {selectedTagIds.length} selecionada(s)
+                    {activeMoreFiltersCount} filtro(s) ativo(s)
                   </span>
                   <button
-                    onClick={() => setSelectedTagIds([])}
+                    onClick={() => {
+                      setSelectedTagIds([]);
+                      setSelectedSectorIds([]);
+                      setSelectedAttendantId(null);
+                      setSelectedChannelIds([]);
+                      setDateRange(undefined);
+                    }}
                     className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
                   >
                     Limpar filtros
@@ -6192,7 +6694,7 @@ export default function WhatsAppConversationsPage() {
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">
                 Nenhuma conversa
               </p>
-              {search || selectedTagIds.length > 0 ? (
+              {search || activeMoreFiltersCount > 0 ? (
                 <p className="text-xs text-slate-400 dark:text-slate-500">
                   Tente outro nome, número ou filtro
                 </p>

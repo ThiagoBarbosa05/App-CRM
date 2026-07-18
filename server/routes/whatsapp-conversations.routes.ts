@@ -168,6 +168,23 @@ router.get("/conversations", async (req, res) => {
       : typeof req.query.tagIds === "string"
         ? [req.query.tagIds]
         : undefined;
+    const sectorIds = Array.isArray(req.query.sectorIds)
+      ? (req.query.sectorIds as string[])
+      : typeof req.query.sectorIds === "string"
+        ? [req.query.sectorIds]
+        : undefined;
+    const channelIds = (
+      Array.isArray(req.query.channelIds)
+        ? (req.query.channelIds as string[])
+        : typeof req.query.channelIds === "string"
+          ? [req.query.channelIds]
+          : []
+    )
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id));
+    const attendantId = typeof req.query.attendantId === "string" ? req.query.attendantId : undefined;
+    const dateFrom = typeof req.query.dateFrom === "string" ? req.query.dateFrom : undefined;
+    const dateTo = typeof req.query.dateTo === "string" ? req.query.dateTo : undefined;
     const cursor = decodeCursor(req.query.cursor);
     const limit = clampLimit(req.query.limit, { fallback: 20, max: 100 });
     // Com busca ativa, ignora o filtro de status — o usuário quer encontrar a
@@ -180,6 +197,13 @@ router.get("/conversations", async (req, res) => {
       tagIds,
       { cursor, limit },
       status,
+      {
+        sectorIds,
+        attendantId,
+        channelIds: channelIds.length > 0 ? channelIds : undefined,
+        dateFrom,
+        dateTo,
+      },
     );
     res.json(result);
   } catch (err) {
