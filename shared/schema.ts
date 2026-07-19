@@ -4737,6 +4737,10 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   isActive: boolean("is_active").notNull().default(true),
   evolutionInstanceName: text("evolution_instance_name").unique(),
   connectionStatus: text("connection_status").default("disconnected"),
+  // Setor para o qual conversas novas recebidas neste canal são roteadas
+  // automaticamente (findOrCreateConversation) — evita que um contato novo
+  // fique sem setor e, por isso, invisível a todo vendedor.
+  defaultSectorId: varchar("default_sector_id").references(() => whatsappSectors.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   deletedAt: timestamp("deleted_at"),
 });

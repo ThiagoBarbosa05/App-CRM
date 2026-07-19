@@ -68,6 +68,7 @@ import WhatsappSectorsManagement from "@/components/whatsapp-sectors-management"
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import type { WhatsappSector } from "@shared/schema";
 import {
   BOT_SHORTCUT_ICONS,
   DEFAULT_BOT_SHORTCUT_ICON,
@@ -107,6 +108,7 @@ type ChannelForm = {
   displayPhone: string;
   userId: string;
   isActive: boolean;
+  defaultSectorId: string;
 };
 
 const EMPTY_CHANNEL_FORM: ChannelForm = {
@@ -117,6 +119,7 @@ const EMPTY_CHANNEL_FORM: ChannelForm = {
   displayPhone: "",
   userId: "",
   isActive: true,
+  defaultSectorId: "",
 };
 
 // ── Helpers de status/qualidade Meta ──────────────────────────────────────────
@@ -225,6 +228,7 @@ function ChannelDialog({
           displayPhone: channel.displayPhone ?? "",
           userId: channel.userId ?? "",
           isActive: channel.isActive,
+          defaultSectorId: channel.defaultSectorId ?? "",
         });
       } else {
         setForm(EMPTY_CHANNEL_FORM);
@@ -233,6 +237,16 @@ function ChannelDialog({
   }, [open, channel]);
 
   const isEvolution = channel?.provider === "evolution";
+
+  const { data: sectors = [] } = useQuery<WhatsappSector[]>({
+    queryKey: ["/api/whatsapp/sectors"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/sectors");
+      if (!res.ok) throw new Error("Failed to fetch sectors");
+      return res.json();
+    },
+    enabled: open,
+  });
 
   const handleSubmit = () => {
     const accessToken = form.accessToken.trim();
@@ -244,6 +258,7 @@ function ChannelDialog({
       displayPhone: form.displayPhone.trim() || undefined,
       userId: form.userId || null,
       isActive: form.isActive,
+      defaultSectorId: form.defaultSectorId || null,
     };
     onSave(payload);
   };
@@ -365,6 +380,30 @@ function ChannelDialog({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Setor padrão{" "}
+                <span className="text-muted-foreground font-normal text-xs">(opcional)</span>
+              </Label>
+              <Select
+                value={form.defaultSectorId || "none"}
+                onValueChange={(v) => setForm((p) => ({ ...p, defaultSectorId: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Nenhum" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {sectors.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Conversas novas recebidas por este canal são roteadas automaticamente para este setor.
+              </p>
             </div>
 
             <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3 bg-muted/30">
@@ -989,12 +1028,23 @@ function EvolutionChannelDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   users: User[];
-  onSave: (data: { name: string; userId?: string; displayPhone?: string }) => void;
+  onSave: (data: { name: string; userId?: string; displayPhone?: string; defaultSectorId?: string | null }) => void;
   isPending: boolean;
 }) {
   const [name, setName] = useState("");
   const [userId, setUserId] = useState("none");
   const [displayPhone, setDisplayPhone] = useState("");
+  const [defaultSectorId, setDefaultSectorId] = useState("none");
+
+  const { data: sectors = [] } = useQuery<WhatsappSector[]>({
+    queryKey: ["/api/whatsapp/sectors"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/sectors");
+      if (!res.ok) throw new Error("Failed to fetch sectors");
+      return res.json();
+    },
+    enabled: open,
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1003,6 +1053,7 @@ function EvolutionChannelDialog({
       name: name.trim(),
       userId: userId === "none" ? undefined : userId,
       displayPhone: displayPhone.trim() || undefined,
+      defaultSectorId: defaultSectorId === "none" ? null : defaultSectorId,
     });
   };
 
@@ -1058,6 +1109,24 @@ function EvolutionChannelDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="evo-sector">Setor padrão</Label>
+            <Select value={defaultSectorId} onValueChange={setDefaultSectorId}>
+              <SelectTrigger id="evo-sector">
+                <SelectValue placeholder="Nenhum" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {sectors.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Conversas novas recebidas por este canal são roteadas automaticamente para este setor.
+            </p>
           </div>
 
           <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
@@ -1795,8 +1864,8 @@ export default function WhatsAppSettings() {
         open={evolutionDialogOpen}
         onOpenChange={setEvolutionDialogOpen}
         users={users}
-        onSave={({ name, userId, displayPhone }) =>
-          createEvolutionChannel.mutate({ name, userId, displayPhone }, {
+        onSave={({ name, userId, displayPhone, defaultSectorId }) =>
+          createEvolutionChannel.mutate({ name, userId, displayPhone, defaultSectorId }, {
             onSuccess: () => setEvolutionDialogOpen(false),
           })
         }

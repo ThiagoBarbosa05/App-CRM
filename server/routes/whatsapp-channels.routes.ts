@@ -137,10 +137,11 @@ router.get("/channels/:id/connection-events", async (req: Request, res: Response
 
 router.post("/channels/evolution", async (req: Request, res: Response) => {
   try {
-    const { name, userId, displayPhone } = req.body as {
+    const { name, userId, displayPhone, defaultSectorId } = req.body as {
       name: string;
       userId?: string;
       displayPhone?: string;
+      defaultSectorId?: string | null;
     };
     if (!name) { res.status(400).json({ error: "name é obrigatório" }); return; }
 
@@ -159,6 +160,7 @@ router.post("/channels/evolution", async (req: Request, res: Response) => {
       displayPhone,
       userId,
       isActive: true,
+      defaultSectorId,
     });
     res.status(201).json(channel);
   } catch (e) {
@@ -237,7 +239,7 @@ router.post("/channels/:id/verify-code", async (req: Request, res: Response) => 
 });
 
 router.post("/channels", async (req: Request, res: Response) => {
-  const { name, phoneNumberId, accessToken, wabaId, displayPhone, userId, isActive } = req.body as {
+  const { name, phoneNumberId, accessToken, wabaId, displayPhone, userId, isActive, defaultSectorId } = req.body as {
     name: string;
     phoneNumberId: string;
     accessToken?: string;
@@ -245,6 +247,7 @@ router.post("/channels", async (req: Request, res: Response) => {
     displayPhone?: string;
     userId?: string;
     isActive?: boolean;
+    defaultSectorId?: string | null;
   };
 
   if (!name || !phoneNumberId) {
@@ -269,6 +272,7 @@ router.post("/channels", async (req: Request, res: Response) => {
     displayPhone,
     userId,
     isActive,
+    defaultSectorId,
   });
   res.status(201).json(channel);
 });
@@ -277,7 +281,7 @@ router.patch("/channels/:id", async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.sendStatus(400); return; }
 
-  const { name, phoneNumberId, accessToken, wabaId, displayPhone, userId, isActive } = req.body as {
+  const { name, phoneNumberId, accessToken, wabaId, displayPhone, userId, isActive, defaultSectorId } = req.body as {
     name?: string;
     phoneNumberId?: string;
     accessToken?: string;
@@ -285,9 +289,10 @@ router.patch("/channels/:id", async (req: Request, res: Response) => {
     displayPhone?: string;
     userId?: string | null;
     isActive?: boolean;
+    defaultSectorId?: string | null;
   };
 
-  const updated = await updateChannel(id, { name, phoneNumberId, accessToken, wabaId, displayPhone, userId: userId ?? undefined, isActive });
+  const updated = await updateChannel(id, { name, phoneNumberId, accessToken, wabaId, displayPhone, userId: userId ?? undefined, isActive, defaultSectorId: defaultSectorId ?? undefined });
   if (!updated) { res.sendStatus(404); return; }
   res.json(updated);
 });

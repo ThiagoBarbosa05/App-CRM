@@ -6293,8 +6293,10 @@ export default function WhatsAppConversationsPage() {
                             {selectedSectorIds.length === 0
                               ? "Todos"
                               : selectedSectorIds.length === 1
-                                ? (availableSectors.find((s) => s.id === selectedSectorIds[0])
-                                    ?.name ?? "1 selecionado")
+                                ? (selectedSectorIds[0] === "__none__"
+                                    ? "Sem setor"
+                                    : (availableSectors.find((s) => s.id === selectedSectorIds[0])
+                                        ?.name ?? "1 selecionado"))
                                 : `${selectedSectorIds.length} selecionados`}
                           </span>
                           <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
@@ -6330,6 +6332,24 @@ export default function WhatsAppConversationsPage() {
                           </p>
                         </div>
                         <div className="max-h-64 overflow-y-auto py-1">
+                          {!sectorPickerSearch && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSelectedSectorIds((prev) =>
+                                  prev.includes("__none__")
+                                    ? prev.filter((id) => id !== "__none__")
+                                    : [...prev, "__none__"],
+                                )
+                              }
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <span className="flex-1 truncate">Sem setor</span>
+                              {selectedSectorIds.includes("__none__") && (
+                                <Check className="h-4 w-4 shrink-0 text-primary" />
+                              )}
+                            </button>
+                          )}
                           {availableSectors
                             .filter((s) =>
                               !sectorPickerSearch ||

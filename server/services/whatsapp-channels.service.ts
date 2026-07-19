@@ -68,6 +68,16 @@ export async function getChannelById(id: number) {
   return channel ? decryptChannelRow(channel) : null;
 }
 
+/** Setor padrão configurado no canal — usado para rotear conversas novas ao serem criadas. */
+export async function getDefaultSectorIdForChannel(channelId: number): Promise<string | null> {
+  const [row] = await db
+    .select({ defaultSectorId: whatsappChannels.defaultSectorId })
+    .from(whatsappChannels)
+    .where(eq(whatsappChannels.id, channelId))
+    .limit(1);
+  return row?.defaultSectorId ?? null;
+}
+
 export async function getChannelByPhoneNumberId(phoneNumberId: string) {
   const [channel] = await db
     .select()

@@ -144,6 +144,7 @@ export interface WhatsappChannel {
   isActive: boolean;
   evolutionInstanceName: string | null;
   connectionStatus: string | null;
+  defaultSectorId: string | null;
   createdAt: string;
 }
 
@@ -165,6 +166,7 @@ export interface CreateWhatsappChannelPayload {
   displayPhone?: string;
   userId?: string | null;
   isActive?: boolean;
+  defaultSectorId?: string | null;
 }
 
 export interface WhatsappStatus {
@@ -856,6 +858,7 @@ export interface CreateEvolutionChannelPayload {
   name: string;
   userId?: string | null;
   displayPhone?: string;
+  defaultSectorId?: string | null;
 }
 
 export function useCreateEvolutionChannel() {

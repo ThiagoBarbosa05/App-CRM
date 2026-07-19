@@ -22,7 +22,7 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } fr
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser } from "./whatsapp-channels.service";
+import { getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
@@ -95,9 +95,19 @@ export async function findOrCreateConversation(phone: string, channelId?: number
     )
     .limit(1);
 
+  // Herda o setor padrão do canal (se configurado) para que a conversa não
+  // nasça sem setor e, por isso, fique invisível a todo vendedor sob a regra
+  // de vendorScopeCondition (setor E canal).
+  const defaultSectorId = channelId ? await getDefaultSectorIdForChannel(channelId) : null;
+
   const [created] = await db
     .insert(whatsappConversations)
-    .values({ phone, clientId: matchedClient?.id ?? null, channelId: channelId ?? null })
+    .values({
+      phone,
+      clientId: matchedClient?.id ?? null,
+      channelId: channelId ?? null,
+      sectorId: defaultSectorId,
+    })
     .returning();
 
   // Flag efêmera (não é coluna do banco) usada por saveInboundMessage para
@@ -581,9 +591,26 @@ export async function listClientsForChat(
   }
 
   if (filters.sectorIds && filters.sectorIds.length > 0) {
-    conditions.push(
-      inArray(whatsappConversations.sectorId, filters.sectorIds) as unknown as ReturnType<typeof eq>,
-    );
+    // "__none__" filtra conversas sem setor (mesmo padrão do filtro de
+    // etiquetas) — útil para admin/gerente triarem manualmente contatos novos
+    // que ainda não caíram em nenhum setor.
+    const realSectorIds = filters.sectorIds.filter((id) => id !== "__none__");
+    const includeNoSector = filters.sectorIds.includes("__none__");
+
+    if (realSectorIds.length > 0 && includeNoSector) {
+      conditions.push(
+        or(
+          inArray(whatsappConversations.sectorId, realSectorIds),
+          isNull(whatsappConversations.sectorId),
+        ) as unknown as ReturnType<typeof eq>,
+      );
+    } else if (realSectorIds.length > 0) {
+      conditions.push(
+        inArray(whatsappConversations.sectorId, realSectorIds) as unknown as ReturnType<typeof eq>,
+      );
+    } else if (includeNoSector) {
+      conditions.push(isNull(whatsappConversations.sectorId) as unknown as ReturnType<typeof eq>);
+    }
   }
 
   if (filters.attendantId) {
