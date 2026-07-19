@@ -22,7 +22,7 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } fr
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
-import { getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId } from "./whatsapp-channels.service";
+import { getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
@@ -37,17 +37,29 @@ export function normalizePhone(phone: string) {
 
 // Escopo de visibilidade de um vendedor sobre conversas de WhatsApp: conversas
 // atribuídas a ele, conversas sem atribuição de clientes onde ele é o
-// responsável no CRM, e conversas dos setores de atendimento aos quais
-// pertence (setor = fila; transferir para um setor sem escolher atendente
-// deixa a conversa visível a todos os membros dele).
+// responsável no CRM, e conversas da fila de setor (setor = fila; transferir
+// para um setor sem escolher atendente deixa a conversa visível aos membros
+// dele). A visibilidade pela fila exige setor E canal permitidos — um vendedor
+// só vê a fila de um setor nos canais aos quais também tem acesso (ex: setor
+// "Suporte" recebe em vários números, mas o atendente só vê o que chegou pelos
+// números dele). Conversas já atribuídas diretamente continuam sempre visíveis,
+// independente de canal — isso é posse, não fila.
 async function vendorScopeCondition(userId: string) {
-  const sectorIds = await listSectorIdsForUser(userId);
+  const [sectorIds, channelIds] = await Promise.all([
+    listSectorIdsForUser(userId),
+    listChannelIdsForUser(userId),
+  ]);
   const clauses = [
     eq(whatsappConversations.assignedAgentId, userId),
     and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
   ];
-  if (sectorIds.length > 0) {
-    clauses.push(inArray(whatsappConversations.sectorId, sectorIds));
+  if (sectorIds.length > 0 && channelIds.length > 0) {
+    clauses.push(
+      and(
+        inArray(whatsappConversations.sectorId, sectorIds),
+        inArray(whatsappConversations.channelId, channelIds),
+      ),
+    );
   }
   return or(...clauses);
 }

@@ -14,6 +14,9 @@ import {
   users,
 } from "../../shared/schema";
 import { updateUserController } from "server/controllers/users/put-user.controller";
+import { getWhatsappAccessController } from "server/controllers/users/get-whatsapp-access.controller";
+import { putWhatsappAccessController } from "server/controllers/users/put-whatsapp-access.controller";
+import { requireAdminOrGerente } from "../middleware/validation";
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
 import { syncBlingVendorsController } from "server/controllers/users/post-sync-bling-vendors.controller";
@@ -276,6 +279,33 @@ usersRouter.put(
   validateParams(userParamsSchema),
   validateBody(insertUserSchema.partial()),
   updateUserController,
+);
+
+/**
+ * @route GET /api/users/:id/whatsapp-access
+ * @description Retorna o escopo de acesso de WhatsApp (setores e canais) de um usuário
+ * @access Private (requer autenticação)
+ * @returns {Object} { sectorIds: string[], channelIds: number[] }
+ * @notes channelIds retorna só concessões explícitas (whatsapp_channel_members), não canais que o usuário é dono
+ */
+usersRouter.get(
+  "/:id/whatsapp-access",
+  validateParams(userParamsSchema),
+  getWhatsappAccessController,
+);
+
+/**
+ * @route PUT /api/users/:id/whatsapp-access
+ * @description Substitui o escopo de acesso de WhatsApp (setores e canais) de um usuário
+ * @access Private (admin ou gerente)
+ * @bodyParams {string[]} sectorIds
+ * @bodyParams {number[]} channelIds
+ */
+usersRouter.put(
+  "/:id/whatsapp-access",
+  validateParams(userParamsSchema),
+  requireAdminOrGerente,
+  putWhatsappAccessController,
 );
 
 /**

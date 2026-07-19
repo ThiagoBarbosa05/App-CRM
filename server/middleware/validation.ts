@@ -169,6 +169,23 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   return next();
 }
 
+/** Checagem de perfil admin/gerente — reaproveitada pelas rotas de setores, canais e escopo de acesso do WhatsApp. */
+export function isAdminOrGerente(req: Request): boolean {
+  const user = req.user;
+  return user?.role === "admin" || user?.role === "gerente";
+}
+
+// Middleware de autorização por perfil (administradores e gerentes)
+export function requireAdminOrGerente(req: Request, res: Response, next: NextFunction) {
+  if (!isAdminOrGerente(req)) {
+    return res.status(403).json({
+      message: "Acesso restrito a administradores e gerentes",
+      code: "FORBIDDEN",
+    });
+  }
+  return next();
+}
+
 // Middleware de tratamento de erros global
 export function errorHandler(
   error: Error,

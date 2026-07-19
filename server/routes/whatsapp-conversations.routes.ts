@@ -39,6 +39,7 @@ import { downloadMediaToBuffer } from "../integrations/whatsapp";
 import { resolveChannelById } from "../services/whatsapp-channels.service";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
 import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
+import { isAdminOrGerente } from "../middleware/validation";
 
 const router = Router();
 
@@ -734,12 +735,11 @@ router.put("/conversations/:clientId/whatsapp-tags", async (req, res) => {
 });
 
 function requireAdminOrGerente(req: any, res: any): boolean {
-  const user = req.user;
-  if (!user?.userId) {
+  if (!req.user?.userId) {
     res.status(401).json({ message: "Não autenticado" });
     return false;
   }
-  if (user.role !== "admin" && user.role !== "gerente") {
+  if (!isAdminOrGerente(req)) {
     res.status(403).json({ message: "Acesso restrito a administradores e gerentes" });
     return false;
   }

@@ -8,13 +8,9 @@ import {
   listSectorMembers,
   setSectorMembers,
 } from "../services/whatsapp-sectors.service";
+import { isAdminOrGerente } from "../middleware/validation";
 
 const router = Router();
-
-function isAdminOrGerente(req: Request): boolean {
-  const user = (req as any).user;
-  return user?.role === "admin" || user?.role === "gerente";
-}
 
 router.get("/sectors", async (req: Request, res: Response) => {
   const includeInactive = req.query.includeInactive === "true" && isAdminOrGerente(req);

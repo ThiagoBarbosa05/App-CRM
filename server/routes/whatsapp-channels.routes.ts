@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import {
   listChannels,
   listActiveChannels,
-  listChannelsByUserId,
+  listAccessibleChannelsForUser,
   listAttendantsWithChannel,
   getChannelById,
   createChannel,
@@ -24,6 +24,7 @@ import {
 } from "../integrations/evolution";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { listChannelConnectionEvents } from "../services/baileys/connection-events.service";
+import { isAdminOrGerente } from "../middleware/validation";
 
 const router = Router();
 
@@ -39,7 +40,7 @@ router.get("/channels/mine", async (req: Request, res: Response) => {
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
 
     if (user.role === "vendedor") {
-      const channels = await listChannelsByUserId(user.userId);
+      const channels = await listAccessibleChannelsForUser(user.userId);
       return res.json(channels);
     }
     res.json(await listActiveChannels());
@@ -50,8 +51,7 @@ router.get("/channels/mine", async (req: Request, res: Response) => {
 });
 
 router.get("/attendants", async (req: Request, res: Response) => {
-  const user = (req as any).user;
-  if (user?.role !== "admin" && user?.role !== "gerente") {
+  if (!isAdminOrGerente(req)) {
     res.status(403).json({ message: "Acesso restrito a administradores e gerentes" });
     return;
   }

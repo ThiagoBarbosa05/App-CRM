@@ -4760,6 +4760,28 @@ export const whatsappChannelConnectionEvents = pgTable("whatsapp_channel_connect
 export type WhatsappChannelConnectionEvent = typeof whatsappChannelConnectionEvents.$inferSelect;
 export type InsertWhatsappChannelConnectionEvent = typeof whatsappChannelConnectionEvents.$inferInsert;
 
+// Acesso concedido a um canal sem ser o dono (whatsapp_channels.user_id) — permite
+// que um canal compartilhado (ex: número oficial da loja) seja visível para vários
+// atendentes, além do dono. Usado junto com whatsappSectorMembers para escopar a
+// visibilidade de conversas de um vendedor (setor E canal).
+export const whatsappChannelMembers = pgTable(
+  "whatsapp_channel_members",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    channelId: integer("channel_id")
+      .notNull()
+      .references(() => whatsappChannels.id, { onDelete: "cascade" }),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({ channelUserUnique: unique().on(t.channelId, t.userId) }),
+);
+
+export type WhatsappChannelMember = typeof whatsappChannelMembers.$inferSelect;
+export type InsertWhatsappChannelMember = typeof whatsappChannelMembers.$inferInsert;
+
 // Setores de atendimento (agrupam atendentes/canais do WhatsApp) — distinto de `sectors`,
 // que classifica empresas. Usado para organizar a transferência de conversas entre atendentes.
 export const whatsappSectors = pgTable("whatsapp_sectors", {

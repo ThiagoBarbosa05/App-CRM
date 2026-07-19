@@ -134,3 +134,16 @@ export async function listSectorIdsForUser(userId: string): Promise<string[]> {
     .where(eq(whatsappSectorMembers.userId, userId));
   return rows.map((r) => r.sectorId);
 }
+
+/** Substitui a lista de setores de um usuário pela lista informada — simétrico a setSectorMembers, do lado do usuário. */
+export async function setSectorsForUser(userId: string, sectorIds: string[]) {
+  await db.transaction(async (tx) => {
+    await tx.delete(whatsappSectorMembers).where(eq(whatsappSectorMembers.userId, userId));
+    if (sectorIds.length > 0) {
+      await tx
+        .insert(whatsappSectorMembers)
+        .values(sectorIds.map((sectorId) => ({ sectorId, userId })))
+        .onConflictDoNothing();
+    }
+  });
+}

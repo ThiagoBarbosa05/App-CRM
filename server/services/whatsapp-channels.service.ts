@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { whatsappChannels, whatsappConversations, users } from "../../shared/schema";
-import { and, eq, isNull } from "drizzle-orm";
+import { whatsappChannels, whatsappChannelMembers, whatsappConversations, users } from "../../shared/schema";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
 import { decryptToken, encryptToken } from "../lib/token-crypto";
@@ -154,6 +154,23 @@ export async function listActiveChannels(): Promise<{ id: number; name: string; 
 }
 
 /**
+ * Canais ativos que um usuário pode acessar (dono OU membro via
+ * whatsapp_channel_members) — usado por GET /channels/mine para um vendedor,
+ * que hoje só via o canal do qual era dono.
+ */
+export async function listAccessibleChannelsForUser(
+  userId: string,
+): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string }[]> {
+  const ids = await listChannelIdsForUser(userId);
+  if (ids.length === 0) return [];
+  return db
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider })
+    .from(whatsappChannels)
+    .where(and(inArray(whatsappChannels.id, ids), eq(whatsappChannels.isActive, true)))
+    .orderBy(whatsappChannels.createdAt);
+}
+
+/**
  * Conjunto com os números (somente dígitos, com DDI) de todos os canais da
  * empresa. Usado para ignorar mensagens recebidas vindas de um número próprio
  * (ex.: o bot dispara pelo número Cloud API e a mensagem é espelhada de volta por
@@ -283,4 +300,57 @@ export async function listAttendantsWithChannel(): Promise<
       and(eq(whatsappChannels.userId, users.id), eq(whatsappChannels.isActive, true)),
     )
     .orderBy(users.name);
+}
+
+/**
+ * Ids de todos os canais que um usuário pode acessar: os que ele é dono
+ * (whatsapp_channels.user_id — um usuário pode ser dono de vários) somados aos
+ * que recebeu acesso explícito via whatsapp_channel_members (canal
+ * compartilhado, ex: número oficial da loja). Usado para escopar a
+ * visibilidade de conversas de um vendedor (junto com listSectorIdsForUser).
+ */
+export async function listChannelIdsForUser(userId: string): Promise<number[]> {
+  const [ownedRows, memberRows] = await Promise.all([
+    db
+      .select({ id: whatsappChannels.id })
+      .from(whatsappChannels)
+      .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true))),
+    db
+      .select({ channelId: whatsappChannelMembers.channelId })
+      .from(whatsappChannelMembers)
+      .where(eq(whatsappChannelMembers.userId, userId)),
+  ]);
+  const ids = new Set<number>(ownedRows.map((r) => r.id));
+  for (const r of memberRows) ids.add(r.channelId);
+  return Array.from(ids);
+}
+
+/** Concessões explícitas (whatsapp_channel_members) de um canal — não inclui o dono. */
+export async function listChannelMembers(channelId: number): Promise<{ userId: string }[]> {
+  return db
+    .select({ userId: whatsappChannelMembers.userId })
+    .from(whatsappChannelMembers)
+    .where(eq(whatsappChannelMembers.channelId, channelId));
+}
+
+/** Substitui a lista de canais com acesso concedido (não-dono) a um usuário pela lista informada. */
+export async function setChannelsForUser(userId: string, channelIds: number[]) {
+  await db.transaction(async (tx) => {
+    await tx.delete(whatsappChannelMembers).where(eq(whatsappChannelMembers.userId, userId));
+    if (channelIds.length > 0) {
+      await tx
+        .insert(whatsappChannelMembers)
+        .values(channelIds.map((channelId) => ({ channelId, userId })))
+        .onConflictDoNothing();
+    }
+  });
+}
+
+/** Ids de canais com acesso concedido (não-dono) a um usuário — o que a UI de escopo mostra/edita. */
+export async function listGrantedChannelIdsForUser(userId: string): Promise<number[]> {
+  const rows = await db
+    .select({ channelId: whatsappChannelMembers.channelId })
+    .from(whatsappChannelMembers)
+    .where(eq(whatsappChannelMembers.userId, userId));
+  return rows.map((r) => r.channelId);
 }

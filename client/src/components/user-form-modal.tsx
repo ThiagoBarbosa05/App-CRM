@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import {
   Dialog,
@@ -28,9 +28,135 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { insertUserSchema, type User } from "@shared/schema";
+import { insertUserSchema, type User, type WhatsappSector } from "@shared/schema";
+
+type WhatsappAccessChannel = {
+  id: number;
+  name: string;
+  displayPhone: string | null;
+  provider: string;
+};
+
+type WhatsappAccess = { sectorIds: string[]; channelIds: number[] };
+
+/**
+ * Multi-select de setores/canais de WhatsApp para o "Escopo de acesso" do
+ * usuário — só faz sentido para role "vendedor", cuja visibilidade de
+ * conversas é escopada por whatsapp_sector_members + whatsapp_channel_members
+ * (ver vendorScopeCondition em server/services/whatsapp-conversations.service.ts).
+ */
+function WhatsappAccessScopeFields({
+  selectedSectorIds,
+  selectedChannelIds,
+  onChangeSectorIds,
+  onChangeChannelIds,
+}: {
+  selectedSectorIds: string[];
+  selectedChannelIds: number[];
+  onChangeSectorIds: (ids: string[]) => void;
+  onChangeChannelIds: (ids: number[]) => void;
+}) {
+  const { data: sectors = [], isLoading: sectorsLoading } = useQuery<WhatsappSector[]>({
+    queryKey: ["/api/whatsapp/sectors"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/sectors");
+      if (!res.ok) throw new Error("Failed to fetch sectors");
+      return res.json();
+    },
+  });
+
+  const { data: channels = [], isLoading: channelsLoading } = useQuery<WhatsappAccessChannel[]>({
+    queryKey: ["/api/whatsapp/channels"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/channels");
+      if (!res.ok) throw new Error("Failed to fetch channels");
+      return res.json();
+    },
+  });
+
+  function toggle(list: string[], id: string, onChange: (ids: string[]) => void) {
+    onChange(list.includes(id) ? list.filter((v) => v !== id) : [...list, id]);
+  }
+
+  function toggleNumber(list: number[], id: number, onChange: (ids: number[]) => void) {
+    onChange(list.includes(id) ? list.filter((v) => v !== id) : [...list, id]);
+  }
+
+  return (
+    <div className="space-y-4 rounded-lg border dark:border-slate-700 p-4">
+      <div>
+        <h4 className="text-sm font-medium">Escopo de acesso</h4>
+        <p className="text-xs text-muted-foreground dark:text-slate-400">
+          O atendente só verá as conversas dos setores e canais selecionados abaixo.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Acesso aos setores</Label>
+        {sectorsLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando setores...
+          </div>
+        ) : sectors.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum setor cadastrado.</p>
+        ) : (
+          <div className="max-h-36 overflow-y-auto space-y-1 rounded-md border dark:border-slate-700 p-2">
+            {sectors.map((sector) => (
+              <label
+                key={sector.id}
+                className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <Checkbox
+                  checked={selectedSectorIds.includes(sector.id)}
+                  onCheckedChange={() => toggle(selectedSectorIds, sector.id, onChangeSectorIds)}
+                />
+                <span
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: sector.color }}
+                />
+                <span className="text-sm truncate">{sector.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Acesso aos canais</Label>
+        {channelsLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando canais...
+          </div>
+        ) : channels.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum canal cadastrado.</p>
+        ) : (
+          <div className="max-h-36 overflow-y-auto space-y-1 rounded-md border dark:border-slate-700 p-2">
+            {channels.map((channel) => (
+              <label
+                key={channel.id}
+                className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <Checkbox
+                  checked={selectedChannelIds.includes(channel.id)}
+                  onCheckedChange={() => toggleNumber(selectedChannelIds, channel.id, onChangeChannelIds)}
+                />
+                <span className="text-sm truncate">
+                  {channel.name}
+                  {channel.displayPhone ? ` (${channel.displayPhone})` : ""}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface UserFormModalProps {
   open: boolean;
@@ -68,6 +194,8 @@ export default function UserFormModal({
 }: UserFormModalProps) {
   const { toast } = useToast();
   const isEditing = !!user;
+  const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<number[]>([]);
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
@@ -103,6 +231,39 @@ export default function UserFormModal({
     }
   }, [user, form]);
 
+  const watchedRole = form.watch("role");
+  const showAccessScope = isEditing && watchedRole === "vendedor";
+
+  const { data: whatsappAccess } = useQuery<WhatsappAccess>({
+    queryKey: ["/api/users", user?.id, "whatsapp-access"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${user!.id}/whatsapp-access`);
+      if (!res.ok) throw new Error("Failed to fetch whatsapp access");
+      return res.json();
+    },
+    enabled: open && showAccessScope,
+  });
+
+  useEffect(() => {
+    if (whatsappAccess) {
+      setSelectedSectorIds(whatsappAccess.sectorIds);
+      setSelectedChannelIds(whatsappAccess.channelIds);
+    } else if (!open) {
+      setSelectedSectorIds([]);
+      setSelectedChannelIds([]);
+    }
+  }, [whatsappAccess, open]);
+
+  const accessMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      await apiRequest("PUT", `/api/users/${user.id}/whatsapp-access`, {
+        sectorIds: selectedSectorIds,
+        channelIds: selectedChannelIds,
+      });
+    },
+  });
+
   const userMutation = useMutation({
     mutationFn: async (data: UserFormData) => {
       const { confirmPassword, ...userData } = data;
@@ -113,6 +274,9 @@ export default function UserFormModal({
           delete userData.password;
         }
         await apiRequest("PUT", `/api/users/${user.id}`, userData);
+        if (showAccessScope) {
+          await accessMutation.mutateAsync();
+        }
       } else {
         await apiRequest("POST", "/api/users", userData);
       }
@@ -223,6 +387,15 @@ export default function UserFormModal({
                 </FormItem>
               )}
             />
+
+            {showAccessScope && (
+              <WhatsappAccessScopeFields
+                selectedSectorIds={selectedSectorIds}
+                selectedChannelIds={selectedChannelIds}
+                onChangeSectorIds={setSelectedSectorIds}
+                onChangeChannelIds={setSelectedChannelIds}
+              />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
