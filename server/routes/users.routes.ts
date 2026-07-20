@@ -15,6 +15,7 @@ import {
 } from "../../shared/schema";
 import { updateUserController } from "server/controllers/users/put-user.controller";
 import { getWhatsappAccessController } from "server/controllers/users/get-whatsapp-access.controller";
+import { getWhatsappAccessSummaryController } from "server/controllers/users/get-whatsapp-access-summary.controller";
 import { putWhatsappAccessController } from "server/controllers/users/put-whatsapp-access.controller";
 import { requireAdminOrGerente } from "../middleware/validation";
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
@@ -280,6 +281,15 @@ usersRouter.put(
   validateBody(insertUserSchema.partial()),
   updateUserController,
 );
+
+/**
+ * @route GET /api/users/whatsapp-access-summary
+ * @description Retorna, para todos os usuários de uma vez, os setores e canais de WhatsApp vinculados a cada um (nomes já resolvidos)
+ * @access Private (requer autenticação)
+ * @returns {Object} { [userId]: { sectors: {id,name,color}[], channels: {id,name,displayPhone}[] } }
+ * @notes usado na listagem de atendentes para evitar N+1 requests
+ */
+usersRouter.get("/whatsapp-access-summary", getWhatsappAccessSummaryController);
 
 /**
  * @route GET /api/users/:id/whatsapp-access

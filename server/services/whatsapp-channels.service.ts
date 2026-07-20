@@ -365,3 +365,31 @@ export async function listGrantedChannelIdsForUser(userId: string): Promise<numb
     .where(eq(whatsappChannelMembers.userId, userId));
   return rows.map((r) => r.channelId);
 }
+
+/**
+ * Canais com acesso concedido (whatsapp_channel_members) de todos os usuários
+ * de uma vez, agrupados por userId — usado na listagem de atendentes para
+ * exibir o escopo de acesso sem N+1 requests. Mesma fonte usada pela UI de
+ * "Escopo de acesso" (não inclui canal do qual o usuário é dono).
+ */
+export async function listGrantedChannelsForAllUsers(): Promise<
+  Record<string, { id: number; name: string; displayPhone: string | null }[]>
+> {
+  const rows = await db
+    .select({
+      userId: whatsappChannelMembers.userId,
+      id: whatsappChannels.id,
+      name: whatsappChannels.name,
+      displayPhone: whatsappChannels.displayPhone,
+    })
+    .from(whatsappChannelMembers)
+    .innerJoin(whatsappChannels, eq(whatsappChannelMembers.channelId, whatsappChannels.id))
+    .where(eq(whatsappChannels.isActive, true))
+    .orderBy(whatsappChannels.name);
+
+  const map: Record<string, { id: number; name: string; displayPhone: string | null }[]> = {};
+  for (const row of rows) {
+    (map[row.userId] ??= []).push({ id: row.id, name: row.name, displayPhone: row.displayPhone });
+  }
+  return map;
+}

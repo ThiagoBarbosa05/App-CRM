@@ -147,3 +147,29 @@ export async function setSectorsForUser(userId: string, sectorIds: string[]) {
     }
   });
 }
+
+/**
+ * Setores de todos os usuários de uma vez, agrupados por userId — usado na
+ * listagem de atendentes para exibir o escopo de acesso sem N+1 requests.
+ */
+export async function listSectorsForAllUsers(): Promise<
+  Record<string, { id: string; name: string; color: string }[]>
+> {
+  const rows = await db
+    .select({
+      userId: whatsappSectorMembers.userId,
+      id: whatsappSectors.id,
+      name: whatsappSectors.name,
+      color: whatsappSectors.color,
+    })
+    .from(whatsappSectorMembers)
+    .innerJoin(whatsappSectors, eq(whatsappSectorMembers.sectorId, whatsappSectors.id))
+    .where(eq(whatsappSectors.isActive, true))
+    .orderBy(whatsappSectors.name);
+
+  const map: Record<string, { id: string; name: string; color: string }[]> = {};
+  for (const row of rows) {
+    (map[row.userId] ??= []).push({ id: row.id, name: row.name, color: row.color });
+  }
+  return map;
+}

@@ -64,6 +64,34 @@ async function vendorScopeCondition(userId: string) {
   return or(...clauses);
 }
 
+/**
+ * Confere se um vendedor tem acesso (setor/canal vinculado, atribuição direta
+ * ou responsabilidade do cliente) a uma conversa específica. Roles diferentes
+ * de "vendedor" sempre têm acesso. Usar em toda ação que recebe um
+ * conversationId vindo do usuário (fechar, reabrir, marcar como lida,
+ * vincular cliente, disparar bot, servir mídia, etc.) para evitar IDOR.
+ */
+export async function isConversationAccessibleToUser(
+  conversationId: string,
+  userId: string,
+  userRole: string,
+): Promise<boolean> {
+  if (userRole !== "vendedor") return true;
+
+  const scope = await vendorScopeCondition(userId);
+  const whereConditions: ReturnType<typeof eq>[] = [eq(whatsappConversations.id, conversationId)];
+  if (scope) whereConditions.push(scope);
+
+  const [conv] = await db
+    .select({ id: whatsappConversations.id })
+    .from(whatsappConversations)
+    .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .where(and(...whereConditions))
+    .limit(1);
+
+  return !!conv;
+}
+
 export async function findOrCreateConversation(phone: string, channelId?: number | null) {
   const { digits, withoutCountry } = normalizePhone(phone);
 
@@ -1757,6 +1785,7 @@ export async function getMediaById(id: string) {
       size: whatsappMedia.size,
       createdAt: whatsappMedia.createdAt,
       channelId: whatsappMessages.channelId,
+      conversationId: whatsappMessages.conversationId,
     })
     .from(whatsappMedia)
     .leftJoin(whatsappMessages, eq(whatsappMedia.messageId, whatsappMessages.id))

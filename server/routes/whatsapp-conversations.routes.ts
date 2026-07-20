@@ -31,6 +31,7 @@ import {
   setContactWhatsappTags,
   closeConversation,
   reopenConversation,
+  isConversationAccessibleToUser,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
@@ -103,6 +104,11 @@ router.get("/media/:mediaId", async (req, res) => {
 
     const media = await getMediaById(req.params.mediaId);
     if (!media) return res.status(404).json({ message: "Mídia não encontrada" });
+
+    if (media.conversationId) {
+      const accessible = await isConversationAccessibleToUser(media.conversationId, user.userId, user.role);
+      if (!accessible) return res.status(403).json({ message: "Acesso negado a esta mídia" });
+    }
 
     if (media.storageKey) {
       try {
@@ -248,9 +254,15 @@ router.get("/notifications/stream", (req, res) => {
   req.on("close", cleanup);
 });
 
-router.get("/conversations/:clientId/stream", (req, res) => {
+router.get("/conversations/:clientId/stream", async (req, res) => {
   const user = (req as any).user;
   if (!user?.userId) return res.status(401).end();
+
+  const conversationId = await resolveConversationId(req.params.clientId);
+  if (conversationId) {
+    const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
+    if (!accessible) return res.status(403).end();
+  }
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -268,6 +280,9 @@ router.post("/conversations/:clientId/read", async (req, res) => {
 
     const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
+    if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
 
     await markConversationRead(user.userId, conversationId);
     res.json({ ok: true });
@@ -621,6 +636,9 @@ router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
     const conversationId = await resolveConversationId(req.params.conversationId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
+    const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
+    if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
+
     const phone = await getConversationPhone(conversationId);
     if (!phone) return res.status(404).json({ message: "Telefone da conversa não encontrado" });
 
@@ -677,6 +695,9 @@ router.post("/conversations/:conversationId/link-client", async (req, res) => {
     const conversationId = await resolveConversationId(req.params.conversationId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
+    const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
+    if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
+
     if (parsed.data.action === "link") {
       const updated = await linkClientToConversation(conversationId, parsed.data.clientId);
       if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
@@ -725,6 +746,12 @@ router.put("/conversations/:clientId/whatsapp-tags", async (req, res) => {
 
     const parsed = setWhatsappTagsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (conversationId) {
+      const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
+      if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
+    }
 
     await setContactWhatsappTags(req.params.clientId, parsed.data.tagIds);
     res.json({ ok: true });
@@ -831,6 +858,9 @@ router.post("/conversations/:conversationId/close", async (req, res) => {
     const conversationId = await resolveConversationId(req.params.conversationId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 
+    const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
+    if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
+
     const updated = await closeConversation(conversationId, user.userId);
     if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
 
@@ -854,6 +884,9 @@ router.post("/conversations/:conversationId/reopen", async (req, res) => {
 
     const conversationId = await resolveConversationId(req.params.conversationId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
+    if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
 
     const updated = await reopenConversation(conversationId);
     if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });

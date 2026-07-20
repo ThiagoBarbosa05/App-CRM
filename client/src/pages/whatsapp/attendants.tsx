@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Search, Loader2, Users, ShieldCheck } from "lucide-react";
+import { Search, Loader2, Users, ShieldCheck, Radio } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,6 +105,7 @@ function AttendantAccessDialog({
         description: `Escopo de acesso de ${user?.name} salvo com sucesso.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "whatsapp-access"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/whatsapp-access-summary"] });
       onOpenChange(false);
     },
     onError: (error: Error) => {
@@ -158,6 +159,15 @@ function AttendantAccessDialog({
   );
 }
 
+/** Escopo de acesso (setores/canais vinculados) de todos os atendentes, obtido em um único request. */
+type WhatsappAccessSummary = Record<
+  string,
+  {
+    sectors: { id: string; name: string; color: string }[];
+    channels: { id: number; name: string; displayPhone: string | null }[];
+  }
+>;
+
 export default function WhatsAppAttendantsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -170,6 +180,15 @@ export default function WhatsAppAttendantsPage() {
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  const { data: accessSummary = {} } = useQuery<WhatsappAccessSummary>({
+    queryKey: ["/api/users/whatsapp-access-summary"],
+    queryFn: async () => {
+      const res = await fetch("/api/users/whatsapp-access-summary");
+      if (!res.ok) throw new Error("Failed to fetch whatsapp access summary");
+      return res.json();
+    },
   });
 
   const filteredUsers = useMemo(() => {
@@ -238,7 +257,9 @@ export default function WhatsAppAttendantsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredUsers.map((u) => (
+            {filteredUsers.map((u) => {
+              const scope = accessSummary[u.id];
+              return (
               <div
                 key={u.id}
                 className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800"
@@ -247,7 +268,7 @@ export default function WhatsAppAttendantsPage() {
                   <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center shrink-0">
                     <span className="text-sm font-semibold text-primary">{getInitials(u.name)}</span>
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium truncate">{u.name}</p>
                       <Badge variant={getRoleBadgeVariant(u.role)} className="text-xs">
@@ -260,6 +281,46 @@ export default function WhatsAppAttendantsPage() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground truncate">{u.email}</p>
+
+                    {u.role === "vendedor" && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {scope && scope.sectors.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {scope.sectors.map((sector) => (
+                              <span
+                                key={sector.id}
+                                className="inline-flex items-center gap-1 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 px-2 py-0.5 text-xs text-slate-700 dark:text-slate-300"
+                              >
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: sector.color }}
+                                />
+                                {sector.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {scope && scope.channels.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {scope.channels.map((channel) => (
+                              <span
+                                key={channel.id}
+                                className="inline-flex items-center gap-1 rounded-full border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-xs text-blue-700 dark:text-blue-300"
+                              >
+                                <Radio className="h-2.5 w-2.5 shrink-0" />
+                                {channel.name}
+                                {channel.displayPhone ? ` (${channel.displayPhone})` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {(!scope || (scope.sectors.length === 0 && scope.channels.length === 0)) && (
+                          <span className="text-xs text-muted-foreground italic">
+                            Nenhum setor ou canal vinculado
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -275,7 +336,8 @@ export default function WhatsAppAttendantsPage() {
                   </Button>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
