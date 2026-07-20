@@ -443,7 +443,7 @@ export default function DashboardPage() {
 
         {/* Aba Eventos ────────────────────────────────────────────────────── */}
         <TabsContent value="eventos" className="m-0 outline-none space-y-4">
-          <EventsDashboard startDate={startDate} endDate={endDate} datePreset={datePreset} />
+          <EventsDashboard />
         </TabsContent>
 
         {/* Aba Cadastro Incompleto ───────────────────────────────────────── */}
