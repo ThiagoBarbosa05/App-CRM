@@ -72,11 +72,18 @@ getListenClient().catch((err) =>
 );
 
 // Per-conversation (WhatsApp clientId) subscribers
-const conversationClients = new Map<string, Set<Response>>();
+type ConversationSubscriber = { userId: string; role: string; res: Response };
+const conversationClients = new Map<string, Set<ConversationSubscriber>>();
 
-export function addConversationSseClient(clientId: string, res: Response): () => void {
+export function addConversationSseClient(
+  clientId: string,
+  userId: string,
+  role: string,
+  res: Response,
+): () => void {
+  const subscriber: ConversationSubscriber = { userId, role, res };
   if (!conversationClients.has(clientId)) conversationClients.set(clientId, new Set());
-  conversationClients.get(clientId)!.add(res);
+  conversationClients.get(clientId)!.add(subscriber);
   res.write(`:ok\n\n`);
   const ping = setInterval(() => {
     try {
@@ -89,7 +96,7 @@ export function addConversationSseClient(clientId: string, res: Response): () =>
     clearInterval(ping);
     const set = conversationClients.get(clientId);
     if (set) {
-      set.delete(res);
+      set.delete(subscriber);
       if (set.size === 0) conversationClients.delete(clientId);
     }
   };
@@ -99,13 +106,42 @@ export function publishConversationEvent(clientId: string, event: string, data: 
   const set = conversationClients.get(clientId);
   if (!set) return;
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const res of set) {
+  for (const sub of set) {
     try {
-      res.write(payload);
+      sub.res.write(payload);
     } catch {
-      set.delete(res);
+      set.delete(sub);
     }
   }
+}
+
+/**
+ * Reavalia o acesso de cada subscriber SSE conectado a uma conversa (chamado
+ * após transferências de canal/setor/atendente) e encerra à força as
+ * conexões que perderam o escopo — sem isso o cliente continuaria recebendo
+ * "new_message" de uma conversa que não é mais dele até fechar a aba.
+ * Recebe `checkAccess` como callback (em vez de importar
+ * isConversationAccessibleToUser direto) para evitar import circular com
+ * whatsapp-conversations.service.ts, que já importa deste módulo.
+ */
+export async function revokeStaleConversationAccess(
+  clientId: string,
+  checkAccess: (userId: string, role: string) => Promise<boolean>,
+): Promise<void> {
+  const set = conversationClients.get(clientId);
+  if (!set) return;
+  for (const sub of Array.from(set)) {
+    const stillAllowed = await checkAccess(sub.userId, sub.role);
+    if (stillAllowed) continue;
+    try {
+      sub.res.write(`event: access_revoked\ndata: {}\n\n`);
+      sub.res.end();
+    } catch {
+      // ignore
+    }
+    set.delete(sub);
+  }
+  if (set.size === 0) conversationClients.delete(clientId);
 }
 
 export function addSseClient(userId: string, res: Response): () => void {

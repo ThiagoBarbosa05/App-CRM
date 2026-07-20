@@ -3251,6 +3251,17 @@ function ConversationMessages({
         queryKey: ["/api/whatsapp/conversations-list"],
       });
     });
+    es.addEventListener("access_revoked", () => {
+      es.close();
+      toast({
+        title: "Esta conversa foi transferida e não está mais no seu escopo.",
+        variant: "destructive",
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations-list"],
+      });
+      onBack();
+    });
     return () => es.close();
   }, [conversationKey, queryClient]);
 

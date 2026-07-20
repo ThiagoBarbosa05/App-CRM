@@ -21,7 +21,7 @@ import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, se
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
-import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
+import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
 import { getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
@@ -376,6 +376,9 @@ export async function transferConversation(conversationId: string, targetChannel
   const { updated, channelName } = await applyChannelTransfer(conversationId, targetChannelId);
   if (updated) {
     await logTransferMessage(conversationId, `Conversa transferida para o canal ${channelName ?? "desconhecido"}.`, reason);
+    await revokeStaleConversationAccess(updated.clientId ?? conversationId, (userId, role) =>
+      isConversationAccessibleToUser(conversationId, userId, role),
+    );
   }
   return updated;
 }
@@ -392,6 +395,9 @@ export async function transferConversationToUser(conversationId: string, targetU
   const { updated } = await applyChannelTransfer(conversationId, targetChannelId);
   if (updated) {
     await logTransferMessage(conversationId, `Conversa transferida para ${targetUser?.name ?? "o atendente"}.`, reason);
+    await revokeStaleConversationAccess(updated.clientId ?? conversationId, (userId, role) =>
+      isConversationAccessibleToUser(conversationId, userId, role),
+    );
   }
   return updated;
 }
@@ -418,6 +424,9 @@ export async function transferConversationToSector(conversationId: string, secto
 
   if (updated) {
     await logTransferMessage(conversationId, `Conversa transferida para o setor ${sector?.name ?? "desconhecido"}.`, reason);
+    await revokeStaleConversationAccess(updated.clientId ?? conversationId, (userId, role) =>
+      isConversationAccessibleToUser(conversationId, userId, role),
+    );
   }
   return updated ?? null;
 }
@@ -726,16 +735,19 @@ export async function listClientsForChat(
 
   // "Data" filtra pela última mensagem (lastMsgSub.lastAt), o mesmo campo já
   // exibido/ordenado na lista — não pela criação da conversa. dateTo cobre o
-  // dia inteiro (< início do dia seguinte).
+  // dia inteiro (< início do dia seguinte). lastAt é UTC-naive e SP é UTC-3
+  // fixo (sem horário de verão desde 2019), então a borda do dia calendário
+  // em SP cai 3h depois da meia-noite UTC — mesmo padrão de SP_OFFSET_HOURS
+  // usado em restaurant-reports.service.ts.
   if (filters.dateFrom) {
     conditions.push(
-      gte(lastMsgSub.lastAt, sql`${filters.dateFrom}::date`) as unknown as ReturnType<typeof eq>,
+      gte(lastMsgSub.lastAt, sql`${filters.dateFrom}::date + interval '3 hours'`) as unknown as ReturnType<typeof eq>,
     );
   }
 
   if (filters.dateTo) {
     conditions.push(
-      lt(lastMsgSub.lastAt, sql`${filters.dateTo}::date + interval '1 day'`) as unknown as ReturnType<typeof eq>,
+      lt(lastMsgSub.lastAt, sql`${filters.dateTo}::date + interval '1 day' + interval '3 hours'`) as unknown as ReturnType<typeof eq>,
     );
   }
 
