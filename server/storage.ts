@@ -149,6 +149,8 @@ import {
 } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { format, subMonths } from "date-fns";
+import type { Cursor } from "./lib/cursor-pagination";
+import { encodeCursor } from "./lib/cursor-pagination";
 
 export interface ClientFilters {
   search?: string;
@@ -617,6 +619,13 @@ export interface IStorage {
 
   // Events methods
   getEvents(userId?: string, userRole?: string): Promise<Event[]>;
+  getEventsPaginated(params: {
+    userId?: string;
+    userRole?: string;
+    mode: "upcoming" | "past";
+    cursor: Cursor | null;
+    limit: number;
+  }): Promise<{ events: Event[]; nextCursor: string | null }>;
   getEventById(eventId: string): Promise<Event | null>;
   getEventBySlug(slug: string): Promise<Event | null>;
   createEvent(eventData: InsertEvent): Promise<Event>;
@@ -5895,6 +5904,166 @@ export class DatabaseStorage implements IStorage {
       return eventsWithAttachments;
     } catch (error) {
       console.error("Error fetching events:", error);
+      throw error;
+    }
+  }
+
+  async getEventsPaginated(params: {
+    userId?: string;
+    userRole?: string;
+    mode: "upcoming" | "past";
+    cursor: Cursor | null;
+    limit: number;
+  }): Promise<{ events: Event[]; nextCursor: string | null }> {
+    try {
+      const { userId, userRole, mode, cursor, limit } = params;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split("T")[0];
+
+      const baseQuery = this.db
+        .select({
+          id: events.id,
+          name: events.name,
+          description: events.description,
+          imageUrl: events.imageUrl,
+          eventDate: events.eventDate,
+          registrationDeadline: events.registrationDeadline,
+          location: events.location,
+          pricePerPerson: events.pricePerPerson,
+          maxCapacity: events.maxCapacity,
+          category: events.category,
+          status: events.status,
+          notes: events.notes,
+          wineRevenue: events.wineRevenue,
+          slug: events.slug,
+          landingPageHtmlKey: events.landingPageHtmlKey,
+          createdBy: events.createdBy,
+          createdAt: events.createdAt,
+          updatedAt: events.updatedAt,
+          creatorName: users.name,
+          participantCount: sql<number>`(
+            SELECT COALESCE(SUM(${eventParticipants.numberOfParticipants}), 0)::int
+            FROM ${eventParticipants}
+            WHERE ${eventParticipants.eventId} = ${events.id}
+            AND ${eventParticipants.status} != 'cancelado'
+          )`,
+          paidParticipants: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status IN ('pago', 'pagar_na_hora')
+          )`,
+          eventRevenue: sql<number>`(
+            SELECT COALESCE(SUM(
+              CASE
+                WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
+                ELSE ep.number_of_participants::numeric * "events"."price_per_person"::numeric
+              END
+            ), 0)
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status IN ('pago', 'pagar_na_hora')
+          )`,
+          pendingParticipants: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status = 'pendente'
+          )`,
+          ausenteParticipants: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status = 'pagar_na_hora'
+          )`,
+          confirmedParticipants: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status IN ('pago', 'convidado', 'pagar_na_hora')
+          )`,
+          presentCount: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.attended = true
+          )`,
+          convidadoCount: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.status = 'convidado'
+          )`,
+          absentCount: sql<number>`(
+            SELECT COALESCE(SUM(ep.number_of_participants), 0)::int
+            FROM event_participants ep
+            WHERE ep.event_id = "events"."id"
+            AND ep.attended = false
+          )`,
+        })
+        .from(events)
+        .leftJoin(users, eq(events.createdBy, users.id));
+
+      const conditions: ReturnType<typeof eq>[] = [];
+
+      if (userRole !== "admin" && userRole !== "administrador" && userId) {
+        conditions.push(eq(events.createdBy, userId));
+      }
+
+      if (mode === "upcoming") {
+        conditions.push(
+          sql`DATE(${events.eventDate}) >= DATE(${todayStr})` as unknown as ReturnType<typeof eq>,
+        );
+        if (cursor) {
+          conditions.push(
+            sql`(${events.eventDate}, ${events.id}) > (${cursor.at}::timestamp, ${cursor.id})` as unknown as ReturnType<typeof eq>,
+          );
+        }
+      } else {
+        conditions.push(
+          sql`DATE(${events.eventDate}) < DATE(${todayStr})` as unknown as ReturnType<typeof eq>,
+        );
+        if (cursor) {
+          conditions.push(
+            sql`(${events.eventDate}, ${events.id}) < (${cursor.at}::timestamp, ${cursor.id})` as unknown as ReturnType<typeof eq>,
+          );
+        }
+      }
+
+      const orderedQuery =
+        mode === "upcoming"
+          ? baseQuery
+              .where(and(...conditions))
+              .orderBy(asc(events.eventDate), asc(events.id))
+          : baseQuery
+              .where(and(...conditions))
+              .orderBy(desc(events.eventDate), desc(events.id));
+
+      const rows = await orderedQuery.limit(limit + 1);
+
+      const hasMore = rows.length > limit;
+      const pageRows = rows.slice(0, limit);
+      const boundary = pageRows[pageRows.length - 1];
+      const nextCursor =
+        hasMore && boundary
+          ? encodeCursor({
+              at: boundary.eventDate.toISOString(),
+              id: boundary.id,
+            })
+          : null;
+
+      const eventsWithAttachments = await Promise.all(
+        pageRows.map(async (event) => {
+          const attachments = await this.getEventAttachments(event.id);
+          return { ...event, attachments };
+        }),
+      );
+
+      return { events: eventsWithAttachments, nextCursor };
+    } catch (error) {
+      console.error("Error fetching paginated events:", error);
       throw error;
     }
   }
