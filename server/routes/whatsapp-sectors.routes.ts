@@ -60,7 +60,13 @@ router.delete("/sectors/:id", async (req: Request, res: Response) => {
   res.sendStatus(204);
 });
 
+// Expõe nome/e-mail/role dos membros de um setor — restrito a admin/gerente
+// para não vazar dados de colegas de outros setores a qualquer vendedor.
 router.get("/sectors/:id/members", async (req: Request, res: Response) => {
+  if (!isAdminOrGerente(req)) {
+    res.status(403).json({ message: "Acesso restrito a administradores e gerentes" });
+    return;
+  }
   const sector = await getSectorById(req.params.id);
   if (!sector) {
     res.sendStatus(404);

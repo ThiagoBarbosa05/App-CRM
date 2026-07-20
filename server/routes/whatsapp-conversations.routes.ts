@@ -32,6 +32,7 @@ import {
   closeConversation,
   reopenConversation,
   isConversationAccessibleToUser,
+  isClientAccessibleToUser,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
@@ -751,6 +752,13 @@ router.put("/conversations/:clientId/whatsapp-tags", async (req, res) => {
     if (conversationId) {
       const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
       if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
+    } else {
+      // Cliente ainda sem conversa de WhatsApp — não há o que checar via
+      // isConversationAccessibleToUser, então cai no fallback de posse do
+      // cliente (responsavelId), evitando que um vendedor tagueie clientes
+      // arbitrários que ainda não têm conversa.
+      const accessible = await isClientAccessibleToUser(req.params.clientId, user.userId, user.role);
+      if (!accessible) return res.status(403).json({ message: "Acesso negado a este cliente" });
     }
 
     await setContactWhatsappTags(req.params.clientId, parsed.data.tagIds);

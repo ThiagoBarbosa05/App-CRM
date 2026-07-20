@@ -24,7 +24,7 @@ import {
 } from "../integrations/evolution";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { listChannelConnectionEvents } from "../services/baileys/connection-events.service";
-import { isAdminOrGerente } from "../middleware/validation";
+import { isAdminOrGerente, requireAdminOrGerente } from "../middleware/validation";
 
 const router = Router();
 
@@ -68,7 +68,10 @@ router.get("/channels/from-waba", async (_req: Request, res: Response) => {
   }
 });
 
-router.get("/channels/:id", async (req: Request, res: Response) => {
+// Retorna a linha completa do canal, incluindo accessToken em texto plano
+// (decifrado por getChannelById) — restrito a admin/gerente para não vazar
+// credenciais do WhatsApp Cloud API para qualquer usuário autenticado.
+router.get("/channels/:id", requireAdminOrGerente, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.sendStatus(400); return; }
   const channel = await getChannelById(id);
@@ -76,7 +79,7 @@ router.get("/channels/:id", async (req: Request, res: Response) => {
   res.json(channel);
 });
 
-router.get("/channels/:id/status", async (req: Request, res: Response) => {
+router.get("/channels/:id/status", requireAdminOrGerente, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) { res.sendStatus(400); return; }
@@ -134,8 +137,13 @@ router.get("/channels/:id/connection-events", async (req: Request, res: Response
 });
 
 // ── Rotas exclusivas de canais Evolution ──────────────────────────────────────
+// Todas as rotas abaixo alteram/expõem configuração sensível de canais
+// (dono, setor padrão, credenciais, conexão do número) — restritas a
+// administradores e gerentes para evitar que um vendedor se auto-atribua a
+// posse de um canal (e, com isso, o escopo de setor/canal de outros
+// atendentes) via chamada direta à API.
 
-router.post("/channels/evolution", async (req: Request, res: Response) => {
+router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, res: Response) => {
   try {
     const { name, userId, displayPhone, defaultSectorId } = req.body as {
       name: string;
@@ -169,12 +177,25 @@ router.post("/channels/evolution", async (req: Request, res: Response) => {
   }
 });
 
+// Conectar/desconectar (QR Code) é uma ação de self-service: o próprio dono
+// do canal (ex.: vendedor reconectando "Meu WhatsApp") também pode acionar,
+// além de admin/gerente — por isso não usa requireAdminOrGerente aqui.
+function isChannelOwnerOrAdmin(req: Request, channel: { userId: string | null }): boolean {
+  const user = (req as any).user;
+  const isOwner = !!channel.userId && channel.userId === user?.userId;
+  return isOwner || isAdminOrGerente(req);
+}
+
 router.get("/channels/:id/evolution/connect", async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) { res.sendStatus(400); return; }
     const channel = await getChannelById(id);
     if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
+    if (!isChannelOwnerOrAdmin(req, channel)) {
+      res.status(403).json({ message: "Acesso restrito ao dono do canal ou administradores" });
+      return;
+    }
 
     const qrData = await connectInstance(channel.evolutionInstanceName);
     await updateConnectionStatus(id, "connecting");
@@ -191,6 +212,10 @@ router.post("/channels/:id/evolution/logout", async (req: Request, res: Response
     if (isNaN(id)) { res.sendStatus(400); return; }
     const channel = await getChannelById(id);
     if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
+    if (!isChannelOwnerOrAdmin(req, channel)) {
+      res.status(403).json({ message: "Acesso restrito ao dono do canal ou administradores" });
+      return;
+    }
 
     await logoutInstance(channel.evolutionInstanceName);
     await updateConnectionStatus(id, "disconnected");
@@ -201,7 +226,7 @@ router.post("/channels/:id/evolution/logout", async (req: Request, res: Response
   }
 });
 
-router.post("/channels/:id/request-code", async (req: Request, res: Response) => {
+router.post("/channels/:id/request-code", requireAdminOrGerente, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) { res.sendStatus(400); return; }
@@ -219,7 +244,7 @@ router.post("/channels/:id/request-code", async (req: Request, res: Response) =>
   }
 });
 
-router.post("/channels/:id/verify-code", async (req: Request, res: Response) => {
+router.post("/channels/:id/verify-code", requireAdminOrGerente, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) { res.sendStatus(400); return; }
@@ -238,7 +263,7 @@ router.post("/channels/:id/verify-code", async (req: Request, res: Response) => 
   }
 });
 
-router.post("/channels", async (req: Request, res: Response) => {
+router.post("/channels", requireAdminOrGerente, async (req: Request, res: Response) => {
   const { name, phoneNumberId, accessToken, wabaId, displayPhone, userId, isActive, defaultSectorId } = req.body as {
     name: string;
     phoneNumberId: string;
@@ -277,7 +302,7 @@ router.post("/channels", async (req: Request, res: Response) => {
   res.status(201).json(channel);
 });
 
-router.patch("/channels/:id", async (req: Request, res: Response) => {
+router.patch("/channels/:id", requireAdminOrGerente, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.sendStatus(400); return; }
 
@@ -297,7 +322,7 @@ router.patch("/channels/:id", async (req: Request, res: Response) => {
   res.json(updated);
 });
 
-router.delete("/channels/:id", async (req: Request, res: Response) => {
+router.delete("/channels/:id", requireAdminOrGerente, async (req: Request, res: Response) => {
   const id = Number(req.params.id);
   if (isNaN(id)) { res.sendStatus(400); return; }
   const channel = await getChannelById(id);

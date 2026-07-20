@@ -92,6 +92,28 @@ export async function isConversationAccessibleToUser(
   return !!conv;
 }
 
+/**
+ * Confere se um vendedor tem qualquer relação com um cliente (é o
+ * responsável no CRM) — usado como fallback de autorização em ações sobre um
+ * clientId que ainda não tem conversa de WhatsApp (ex.: definir tags), caso
+ * em que `isConversationAccessibleToUser` não tem o que checar.
+ */
+export async function isClientAccessibleToUser(
+  clientId: string,
+  userId: string,
+  userRole: string,
+): Promise<boolean> {
+  if (userRole !== "vendedor") return true;
+
+  const [client] = await db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(and(eq(clients.id, clientId), eq(clients.responsavelId, userId)))
+    .limit(1);
+
+  return !!client;
+}
+
 export async function findOrCreateConversation(phone: string, channelId?: number | null) {
   const { digits, withoutCountry } = normalizePhone(phone);
 
@@ -195,19 +217,45 @@ export async function autoLinkConversationsByPhone(phone: string, clientId: stri
 // Resolve o canal de envio de uma conversa. Se channelId for fornecido (override
 // manual de admin), usa esse canal e o grava como último canal da conversa.
 // Caso contrário, usa o último canal por onde o cliente escreveu (conversa).
+// requestingUserId, quando informado e o usuário for "vendedor", valida que o
+// channelId pedido está entre os canais dele (dono ou concessão explícita) —
+// sem isso um vendedor poderia enviar mensagens usando as credenciais de um
+// canal alheio e sobrescrever channelId da conversa, tirando-a da fila de
+// outro setor/canal indevidamente.
 export async function resolveOutboundChannel(
   conversationId: string,
   channelId?: number,
+  requestingUserId?: string,
 ): Promise<ResolvedChannel | null> {
   if (channelId != null) {
-    const ch = await resolveChannelById(channelId).catch(() => null);
-    if (ch) {
-      await db
-        .update(whatsappConversations)
-        .set({ channelId })
-        .where(eq(whatsappConversations.id, conversationId));
-      await backfillSectorFromChannel(conversationId, channelId);
-      return ch;
+    let allowed = true;
+    if (requestingUserId) {
+      const [requester] = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, requestingUserId))
+        .limit(1);
+      if (requester?.role === "vendedor") {
+        const allowedChannelIds = await listChannelIdsForUser(requestingUserId);
+        allowed = allowedChannelIds.includes(channelId);
+        if (!allowed) {
+          console.warn(
+            `[resolveOutboundChannel] usuário ${requestingUserId} tentou usar canal ${channelId} fora do seu escopo — ignorando override.`,
+          );
+        }
+      }
+    }
+
+    if (allowed) {
+      const ch = await resolveChannelById(channelId).catch(() => null);
+      if (ch) {
+        await db
+          .update(whatsappConversations)
+          .set({ channelId })
+          .where(eq(whatsappConversations.id, conversationId));
+        await backfillSectorFromChannel(conversationId, channelId);
+        return ch;
+      }
     }
   }
   return resolveChannelForConversation(conversationId).catch(() => null);
@@ -982,7 +1030,7 @@ export async function sendConversationMessage(
 
   // Resolve o canal de envio: override explícito (admin) tem prioridade; senão
   // usa o último canal da conversa (por onde o cliente escreveu por último).
-  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId);
+  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId, userId);
 
   // Persiste a mensagem imediatamente como "failed" — atualiza para "sent" se a API responder ok
   const [savedMessage] = await db
@@ -1188,7 +1236,7 @@ export async function sendConversationTemplate(
     return null;
   }
 
-  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId);
+  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId, userId);
 
   // Templates oficiais só existem no canal cloud_api (API da Meta).
   if (resolvedChannel?.provider !== "cloud_api") {
@@ -1390,7 +1438,7 @@ export async function sendConversationMedia(
     replyToWaMessageId = ref?.waMessageId ?? null;
   }
 
-  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId);
+  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId, userId);
 
   console.log(`[sendConversationMedia] provider=${resolvedChannel?.provider ?? "null"}`);
 
@@ -1916,11 +1964,20 @@ export async function sendConversationReaction(
 
   // Canal explícito (override do admin/gerente via seletor) tem prioridade;
   // senão usa sempre o canal atual da conversa — igual ao texto/mídia/template,
-  // sem preferir o canal pessoal do atendente.
+  // sem preferir o canal pessoal do atendente. Se o remetente for vendedor,
+  // valida que o canal pedido está no escopo dele antes de usar suas
+  // credenciais — evita reagir "no nome" de um canal alheio.
   let channelOverride = null;
   if (channelId != null) {
-    const ch = await getChannelById(channelId).catch(() => null);
-    if (ch && ch.phoneNumberId && ch.accessToken) channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+    let allowed = true;
+    if (userRole === "vendedor") {
+      const allowedChannelIds = await listChannelIdsForUser(userId);
+      allowed = allowedChannelIds.includes(channelId);
+    }
+    if (allowed) {
+      const ch = await getChannelById(channelId).catch(() => null);
+      if (ch && ch.phoneNumberId && ch.accessToken) channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+    }
   } else {
     channelOverride = await getChannelForConversation(conversationId).catch(() => null);
   }

@@ -856,10 +856,12 @@ async function executeNode(
         }
         case "transfer_sector": {
           if (d.sectorId) {
-            await db
-              .update(whatsappConversations)
-              .set({ sectorId: d.sectorId, updatedAt: new Date() })
-              .where(eq(whatsappConversations.id, conversation.id));
+            // Usa transferConversationToSector (mesma função do node dedicado
+            // transfer_sector e da transferência manual) para garantir que
+            // assignedAgentId seja zerado — sem isso, o atendente anterior
+            // continuaria vendo a conversa por posse direta mesmo fora do
+            // setor/canal do novo destino.
+            await transferConversationToSector(conversation.id, d.sectorId);
           }
           break;
         }
@@ -1409,7 +1411,7 @@ async function resolveBotTriggerChannel(
   channelId?: number,
   triggeredByUserId?: string,
 ): Promise<ResolvedChannel | null> {
-  const resolved = await resolveOutboundChannel(conversationId, channelId);
+  const resolved = await resolveOutboundChannel(conversationId, channelId, triggeredByUserId);
   if (resolved) return resolved;
   if (!triggeredByUserId) return null;
 

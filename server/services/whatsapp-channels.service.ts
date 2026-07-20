@@ -124,18 +124,25 @@ export async function updateChannel(id: number, data: Partial<ChannelWriteInput>
  * Soft delete: mantém a linha (e o channelId em mensagens/conversas antigas,
  * preservando o histórico) e apenas marca deletedAt + isActive=false. Libera
  * phoneNumberId/evolutionInstanceName (colunas unique) para reimportação do
- * mesmo número em um novo canal.
+ * mesmo número em um novo canal. Também remove as concessões explícitas de
+ * whatsapp_channel_members — sem isso, membros que tinham acesso via
+ * concessão (não dono) continuariam "no escopo" desse canal para sempre,
+ * mesmo desativado, ao contrário do dono, que perde o acesso imediatamente
+ * (listChannelIdsForUser/listChannelsByUserId filtram isActive=true).
  */
 export async function deleteChannel(id: number) {
-  await db
-    .update(whatsappChannels)
-    .set({
-      deletedAt: new Date(),
-      isActive: false,
-      phoneNumberId: null,
-      evolutionInstanceName: null,
-    })
-    .where(eq(whatsappChannels.id, id));
+  await db.transaction(async (tx) => {
+    await tx.delete(whatsappChannelMembers).where(eq(whatsappChannelMembers.channelId, id));
+    await tx
+      .update(whatsappChannels)
+      .set({
+        deletedAt: new Date(),
+        isActive: false,
+        phoneNumberId: null,
+        evolutionInstanceName: null,
+      })
+      .where(eq(whatsappChannels.id, id));
+  });
 }
 
 export async function getChannelByUserId(userId: string): Promise<ChannelOverride | null> {
