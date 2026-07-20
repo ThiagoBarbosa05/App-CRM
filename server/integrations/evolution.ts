@@ -13,6 +13,7 @@ import {
   destroyInstance as smDestroyInstance,
   sendText as smSendText,
   sendMedia as smSendMedia,
+  getProfilePictureUrl as smGetProfilePictureUrl,
 } from "../services/baileys/session-manager";
 
 // Re-exporta os helpers puros de JID (mantém os imports existentes funcionando)
@@ -85,4 +86,10 @@ export async function sendMedia(
   opts: { url?: string; base64?: string; filename?: string; caption?: string; mimetype?: string; delay?: number },
 ): Promise<EvolutionMediaResult> {
   return smSendMedia(instanceName, to, mediaType, opts);
+}
+
+// ── Perfil do contato ────────────────────────────────────────────────────────
+
+export async function fetchProfilePictureUrl(instanceName: string, phone: string): Promise<string | null> {
+  return smGetProfilePictureUrl(instanceName, phone);
 }

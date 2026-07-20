@@ -4842,6 +4842,8 @@ export const whatsappConversations = pgTable("whatsapp_conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").references(() => clients.id),
   phone: text("phone").notNull(),
+  contactName: text("contact_name"),
+  contactPhotoUrl: text("contact_photo_url"),
   channelId: integer("channel_id").references(() => whatsappChannels.id),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
   sectorId: varchar("sector_id").references(() => whatsappSectors.id),

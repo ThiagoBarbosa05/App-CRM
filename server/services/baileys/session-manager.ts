@@ -676,6 +676,18 @@ export async function sendMedia(
   };
 }
 
+export async function getProfilePictureUrl(instanceName: string, to: string): Promise<string | null> {
+  const s = sessions.get(instanceName);
+  if (!s?.socket) return null;
+  const jid = normalizeToJid(to);
+  try {
+    return (await s.socket.profilePictureUrl(jid, "image")) ?? null;
+  } catch {
+    // Sem foto, privacidade restrita, ou erro de rede — tudo tratado como "sem foto".
+    return null;
+  }
+}
+
 // Constrói o objeto `quoted` mínimo para citar uma mensagem ao responder.
 // Best-effort: se não houver id, não cita.
 function buildQuoted(jid: string, quotedMsgId?: string): { quoted: WAMessage } | undefined {

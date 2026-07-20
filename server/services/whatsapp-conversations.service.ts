@@ -18,7 +18,7 @@ import {
 import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
-import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid } from "../integrations/evolution";
+import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
@@ -114,7 +114,7 @@ export async function isClientAccessibleToUser(
   return !!client;
 }
 
-export async function findOrCreateConversation(phone: string, channelId?: number | null) {
+export async function findOrCreateConversation(phone: string, channelId?: number | null, contactName?: string) {
   const { digits, withoutCountry } = normalizePhone(phone);
 
   const phoneCondition = or(
@@ -157,6 +157,7 @@ export async function findOrCreateConversation(phone: string, channelId?: number
       clientId: matchedClient?.id ?? null,
       channelId: channelId ?? null,
       sectorId: defaultSectorId,
+      contactName: matchedClient ? null : (contactName ?? null),
     })
     .returning();
 
@@ -783,6 +784,8 @@ export async function listClientsForChat(
       clientId: whatsappConversations.clientId,
       phone: whatsappConversations.phone,
       clientName: clients.name,
+      contactName: whatsappConversations.contactName,
+      contactPhotoUrl: whatsappConversations.contactPhotoUrl,
       lastMessageAt: lastMsgSub.lastAt,
       lastMessageContent: lastMsgSub.lastContent,
       lastMessageDirection: lastMsgSub.lastDirection,
@@ -904,6 +907,8 @@ export async function getConversation(
       id: whatsappConversations.id,
       clientId: whatsappConversations.clientId,
       phone: whatsappConversations.phone,
+      contactName: whatsappConversations.contactName,
+      contactPhotoUrl: whatsappConversations.contactPhotoUrl,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
@@ -1710,6 +1715,10 @@ export async function saveInboundMessage(data: {
   direction?: "inbound" | "outbound";
   /** @internal usado pelo Evolution webhook para indicar mensagem enviada pelo celular do vendedor */
   _fromMe?: boolean;
+  /** Nome de exibição do WhatsApp (Baileys pushName) — usado para enriquecer conversas sem cliente vinculado. */
+  pushName?: string;
+  /** Nome da instância Baileys — necessário para buscar a foto de perfil via socket ativo (canal QR Code). */
+  instanceName?: string;
   mediaData?: {
     whatsappMediaId?: string;
     /** Chave R2 já uploadada (Baileys gateway — pula persistInboundMedia) */
@@ -1731,7 +1740,7 @@ export async function saveInboundMessage(data: {
     return;
   }
 
-  const conv = await findOrCreateConversation(data.phone, data.channelId);
+  const conv = await findOrCreateConversation(data.phone, data.channelId, data.pushName);
 
   const sentAt = data.timestamp
     ? new Date(Number(data.timestamp) * 1000)
@@ -1832,6 +1841,31 @@ export async function saveInboundMessage(data: {
   const isBrandNew = (conv as { _wasCreated?: boolean })._wasCreated === true;
   if (direction === "inbound" && (reopened || isBrandNew)) {
     await logConversationStartedMessage(conv.id);
+  }
+
+  // Enriquece conversas de contatos ainda sem cliente vinculado com nome/foto
+  // do WhatsApp — só se aplica quando não há clientId (a UI usa clients.name
+  // como fonte de verdade quando há cliente casado).
+  if (!conv.clientId) {
+    const updates: Partial<typeof whatsappConversations.$inferInsert> = {};
+
+    if (data.pushName && data.pushName !== (conv as { contactName?: string | null }).contactName) {
+      updates.contactName = data.pushName;
+    }
+
+    // Foto só é buscada na criação da conversa — evita round-trip de rede ao
+    // socket Baileys a cada mensagem do mesmo contato desconhecido.
+    if (isBrandNew && data.instanceName) {
+      const photoUrl = await fetchProfilePictureUrl(data.instanceName, data.phone).catch(() => null);
+      if (photoUrl) updates.contactPhotoUrl = photoUrl;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await db
+        .update(whatsappConversations)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(whatsappConversations.id, conv.id));
+    }
   }
 
   console.log(

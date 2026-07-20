@@ -159,6 +159,8 @@ export interface ChatClient {
   clientId: string | null;
   phone: string;
   clientName: string | null;
+  contactName?: string | null;
+  contactPhotoUrl?: string | null;
   lastMessageAt?: string | null;
   lastMessageContent?: string | null;
   lastMessageDirection?: "inbound" | "outbound" | null;
@@ -968,6 +970,40 @@ export function getInitials(name: string | null, phone: string) {
     .toUpperCase();
 }
 
+export function ContactAvatar({
+  name,
+  phone,
+  photoUrl,
+  className,
+}: {
+  name: string | null | undefined;
+  phone: string;
+  photoUrl?: string | null;
+  className?: string;
+}) {
+  const [imgError, setImgError] = useState(false);
+  if (photoUrl && !imgError) {
+    return (
+      <img
+        src={photoUrl}
+        alt={name ?? phone}
+        className={cn("rounded-full object-cover", className)}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+  return (
+    <div
+      className={cn(
+        "rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-semibold text-white",
+        className,
+      )}
+    >
+      {getInitials(name ?? null, phone)}
+    </div>
+  );
+}
+
 // Os timestamps são armazenados em UTC. As funções format/isToday do date-fns
 // usam o fuso horário local do runtime, que nem sempre é o de São Paulo (em
 // alguns ambientes o navegador roda em UTC, exibindo +3h). Convertemos o
@@ -1274,7 +1310,7 @@ function ClientListItem({
   onTagsChange: (clientId: string, tagIds: string[]) => void;
 }) {
   const hasUnread = (client.unreadCount ?? 0) > 0;
-  const displayName = client.clientName ?? client.phone;
+  const displayName = client.clientName ?? client.contactName ?? client.phone;
   const [mostRecentTag, ...olderTags] = getOrderedClientTags(client);
 
   return (
@@ -1295,14 +1331,15 @@ function ClientListItem({
       >
         {/* Avatar — mt-0.5 alinha visualmente com o nome */}
         <div className="relative shrink-0 mt-0.5">
-          <div
+          <ContactAvatar
+            name={client.clientName ?? client.contactName}
+            phone={client.phone}
+            photoUrl={client.clientName ? null : client.contactPhotoUrl}
             className={cn(
-              "h-11 w-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-sm font-semibold text-white shadow-sm ring-2 transition-shadow",
+              "h-11 w-11 text-sm shadow-sm ring-2 transition-shadow",
               selected ? "ring-primary/40" : "ring-white dark:ring-slate-900",
             )}
-          >
-            {getInitials(client.clientName, client.phone)}
-          </div>
+          />
           {hasUnread && !selected && (
             <span className="absolute -top-1 -right-1 min-w-[19px] h-[19px] rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900 flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-sm">
               {(client.unreadCount ?? 0) > 99 ? "99+" : client.unreadCount}
@@ -3816,7 +3853,7 @@ function ConversationMessages({
     }
   }
 
-  const displayName = client.clientName ?? client.phone;
+  const displayName = client.clientName ?? client.contactName ?? client.phone;
 
   const showChannelSelect = isAdminOrGerente && channels.length > 0;
 
@@ -3939,9 +3976,12 @@ function ConversationMessages({
             <ArrowLeft className="h-4 w-4" />
           </Button>
 
-          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0">
-            {getInitials(client.clientName, client.phone)}
-          </div>
+          <ContactAvatar
+            name={client.clientName ?? client.contactName}
+            phone={client.phone}
+            photoUrl={client.clientName ? null : client.contactPhotoUrl}
+            className="h-9 w-9 text-xs font-bold shadow-sm shrink-0"
+          />
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 min-w-0">
@@ -3958,7 +3998,7 @@ function ConversationMessages({
                 </span>
               )}
             </div>
-            {client.clientName && (
+            {(client.clientName || client.contactName) && (
               <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
                 <Phone className="h-3 w-3 shrink-0" />
                 <span className="truncate">{client.phone}</span>
@@ -4454,7 +4494,7 @@ function ConversationMessages({
                               >
                                 {msg.replyToDirection === "outbound"
                                   ? "Você"
-                                  : (client.clientName ?? client.phone)}
+                                  : (client.clientName ?? client.contactName ?? client.phone)}
                               </p>
                               <p
                                 className={cn(
@@ -4724,7 +4764,7 @@ function ConversationMessages({
               <p className="text-[11px] font-semibold text-primary mb-0.5">
                 {replyingTo.direction === "outbound"
                   ? "Você"
-                  : (client.clientName ?? client.phone)}
+                  : (client.clientName ?? client.contactName ?? client.phone)}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                 {replySnippet(replyingTo.content, replyingTo.type)}

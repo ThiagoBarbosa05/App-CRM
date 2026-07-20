@@ -11,7 +11,7 @@ import { Mail, MapPin, Calendar, Phone, ExternalLink, Tag, Cake, BellOff } from 
 import { formatPhone, formatCpf, formatDate } from "@/lib/utils";
 import type { Client } from "@shared/schema";
 import {
-  getInitials,
+  ContactAvatar,
   WhatsappTagBadge,
   type ChatClient,
 } from "@/pages/whatsapp/conversations";
@@ -27,7 +27,7 @@ export function ContactDetailsSheet({
   open,
   onOpenChange,
 }: ContactDetailsSheetProps) {
-  const displayName = client.clientName ?? client.phone;
+  const displayName = client.clientName ?? client.contactName ?? client.phone;
   const hasTags =
     (client.tags && client.tags.length > 0) ||
     (client.whatsappTags && client.whatsappTags.length > 0);
@@ -52,9 +52,12 @@ export function ContactDetailsSheet({
         <div className="mt-6 flex flex-col gap-6">
           {/* Cabeçalho do contato */}
           <div className="flex items-center gap-3">
-            <div className="h-14 w-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-lg font-bold text-white shadow-sm shrink-0">
-              {getInitials(client.clientName, client.phone)}
-            </div>
+            <ContactAvatar
+              name={client.clientName ?? client.contactName}
+              phone={client.phone}
+              photoUrl={client.clientName ? null : client.contactPhotoUrl}
+              className="h-14 w-14 text-lg font-bold shadow-sm shrink-0"
+            />
             <div className="min-w-0">
               <p className="text-base font-bold text-slate-900 dark:text-slate-100 truncate">
                 {displayName}

@@ -39,6 +39,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   const waMessageId = msg.key.id;
   const fromMe = msg.key.fromMe === true;
   const phone = jidToPhone(jid);
+  const pushName = msg.pushName?.trim() || undefined;
 
   const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
   if (!channel) {
@@ -86,6 +87,8 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     channelId: channel.id,
     rawPayload: msg as Record<string, unknown>,
     _fromMe: fromMe,
+    pushName,
+    instanceName,
     mediaData: msg._baileysMedia
       ? {
           storageKey: msg._baileysMedia.storageKey,
