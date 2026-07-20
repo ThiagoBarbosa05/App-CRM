@@ -6046,7 +6046,7 @@ export default function WhatsAppConversationsPage() {
                   )}
                 />
                 <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate flex-1 min-w-0">
-                  {ch.displayPhone || ch.name}
+                  {ch.name || ch.displayPhone}
                 </span>
                 {isConnected ? (
                   <span className="text-[11px] text-green-600 dark:text-green-400 shrink-0 flex items-center gap-1">

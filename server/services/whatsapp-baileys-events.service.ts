@@ -1,4 +1,4 @@
-import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, getOwnChannelPhones } from "./whatsapp-channels.service";
+import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, getOwnChannelPhones, listQrReaderUserIdsForChannel } from "./whatsapp-channels.service";
 import { saveInboundMessage } from "./whatsapp-conversations.service";
 import { publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
@@ -167,6 +167,19 @@ export async function handleMessagesUpdate(data: unknown) {
 
 // ── connection.update ──────────────────────────────────────────────────────────
 
+// Quem deve receber os eventos SSE de QR/status de um canal: o dono e qualquer
+// usuário com permissão explícita de leitura de QR (admins/gerentes podem
+// conectar canais que não são seus — ver canUserReadChannelQr). Sem isso, o
+// evento "conectado" só chega ao dono, e quem está de fato com o diálogo de QR
+// aberto (um admin, por ex.) nunca recebe a atualização — a tela só resolve
+// depois de um reload manual, que refaz o fetch do canal.
+async function getSseTargetUserIds(channel: { id: number; userId: string | null }): Promise<string[]> {
+  const readerIds = await listQrReaderUserIdsForChannel(channel.id).catch(() => []);
+  const ids = new Set(readerIds);
+  if (channel.userId) ids.add(channel.userId);
+  return Array.from(ids);
+}
+
 export async function handleConnectionUpdate(instanceName: string, data: unknown) {
   const update = data as {
     state?: string;
@@ -207,12 +220,13 @@ export async function handleConnectionUpdate(instanceName: string, data: unknown
     ).catch((err) => console.error("[Baileys] Falha ao registrar evento de conexão:", err));
   }
 
-  // Notifica o vendedor dono do canal via SSE
-  if (channel.userId) {
+  // Notifica o dono do canal e qualquer usuário com permissão de leitura de QR
+  const targetUserIds = await getSseTargetUserIds(channel);
+  for (const userId of targetUserIds) {
     publishSseEvent(
       "evolution_connection_update",
       { instanceName, connectionStatus, reasonLabel: update.reasonLabel },
-      channel.userId,
+      userId,
     );
   }
 }
@@ -229,8 +243,9 @@ export async function handleQrcodeUpdated(instanceName: string, data: unknown) {
 
   await updateConnectionStatus(channel.id, "qr");
 
-  // Empurra QR para a tela do vendedor via SSE
-  if (channel.userId) {
-    publishSseEvent("evolution_qr_updated", { instanceName, base64, code }, channel.userId);
+  // Empurra QR para a tela de quem pode conectar este canal via SSE
+  const targetUserIds = await getSseTargetUserIds(channel);
+  for (const userId of targetUserIds) {
+    publishSseEvent("evolution_qr_updated", { instanceName, base64, code }, userId);
   }
 }

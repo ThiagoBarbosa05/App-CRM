@@ -428,6 +428,20 @@ export async function setQrReaderChannelsForUser(userId: string, channelIds: num
   });
 }
 
+/**
+ * IDs de todos os usuários com permissão de leitura de QR para um canal (não
+ * inclui o dono — quem chama deve incluir `channel.userId` separadamente).
+ * Usada para notificar admins/gerentes via SSE sobre QR e status de conexão,
+ * já que eles podem conectar canais que não são seus (ver canUserReadChannelQr).
+ */
+export async function listQrReaderUserIdsForChannel(channelId: number): Promise<string[]> {
+  const rows = await db
+    .select({ userId: whatsappChannelQrReaders.userId })
+    .from(whatsappChannelQrReaders)
+    .where(eq(whatsappChannelQrReaders.channelId, channelId));
+  return rows.map((r) => r.userId);
+}
+
 /** True se o usuário é dono do canal ou tem permissão explícita de leitura de QR. */
 export async function canUserReadChannelQr(userId: string, channelId: number): Promise<boolean> {
   const [ownedRow] = await db

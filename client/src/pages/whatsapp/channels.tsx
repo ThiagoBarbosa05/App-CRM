@@ -791,7 +791,7 @@ function EvolutionConnectDialog({
             {channel?.name}
           </DialogTitle>
           <DialogDescription>
-            Conexão via QR Code (Evolution API / Baileys).
+            Conexão via QR Code.
           </DialogDescription>
         </DialogHeader>
         {channel && <EvolutionChannelConnect channel={channel} />}
@@ -1075,7 +1075,7 @@ function EvolutionChannelDialog({
             Novo canal via QR Code
           </DialogTitle>
           <DialogDescription>
-            Cria um canal conectado ao número do vendedor por QR Code (Evolution API / Baileys).
+            Cria um canal conectado ao número do vendedor por QR Code.
             O vendedor mantém o WhatsApp funcionando no celular.
           </DialogDescription>
         </DialogHeader>
@@ -1344,7 +1344,7 @@ export default function WhatsAppChannelsPage() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p className="text-xs">Conectar número do vendedor via QR Code (Evolution API)</p>
+                  <p className="text-xs">Conectar número do vendedor via QR Code</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

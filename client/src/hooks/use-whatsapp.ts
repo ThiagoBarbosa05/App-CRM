@@ -869,11 +869,11 @@ export function useCreateEvolutionChannel() {
       return res.json() as Promise<WhatsappChannel>;
     },
     onSuccess: () => {
-      toast({ title: "Canal Evolution criado" });
+      toast({ title: "Canal criado" });
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro ao criar canal Evolution", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao criar canal", description: error.message, variant: "destructive" });
     },
   });
 }
