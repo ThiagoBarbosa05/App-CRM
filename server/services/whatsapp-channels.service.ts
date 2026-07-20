@@ -53,6 +53,7 @@ export async function listChannels() {
       provider: whatsappChannels.provider,
       evolutionInstanceName: whatsappChannels.evolutionInstanceName,
       connectionStatus: whatsappChannels.connectionStatus,
+      defaultSectorId: whatsappChannels.defaultSectorId,
     })
     .from(whatsappChannels)
     .where(isNull(whatsappChannels.deletedAt))

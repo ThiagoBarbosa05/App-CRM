@@ -60,16 +60,16 @@ interface Props {
   onStatusChange?: (status: string) => void;
 }
 
-type ConnectionStatus = "disconnected" | "connecting" | "qr" | "connected" | string;
+export type ConnectionStatus = "disconnected" | "connecting" | "qr" | "connected" | string;
 
-const STATUS_LABEL: Record<string, string> = {
+export const STATUS_LABEL: Record<string, string> = {
   connected: "Conectado",
   connecting: "Conectando...",
   qr: "Aguardando leitura do QR",
   disconnected: "Desconectado",
 };
 
-const STATUS_COLOR: Record<string, string> = {
+export const STATUS_COLOR: Record<string, string> = {
   connected: "bg-green-500/20 text-green-700 border-green-300",
   connecting: "bg-yellow-500/20 text-yellow-700 border-yellow-300",
   qr: "bg-blue-500/20 text-blue-700 border-blue-300",

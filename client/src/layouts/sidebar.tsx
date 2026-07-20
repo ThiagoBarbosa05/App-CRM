@@ -99,7 +99,7 @@ const navItems: NavItem[] = [
     roles: ["admin", "administrador"],
   },
   {
-    href: "/whatsapp/configuracoes",
+    href: "/whatsapp/canais",
     icon: MessageCircle,
     label: "Meu WhatsApp",
     roles: ["vendedor"],
