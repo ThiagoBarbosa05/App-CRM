@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { lazy, Suspense } from "react";
 import WhatsAppHub from "@/pages/whatsapp/whatsapp-hub";
 import { queryClient } from "./lib/queryClient";
@@ -61,7 +61,25 @@ const RestaurantMenuManagement = lazy(() => import("@/pages/restaurant-pdv/menu-
 const RestaurantTablesManagement = lazy(() => import("@/pages/restaurant-pdv/tables-management"));
 const RestaurantReports = lazy(() => import("@/pages/restaurant-pdv/reports"));
 
+// Páginas do módulo WhatsApp que um vendedor pode acessar diretamente pela
+// URL — as demais (campanhas, templates, atendentes, bots, etc.) já ficam
+// escondidas da navegação (ver hideForRoles em whatsapp-hub.tsx), mas sem
+// esse guard um vendedor ainda conseguia abri-las digitando a URL.
+const VENDEDOR_ALLOWED_WHATSAPP_PATHS = ["/whatsapp/conversas", "/whatsapp/canais"];
+
 function WhatsAppSection() {
+  const { user } = useAuth();
+  const [location] = useLocation();
+
+  if (
+    user?.role === "vendedor" &&
+    !VENDEDOR_ALLOWED_WHATSAPP_PATHS.some(
+      (path) => location === path || location.startsWith(path + "/"),
+    )
+  ) {
+    return <Redirect to="/whatsapp/conversas" />;
+  }
+
   return (
     <WhatsAppHub>
       <Suspense fallback={null}>
@@ -168,7 +186,16 @@ function Router() {
       <Route path="/umbler/campaigns" component={() => <Redirect to="/whatsapp/campanhas" />} />
       <Route path="/umbler/contacts" component={() => <Redirect to="/whatsapp/campanhas" />} />
       {/* WhatsApp section */}
-      <Route path="/whatsapp/bots/:id/editor" component={WhatsAppBotEditor} />
+      <Route
+        path="/whatsapp/bots/:id/editor"
+        component={() =>
+          user.role === "vendedor" ? (
+            <Redirect to="/whatsapp/conversas" />
+          ) : (
+            <WhatsAppBotEditor />
+          )
+        }
+      />
       <Route path="/whatsapp/campanhas/criar" component={WhatsAppSection} />
       <Route path="/whatsapp/campanhas/:id" component={WhatsAppSection} />
       <Route path="/whatsapp/:rest*" component={WhatsAppSection} />

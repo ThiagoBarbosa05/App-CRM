@@ -17,6 +17,8 @@ import { updateUserController } from "server/controllers/users/put-user.controll
 import { getWhatsappAccessController } from "server/controllers/users/get-whatsapp-access.controller";
 import { getWhatsappAccessSummaryController } from "server/controllers/users/get-whatsapp-access-summary.controller";
 import { putWhatsappAccessController } from "server/controllers/users/put-whatsapp-access.controller";
+import { getWhatsappQrAccessController } from "server/controllers/users/get-whatsapp-qr-access.controller";
+import { putWhatsappQrAccessController } from "server/controllers/users/put-whatsapp-qr-access.controller";
 import { requireAdminOrGerente } from "../middleware/validation";
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
@@ -316,6 +318,32 @@ usersRouter.put(
   validateParams(userParamsSchema),
   requireAdminOrGerente,
   putWhatsappAccessController,
+);
+
+/**
+ * @route GET /api/users/:id/whatsapp-qr-access
+ * @description Retorna os canais em que o usuário tem permissão explícita de leitura de QR Code
+ * @access Private (requer autenticação)
+ * @returns {Object} { channelIds: number[] }
+ * @notes não inclui canais dos quais o usuário é dono (acesso implícito)
+ */
+usersRouter.get(
+  "/:id/whatsapp-qr-access",
+  validateParams(userParamsSchema),
+  getWhatsappQrAccessController,
+);
+
+/**
+ * @route PUT /api/users/:id/whatsapp-qr-access
+ * @description Substitui a lista de canais em que o usuário pode ler o QR Code de conexão
+ * @access Private (admin ou gerente)
+ * @bodyParams {number[]} channelIds
+ */
+usersRouter.put(
+  "/:id/whatsapp-qr-access",
+  validateParams(userParamsSchema),
+  requireAdminOrGerente,
+  putWhatsappQrAccessController,
 );
 
 /**

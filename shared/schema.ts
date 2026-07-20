@@ -4786,6 +4786,29 @@ export const whatsappChannelMembers = pgTable(
 export type WhatsappChannelMember = typeof whatsappChannelMembers.$inferSelect;
 export type InsertWhatsappChannelMember = typeof whatsappChannelMembers.$inferInsert;
 
+// Permissão granular e independente de whatsapp_channel_members: quem pode
+// ler/gerar o QR Code de conexão de um canal que não é seu. Evita que um
+// atendente conecte por engano o canal de outro (ver isChannelOwnerOrAdmin
+// em server/routes/whatsapp-channels.routes.ts). Configurado por admin/gerente
+// via GET/PUT /api/users/:id/whatsapp-qr-access.
+export const whatsappChannelQrReaders = pgTable(
+  "whatsapp_channel_qr_readers",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    channelId: integer("channel_id")
+      .notNull()
+      .references(() => whatsappChannels.id, { onDelete: "cascade" }),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({ channelUserUnique: unique().on(t.channelId, t.userId) }),
+);
+
+export type WhatsappChannelQrReader = typeof whatsappChannelQrReaders.$inferSelect;
+export type InsertWhatsappChannelQrReader = typeof whatsappChannelQrReaders.$inferInsert;
+
 // Setores de atendimento (agrupam atendentes/canais do WhatsApp) — distinto de `sectors`,
 // que classifica empresas. Usado para organizar a transferência de conversas entre atendentes.
 export const whatsappSectors = pgTable("whatsapp_sectors", {

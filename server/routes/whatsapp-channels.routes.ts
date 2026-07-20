@@ -9,6 +9,7 @@ import {
   updateChannel,
   deleteChannel,
   updateConnectionStatus,
+  canUserReadChannelQr,
 } from "../services/whatsapp-channels.service";
 import {
   listWabaPhoneNumbers,
@@ -178,12 +179,16 @@ router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, r
 });
 
 // Conectar/desconectar (QR Code) é uma ação de self-service: o próprio dono
-// do canal (ex.: vendedor reconectando "Meu WhatsApp") também pode acionar,
-// além de admin/gerente — por isso não usa requireAdminOrGerente aqui.
-function isChannelOwnerOrAdmin(req: Request, channel: { userId: string | null }): boolean {
+// do canal (ex.: vendedor reconectando "Meu WhatsApp"), admin/gerente, ou um
+// atendente com permissão explícita de leitura de QR (whatsapp_channel_qr_readers,
+// configurada em /api/users/:id/whatsapp-qr-access) também pode acionar —
+// por isso não usa requireAdminOrGerente aqui.
+async function canConnectChannel(req: Request, channel: { id: number; userId: string | null }): Promise<boolean> {
   const user = (req as any).user;
   const isOwner = !!channel.userId && channel.userId === user?.userId;
-  return isOwner || isAdminOrGerente(req);
+  if (isOwner || isAdminOrGerente(req)) return true;
+  if (!user?.userId) return false;
+  return canUserReadChannelQr(user.userId, channel.id);
 }
 
 router.get("/channels/:id/evolution/connect", async (req: Request, res: Response) => {
@@ -192,8 +197,8 @@ router.get("/channels/:id/evolution/connect", async (req: Request, res: Response
     if (isNaN(id)) { res.sendStatus(400); return; }
     const channel = await getChannelById(id);
     if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
-    if (!isChannelOwnerOrAdmin(req, channel)) {
-      res.status(403).json({ message: "Acesso restrito ao dono do canal ou administradores" });
+    if (!(await canConnectChannel(req, channel))) {
+      res.status(403).json({ message: "Acesso restrito ao dono do canal, administradores ou atendentes autorizados" });
       return;
     }
 
@@ -212,8 +217,8 @@ router.post("/channels/:id/evolution/logout", async (req: Request, res: Response
     if (isNaN(id)) { res.sendStatus(400); return; }
     const channel = await getChannelById(id);
     if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
-    if (!isChannelOwnerOrAdmin(req, channel)) {
-      res.status(403).json({ message: "Acesso restrito ao dono do canal ou administradores" });
+    if (!(await canConnectChannel(req, channel))) {
+      res.status(403).json({ message: "Acesso restrito ao dono do canal, administradores ou atendentes autorizados" });
       return;
     }
 

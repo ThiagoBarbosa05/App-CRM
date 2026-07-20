@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { whatsappChannels, whatsappChannelMembers, whatsappConversations, users } from "../../shared/schema";
+import { whatsappChannels, whatsappChannelMembers, whatsappChannelQrReaders, whatsappConversations, users } from "../../shared/schema";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
@@ -399,4 +399,51 @@ export async function listGrantedChannelsForAllUsers(): Promise<
     (map[row.userId] ??= []).push({ id: row.id, name: row.name, displayPhone: row.displayPhone });
   }
   return map;
+}
+
+/**
+ * Permissão granular e independente de whatsapp_channel_members: quais canais
+ * um usuário pode ler/gerar o QR Code de conexão sem ser o dono. Usada pela
+ * UI de "Escopo de acesso" (campo "Liberar leitura de QRCode nos canais") e
+ * por canConnectChannel em server/routes/whatsapp-channels.routes.ts.
+ */
+export async function listQrReaderChannelIdsForUser(userId: string): Promise<number[]> {
+  const rows = await db
+    .select({ channelId: whatsappChannelQrReaders.channelId })
+    .from(whatsappChannelQrReaders)
+    .where(eq(whatsappChannelQrReaders.userId, userId));
+  return rows.map((r) => r.channelId);
+}
+
+/** Substitui a lista de canais com permissão de leitura de QR concedida a um usuário. */
+export async function setQrReaderChannelsForUser(userId: string, channelIds: number[]) {
+  await db.transaction(async (tx) => {
+    await tx.delete(whatsappChannelQrReaders).where(eq(whatsappChannelQrReaders.userId, userId));
+    if (channelIds.length > 0) {
+      await tx
+        .insert(whatsappChannelQrReaders)
+        .values(channelIds.map((channelId) => ({ channelId, userId })))
+        .onConflictDoNothing();
+    }
+  });
+}
+
+/** True se o usuário é dono do canal ou tem permissão explícita de leitura de QR. */
+export async function canUserReadChannelQr(userId: string, channelId: number): Promise<boolean> {
+  const [ownedRow] = await db
+    .select({ id: whatsappChannels.id })
+    .from(whatsappChannels)
+    .where(and(eq(whatsappChannels.id, channelId), eq(whatsappChannels.userId, userId)));
+  if (ownedRow) return true;
+
+  const [grantRow] = await db
+    .select({ id: whatsappChannelQrReaders.id })
+    .from(whatsappChannelQrReaders)
+    .where(
+      and(
+        eq(whatsappChannelQrReaders.channelId, channelId),
+        eq(whatsappChannelQrReaders.userId, userId),
+      ),
+    );
+  return !!grantRow;
 }

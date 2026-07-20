@@ -146,13 +146,17 @@ function ScopeMultiSelect<TId extends string | number>({
 export function WhatsappAccessScopeFields({
   selectedSectorIds,
   selectedChannelIds,
+  selectedQrChannelIds,
   onChangeSectorIds,
   onChangeChannelIds,
+  onChangeQrChannelIds,
 }: {
   selectedSectorIds: string[];
   selectedChannelIds: number[];
+  selectedQrChannelIds: number[];
   onChangeSectorIds: (ids: string[]) => void;
   onChangeChannelIds: (ids: number[]) => void;
+  onChangeQrChannelIds: (ids: number[]) => void;
 }) {
   const { data: sectors = [], isLoading: sectorsLoading } = useQuery<WhatsappSector[]>({
     queryKey: ["/api/whatsapp/sectors"],
@@ -213,6 +217,18 @@ export function WhatsappAccessScopeFields({
           items={channelItems}
           selectedIds={selectedChannelIds}
           onChange={onChangeChannelIds}
+          placeholder="Selecione os canais"
+          emptyLabel="Nenhum canal cadastrado."
+          isLoading={channelsLoading}
+        />
+      </div>
+
+      <div className="min-w-0 space-y-2">
+        <Label>Liberar leitura de QRCode nos canais</Label>
+        <ScopeMultiSelect
+          items={channelItems}
+          selectedIds={selectedQrChannelIds}
+          onChange={onChangeQrChannelIds}
           placeholder="Selecione os canais"
           emptyLabel="Nenhum canal cadastrado."
           isLoading={channelsLoading}

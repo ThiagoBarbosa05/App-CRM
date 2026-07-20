@@ -74,6 +74,7 @@ export default function UserFormModal({
   const isEditing = !!user;
   const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
   const [selectedChannelIds, setSelectedChannelIds] = useState<number[]>([]);
+  const [selectedQrChannelIds, setSelectedQrChannelIds] = useState<number[]>([]);
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
@@ -132,12 +133,39 @@ export default function UserFormModal({
     }
   }, [whatsappAccess, open]);
 
+  const { data: whatsappQrAccess } = useQuery<{ channelIds: number[] }>({
+    queryKey: ["/api/users", user?.id, "whatsapp-qr-access"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${user!.id}/whatsapp-qr-access`);
+      if (!res.ok) throw new Error("Failed to fetch whatsapp qr access");
+      return res.json();
+    },
+    enabled: open && showAccessScope,
+  });
+
+  useEffect(() => {
+    if (whatsappQrAccess) {
+      setSelectedQrChannelIds(whatsappQrAccess.channelIds);
+    } else if (!open) {
+      setSelectedQrChannelIds([]);
+    }
+  }, [whatsappQrAccess, open]);
+
   const accessMutation = useMutation({
     mutationFn: async () => {
       if (!user) return;
       await apiRequest("PUT", `/api/users/${user.id}/whatsapp-access`, {
         sectorIds: selectedSectorIds,
         channelIds: selectedChannelIds,
+      });
+    },
+  });
+
+  const qrAccessMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      await apiRequest("PUT", `/api/users/${user.id}/whatsapp-qr-access`, {
+        channelIds: selectedQrChannelIds,
       });
     },
   });
@@ -153,7 +181,7 @@ export default function UserFormModal({
         }
         await apiRequest("PUT", `/api/users/${user.id}`, userData);
         if (showAccessScope) {
-          await accessMutation.mutateAsync();
+          await Promise.all([accessMutation.mutateAsync(), qrAccessMutation.mutateAsync()]);
         }
       } else {
         await apiRequest("POST", "/api/users", userData);
@@ -270,8 +298,10 @@ export default function UserFormModal({
               <WhatsappAccessScopeFields
                 selectedSectorIds={selectedSectorIds}
                 selectedChannelIds={selectedChannelIds}
+                selectedQrChannelIds={selectedQrChannelIds}
                 onChangeSectorIds={setSelectedSectorIds}
                 onChangeChannelIds={setSelectedChannelIds}
+                onChangeQrChannelIds={setSelectedQrChannelIds}
               />
             )}
 

@@ -1163,6 +1163,16 @@ export default function WhatsAppChannelsPage() {
   const { user } = useAuth();
   const isVendedor = user?.role === "vendedor";
 
+  const { data: qrAccess } = useQuery<{ channelIds: number[] }>({
+    queryKey: ["/api/users", user?.id, "whatsapp-qr-access"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${user!.id}/whatsapp-qr-access`);
+      if (!res.ok) throw new Error("Failed to fetch whatsapp qr access");
+      return res.json();
+    },
+    enabled: isVendedor && !!user,
+  });
+
   const { data: channels = [], isLoading: channelsLoading } = useWhatsappChannels();
   const createChannel = useCreateWhatsappChannel();
   const updateChannel = useUpdateWhatsappChannel();
@@ -1220,8 +1230,9 @@ export default function WhatsAppChannelsPage() {
   const userMap = Object.fromEntries(users.map((u) => [u.id, u.name]));
   const existingPhoneIds = new Set(channels.map((c) => c.phoneNumberId).filter((id): id is string => id !== null));
 
+  const qrAccessChannelIds = new Set(qrAccess?.channelIds ?? []);
   const myChannels = isVendedor && user
-    ? channels.filter((c) => c.userId === user.id)
+    ? channels.filter((c) => c.userId === user.id || qrAccessChannelIds.has(c.id))
     : channels;
 
   if (channelsLoading) return <PageSkeleton />;
