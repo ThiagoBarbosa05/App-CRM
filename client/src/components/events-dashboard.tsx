@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Card,
@@ -9,6 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { UnderlineTabsList, UnderlineTabsTrigger } from "@/components/app-tabs";
 import {
   Carousel,
   CarouselContent,
@@ -23,6 +26,7 @@ import {
   ClockIcon,
   ImageIcon,
   DownloadIcon,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -76,19 +80,66 @@ const EVENT_STATUS = [
   { value: "cancelado", label: "Cancelado", color: "bg-red-100 text-red-800" },
 ];
 
-interface EventsDashboardProps {
-  startDate?: string;
-  endDate?: string;
-  datePreset?: string;
+type EventsMode = "upcoming" | "past";
+
+interface EventsPage {
+  events: Event[];
+  nextCursor: string | null;
 }
 
-export default function EventsDashboard({ startDate, endDate, datePreset }: EventsDashboardProps = {}) {
+async function fetchEventsPage(
+  mode: EventsMode,
+  cursor: string | null,
+): Promise<EventsPage> {
+  const params = new URLSearchParams({ mode });
+  if (cursor) params.set("cursor", cursor);
+  const res = await fetch(`/api/events?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(`Erro ao buscar eventos: ${res.status}`);
+  return res.json();
+}
+
+export default function EventsDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [activeMode, setActiveMode] = useState<EventsMode>("upcoming");
 
-  const { data: events = [], isLoading } = useQuery<Event[]>({
-    queryKey: ["/api/events"],
+  const upcomingQuery = useInfiniteQuery({
+    queryKey: ["/api/events", "upcoming"],
+    queryFn: ({ pageParam }) => fetchEventsPage("upcoming", pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
   });
+
+  const pastQuery = useInfiniteQuery({
+    queryKey: ["/api/events", "past"],
+    queryFn: ({ pageParam }) => fetchEventsPage("past", pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+  });
+
+  const activeQuery = activeMode === "upcoming" ? upcomingQuery : pastQuery;
+  const displayedEvents: Event[] =
+    activeQuery.data?.pages.flatMap((p) => p.events) ?? [];
+
+  useEffect(() => {
+    if (upcomingQuery.isError) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar mais eventos futuros",
+        variant: "destructive",
+      });
+    }
+  }, [upcomingQuery.isError, toast]);
+
+  useEffect(() => {
+    if (pastQuery.isError) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar mais eventos passados",
+        variant: "destructive",
+      });
+    }
+  }, [pastQuery.isError, toast]);
 
   const getStatusBadge = (status: string) => {
     const statusConfig = EVENT_STATUS.find((s) => s.value === status);
@@ -861,54 +912,23 @@ export default function EventsDashboard({ startDate, endDate, datePreset }: Even
     }
   };
 
-  // Filtrar eventos de acordo com o período selecionado no dashboard
-  const upcomingEvents = events
-    .filter((event) => {
-      const eventDate = new Date(event.eventDate);
-      if (startDate && endDate) {
-        const from = new Date(startDate + "T00:00:00");
-        const to = new Date(endDate + "T23:59:59");
-        return eventDate >= from && eventDate <= to;
-      }
-      // Padrão: próximos 30 dias, apenas planejados/ativos
-      const daysUntil = getDaysUntilEvent(event.eventDate);
-      return (
-        (event.status === "planejado" || event.status === "ativo") &&
-        daysUntil >= 0 &&
-        daysUntil <= 30
-      );
-    })
-    .sort(
-      (a, b) =>
-        new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime(),
-    )
-    .slice(0, 50);
-
-  const cardTitle =
-    datePreset === "hoje"
-      ? "Eventos de Hoje"
-      : datePreset === "mes-passado"
-        ? "Eventos do Mês Passado"
-        : datePreset === "periodo"
-          ? "Eventos do Período"
-          : datePreset === "este-mes"
-            ? "Eventos deste Mês"
-            : "Próximos Eventos";
-
-  const cardDescription =
-    datePreset === "hoje"
-      ? "Todos os eventos com data de hoje"
-      : datePreset === "mes-passado"
-        ? "Eventos realizados no mês anterior"
-        : datePreset === "periodo"
-          ? `Eventos entre ${startDate} e ${endDate}`
-          : datePreset === "este-mes"
-            ? "Eventos com data neste mês"
-            : "Eventos planejados e ativos dos próximos 30 dias para acompanhamento";
-
-  if (isLoading) {
+  if (upcomingQuery.isLoading && activeMode === "upcoming") {
     return <div>Carregando eventos...</div>;
   }
+  if (pastQuery.isLoading && activeMode === "past") {
+    return <div>Carregando eventos...</div>;
+  }
+
+  const emptyMessage =
+    activeMode === "upcoming"
+      ? "Nenhum evento futuro encontrado"
+      : "Nenhum evento passado encontrado";
+
+  const cardTitle = activeMode === "upcoming" ? "Próximos Eventos" : "Eventos Passados";
+  const cardDescription =
+    activeMode === "upcoming"
+      ? "Eventos planejados e ativos que ainda vão acontecer"
+      : "Eventos que já aconteceram";
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm">
@@ -923,25 +943,35 @@ export default function EventsDashboard({ startDate, endDate, datePreset }: Even
           <CardDescription className="text-sm text-gray-600 dark:text-slate-400 mt-2">
             {cardDescription}
           </CardDescription>
+          <Tabs
+            value={activeMode}
+            onValueChange={(v) => setActiveMode(v as EventsMode)}
+            className="mt-4"
+          >
+            <UnderlineTabsList>
+              <UnderlineTabsTrigger value="upcoming" color="purple">
+                Próximos
+              </UnderlineTabsTrigger>
+              <UnderlineTabsTrigger value="past" color="purple">
+                Passados
+              </UnderlineTabsTrigger>
+            </UnderlineTabsList>
+          </Tabs>
         </CardHeader>
         <CardContent className="px-6 pb-6">
-          {upcomingEvents.length === 0 ? (
+          {displayedEvents.length === 0 ? (
             <div className="text-center py-12 px-4">
               <div className="bg-purple-50 dark:bg-purple-900/30 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <CalendarIcon className="h-8 w-8 text-purple-600 dark:text-purple-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">
-                Nenhum evento encontrado
+                {emptyMessage}
               </h3>
-              <p className="text-gray-500 dark:text-slate-400">
-                {startDate
-                  ? "Não há eventos cadastrados para o período selecionado"
-                  : "Não há eventos programados para os próximos 30 dias"}
-              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {upcomingEvents.map((event) => {
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {displayedEvents.map((event) => {
                 const daysUntil = getDaysUntilEvent(event.eventDate);
                 const isToday = daysUntil === 0;
                 const isTomorrow = daysUntil === 1;
@@ -954,13 +984,15 @@ export default function EventsDashboard({ startDate, endDate, datePreset }: Even
                     {/* Indicador de urgência lateral */}
                     <div
                       className={`absolute left-0 top-0 bottom-0 w-1 z-10 ${
-                        isToday
-                          ? "bg-red-500"
-                          : isTomorrow
-                            ? "bg-orange-400"
-                            : daysUntil <= 7
-                              ? "bg-yellow-400"
-                              : "bg-purple-400"
+                        daysUntil < 0
+                          ? "bg-gray-300 dark:bg-slate-700"
+                          : isToday
+                            ? "bg-red-500"
+                            : isTomorrow
+                              ? "bg-orange-400"
+                              : daysUntil <= 7
+                                ? "bg-yellow-400"
+                                : "bg-purple-400"
                       }`}
                     />
 
@@ -1256,7 +1288,23 @@ export default function EventsDashboard({ startDate, endDate, datePreset }: Even
                   </div>
                 );
               })}
-            </div>
+              </div>
+              {activeQuery.hasNextPage && (
+                <div className="flex justify-center mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => activeQuery.fetchNextPage()}
+                    disabled={activeQuery.isFetchingNextPage}
+                    data-testid="button-load-more-events"
+                  >
+                    {activeQuery.isFetchingNextPage && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
+                    Carregar mais
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
