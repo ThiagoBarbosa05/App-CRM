@@ -5,6 +5,11 @@
 // estável se local === UTC; sem isso, rodar o processo num host não-UTC pode
 // pular eventos silenciosamente nas bordas de página. Ver revisão final do
 // plano docs/superpowers/plans/2026-07-20-dashboard-events-cursor-pagination.md.
+//
+// Nota: sob ESM, os `import`s abaixo são hoisted e avaliados antes deste
+// `process.env.TZ`, então isso NÃO cobre efeitos colaterais em tempo de
+// import (ex.: jobs que chamam `new Date()` ao carregar). Cobre apenas
+// código que roda em tempo de request — que é o caso de getEventsPaginated.
 process.env.TZ = "UTC";
 
 import express, { type Request, Response, NextFunction } from "express";
