@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import multer from "multer";
+import { userHasActionPermission } from "../services/whatsapp-action-permissions.service";
 import {
   listClientsForChat,
   listWhatsappTagsForFilter,
@@ -747,6 +748,10 @@ router.put("/conversations/:clientId/whatsapp-tags", async (req, res) => {
 
     const parsed = setWhatsappTagsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    if (!(await userHasActionPermission(user, "manage_tags"))) {
+      return res.status(403).json({ message: "Sem permissão para gerenciar etiquetas" });
+    }
 
     const conversationId = await resolveConversationId(req.params.clientId);
     if (conversationId) {

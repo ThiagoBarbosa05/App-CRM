@@ -20,6 +20,7 @@ import {
   WhatsappAccessScopeFields,
   type WhatsappAccess,
 } from "@/components/whatsapp-access-scope-fields";
+import { WhatsappActionPermissionsFields } from "@/components/whatsapp-action-permissions-fields";
 import type { User } from "@shared/schema";
 
 const getInitials = (name: string) =>
@@ -70,6 +71,8 @@ function AttendantAccessDialog({
   const open = user !== null;
   const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
   const [selectedChannelIds, setSelectedChannelIds] = useState<number[]>([]);
+  const [selectedQrChannelIds, setSelectedQrChannelIds] = useState<number[]>([]);
+  const [selectedActionPermissions, setSelectedActionPermissions] = useState<string[]>([]);
 
   const { data: access, isLoading } = useQuery<WhatsappAccess>({
     queryKey: ["/api/users", user?.id, "whatsapp-access"],
@@ -91,13 +94,59 @@ function AttendantAccessDialog({
     }
   }, [access, open]);
 
+  const { data: qrAccess, isLoading: isQrAccessLoading } = useQuery<{ channelIds: number[] }>({
+    queryKey: ["/api/users", user?.id, "whatsapp-qr-access"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${user!.id}/whatsapp-qr-access`);
+      if (!res.ok) throw new Error("Failed to fetch whatsapp qr access");
+      return res.json();
+    },
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (qrAccess) {
+      setSelectedQrChannelIds(qrAccess.channelIds);
+    } else if (!open) {
+      setSelectedQrChannelIds([]);
+    }
+  }, [qrAccess, open]);
+
+  const { data: actionPermissions, isLoading: isActionPermissionsLoading } = useQuery<{
+    permissionKeys: string[];
+  }>({
+    queryKey: ["/api/users", user?.id, "whatsapp-action-permissions"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${user!.id}/whatsapp-action-permissions`);
+      if (!res.ok) throw new Error("Failed to fetch whatsapp action permissions");
+      return res.json();
+    },
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (actionPermissions) {
+      setSelectedActionPermissions(actionPermissions.permissionKeys);
+    } else if (!open) {
+      setSelectedActionPermissions([]);
+    }
+  }, [actionPermissions, open]);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!user) return;
-      await apiRequest("PUT", `/api/users/${user.id}/whatsapp-access`, {
-        sectorIds: selectedSectorIds,
-        channelIds: selectedChannelIds,
-      });
+      await Promise.all([
+        apiRequest("PUT", `/api/users/${user.id}/whatsapp-access`, {
+          sectorIds: selectedSectorIds,
+          channelIds: selectedChannelIds,
+        }),
+        apiRequest("PUT", `/api/users/${user.id}/whatsapp-qr-access`, {
+          channelIds: selectedQrChannelIds,
+        }),
+        apiRequest("PUT", `/api/users/${user.id}/whatsapp-action-permissions`, {
+          permissionKeys: selectedActionPermissions,
+        }),
+      ]);
     },
     onSuccess: () => {
       toast({
@@ -105,6 +154,10 @@ function AttendantAccessDialog({
         description: `Escopo de acesso de ${user?.name} salvo com sucesso.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "whatsapp-access"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", user?.id, "whatsapp-qr-access"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/users", user?.id, "whatsapp-action-permissions"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/users/whatsapp-access-summary"] });
       onOpenChange(false);
     },
@@ -112,6 +165,8 @@ function AttendantAccessDialog({
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     },
   });
+
+  const isLoadingAny = isLoading || isQrAccessLoading || isActionPermissionsLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -123,17 +178,25 @@ function AttendantAccessDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading ? (
+        {isLoadingAny ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando escopo atual...
           </div>
         ) : (
-          <WhatsappAccessScopeFields
-            selectedSectorIds={selectedSectorIds}
-            selectedChannelIds={selectedChannelIds}
-            onChangeSectorIds={setSelectedSectorIds}
-            onChangeChannelIds={setSelectedChannelIds}
-          />
+          <div className="space-y-4">
+            <WhatsappAccessScopeFields
+              selectedSectorIds={selectedSectorIds}
+              selectedChannelIds={selectedChannelIds}
+              selectedQrChannelIds={selectedQrChannelIds}
+              onChangeSectorIds={setSelectedSectorIds}
+              onChangeChannelIds={setSelectedChannelIds}
+              onChangeQrChannelIds={setSelectedQrChannelIds}
+            />
+            <WhatsappActionPermissionsFields
+              selectedKeys={selectedActionPermissions}
+              onChange={setSelectedActionPermissions}
+            />
+          </div>
         )}
 
         <DialogFooter>
@@ -142,7 +205,7 @@ function AttendantAccessDialog({
           </Button>
           <Button
             type="button"
-            disabled={isLoading || saveMutation.isPending}
+            disabled={isLoadingAny || saveMutation.isPending}
             onClick={() => saveMutation.mutate()}
           >
             {saveMutation.isPending ? (

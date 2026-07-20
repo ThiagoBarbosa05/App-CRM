@@ -4809,6 +4809,35 @@ export const whatsappChannelQrReaders = pgTable(
 export type WhatsappChannelQrReader = typeof whatsappChannelQrReaders.$inferSelect;
 export type InsertWhatsappChannelQrReader = typeof whatsappChannelQrReaders.$inferInsert;
 
+// Chaves válidas de permissão de ação — cada uma corresponde a uma ação real
+// já existente no app (ver userHasActionPermission em
+// server/services/whatsapp-action-permissions.service.ts). Novas ações devem
+// ser adicionadas aqui antes de serem checadas em qualquer rota.
+export const WHATSAPP_ACTION_PERMISSIONS = ["manage_templates", "manage_tags"] as const;
+export type WhatsappActionPermissionKey = (typeof WHATSAPP_ACTION_PERMISSIONS)[number];
+
+// Permissões de ação por atendente ("o que o atendente pode fazer"), grant
+// explícito e independente de role — default-deny: sem linha aqui, um
+// vendedor não pode executar a ação. Genérica por permissionKey para não
+// precisar de uma tabela nova a cada permissão (ver WHATSAPP_ACTION_PERMISSIONS
+// para as chaves válidas). Configurado por admin/gerente via GET/PUT
+// /api/users/:id/whatsapp-action-permissions.
+export const whatsappActionPermissions = pgTable(
+  "whatsapp_action_permissions",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    permissionKey: text("permission_key").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({ userPermissionUnique: unique().on(t.userId, t.permissionKey) }),
+);
+
+export type WhatsappActionPermission = typeof whatsappActionPermissions.$inferSelect;
+export type InsertWhatsappActionPermission = typeof whatsappActionPermissions.$inferInsert;
+
 // Setores de atendimento (agrupam atendentes/canais do WhatsApp) — distinto de `sectors`,
 // que classifica empresas. Usado para organizar a transferência de conversas entre atendentes.
 export const whatsappSectors = pgTable("whatsapp_sectors", {

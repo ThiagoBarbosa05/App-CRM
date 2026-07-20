@@ -17,6 +17,7 @@ import {
   upsertTemplateMedia,
 } from "../services/whatsapp-templates.service";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
+import { userHasActionPermission } from "../services/whatsapp-action-permissions.service";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
 import {
   createMetaTemplate,
@@ -271,8 +272,12 @@ const createTemplateSchema = z.object({
 
 router.post("/templates", async (req, res) => {
   try {
-    const userId = (req as any).user?.id;
+    const user = (req as any).user;
+    const userId = user?.userId;
     if (!userId) return res.status(401).json({ message: "Não autenticado" });
+    if (!(await userHasActionPermission(user, "manage_templates"))) {
+      return res.status(403).json({ message: "Sem permissão para gerenciar templates" });
+    }
 
     const parsed = createTemplateSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -289,6 +294,12 @@ router.post("/templates", async (req, res) => {
 
 router.put("/templates/:id", async (req, res) => {
   try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    if (!(await userHasActionPermission(user, "manage_templates"))) {
+      return res.status(403).json({ message: "Sem permissão para gerenciar templates" });
+    }
+
     const parsed = createTemplateSchema.partial().safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ errors: parsed.error.flatten() });
@@ -304,6 +315,12 @@ router.put("/templates/:id", async (req, res) => {
 
 router.delete("/templates/:id", async (req, res) => {
   try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    if (!(await userHasActionPermission(user, "manage_templates"))) {
+      return res.status(403).json({ message: "Sem permissão para gerenciar templates" });
+    }
+
     await deleteLocalTemplate(req.params.id);
     res.json({ success: true });
   } catch (e) {

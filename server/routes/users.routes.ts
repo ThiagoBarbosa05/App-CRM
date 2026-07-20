@@ -19,6 +19,8 @@ import { getWhatsappAccessSummaryController } from "server/controllers/users/get
 import { putWhatsappAccessController } from "server/controllers/users/put-whatsapp-access.controller";
 import { getWhatsappQrAccessController } from "server/controllers/users/get-whatsapp-qr-access.controller";
 import { putWhatsappQrAccessController } from "server/controllers/users/put-whatsapp-qr-access.controller";
+import { getWhatsappActionPermissionsController } from "server/controllers/users/get-whatsapp-action-permissions.controller";
+import { putWhatsappActionPermissionsController } from "server/controllers/users/put-whatsapp-action-permissions.controller";
 import { requireAdminOrGerente } from "../middleware/validation";
 import { deleteUserController } from "server/controllers/users/delete-user.controller";
 import { toggleUserStatusController } from "server/controllers/users/patch-toggle-user-status.controller";
@@ -344,6 +346,31 @@ usersRouter.put(
   validateParams(userParamsSchema),
   requireAdminOrGerente,
   putWhatsappQrAccessController,
+);
+
+/**
+ * @route GET /api/users/:id/whatsapp-action-permissions
+ * @description Retorna as permissões de ação de WhatsApp concedidas a um usuário (ex: gerenciar templates, gerenciar etiquetas)
+ * @access Private (requer autenticação)
+ * @returns {Object} { permissionKeys: string[] }
+ */
+usersRouter.get(
+  "/:id/whatsapp-action-permissions",
+  validateParams(userParamsSchema),
+  getWhatsappActionPermissionsController,
+);
+
+/**
+ * @route PUT /api/users/:id/whatsapp-action-permissions
+ * @description Substitui as permissões de ação de WhatsApp concedidas a um usuário
+ * @access Private (admin ou gerente)
+ * @bodyParams {string[]} permissionKeys
+ */
+usersRouter.put(
+  "/:id/whatsapp-action-permissions",
+  validateParams(userParamsSchema),
+  requireAdminOrGerente,
+  putWhatsappActionPermissionsController,
 );
 
 /**
