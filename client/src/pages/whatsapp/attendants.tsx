@@ -183,7 +183,7 @@ function AttendantAccessDialog({
             <Loader2 className="h-4 w-4 animate-spin" /> Carregando escopo atual...
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <WhatsappAccessScopeFields
               selectedSectorIds={selectedSectorIds}
               selectedChannelIds={selectedChannelIds}
