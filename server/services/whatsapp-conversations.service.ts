@@ -724,7 +724,16 @@ export async function listClientsForChat(
   }
 
   if (filters.attendantId) {
-    conditions.push(eq(whatsappConversations.assignedAgentId, filters.attendantId));
+    // Atendente = assignedAgentId (transferência explícita/bot) OU, na ausência
+    // dele, clients.responsavelId (dono no CRM) — mesma regra de posse usada em
+    // vendorScopeCondition. Sem o fallback, o filtro só bate com as raríssimas
+    // conversas transferidas explicitamente (1 em 118 no banco hoje).
+    conditions.push(
+      or(
+        eq(whatsappConversations.assignedAgentId, filters.attendantId),
+        and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, filters.attendantId)),
+      ) as unknown as ReturnType<typeof eq>,
+    );
   }
 
   if (filters.channelIds && filters.channelIds.length > 0) {
