@@ -50,6 +50,7 @@ const WhatsAppCampaignDetails = lazy(() => import("@/pages/whatsapp/campaign-det
 const WhatsAppTemplates = lazy(() => import("@/pages/whatsapp/templates"));
 const WhatsAppSettings = lazy(() => import("@/pages/whatsapp/settings"));
 const WhatsAppChannels = lazy(() => import("@/pages/whatsapp/channels"));
+const WhatsAppAttendants = lazy(() => import("@/pages/whatsapp/attendants"));
 const WhatsAppBotsList = lazy(() => import("@/pages/whatsapp/bots-list"));
 const WhatsAppBotHistory = lazy(() => import("@/pages/whatsapp/bot-history"));
 const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
@@ -71,6 +72,7 @@ function WhatsAppSection() {
           <Route path="/whatsapp/templates" component={WhatsAppTemplates} />
           <Route path="/whatsapp/configuracoes" component={WhatsAppSettings} />
           <Route path="/whatsapp/canais" component={WhatsAppChannels} />
+          <Route path="/whatsapp/atendentes" component={WhatsAppAttendants} />
           <Route path="/whatsapp/bots" component={WhatsAppBotsList} />
           <Route path="/whatsapp/historico-bots" component={WhatsAppBotHistory} />
           <Route path="/whatsapp/conversas" component={WhatsAppConversations} />

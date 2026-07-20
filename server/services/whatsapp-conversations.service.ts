@@ -116,6 +116,24 @@ export async function findOrCreateConversation(phone: string, channelId?: number
   return { ...created, _wasCreated: true as const };
 }
 
+/**
+ * Preenche o setor de uma conversa a partir do setor padrão do canal — só
+ * quando ela ainda não tem setor nenhum (WHERE sectorId IS NULL protege contra
+ * sobrescrever um setor já atribuído manualmente ou herdado de outro canal).
+ * Chamada tanto no recebimento (saveInboundMessage) quanto no envio
+ * (resolveOutboundChannel) para conversas que ficaram sem setor na criação —
+ * ex.: iniciadas pelo atendente antes de haver canal escolhido, ou criadas por
+ * bot/campanha sem channelId.
+ */
+async function backfillSectorFromChannel(conversationId: string, channelId: number) {
+  const defaultSectorId = await getDefaultSectorIdForChannel(channelId);
+  if (!defaultSectorId) return;
+  await db
+    .update(whatsappConversations)
+    .set({ sectorId: defaultSectorId })
+    .where(and(eq(whatsappConversations.id, conversationId), isNull(whatsappConversations.sectorId)));
+}
+
 // Vincula automaticamente conversas órfãs (client_id NULL) ao cliente cujo
 // telefone bate. Chamada ao criar/editar um cliente, pois a conversa pode ter
 // sido criada (por bot, campanha ou webhook) antes do cliente existir no CRM,
@@ -160,6 +178,7 @@ export async function resolveOutboundChannel(
         .update(whatsappConversations)
         .set({ channelId })
         .where(eq(whatsappConversations.id, conversationId));
+      await backfillSectorFromChannel(conversationId, channelId);
       return ch;
     }
   }
@@ -1699,6 +1718,10 @@ export async function saveInboundMessage(data: {
       ...(data.channelId != null ? { channelId: data.channelId } : {}),
     })
     .where(eq(whatsappConversations.id, conv.id));
+
+  if (data.channelId != null) {
+    await backfillSectorFromChannel(conv.id, data.channelId);
+  }
 
   // Só loga "iniciou conversa" para mensagens que vieram de fato do contato —
   // não quando o vendedor reabre a conversa escrevendo pelo próprio celular
