@@ -348,7 +348,13 @@ export async function transferConversationToUser(conversationId: string, targetU
   return updated;
 }
 
-/** Transfere a conversa para um setor (fila) sem atribuir a um atendente específico. */
+/**
+ * Transfere a conversa para um setor (fila) sem atribuir a um atendente
+ * específico — por isso zera assignedAgentId. Sem isso, o atendente que
+ * estava com a conversa antes da transferência continuaria enxergando-a
+ * para sempre (vendorScopeCondition dá acesso a conversas atribuídas
+ * diretamente, independente do setor/canal atual).
+ */
 export async function transferConversationToSector(conversationId: string, sectorId: string, reason?: string) {
   const [sector] = await db
     .select({ name: whatsappSectors.name })
@@ -358,7 +364,7 @@ export async function transferConversationToSector(conversationId: string, secto
 
   const [updated] = await db
     .update(whatsappConversations)
-    .set({ sectorId, updatedAt: new Date() })
+    .set({ sectorId, assignedAgentId: null, updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId))
     .returning();
 
