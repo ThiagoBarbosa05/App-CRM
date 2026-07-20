@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
 import { UnderlineTabsList, UnderlineTabsTrigger } from "@/components/app-tabs";
 import {
   Carousel,
@@ -91,7 +91,7 @@ async function fetchEventsPage(
   mode: EventsMode,
   cursor: string | null,
 ): Promise<EventsPage> {
-  const params = new URLSearchParams({ mode });
+  const params = new URLSearchParams({ mode, limit: "9" });
   if (cursor) params.set("cursor", cursor);
   const res = await fetch(`/api/events?${params}`, { credentials: "include" });
   if (!res.ok) throw new Error(`Erro ao buscar eventos: ${res.status}`);

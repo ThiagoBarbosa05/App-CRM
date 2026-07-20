@@ -1,3 +1,12 @@
+// Fixa o processo em UTC: colunas `timestamp` (sem timezone) do Postgres são
+// lidas pelo driver interpretando o valor bruto no timezone LOCAL do
+// processo Node. A paginação por cursor em getEventsPaginated (server/storage.ts)
+// depende de um round-trip Date -> toISOString() -> cast ::timestamp que só é
+// estável se local === UTC; sem isso, rodar o processo num host não-UTC pode
+// pular eventos silenciosamente nas bordas de página. Ver revisão final do
+// plano docs/superpowers/plans/2026-07-20-dashboard-events-cursor-pagination.md.
+process.env.TZ = "UTC";
+
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
