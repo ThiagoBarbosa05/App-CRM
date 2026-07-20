@@ -14,6 +14,7 @@ import {
 } from "@shared/schema";
 import { storage } from "../storage";
 import { generateSlug } from "../lib/slug";
+import { decodeCursor, clampLimit } from "../lib/cursor-pagination";
 import { invalidateCachedPage } from "../lib/landing-page-cache";
 import { optimizeHtml } from "../lib/html-optimizer";
 import { nanoid } from "nanoid";
@@ -73,6 +74,20 @@ eventsRouter.get("/", async (req, res) => {
   try {
     const userId = req.user?.userId;
     const userRole = req.user?.role;
+    const mode = req.query.mode;
+
+    if (mode === "upcoming" || mode === "past") {
+      const cursor = decodeCursor(req.query.cursor);
+      const limit = clampLimit(req.query.limit, { fallback: 9, max: 50 });
+      const result = await storage.getEventsPaginated({
+        userId,
+        userRole,
+        mode,
+        cursor,
+        limit,
+      });
+      return res.json(result);
+    }
 
     const events = await storage.getEvents(userId, userRole);
     return res.json(events);

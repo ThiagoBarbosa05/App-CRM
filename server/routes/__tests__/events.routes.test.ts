@@ -6,6 +6,7 @@ import { createRouteTestApp } from "../../test/create-route-test-app";
 
 const {
   getEventsMock,
+  getEventsPaginatedMock,
   createEventMock,
   addEventAttachmentMock,
   updateEventMock,
@@ -20,6 +21,7 @@ const {
   s3SendMock,
 } = vi.hoisted(() => ({
   getEventsMock: vi.fn(),
+  getEventsPaginatedMock: vi.fn(),
   createEventMock: vi.fn(),
   addEventAttachmentMock: vi.fn(),
   updateEventMock: vi.fn(),
@@ -37,6 +39,7 @@ const {
 vi.mock("../../storage", () => ({
   storage: {
     getEvents: getEventsMock,
+    getEventsPaginated: getEventsPaginatedMock,
     createEvent: createEventMock,
     addEventAttachment: addEventAttachmentMock,
     updateEvent: updateEventMock,
@@ -62,6 +65,7 @@ vi.mock("@aws-sdk/client-s3", async (importOriginal) => {
 describe("eventsRouter", () => {
   beforeEach(() => {
     getEventsMock.mockReset();
+    getEventsPaginatedMock.mockReset();
     createEventMock.mockReset();
     addEventAttachmentMock.mockReset();
     updateEventMock.mockReset();
@@ -83,6 +87,73 @@ describe("eventsRouter", () => {
     const response = await request(app).get("/events");
 
     expect(getEventsMock).toHaveBeenCalledWith("test-user-id", "admin");
+    expect(response.status).toBe(200);
+  });
+
+  it("returns plain array when mode is not provided (backward compat)", async () => {
+    getEventsMock.mockResolvedValue([{ id: "event-1" }]);
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app).get("/events");
+
+    expect(getEventsPaginatedMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([{ id: "event-1" }]);
+  });
+
+  it("uses getEventsPaginated with decoded cursor/limit when mode=upcoming", async () => {
+    getEventsPaginatedMock.mockResolvedValue({
+      events: [{ id: "event-1" }],
+      nextCursor: "next-cursor-token",
+    });
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app).get(
+      "/events?mode=upcoming&limit=9",
+    );
+
+    expect(getEventsPaginatedMock).toHaveBeenCalledWith({
+      userId: "test-user-id",
+      userRole: "admin",
+      mode: "upcoming",
+      cursor: null,
+      limit: 9,
+    });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      events: [{ id: "event-1" }],
+      nextCursor: "next-cursor-token",
+    });
+  });
+
+  it("uses getEventsPaginated with mode=past and defaults limit to 9", async () => {
+    getEventsPaginatedMock.mockResolvedValue({ events: [], nextCursor: null });
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app).get("/events?mode=past");
+
+    expect(getEventsPaginatedMock).toHaveBeenCalledWith({
+      userId: "test-user-id",
+      userRole: "admin",
+      mode: "past",
+      cursor: null,
+      limit: 9,
+    });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ events: [], nextCursor: null });
+  });
+
+  it("treats an invalid cursor as no cursor instead of failing", async () => {
+    getEventsPaginatedMock.mockResolvedValue({ events: [], nextCursor: null });
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app).get(
+      "/events?mode=upcoming&cursor=not-a-valid-cursor",
+    );
+
+    expect(getEventsPaginatedMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: null }),
+    );
     expect(response.status).toBe(200);
   });
 
