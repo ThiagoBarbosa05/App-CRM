@@ -44,6 +44,7 @@ export interface CartItem {
   quantity: number;
   menuItemId?: string | null;
   productId?: string | null;
+  notes?: string;
 }
 
 interface RestaurantOrderWithItems extends RestaurantOrder {
@@ -353,6 +354,12 @@ export default function RestaurantPos() {
     setCart((prev) => prev.filter((i) => i.id !== id));
   };
 
+  const handleCartNoteChange = (id: string, notes: string) => {
+    setCart((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, notes } : i)),
+    );
+  };
+
   const handleSubmitCart = async () => {
     if (cart.length === 0 || isSubmittingCart) return;
     setIsSubmittingCart(true);
@@ -370,6 +377,7 @@ export default function RestaurantPos() {
           name: item.name,
           unitPrice: item.unitPrice,
           quantity: item.quantity,
+          notes: item.notes || null,
         });
         // Remove only the successfully sent item — failed ones stay for retry.
         setCart((prev) => prev.filter((i) => i.id !== item.id));
@@ -540,6 +548,7 @@ export default function RestaurantPos() {
                     onCartIncrement={handleCartIncrement}
                     onCartDecrement={handleCartDecrement}
                     onCartRemove={handleCartRemove}
+                    onCartNoteChange={handleCartNoteChange}
                     onSubmitCart={handleSubmitCart}
                     submitPending={isSubmittingCart}
                     cartSubtotal={cartSubtotal}

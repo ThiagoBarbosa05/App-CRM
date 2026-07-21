@@ -219,6 +219,7 @@ export const restaurantPdvService = {
       name: string;
       unitPrice: string;
       quantity: number;
+      notes?: string | null;
     },
   ): Promise<RestaurantOrderItem> {
     const order = await this.assertOrderEditable(orderId);
@@ -277,6 +278,7 @@ export const restaurantPdvService = {
         menuItemId: data.menuItemId ?? null,
         productId: data.productId ?? null,
         name,
+        notes: data.notes ?? null,
         unitPrice,
         quantity: data.quantity,
       })

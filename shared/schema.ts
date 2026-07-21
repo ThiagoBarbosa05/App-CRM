@@ -2505,6 +2505,7 @@ export const restaurantOrderItems = pgTable(
     ),
     productId: varchar("product_id").references(() => products.id),
     name: text("name").notNull(),
+    notes: text("notes"),
     unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
     quantity: integer("quantity").notNull().default(1),
     status: text("status", { enum: ["ativo", "cancelado"] })

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Minus, Plus, Search, ShoppingBag, ShoppingCart, Trash2, UtensilsCrossed } from "lucide-react";
+import { Loader2, MessageSquare, Minus, Plus, Search, ShoppingBag, ShoppingCart, Trash2, UtensilsCrossed } from "lucide-react";
 import type { Product, RestaurantMenuItem } from "@shared/schema";
 import type { CartItem } from "@/pages/restaurant-pdv/pos";
 
@@ -22,6 +22,7 @@ interface OrderItemSelectorProps {
   onCartIncrement: (id: string) => void;
   onCartDecrement: (id: string) => void;
   onCartRemove: (id: string) => void;
+  onCartNoteChange: (id: string, notes: string) => void;
   onSubmitCart: () => void;
   submitPending: boolean;
   cartSubtotal: number;
@@ -36,6 +37,7 @@ export function OrderItemSelector({
   onCartIncrement,
   onCartDecrement,
   onCartRemove,
+  onCartNoteChange,
   onSubmitCart,
   submitPending,
   cartSubtotal,
@@ -46,6 +48,7 @@ export function OrderItemSelector({
 
   const [productSearch, setProductSearch] = useState("");
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedProductSearch(productSearch), 400);
@@ -82,6 +85,10 @@ export function OrderItemSelector({
     onAddCustomItem(customName.trim(), price);
     setCustomName("");
     setCustomPrice("");
+  };
+
+  const toggleNote = (id: string) => {
+    setExpandedNoteId((prev) => (prev === id ? null : id));
   };
 
   return (
@@ -223,46 +230,72 @@ export function OrderItemSelector({
             </p>
             <div className="space-y-1.5">
               {cart.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2"
-                >
-                  <span className="flex-1 min-w-0 text-sm font-medium truncate">
-                    {item.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {formatCurrency(item.unitPrice)}
-                  </span>
-                  <div className="flex items-center gap-1 shrink-0">
+                <div key={item.id} className="rounded-lg border bg-muted/30">
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <span className="flex-1 min-w-0 text-sm font-medium truncate">
+                      {item.name}
+                    </span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {formatCurrency(item.unitPrice)}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => onCartDecrement(item.id)}
+                        disabled={submitPending}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="w-5 text-center text-sm">{item.quantity}</span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        onClick={() => onCartIncrement(item.id)}
+                        disabled={submitPending}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => onCartDecrement(item.id)}
+                      className={`h-6 w-6 shrink-0 ${item.notes ? "text-orange-500 hover:text-orange-600" : "text-muted-foreground hover:text-foreground"}`}
+                      onClick={() => toggleNote(item.id)}
                       disabled={submitPending}
+                      title="Adicionar observação"
                     >
-                      <Minus className="h-3 w-3" />
+                      <MessageSquare className="h-3 w-3" />
                     </Button>
-                    <span className="w-5 text-center text-sm">{item.quantity}</span>
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => onCartIncrement(item.id)}
+                      className="h-6 w-6 text-red-500 hover:bg-red-50 hover:text-red-600 shrink-0"
+                      onClick={() => onCartRemove(item.id)}
                       disabled={submitPending}
                     >
-                      <Plus className="h-3 w-3" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6 text-red-500 hover:bg-red-50 hover:text-red-600 shrink-0"
-                    onClick={() => onCartRemove(item.id)}
-                    disabled={submitPending}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  {expandedNoteId === item.id && (
+                    <div className="px-3 pb-2">
+                      <Input
+                        placeholder="Observação (ex: sem cebola, bem passado...)"
+                        className="h-7 text-xs"
+                        value={item.notes ?? ""}
+                        onChange={(e) => onCartNoteChange(item.id, e.target.value)}
+                        disabled={submitPending}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+                  {expandedNoteId !== item.id && item.notes && (
+                    <p className="px-3 pb-2 text-xs text-orange-600 dark:text-orange-400">
+                      📝 {item.notes}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

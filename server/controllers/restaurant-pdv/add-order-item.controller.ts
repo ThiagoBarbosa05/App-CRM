@@ -9,6 +9,7 @@ const addItemSchema = z
     name: z.string().min(1, "Nome é obrigatório"),
     unitPrice: z.string().min(1, "Valor é obrigatório"),
     quantity: z.number().int().positive().default(1),
+    notes: z.string().optional().nullable(),
   })
   .refine((data) => !(data.menuItemId && data.productId), {
     message: "Informe apenas menuItemId ou productId, não ambos",
