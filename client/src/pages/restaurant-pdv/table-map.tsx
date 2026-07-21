@@ -13,7 +13,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, LayoutGrid, Lock, LogOut, Plus, Trash2, Users } from "lucide-react";
+import { Clock, LayoutGrid, Lock, LogOut, Plus, Trash2, Users, Wallet } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { parseBRL } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -57,6 +60,8 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [closeSessionOpen, setCloseSessionOpen] = useState(false);
+  const [openCashOpen, setOpenCashOpen] = useState(false);
+  const [openingFloat, setOpeningFloat] = useState("");
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteNumber, setConfirmDeleteNumber] = useState<number | null>(null);
@@ -79,6 +84,26 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
     refetchInterval: 30000,
   });
   const cashSessionOpen = !!cashData?.session;
+
+  const openCashMutation = useMutation({
+    mutationFn: async () => {
+      const parsed = openingFloat.trim() === "" ? 0 : parseBRL(openingFloat);
+      if (parsed === null || parsed < 0) throw new Error("Valor inválido");
+      await apiRequest("POST", "/api/restaurant-pdv/cash-sessions", {
+        openingFloat: (parsed ?? 0).toFixed(2),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Caixa aberto", description: "O PDV está liberado para operar." });
+      setOpenCashOpen(false);
+      setOpeningFloat("");
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/cash-sessions/current"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao abrir o caixa", description: err.message, variant: "destructive" });
+    },
+  });
 
   const closeCashMutation = useMutation({
     mutationFn: async (data: {
@@ -192,13 +217,17 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
               Caixa fechado
             </p>
             <p className="text-sm text-amber-800 dark:text-amber-200">
-              {isGestor
-                ? "Abra o caixa para liberar a abertura de mesas."
-                : "Peça a um gerente para abrir o caixa — não é possível abrir mesas até lá."}
+              Abra o caixa para liberar a abertura de mesas.
             </p>
           </div>
           {isGestor && (
             <Button size="sm" onClick={() => navigate("/pdv-restaurante/caixa")}>
+              Abrir caixa
+            </Button>
+          )}
+          {isGarcom && (
+            <Button size="sm" onClick={() => setOpenCashOpen(true)}>
+              <Wallet className="mr-1.5 h-4 w-4" />
               Abrir caixa
             </Button>
           )}
@@ -298,6 +327,39 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
         isPending={closeCashMutation.isPending}
         onConfirm={(data) => closeCashMutation.mutate(data)}
       />
+
+      {/* Diálogo — abrir caixa (garçom) */}
+      <Dialog open={openCashOpen} onOpenChange={(o) => { setOpenCashOpen(o); if (!o) setOpeningFloat(""); }}>
+        <DialogContent className="sm:max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle>Abrir caixa</DialogTitle>
+            <DialogDescription>
+              Informe o fundo de troco inicial (deixe em branco para abrir sem troco).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="opening-float">Fundo de troco</Label>
+            <Input
+              id="opening-float"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={openingFloat}
+              onChange={(e) => setOpeningFloat(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenCashOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={openCashMutation.isPending}
+              onClick={() => openCashMutation.mutate()}
+            >
+              {openCashMutation.isPending ? "Abrindo..." : "Abrir caixa"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog — confirmar exclusão */}
       <Dialog

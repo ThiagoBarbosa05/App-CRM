@@ -144,7 +144,7 @@ restaurantPdvRouter.get(
   getCurrentCashSessionController,
 );
 restaurantPdvRouter.get("/cash-sessions", requireGestor, listCashSessionsController);
-restaurantPdvRouter.post("/cash-sessions", requireGestor, openCashSessionController);
+restaurantPdvRouter.post("/cash-sessions", requireGarcomOrGestor, openCashSessionController);
 restaurantPdvRouter.post(
   "/cash-sessions/movements",
   requireGestor,
