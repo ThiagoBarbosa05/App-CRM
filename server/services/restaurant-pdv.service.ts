@@ -122,6 +122,26 @@ export const restaurantPdvService = {
     } else {
       // Mesa avulsa — sem vínculo a uma mesa cadastrada
       resolvedTableNumber = data.tableNumber!;
+
+      // Impede duplicata: verifica se já existe mesa aberta com o mesmo número
+      const [duplicate] = await db
+        .select({ id: restaurantOrders.id })
+        .from(restaurantOrders)
+        .where(
+          and(
+            isNull(restaurantOrders.tableId),
+            eq(restaurantOrders.tableNumber, resolvedTableNumber),
+            eq(restaurantOrders.status, "aberta"),
+          ),
+        )
+        .limit(1);
+
+      if (duplicate) {
+        throw Object.assign(
+          new Error(`A Mesa ${resolvedTableNumber} já está aberta`),
+          { code: "TABLE_OCCUPIED" },
+        );
+      }
     }
 
     const blingConnectionId = await this.getRestaurantPdvBlingConnectionId();
