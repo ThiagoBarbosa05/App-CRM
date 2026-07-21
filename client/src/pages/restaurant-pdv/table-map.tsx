@@ -13,17 +13,117 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, LayoutGrid, Lock, LogOut, Plus, Trash2, Users, Wallet } from "lucide-react";
+import { CheckCircle2, Clock, LayoutGrid, Lock, LogOut, Plus, Receipt, Trash2, Users, Wallet } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseBRL } from "@/lib/utils";
 import { useLocation } from "wouter";
-import { formatDistanceToNowStrict } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import type { RestaurantOrder } from "@shared/schema";
 import { OpenTableDialog } from "@/components/restaurant-pdv/open-table-dialog";
 import { CloseCashSessionDialog } from "@/components/restaurant-pdv/close-cash-session-dialog";
+
+interface SessionOrderRow {
+  id: string;
+  orderNumber: number;
+  tableNumber: number;
+  waiterName: string | null;
+  paymentMethod: string | null;
+  total: string | null;
+  closedAt: string | null;
+}
+
+const PAYMENT_LABEL: Record<string, string> = {
+  dinheiro: "Dinheiro",
+  cartao_credito: "Cartão Crédito",
+  cartao_debito: "Cartão Débito",
+  pix: "Pix",
+  outro: "Outro",
+};
+
+function formatCurrency(value: string | null): string {
+  if (!value) return "—";
+  const num = parseFloat(value);
+  if (isNaN(num)) return "—";
+  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function RecentSalesSection({ cashSessionOpen }: { cashSessionOpen: boolean }) {
+  const { data, isLoading } = useQuery<{ orders: SessionOrderRow[] }>({
+    queryKey: ["/api/restaurant-pdv/cash-sessions/current/orders"],
+    refetchInterval: cashSessionOpen ? 15000 : false,
+    enabled: cashSessionOpen,
+  });
+
+  const orders = data?.orders ?? [];
+
+  if (!cashSessionOpen) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          Últimas vendas fechadas
+        </h2>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando vendas...</p>
+      ) : orders.length === 0 ? (
+        <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+          <Receipt className="h-4 w-4 shrink-0" />
+          Nenhuma venda fechada neste caixa ainda.
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
+                <th className="px-3 py-2 text-left font-medium">Mesa</th>
+                <th className="px-3 py-2 text-left font-medium">Horário</th>
+                <th className="px-3 py-2 text-left font-medium hidden sm:table-cell">Pagamento</th>
+                <th className="px-3 py-2 text-right font-medium">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order, idx) => (
+                <tr
+                  key={order.id}
+                  className={cn(
+                    "border-b last:border-0 transition-colors",
+                    idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+                  )}
+                >
+                  <td className="px-3 py-2.5">
+                    <span className="font-semibold text-foreground">
+                      Mesa {order.tableNumber}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground">
+                    {order.closedAt
+                      ? format(new Date(order.closedAt), "HH:mm", { locale: ptBR })
+                      : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground hidden sm:table-cell">
+                    {order.paymentMethod
+                      ? (PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod)
+                      : "Múltiplos"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-green-700 dark:text-green-400">
+                    {formatCurrency(order.total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Tipo exportado — usado também por transfer-items-dialog e merge-tables-dialog
 export interface RestaurantTableWithStatus {
@@ -312,6 +412,8 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
           })}
         </div>
       )}
+
+      <RecentSalesSection cashSessionOpen={cashSessionOpen} />
 
       <OpenTableDialog
         open={dialogOpen}
