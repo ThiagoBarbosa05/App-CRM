@@ -120,7 +120,10 @@ import { RegistrationQualityBar } from "@/components/clients/registration-qualit
 import type { ClientRegistrationQuality } from "@shared/client-registration-quality";
 
 function ClientCadastroBar({ clientId }: { clientId: string }) {
-  const { data } = useQuery<{ registrationQuality: ClientRegistrationQuality }>({
+  const { data } = useQuery<{
+    registrationQuality: ClientRegistrationQuality;
+    lastPurchaseDate: string | null;
+  }>({
     queryKey: ["/api/clients", clientId],
     queryFn: async () => {
       const res = await fetch(`/api/clients/${clientId}`);
@@ -130,12 +133,30 @@ function ClientCadastroBar({ clientId }: { clientId: string }) {
     staleTime: 60_000,
   });
   if (!data?.registrationQuality) return null;
+
+  const lastPurchaseLabel = data.lastPurchaseDate
+    ? format(new Date(data.lastPurchaseDate), "dd/MM/yyyy", { locale: ptBR })
+    : null;
+
   return (
-    <div className="hidden sm:flex items-center gap-1.5 shrink-0 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-2 py-1">
-      <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
-        Cadastro
-      </span>
-      <RegistrationQualityBar quality={data.registrationQuality} />
+    <div className="hidden sm:flex items-center gap-2 shrink-0">
+      {/* Qualidade de cadastro */}
+      <div className="flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-2 py-1">
+        <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
+          Cadastro
+        </span>
+        <RegistrationQualityBar quality={data.registrationQuality} />
+      </div>
+
+      {/* Última compra */}
+      <div className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-2 py-1">
+        <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
+          Últ. compra
+        </span>
+        <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
+          {lastPurchaseLabel ?? "—"}
+        </span>
+      </div>
     </div>
   );
 }
