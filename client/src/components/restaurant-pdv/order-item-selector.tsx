@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, parseBRL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -101,9 +101,9 @@ export function OrderItemSelector({
       : menuItems.filter((i) => i.category === selectedCategory);
 
   const handleAddCustomItem = () => {
-    const price = customPrice.replace(",", ".");
-    if (!customName.trim() || !price || Number(price) <= 0) return;
-    onAddCustomItem(customName.trim(), price);
+    const price = parseBRL(customPrice);
+    if (!customName.trim() || price === null || price <= 0) return;
+    onAddCustomItem(customName.trim(), price.toFixed(2));
     setCustomName("");
     setCustomPrice("");
   };

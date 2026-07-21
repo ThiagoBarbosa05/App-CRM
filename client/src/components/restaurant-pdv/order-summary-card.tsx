@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, parseBRL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -179,8 +179,15 @@ export function OrderSummaryCard({
                       className="h-7 w-20 text-right text-xs tabular-nums"
                       defaultValue={item.unitPrice}
                       onBlur={(e) => {
-                        const value = e.target.value.replace(",", ".");
-                        if (value !== item.unitPrice && Number(value) > 0) {
+                        const parsed = parseBRL(e.target.value);
+                        // Entrada ilegível volta ao preço atual em vez de
+                        // gravar NaN ou um valor mil vezes menor.
+                        if (parsed === null || parsed <= 0) {
+                          e.target.value = item.unitPrice;
+                          return;
+                        }
+                        const value = parsed.toFixed(2);
+                        if (value !== item.unitPrice) {
                           onUpdateItemPrice(item.id, value);
                         }
                       }}

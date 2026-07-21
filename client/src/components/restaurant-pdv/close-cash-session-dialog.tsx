@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, parseBRL } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 
 const PAYMENT_METHODS = [
@@ -85,40 +85,51 @@ export function CloseCashSessionDialog({
   /** Rows calculadas: sistema, contado, diferença em centavos. */
   const rows = PAYMENT_METHODS.map((m) => {
     const sys = systemAmount(m.value);
-    const cnt = parseMoney(counted[m.value]);
-    const hasCounted = counted[m.value].trim() !== "";
+    const raw = counted[m.value];
+    const filled = raw.trim() !== "";
+    const cnt = parseMoney(raw);
+    // Preenchido mas ilegível: não conta como conferido nem entra nos totais.
+    const isInvalid = filled && cnt === null;
+    const hasCounted = filled && cnt !== null;
     const diffCents = hasCounted ? toCents(cnt) - toCents(sys) : null;
-    return { ...m, sys, cnt, hasCounted, diffCents };
+    return { ...m, sys, cnt, filled, isInvalid, hasCounted, diffCents };
   });
 
   const anyFilled = rows.some((r) => r.hasCounted);
+  const anyInvalid = rows.some((r) => r.isInvalid);
 
-  // Totais gerais (apenas linhas preenchidas)
+  // Totais gerais (apenas linhas preenchidas e válidas)
   const totalSysCents = rows
     .filter((r) => r.hasCounted)
     .reduce((s, r) => s + toCents(r.sys), 0);
   const totalCntCents = rows
     .filter((r) => r.hasCounted)
-    .reduce((s, r) => s + toCents(r.cnt), 0);
+    .reduce((s, r) => s + toCents(r.cnt ?? 0), 0);
   const totalDiffCents = anyFilled ? totalCntCents - totalSysCents : null;
 
   const hasDifference =
     totalDiffCents !== null && totalDiffCents !== 0;
 
   const valid =
-    anyFilled && (!hasDifference || notes.trim().length >= 3) && !isPending;
+    anyFilled &&
+    !anyInvalid &&
+    (!hasDifference || notes.trim().length >= 3) &&
+    !isPending;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
     const countedByMethod: Record<string, string> = {};
     for (const m of PAYMENT_METHODS) {
-      if (counted[m.value].trim() !== "") {
-        countedByMethod[m.value] = String(parseMoney(counted[m.value]));
+      const value = parseMoney(counted[m.value]);
+      if (value !== null) {
+        countedByMethod[m.value] = value.toFixed(2);
       }
     }
     onConfirm({
-      countedCash: String(parseMoney(counted.dinheiro)),
+      // Dinheiro em branco = nada em espécie conferido, e o backend precisa de
+      // um número para gravar a diferença.
+      countedCash: (parseMoney(counted.dinheiro) ?? 0).toFixed(2),
       countedByMethod,
       notes: notes.trim() || undefined,
     });
@@ -164,17 +175,25 @@ export function CloseCashSessionDialog({
                     </td>
                     <td className="py-2 text-right">
                       <Input
-                        className="h-7 w-28 text-right text-xs tabular-nums ml-auto"
                         inputMode="decimal"
                         placeholder="0,00"
                         value={counted[row.value]}
                         onChange={(e) =>
                           setCounted((prev) => ({ ...prev, [row.value]: e.target.value }))
                         }
+                        aria-invalid={row.isInvalid}
+                        className={cn(
+                          "h-7 w-28 text-right text-xs tabular-nums ml-auto",
+                          row.isInvalid && "border-red-500 focus-visible:ring-red-500",
+                        )}
                       />
                     </td>
                     <td className="py-2 pr-3 text-right tabular-nums">
-                      {row.diffCents === null ? (
+                      {row.isInvalid ? (
+                        <span className="text-xs font-medium text-red-600 dark:text-red-400">
+                          inválido
+                        </span>
+                      ) : row.diffCents === null ? (
                         <span className="text-muted-foreground">—</span>
                       ) : row.diffCents === 0 ? (
                         <span className="font-medium text-emerald-600 dark:text-emerald-400">

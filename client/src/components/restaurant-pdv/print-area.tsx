@@ -7,21 +7,41 @@ interface PrintAreaProps {
 }
 
 /**
- * Dispara a impressão de UMA área específica.
- *
- * A marcação vai no `body` em vez de a regra ser global porque duas áreas na
- * mesma página se anulavam: a regra de cada uma escondia a outra por
- * especificidade maior, e a impressão saía em branco. A classe é aplicada e
- * removida de forma síncrona, sem depender de re-render do React.
+ * Dispara a impressão de UMA área específica abrindo uma janela popup.
+ * Isso suprime cabeçalho e rodapé padrão do navegador (data, título, URL).
  */
 export function printArea(id: string): void {
-  const className = `printing-${id}`;
-  document.body.classList.add(className);
-  try {
-    window.print();
-  } finally {
-    document.body.classList.remove(className);
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const popup = window.open("", "_blank", "width=800,height=600");
+  if (!popup) {
+    // Fallback se popup bloqueado: impressão inline
+    const className = `printing-${id}`;
+    document.body.classList.add(className);
+    try { window.print(); } finally { document.body.classList.remove(className); }
+    return;
   }
+
+  popup.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title></title>
+  <style>
+    @page { margin: 0; size: auto; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body { padding: 12mm 10mm; font-family: monospace; color: #000; }
+  </style>
+</head>
+<body>${el.innerHTML}</body>
+</html>`);
+  popup.document.close();
+  popup.focus();
+  setTimeout(() => {
+    popup.print();
+    popup.close();
+  }, 250);
 }
 
 export function PrintArea({ id, children }: PrintAreaProps) {

@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, parseBRL } from "@/lib/utils";
 
 export type CashMovementType = "sangria" | "suprimento";
 
@@ -44,10 +44,15 @@ export function CashMovementDialog({
   }, [open]);
 
   const isSangria = type === "sangria";
-  const numericAmount = Number(amount.replace(",", "."));
-  const exceedsCash = isSangria && numericAmount > expectedCash;
+  const numericAmount = parseBRL(amount);
+  const exceedsCash =
+    isSangria && numericAmount !== null && numericAmount > expectedCash;
   const valid =
-    numericAmount > 0 && reason.trim().length >= 3 && !exceedsCash && !isPending;
+    numericAmount !== null &&
+    numericAmount > 0 &&
+    reason.trim().length >= 3 &&
+    !exceedsCash &&
+    !isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -65,7 +70,9 @@ export function CashMovementDialog({
           className="space-y-4 py-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (valid) onConfirm({ amount: amount.replace(",", "."), reason: reason.trim() });
+            if (valid && numericAmount !== null) {
+              onConfirm({ amount: numericAmount.toFixed(2), reason: reason.trim() });
+            }
           }}
         >
           <div className="space-y-2">

@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { parseBRL } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -37,13 +38,22 @@ export function ApplyDiscountDialog({
     }
   }, [open]);
 
-  const canConfirm = value.trim().length > 0 && Number(value.replace(",", ".")) > 0 && reason.trim().length > 0;
+  // Antes usava `.replace(",", ".")`: "1.234" passava como 1,234 e aplicava um
+  // desconto mil vezes menor que o pretendido, sem erro nenhum na tela.
+  const parsedValue = parseBRL(value);
+  const isPercent = mode === "percent";
+  // Percentual acima de 100 zeraria a comanda — o cálculo trava o desconto no
+  // subtotal, então passaria como "válido" e ninguém veria o erro de digitação.
+  const withinRange =
+    parsedValue !== null && parsedValue > 0 && (!isPercent || parsedValue <= 100);
+  const canConfirm = withinRange && reason.trim().length > 0;
 
   const handleConfirm = () => {
-    const numericValue = value.replace(",", ".");
+    if (!canConfirm || parsedValue === null) return;
+    const numericValue = parsedValue.toFixed(2);
     onConfirm({
-      discountPercent: mode === "percent" ? numericValue : undefined,
-      discountAmount: mode === "amount" ? numericValue : undefined,
+      discountPercent: isPercent ? numericValue : undefined,
+      discountAmount: isPercent ? undefined : numericValue,
       reason: reason.trim(),
     });
   };
