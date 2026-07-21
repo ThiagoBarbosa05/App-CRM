@@ -25,6 +25,7 @@ import {
   Clock,
   Combine,
   Lock,
+  UserPlus,
   Users,
   UtensilsCrossed,
   XCircle,
@@ -48,6 +49,7 @@ import { MergeTablesDialog } from "@/components/restaurant-pdv/merge-tables-dial
 import { OrderReceiptPrint, printBillNow } from "@/components/restaurant-pdv/order-receipt-print";
 import { OrderItemSelector } from "@/components/restaurant-pdv/order-item-selector";
 import { OrderSummaryCard } from "@/components/restaurant-pdv/order-summary-card";
+import { LinkClientDialog } from "@/components/restaurant-pdv/link-client-dialog";
 
 export interface CartItem {
   id: string;
@@ -87,6 +89,7 @@ export default function RestaurantPos() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmittingCart, setIsSubmittingCart] = useState(false);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
+  const [linkClientOpen, setLinkClientOpen] = useState(false);
 
   const setActiveOrder = (id: string | null) => {
     navigate(id ? `/pdv-restaurante?orderId=${id}` : "/pdv-restaurante");
@@ -526,6 +529,18 @@ export default function RestaurantPos() {
                 <Clock className="h-3 w-3" />
                 {formatDistanceToNowStrict(new Date(order.openedAt), { locale: ptBR })}
               </span>
+              <Button
+                size="sm"
+                variant={order.clientName ? "secondary" : "outline"}
+                className="h-7 max-w-[140px] truncate px-2 text-xs shrink-0"
+                onClick={() => setLinkClientOpen(true)}
+                title={order.clientName ? `Cliente: ${order.clientName}` : "Vincular cliente"}
+              >
+                <UserPlus className="h-3.5 w-3.5 shrink-0 sm:mr-1" />
+                <span className="hidden sm:inline truncate">
+                  {order.clientName ?? "Vincular cliente"}
+                </span>
+              </Button>
               <div className="ml-auto flex items-center gap-1">
                 <Button
                   size="sm"
@@ -704,6 +719,16 @@ export default function RestaurantPos() {
         isPending={mergeOrdersMutation.isPending}
         onConfirm={(targetOrderId) => mergeOrdersMutation.mutate(targetOrderId)}
       />
+
+      {order && (
+        <LinkClientDialog
+          open={linkClientOpen}
+          onOpenChange={setLinkClientOpen}
+          orderId={order.id}
+          currentClientName={order.clientName}
+          onLinked={invalidateOrder}
+        />
+      )}
     </div>
   );
 }

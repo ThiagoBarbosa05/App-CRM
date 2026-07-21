@@ -43,6 +43,8 @@ export function OrdersHistoryFilters({ value, onChange }: OrdersHistoryFiltersPr
               <SelectItem value="todas">Todas</SelectItem>
               <SelectItem value="aberta">Aberta</SelectItem>
               <SelectItem value="fechada">Fechada</SelectItem>
+              <SelectItem value="cancelada">Cancelada</SelectItem>
+              <SelectItem value="mesclada">Mesclada</SelectItem>
             </SelectContent>
           </Select>
         </div>

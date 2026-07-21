@@ -182,7 +182,8 @@ export const restaurantPdvService = {
   },
 
   async listOrders(filters: {
-    status?: "aberta" | "fechada";
+    /** Derivado do enum do schema para não sair de sincronia com o banco. */
+    status?: RestaurantOrder["status"];
     waiterId?: string;
     from?: Date;
     to?: Date;

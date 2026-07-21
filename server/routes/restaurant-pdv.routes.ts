@@ -45,6 +45,7 @@ import {
 } from "../controllers/restaurant-pdv/pdv-settings.controller";
 import { searchClientsController } from "../controllers/restaurant-pdv/search-clients.controller";
 import { quickCreateClientController } from "../controllers/restaurant-pdv/quick-create-client.controller";
+import { updateOrderClientController } from "../controllers/restaurant-pdv/update-order-client.controller";
 
 export const restaurantPdvRouter = Router();
 
@@ -173,3 +174,4 @@ restaurantPdvRouter.put("/settings", requireGestor, updatePdvSettingsController)
 
 restaurantPdvRouter.get("/clients/search", requireGarcomOrGestor, searchClientsController);
 restaurantPdvRouter.post("/clients", requireGarcomOrGestor, quickCreateClientController);
+restaurantPdvRouter.patch("/orders/:id/client", requireGarcomOrGestor, updateOrderClientController);

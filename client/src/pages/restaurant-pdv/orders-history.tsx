@@ -48,7 +48,8 @@ export default function RestaurantOrdersHistory() {
           <PageHeader.Text>
             <PageHeader.Title>Histórico de Comandas</PageHeader.Title>
             <PageHeader.Description>
-              Acompanhe comandas abertas e fechadas do PDV Restaurante
+              Acompanhe comandas abertas, fechadas, canceladas e mescladas do PDV
+              Restaurante
             </PageHeader.Description>
           </PageHeader.Text>
         </PageHeader.Info>
