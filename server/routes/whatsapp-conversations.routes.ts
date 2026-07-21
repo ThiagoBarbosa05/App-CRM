@@ -450,6 +450,10 @@ router.post("/conversations/:clientId/messages/template", async (req, res) => {
       return res.status(400).json({ errors: parsed.error.flatten() });
     }
 
+    if (!(await userHasActionPermission(user, "manage_templates"))) {
+      return res.status(403).json({ message: "Sem permissão para enviar templates" });
+    }
+
     const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
 

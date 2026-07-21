@@ -123,6 +123,7 @@ interface Channel {
   connectionStatus: string | null;
   provider: string;
   evolutionInstanceName?: string | null;
+  userId?: string | null;
 }
 
 interface WaSector {
@@ -1302,12 +1303,14 @@ function ClientListItem({
   onClick,
   availableTags,
   onTagsChange,
+  canManageTags,
 }: {
   client: ChatClient;
   selected: boolean;
   onClick: () => void;
   availableTags: WhatsappClientTag[];
   onTagsChange: (clientId: string, tagIds: string[]) => void;
+  canManageTags: boolean;
 }) {
   const hasUnread = (client.unreadCount ?? 0) > 0;
   const displayName = client.clientName ?? client.contactName ?? client.phone;
@@ -1476,7 +1479,7 @@ function ClientListItem({
         </div>
       </button>
 
-      {client.clientId && (
+      {client.clientId && canManageTags && (
         <WhatsappTagsEditPopover
           clientId={client.clientId}
           currentTags={client.whatsappTags ?? []}
@@ -2849,6 +2852,8 @@ function ConversationMessages({
   onClientLinked,
   availableWhatsappTags,
   onWhatsappTagsChange,
+  canManageTags,
+  canSendTemplates,
   initialDraft,
 }: {
   conversationKey: string;
@@ -2859,6 +2864,8 @@ function ConversationMessages({
   onClientLinked: (clientId: string) => void;
   availableWhatsappTags: WhatsappClientTag[];
   onWhatsappTagsChange: (clientId: string, tagIds: string[]) => void;
+  canManageTags: boolean;
+  canSendTemplates: boolean;
   /** Texto que já chega escrito no composer, editável antes do envio. */
   initialDraft?: string;
 }) {
@@ -4046,7 +4053,7 @@ function ConversationMessages({
           </Button>
 
           {/* Editar etiquetas */}
-          {client.clientId && (
+          {client.clientId && canManageTags && (
             <WhatsappTagsEditPopover
               clientId={client.clientId}
               currentTags={client.whatsappTags ?? []}
@@ -4870,15 +4877,21 @@ function ConversationMessages({
               <div className="flex items-start gap-2 px-2.5 py-2 mb-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50">
                 <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
-                  A janela de 24h desta conversa foi encerrada. Para falar com o
-                  contato, envie um{" "}
-                  <button
-                    onClick={() => setTemplatePickerOpen(true)}
-                    className="font-semibold underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-300"
-                  >
-                    template aprovado
-                  </button>
-                  .
+                  {canSendTemplates ? (
+                    <>
+                      A janela de 24h desta conversa foi encerrada. Para falar
+                      com o contato, envie um{" "}
+                      <button
+                        onClick={() => setTemplatePickerOpen(true)}
+                        className="font-semibold underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-300"
+                      >
+                        template aprovado
+                      </button>
+                      .
+                    </>
+                  ) : (
+                    "A janela de 24h desta conversa foi encerrada. Somente um atendente com permissão para enviar templates pode retomar esta conversa."
+                  )}
                 </p>
               </div>
             )}
@@ -5043,7 +5056,7 @@ function ConversationMessages({
                   />
                 </PopoverContent>
               </Popover>
-              {composerMode === "message" && isCloudApi && (
+              {composerMode === "message" && isCloudApi && canSendTemplates && (
                 <Popover
                   open={templatePickerOpen}
                   onOpenChange={setTemplatePickerOpen}
@@ -5656,6 +5669,40 @@ export default function WhatsAppConversationsPage() {
 
   const isAdminOrGerente = user?.role === "admin" || user?.role === "gerente";
 
+  // Admin/gerente sempre podem gerenciar etiquetas/templates; demais roles
+  // dependem do grant explícito em whatsapp_action_permissions (espelha
+  // userHasActionPermission no backend, que é quem de fato enforce isso).
+  const { data: myActionPermissions } = useQuery<{ permissionKeys: string[] }>({
+    queryKey: ["/api/users", user?.id, "whatsapp-action-permissions"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${user!.id}/whatsapp-action-permissions`);
+      if (!res.ok) throw new Error("Failed to fetch whatsapp action permissions");
+      return res.json();
+    },
+    enabled: !!user?.id && !isAdminOrGerente,
+  });
+  const canManageTags =
+    isAdminOrGerente || (myActionPermissions?.permissionKeys.includes("manage_tags") ?? false);
+  const canSendTemplates =
+    isAdminOrGerente ||
+    (myActionPermissions?.permissionKeys.includes("manage_templates") ?? false);
+
+  // Canais em que o usuário tem permissão explícita de leitura de QR (além
+  // dos que já possui). Espelha canUserReadChannelQr no backend, que é quem
+  // de fato barra o GET/POST de connect/logout do canal Evolution.
+  const { data: qrAccess } = useQuery<{ channelIds: number[] }>({
+    queryKey: ["/api/users", user?.id, "whatsapp-qr-access"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${user!.id}/whatsapp-qr-access`);
+      if (!res.ok) throw new Error("Failed to fetch whatsapp qr access");
+      return res.json();
+    },
+    enabled: !!user?.id && !isAdminOrGerente,
+  });
+  const qrAccessChannelIds = new Set(qrAccess?.channelIds ?? []);
+  const canReadChannelQr = (ch: Channel) =>
+    isAdminOrGerente || ch.userId === user?.id || qrAccessChannelIds.has(ch.id);
+
   const activeMoreFiltersCount =
     selectedTagIds.length +
     selectedSectorIds.length +
@@ -6103,7 +6150,7 @@ export default function WhatsAppConversationsPage() {
                   <span className="text-[11px] text-green-600 dark:text-green-400 shrink-0 flex items-center gap-1">
                     <Wifi className="h-3 w-3" /> Conectado
                   </span>
-                ) : ch.provider === "evolution" ? (
+                ) : ch.provider === "evolution" && canReadChannelQr(ch) ? (
                   <button
                     onClick={() => setQrDialogChannel(ch)}
                     className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:underline shrink-0 flex items-center gap-1"
@@ -6797,6 +6844,7 @@ export default function WhatsAppConversationsPage() {
                 onTagsChange={(clientId, tagIds) =>
                   setTagsMutation.mutate({ clientId, tagIds })
                 }
+                canManageTags={canManageTags}
               />
             ))
           )}
@@ -6845,6 +6893,8 @@ export default function WhatsAppConversationsPage() {
             onWhatsappTagsChange={(clientId, tagIds) =>
               setTagsMutation.mutate({ clientId, tagIds })
             }
+            canManageTags={canManageTags}
+            canSendTemplates={canSendTemplates}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">

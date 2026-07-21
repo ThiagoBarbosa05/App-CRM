@@ -178,11 +178,11 @@ export async function listActiveChannels(): Promise<{ id: number; name: string; 
  */
 export async function listAccessibleChannelsForUser(
   userId: string,
-): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string }[]> {
+): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string; userId: string | null }[]> {
   const ids = await listChannelIdsForUser(userId);
   if (ids.length === 0) return [];
   return db
-    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider, userId: whatsappChannels.userId })
     .from(whatsappChannels)
     .where(and(inArray(whatsappChannels.id, ids), eq(whatsappChannels.isActive, true)))
     .orderBy(whatsappChannels.createdAt);
