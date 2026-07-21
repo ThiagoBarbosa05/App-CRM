@@ -2,35 +2,38 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { UtensilsCrossed } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import type { RestaurantMenuItem } from "@shared/schema";
-import {
-  BlingIntegrationCard,
-  BLING_CONNECTION_SETTING_KEY,
-} from "@/components/restaurant-pdv/bling-integration-card";
+import type { RestaurantMenuItem, PdvUnit } from "@shared/schema";
+import { BlingIntegrationCard } from "@/components/restaurant-pdv/bling-integration-card";
 import { MenuItemsTable } from "@/components/restaurant-pdv/menu-items-table";
 import { MenuItemFormModal } from "@/components/restaurant-pdv/menu-item-form-modal";
 import { AddMenuItemsModal } from "@/components/restaurant-pdv/add-menu-items-modal";
+import { getPdvCurrentUnitId } from "@/lib/pdv-unit";
 
 export default function RestaurantMenuManagement() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RestaurantMenuItem | null>(null);
   const [addModalOpen, setAddModalOpen] = useState(false);
 
+  const activeUnitId = getPdvCurrentUnitId();
+
   const { data: items = [] } = useQuery<RestaurantMenuItem[]>({
     queryKey: ["/api/restaurant-pdv/menu-items", { includeInactive: true }],
     queryFn: async () => {
       const res = await fetch("/api/restaurant-pdv/menu-items?includeInactive=true", {
         credentials: "include",
+        headers: activeUnitId ? { "X-PDV-Unit-Id": activeUnitId } : {},
       });
       if (!res.ok) throw new Error("Erro ao buscar cardápio");
       return res.json();
     },
   });
 
-  const { data: settings } = useQuery<Record<string, string>>({
-    queryKey: ["/api/system-settings"],
+  // Lê a conexão Bling da unidade atual
+  const { data: units = [] } = useQuery<PdvUnit[]>({
+    queryKey: ["/api/restaurant-pdv/units"],
   });
-  const connectionId = settings?.[BLING_CONNECTION_SETTING_KEY] ?? "";
+  const currentUnit = units.find((u) => u.id === activeUnitId);
+  const connectionId = currentUnit?.blingConnectionId ?? "";
 
   return (
     <div className="w-full space-y-6 p-4">

@@ -36,13 +36,21 @@ export const RESTAURANT_PDV_BLING_CONNECTION_SETTING_KEY =
   "restaurant_pdv_bling_connection_id";
 
 export const restaurantPdvService = {
-  async getRestaurantPdvBlingConnectionId(): Promise<string | undefined> {
+  /** Lê a conexão Bling da unidade PDV. Fallback para system_settings (legado). */
+  async getRestaurantPdvBlingConnectionId(unitId?: string | null): Promise<string | undefined> {
+    if (unitId) {
+      const [unit] = await db
+        .select({ blingConnectionId: pdvUnits.blingConnectionId })
+        .from(pdvUnits)
+        .where(eq(pdvUnits.id, unitId))
+        .limit(1);
+      if (unit?.blingConnectionId) return unit.blingConnectionId;
+    }
+    // Fallback legado
     const [setting] = await db
       .select()
       .from(systemSettings)
-      .where(
-        eq(systemSettings.key, RESTAURANT_PDV_BLING_CONNECTION_SETTING_KEY),
-      );
+      .where(eq(systemSettings.key, RESTAURANT_PDV_BLING_CONNECTION_SETTING_KEY));
     return setting?.value ?? undefined;
   },
   async listMenuItems(activeOnly = true, unitId?: string): Promise<RestaurantMenuItem[]> {
@@ -147,7 +155,7 @@ export const restaurantPdvService = {
       }
     }
 
-    const blingConnectionId = await this.getRestaurantPdvBlingConnectionId();
+    const blingConnectionId = await this.getRestaurantPdvBlingConnectionId(data.unitId);
 
     // Lê a taxa de serviço padrão da unidade PDV; fallback para settings legado; fallback 10%.
     let serviceFeePercent = "10.00";

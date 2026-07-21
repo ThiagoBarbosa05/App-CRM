@@ -70,6 +70,7 @@ import {
 
 type ClientWithProfile = Client & {
   lastPurchaseDate: string | null;
+  responsavelName: string | null;
   registrationQuality: ClientRegistrationQuality;
 };
 
@@ -237,7 +238,10 @@ export default function ClientProfilePage() {
     const lastPurchaseDate = client?.lastPurchaseDate;
     const days = parseInt(systemSettings?.purchase_status_days ?? "60", 10);
     if (!lastPurchaseDate) return "inativo";
-    const last = new Date(lastPurchaseDate + "T00:00:00");
+    // Aceita tanto "YYYY-MM-DD" quanto ISO completo (as duas origens de venda
+    // formatam a data de formas diferentes), sem estourar em Invalid Date.
+    const last = parseDateAsLocal(lastPurchaseDate);
+    if (!last) return "inativo";
     const threshold = new Date();
     threshold.setDate(threshold.getDate() - days);
     return last >= threshold ? "ativo" : "inativo";
@@ -253,9 +257,18 @@ export default function ClientProfilePage() {
         .toUpperCase()
     : "";
 
-  const whatsappUrl = client?.phone
-    ? `https://wa.me/55${client.phone.replace(/\D/g, "")}`
-    : null;
+  const whatsappUrl = (() => {
+    if (!client?.phone) return null;
+    const digits = client.phone.replace(/\D/g, "");
+    if (!digits) return null;
+    // Prefixa o DDI 55 apenas quando ainda não está presente. Números locais
+    // têm 10-11 dígitos (DDD + número); com DDI passam a 12-13. O check de
+    // comprimento evita duplicar o "55" e não confunde o DDD 55 (RS) com o
+    // código do país.
+    const withCountry =
+      digits.length >= 12 && digits.startsWith("55") ? digits : `55${digits}`;
+    return `https://wa.me/${withCountry}`;
+  })();
 
   // ── Conversas do Zernio Inbox vinculadas a este cliente (ex: Instagram) ────
   const { data: zernioConvsData } = useQuery<{ data: { id: string; platform: string }[] }>({
@@ -426,12 +439,12 @@ export default function ClientProfilePage() {
             );
           })()}
 
-          {(client as any).responsavelName && (
+          {client.responsavelName && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
               <Users className="h-3.5 w-3.5 text-amber-500 shrink-0" />
               <div className="flex flex-col leading-tight">
                 <span className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Vendedor</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{(client as any).responsavelName}</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{client.responsavelName}</span>
               </div>
             </div>
           )}

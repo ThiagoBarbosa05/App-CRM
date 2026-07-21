@@ -37,6 +37,14 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useBlingAccounts } from "@/hooks/use-bling-accounts";
 
 const SETTINGS_KEY = ["/api/restaurant-pdv/settings"];
 const UNITS_KEY = ["/api/restaurant-pdv/units"];
@@ -62,6 +70,7 @@ const unitFormSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   footerMessage: z.string().optional(),
+  blingConnectionId: z.string().optional(),
   defaultServiceFeePercent: z
     .string()
     .regex(/^\d+([.,]\d{1,2})?$/, "Percentual inválido")
@@ -91,6 +100,8 @@ function UnitDialog({
   const { toast } = useToast();
   const qc = useQueryClient();
   const isEditing = !!unit;
+  const { data: blingAccounts = [] } = useBlingAccounts();
+  const connectedAccounts = blingAccounts.filter((a) => a.status === "connected");
 
   const form = useForm<UnitFormValues>({
     resolver: zodResolver(unitFormSchema),
@@ -100,6 +111,7 @@ function UnitDialog({
       phone: unit?.phone ?? "",
       address: unit?.address ?? "",
       footerMessage: unit?.footerMessage ?? "",
+      blingConnectionId: unit?.blingConnectionId ?? "",
       defaultServiceFeePercent: unit?.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: unit?.waiterCommissionPercent ?? "0.00",
     },
@@ -113,6 +125,7 @@ function UnitDialog({
         phone: data.phone || null,
         address: data.address || null,
         footerMessage: data.footerMessage || null,
+        blingConnectionId: data.blingConnectionId || null,
         defaultServiceFeePercent: normalizePercent(data.defaultServiceFeePercent ?? "10.00"),
         waiterCommissionPercent: normalizePercent(data.waiterCommissionPercent ?? "0.00"),
       };
@@ -207,6 +220,37 @@ function UnitDialog({
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="blingConnectionId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Catálogo Bling</FormLabel>
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sem catálogo Bling" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Sem catálogo Bling</SelectItem>
+                      {connectedAccounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.blingAccountName ?? a.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Produtos importados do Bling para esta unidade
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
