@@ -4813,7 +4813,13 @@ export type InsertWhatsappChannelQrReader = typeof whatsappChannelQrReaders.$inf
 // já existente no app (ver userHasActionPermission em
 // server/services/whatsapp-action-permissions.service.ts). Novas ações devem
 // ser adicionadas aqui antes de serem checadas em qualquer rota.
-export const WHATSAPP_ACTION_PERMISSIONS = ["manage_templates", "manage_tags"] as const;
+export const WHATSAPP_ACTION_PERMISSIONS = [
+  "manage_templates",
+  "manage_tags",
+  "quick_replies_create",
+  "quick_replies_edit",
+  "quick_replies_delete",
+] as const;
 export type WhatsappActionPermissionKey = (typeof WHATSAPP_ACTION_PERMISSIONS)[number];
 
 // Permissões de ação por atendente ("o que o atendente pode fazer"), grant
