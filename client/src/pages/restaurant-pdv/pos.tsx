@@ -37,6 +37,15 @@ import { OrderReceiptPrint } from "@/components/restaurant-pdv/order-receipt-pri
 import { OrderItemSelector } from "@/components/restaurant-pdv/order-item-selector";
 import { OrderSummaryCard } from "@/components/restaurant-pdv/order-summary-card";
 
+export interface CartItem {
+  id: string;
+  name: string;
+  unitPrice: string;
+  quantity: number;
+  menuItemId?: string | null;
+  productId?: string | null;
+}
+
 interface RestaurantOrderWithItems extends RestaurantOrder {
   items: RestaurantOrderItem[];
 }
@@ -58,19 +67,19 @@ export default function RestaurantPos() {
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isSubmittingCart, setIsSubmittingCart] = useState(false);
 
   const setActiveOrder = (id: string | null) => {
     setActiveOrderId(id);
+    setCart([]);
   };
 
-  // Permite reabrir uma comanda em aberto a partir do histórico
-  // (/pdv-restaurante?orderId=xxx). Fora isso, a página sempre inicia
-  // no mapa de mesas — nunca reabre a última comanda automaticamente.
   useEffect(() => {
     const orderIdFromUrl = new URLSearchParams(window.location.search).get(
       "orderId",
     );
-    if (orderIdFromUrl) setActiveOrder(orderIdFromUrl);
+    if (orderIdFromUrl) setActiveOrderId(orderIdFromUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -269,46 +278,118 @@ export default function RestaurantPos() {
   });
 
   const handleAddMenuItem = (menuItem: RestaurantMenuItem) => {
-    const existing = order?.items.find((i) => i.menuItemId === menuItem.id);
-    if (existing) {
-      updateItemMutation.mutate({
-        itemId: existing.id,
-        data: { quantity: existing.quantity + 1 },
-      });
-    } else {
-      addItemMutation.mutate({
-        menuItemId: menuItem.id,
-        name: menuItem.name,
-        unitPrice: menuItem.price,
-        quantity: 1,
-      });
-    }
+    setCart((prev) => {
+      const existing = prev.find((i) => i.menuItemId === menuItem.id);
+      if (existing) {
+        return prev.map((i) =>
+          i.menuItemId === menuItem.id ? { ...i, quantity: i.quantity + 1 } : i,
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: `menu-${menuItem.id}`,
+          name: menuItem.name,
+          unitPrice: menuItem.price,
+          quantity: 1,
+          menuItemId: menuItem.id,
+          productId: null,
+        },
+      ];
+    });
   };
 
   const handleAddProduct = (product: Product) => {
-    const existing = order?.items.find((i) => i.productId === product.id);
-    if (existing) {
-      updateItemMutation.mutate({
-        itemId: existing.id,
-        data: { quantity: existing.quantity + 1 },
-      });
-    } else {
-      addItemMutation.mutate({
-        productId: product.id,
-        name: product.name,
-        unitPrice: product.negotiatedPrice,
-        quantity: 1,
-      });
-    }
+    setCart((prev) => {
+      const existing = prev.find((i) => i.productId === product.id);
+      if (existing) {
+        return prev.map((i) =>
+          i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i,
+        );
+      }
+      return [
+        ...prev,
+        {
+          id: `product-${product.id}`,
+          name: product.name,
+          unitPrice: product.negotiatedPrice,
+          quantity: 1,
+          menuItemId: null,
+          productId: product.id,
+        },
+      ];
+    });
   };
 
   const handleAddCustomItem = (name: string, unitPrice: string) => {
-    addItemMutation.mutate({
-      menuItemId: null,
-      name,
-      unitPrice,
-      quantity: 1,
-    });
+    setCart((prev) => [
+      ...prev,
+      {
+        id: `custom-${Date.now()}-${Math.random()}`,
+        name,
+        unitPrice,
+        quantity: 1,
+        menuItemId: null,
+        productId: null,
+      },
+    ]);
+  };
+
+  const handleCartIncrement = (id: string) => {
+    setCart((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, quantity: i.quantity + 1 } : i)),
+    );
+  };
+
+  const handleCartDecrement = (id: string) => {
+    setCart((prev) =>
+      prev.map((i) =>
+        i.id === id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i,
+      ),
+    );
+  };
+
+  const handleCartRemove = (id: string) => {
+    setCart((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const handleSubmitCart = async () => {
+    if (cart.length === 0 || isSubmittingCart) return;
+    setIsSubmittingCart(true);
+
+    // Snapshot items at submit time — items added to cart after this point
+    // will not be touched by this run (no race-condition data loss).
+    const itemsToSubmit = [...cart];
+    let anySuccess = false;
+
+    for (const item of itemsToSubmit) {
+      try {
+        await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/items`, {
+          menuItemId: item.menuItemId,
+          productId: item.productId,
+          name: item.name,
+          unitPrice: item.unitPrice,
+          quantity: item.quantity,
+        });
+        // Remove only the successfully sent item — failed ones stay for retry.
+        setCart((prev) => prev.filter((i) => i.id !== item.id));
+        anySuccess = true;
+      } catch (err) {
+        toast({
+          title: "Erro ao adicionar item",
+          description: (err as Error).message,
+          variant: "destructive",
+        });
+      }
+    }
+
+    // Single invalidation after the full batch — avoids per-item refetch churn.
+    if (anySuccess) {
+      invalidateOrder();
+      toast({ title: "Pedido lançado", description: "Itens adicionados à comanda." });
+    }
+
+    setIsSubmittingCart(false);
   };
 
   const items = order?.items ?? [];
@@ -325,6 +406,11 @@ export default function RestaurantPos() {
   const serviceFee = discountedSubtotal * 0.1;
   const total = discountedSubtotal + serviceFee;
   const hasDiscount = !!order?.discountAmount || !!order?.discountPercent;
+
+  const cartSubtotal = cart.reduce(
+    (sum, item) => sum + Number(item.unitPrice) * item.quantity,
+    0,
+  );
 
   const isGarcom = user?.role === "garcom";
 
@@ -440,17 +526,23 @@ export default function RestaurantPos() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-              <Card>
-                <CardHeader>
+              <Card className="flex flex-col">
+                <CardHeader className="shrink-0">
                   <CardTitle>Adicionar Item</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex flex-1 flex-col overflow-hidden p-0">
                   <OrderItemSelector
                     blingConnectionId={order.blingConnectionId}
-                    addingDisabled={addItemMutation.isPending || updateItemMutation.isPending}
+                    cart={cart}
                     onAddMenuItem={handleAddMenuItem}
                     onAddProduct={handleAddProduct}
                     onAddCustomItem={handleAddCustomItem}
+                    onCartIncrement={handleCartIncrement}
+                    onCartDecrement={handleCartDecrement}
+                    onCartRemove={handleCartRemove}
+                    onSubmitCart={handleSubmitCart}
+                    submitPending={isSubmittingCart}
+                    cartSubtotal={cartSubtotal}
                   />
                 </CardContent>
               </Card>
@@ -458,6 +550,8 @@ export default function RestaurantPos() {
               <OrderSummaryCard
                 order={order}
                 items={items}
+                cart={cart}
+                cartSubtotal={cartSubtotal}
                 subtotal={subtotal}
                 discountAmount={discountAmount}
                 serviceFee={serviceFee}
