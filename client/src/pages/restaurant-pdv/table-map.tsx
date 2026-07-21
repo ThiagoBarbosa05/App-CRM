@@ -336,21 +336,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando mesas...</p>
-      ) : tables.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-          <LayoutGrid className="h-12 w-12 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">Nenhuma mesa aberta.</p>
-          <Button
-            size="sm"
-            disabled={!cashSessionOpen}
-            title={!cashSessionOpen ? "Abra o caixa para liberar o PDV" : undefined}
-            onClick={() => setDialogOpen(true)}
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Abrir primeira mesa
-          </Button>
-        </div>
-      ) : (
+      ) : tables.length === 0 ? null : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {tables.map((table) => {
             const isAguardando = table.status === "aguardando_pagamento";
