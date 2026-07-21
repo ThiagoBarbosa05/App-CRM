@@ -4,7 +4,6 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
-  Settings,
   UtensilsCrossed,
   X,
 } from "lucide-react";
@@ -15,7 +14,6 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/pdv-restaurante/cardapio", label: "Cardápio", icon: UtensilsCrossed },
-  { href: "/pdv-restaurante/mesas", label: "Configurar Mesas", icon: Settings },
   { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3 },
 ];
 
