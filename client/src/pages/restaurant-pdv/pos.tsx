@@ -585,7 +585,7 @@ export default function RestaurantPos() {
               </div>
 
               {/* Right: order summary */}
-              <div className="flex w-[440px] shrink-0 flex-col overflow-hidden xl:w-[520px]">
+              <div className="flex w-[520px] shrink-0 flex-col overflow-hidden xl:w-[620px]">
                 <OrderSummaryCard
                   order={order}
                   items={items}
