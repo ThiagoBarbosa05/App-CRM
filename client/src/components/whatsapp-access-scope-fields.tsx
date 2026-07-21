@@ -24,10 +24,10 @@ export type WhatsappAccessChannel = {
 
 export type WhatsappAccess = { sectorIds: string[]; channelIds: number[] };
 
-type ScopeItem<TId> = { id: TId; label: string };
+export type ScopeItem<TId> = { id: TId; label: string };
 
 /** Combobox de múltipla seleção usado tanto para setores quanto para canais. */
-function ScopeMultiSelect<TId extends string | number>({
+export function ScopeMultiSelect<TId extends string | number>({
   items,
   selectedIds,
   onChange,
