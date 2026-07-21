@@ -438,32 +438,54 @@ export const restaurantCashSessionService = {
       .limit(limit);
   },
 
-  /** Visão gerencial: todas as sessões de todas as unidades, com nome do operador e da unidade. */
+  /** Visão gerencial: todas as sessões de todas as unidades, com nome do operador, unidade e total faturado. */
   async listSessionsOverview(unitId?: string, limit = 100): Promise<SessionOverviewRow[]> {
     const { pdvUnits } = await import("@shared/schema");
-    const rows = await db
-      .select({
-        id: restaurantCashSessions.id,
-        sessionNumber: restaurantCashSessions.sessionNumber,
-        status: restaurantCashSessions.status,
-        openedBy: restaurantCashSessions.openedBy,
-        openedByName: users.name,
-        unitId: restaurantCashSessions.unitId,
-        unitName: pdvUnits.name,
-        openedAt: restaurantCashSessions.openedAt,
-        closedAt: restaurantCashSessions.closedAt,
-        expectedCash: restaurantCashSessions.expectedCash,
-        countedCash: restaurantCashSessions.countedCash,
-        difference: restaurantCashSessions.difference,
-        openingFloat: restaurantCashSessions.openingFloat,
-      })
-      .from(restaurantCashSessions)
-      .leftJoin(users, eq(restaurantCashSessions.openedBy, users.id))
-      .leftJoin(pdvUnits, eq(restaurantCashSessions.unitId, pdvUnits.id))
-      .where(unitId ? eq(restaurantCashSessions.unitId, unitId) : undefined)
-      .orderBy(desc(restaurantCashSessions.openedAt))
-      .limit(limit);
-    return rows;
+
+    const [rows, totals] = await Promise.all([
+      db
+        .select({
+          id: restaurantCashSessions.id,
+          sessionNumber: restaurantCashSessions.sessionNumber,
+          status: restaurantCashSessions.status,
+          openedBy: restaurantCashSessions.openedBy,
+          openedByName: users.name,
+          unitId: restaurantCashSessions.unitId,
+          unitName: pdvUnits.name,
+          openedAt: restaurantCashSessions.openedAt,
+          closedAt: restaurantCashSessions.closedAt,
+          expectedCash: restaurantCashSessions.expectedCash,
+          countedCash: restaurantCashSessions.countedCash,
+          difference: restaurantCashSessions.difference,
+          openingFloat: restaurantCashSessions.openingFloat,
+        })
+        .from(restaurantCashSessions)
+        .leftJoin(users, eq(restaurantCashSessions.openedBy, users.id))
+        .leftJoin(pdvUnits, eq(restaurantCashSessions.unitId, pdvUnits.id))
+        .where(unitId ? eq(restaurantCashSessions.unitId, unitId) : undefined)
+        .orderBy(desc(restaurantCashSessions.openedAt))
+        .limit(limit),
+      db
+        .select({
+          cashSessionId: restaurantOrders.cashSessionId,
+          totalBilled: sql<string>`COALESCE(SUM(${restaurantOrders.total}), 0)`,
+        })
+        .from(restaurantOrders)
+        .where(
+          and(
+            eq(restaurantOrders.status, "fechada"),
+            isNotNull(restaurantOrders.cashSessionId),
+          ),
+        )
+        .groupBy(restaurantOrders.cashSessionId),
+    ]);
+
+    const totalsMap = new Map(totals.map((t) => [t.cashSessionId, t.totalBilled]));
+
+    return rows.map((r) => ({
+      ...r,
+      totalBilled: totalsMap.get(r.id) ?? "0",
+    }));
   },
 };
 

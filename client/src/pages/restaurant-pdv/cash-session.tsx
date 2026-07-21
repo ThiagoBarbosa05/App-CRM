@@ -90,6 +90,7 @@ interface SessionOverviewRow {
   countedCash: string | null;
   difference: string | null;
   openingFloat: string;
+  totalBilled: string;
 }
 
 const CURRENT_KEY = ["/api/restaurant-pdv/cash-sessions/current"];
@@ -702,6 +703,7 @@ function OverviewTab({ sessions }: { sessions: SessionOverviewRow[] }) {
                   <TableHead>Aberto às</TableHead>
                   <TableHead>Tempo aberto</TableHead>
                   <TableHead className="text-right">Fundo de troco</TableHead>
+                  <TableHead className="text-right">Total faturado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -718,6 +720,9 @@ function OverviewTab({ sessions }: { sessions: SessionOverviewRow[] }) {
                     </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(s.openingFloat ?? 0)}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-green-600 dark:text-green-400">
+                      {formatCurrency(s.totalBilled ?? 0)}
                     </TableCell>
                   </TableRow>
                 ))}
