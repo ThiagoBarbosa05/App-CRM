@@ -25,6 +25,7 @@ import {
   deleteSavedSticker,
   listQuickReplies,
   createQuickReply,
+  updateQuickReply,
   deleteQuickReply,
   transferConversation,
   transferConversationToUser,
@@ -596,6 +597,9 @@ router.post("/quick-replies", async (req, res) => {
   try {
     const user = (req as any).user;
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    if (!(await userHasActionPermission(user, "quick_replies_create"))) {
+      return res.status(403).json({ message: "Sem permissão para criar respostas rápidas" });
+    }
     const parsed = quickReplySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
     const row = await createQuickReply(user.userId, parsed.data.title, parsed.data.content);
@@ -607,10 +611,34 @@ router.post("/quick-replies", async (req, res) => {
   }
 });
 
+router.patch("/quick-replies/:id", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    if (!(await userHasActionPermission(user, "quick_replies_edit"))) {
+      return res.status(403).json({ message: "Sem permissão para editar respostas rápidas" });
+    }
+    const parsed = quickReplySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+    const row = await updateQuickReply(user.userId, req.params.id, parsed.data.title, parsed.data.content);
+    if (!row) return res.status(404).json({ message: "Resposta não encontrada" });
+    res.json(row);
+  } catch (err) {
+    if (err instanceof Error && err.message === "DUPLICATE_TITLE") {
+      return res.status(409).json({ message: "Já existe uma resposta com esse título" });
+    }
+    console.error("[WA QuickReplies] Erro ao editar:", err);
+    res.status(500).json({ message: "Erro ao editar resposta rápida" });
+  }
+});
+
 router.delete("/quick-replies/:id", async (req, res) => {
   try {
     const user = (req as any).user;
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    if (!(await userHasActionPermission(user, "quick_replies_delete"))) {
+      return res.status(403).json({ message: "Sem permissão para excluir respostas rápidas" });
+    }
     const row = await deleteQuickReply(user.userId, req.params.id);
     if (!row) return res.status(404).json({ message: "Resposta não encontrada" });
     res.json({ ok: true });
