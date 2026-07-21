@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, Clock, LayoutGrid, Users } from "lucide-react";
+import { CheckCircle2, Clock, LayoutGrid, Plus, Users } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { RestaurantOrder } from "@shared/schema";
@@ -74,6 +74,11 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   const [selectedTable, setSelectedTable] = useState<RestaurantTableWithStatus | null>(null);
   const [peopleCount, setPeopleCount] = useState("");
 
+  // Mesa avulsa (sem cadastro prévio)
+  const [quickOpenDialog, setQuickOpenDialog] = useState(false);
+  const [quickTableNumber, setQuickTableNumber] = useState("");
+  const [quickPeopleCount, setQuickPeopleCount] = useState("");
+
   const { data: tables = [], isLoading } = useQuery<RestaurantTableWithStatus[]>({
     queryKey: ["/api/restaurant-pdv/tables/map"],
     refetchInterval: 15000,
@@ -106,11 +111,28 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
       onOrderOpened(created.id);
     },
     onError: (err: Error) => {
-      // A mesa pode ter sido ocupada por outro garçom entre a listagem e a
-      // confirmação — o backend é quem garante a regra, então sincronizamos
-      // o mapa e fechamos o diálogo para refletir o estado real.
       queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
       setSelectedTable(null);
+      toast({ title: "Não foi possível abrir a mesa", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const quickOpenMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/restaurant-pdv/orders", {
+        tableNumber: Number(quickTableNumber),
+        peopleCount: Number(quickPeopleCount),
+      });
+      return res.json() as Promise<RestaurantOrder>;
+    },
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+      setQuickOpenDialog(false);
+      setQuickTableNumber("");
+      setQuickPeopleCount("");
+      onOrderOpened(created.id);
+    },
+    onError: (err: Error) => {
       toast({ title: "Não foi possível abrir a mesa", description: err.message, variant: "destructive" });
     },
   });
@@ -169,6 +191,17 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
                 {STATUS_CONFIG[status].label}
               </div>
             ))}
+            <Button
+              size="sm"
+              onClick={() => {
+                setQuickTableNumber("");
+                setQuickPeopleCount("");
+                setQuickOpenDialog(true);
+              }}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Nova Mesa
+            </Button>
           </div>
         </PageHeader.Actions>
       </PageHeader>
@@ -219,6 +252,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
         </div>
       )}
 
+      {/* Dialog: abrir mesa cadastrada */}
       <Dialog
         open={!!selectedTable}
         onOpenChange={(open) => {
@@ -273,6 +307,83 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
                 }
               >
                 {openOrderMutation.isPending ? "Abrindo..." : "Abrir Comanda"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: abrir mesa avulsa (sem cadastro) */}
+      <Dialog
+        open={quickOpenDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setQuickOpenDialog(false);
+            setQuickTableNumber("");
+            setQuickPeopleCount("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle>Nova Mesa</DialogTitle>
+            <DialogDescription>
+              Abre um pedido avulso sem precisar de mesa cadastrada.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-4 py-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              quickOpenMutation.mutate();
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="quick-table-number">Número da Mesa</Label>
+              <Input
+                id="quick-table-number"
+                type="number"
+                min="1"
+                value={quickTableNumber}
+                onChange={(e) => setQuickTableNumber(e.target.value)}
+                placeholder="Ex: 10"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="quick-people-count">Número de Pessoas</Label>
+              <Input
+                id="quick-people-count"
+                type="number"
+                min="1"
+                value={quickPeopleCount}
+                onChange={(e) => setQuickPeopleCount(e.target.value)}
+                placeholder="Ex: 4"
+              />
+            </div>
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setQuickOpenDialog(false);
+                  setQuickTableNumber("");
+                  setQuickPeopleCount("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  !quickTableNumber ||
+                  Number(quickTableNumber) <= 0 ||
+                  !quickPeopleCount ||
+                  Number(quickPeopleCount) <= 0 ||
+                  quickOpenMutation.isPending
+                }
+              >
+                {quickOpenMutation.isPending ? "Abrindo..." : "Abrir Mesa"}
               </Button>
             </DialogFooter>
           </form>

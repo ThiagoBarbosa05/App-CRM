@@ -83,35 +83,45 @@ export const restaurantPdvService = {
   },
 
   async openOrder(data: {
-    tableId: string;
+    tableId: string | null;
+    tableNumber?: number;
     peopleCount: number;
     waiterId: string;
   }): Promise<RestaurantOrder> {
-    const [table] = await db
-      .select()
-      .from(restaurantTables)
-      .where(eq(restaurantTables.id, data.tableId))
-      .limit(1);
+    let resolvedTableNumber: number;
 
-    if (!table || !table.isActive) {
-      throw Object.assign(new Error("Mesa não encontrada"), { code: "NOT_FOUND" });
-    }
+    if (data.tableId) {
+      const [table] = await db
+        .select()
+        .from(restaurantTables)
+        .where(eq(restaurantTables.id, data.tableId))
+        .limit(1);
 
-    const [existingOpenOrder] = await db
-      .select({ id: restaurantOrders.id })
-      .from(restaurantOrders)
-      .where(
-        and(
-          eq(restaurantOrders.tableId, data.tableId),
-          eq(restaurantOrders.status, "aberta"),
-        ),
-      )
-      .limit(1);
+      if (!table || !table.isActive) {
+        throw Object.assign(new Error("Mesa não encontrada"), { code: "NOT_FOUND" });
+      }
 
-    if (existingOpenOrder) {
-      throw Object.assign(new Error("Esta mesa já está ocupada"), {
-        code: "TABLE_OCCUPIED",
-      });
+      const [existingOpenOrder] = await db
+        .select({ id: restaurantOrders.id })
+        .from(restaurantOrders)
+        .where(
+          and(
+            eq(restaurantOrders.tableId, data.tableId),
+            eq(restaurantOrders.status, "aberta"),
+          ),
+        )
+        .limit(1);
+
+      if (existingOpenOrder) {
+        throw Object.assign(new Error("Esta mesa já está ocupada"), {
+          code: "TABLE_OCCUPIED",
+        });
+      }
+
+      resolvedTableNumber = table.number;
+    } else {
+      // Mesa avulsa — sem vínculo a uma mesa cadastrada
+      resolvedTableNumber = data.tableNumber!;
     }
 
     const blingConnectionId = await this.getRestaurantPdvBlingConnectionId();
@@ -119,8 +129,8 @@ export const restaurantPdvService = {
     const [created] = await db
       .insert(restaurantOrders)
       .values({
-        tableId: data.tableId,
-        tableNumber: table.number,
+        tableId: data.tableId ?? null,
+        tableNumber: resolvedTableNumber,
         peopleCount: data.peopleCount,
         waiterId: data.waiterId,
         blingConnectionId: blingConnectionId ?? null,
