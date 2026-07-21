@@ -18,9 +18,9 @@ import { getPdvCurrentUnitId } from "@/lib/pdv-unit";
 export const BLING_CONNECTION_SETTING_KEY = "restaurant_pdv_bling_connection_id";
 
 const UNITS_KEY = ["/api/restaurant-pdv/units"];
+const NONE_VALUE = "__none__";
 
 interface BlingIntegrationCardProps {
-  /** Se fornecido, mostra conexão da unidade específica; caso contrário usa a unidade atual do localStorage */
   unitId?: string;
 }
 
@@ -34,10 +34,10 @@ export function BlingIntegrationCard({ unitId: unitIdProp }: BlingIntegrationCar
   const currentUnit = units.find((u) => u.id === activeUnitId);
 
   const saveConnectionMutation = useMutation({
-    mutationFn: async (connectionId: string) => {
+    mutationFn: async (value: string) => {
       if (!activeUnitId) throw new Error("Nenhuma unidade PDV selecionada");
       await apiRequest("PUT", `/api/restaurant-pdv/units/${activeUnitId}`, {
-        blingConnectionId: connectionId || null,
+        blingConnectionId: value === NONE_VALUE ? null : value,
       });
     },
     onSuccess: () => {
@@ -49,7 +49,7 @@ export function BlingIntegrationCard({ unitId: unitIdProp }: BlingIntegrationCar
     },
   });
 
-  const connectionId = currentUnit?.blingConnectionId ?? "";
+  const selectValue = currentUnit?.blingConnectionId ?? NONE_VALUE;
 
   return (
     <Card>
@@ -66,25 +66,20 @@ export function BlingIntegrationCard({ unitId: unitIdProp }: BlingIntegrationCar
         <div className="flex-1 min-w-[220px] space-y-2">
           <Label>Conexão Bling</Label>
           <Select
-            value={connectionId}
+            value={selectValue}
             onValueChange={(value) => saveConnectionMutation.mutate(value)}
-            disabled={!activeUnitId}
+            disabled={!activeUnitId || saveConnectionMutation.isPending}
           >
             <SelectTrigger>
               <SelectValue placeholder={activeUnitId ? "Selecione uma conexão" : "Selecione uma unidade primeiro"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Sem catálogo Bling</SelectItem>
+              <SelectItem value={NONE_VALUE}>Sem catálogo Bling</SelectItem>
               {connectedAccounts.map((account) => (
                 <SelectItem key={account.id} value={account.id}>
                   {account.blingAccountName ?? account.name}
                 </SelectItem>
               ))}
-              {connectedAccounts.length === 0 && (
-                <SelectItem value="none" disabled>
-                  Nenhuma conexão disponível
-                </SelectItem>
-              )}
             </SelectContent>
           </Select>
         </div>
