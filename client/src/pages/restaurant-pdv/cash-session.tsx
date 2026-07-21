@@ -346,7 +346,11 @@ export default function RestaurantCashSessionPage() {
                     )}
                     {summary.cancelledOrderCount > 0 && (
                       <div className="flex justify-between text-amber-600 dark:text-amber-400">
-                        <span>{summary.cancelledOrderCount} comanda(s) cancelada(s)</span>
+                        {/* "em itens": sem taxa de serviço, que nunca foi
+                            cobrada — não é comparável com "Vendas na sessão". */}
+                        <span>
+                          {summary.cancelledOrderCount} comanda(s) cancelada(s), em itens
+                        </span>
                         <span>{formatCurrency(summary.cancelledTotal)}</span>
                       </div>
                     )}

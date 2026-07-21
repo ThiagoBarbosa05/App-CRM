@@ -2504,6 +2504,19 @@ export const restaurantCashMovements = pgTable(
   }),
 );
 
+export const restaurantPdvSettings = pgTable("restaurant_pdv_settings", {
+  id: integer("id").primaryKey().default(1),
+  companyName: text("company_name").notNull().default("PDV Restaurante"),
+  companyCnpj: text("company_cnpj"),
+  companyAddress: text("company_address"),
+  companyPhone: text("company_phone"),
+  companyFooterMessage: text("company_footer_message"),
+  defaultServiceFeePercent: decimal("default_service_fee_percent", { precision: 5, scale: 2 }).notNull().default("10.00"),
+  waiterCommissionPercent: decimal("waiter_commission_percent", { precision: 5, scale: 2 }).notNull().default("0.00"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export type RestaurantPdvSettings = typeof restaurantPdvSettings.$inferSelect;
+
 export const restaurantOrders = pgTable(
   "restaurant_orders",
   {

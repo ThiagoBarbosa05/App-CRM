@@ -3,10 +3,11 @@ import {
   restaurantCashSessions,
   restaurantCashMovements,
   restaurantOrders,
+  restaurantOrderItems,
   restaurantOrderPayments,
   users,
 } from "../../shared/schema";
-import { eq, and, desc, gte, lte, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, desc, gte, lte, inArray, isNotNull, sql } from "drizzle-orm";
 import type {
   RestaurantCashSession,
   RestaurantCashMovement,
@@ -57,8 +58,27 @@ async function fetchWaiterNames(waiterIds: string[]): Promise<Record<string, str
  */
 async function fetchCancelledInWindow(from: Date, to: Date) {
   return db
-    .select({ id: restaurantOrders.id, subtotal: restaurantOrders.subtotal })
+    .select({
+      id: restaurantOrders.id,
+      /**
+       * Somado dos itens, não lido de `restaurant_orders.subtotal`: aquela
+       * coluna só é gravada no fechamento da comanda, e comanda cancelada
+       * nunca passa por lá — ficava NULL, e o total cancelado da conferência
+       * era sempre R$ 0,00. Calcular aqui também corrige o histórico, sem
+       * depender de backfill.
+       *
+       * É o valor dos itens (sem taxa de serviço): a taxa nunca foi cobrada
+       * numa comanda que não fechou.
+       */
+      subtotal: sql<string>`COALESCE(SUM(
+        ${restaurantOrderItems.unitPrice} * ${restaurantOrderItems.quantity}
+      ) FILTER (WHERE ${restaurantOrderItems.status} = 'ativo'), 0)`,
+    })
     .from(restaurantOrders)
+    .leftJoin(
+      restaurantOrderItems,
+      eq(restaurantOrderItems.orderId, restaurantOrders.id),
+    )
     .where(
       and(
         eq(restaurantOrders.status, "cancelada"),
@@ -66,7 +86,8 @@ async function fetchCancelledInWindow(from: Date, to: Date) {
         gte(restaurantOrders.closedAt, from),
         lte(restaurantOrders.closedAt, to),
       ),
-    );
+    )
+    .groupBy(restaurantOrders.id);
 }
 
 export const restaurantCashSessionService = {

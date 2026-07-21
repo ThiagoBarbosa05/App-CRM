@@ -151,6 +151,27 @@ describe("buildCashSessionSummary", () => {
     expect(summary.ordersTotal).toBe("330.00");
   });
 
+  /**
+   * A regressão real não estava aqui, e sim em quem alimenta esta função:
+   * `fetchCancelledInWindow` lia `restaurant_orders.subtotal`, que só é
+   * gravado no fechamento — comanda cancelada nunca fecha, então chegava NULL
+   * e o total cancelado era sempre R$ 0,00. Este teste fixa o contrato: se o
+   * valor voltar a chegar nulo, o resultado é zero e a conta mente em silêncio.
+   */
+  it("zera o total cancelado quando o valor da comanda não é informado", () => {
+    const summary = buildCashSessionSummary({
+      openingFloat: "0.00",
+      closedOrders: baseOrders,
+      cancelledOrders: [{ id: "c1", subtotal: null }],
+      payments: [{ method: "dinheiro", amount: "330.00" }],
+      movements: [],
+      waiterNameById: {},
+    });
+
+    expect(summary.cancelledOrderCount).toBe(1);
+    expect(summary.cancelledTotal).toBe("0.00");
+  });
+
   it("totaliza desconto em valor e percentual", () => {
     const summary = buildCashSessionSummary({
       openingFloat: "0.00",

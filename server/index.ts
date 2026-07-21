@@ -43,6 +43,7 @@ import { getCachedPage, setCachedPage } from "./lib/landing-page-cache";
 import { seedCountries } from "./jobs/seed-countries";
 import { migrateWineryGoals } from "./jobs/migrate-winery-goals";
 import { migrateCategoryGoals } from "./jobs/migrate-category-goals";
+import { migratePdvSettings } from "./jobs/migrate-pdv-settings";
 import { redactPii } from "./lib/log-redaction";
 // import "./jobs/umbler-sync-scheduler";
 
@@ -183,6 +184,7 @@ app.use((req, res, next) => {
   seedCountries().catch((err) => console.error("[Seed] seedCountries falhou:", err));
   migrateWineryGoals().catch((err) => console.error("[Migrate] migrateWineryGoals falhou:", err));
   migrateCategoryGoals().catch((err) => console.error("[Migrate] migrateCategoryGoals falhou:", err));
+  migratePdvSettings().catch((err) => console.error("[Migrate] migratePdvSettings falhou:", err));
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();

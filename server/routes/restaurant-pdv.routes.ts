@@ -38,6 +38,10 @@ import {
   listCashSessionsController,
   getCashSessionController,
 } from "../controllers/restaurant-cash-session";
+import {
+  getPdvSettingsController,
+  updatePdvSettingsController,
+} from "../controllers/restaurant-pdv/pdv-settings.controller";
 
 export const restaurantPdvRouter = Router();
 
@@ -155,3 +159,6 @@ restaurantPdvRouter.get(
   getDailySummaryController,
 );
 restaurantPdvRouter.get("/reports/sales", requireGestor, getSalesReportController);
+
+restaurantPdvRouter.get("/settings", requireGarcomOrGestor, getPdvSettingsController);
+restaurantPdvRouter.put("/settings", requireGestor, updatePdvSettingsController);

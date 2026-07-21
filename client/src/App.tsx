@@ -59,6 +59,7 @@ const WhatsAppMetaMonitor = lazy(() => import("@/pages/whatsapp/meta-monitor"));
 const RestaurantMenuManagement = lazy(() => import("@/pages/restaurant-pdv/menu-management"));
 const RestaurantReports = lazy(() => import("@/pages/restaurant-pdv/reports"));
 const RestaurantCashSession = lazy(() => import("@/pages/restaurant-pdv/cash-session"));
+const PdvSettings = lazy(() => import("@/pages/restaurant-pdv/settings"));
 
 // Páginas do módulo WhatsApp que um vendedor pode acessar diretamente pela
 // URL — as demais (campanhas, templates, atendentes, bots, etc.) já ficam
@@ -101,6 +102,16 @@ function WhatsAppSection() {
 }
 
 function RestaurantPdvSection() {
+  const { user } = useAuth();
+
+  // Cardápio, caixa e relatórios são todos `requireGestor` (admin/gerente) no
+  // backend. O garçom já é barrado antes, no `Router`, mas o vendedor caía
+  // aqui: abria a tela inteira, via a tabela de histórico vazia por causa de um
+  // 403 silencioso e só descobria o bloqueio ao clicar em "Fechar caixa".
+  if (user?.role !== "admin" && user?.role !== "gerente") {
+    return <Redirect to="/" />;
+  }
+
   return (
     <RestaurantPdvHub>
       <Suspense fallback={null}>
@@ -108,6 +119,7 @@ function RestaurantPdvSection() {
           <Route path="/pdv-restaurante/cardapio" component={RestaurantMenuManagement} />
           <Route path="/pdv-restaurante/caixa" component={RestaurantCashSession} />
           <Route path="/pdv-restaurante/relatorios" component={RestaurantReports} />
+          <Route path="/pdv-restaurante/configuracoes" component={PdvSettings} />
         </Switch>
       </Suspense>
     </RestaurantPdvHub>

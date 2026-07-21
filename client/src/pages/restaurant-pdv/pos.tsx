@@ -37,6 +37,7 @@ import type {
   RestaurantMenuItem,
   RestaurantOrderItem,
   RestaurantOrder,
+  RestaurantPdvSettings,
 } from "@shared/schema";
 import { TableMapGrid } from "./table-map";
 import { ReasonPromptDialog } from "@/components/restaurant-pdv/reason-prompt-dialog";
@@ -105,6 +106,10 @@ export default function RestaurantPos() {
     refetchInterval: 15000,
   });
 
+  const { data: pdvSettings } = useQuery<RestaurantPdvSettings>({
+    queryKey: ["/api/restaurant-pdv/settings"],
+  });
+
   const invalidateOrder = () => {
     queryClient.invalidateQueries({
       queryKey: ["/api/restaurant-pdv/orders", activeOrderId],
@@ -120,7 +125,7 @@ export default function RestaurantPos() {
       invalidateOrder();
       // Imprime a pré-conta automaticamente ao pedir a conta
       if (order) {
-        printBillNow(order, order.items ?? []);
+        printBillNow(order, order.items ?? [], { settings: pdvSettings });
       }
     },
     onError: (err: Error) => {

@@ -4,7 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 import { PrintArea, printArea } from "./print-area";
 import { Printer } from "lucide-react";
 import { calculateOrderTotals, formatPercent } from "@shared/restaurant-order-totals";
-import type { RestaurantOrder, RestaurantOrderItem, RestaurantOrderPayment } from "@shared/schema";
+import type { RestaurantOrder, RestaurantOrderItem, RestaurantOrderPayment, RestaurantPdvSettings } from "@shared/schema";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   pix: "Pix",
@@ -48,6 +48,27 @@ function groupItems(items: RestaurantOrderItem[]): {
   }));
 }
 
+/** Gera o bloco de cabeçalho HTML para o recibo a partir das configurações. */
+function buildReceiptHeader(
+  order: RestaurantOrder,
+  settings?: Partial<RestaurantPdvSettings> | null,
+): string {
+  const name = settings?.companyName || "PDV Restaurante";
+  const cnpj = settings?.companyCnpj;
+  const address = settings?.companyAddress;
+  const phone = settings?.companyPhone;
+  const now = new Date().toLocaleString("pt-BR");
+
+  return `
+    <h2 style="text-align:center;margin-bottom:2px;font-size:15px">${name}</h2>
+    ${cnpj ? `<p style="text-align:center;font-size:11px;margin:1px 0">CNPJ: ${cnpj}</p>` : ""}
+    ${address ? `<p style="text-align:center;font-size:11px;margin:1px 0">${address}</p>` : ""}
+    ${phone ? `<p style="text-align:center;font-size:11px;margin:1px 0">Tel: ${phone}</p>` : ""}
+    <p style="text-align:center;margin:6px 0 2px">Mesa ${order.tableNumber} · ${order.peopleCount} pessoa(s)</p>
+    <p style="text-align:center;font-size:11px;margin-bottom:10px">${now}</p>
+  `;
+}
+
 /**
  * Imprime a pré-conta diretamente, sem botão.
  * Chame após confirmar "PEDIR A CONTA" ou qualquer outro gatilho programático.
@@ -55,7 +76,12 @@ function groupItems(items: RestaurantOrderItem[]): {
 export function printBillNow(
   order: RestaurantOrder,
   items: RestaurantOrderItem[],
-  opts?: { serviceFeePercent?: string | number; discountAmount?: string | number; discountPercent?: string | number },
+  opts?: {
+    serviceFeePercent?: string | number;
+    discountAmount?: string | number;
+    discountPercent?: string | number;
+    settings?: Partial<RestaurantPdvSettings> | null;
+  },
 ): void {
   const printId = "auto-bill-print";
 
@@ -73,8 +99,7 @@ export function printBillNow(
   const serviceFeePercent = Number(order.serviceFeePercent ?? computed.serviceFeePercent);
   const hasDiscount = discountAmount > 0;
   const grouped = groupItems(items);
-
-  const now = new Date().toLocaleString("pt-BR");
+  const footer = opts?.settings?.companyFooterMessage || "Obrigado pela preferência!";
 
   const rows = grouped
     .map(
@@ -89,9 +114,7 @@ export function printBillNow(
 
   const html = `
     <div style="max-width:380px;margin:0 auto;font-size:13px;font-family:monospace">
-      <h2 style="text-align:center;margin-bottom:4px">PDV Restaurante — Pré-Conta</h2>
-      <p style="text-align:center;margin-bottom:4px">Mesa ${order.tableNumber} · ${order.peopleCount} pessoa(s)</p>
-      <p style="text-align:center;font-size:11px;margin-bottom:12px">${now}</p>
+      ${buildReceiptHeader(order, opts?.settings)}
       <hr/>
       <table style="width:100%;border-collapse:collapse;margin-top:8px">
         <thead>
@@ -110,16 +133,14 @@ export function printBillNow(
         <div style="display:flex;justify-content:space-between"><span>Taxa de serviço (${formatPercent(serviceFeePercent)})</span><span>${formatCurrency(serviceFee)}</span></div>
         <div style="display:flex;justify-content:space-between;font-weight:bold;margin-top:6px"><span>TOTAL</span><span>${formatCurrency(total)}</span></div>
       </div>
-      <p style="text-align:center;margin-top:24px;font-size:11px">Obrigado pela preferência!</p>
+      <p style="text-align:center;margin-top:24px;font-size:11px">${footer}</p>
     </div>`;
 
-  // Reutiliza ou cria o nó de impressão
   let el = document.getElementById(printId);
   if (!el) {
     el = document.createElement("div");
     el.id = printId;
 
-    // Estilo de tela: invisível; de impressão: visível quando ativo
     const style = document.createElement("style");
     style.textContent = `
       @media screen { #${printId} { display: none; } }
@@ -160,6 +181,10 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
     },
   });
 
+  const { data: settings } = useQuery<RestaurantPdvSettings>({
+    queryKey: ["/api/restaurant-pdv/settings"],
+  });
+
   const printId = `order-receipt-print-${orderId}`;
   const items = order?.items ?? [];
 
@@ -178,6 +203,7 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
   const hasDiscount = discountAmount > 0;
 
   const grouped = groupItems(items);
+  const footer = settings?.companyFooterMessage || "Obrigado pela preferência!";
 
   if (!order) {
     return (
@@ -197,8 +223,26 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
 
       <PrintArea id={printId}>
         <div style={{ maxWidth: 380, margin: "0 auto", fontSize: 13 }}>
-          <h2 style={{ textAlign: "center", marginBottom: 4 }}>PDV Restaurante</h2>
-          <p style={{ textAlign: "center", marginBottom: 16 }}>
+          {/* Cabeçalho com dados da empresa */}
+          <h2 style={{ textAlign: "center", marginBottom: 2, fontSize: 15 }}>
+            {settings?.companyName || "PDV Restaurante"}
+          </h2>
+          {settings?.companyCnpj && (
+            <p style={{ textAlign: "center", fontSize: 11, margin: "1px 0" }}>
+              CNPJ: {settings.companyCnpj}
+            </p>
+          )}
+          {settings?.companyAddress && (
+            <p style={{ textAlign: "center", fontSize: 11, margin: "1px 0" }}>
+              {settings.companyAddress}
+            </p>
+          )}
+          {settings?.companyPhone && (
+            <p style={{ textAlign: "center", fontSize: 11, margin: "1px 0" }}>
+              Tel: {settings.companyPhone}
+            </p>
+          )}
+          <p style={{ textAlign: "center", marginBottom: 16, marginTop: 6 }}>
             Mesa {order.tableNumber} — {order.peopleCount} pessoa(s)
           </p>
           <hr />
@@ -272,9 +316,7 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
               </div>
             </>
           )}
-          <p style={{ textAlign: "center", marginTop: 24, fontSize: 11 }}>
-            Obrigado pela preferência!
-          </p>
+          <p style={{ textAlign: "center", marginTop: 24, fontSize: 11 }}>{footer}</p>
         </div>
       </PrintArea>
     </>
