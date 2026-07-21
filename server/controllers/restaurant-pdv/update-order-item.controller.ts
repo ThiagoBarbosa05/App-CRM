@@ -15,7 +15,25 @@ export const updateOrderItemController = async (req: Request, res: Response) => 
       return res.status(400).json({ message: parsed.error.errors[0].message });
     }
 
-    const updated = await restaurantPdvService.updateItem(orderId, itemId, parsed.data);
+    const actorId = req.user?.userId;
+    if (!actorId) {
+      return res.status(401).json({ message: "Usuário não autenticado" });
+    }
+
+    // Alterar preço equivale a conceder desconto: mesma restrição do fluxo de
+    // desconto (gestor). Quantidade continua liberada para o garçom.
+    if (parsed.data.unitPrice !== undefined && !["admin", "gerente"].includes(req.user?.role ?? "")) {
+      return res.status(403).json({
+        message: "Apenas administradores e gerentes podem alterar o preço de um item",
+      });
+    }
+
+    const updated = await restaurantPdvService.updateItem(
+      orderId,
+      itemId,
+      parsed.data,
+      actorId,
+    );
     if (!updated) {
       return res.status(404).json({ message: "Item não encontrado" });
     }

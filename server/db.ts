@@ -28,3 +28,11 @@ pool.on("error", (err) => {
 
 export { pool };
 export const db = drizzle({ client: pool, schema });
+
+/**
+ * `db` ou a transação de `db.transaction()`. Serviços que precisam participar
+ * de uma transação do chamador recebem isto em vez de importar `db` direto.
+ */
+export type DbExecutor =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];

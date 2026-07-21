@@ -5,6 +5,7 @@ import {
   ChevronRight,
   LayoutGrid,
   UtensilsCrossed,
+  Wallet,
   X,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/pdv-restaurante/cardapio", label: "Cardápio", icon: UtensilsCrossed },
+  { href: "/pdv-restaurante/caixa", label: "Caixa", icon: Wallet },
   { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3 },
 ];
 

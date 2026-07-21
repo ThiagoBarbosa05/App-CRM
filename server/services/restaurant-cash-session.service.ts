@@ -1,0 +1,333 @@
+import { db } from "../db";
+import {
+  restaurantCashSessions,
+  restaurantCashMovements,
+  restaurantOrders,
+  restaurantOrderPayments,
+  users,
+} from "../../shared/schema";
+import { eq, and, desc, gte, lte, inArray, isNotNull } from "drizzle-orm";
+import type {
+  RestaurantCashSession,
+  RestaurantCashMovement,
+} from "../../shared/schema";
+import {
+  buildCashSessionSummary,
+  calculateCashDifference,
+  calculateExpectedCash,
+  type CashSessionSummary,
+} from "../../shared/restaurant-cash-session";
+import { fromCents, toCents } from "../../shared/restaurant-order-totals";
+import { restaurantOrderAuditService } from "./restaurant-order-audit.service";
+
+export interface CashSessionDetail extends RestaurantCashSession {
+  movements: RestaurantCashMovement[];
+  /** Snapshot gravado (sessão fechada) ou cálculo ao vivo (sessão aberta). */
+  summary: CashSessionSummary;
+  openedByName: string | null;
+  closedByName: string | null;
+}
+
+async function fetchWaiterNames(waiterIds: string[]): Promise<Record<string, string>> {
+  if (waiterIds.length === 0) return {};
+  const rows = await db
+    .select({ id: users.id, name: users.name })
+    .from(users)
+    .where(inArray(users.id, waiterIds));
+  return Object.fromEntries(rows.map((r) => [r.id, r.name]));
+}
+
+/**
+ * Comandas canceladas não recebem `cash_session_id` (nunca chegam a fechar),
+ * então são localizadas pela janela de tempo da sessão via `closedAt`, que o
+ * `forceCancelOrder` grava.
+ */
+async function fetchCancelledInWindow(from: Date, to: Date) {
+  return db
+    .select({ id: restaurantOrders.id, subtotal: restaurantOrders.subtotal })
+    .from(restaurantOrders)
+    .where(
+      and(
+        eq(restaurantOrders.status, "cancelada"),
+        isNotNull(restaurantOrders.closedAt),
+        gte(restaurantOrders.closedAt, from),
+        lte(restaurantOrders.closedAt, to),
+      ),
+    );
+}
+
+export const restaurantCashSessionService = {
+  async getCurrentSession(): Promise<RestaurantCashSession | null> {
+    const [session] = await db
+      .select()
+      .from(restaurantCashSessions)
+      .where(eq(restaurantCashSessions.status, "aberto"))
+      .limit(1);
+    return session ?? null;
+  },
+
+  async openSession(
+    openingFloat: string,
+    actorId: string,
+  ): Promise<RestaurantCashSession> {
+    if (toCents(openingFloat) < 0) {
+      throw Object.assign(new Error("O fundo de troco não pode ser negativo"), {
+        code: "INVALID_AMOUNT",
+      });
+    }
+
+    const current = await this.getCurrentSession();
+    if (current) {
+      throw Object.assign(
+        new Error("Já existe um caixa aberto — feche o caixa atual antes de abrir outro"),
+        { code: "SESSION_ALREADY_OPEN" },
+      );
+    }
+
+    try {
+      const [created] = await db
+        .insert(restaurantCashSessions)
+        .values({ openedBy: actorId, openingFloat, status: "aberto" })
+        .returning();
+      return created;
+    } catch (error: any) {
+      // Corrida entre duas aberturas simultâneas: o índice parcial
+      // `restaurant_cash_sessions_single_open` é quem garante a invariante.
+      if (error?.code === "23505") {
+        throw Object.assign(
+          new Error("Já existe um caixa aberto — feche o caixa atual antes de abrir outro"),
+          { code: "SESSION_ALREADY_OPEN" },
+        );
+      }
+      throw error;
+    }
+  },
+
+  async assertSessionOpen(): Promise<RestaurantCashSession> {
+    const session = await this.getCurrentSession();
+    if (!session) {
+      throw Object.assign(
+        new Error("Nenhum caixa aberto — peça a um gerente para abrir o caixa"),
+        { code: "NO_CASH_SESSION" },
+      );
+    }
+    return session;
+  },
+
+  async addMovement(
+    data: { type: "sangria" | "suprimento"; amount: string; reason: string },
+    actorId: string,
+  ): Promise<RestaurantCashMovement> {
+    const session = await this.assertSessionOpen();
+
+    if (toCents(data.amount) <= 0) {
+      throw Object.assign(new Error("O valor deve ser maior que zero"), {
+        code: "INVALID_AMOUNT",
+      });
+    }
+
+    if (data.type === "sangria") {
+      const { expectedCents } = await this.calculateSessionCash(session);
+      if (toCents(data.amount) > expectedCents) {
+        throw Object.assign(
+          new Error(
+            `A sangria (${fromCents(toCents(data.amount))}) é maior que o dinheiro em caixa (${fromCents(expectedCents)})`,
+          ),
+          { code: "INSUFFICIENT_CASH" },
+        );
+      }
+    }
+
+    const [created] = await db
+      .insert(restaurantCashMovements)
+      .values({
+        sessionId: session.id,
+        type: data.type,
+        amount: data.amount,
+        reason: data.reason,
+        actorId,
+      })
+      .returning();
+
+    return created;
+  },
+
+  async listMovements(sessionId: string): Promise<RestaurantCashMovement[]> {
+    return db
+      .select()
+      .from(restaurantCashMovements)
+      .where(eq(restaurantCashMovements.sessionId, sessionId))
+      .orderBy(restaurantCashMovements.createdAt);
+  },
+
+  /** Dinheiro esperado em gaveta agora — usado na sangria e no fechamento. */
+  async calculateSessionCash(session: RestaurantCashSession) {
+    const orders = await db
+      .select({ id: restaurantOrders.id })
+      .from(restaurantOrders)
+      .where(eq(restaurantOrders.cashSessionId, session.id));
+
+    const orderIds = orders.map((o) => o.id);
+    const payments =
+      orderIds.length > 0
+        ? await db
+            .select()
+            .from(restaurantOrderPayments)
+            .where(inArray(restaurantOrderPayments.orderId, orderIds))
+        : [];
+
+    const movements = await this.listMovements(session.id);
+
+    return calculateExpectedCash({
+      openingFloat: session.openingFloat,
+      payments,
+      movements,
+    });
+  },
+
+  async getSessionDetail(sessionId: string): Promise<CashSessionDetail | null> {
+    const [session] = await db
+      .select()
+      .from(restaurantCashSessions)
+      .where(eq(restaurantCashSessions.id, sessionId))
+      .limit(1);
+
+    if (!session) return null;
+
+    const movements = await this.listMovements(session.id);
+    const actorNames = await fetchWaiterNames(
+      [session.openedBy, session.closedBy].filter((id): id is string => !!id),
+    );
+
+    // Sessão fechada devolve o snapshot gravado: reabrir o relatório amanhã
+    // mostra o que foi conferido, não o que o banco diz hoje.
+    const summary =
+      session.status === "fechado" && session.summary
+        ? (session.summary as CashSessionSummary)
+        : await this.buildLiveSummary(session, movements);
+
+    return {
+      ...session,
+      movements,
+      summary,
+      openedByName: actorNames[session.openedBy] ?? null,
+      closedByName: session.closedBy ? (actorNames[session.closedBy] ?? null) : null,
+    };
+  },
+
+  async buildLiveSummary(
+    session: RestaurantCashSession,
+    movements?: RestaurantCashMovement[],
+  ): Promise<CashSessionSummary> {
+    const closedOrders = await db
+      .select()
+      .from(restaurantOrders)
+      .where(
+        and(
+          eq(restaurantOrders.cashSessionId, session.id),
+          eq(restaurantOrders.status, "fechada"),
+        ),
+      );
+
+    const orderIds = closedOrders.map((o) => o.id);
+    const payments =
+      orderIds.length > 0
+        ? await db
+            .select()
+            .from(restaurantOrderPayments)
+            .where(inArray(restaurantOrderPayments.orderId, orderIds))
+        : [];
+
+    const cancelledOrders = await fetchCancelledInWindow(
+      session.openedAt,
+      session.closedAt ?? new Date(),
+    );
+
+    return buildCashSessionSummary({
+      openingFloat: session.openingFloat,
+      closedOrders,
+      cancelledOrders,
+      payments,
+      movements: movements ?? (await this.listMovements(session.id)),
+      waiterNameById: await fetchWaiterNames(closedOrders.map((o) => o.waiterId)),
+    });
+  },
+
+  async closeSession(
+    sessionId: string,
+    data: { countedCash: string; notes?: string },
+    actorId: string,
+  ): Promise<RestaurantCashSession> {
+    const [session] = await db
+      .select()
+      .from(restaurantCashSessions)
+      .where(eq(restaurantCashSessions.id, sessionId))
+      .limit(1);
+
+    if (!session) {
+      throw Object.assign(new Error("Caixa não encontrado"), { code: "NOT_FOUND" });
+    }
+    if (session.status === "fechado") {
+      throw Object.assign(new Error("Este caixa já foi fechado"), {
+        code: "SESSION_CLOSED",
+      });
+    }
+    if (toCents(data.countedCash) < 0) {
+      throw Object.assign(new Error("O valor contado não pode ser negativo"), {
+        code: "INVALID_AMOUNT",
+      });
+    }
+
+    // Fechar o caixa com mesa aberta é o aviso que hoje não existe: a comanda
+    // ficaria sem sessão e a receita cairia fora de qualquer conferência.
+    const openOrders = await db
+      .select({ id: restaurantOrders.id, tableNumber: restaurantOrders.tableNumber })
+      .from(restaurantOrders)
+      .where(eq(restaurantOrders.status, "aberta"));
+
+    if (openOrders.length > 0) {
+      const tables = openOrders.map((o) => o.tableNumber).join(", ");
+      throw Object.assign(
+        new Error(
+          `Existem ${openOrders.length} comanda(s) aberta(s) (mesa ${tables}). Feche todas antes de fechar o caixa.`,
+        ),
+        { code: "OPEN_ORDERS" },
+      );
+    }
+
+    const closedAt = new Date();
+    const summary = await this.buildLiveSummary({ ...session, closedAt });
+    const expectedCents = toCents(summary.cash.expected);
+    const differenceCents = calculateCashDifference(data.countedCash, expectedCents);
+
+    const closed = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(restaurantCashSessions)
+        .set({
+          status: "fechado",
+          closedBy: actorId,
+          closedAt,
+          expectedCash: fromCents(expectedCents),
+          countedCash: data.countedCash,
+          difference: fromCents(differenceCents),
+          summary,
+          notes: data.notes ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(restaurantCashSessions.id, sessionId))
+        .returning();
+
+      return updated;
+    });
+
+    return closed;
+  },
+
+  async listSessions(limit = 30): Promise<RestaurantCashSession[]> {
+    return db
+      .select()
+      .from(restaurantCashSessions)
+      .orderBy(desc(restaurantCashSessions.openedAt))
+      .limit(limit);
+  },
+};

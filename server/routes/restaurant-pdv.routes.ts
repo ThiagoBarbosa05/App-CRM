@@ -30,6 +30,14 @@ import {
   getSalesReportController,
   forceCancelOrderController,
 } from "../controllers/restaurant-pdv";
+import {
+  openCashSessionController,
+  closeCashSessionController,
+  getCurrentCashSessionController,
+  addCashMovementController,
+  listCashSessionsController,
+  getCashSessionController,
+} from "../controllers/restaurant-cash-session";
 
 export const restaurantPdvRouter = Router();
 
@@ -119,6 +127,27 @@ restaurantPdvRouter.post(
 );
 
 restaurantPdvRouter.delete("/orders/:id", requireGestor, forceCancelOrderController);
+
+// Caixa. Operar o caixa é privilégio de gestor; apenas a consulta do estado
+// atual é liberada ao garçom, para a tela dele poder explicar o bloqueio.
+restaurantPdvRouter.get(
+  "/cash-sessions/current",
+  requireGarcomOrGestor,
+  getCurrentCashSessionController,
+);
+restaurantPdvRouter.get("/cash-sessions", requireGestor, listCashSessionsController);
+restaurantPdvRouter.post("/cash-sessions", requireGestor, openCashSessionController);
+restaurantPdvRouter.post(
+  "/cash-sessions/movements",
+  requireGestor,
+  addCashMovementController,
+);
+restaurantPdvRouter.get("/cash-sessions/:id", requireGestor, getCashSessionController);
+restaurantPdvRouter.post(
+  "/cash-sessions/:id/close",
+  requireGestor,
+  closeCashSessionController,
+);
 
 restaurantPdvRouter.get(
   "/reports/daily-summary",

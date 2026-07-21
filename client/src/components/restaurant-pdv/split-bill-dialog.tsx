@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
 import type { RestaurantOrderItem } from "@shared/schema";
+import { splitEqualCents, splitByGroupsCents } from "@/lib/split-bill";
 
 const PAYMENT_METHODS: { value: string; label: string }[] = [
   { value: "pix", label: "Pix" },
@@ -68,11 +69,11 @@ export function SplitBillDialog({
 
   useEffect(() => {
     if (!open) return;
-    const equalShare = (total / Math.max(numPeople, 1)).toFixed(2);
+    const shares = splitEqualCents(Math.round(total * 100), numPeople);
     setPeopleRows(
-      Array.from({ length: numPeople }, (_, i) => ({
+      shares.map((cents, i) => ({
         method: "",
-        amount: equalShare,
+        amount: (cents / 100).toFixed(2),
         payerLabel: `Pessoa ${i + 1}`,
       })),
     );
@@ -88,28 +89,38 @@ export function SplitBillDialog({
     }
   }, [open]);
 
-  const peopleTotal = peopleRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-  const peopleValid =
-    Math.abs(peopleTotal - total) < 0.01 && peopleRows.every((r) => r.method);
+  const peopleTotalCents = peopleRows.reduce(
+    (sum, r) => sum + Math.round((Number(r.amount) || 0) * 100),
+    0,
+  );
+  const peopleTotal = peopleTotalCents / 100;
+  const peopleMatchesTotal = peopleTotalCents === Math.round(total * 100);
+  const peopleValid = peopleMatchesTotal && peopleRows.every((r) => r.method);
 
   const itemGroupTotals = useMemo(() => {
-    if (subtotal === 0) return itemGroups.map(() => 0);
-    const rawTotals = itemGroups.map((_, groupIndex) => {
-      const groupSubtotal = items.reduce((sum, item) => {
+    const groupSubtotalsCents = itemGroups.map((_, groupIndex) =>
+      items.reduce((sum, item) => {
         if (itemAssignment[item.id] !== groupIndex) return sum;
-        return sum + Number(item.unitPrice) * item.quantity;
-      }, 0);
-      const proportion = groupSubtotal / subtotal;
-      return groupSubtotal - discountAmount * proportion + serviceFee * proportion;
-    });
-    // Ajusta o arredondamento na última pessoa pra garantir soma exata
-    const roundedAllButLast = rawTotals.slice(0, -1).map((v) => Math.round(v * 100) / 100);
-    const sumAllButLast = roundedAllButLast.reduce((a, b) => a + b, 0);
-    const last = Math.round((total - sumAllButLast) * 100) / 100;
-    return rawTotals.length > 0 ? [...roundedAllButLast, last] : [];
+        return sum + Math.round(Number(item.unitPrice) * 100) * item.quantity;
+      }, 0),
+    );
+
+    return splitByGroupsCents({
+      groupSubtotalsCents,
+      subtotalCents: Math.round(subtotal * 100),
+      discountCents: Math.round(discountAmount * 100),
+      serviceFeeCents: Math.round(serviceFee * 100),
+      totalCents: Math.round(total * 100),
+    }).map((cents) => cents / 100);
   }, [items, itemAssignment, itemGroups, subtotal, discountAmount, serviceFee, total]);
 
-  const allItemsAssigned = items.every((item) => itemAssignment[item.id] !== undefined);
+  // `-1` marca item desmarcado. Sem tratá-lo como não atribuído, o item saía de
+  // todos os grupos e o valor dele caía silenciosamente na última pessoa, que
+  // absorve a sobra.
+  const allItemsAssigned = items.every((item) => {
+    const group = itemAssignment[item.id];
+    return group !== undefined && group >= 0;
+  });
   const itemsValid = allItemsAssigned && itemGroups.every((g) => g.method);
 
   const handleConfirmPeople = () => {
@@ -197,7 +208,7 @@ export function SplitBillDialog({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Soma informada</span>
-              <span className={Math.abs(peopleTotal - total) < 0.01 ? "text-emerald-600" : "text-red-500"}>
+              <span className={peopleMatchesTotal ? "text-emerald-600" : "text-red-500"}>
                 {formatCurrency(peopleTotal)} / {formatCurrency(total)}
               </span>
             </div>
@@ -289,10 +300,14 @@ export function SplitBillDialog({
                         <Checkbox
                           checked={itemAssignment[item.id] === i}
                           onCheckedChange={(checked) =>
-                            setItemAssignment((prev) => ({
-                              ...prev,
-                              [item.id]: checked ? i : -1,
-                            }))
+                            setItemAssignment((prev) => {
+                              if (!checked) {
+                                const next = { ...prev };
+                                delete next[item.id];
+                                return next;
+                              }
+                              return { ...prev, [item.id]: i };
+                            })
                           }
                         />
                         {group.label}

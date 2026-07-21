@@ -4,6 +4,17 @@ import { restaurantPdvService } from "../../services/restaurant-pdv.service";
 
 const closeOrderSchema = z.object({
   paymentMethod: z.enum(["pix", "cartao_credito", "cartao_debito", "dinheiro"]).optional(),
+  // Divisão de conta: os pagamentos vêm junto para serem gravados na mesma
+  // transação do fechamento.
+  payments: z
+    .array(
+      z.object({
+        method: z.enum(["pix", "cartao_credito", "cartao_debito", "dinheiro"]),
+        amount: z.string().min(1, "Valor é obrigatório"),
+        payerLabel: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export const closeOrderController = async (req: Request, res: Response) => {
@@ -23,6 +34,7 @@ export const closeOrderController = async (req: Request, res: Response) => {
       orderId,
       parsed.data.paymentMethod,
       actorId,
+      parsed.data.payments,
     );
     return res.json(closed);
   } catch (error: any) {
@@ -31,6 +43,7 @@ export const closeOrderController = async (req: Request, res: Response) => {
     }
     if (
       error?.code === "ORDER_CLOSED" ||
+      error?.code === "NO_CASH_SESSION" ||
       error?.code === "NO_ITEMS" ||
       error?.code === "NO_PAYMENT_METHOD" ||
       error?.code === "PAYMENTS_MISMATCH"

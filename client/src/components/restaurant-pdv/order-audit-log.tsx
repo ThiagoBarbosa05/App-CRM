@@ -16,17 +16,40 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { History } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 interface AuditLogEntry {
   id: string;
   action: string;
   reason: string | null;
+  metadata: Record<string, unknown> | null;
   actorName: string;
   createdAt: string;
 }
 
+// `item_editado` não tem motivo — o que importa é o "de → para", que só existe
+// no metadata. Sem isto, a alteração de preço fica invisível no histórico.
+function itemEditadoDetail(metadata: Record<string, unknown> | null): string | null {
+  if (!metadata) return null;
+  const parts: string[] = [];
+  if (metadata.unitPriceFrom != null && metadata.unitPriceTo != null) {
+    parts.push(
+      `preço ${formatCurrency(String(metadata.unitPriceFrom))} → ${formatCurrency(
+        String(metadata.unitPriceTo),
+      )}`,
+    );
+  }
+  if (metadata.quantityFrom != null && metadata.quantityTo != null) {
+    parts.push(`qtd. ${metadata.quantityFrom} → ${metadata.quantityTo}`);
+  }
+  if (parts.length === 0) return null;
+  const name = metadata.itemName ? `${metadata.itemName}: ` : "";
+  return `${name}${parts.join(", ")}`;
+}
+
 const ACTION_LABELS: Record<string, string> = {
   item_cancelado: "Item cancelado",
+  item_editado: "Item alterado",
   desconto_aplicado: "Desconto aplicado",
   desconto_removido: "Desconto removido",
   itens_transferidos: "Itens transferidos",
@@ -81,7 +104,13 @@ export function OrderAuditLog({ orderId, trigger }: OrderAuditLogProps) {
               {logs.map((log) => (
                 <TableRow key={log.id}>
                   <TableCell>{ACTION_LABELS[log.action] ?? log.action}</TableCell>
-                  <TableCell>{log.reason ?? "—"}</TableCell>
+                  <TableCell>
+                    {log.reason ??
+                      (log.action === "item_editado"
+                        ? itemEditadoDetail(log.metadata)
+                        : null) ??
+                      "—"}
+                  </TableCell>
                   <TableCell>{log.actorName}</TableCell>
                   <TableCell>
                     {new Date(log.createdAt).toLocaleString("pt-BR", {

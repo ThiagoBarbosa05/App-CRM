@@ -23,7 +23,7 @@ interface TransferItemsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   items: RestaurantOrderItem[];
-  currentTableId: string | null;
+  currentOrderId: string | null;
   isPending?: boolean;
   onConfirm: (itemIds: string[], targetOrderId: string) => void;
 }
@@ -32,7 +32,7 @@ export function TransferItemsDialog({
   open,
   onOpenChange,
   items,
-  currentTableId,
+  currentOrderId,
   isPending = false,
   onConfirm,
 }: TransferItemsDialogProps) {
@@ -52,7 +52,7 @@ export function TransferItemsDialog({
   }, [open]);
 
   const targetOptions = tables.filter(
-    (t) => t.id !== currentTableId && t.orderId && t.status !== "livre",
+    (t) => t.orderId && t.orderId !== currentOrderId && t.status !== "livre",
   );
 
   const toggleItem = (itemId: string) => {

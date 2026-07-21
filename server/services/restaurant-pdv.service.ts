@@ -19,6 +19,12 @@ import type {
 } from "../../shared/schema";
 import { restaurantOrderAuditService } from "./restaurant-order-audit.service";
 import { restaurantOrderPaymentsService } from "./restaurant-order-payments.service";
+import { restaurantCashSessionService } from "./restaurant-cash-session.service";
+import {
+  calculateOrderTotals,
+  toCents,
+  fromCents,
+} from "../../shared/restaurant-order-totals";
 
 export interface RestaurantOrderWithItems extends RestaurantOrder {
   items: RestaurantOrderItem[];
@@ -26,14 +32,6 @@ export interface RestaurantOrderWithItems extends RestaurantOrder {
 
 export const RESTAURANT_PDV_BLING_CONNECTION_SETTING_KEY =
   "restaurant_pdv_bling_connection_id";
-
-function toCents(value: string | number): number {
-  return Math.round(Number(value) * 100);
-}
-
-function fromCents(cents: number): string {
-  return (cents / 100).toFixed(2);
-}
 
 export const restaurantPdvService = {
   async getRestaurantPdvBlingConnectionId(): Promise<string | undefined> {
@@ -88,6 +86,10 @@ export const restaurantPdvService = {
     peopleCount: number;
     waiterId: string;
   }): Promise<RestaurantOrder> {
+    // Nada acontece sem caixa aberto: a comanda que nasce fora de uma sessão
+    // fecharia sem entrar em nenhuma conferência.
+    await restaurantCashSessionService.assertSessionOpen();
+
     let resolvedTableNumber: number;
 
     if (data.tableId) {
@@ -290,8 +292,25 @@ export const restaurantPdvService = {
     orderId: string,
     itemId: string,
     data: { unitPrice?: string; quantity?: number },
+    actorId: string,
   ): Promise<RestaurantOrderItem | null> {
     await this.assertOrderEditable(orderId);
+
+    // Estado anterior é lido antes do update para registrar o "de → para" na
+    // auditoria: alterar preço de item é a via mais fácil de dar desconto sem
+    // passar pelo fluxo de desconto, que exige gestor e já é auditado.
+    const [before] = await db
+      .select()
+      .from(restaurantOrderItems)
+      .where(
+        and(
+          eq(restaurantOrderItems.id, itemId),
+          eq(restaurantOrderItems.orderId, orderId),
+        ),
+      )
+      .limit(1);
+
+    if (!before) return null;
 
     const [updated] = await db
       .update(restaurantOrderItems)
@@ -303,7 +322,28 @@ export const restaurantPdvService = {
         ),
       )
       .returning();
-    return updated ?? null;
+
+    if (!updated) return null;
+
+    const priceChanged = toCents(before.unitPrice) !== toCents(updated.unitPrice);
+    const quantityChanged = before.quantity !== updated.quantity;
+
+    if (priceChanged || quantityChanged) {
+      await restaurantOrderAuditService.logOrderAudit(orderId, "item_editado", actorId, {
+        metadata: {
+          itemId,
+          itemName: updated.name,
+          ...(priceChanged
+            ? { unitPriceFrom: before.unitPrice, unitPriceTo: updated.unitPrice }
+            : {}),
+          ...(quantityChanged
+            ? { quantityFrom: before.quantity, quantityTo: updated.quantity }
+            : {}),
+        },
+      });
+    }
+
+    return updated;
   },
 
   async cancelItem(
@@ -395,6 +435,11 @@ export const restaurantPdvService = {
     orderId: string,
     paymentMethod: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro" | undefined,
     actorId: string,
+    payments?: {
+      method: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
+      amount: string;
+      payerLabel?: string | null;
+    }[],
   ): Promise<RestaurantOrder> {
     const order = await this.assertOrderOpen(orderId);
 
@@ -414,44 +459,35 @@ export const restaurantPdvService = {
       });
     }
 
-    const subtotalCents = items.reduce(
-      (sum, item) => sum + toCents(item.unitPrice) * item.quantity,
-      0,
-    );
-
-    let discountCents = 0;
-    if (order.discountAmount) {
-      discountCents = toCents(order.discountAmount);
-    } else if (order.discountPercent) {
-      discountCents = Math.round(subtotalCents * (Number(order.discountPercent) / 100));
-    }
-    discountCents = Math.min(discountCents, subtotalCents);
-
-    const discountedSubtotalCents = subtotalCents - discountCents;
-    const serviceFeePercent = Number(order.serviceFeePercent);
-    const serviceFeeCents = Math.round(discountedSubtotalCents * (serviceFeePercent / 100));
-    const totalCents = discountedSubtotalCents + serviceFeeCents;
+    const { subtotalCents, serviceFeeCents, totalCents } = calculateOrderTotals({
+      items,
+      serviceFeePercent: order.serviceFeePercent,
+      discountAmount: order.discountAmount,
+      discountPercent: order.discountPercent,
+    });
 
     const existingPayments = await restaurantOrderPaymentsService.listPayments(orderId);
 
+    // Pagamentos da divisão de conta chegam junto com o fechamento: registrar e
+    // fechar precisa ser tudo-ou-nada. Antes eram requisições separadas — se o
+    // fechamento falhasse (ex.: soma divergente), os pagamentos já gravados
+    // ficavam órfãos e a comanda travava.
+    const allPayments = [
+      ...existingPayments.map((p) => ({ method: p.method, amount: p.amount })),
+      ...(payments ?? []),
+    ];
+
     let finalPaymentMethod: typeof paymentMethod | null = paymentMethod ?? null;
 
-    if (existingPayments.length === 0) {
+    if (allPayments.length === 0) {
       if (!paymentMethod) {
         throw Object.assign(
           new Error("Informe a forma de pagamento ou registre os pagamentos da comanda"),
           { code: "NO_PAYMENT_METHOD" },
         );
       }
-      await restaurantOrderPaymentsService.addPayment(orderId, {
-        method: paymentMethod,
-        amount: fromCents(totalCents),
-      });
     } else {
-      const paymentsTotalCents = existingPayments.reduce(
-        (sum, p) => sum + toCents(p.amount),
-        0,
-      );
+      const paymentsTotalCents = allPayments.reduce((sum, p) => sum + toCents(p.amount), 0);
       if (Math.abs(paymentsTotalCents - totalCents) > 1) {
         throw Object.assign(
           new Error(
@@ -460,26 +496,52 @@ export const restaurantPdvService = {
           { code: "PAYMENTS_MISMATCH" },
         );
       }
-      const distinctMethods = new Set(existingPayments.map((p) => p.method));
-      finalPaymentMethod = distinctMethods.size === 1 ? existingPayments[0].method : null;
+      const distinctMethods = new Set(allPayments.map((p) => p.method));
+      finalPaymentMethod = distinctMethods.size === 1 ? allPayments[0].method : null;
     }
 
-    const [closed] = await db
-      .update(restaurantOrders)
-      .set({
-        status: "fechada",
-        paymentMethod: finalPaymentMethod,
-        subtotal: fromCents(subtotalCents),
-        serviceFeeAmount: fromCents(serviceFeeCents),
-        total: fromCents(totalCents),
-        closedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(restaurantOrders.id, orderId))
-      .returning();
+    // Carimba a sessão de caixa que está recebendo o dinheiro.
+    const cashSession = await restaurantCashSessionService.assertSessionOpen();
 
-    await restaurantOrderAuditService.logOrderAudit(orderId, "comanda_fechada", actorId, {
-      metadata: { paymentMethod: finalPaymentMethod, total: fromCents(totalCents) },
+    const closed = await db.transaction(async (tx) => {
+      if (allPayments.length === 0 && paymentMethod) {
+        await tx.insert(restaurantOrderPayments).values({
+          orderId,
+          method: paymentMethod,
+          amount: fromCents(totalCents),
+        });
+      }
+
+      for (const payment of payments ?? []) {
+        await tx.insert(restaurantOrderPayments).values({
+          orderId,
+          method: payment.method,
+          amount: payment.amount,
+          payerLabel: payment.payerLabel ?? null,
+        });
+      }
+
+      const [updated] = await tx
+        .update(restaurantOrders)
+        .set({
+          status: "fechada",
+          paymentMethod: finalPaymentMethod,
+          cashSessionId: cashSession.id,
+          subtotal: fromCents(subtotalCents),
+          serviceFeeAmount: fromCents(serviceFeeCents),
+          total: fromCents(totalCents),
+          closedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(restaurantOrders.id, orderId))
+        .returning();
+
+      await restaurantOrderAuditService.logOrderAudit(orderId, "comanda_fechada", actorId, {
+        metadata: { paymentMethod: finalPaymentMethod, total: fromCents(totalCents) },
+        tx,
+      });
+
+      return updated;
     });
 
     return closed;

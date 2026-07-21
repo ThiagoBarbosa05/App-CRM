@@ -23,7 +23,7 @@ import type { RestaurantTableWithStatus } from "@/pages/restaurant-pdv/table-map
 interface MergeTablesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentTableId: string | null;
+  currentOrderId: string | null;
   currentTableNumber: number;
   isPending?: boolean;
   onConfirm: (targetOrderId: string) => void;
@@ -32,7 +32,7 @@ interface MergeTablesDialogProps {
 export function MergeTablesDialog({
   open,
   onOpenChange,
-  currentTableId,
+  currentOrderId,
   currentTableNumber,
   isPending = false,
   onConfirm,
@@ -49,7 +49,7 @@ export function MergeTablesDialog({
   }, [open]);
 
   const targetOptions = tables.filter(
-    (t) => t.id !== currentTableId && t.orderId && t.status !== "livre",
+    (t) => t.orderId && t.orderId !== currentOrderId && t.status !== "livre",
   );
   const targetTable = targetOptions.find((t) => t.orderId === targetOrderId);
 

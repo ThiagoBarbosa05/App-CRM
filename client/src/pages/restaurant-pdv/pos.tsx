@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
@@ -10,17 +10,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   ArrowRightLeft,
   Clock,
   Combine,
-  Receipt,
+  Lock,
   Users,
   UtensilsCrossed,
   XCircle,
 } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { calculateOrderTotals } from "@shared/restaurant-order-totals";
 import type {
   Product,
   RestaurantMenuItem,
@@ -61,7 +72,11 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
 export default function RestaurantPos() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  // A URL é a fonte da verdade da comanda ativa: um F5 dentro da mesa volta
+  // para a mesma mesa, e o "voltar" do navegador leva ao mapa.
+  const search = useSearch();
+  const activeOrderId = new URLSearchParams(search).get("orderId");
+
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [itemToCancel, setItemToCancel] = useState<RestaurantOrderItem | null>(null);
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
@@ -70,23 +85,24 @@ export default function RestaurantPos() {
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isSubmittingCart, setIsSubmittingCart] = useState(false);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
 
   const setActiveOrder = (id: string | null) => {
-    setActiveOrderId(id);
-    setCart([]);
+    navigate(id ? `/pdv-restaurante?orderId=${id}` : "/pdv-restaurante");
   };
 
+  // Trocar de comanda zera o carrinho — inclusive quando a troca vem do
+  // "voltar" do navegador, que não passa por setActiveOrder.
   useEffect(() => {
-    const orderIdFromUrl = new URLSearchParams(window.location.search).get(
-      "orderId",
-    );
-    if (orderIdFromUrl) setActiveOrderId(orderIdFromUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setCart([]);
+  }, [activeOrderId]);
 
   const { data: order, isLoading: isLoadingOrder } = useQuery<RestaurantOrderWithItems>({
     queryKey: ["/api/restaurant-pdv/orders", activeOrderId],
     enabled: !!activeOrderId,
+    // Duas pessoas podem atender a mesma mesa; sem isto, os lançamentos de uma
+    // só aparecem para a outra quando alguma mutation força a revalidação.
+    refetchInterval: 15000,
   });
 
   const invalidateOrder = () => {
@@ -220,10 +236,12 @@ export default function RestaurantPos() {
     mutationFn: async (
       payments: { method: string; amount: string; payerLabel: string }[],
     ) => {
-      for (const payment of payments) {
-        await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/payments`, payment);
-      }
-      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/close`, {});
+      // Uma requisição só: o backend grava os pagamentos e fecha na mesma
+      // transação. Em duas etapas, um erro no fechamento deixava pagamentos
+      // órfãos na comanda.
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/close`, {
+        payments,
+      });
     },
     onSuccess: () => {
       toast({ title: "Comanda fechada", description: "Conta dividida com sucesso!" });
@@ -277,6 +295,16 @@ export default function RestaurantPos() {
       toast({ title: "Erro ao juntar mesas", description: err.message, variant: "destructive" });
     },
   });
+
+  // Sair da mesa descarta o carrinho ainda não lançado — pedir confirmação
+  // evita perder uma seleção grande com um clique de distração.
+  const handleLeaveToMap = () => {
+    if (cart.length > 0) {
+      setConfirmLeaveOpen(true);
+      return;
+    }
+    setActiveOrder(null);
+  };
 
   const handleAddMenuItem = (menuItem: RestaurantMenuItem) => {
     setCart((prev) => {
@@ -401,19 +429,13 @@ export default function RestaurantPos() {
   };
 
   const items = order?.items ?? [];
-  const subtotal = items.reduce(
-    (sum, item) => sum + Number(item.unitPrice) * item.quantity,
-    0,
-  );
-  const discountAmount = order?.discountAmount
-    ? Number(order.discountAmount)
-    : order?.discountPercent
-      ? subtotal * (Number(order.discountPercent) / 100)
-      : 0;
-  const discountedSubtotal = Math.max(subtotal - discountAmount, 0);
-  const serviceFee = discountedSubtotal * 0.1;
-  const total = discountedSubtotal + serviceFee;
-  const hasDiscount = !!order?.discountAmount || !!order?.discountPercent;
+  const { subtotal, discountAmount, serviceFee, serviceFeePercent, total, hasDiscount } =
+    calculateOrderTotals({
+      items,
+      serviceFeePercent: order?.serviceFeePercent,
+      discountAmount: order?.discountAmount,
+      discountPercent: order?.discountPercent,
+    });
 
   const cartSubtotal = cart.reduce(
     (sum, item) => sum + Number(item.unitPrice) * item.quantity,
@@ -421,6 +443,8 @@ export default function RestaurantPos() {
   );
 
   const isGarcom = user?.role === "garcom";
+  // Divisor de fase: o backend congela a comanda a partir daqui.
+  const isPaymentPhase = !!order?.paymentRequestedAt;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
@@ -450,95 +474,99 @@ export default function RestaurantPos() {
         )}
       </header>
 
-      <main className="flex-1 overflow-auto">
+      <main className="flex flex-1 flex-col overflow-hidden">
         {!activeOrderId ? (
-          <TableMapGrid onOrderOpened={(id) => setActiveOrder(id)} />
+          <div className="flex-1 overflow-auto">
+            <TableMapGrid onOrderOpened={(id) => setActiveOrder(id)} />
+          </div>
         ) : isLoadingOrder || !order ? (
           <div className="p-6 text-center text-muted-foreground">Carregando comanda...</div>
         ) : (
-          <div className="w-full space-y-6 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-1.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 -ml-2 px-2 text-muted-foreground"
-                  onClick={() => setActiveOrder(null)}
-                >
-                  <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-                  Mapa de mesas
-                </Button>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-xl font-bold">Mesa {order.tableNumber}</h1>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "uppercase",
-                      STATUS_BADGE_CLASS[
-                        order.paymentRequestedAt ? "aguardando_pagamento" : order.status
-                      ],
-                    )}
-                  >
-                    {order.paymentRequestedAt ? "Aguardando pagamento" : order.status}
-                  </Badge>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5" />
-                    {order.peopleCount} pessoa(s)
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    Aberta há{" "}
-                    {formatDistanceToNowStrict(new Date(order.openedAt), { locale: ptBR })}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setTransferDialogOpen(true)}
-                  disabled={items.length === 0}
-                >
-                  <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5" />
-                  Transferir itens
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setMergeDialogOpen(true)}>
-                  <Combine className="mr-1.5 h-3.5 w-3.5" />
-                  Juntar mesa
-                </Button>
-                <OrderReceiptPrint orderId={order.id} label="Imprimir comanda" />
-                {order.paymentRequestedAt ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => cancelPaymentRequestMutation.mutate()}
-                    disabled={cancelPaymentRequestMutation.isPending}
-                  >
-                    <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                    Cancelar pedido
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => requestPaymentMutation.mutate()}
-                    disabled={requestPaymentMutation.isPending || items.length === 0}
-                  >
-                    <Receipt className="mr-1.5 h-3.5 w-3.5" />
-                    Pedir a conta
-                  </Button>
+          <div className="flex flex-1 flex-col overflow-hidden">
+            {/* ── Mesa sub-header ─────────────────────────────── */}
+            <div className="flex shrink-0 items-center gap-2 border-b bg-card px-3 py-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 shrink-0 px-2 text-muted-foreground"
+                onClick={handleLeaveToMap}
+              >
+                <ArrowLeft className="mr-1 h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Mesas</span>
+              </Button>
+              <div className="h-4 border-l shrink-0" />
+              <span className="font-bold text-sm shrink-0">Mesa {order.tableNumber}</span>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "shrink-0 text-[10px] uppercase",
+                  STATUS_BADGE_CLASS[
+                    order.paymentRequestedAt ? "aguardando_pagamento" : order.status
+                  ],
                 )}
+              >
+                {order.paymentRequestedAt ? "Aguardando pagamento" : order.status}
+              </Badge>
+              <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                <Users className="h-3 w-3" />
+                {order.peopleCount}p
+              </span>
+              <span className="hidden md:flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                <Clock className="h-3 w-3" />
+                {formatDistanceToNowStrict(new Date(order.openedAt), { locale: ptBR })}
+              </span>
+              <div className="ml-auto flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setTransferDialogOpen(true)}
+                  disabled={items.length === 0 || isPaymentPhase}
+                  title="Transferir itens"
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Transferir</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => setMergeDialogOpen(true)}
+                  disabled={isPaymentPhase}
+                  title="Juntar mesas"
+                >
+                  <Combine className="h-3.5 w-3.5 sm:mr-1" />
+                  <span className="hidden sm:inline">Juntar</span>
+                </Button>
+                <OrderReceiptPrint orderId={order.id} label="" />
               </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-              <Card className="flex flex-col">
-                <CardHeader className="shrink-0">
-                  <CardTitle>Adicionar Item</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-1 flex-col overflow-hidden p-0">
+            {/* ── Two-column POS layout ──────────────────────── */}
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left: item selector */}
+              <div className="flex flex-1 flex-col overflow-hidden border-r">
+                {isPaymentPhase ? (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+                    <Lock className="h-12 w-12 text-muted-foreground/30" />
+                    <div className="space-y-1">
+                      <p className="font-semibold">Conta solicitada</p>
+                      <p className="text-sm text-muted-foreground">
+                        A comanda está bloqueada para novos lançamentos.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => cancelPaymentRequestMutation.mutate()}
+                      disabled={cancelPaymentRequestMutation.isPending}
+                    >
+                      <XCircle className="mr-1.5 h-4 w-4" />
+                      {cancelPaymentRequestMutation.isPending
+                        ? "Cancelando..."
+                        : "Cancelar pedido de conta"}
+                    </Button>
+                  </div>
+                ) : (
                   <OrderItemSelector
                     blingConnectionId={order.blingConnectionId}
                     cart={cart}
@@ -553,40 +581,68 @@ export default function RestaurantPos() {
                     submitPending={isSubmittingCart}
                     cartSubtotal={cartSubtotal}
                   />
-                </CardContent>
-              </Card>
+                )}
+              </div>
 
-              <OrderSummaryCard
-                order={order}
-                items={items}
-                cart={cart}
-                cartSubtotal={cartSubtotal}
-                subtotal={subtotal}
-                discountAmount={discountAmount}
-                serviceFee={serviceFee}
-                total={total}
-                hasDiscount={hasDiscount}
-                isGarcom={isGarcom}
-                paymentMethod={paymentMethod}
-                onPaymentMethodChange={setPaymentMethod}
-                onUpdateItemQuantity={(itemId, quantity) =>
-                  updateItemMutation.mutate({ itemId, data: { quantity } })
-                }
-                onUpdateItemPrice={(itemId, unitPrice) =>
-                  updateItemMutation.mutate({ itemId, data: { unitPrice } })
-                }
-                onCancelItem={setItemToCancel}
-                onRemoveDiscount={() => removeDiscountMutation.mutate()}
-                removeDiscountPending={removeDiscountMutation.isPending}
-                onApplyDiscountClick={() => setDiscountDialogOpen(true)}
-                onSplitClick={() => setSplitDialogOpen(true)}
-                onCloseOrder={() => closeOrderMutation.mutate()}
-                closeOrderPending={closeOrderMutation.isPending}
-              />
+              {/* Right: order summary */}
+              <div className="flex w-[360px] shrink-0 flex-col overflow-hidden xl:w-[420px]">
+                <OrderSummaryCard
+                  order={order}
+                  items={items}
+                  subtotal={subtotal}
+                  discountAmount={discountAmount}
+                  serviceFee={serviceFee}
+                  serviceFeePercent={serviceFeePercent}
+                  total={total}
+                  hasDiscount={hasDiscount}
+                  isGarcom={isGarcom}
+                  isPaymentPhase={isPaymentPhase}
+                  paymentMethod={paymentMethod}
+                  onPaymentMethodChange={setPaymentMethod}
+                  onUpdateItemQuantity={(itemId, quantity) =>
+                    updateItemMutation.mutate({ itemId, data: { quantity } })
+                  }
+                  onUpdateItemPrice={(itemId, unitPrice) =>
+                    updateItemMutation.mutate({ itemId, data: { unitPrice } })
+                  }
+                  onCancelItem={setItemToCancel}
+                  onRemoveDiscount={() => removeDiscountMutation.mutate()}
+                  removeDiscountPending={removeDiscountMutation.isPending}
+                  onApplyDiscountClick={() => setDiscountDialogOpen(true)}
+                  onRequestPayment={() => requestPaymentMutation.mutate()}
+                  requestPaymentPending={requestPaymentMutation.isPending}
+                  onSplitClick={() => setSplitDialogOpen(true)}
+                  onCloseOrder={() => closeOrderMutation.mutate()}
+                  closeOrderPending={closeOrderMutation.isPending}
+                />
+              </div>
             </div>
           </div>
         )}
       </main>
+
+      <AlertDialog open={confirmLeaveOpen} onOpenChange={setConfirmLeaveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar o pedido não lançado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cart.length} item(ns) foram selecionados mas ainda não foram lançados na
+              comanda. Sair do mapa de mesas descarta a seleção.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar na mesa</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmLeaveOpen(false);
+                setActiveOrder(null);
+              }}
+            >
+              Descartar e sair
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ReasonPromptDialog
         open={!!itemToCancel}
@@ -622,7 +678,7 @@ export default function RestaurantPos() {
         open={transferDialogOpen}
         onOpenChange={setTransferDialogOpen}
         items={items}
-        currentTableId={order?.tableId ?? null}
+        currentOrderId={order?.id ?? null}
         isPending={transferItemsMutation.isPending}
         onConfirm={(itemIds, targetOrderId) =>
           transferItemsMutation.mutate({ itemIds, targetOrderId })
@@ -632,7 +688,7 @@ export default function RestaurantPos() {
       <MergeTablesDialog
         open={mergeDialogOpen}
         onOpenChange={setMergeDialogOpen}
-        currentTableId={order?.tableId ?? null}
+        currentOrderId={order?.id ?? null}
         currentTableNumber={order?.tableNumber ?? 0}
         isPending={mergeOrdersMutation.isPending}
         onConfirm={(targetOrderId) => mergeOrdersMutation.mutate(targetOrderId)}

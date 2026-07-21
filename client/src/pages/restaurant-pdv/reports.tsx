@@ -25,8 +25,10 @@ import {
   CartesianGrid,
 } from "recharts";
 import { BarChart3, Printer } from "lucide-react";
-import { PrintArea } from "@/components/restaurant-pdv/print-area";
+import { PrintArea, printArea } from "@/components/restaurant-pdv/print-area";
 import { PageHeader } from "@/components/page-header";
+import { CashSessionReport } from "@/components/restaurant-pdv/cash-session-report";
+import { useLocation } from "wouter";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   pix: "Pix",
@@ -64,6 +66,7 @@ function daysAgoIso(days: number) {
 }
 
 export default function RestaurantReports() {
+  const [, navigate] = useLocation();
   const [from, setFrom] = useState(daysAgoIso(6));
   const [to, setTo] = useState(todayIso());
   const [cashDate, setCashDate] = useState(todayIso());
@@ -104,7 +107,7 @@ export default function RestaurantReports() {
           <PageHeader.Text>
             <PageHeader.Title>Relatórios</PageHeader.Title>
             <PageHeader.Description>
-              Vendas, itens mais vendidos e fechamento de caixa do PDV Restaurante
+              Vendas, itens mais vendidos e conferência por caixa do PDV Restaurante
             </PageHeader.Description>
           </PageHeader.Text>
         </PageHeader.Info>
@@ -248,10 +251,32 @@ export default function RestaurantReports() {
         </CardContent>
       </Card>
 
+      <CashSessionReport />
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Fechamento de Caixa Diário</CardTitle>
-          <Button size="sm" variant="outline" onClick={() => window.print()}>
+          <div className="space-y-1">
+            {/* Isto sempre foi um relatório de vendas por data, não um
+                fechamento de caixa: nada aqui é conferido nem congelado. O
+                fechamento de verdade vive em PDV → Caixa. */}
+            <CardTitle>Resumo de Vendas por Dia</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Visão por data civil. Para a conferência de gaveta, veja{" "}
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-foreground"
+                onClick={() => navigate("/pdv-restaurante/caixa")}
+              >
+                Caixa
+              </button>
+              .
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => printArea("cash-closing-print-area")}
+          >
             <Printer className="mr-1.5 h-3.5 w-3.5" />
             Imprimir resumo
           </Button>
@@ -341,7 +366,7 @@ export default function RestaurantReports() {
 
       <PrintArea id="cash-closing-print-area">
         <div style={{ maxWidth: 420, margin: "0 auto", fontSize: 13, fontFamily: "monospace" }}>
-          <h2 style={{ textAlign: "center", marginBottom: 4 }}>Fechamento de Caixa</h2>
+          <h2 style={{ textAlign: "center", marginBottom: 4 }}>Resumo de Vendas</h2>
           <p style={{ textAlign: "center", marginBottom: 16 }}>{cashDate}</p>
           <hr />
           <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between" }}>

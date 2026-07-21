@@ -15,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, LayoutGrid, Plus, Trash2, Users } from "lucide-react";
+import { Clock, LayoutGrid, Lock, Plus, Trash2, Users } from "lucide-react";
+import { useLocation } from "wouter";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
@@ -23,7 +24,9 @@ import type { RestaurantOrder } from "@shared/schema";
 
 // Tipo exportado — usado também por transfer-items-dialog e merge-tables-dialog
 export interface RestaurantTableWithStatus {
+  /** Identidade da linha = a comanda aberta. */
   id: string;
+  tableId: string | null;
   number: number;
   capacity: number;
   section: string | null;
@@ -46,7 +49,10 @@ interface TableMapGridProps {
 
 export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin" || user?.role === "gerente" || user?.role === "administrador";
+  const [, navigate] = useLocation();
+  // Espelha o requireGestor do backend. Havia um terceiro valor,
+  // "administrador", que não existe no enum de roles — condição morta.
+  const isGestor = user?.role === "admin" || user?.role === "gerente";
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tableNumber, setTableNumber] = useState("");
@@ -59,6 +65,15 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
     queryKey: ["/api/restaurant-pdv/tables/map"],
     refetchInterval: 15000,
   });
+
+  // Sem caixa aberto o backend recusa abrir mesa (409). O garçom consulta o
+  // estado mesmo sem poder operar o caixa, para a tela explicar o bloqueio em
+  // vez de deixá-lo preencher o diálogo e falhar no final.
+  const { data: cashData } = useQuery<{ session: { id: string } | null }>({
+    queryKey: ["/api/restaurant-pdv/cash-sessions/current"],
+    refetchInterval: 30000,
+  });
+  const cashSessionOpen = !!cashData?.session;
 
   const openOrderMutation = useMutation({
     mutationFn: async () => {
@@ -116,6 +131,8 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
         <PageHeader.Actions>
           <Button
             size="sm"
+            disabled={!cashSessionOpen}
+            title={!cashSessionOpen ? "Abra o caixa para liberar o PDV" : undefined}
             onClick={() => {
               setTableNumber("");
               setPeopleCount("");
@@ -128,6 +145,27 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
         </PageHeader.Actions>
       </PageHeader>
 
+      {!cashSessionOpen && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+          <Lock className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-amber-900 dark:text-amber-100">
+              Caixa fechado
+            </p>
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              {isGestor
+                ? "Abra o caixa para liberar a abertura de mesas."
+                : "Peça a um gerente para abrir o caixa — não é possível abrir mesas até lá."}
+            </p>
+          </div>
+          {isGestor && (
+            <Button size="sm" onClick={() => navigate("/pdv-restaurante/caixa")}>
+              Abrir caixa
+            </Button>
+          )}
+        </div>
+      )}
+
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando mesas...</p>
       ) : tables.length === 0 ? (
@@ -136,6 +174,8 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
           <p className="text-sm text-muted-foreground">Nenhuma mesa aberta.</p>
           <Button
             size="sm"
+            disabled={!cashSessionOpen}
+            title={!cashSessionOpen ? "Abra o caixa para liberar o PDV" : undefined}
             onClick={() => {
               setTableNumber("");
               setPeopleCount("");
@@ -190,7 +230,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
                   )}
                 </button>
 
-                {isAdmin && table.orderId && (
+                {isGestor && table.orderId && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

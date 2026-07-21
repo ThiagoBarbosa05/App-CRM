@@ -2434,6 +2434,76 @@ export const restaurantMenuItems = pgTable("restaurant_menu_items", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/**
+ * Sessão de caixa. A comanda é vinculada à sessão no FECHAMENTO, não na
+ * abertura: a receita pertence ao caixa que recebeu o dinheiro, e não ao que
+ * estava aberto quando a mesa sentou (mesa aberta 23h e fechada 1h).
+ *
+ * Só existe uma sessão aberta por vez — garantido pelo índice parcial
+ * `restaurant_cash_sessions_single_open`, não por regra de aplicação.
+ */
+export const restaurantCashSessions = pgTable(
+  "restaurant_cash_sessions",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    sessionNumber: integer("session_number")
+      .notNull()
+      .default(sql`nextval('restaurant_cash_sessions_session_number_seq')`),
+    status: text("status", { enum: ["aberto", "fechado"] })
+      .notNull()
+      .default("aberto"),
+    openedBy: varchar("opened_by")
+      .references(() => users.id)
+      .notNull(),
+    openedAt: timestamp("opened_at").defaultNow().notNull(),
+    /** Fundo de troco com que a gaveta começa. */
+    openingFloat: decimal("opening_float", { precision: 10, scale: 2 })
+      .notNull()
+      .default("0.00"),
+    closedBy: varchar("closed_by").references(() => users.id),
+    closedAt: timestamp("closed_at"),
+    /** Esperado em espécie: fundo + dinheiro recebido + suprimentos − sangrias. */
+    expectedCash: decimal("expected_cash", { precision: 10, scale: 2 }),
+    /** Contado fisicamente pelo operador no fechamento. */
+    countedCash: decimal("counted_cash", { precision: 10, scale: 2 }),
+    /** `counted − expected`. Negativo = quebra de caixa. */
+    difference: decimal("difference", { precision: 10, scale: 2 }),
+    /** Snapshot imutável dos totais no momento do fechamento. */
+    summary: jsonb("summary"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    statusIdx: index("restaurant_cash_sessions_status_idx").on(table.status),
+  }),
+);
+
+/** Sangria (retirada) e suprimento (reforço) de dinheiro durante o turno. */
+export const restaurantCashMovements = pgTable(
+  "restaurant_cash_movements",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    sessionId: varchar("session_id")
+      .references(() => restaurantCashSessions.id)
+      .notNull(),
+    type: text("type", { enum: ["sangria", "suprimento"] }).notNull(),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    reason: text("reason").notNull(),
+    actorId: varchar("actor_id")
+      .references(() => users.id)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    sessionIdx: index("restaurant_cash_movements_session_idx").on(table.sessionId),
+  }),
+);
+
 export const restaurantOrders = pgTable(
   "restaurant_orders",
   {
@@ -2449,7 +2519,16 @@ export const restaurantOrders = pgTable(
     waiterId: varchar("waiter_id")
       .references(() => users.id)
       .notNull(),
-    status: text("status", { enum: ["aberta", "fechada", "mesclada"] })
+    /**
+     * Carimbado no fechamento da comanda. Nulo nas comandas anteriores ao
+     * caixa — os relatórios tratam nulo como "fora de sessão".
+     */
+    cashSessionId: varchar("cash_session_id").references(
+      () => restaurantCashSessions.id,
+    ),
+    status: text("status", {
+      enum: ["aberta", "fechada", "mesclada", "cancelada"],
+    })
       .notNull()
       .default("aberta"),
     paymentRequestedAt: timestamp("payment_requested_at"),
@@ -2562,6 +2641,7 @@ export const restaurantOrderAuditLog = pgTable(
     action: text("action", {
       enum: [
         "item_cancelado",
+        "item_editado",
         "desconto_aplicado",
         "desconto_removido",
         "itens_transferidos",
@@ -2569,6 +2649,10 @@ export const restaurantOrderAuditLog = pgTable(
         "pagamento_solicitado",
         "pagamento_cancelado",
         "comanda_fechada",
+        "mesa_excluida",
+        "caixa_aberto",
+        "caixa_fechado",
+        "movimento_caixa",
       ],
     }).notNull(),
     reason: text("reason"),
@@ -2650,6 +2734,8 @@ export type InsertRestaurantOrderPayment = z.infer<
   typeof insertRestaurantOrderPaymentSchema
 >;
 export type RestaurantOrderPayment = typeof restaurantOrderPayments.$inferSelect;
+export type RestaurantCashSession = typeof restaurantCashSessions.$inferSelect;
+export type RestaurantCashMovement = typeof restaurantCashMovements.$inferSelect;
 
 export const messageAutomationSettings = pgTable(
   "message_automation_settings",

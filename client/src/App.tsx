@@ -58,6 +58,7 @@ const WhatsAppConversations = lazy(() => import("@/pages/whatsapp/conversations"
 const WhatsAppMetaMonitor = lazy(() => import("@/pages/whatsapp/meta-monitor"));
 const RestaurantMenuManagement = lazy(() => import("@/pages/restaurant-pdv/menu-management"));
 const RestaurantReports = lazy(() => import("@/pages/restaurant-pdv/reports"));
+const RestaurantCashSession = lazy(() => import("@/pages/restaurant-pdv/cash-session"));
 
 // Páginas do módulo WhatsApp que um vendedor pode acessar diretamente pela
 // URL — as demais (campanhas, templates, atendentes, bots, etc.) já ficam
@@ -105,6 +106,7 @@ function RestaurantPdvSection() {
       <Suspense fallback={null}>
         <Switch>
           <Route path="/pdv-restaurante/cardapio" component={RestaurantMenuManagement} />
+          <Route path="/pdv-restaurante/caixa" component={RestaurantCashSession} />
           <Route path="/pdv-restaurante/relatorios" component={RestaurantReports} />
         </Switch>
       </Suspense>

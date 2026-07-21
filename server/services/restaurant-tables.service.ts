@@ -7,6 +7,8 @@ export type TableStatus = "livre" | "ocupada" | "aguardando_pagamento";
 
 export interface RestaurantTableWithStatus extends RestaurantTable {
   status: TableStatus;
+  /** Mesa cadastrada de origem, quando houver. Null em mesa avulsa. */
+  tableId: string | null;
   orderId: string | null;
   peopleCount: number | null;
   openedAt: Date | null;
@@ -59,10 +61,20 @@ export const restaurantTablesService = {
       .where(eq(restaurantTables.id, id));
   },
 
+  /**
+   * Todas as comandas abertas — inclusive as vinculadas a mesas cadastradas.
+   *
+   * Antes filtrava `table_id IS NULL`, listando só mesas avulsas. Comandas de
+   * mesas cadastradas ficavam invisíveis no mapa, mas continuavam bloqueando a
+   * reabertura da mesa (a checagem de duplicata olha só `table_number`) e
+   * impedindo o fechamento do caixa. Mesa fantasma: ninguém via, ninguém
+   * conseguia fechar.
+   */
   async listTablesWithStatus(): Promise<RestaurantTableWithStatus[]> {
     const orders = await db
       .select({
         id: restaurantOrders.id,
+        tableId: restaurantOrders.tableId,
         tableNumber: restaurantOrders.tableNumber,
         paymentRequestedAt: restaurantOrders.paymentRequestedAt,
         peopleCount: restaurantOrders.peopleCount,
@@ -70,20 +82,19 @@ export const restaurantTablesService = {
         waiterId: restaurantOrders.waiterId,
       })
       .from(restaurantOrders)
-      .where(
-        and(
-          isNull(restaurantOrders.tableId),
-          eq(restaurantOrders.status, "aberta"),
-        ),
-      )
+      .where(eq(restaurantOrders.status, "aberta"))
       .orderBy(restaurantOrders.tableNumber);
 
     return orders.map((o) => ({
-      id: `avulsa-${o.id}`,
+      // A identidade da linha é a COMANDA, não a mesa: é o que os diálogos de
+      // transferir/juntar precisam comparar para excluir a mesa atual.
+      id: o.id,
+      tableId: o.tableId,
       number: o.tableNumber,
       capacity: o.peopleCount ?? 0,
       section: null,
       isActive: true,
+      createdBy: o.waiterId,
       createdAt: o.openedAt ?? new Date(),
       updatedAt: o.openedAt ?? new Date(),
       status: (o.paymentRequestedAt ? "aguardando_pagamento" : "ocupada") as RestaurantTableWithStatus["status"],

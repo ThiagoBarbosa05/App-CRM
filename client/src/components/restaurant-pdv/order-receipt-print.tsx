@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { PrintArea } from "./print-area";
+import { PrintArea, printArea } from "./print-area";
 import { Printer } from "lucide-react";
+import { calculateOrderTotals, formatPercent } from "@shared/restaurant-order-totals";
 import type { RestaurantOrder, RestaurantOrderItem, RestaurantOrderPayment } from "@shared/schema";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -40,6 +41,22 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
   const printId = `order-receipt-print-${orderId}`;
   const items = order?.items ?? [];
 
+  // Comanda fechada tem os totais gravados — é o que foi de fato cobrado.
+  // Comanda aberta ainda não tem: calcula na hora, senão a pré-conta sai zerada.
+  const computed = calculateOrderTotals({
+    items,
+    serviceFeePercent: order?.serviceFeePercent,
+    discountAmount: order?.discountAmount,
+    discountPercent: order?.discountPercent,
+  });
+  const isClosed = !!order?.total;
+  const subtotal = isClosed ? Number(order!.subtotal ?? 0) : computed.subtotal;
+  const discountAmount = computed.discountAmount;
+  const serviceFee = isClosed ? Number(order!.serviceFeeAmount ?? 0) : computed.serviceFee;
+  const total = isClosed ? Number(order!.total) : computed.total;
+  const serviceFeePercent = Number(order?.serviceFeePercent ?? computed.serviceFeePercent);
+  const hasDiscount = discountAmount > 0;
+
   if (!order) {
     return (
       <Button size="sm" variant="outline" disabled>
@@ -51,7 +68,7 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => window.print()}>
+      <Button size="sm" variant="outline" onClick={() => printArea(printId)}>
         <Printer className="mr-1.5 h-3.5 w-3.5" />
         {label}
       </Button>
@@ -74,9 +91,14 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
             <tbody>
               {items.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.name}</td>
-                  <td style={{ textAlign: "center" }}>{item.quantity}</td>
-                  <td style={{ textAlign: "right" }}>
+                  <td>
+                    {item.name}
+                    {item.notes && (
+                      <div style={{ fontSize: 11, fontStyle: "italic" }}>obs: {item.notes}</div>
+                    )}
+                  </td>
+                  <td style={{ textAlign: "center", verticalAlign: "top" }}>{item.quantity}</td>
+                  <td style={{ textAlign: "right", verticalAlign: "top" }}>
                     {formatCurrency(Number(item.unitPrice) * item.quantity)}
                   </td>
                 </tr>
@@ -85,31 +107,20 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
           </table>
           <hr style={{ marginTop: 8 }} />
           <div style={{ marginTop: 8 }}>
-            {order.subtotal && (
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Subtotal</span>
-                <span>{formatCurrency(order.subtotal)}</span>
-              </div>
-            )}
-            {(order.discountAmount || order.discountPercent) && (
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Subtotal</span>
+              <span>{formatCurrency(subtotal)}</span>
+            </div>
+            {hasDiscount && (
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>Desconto{order.discountReason ? ` (${order.discountReason})` : ""}</span>
-                <span>
-                  -
-                  {formatCurrency(
-                    order.discountAmount
-                      ? order.discountAmount
-                      : (Number(order.subtotal ?? 0) * Number(order.discountPercent ?? 0)) / 100,
-                  )}
-                </span>
+                <span>-{formatCurrency(discountAmount)}</span>
               </div>
             )}
-            {order.serviceFeeAmount && (
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Taxa de serviço ({order.serviceFeePercent}%)</span>
-                <span>{formatCurrency(order.serviceFeeAmount)}</span>
-              </div>
-            )}
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Taxa de serviço ({formatPercent(serviceFeePercent)})</span>
+              <span>{formatCurrency(serviceFee)}</span>
+            </div>
             <div
               style={{
                 display: "flex",
@@ -119,7 +130,7 @@ export function OrderReceiptPrint({ orderId, label = "Imprimir" }: OrderReceiptP
               }}
             >
               <span>Total</span>
-              <span>{order.total ? formatCurrency(order.total) : "—"}</span>
+              <span>{formatCurrency(total)}</span>
             </div>
           </div>
           {payments.length > 0 && (

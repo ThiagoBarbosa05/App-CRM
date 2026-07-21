@@ -37,7 +37,7 @@ export const openOrderController = async (req: Request, res: Response) => {
     if (error?.code === "NOT_FOUND") {
       return res.status(404).json({ message: error.message });
     }
-    if (error?.code === "TABLE_OCCUPIED") {
+    if (error?.code === "TABLE_OCCUPIED" || error?.code === "NO_CASH_SESSION") {
       return res.status(409).json({ message: error.message });
     }
     console.error("Erro ao abrir comanda:", error);
