@@ -56,6 +56,56 @@ export function formatCurrency(value: number | string | null | undefined): strin
   });
 }
 
+/**
+ * Lê um valor monetário digitado à mão em pt-BR e devolve o número, ou `null`
+ * se a entrada não for um número válido.
+ *
+ * Existe porque `.replace(",", ".")` — o padrão espalhado pelo projeto — troca
+ * apenas a PRIMEIRA vírgula: "1.234,56" vira "1.234.56" e `Number()` devolve
+ * `NaN`. Diferente de `parseCurrency`, que assume input já mascarado, esta
+ * função é para campo livre, onde o usuário digita como quiser.
+ *
+ * O caso ambíguo é o ponto sem vírgula, e a regra é a intenção mais provável:
+ *   "1.234"   → 1234    (3 dígitos após o ponto: separador de milhar)
+ *   "12.5"    → 12.5    (1–2 dígitos: separador decimal, teclado numérico)
+ *   "12.50"   → 12.5
+ *   "1.234,56"→ 1234.56 (com vírgula, o ponto é sempre milhar)
+ *
+ * Devolve `number | null` de propósito: o chamador é obrigado a decidir o que
+ * fazer com entrada inválida, em vez de receber um `NaN` que atravessa
+ * validação silenciosamente.
+ */
+export function parseBRL(input: string): number | null {
+  const cleaned = input.replace(/[R$\s ]/g, "");
+  if (cleaned === "") return null;
+
+  // Só dígitos, separadores e um sinal opcional à frente. Exige ao menos um
+  // dígito: sem isso "." sobrevive à limpeza de separadores e vira `Number("")`
+  // = 0, ou seja, entrada sem número nenhum viraria um valor válido.
+  if (!/^-?[\d.,]+$/.test(cleaned) || !/\d/.test(cleaned)) return null;
+
+  const commas = (cleaned.match(/,/g) ?? []).length;
+  if (commas > 1) return null;
+
+  let normalized: string;
+  if (commas === 1) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else {
+    const lastDot = cleaned.lastIndexOf(".");
+    const decimalsAfterDot = lastDot === -1 ? 0 : cleaned.length - lastDot - 1;
+    const isDecimalDot =
+      lastDot !== -1 &&
+      decimalsAfterDot >= 1 &&
+      decimalsAfterDot <= 2 &&
+      cleaned.indexOf(".") === lastDot;
+
+    normalized = isDecimalDot ? cleaned : cleaned.replace(/\./g, "");
+  }
+
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
 export function parseCurrency(value: string): string {
   // Remove R$, spaces, and dots (thousands separator)
   // Replace comma (decimal separator) with dot

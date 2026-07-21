@@ -5,6 +5,7 @@ import {
   restaurantOrderItems,
   restaurantTables,
   restaurantOrderPayments,
+  restaurantPdvSettings,
   systemSettings,
   blingProductMappings,
   products,
@@ -141,6 +142,10 @@ export const restaurantPdvService = {
 
     const blingConnectionId = await this.getRestaurantPdvBlingConnectionId();
 
+    // Lê a taxa de serviço padrão das configurações do PDV; fallback para 10%.
+    const [pdvSettings] = await db.select().from(restaurantPdvSettings).limit(1);
+    const serviceFeePercent = pdvSettings?.defaultServiceFeePercent ?? "10.00";
+
     const [created] = await db
       .insert(restaurantOrders)
       .values({
@@ -151,6 +156,7 @@ export const restaurantPdvService = {
         blingConnectionId: blingConnectionId ?? null,
         clientId: data.clientId ?? null,
         clientName: data.clientName ?? null,
+        serviceFeePercent,
       })
       .returning();
     return created;

@@ -36,9 +36,18 @@ interface CloseCashSessionDialogProps {
   }) => void;
 }
 
-function parseMoney(raw: string): number {
-  const n = Number(raw.replace(",", "."));
-  return Number.isNaN(n) || n < 0 ? 0 : n;
+/**
+ * Devolve `null` — e não 0 — quando o texto não é um valor válido.
+ *
+ * A versão anterior fazia `Number(raw.replace(",", "."))` e caía para 0 no
+ * NaN. O efeito na conferência era grave e silencioso: quem contava
+ * R$ 1.234,56 e digitava com separador de milhar via "em mãos: R$ 0,00" e uma
+ * quebra de caixa inteira, inventada pelo parser. Agora entrada inválida
+ * bloqueia o fechamento em vez de virar zero.
+ */
+function parseMoney(raw: string): number | null {
+  const value = parseBRL(raw);
+  return value === null || value < 0 ? null : value;
 }
 
 function toCents(value: number): number {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, parseBRL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -111,10 +111,18 @@ export default function RestaurantCashSessionPage() {
     queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
   };
 
+  // Campo vazio = abrir sem fundo de troco. Preenchido, tem que ser um número:
+  // antes, texto inválido virava NaN e chegava ao banco como erro 500 sem
+  // explicação.
+  const parsedOpeningFloat =
+    openingFloat.trim() === "" ? 0 : parseBRL(openingFloat);
+  const openingFloatValid = parsedOpeningFloat !== null && parsedOpeningFloat >= 0;
+
   const openMutation = useMutation({
     mutationFn: async () => {
+      if (!openingFloatValid) return;
       await apiRequest("POST", "/api/restaurant-pdv/cash-sessions", {
-        openingFloat: openingFloat.replace(",", ".") || "0",
+        openingFloat: parsedOpeningFloat.toFixed(2),
       });
     },
     onSuccess: () => {
@@ -230,8 +238,17 @@ export default function RestaurantCashSessionPage() {
                 placeholder="0,00"
                 value={openingFloat}
                 onChange={(e) => setOpeningFloat(e.target.value)}
+                aria-invalid={!openingFloatValid}
               />
-              <Button type="submit" disabled={openMutation.isPending}>
+              {!openingFloatValid && (
+                <p className="text-left text-xs text-red-600 dark:text-red-400">
+                  Valor inválido. Use o formato 1.234,56.
+                </p>
+              )}
+              <Button
+                type="submit"
+                disabled={openMutation.isPending || !openingFloatValid}
+              >
                 {openMutation.isPending ? "Abrindo..." : "Abrir Caixa"}
               </Button>
             </form>
