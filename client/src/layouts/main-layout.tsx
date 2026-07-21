@@ -86,7 +86,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       {/* WhatsApp floating button */}
-      {user?.role === "admin" && <WhatsAppFloatingButton />}
+      {(user?.role === "admin" ||
+        user?.name === "Rogeria Santos" ||
+        user?.name === "Vera Oliveira") && <WhatsAppFloatingButton />}
     </div>
   );
 }
