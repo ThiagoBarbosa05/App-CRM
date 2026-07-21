@@ -540,6 +540,26 @@ export async function createQuickReply(userId: string, title: string, content: s
   return row ?? null;
 }
 
+export async function updateQuickReply(userId: string, id: string, title: string, content: string) {
+  try {
+    const [row] = await db
+      .update(waQuickReplies)
+      .set({ title, content })
+      .where(and(eq(waQuickReplies.id, id), eq(waQuickReplies.userId, userId)))
+      .returning();
+    return row ?? null;
+  } catch (err: unknown) {
+    // Mesmo conflito de wa_quick_replies_user_title_unique que createQuickReply
+    // já trata via onConflictDoNothing — aqui vira UPDATE, então precisa
+    // capturar o erro do Postgres manualmente (ver padrão em
+    // whatsapp-conversations.service.ts:1781).
+    if ((err as { code?: string }).code === "23505") {
+      throw new Error("DUPLICATE_TITLE");
+    }
+    throw err;
+  }
+}
+
 export async function deleteQuickReply(userId: string, id: string) {
   const [row] = await db
     .delete(waQuickReplies)
