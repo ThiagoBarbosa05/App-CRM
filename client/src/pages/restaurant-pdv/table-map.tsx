@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
@@ -15,11 +15,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, Clock, LayoutGrid, Plus, Users } from "lucide-react";
+import { Clock, LayoutGrid, Plus, Users } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { RestaurantOrder } from "@shared/schema";
 
+// Tipo exportado — usado também por transfer-items-dialog e merge-tables-dialog
 export interface RestaurantTableWithStatus {
   id: string;
   number: number;
@@ -33,34 +34,6 @@ export interface RestaurantTableWithStatus {
   waiterId: string | null;
 }
 
-type TableStatus = RestaurantTableWithStatus["status"];
-
-const STATUS_CONFIG: Record<
-  TableStatus,
-  { label: string; icon: typeof CheckCircle2; card: string; dot: string }
-> = {
-  livre: {
-    label: "Livre",
-    icon: CheckCircle2,
-    card: "border-emerald-300 bg-emerald-50 text-emerald-900 hover:border-emerald-400 hover:shadow-md dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100",
-    dot: "bg-emerald-500",
-  },
-  ocupada: {
-    label: "Ocupada",
-    icon: Users,
-    card: "border-orange-300 bg-orange-50 text-orange-900 hover:border-orange-400 hover:shadow-md dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100",
-    dot: "bg-orange-500",
-  },
-  aguardando_pagamento: {
-    label: "Aguardando pagamento",
-    icon: Clock,
-    card: "border-blue-300 bg-blue-50 text-blue-900 hover:border-blue-400 hover:shadow-md dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100",
-    dot: "bg-blue-500",
-  },
-};
-
-const SEM_SECAO = "Sem seção";
-
 function elapsedLabel(openedAt: string | null) {
   if (!openedAt) return null;
   return formatDistanceToNowStrict(new Date(openedAt), { locale: ptBR });
@@ -71,101 +44,34 @@ interface TableMapGridProps {
 }
 
 export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
-  const [selectedTable, setSelectedTable] = useState<RestaurantTableWithStatus | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [tableNumber, setTableNumber] = useState("");
   const [peopleCount, setPeopleCount] = useState("");
-
-  // Mesa avulsa (sem cadastro prévio)
-  const [quickOpenDialog, setQuickOpenDialog] = useState(false);
-  const [quickTableNumber, setQuickTableNumber] = useState("");
-  const [quickPeopleCount, setQuickPeopleCount] = useState("");
 
   const { data: tables = [], isLoading } = useQuery<RestaurantTableWithStatus[]>({
     queryKey: ["/api/restaurant-pdv/tables/map"],
     refetchInterval: 15000,
   });
 
-  const groupedTables = useMemo(() => {
-    const groups = new Map<string, RestaurantTableWithStatus[]>();
-    for (const table of tables) {
-      const key = table.section?.trim() || SEM_SECAO;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(table);
-    }
-    return Array.from(groups.entries());
-  }, [tables]);
-
-  const showSectionHeadings = groupedTables.length > 1;
-
   const openOrderMutation = useMutation({
-    mutationFn: async (tableId: string) => {
+    mutationFn: async () => {
       const res = await apiRequest("POST", "/api/restaurant-pdv/orders", {
-        tableId,
+        tableNumber: Number(tableNumber),
         peopleCount: Number(peopleCount),
       });
       return res.json() as Promise<RestaurantOrder>;
     },
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
-      setSelectedTable(null);
+      setDialogOpen(false);
+      setTableNumber("");
       setPeopleCount("");
-      onOrderOpened(created.id);
-    },
-    onError: (err: Error) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
-      setSelectedTable(null);
-      toast({ title: "Não foi possível abrir a mesa", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const quickOpenMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/restaurant-pdv/orders", {
-        tableNumber: Number(quickTableNumber),
-        peopleCount: Number(quickPeopleCount),
-      });
-      return res.json() as Promise<RestaurantOrder>;
-    },
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
-      setQuickOpenDialog(false);
-      setQuickTableNumber("");
-      setQuickPeopleCount("");
       onOrderOpened(created.id);
     },
     onError: (err: Error) => {
       toast({ title: "Não foi possível abrir a mesa", description: err.message, variant: "destructive" });
     },
   });
-
-  const handleTableClick = (table: RestaurantTableWithStatus) => {
-    if (table.status === "livre") {
-      setPeopleCount("");
-      setSelectedTable(table);
-    } else if (table.orderId) {
-      onOrderOpened(table.orderId);
-    }
-  };
-
-  const handleConfirmOpenOrder = () => {
-    if (!selectedTable) return;
-
-    // Revalida contra o estado mais recente já carregado no cliente antes de
-    // enviar — evita abrir uma segunda comanda numa mesa que só parecia
-    // livre por causa do intervalo entre atualizações do mapa.
-    const currentTable = tables.find((t) => t.id === selectedTable.id);
-    if (!currentTable || currentTable.status !== "livre") {
-      toast({
-        title: "Esta mesa não está mais livre",
-        description: "Escolha outra mesa disponível.",
-        variant: "destructive",
-      });
-      setSelectedTable(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
-      return;
-    }
-
-    openOrderMutation.mutate(currentTable.id);
-  };
 
   return (
     <div className="w-full space-y-6 p-4">
@@ -177,150 +83,102 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
             bgColor="bg-orange-50 dark:bg-orange-900/30"
           />
           <PageHeader.Text>
-            <PageHeader.Title>Mapa de Mesas</PageHeader.Title>
+            <PageHeader.Title>Mesas</PageHeader.Title>
             <PageHeader.Description>
-              Selecione uma mesa livre para abrir uma nova comanda
+              {tables.length === 0
+                ? "Nenhuma mesa aberta no momento"
+                : `${tables.length} mesa(s) aberta(s)`}
             </PageHeader.Description>
           </PageHeader.Text>
         </PageHeader.Info>
         <PageHeader.Actions>
-          <div className="flex flex-wrap items-center gap-3">
-            {(Object.keys(STATUS_CONFIG) as TableStatus[]).map((status) => (
-              <div key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className={cn("h-2.5 w-2.5 rounded-full", STATUS_CONFIG[status].dot)} />
-                {STATUS_CONFIG[status].label}
-              </div>
-            ))}
-            <Button
-              size="sm"
-              onClick={() => {
-                setQuickTableNumber("");
-                setQuickPeopleCount("");
-                setQuickOpenDialog(true);
-              }}
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              Nova Mesa
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              setTableNumber("");
+              setPeopleCount("");
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Nova Mesa
+          </Button>
         </PageHeader.Actions>
       </PageHeader>
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando mesas...</p>
       ) : tables.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Nenhuma mesa cadastrada. Peça a um administrador para cadastrar mesas na aba "Mesas".
-        </p>
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <LayoutGrid className="h-12 w-12 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">Nenhuma mesa aberta.</p>
+          <Button
+            size="sm"
+            onClick={() => {
+              setTableNumber("");
+              setPeopleCount("");
+              setDialogOpen(true);
+            }}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Abrir primeira mesa
+          </Button>
+        </div>
       ) : (
-        <div className="space-y-6">
-          {groupedTables.map(([section, sectionTables]) => (
-            <div key={section} className="space-y-3">
-              {showSectionHeadings && (
-                <h2 className="text-sm font-semibold text-muted-foreground">{section}</h2>
-              )}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-                {sectionTables.map((table) => {
-                  const config = STATUS_CONFIG[table.status];
-                  const elapsed = table.status !== "livre" ? elapsedLabel(table.openedAt) : null;
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {tables.map((table) => {
+            const isAguardando = table.status === "aguardando_pagamento";
+            return (
+              <button
+                key={table.id}
+                onClick={() => table.orderId && onOrderOpened(table.orderId)}
+                className={cn(
+                  "group relative flex flex-col rounded-xl border-2 p-4 text-left transition-all duration-150 hover:shadow-md active:scale-95",
+                  isAguardando
+                    ? "border-blue-300 bg-blue-50 text-blue-900 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
+                    : "border-orange-300 bg-orange-50 text-orange-900 hover:border-orange-400 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100",
+                )}
+              >
+                <span className="text-2xl font-bold leading-none">
+                  {table.number}
+                </span>
+                <span className="mt-0.5 text-xs font-medium opacity-70">
+                  Mesa
+                </span>
 
-                  return (
-                    <button
-                      key={table.id}
-                      onClick={() => handleTableClick(table)}
-                      className={cn(
-                        "flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 p-4 text-center transition-all duration-150 hover:scale-[1.03] active:scale-[0.98]",
-                        config.card,
-                      )}
-                    >
-                      <config.icon className="h-4 w-4 opacity-70" />
-                      <span className="text-2xl font-black leading-none">{table.number}</span>
-                      <span className="text-xs font-medium">{config.label}</span>
-                      {table.status !== "livre" && table.peopleCount && (
-                        <span className="flex items-center gap-1 text-xs opacity-80">
-                          <Users className="h-3 w-3" />
-                          {table.peopleCount}
-                        </span>
-                      )}
-                      {elapsed && <span className="text-[11px] opacity-70">há {elapsed}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+                <div className="mt-3 space-y-1">
+                  {table.peopleCount != null && (
+                    <div className="flex items-center gap-1 text-xs opacity-80">
+                      <Users className="h-3 w-3" />
+                      {table.peopleCount} pessoa(s)
+                    </div>
+                  )}
+                  {table.openedAt && (
+                    <div className="flex items-center gap-1 text-xs opacity-70">
+                      <Clock className="h-3 w-3" />
+                      {elapsedLabel(table.openedAt)}
+                    </div>
+                  )}
+                </div>
+
+                {isAguardando && (
+                  <span className="mt-2 self-start rounded-full bg-blue-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    Pagar
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Dialog: abrir mesa cadastrada */}
       <Dialog
-        open={!!selectedTable}
+        open={dialogOpen}
         onOpenChange={(open) => {
           if (!open) {
-            setSelectedTable(null);
+            setDialogOpen(false);
+            setTableNumber("");
             setPeopleCount("");
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle>Abrir Mesa {selectedTable?.number}</DialogTitle>
-            {selectedTable && (
-              <DialogDescription>
-                Capacidade: {selectedTable.capacity} pessoa(s)
-                {selectedTable.section ? ` · ${selectedTable.section}` : ""}
-              </DialogDescription>
-            )}
-          </DialogHeader>
-          <form
-            className="space-y-2 py-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleConfirmOpenOrder();
-            }}
-          >
-            <Label htmlFor="people-count">Número de Pessoas</Label>
-            <Input
-              id="people-count"
-              type="number"
-              min="1"
-              value={peopleCount}
-              onChange={(e) => setPeopleCount(e.target.value)}
-              placeholder="Ex: 4"
-              autoFocus
-            />
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setSelectedTable(null);
-                  setPeopleCount("");
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  !peopleCount || Number(peopleCount) <= 0 || openOrderMutation.isPending
-                }
-              >
-                {openOrderMutation.isPending ? "Abrindo..." : "Abrir Comanda"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog: abrir mesa avulsa (sem cadastro) */}
-      <Dialog
-        open={quickOpenDialog}
-        onOpenChange={(open) => {
-          if (!open) {
-            setQuickOpenDialog(false);
-            setQuickTableNumber("");
-            setQuickPeopleCount("");
           }
         }}
       >
@@ -328,36 +186,36 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
           <DialogHeader>
             <DialogTitle>Nova Mesa</DialogTitle>
             <DialogDescription>
-              Abre um pedido avulso sem precisar de mesa cadastrada.
+              Informe o número da mesa e a quantidade de pessoas.
             </DialogDescription>
           </DialogHeader>
           <form
             className="space-y-4 py-2"
             onSubmit={(e) => {
               e.preventDefault();
-              quickOpenMutation.mutate();
+              openOrderMutation.mutate();
             }}
           >
             <div className="space-y-2">
-              <Label htmlFor="quick-table-number">Número da Mesa</Label>
+              <Label htmlFor="table-number">Número da Mesa</Label>
               <Input
-                id="quick-table-number"
+                id="table-number"
                 type="number"
                 min="1"
-                value={quickTableNumber}
-                onChange={(e) => setQuickTableNumber(e.target.value)}
+                value={tableNumber}
+                onChange={(e) => setTableNumber(e.target.value)}
                 placeholder="Ex: 10"
                 autoFocus
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="quick-people-count">Número de Pessoas</Label>
+              <Label htmlFor="people-count">Número de Pessoas</Label>
               <Input
-                id="quick-people-count"
+                id="people-count"
                 type="number"
                 min="1"
-                value={quickPeopleCount}
-                onChange={(e) => setQuickPeopleCount(e.target.value)}
+                value={peopleCount}
+                onChange={(e) => setPeopleCount(e.target.value)}
                 placeholder="Ex: 4"
               />
             </div>
@@ -366,9 +224,9 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  setQuickOpenDialog(false);
-                  setQuickTableNumber("");
-                  setQuickPeopleCount("");
+                  setDialogOpen(false);
+                  setTableNumber("");
+                  setPeopleCount("");
                 }}
               >
                 Cancelar
@@ -376,14 +234,14 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
               <Button
                 type="submit"
                 disabled={
-                  !quickTableNumber ||
-                  Number(quickTableNumber) <= 0 ||
-                  !quickPeopleCount ||
-                  Number(quickPeopleCount) <= 0 ||
-                  quickOpenMutation.isPending
+                  !tableNumber ||
+                  Number(tableNumber) <= 0 ||
+                  !peopleCount ||
+                  Number(peopleCount) <= 0 ||
+                  openOrderMutation.isPending
                 }
               >
-                {quickOpenMutation.isPending ? "Abrindo..." : "Abrir Mesa"}
+                {openOrderMutation.isPending ? "Abrindo..." : "Abrir Mesa"}
               </Button>
             </DialogFooter>
           </form>
