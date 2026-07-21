@@ -116,6 +116,29 @@ import {
 } from "@/components/ui/tooltip";
 import { useWhatsappSettings } from "@/hooks/use-whatsapp";
 import { BOT_SHORTCUT_ICONS, parseBotShortcuts } from "@/lib/bot-shortcut-icons";
+import { RegistrationQualityBar } from "@/components/clients/registration-quality-bar";
+import type { ClientRegistrationQuality } from "@shared/client-registration-quality";
+
+function ClientCadastroBar({ clientId }: { clientId: string }) {
+  const { data } = useQuery<{ registrationQuality: ClientRegistrationQuality }>({
+    queryKey: ["/api/clients", clientId],
+    queryFn: async () => {
+      const res = await fetch(`/api/clients/${clientId}`);
+      if (!res.ok) throw new Error("Erro ao carregar cliente");
+      return res.json();
+    },
+    staleTime: 60_000,
+  });
+  if (!data?.registrationQuality) return null;
+  return (
+    <div className="hidden sm:flex items-center gap-1.5 shrink-0 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-2 py-1">
+      <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
+        Cadastro
+      </span>
+      <RegistrationQualityBar quality={data.registrationQuality} />
+    </div>
+  );
+}
 
 interface Channel {
   id: number;
@@ -4084,6 +4107,11 @@ function ConversationMessages({
               </div>
             )}
           </div>
+
+          {/* Card de qualidade de cadastro — visível quando há clientId */}
+          {client.clientId && (
+            <ClientCadastroBar clientId={client.clientId} />
+          )}
 
           {/* Canal select — visível apenas em sm+ no header principal */}
           {showChannelSelect && (
