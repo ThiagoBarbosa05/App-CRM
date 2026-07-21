@@ -21,6 +21,7 @@ import {
   type WhatsappAccess,
 } from "@/components/whatsapp-access-scope-fields";
 import { WhatsappActionPermissionsFields } from "@/components/whatsapp-action-permissions-fields";
+import { WhatsappQuickRepliesAccessField } from "@/components/whatsapp-quick-replies-access-field";
 import type { User } from "@shared/schema";
 
 const getInitials = (name: string) =>
@@ -191,6 +192,10 @@ function AttendantAccessDialog({
               onChangeSectorIds={setSelectedSectorIds}
               onChangeChannelIds={setSelectedChannelIds}
               onChangeQrChannelIds={setSelectedQrChannelIds}
+            />
+            <WhatsappQuickRepliesAccessField
+              selectedKeys={selectedActionPermissions}
+              onChange={setSelectedActionPermissions}
             />
             <WhatsappActionPermissionsFields
               selectedKeys={selectedActionPermissions}
