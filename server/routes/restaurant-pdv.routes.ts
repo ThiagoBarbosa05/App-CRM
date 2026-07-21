@@ -28,6 +28,7 @@ import {
   mergeOrdersController,
   getDailySummaryController,
   getSalesReportController,
+  forceCancelOrderController,
 } from "../controllers/restaurant-pdv";
 
 export const restaurantPdvRouter = Router();
@@ -116,6 +117,8 @@ restaurantPdvRouter.post(
   requireGarcomOrGestor,
   mergeOrdersController,
 );
+
+restaurantPdvRouter.delete("/orders/:id", requireGestor, forceCancelOrderController);
 
 restaurantPdvRouter.get(
   "/reports/daily-summary",

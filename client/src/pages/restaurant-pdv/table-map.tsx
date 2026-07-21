@@ -15,9 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, LayoutGrid, Plus, Users } from "lucide-react";
+import { Clock, LayoutGrid, Plus, Trash2, Users } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useAuth } from "@/hooks/useAuth";
 import type { RestaurantOrder } from "@shared/schema";
 
 // Tipo exportado — usado também por transfer-items-dialog e merge-tables-dialog
@@ -44,9 +45,15 @@ interface TableMapGridProps {
 }
 
 export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "gerente" || user?.role === "administrador";
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [tableNumber, setTableNumber] = useState("");
   const [peopleCount, setPeopleCount] = useState("");
+
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteNumber, setConfirmDeleteNumber] = useState<number | null>(null);
 
   const { data: tables = [], isLoading } = useQuery<RestaurantTableWithStatus[]>({
     queryKey: ["/api/restaurant-pdv/tables/map"],
@@ -70,6 +77,21 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
     },
     onError: (err: Error) => {
       toast({ title: "Não foi possível abrir a mesa", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      await apiRequest("DELETE", `/api/restaurant-pdv/orders/${orderId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+      setConfirmDeleteId(null);
+      setConfirmDeleteNumber(null);
+      toast({ title: "Mesa excluída com sucesso" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Não foi possível excluir a mesa", description: err.message, variant: "destructive" });
     },
   });
 
@@ -129,49 +151,65 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
           {tables.map((table) => {
             const isAguardando = table.status === "aguardando_pagamento";
             return (
-              <button
-                key={table.id}
-                onClick={() => table.orderId && onOrderOpened(table.orderId)}
-                className={cn(
-                  "group relative flex flex-col rounded-xl border-2 p-4 text-left transition-all duration-150 hover:shadow-md active:scale-95",
-                  isAguardando
-                    ? "border-blue-300 bg-blue-50 text-blue-900 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
-                    : "border-orange-300 bg-orange-50 text-orange-900 hover:border-orange-400 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100",
-                )}
-              >
-                <span className="text-2xl font-bold leading-none">
-                  {table.number}
-                </span>
-                <span className="mt-0.5 text-xs font-medium opacity-70">
-                  Mesa
-                </span>
-
-                <div className="mt-3 space-y-1">
-                  {table.peopleCount != null && (
-                    <div className="flex items-center gap-1 text-xs opacity-80">
-                      <Users className="h-3 w-3" />
-                      {table.peopleCount} pessoa(s)
-                    </div>
+              <div key={table.id} className="relative">
+                <button
+                  onClick={() => table.orderId && onOrderOpened(table.orderId)}
+                  className={cn(
+                    "group w-full flex flex-col rounded-xl border-2 p-4 text-left transition-all duration-150 hover:shadow-md active:scale-95",
+                    isAguardando
+                      ? "border-blue-300 bg-blue-50 text-blue-900 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
+                      : "border-orange-300 bg-orange-50 text-orange-900 hover:border-orange-400 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100",
                   )}
-                  {table.openedAt && (
-                    <div className="flex items-center gap-1 text-xs opacity-70">
-                      <Clock className="h-3 w-3" />
-                      {elapsedLabel(table.openedAt)}
-                    </div>
-                  )}
-                </div>
-
-                {isAguardando && (
-                  <span className="mt-2 self-start rounded-full bg-blue-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                    Pagar
+                >
+                  <span className="text-2xl font-bold leading-none">
+                    {table.number}
                   </span>
+                  <span className="mt-0.5 text-xs font-medium opacity-70">
+                    Mesa
+                  </span>
+
+                  <div className="mt-3 space-y-1">
+                    {table.peopleCount != null && (
+                      <div className="flex items-center gap-1 text-xs opacity-80">
+                        <Users className="h-3 w-3" />
+                        {table.peopleCount} pessoa(s)
+                      </div>
+                    )}
+                    {table.openedAt && (
+                      <div className="flex items-center gap-1 text-xs opacity-70">
+                        <Clock className="h-3 w-3" />
+                        {elapsedLabel(table.openedAt)}
+                      </div>
+                    )}
+                  </div>
+
+                  {isAguardando && (
+                    <span className="mt-2 self-start rounded-full bg-blue-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      Pagar
+                    </span>
+                  )}
+                </button>
+
+                {isAdmin && table.orderId && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeleteId(table.orderId);
+                      setConfirmDeleteNumber(table.number);
+                    }}
+                    className="absolute top-2 right-2 rounded-md p-1 text-red-500 opacity-0 transition-opacity hover:bg-red-100 hover:text-red-700 group-hover:opacity-100 dark:hover:bg-red-900/30"
+                    title="Excluir mesa"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
       )}
 
+      {/* Dialog — nova mesa */}
       <Dialog
         open={dialogOpen}
         onOpenChange={(open) => {
@@ -245,6 +283,45 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog — confirmar exclusão */}
+      <Dialog
+        open={!!confirmDeleteId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmDeleteId(null);
+            setConfirmDeleteNumber(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle>Excluir Mesa {confirmDeleteNumber}?</DialogTitle>
+            <DialogDescription>
+              Esta ação cancela a comanda e remove a mesa do mapa. Itens e
+              pagamentos registrados serão descartados. Não é possível desfazer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setConfirmDeleteId(null);
+                setConfirmDeleteNumber(null);
+              }}
+            >
+              Voltar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => confirmDeleteId && deleteMutation.mutate(confirmDeleteId)}
+            >
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir Mesa"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

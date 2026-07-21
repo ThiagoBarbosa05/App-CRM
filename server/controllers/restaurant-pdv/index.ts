@@ -26,3 +26,4 @@ export { transferOrderItemsController } from "./transfer-order-items.controller"
 export { mergeOrdersController } from "./merge-orders.controller";
 export { getDailySummaryController } from "./get-daily-summary.controller";
 export { getSalesReportController } from "./get-sales-report.controller";
+export { forceCancelOrderController } from "./force-cancel-order.controller";

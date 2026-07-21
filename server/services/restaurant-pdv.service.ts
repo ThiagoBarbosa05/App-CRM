@@ -646,4 +646,17 @@ export const restaurantPdvService = {
       metadata: { direction: "destino", sourceOrderId },
     });
   },
+
+  async forceCancelOrder(orderId: string, actorId: string): Promise<void> {
+    const order = await this.assertOrderOpen(orderId);
+
+    await db
+      .update(restaurantOrders)
+      .set({ status: "cancelada", closedAt: new Date() })
+      .where(eq(restaurantOrders.id, orderId));
+
+    await restaurantOrderAuditService.logOrderAudit(orderId, "mesa_excluida", actorId, {
+      metadata: { tableNumber: order.tableNumber, cancelledBy: actorId },
+    });
+  },
 };
