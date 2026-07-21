@@ -4,6 +4,7 @@ import { restaurantCashSessionService } from "../../services/restaurant-cash-ses
 
 const closeSessionSchema = z.object({
   countedCash: z.string().min(1, "Informe o valor contado na gaveta"),
+  countedByMethod: z.record(z.string()).optional(),
   notes: z.string().optional(),
 });
 

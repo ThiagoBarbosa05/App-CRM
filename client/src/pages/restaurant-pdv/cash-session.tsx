@@ -139,7 +139,7 @@ export default function RestaurantCashSessionPage() {
   });
 
   const closeMutation = useMutation({
-    mutationFn: async (data: { countedCash: string; notes?: string }) => {
+    mutationFn: async (data: { countedCash: string; countedByMethod: Record<string, string>; notes?: string }) => {
       await apiRequest(
         "POST",
         `/api/restaurant-pdv/cash-sessions/${session?.id}/close`,
@@ -543,7 +543,7 @@ export default function RestaurantCashSessionPage() {
       <CloseCashSessionDialog
         open={closeDialogOpen}
         onOpenChange={setCloseDialogOpen}
-        expectedCash={expectedCash}
+        byPaymentMethod={summary?.byPaymentMethod ?? []}
         isPending={closeMutation.isPending}
         onConfirm={(data) => closeMutation.mutate(data)}
       />

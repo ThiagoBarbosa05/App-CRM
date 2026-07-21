@@ -299,7 +299,7 @@ export const restaurantCashSessionService = {
 
   async closeSession(
     sessionId: string,
-    data: { countedCash: string; notes?: string },
+    data: { countedCash: string; countedByMethod?: Record<string, string>; notes?: string },
     actorId: string,
   ): Promise<RestaurantCashSession> {
     const [session] = await db
@@ -340,9 +340,26 @@ export const restaurantCashSessionService = {
     }
 
     const closedAt = new Date();
-    const summary = await this.buildLiveSummary({ ...session, closedAt });
-    const expectedCents = toCents(summary.cash.expected);
+    const liveSummary = await this.buildLiveSummary({ ...session, closedAt });
+    const expectedCents = toCents(liveSummary.cash.expected);
     const differenceCents = calculateCashDifference(data.countedCash, expectedCents);
+
+    // Calcula diferença por forma de pagamento e grava junto ao snapshot
+    const countedByMethod = data.countedByMethod ?? {};
+    const methodDifferences: Record<string, { system: string; counted: string; diff: string }> = {};
+    for (const row of liveSummary.byPaymentMethod) {
+      const counted = countedByMethod[row.method];
+      if (counted !== undefined) {
+        const sysCents = toCents(Number(row.total));
+        const cntCents = toCents(Number(counted));
+        methodDifferences[row.method] = {
+          system: row.total,
+          counted,
+          diff: fromCents(cntCents - sysCents),
+        };
+      }
+    }
+    const summary = { ...liveSummary, countedByMethod, methodDifferences };
 
     const closed = await db.transaction(async (tx) => {
       const [updated] = await tx
