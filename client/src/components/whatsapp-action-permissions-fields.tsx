@@ -28,11 +28,18 @@ export function WhatsappActionPermissionsFields({
   }
 
   function selectAll() {
-    onChange(CONVERSATION_PERMISSIONS.map((p) => p.key));
+    const otherKeys = selectedKeys.filter(
+      (k) => !CONVERSATION_PERMISSIONS.some((p) => p.key === k),
+    );
+    onChange([...otherKeys, ...CONVERSATION_PERMISSIONS.map((p) => p.key)]);
   }
 
+  const ownSelectedCount = selectedKeys.filter((k) =>
+    CONVERSATION_PERMISSIONS.some((p) => p.key === k),
+  ).length;
+
   const allSelected =
-    CONVERSATION_PERMISSIONS.length > 0 && selectedKeys.length === CONVERSATION_PERMISSIONS.length;
+    CONVERSATION_PERMISSIONS.length > 0 && ownSelectedCount === CONVERSATION_PERMISSIONS.length;
 
   return (
     <div className="min-w-0 w-full space-y-3 overflow-hidden rounded-lg border dark:border-slate-700 p-4">
@@ -48,7 +55,7 @@ export function WhatsappActionPermissionsFields({
           <span className="text-sm font-medium">Conversas</span>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
-              {selectedKeys.length} de {CONVERSATION_PERMISSIONS.length} ativadas
+              {ownSelectedCount} de {CONVERSATION_PERMISSIONS.length} ativadas
             </span>
             <button
               type="button"
