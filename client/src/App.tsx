@@ -56,7 +56,6 @@ const WhatsAppBotHistory = lazy(() => import("@/pages/whatsapp/bot-history"));
 const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
 const WhatsAppConversations = lazy(() => import("@/pages/whatsapp/conversations"));
 const WhatsAppMetaMonitor = lazy(() => import("@/pages/whatsapp/meta-monitor"));
-const RestaurantOrdersHistory = lazy(() => import("@/pages/restaurant-pdv/orders-history"));
 const RestaurantMenuManagement = lazy(() => import("@/pages/restaurant-pdv/menu-management"));
 const RestaurantTablesManagement = lazy(() => import("@/pages/restaurant-pdv/tables-management"));
 const RestaurantReports = lazy(() => import("@/pages/restaurant-pdv/reports"));
@@ -107,7 +106,6 @@ function RestaurantPdvSection() {
       <Suspense fallback={null}>
         <Switch>
           <Route path="/pdv-restaurante/cardapio" component={RestaurantMenuManagement} />
-          <Route path="/pdv-restaurante/comandas" component={RestaurantOrdersHistory} />
           <Route path="/pdv-restaurante/mesas" component={RestaurantTablesManagement} />
           <Route path="/pdv-restaurante/relatorios" component={RestaurantReports} />
         </Switch>

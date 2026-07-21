@@ -3,8 +3,8 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
   LayoutGrid,
+  Settings,
   UtensilsCrossed,
   X,
 } from "lucide-react";
@@ -14,9 +14,8 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/pdv-restaurante/comandas", label: "Comandas", icon: ClipboardList },
   { href: "/pdv-restaurante/cardapio", label: "Cardápio", icon: UtensilsCrossed },
-  { href: "/pdv-restaurante/mesas", label: "Mesas", icon: LayoutGrid },
+  { href: "/pdv-restaurante/mesas", label: "Configurar Mesas", icon: Settings },
   { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3 },
 ];
 
@@ -68,9 +67,30 @@ export function PdvSidebar({ collapsed, onToggleCollapse, onCloseSidebar }: PdvS
 
       <Separator className="shrink-0" />
 
+      {/* Botão principal — Mesas (mapa operacional) */}
+      <div className={cn("mt-3 shrink-0", collapsed ? "px-2" : "px-3")}>
+        <button
+          onClick={() => { navigate("/pdv-restaurante"); onCloseSidebar(); }}
+          title={collapsed ? "Mesas" : undefined}
+          className={cn(
+            "w-full flex items-center text-left rounded-lg font-medium transition-all duration-200 group",
+            "bg-orange-500 text-white shadow-sm hover:bg-orange-600",
+            collapsed ? "justify-center p-2.5" : "px-3 py-2.5",
+          )}
+        >
+          <LayoutGrid
+            className={cn(
+              "h-[18px] w-[18px] shrink-0 transition-all duration-200",
+              !collapsed && "mr-3",
+            )}
+          />
+          {!collapsed && <span className="text-sm">Mesas</span>}
+        </button>
+      </div>
+
       <nav
         className={cn(
-          "flex flex-col gap-0.5 mt-3 flex-1 overflow-y-auto",
+          "flex flex-col gap-0.5 mt-2 flex-1 overflow-y-auto",
           collapsed ? "px-2" : "px-3",
         )}
       >

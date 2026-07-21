@@ -105,7 +105,7 @@ const navItems: NavItem[] = [
     roles: ["vendedor"],
   },
   {
-    href: "/pdv-restaurante/comandas",
+    href: "/pdv-restaurante",
     icon: UtensilsCrossed,
     label: "PDV Restaurante",
     roles: ["admin", "administrador", "gerente"],
