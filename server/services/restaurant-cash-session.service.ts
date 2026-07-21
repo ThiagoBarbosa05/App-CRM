@@ -438,8 +438,9 @@ export const restaurantCashSessionService = {
       .limit(limit);
   },
 
-  /** Visão gerencial: todas as sessões com nome do operador. */
+  /** Visão gerencial: todas as sessões de todas as unidades, com nome do operador e da unidade. */
   async listSessionsOverview(unitId?: string, limit = 100): Promise<SessionOverviewRow[]> {
+    const { pdvUnits } = await import("@shared/schema");
     const rows = await db
       .select({
         id: restaurantCashSessions.id,
@@ -447,6 +448,8 @@ export const restaurantCashSessionService = {
         status: restaurantCashSessions.status,
         openedBy: restaurantCashSessions.openedBy,
         openedByName: users.name,
+        unitId: restaurantCashSessions.unitId,
+        unitName: pdvUnits.name,
         openedAt: restaurantCashSessions.openedAt,
         closedAt: restaurantCashSessions.closedAt,
         expectedCash: restaurantCashSessions.expectedCash,
@@ -456,6 +459,7 @@ export const restaurantCashSessionService = {
       })
       .from(restaurantCashSessions)
       .leftJoin(users, eq(restaurantCashSessions.openedBy, users.id))
+      .leftJoin(pdvUnits, eq(restaurantCashSessions.unitId, pdvUnits.id))
       .where(unitId ? eq(restaurantCashSessions.unitId, unitId) : undefined)
       .orderBy(desc(restaurantCashSessions.openedAt))
       .limit(limit);
@@ -469,6 +473,8 @@ export interface SessionOverviewRow {
   status: string;
   openedBy: string;
   openedByName: string | null;
+  unitId: string | null;
+  unitName: string | null;
   openedAt: Date;
   closedAt: Date | null;
   expectedCash: string | null;

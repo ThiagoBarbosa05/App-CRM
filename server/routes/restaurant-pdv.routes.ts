@@ -77,12 +77,15 @@ function requireGestor(req: Request, res: Response, next: NextFunction) {
   return next();
 }
 
-// ── Rotas de unidades (não precisam de contexto de unidade) ──────────────────
+// ── Rotas sem contexto de unidade (antes do middleware resolvePdvUnit) ────────
 restaurantPdvRouter.get("/units", requireGestor, listPdvUnitsController);
 restaurantPdvRouter.post("/units", requireGestor, createPdvUnitController);
 restaurantPdvRouter.put("/units/:id", requireGestor, updatePdvUnitController);
 restaurantPdvRouter.delete("/units/:id", requireGestor, deactivatePdvUnitController);
 restaurantPdvRouter.get("/units/:id/users", requireGestor, listPdvUnitUsersController);
+
+// Visão geral agrega TODAS as unidades — não precisa de contexto de unidade
+restaurantPdvRouter.get("/cash-sessions/overview", requireGestor, listSessionsOverviewController);
 
 // ── Middleware: resolve unidade PDV para todas as rotas abaixo ───────────────
 // Para garçom: busca pdv_unit_id do usuário no banco.
@@ -158,7 +161,6 @@ restaurantPdvRouter.delete("/orders/:id", requireGestor, forceCancelOrderControl
 restaurantPdvRouter.get("/cash-sessions/current", requireGarcomOrGestor, getCurrentCashSessionController);
 restaurantPdvRouter.get("/cash-sessions/current/orders", requireGarcomOrGestor, listCurrentSessionOrdersController);
 restaurantPdvRouter.get("/cash-sessions", requireGestor, listCashSessionsController);
-restaurantPdvRouter.get("/cash-sessions/overview", requireGestor, listSessionsOverviewController);
 restaurantPdvRouter.post("/cash-sessions", requireGarcomOrGestor, openCashSessionController);
 restaurantPdvRouter.post("/cash-sessions/movements", requireGestor, addCashMovementController);
 restaurantPdvRouter.get("/cash-sessions/:id", requireGestor, getCashSessionController);

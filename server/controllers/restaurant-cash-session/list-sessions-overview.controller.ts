@@ -3,7 +3,8 @@ import { restaurantCashSessionService } from "../../services/restaurant-cash-ses
 
 export const listSessionsOverviewController = async (req: Request, res: Response) => {
   try {
-    const sessions = await restaurantCashSessionService.listSessionsOverview(req.pdvUnitId);
+    // Sem filtro de unidade: exibe sessões de TODAS as unidades para o gestor
+    const sessions = await restaurantCashSessionService.listSessionsOverview();
     return res.json(sessions);
   } catch (error) {
     console.error("Erro ao buscar visão geral dos caixas:", error);

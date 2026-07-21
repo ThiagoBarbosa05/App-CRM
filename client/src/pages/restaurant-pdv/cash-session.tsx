@@ -82,6 +82,8 @@ interface SessionOverviewRow {
   status: string;
   openedBy: string;
   openedByName: string | null;
+  unitId: string | null;
+  unitName: string | null;
   openedAt: string;
   closedAt: string | null;
   expectedCash: string | null;
@@ -695,6 +697,7 @@ function OverviewTab({ sessions }: { sessions: SessionOverviewRow[] }) {
               <TableHeader>
                 <TableRow className="bg-muted/40">
                   <TableHead>Caixa</TableHead>
+                  <TableHead>Unidade</TableHead>
                   <TableHead>Operador</TableHead>
                   <TableHead>Aberto às</TableHead>
                   <TableHead>Tempo aberto</TableHead>
@@ -705,6 +708,7 @@ function OverviewTab({ sessions }: { sessions: SessionOverviewRow[] }) {
                 {open.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-semibold">#{s.sessionNumber}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{s.unitName ?? "—"}</TableCell>
                     <TableCell>{s.openedByName ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {format(new Date(s.openedAt), "HH:mm", { locale: ptBR })}
@@ -738,6 +742,7 @@ function OverviewTab({ sessions }: { sessions: SessionOverviewRow[] }) {
               <TableHeader>
                 <TableRow className="bg-muted/40">
                   <TableHead>Caixa</TableHead>
+                  <TableHead>Unidade</TableHead>
                   <TableHead>Operador</TableHead>
                   <TableHead>Abertura</TableHead>
                   <TableHead>Fechamento</TableHead>
@@ -752,6 +757,7 @@ function OverviewTab({ sessions }: { sessions: SessionOverviewRow[] }) {
                   return (
                     <TableRow key={s.id}>
                       <TableCell className="font-semibold">#{s.sessionNumber}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{s.unitName ?? "—"}</TableCell>
                       <TableCell>{s.openedByName ?? "—"}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(s.openedAt), "dd/MM HH:mm", { locale: ptBR })}
