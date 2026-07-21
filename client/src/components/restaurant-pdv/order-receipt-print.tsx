@@ -65,6 +65,7 @@ function buildReceiptHeader(
     ${address ? `<p style="text-align:center;font-size:11px;margin:1px 0">${address}</p>` : ""}
     ${phone ? `<p style="text-align:center;font-size:11px;margin:1px 0">Tel: ${phone}</p>` : ""}
     <p style="text-align:center;margin:6px 0 2px">Mesa ${order.tableNumber} · ${order.peopleCount} pessoa(s)</p>
+    ${order.clientName ? `<p style="text-align:center;font-size:12px;margin:1px 0">Cliente: ${order.clientName}</p>` : ""}
     <p style="text-align:center;font-size:11px;margin-bottom:10px">${now}</p>
   `;
 }

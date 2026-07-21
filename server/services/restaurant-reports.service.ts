@@ -5,8 +5,22 @@ import {
   restaurantOrderPayments,
   users,
 } from "../../shared/schema";
-import { eq, and, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, inArray, isNotNull, desc } from "drizzle-orm";
 import type { RestaurantOrder } from "../../shared/schema";
+
+export interface CancelledItemRow {
+  itemId: string;
+  itemName: string;
+  unitPrice: string;
+  quantity: number;
+  orderNumber: number;
+  tableNumber: number;
+  orderStatus: string;
+  cancelReason: string | null;
+  cancelledById: string | null;
+  cancelledByName: string | null;
+  cancelledAt: Date | null;
+}
 
 export interface DailySummary {
   date: string;
@@ -177,5 +191,53 @@ export const restaurantReportsService = {
       byPaymentMethod: await getPaymentMethodBreakdown(orderIds),
       byWaiter: await getWaiterBreakdown(orders),
     };
+  },
+
+  /**
+   * Itens cancelados numa janela de tempo, do mais recente para o mais antigo.
+   *
+   * O recorte é por `cancelled_at`, não pela sessão de caixa da comanda: o item
+   * pode ser cancelado numa comanda que ainda está aberta e que só vai fechar
+   * (e ganhar `cash_session_id`) depois. A pergunta operacional é "o que foi
+   * cancelado durante este turno", e quem responde isso é a hora do
+   * cancelamento.
+   *
+   * Serve tanto o caixa (janela da sessão) quanto os relatórios (período
+   * escolhido) — mesma query, recortes diferentes.
+   */
+  async listCancelledItems(range: {
+    from: Date;
+    to: Date;
+    limit?: number;
+  }): Promise<CancelledItemRow[]> {
+    const rows = await db
+      .select({
+        itemId: restaurantOrderItems.id,
+        itemName: restaurantOrderItems.name,
+        unitPrice: restaurantOrderItems.unitPrice,
+        quantity: restaurantOrderItems.quantity,
+        orderNumber: restaurantOrders.orderNumber,
+        tableNumber: restaurantOrders.tableNumber,
+        orderStatus: restaurantOrders.status,
+        cancelReason: restaurantOrderItems.cancelReason,
+        cancelledById: restaurantOrderItems.cancelledBy,
+        cancelledByName: users.name,
+        cancelledAt: restaurantOrderItems.cancelledAt,
+      })
+      .from(restaurantOrderItems)
+      .innerJoin(restaurantOrders, eq(restaurantOrders.id, restaurantOrderItems.orderId))
+      .leftJoin(users, eq(users.id, restaurantOrderItems.cancelledBy))
+      .where(
+        and(
+          eq(restaurantOrderItems.status, "cancelado"),
+          isNotNull(restaurantOrderItems.cancelledAt),
+          gte(restaurantOrderItems.cancelledAt, range.from),
+          lte(restaurantOrderItems.cancelledAt, range.to),
+        ),
+      )
+      .orderBy(desc(restaurantOrderItems.cancelledAt))
+      .limit(range.limit ?? 200);
+
+    return rows;
   },
 };

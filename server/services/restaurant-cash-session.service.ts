@@ -20,6 +20,10 @@ import {
 } from "../../shared/restaurant-cash-session";
 import { fromCents, toCents } from "../../shared/restaurant-order-totals";
 import { restaurantOrderAuditService } from "./restaurant-order-audit.service";
+import {
+  restaurantReportsService,
+  type CancelledItemRow,
+} from "./restaurant-reports.service";
 
 export interface SessionOrderRow {
   id: string;
@@ -38,6 +42,8 @@ export interface CashSessionDetail extends RestaurantCashSession {
   summary: CashSessionSummary;
   /** Comandas fechadas da sessão, mais recentes primeiro. */
   closedOrders: SessionOrderRow[];
+  /** Itens cancelados durante o turno — recortado por hora, não por comanda. */
+  cancelledItems: CancelledItemRow[];
   openedByName: string | null;
   closedByName: string | null;
 }
@@ -275,6 +281,10 @@ export const restaurantCashSessionService = {
       movements,
       summary,
       closedOrders: await this.listSessionOrders(session.id),
+      cancelledItems: await restaurantReportsService.listCancelledItems({
+        from: session.openedAt,
+        to: session.closedAt ?? new Date(),
+      }),
       openedByName: actorNames[session.openedBy] ?? null,
       closedByName: session.closedBy ? (actorNames[session.closedBy] ?? null) : null,
     };

@@ -88,15 +88,25 @@ export function OrderSummaryCard({
   return (
     <div className="flex h-full flex-col overflow-hidden border-l bg-card">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b px-4 py-3">
-        <span className="flex items-center gap-2 font-semibold">
-          <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          {isPaymentPhase ? "Pagamento" : "Comanda"}
-        </span>
-        {items.length > 0 && (
-          <Badge variant="secondary" className="text-[10px] px-1.5">
-            {items.length} {items.length === 1 ? "item" : "itens"}
-          </Badge>
+      <div className="shrink-0 border-b px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2 font-semibold">
+            <ClipboardList className="h-4 w-4 text-muted-foreground" />
+            {isPaymentPhase ? "Pagamento" : "Comanda"}
+          </span>
+          {items.length > 0 && (
+            <Badge variant="secondary" className="text-[10px] px-1.5">
+              {items.length} {items.length === 1 ? "item" : "itens"}
+            </Badge>
+          )}
+        </div>
+        {order.clientName && (
+          <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+            <span className="h-3 w-3 rounded-full bg-green-500/20 flex items-center justify-center">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+            </span>
+            {order.clientName}
+          </p>
         )}
       </div>
 

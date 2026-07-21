@@ -28,6 +28,11 @@ import { BarChart3, Printer } from "lucide-react";
 import { PrintArea, printArea } from "@/components/restaurant-pdv/print-area";
 import { PageHeader } from "@/components/page-header";
 import { CashSessionReport } from "@/components/restaurant-pdv/cash-session-report";
+import {
+  CancelledItemsTable,
+  CancellationsByUser,
+  type CancelledItem,
+} from "@/components/restaurant-pdv/cancelled-items-table";
 import { useLocation } from "wouter";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -57,6 +62,20 @@ interface DailySummary {
   byWaiter: { waiterId: string; waiterName: string; total: number; orderCount: number }[];
 }
 
+interface CancellationsReport {
+  itemCount: number;
+  total: string;
+  byUser: {
+    userId: string;
+    userName: string;
+    itemCount: number;
+    total: string;
+    sharePercent: number;
+  }[];
+  topReasons: { reason: string; count: number }[];
+  items: CancelledItem[];
+}
+
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -79,6 +98,18 @@ export default function RestaurantReports() {
         { credentials: "include" },
       );
       if (!res.ok) throw new Error("Erro ao buscar relatório");
+      return res.json();
+    },
+  });
+
+  const { data: cancellations } = useQuery<CancellationsReport>({
+    queryKey: ["/api/restaurant-pdv/reports/cancellations", { from, to }],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/restaurant-pdv/reports/cancellations?from=${from}&to=${to}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) throw new Error("Erro ao buscar cancelamentos");
       return res.json();
     },
   });
@@ -247,6 +278,65 @@ export default function RestaurantReports() {
                 )}
               </TableBody>
             </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between space-y-0">
+          <div className="space-y-1">
+            <CardTitle>Cancelamentos</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Itens cancelados no período. Um cancelamento avulso é rotina — o que
+              chama atenção é a concentração num mesmo operador.
+            </p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+              {formatCurrency(cancellations?.total ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {cancellations?.itemCount ?? 0} item(ns)
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="space-y-3">
+              <p className="text-xs uppercase text-muted-foreground">Por quem cancelou</p>
+              <CancellationsByUser byUser={cancellations?.byUser ?? []} />
+            </div>
+            <div className="space-y-3">
+              <p className="text-xs uppercase text-muted-foreground">Motivos mais usados</p>
+              {(cancellations?.topReasons ?? []).length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  Nenhum motivo registrado
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {cancellations?.topReasons.map((r) => (
+                    <div
+                      key={r.reason}
+                      className="flex items-baseline justify-between gap-4 text-sm"
+                    >
+                      <span className="truncate">{r.reason}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {r.count}×
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs uppercase text-muted-foreground">Detalhamento</p>
+            <CancelledItemsTable
+              items={cancellations?.items ?? []}
+              showDate
+              emptyMessage="Nenhum item cancelado no período"
+            />
           </div>
         </CardContent>
       </Card>

@@ -6,6 +6,8 @@ const openOrderSchema = z.object({
   tableId: z.string().min(1).optional().nullable(),
   tableNumber: z.number().int().positive().optional(),
   peopleCount: z.number().int().positive(),
+  clientId: z.string().optional().nullable(),
+  clientName: z.string().optional().nullable(),
 });
 
 export const openOrderController = async (req: Request, res: Response) => {
@@ -15,7 +17,7 @@ export const openOrderController = async (req: Request, res: Response) => {
       return res.status(400).json({ message: parsed.error.errors[0].message });
     }
 
-    const { tableId, tableNumber, peopleCount } = parsed.data;
+    const { tableId, tableNumber, peopleCount, clientId, clientName } = parsed.data;
 
     if (!tableId && !tableNumber) {
       return res.status(400).json({ message: "Informe a mesa (tableId ou tableNumber)" });
@@ -31,6 +33,8 @@ export const openOrderController = async (req: Request, res: Response) => {
       tableNumber: tableNumber,
       peopleCount,
       waiterId,
+      clientId: clientId ?? null,
+      clientName: clientName ?? null,
     });
     return res.status(201).json(order);
   } catch (error: any) {

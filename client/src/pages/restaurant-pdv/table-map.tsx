@@ -4,8 +4,6 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/page-header";
 import {
   Dialog,
@@ -21,6 +19,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import type { RestaurantOrder } from "@shared/schema";
+import { OpenTableDialog } from "@/components/restaurant-pdv/open-table-dialog";
 
 // Tipo exportado — usado também por transfer-items-dialog e merge-tables-dialog
 export interface RestaurantTableWithStatus {
@@ -55,8 +54,6 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   const isGestor = user?.role === "admin" || user?.role === "gerente";
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [tableNumber, setTableNumber] = useState("");
-  const [peopleCount, setPeopleCount] = useState("");
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteNumber, setConfirmDeleteNumber] = useState<number | null>(null);
@@ -76,18 +73,23 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   const cashSessionOpen = !!cashData?.session;
 
   const openOrderMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (data: {
+      tableNumber: string;
+      peopleCount: string;
+      clientId: string | null;
+      clientName: string | null;
+    }) => {
       const res = await apiRequest("POST", "/api/restaurant-pdv/orders", {
-        tableNumber: Number(tableNumber),
-        peopleCount: Number(peopleCount),
+        tableNumber: Number(data.tableNumber),
+        peopleCount: Number(data.peopleCount),
+        clientId: data.clientId,
+        clientName: data.clientName,
       });
       return res.json() as Promise<RestaurantOrder>;
     },
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
       setDialogOpen(false);
-      setTableNumber("");
-      setPeopleCount("");
       onOrderOpened(created.id);
     },
     onError: (err: Error) => {
@@ -133,11 +135,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
             size="sm"
             disabled={!cashSessionOpen}
             title={!cashSessionOpen ? "Abra o caixa para liberar o PDV" : undefined}
-            onClick={() => {
-              setTableNumber("");
-              setPeopleCount("");
-              setDialogOpen(true);
-            }}
+            onClick={() => setDialogOpen(true)}
           >
             <Plus className="mr-1.5 h-4 w-4" />
             Nova Mesa
@@ -176,11 +174,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
             size="sm"
             disabled={!cashSessionOpen}
             title={!cashSessionOpen ? "Abra o caixa para liberar o PDV" : undefined}
-            onClick={() => {
-              setTableNumber("");
-              setPeopleCount("");
-              setDialogOpen(true);
-            }}
+            onClick={() => setDialogOpen(true)}
           >
             <Plus className="mr-1.5 h-4 w-4" />
             Abrir primeira mesa
@@ -249,82 +243,12 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
         </div>
       )}
 
-      {/* Dialog — nova mesa */}
-      <Dialog
+      <OpenTableDialog
         open={dialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDialogOpen(false);
-            setTableNumber("");
-            setPeopleCount("");
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle>Nova Mesa</DialogTitle>
-            <DialogDescription>
-              Informe o número da mesa e a quantidade de pessoas.
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="space-y-4 py-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              openOrderMutation.mutate();
-            }}
-          >
-            <div className="space-y-2">
-              <Label htmlFor="table-number">Número da Mesa</Label>
-              <Input
-                id="table-number"
-                type="number"
-                min="1"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                placeholder="Ex: 10"
-                autoFocus
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="people-count">Número de Pessoas</Label>
-              <Input
-                id="people-count"
-                type="number"
-                min="1"
-                value={peopleCount}
-                onChange={(e) => setPeopleCount(e.target.value)}
-                placeholder="Ex: 4"
-              />
-            </div>
-            <DialogFooter className="pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setDialogOpen(false);
-                  setTableNumber("");
-                  setPeopleCount("");
-                }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  !tableNumber ||
-                  Number(tableNumber) <= 0 ||
-                  !peopleCount ||
-                  Number(peopleCount) <= 0 ||
-                  openOrderMutation.isPending
-                }
-              >
-                {openOrderMutation.isPending ? "Abrindo..." : "Abrir Mesa"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setDialogOpen}
+        isPending={openOrderMutation.isPending}
+        onConfirm={(data) => openOrderMutation.mutate(data)}
+      />
 
       {/* Dialog — confirmar exclusão */}
       <Dialog

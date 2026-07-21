@@ -85,6 +85,8 @@ export const restaurantPdvService = {
     tableNumber?: number;
     peopleCount: number;
     waiterId: string;
+    clientId?: string | null;
+    clientName?: string | null;
   }): Promise<RestaurantOrder> {
     // Nada acontece sem caixa aberto: a comanda que nasce fora de uma sessão
     // fecharia sem entrar em nenhuma conferência.
@@ -147,6 +149,8 @@ export const restaurantPdvService = {
         peopleCount: data.peopleCount,
         waiterId: data.waiterId,
         blingConnectionId: blingConnectionId ?? null,
+        clientId: data.clientId ?? null,
+        clientName: data.clientName ?? null,
       })
       .returning();
     return created;

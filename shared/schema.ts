@@ -2564,6 +2564,8 @@ export const restaurantOrders = pgTable(
     discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
     discountReason: text("discount_reason"),
     discountAppliedBy: varchar("discount_applied_by").references(() => users.id),
+    clientId: varchar("client_id").references(() => clients.id),
+    clientName: text("client_name"),
     mergedIntoOrderId: varchar("merged_into_order_id"),
     // snapshot de system_settings.restaurant_pdv_bling_connection_id no momento
     // da abertura — referência solta (sem FK), mesmo padrão de mergedIntoOrderId

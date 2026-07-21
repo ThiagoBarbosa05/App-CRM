@@ -33,6 +33,11 @@ import {
   type CashMovementType,
 } from "@/components/restaurant-pdv/cash-movement-dialog";
 import { CloseCashSessionDialog } from "@/components/restaurant-pdv/close-cash-session-dialog";
+import {
+  CancelledItemsTable,
+  cancelledItemValue,
+  type CancelledItem,
+} from "@/components/restaurant-pdv/cancelled-items-table";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   pix: "Pix",
@@ -63,6 +68,7 @@ export interface CashSessionDetail extends RestaurantCashSession {
   movements: CashMovement[];
   summary: CashSessionSummary;
   closedOrders: SessionOrderRow[];
+  cancelledItems: CancelledItem[];
   openedByName: string | null;
   closedByName: string | null;
 }
@@ -422,6 +428,30 @@ export default function RestaurantCashSessionPage() {
                   Relatórios.
                 </p>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle>Itens cancelados no turno</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Padrão ao longo do tempo aparece em Relatórios → Cancelamentos.
+                </p>
+              </div>
+              {session.cancelledItems.length > 0 && (
+                <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                  {formatCurrency(
+                    session.cancelledItems.reduce((s, i) => s + cancelledItemValue(i), 0),
+                  )}
+                </span>
+              )}
+            </CardHeader>
+            <CardContent>
+              <CancelledItemsTable
+                items={session.cancelledItems}
+                emptyMessage="Nenhum item cancelado neste turno"
+              />
             </CardContent>
           </Card>
 
