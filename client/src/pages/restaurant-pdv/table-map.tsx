@@ -13,13 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Clock, LayoutGrid, Lock, Plus, Trash2, Users } from "lucide-react";
+import { Clock, LayoutGrid, Lock, LogOut, Plus, Trash2, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
 import type { RestaurantOrder } from "@shared/schema";
 import { OpenTableDialog } from "@/components/restaurant-pdv/open-table-dialog";
+import { CloseCashSessionDialog } from "@/components/restaurant-pdv/close-cash-session-dialog";
 
 // Tipo exportado — usado também por transfer-items-dialog e merge-tables-dialog
 export interface RestaurantTableWithStatus {
@@ -52,8 +53,10 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   // Espelha o requireGestor do backend. Havia um terceiro valor,
   // "administrador", que não existe no enum de roles — condição morta.
   const isGestor = user?.role === "admin" || user?.role === "gerente";
+  const isGarcom = user?.role === "garcom";
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [closeSessionOpen, setCloseSessionOpen] = useState(false);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteNumber, setConfirmDeleteNumber] = useState<number | null>(null);
@@ -66,11 +69,39 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   // Sem caixa aberto o backend recusa abrir mesa (409). O garçom consulta o
   // estado mesmo sem poder operar o caixa, para a tela explicar o bloqueio em
   // vez de deixá-lo preencher o diálogo e falhar no final.
-  const { data: cashData } = useQuery<{ session: { id: string } | null }>({
+  const { data: cashData } = useQuery<{
+    session: {
+      id: string;
+      summary?: { byPaymentMethod: { method: string; total: string }[] };
+    } | null;
+  }>({
     queryKey: ["/api/restaurant-pdv/cash-sessions/current"],
     refetchInterval: 30000,
   });
   const cashSessionOpen = !!cashData?.session;
+
+  const closeCashMutation = useMutation({
+    mutationFn: async (data: {
+      countedCash: string;
+      countedByMethod: Record<string, string>;
+      notes?: string;
+    }) => {
+      await apiRequest(
+        "POST",
+        `/api/restaurant-pdv/cash-sessions/${cashData?.session?.id}/close`,
+        data,
+      );
+    },
+    onSuccess: () => {
+      toast({ title: "Caixa fechado", description: "O PDV foi encerrado com sucesso." });
+      setCloseSessionOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/cash-sessions/current"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao fechar o caixa", description: err.message, variant: "destructive" });
+    },
+  });
 
   const openOrderMutation = useMutation({
     mutationFn: async (data: {
@@ -131,6 +162,16 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
           </PageHeader.Text>
         </PageHeader.Info>
         <PageHeader.Actions>
+          {isGarcom && cashSessionOpen && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCloseSessionOpen(true)}
+            >
+              <LogOut className="mr-1.5 h-4 w-4" />
+              Fechar caixa
+            </Button>
+          )}
           <Button
             size="sm"
             disabled={!cashSessionOpen}
@@ -248,6 +289,14 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
         onOpenChange={setDialogOpen}
         isPending={openOrderMutation.isPending}
         onConfirm={(data) => openOrderMutation.mutate(data)}
+      />
+
+      <CloseCashSessionDialog
+        open={closeSessionOpen}
+        onOpenChange={setCloseSessionOpen}
+        byPaymentMethod={cashData?.session?.summary?.byPaymentMethod ?? []}
+        isPending={closeCashMutation.isPending}
+        onConfirm={(data) => closeCashMutation.mutate(data)}
       />
 
       {/* Dialog — confirmar exclusão */}

@@ -153,7 +153,7 @@ restaurantPdvRouter.post(
 restaurantPdvRouter.get("/cash-sessions/:id", requireGestor, getCashSessionController);
 restaurantPdvRouter.post(
   "/cash-sessions/:id/close",
-  requireGestor,
+  requireGarcomOrGestor,
   closeCashSessionController,
 );
 

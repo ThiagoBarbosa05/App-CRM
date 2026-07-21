@@ -21,7 +21,11 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
 import type { RestaurantOrderItem } from "@shared/schema";
-import { splitEqualCents, splitByGroupsCents } from "@/lib/split-bill";
+import {
+  splitEqualCents,
+  splitByGroupsCents,
+  initialSplitPeople,
+} from "@/lib/split-bill";
 
 const PAYMENT_METHODS: { value: string; label: string }[] = [
   { value: "pix", label: "Pix" },
@@ -44,6 +48,8 @@ interface SplitBillDialogProps {
   discountAmount: number;
   serviceFee: number;
   total: number;
+  /** Quantas pessoas a comanda registrou na abertura da mesa. */
+  peopleCount: number;
   isPending?: boolean;
   onConfirm: (payments: SplitPayment[]) => void;
 }
@@ -56,16 +62,26 @@ export function SplitBillDialog({
   discountAmount,
   serviceFee,
   total,
+  peopleCount,
   isPending = false,
   onConfirm,
 }: SplitBillDialogProps) {
-  const [numPeople, setNumPeople] = useState(2);
+  const [numPeople, setNumPeople] = useState(() => initialSplitPeople(peopleCount));
   const [peopleRows, setPeopleRows] = useState<SplitPayment[]>([]);
   const [itemGroups, setItemGroups] = useState<{ label: string; method: string }[]>([
     { label: "Pessoa 1", method: "" },
     { label: "Pessoa 2", method: "" },
   ]);
   const [itemAssignment, setItemAssignment] = useState<Record<string, number>>({});
+
+  // O diálogo continua montado entre uma comanda e outra, então o inicializador
+  // do `useState` só valeria para a primeira. Sem este sync, uma mesa de 6
+  // pessoas abria a divisão em 2 — o número já tinha sido informado na abertura
+  // da mesa e era ignorado aqui.
+  useEffect(() => {
+    if (!open) return;
+    setNumPeople(initialSplitPeople(peopleCount));
+  }, [open, peopleCount]);
 
   useEffect(() => {
     if (!open) return;
@@ -170,6 +186,11 @@ export function SplitBillDialog({
                 value={numPeople}
                 onChange={(e) => setNumPeople(Math.max(2, Number(e.target.value) || 2))}
               />
+              {numPeople === initialSplitPeople(peopleCount) && peopleCount >= 2 && (
+                <span className="text-xs text-muted-foreground">
+                  da abertura da mesa
+                </span>
+              )}
             </div>
             <div className="max-h-64 space-y-2 overflow-y-auto">
               {peopleRows.map((row, i) => (

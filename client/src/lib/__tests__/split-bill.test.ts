@@ -1,5 +1,42 @@
 import { describe, it, expect } from "vitest";
-import { splitEqualCents, splitByGroupsCents } from "../split-bill";
+import { splitEqualCents, splitByGroupsCents, initialSplitPeople } from "../split-bill";
+
+describe("initialSplitPeople", () => {
+  /**
+   * O número de pessoas era pedido na abertura da mesa e ignorado no
+   * fechamento: a divisão começava fixa em 2. Mesa de seis precisava ser
+   * corrigida à mão toda vez, e quem esquecesse dividia a conta errado.
+   */
+  it("usa o número de pessoas registrado na abertura da mesa", () => {
+    expect(initialSplitPeople(6)).toBe(6);
+    expect(initialSplitPeople(2)).toBe(2);
+    expect(initialSplitPeople(20)).toBe(20);
+  });
+
+  it("cai para 2 quando a mesa não tem gente suficiente para dividir", () => {
+    expect(initialSplitPeople(1)).toBe(2);
+    expect(initialSplitPeople(0)).toBe(2);
+  });
+
+  it("cai para 2 em dado inválido em vez de propagar NaN para a divisão", () => {
+    expect(initialSplitPeople(NaN)).toBe(2);
+    expect(initialSplitPeople(-3)).toBe(2);
+    expect(initialSplitPeople(Infinity)).toBe(2);
+  });
+
+  it("trunca fracionário — não existe meia pessoa dividindo a conta", () => {
+    expect(initialSplitPeople(4.7)).toBe(4);
+  });
+
+  it("sempre produz um número que `splitEqualCents` aceita", () => {
+    for (const input of [NaN, -1, 0, 1, 2.5, 6, 99]) {
+      const people = initialSplitPeople(input);
+      const shares = splitEqualCents(10000, people);
+      expect(shares).toHaveLength(people);
+      expect(shares.reduce((a, b) => a + b, 0)).toBe(10000);
+    }
+  });
+});
 
 describe("splitEqualCents", () => {
   it("divide valor exato igualmente", () => {

@@ -696,6 +696,7 @@ export default function RestaurantPos() {
         discountAmount={discountAmount}
         serviceFee={serviceFee}
         total={total}
+        peopleCount={order?.peopleCount ?? 0}
         isPending={splitCloseMutation.isPending}
         onConfirm={(payments) => splitCloseMutation.mutate(payments)}
       />

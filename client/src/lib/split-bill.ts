@@ -7,6 +7,19 @@
  * arredondar cada parcela perde centavos: R$ 100 / 3 daria 33,33 três vezes.
  */
 
+/**
+ * Quantas pessoas a divisão deve assumir por padrão, a partir do que a comanda
+ * registrou na abertura da mesa.
+ *
+ * O número de pessoas é pedido ao abrir a mesa e era ignorado no fechamento: a
+ * divisão começava sempre em 2, e uma mesa de seis precisava ser corrigida à
+ * mão toda vez. Cai para 2 quando o valor não serve para dividir (mesa de uma
+ * pessoa, ou dado inválido vindo do banco).
+ */
+export function initialSplitPeople(peopleCount: number): number {
+  return Number.isFinite(peopleCount) && peopleCount >= 2 ? Math.floor(peopleCount) : 2;
+}
+
 /** Divide `totalCents` em `people` parcelas cujo somatório é exatamente o total. */
 export function splitEqualCents(totalCents: number, people: number): number[] {
   const count = Math.max(people, 1);
