@@ -132,7 +132,7 @@ export const userValidationSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("E-mail inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  role: z.enum(["admin", "gerente", "vendedor"]),
+  role: z.enum(["admin", "gerente", "vendedor", "garcom"]),
   isActive: z.string().optional(),
 });
 
