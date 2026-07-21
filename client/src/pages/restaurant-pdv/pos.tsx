@@ -44,7 +44,7 @@ import { ApplyDiscountDialog } from "@/components/restaurant-pdv/apply-discount-
 import { SplitBillDialog } from "@/components/restaurant-pdv/split-bill-dialog";
 import { TransferItemsDialog } from "@/components/restaurant-pdv/transfer-items-dialog";
 import { MergeTablesDialog } from "@/components/restaurant-pdv/merge-tables-dialog";
-import { OrderReceiptPrint } from "@/components/restaurant-pdv/order-receipt-print";
+import { OrderReceiptPrint, printBillNow } from "@/components/restaurant-pdv/order-receipt-print";
 import { OrderItemSelector } from "@/components/restaurant-pdv/order-item-selector";
 import { OrderSummaryCard } from "@/components/restaurant-pdv/order-summary-card";
 
@@ -116,7 +116,13 @@ export default function RestaurantPos() {
     mutationFn: async () => {
       await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/request-payment`);
     },
-    onSuccess: invalidateOrder,
+    onSuccess: () => {
+      invalidateOrder();
+      // Imprime a pré-conta automaticamente ao pedir a conta
+      if (order) {
+        printBillNow(order, order.items ?? []);
+      }
+    },
     onError: (err: Error) => {
       toast({ title: "Erro ao pedir a conta", description: err.message, variant: "destructive" });
     },
