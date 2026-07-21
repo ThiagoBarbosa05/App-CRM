@@ -712,6 +712,21 @@ export const restaurantPdvService = {
   async forceCancelOrder(orderId: string, actorId: string): Promise<void> {
     const order = await this.assertOrderOpen(orderId);
 
+    // Mesma regra do `mergeOrders`: comanda cancelada nunca recebe
+    // `cashSessionId`, então os pagamentos dela somem da conferência — mas o
+    // dinheiro continua na gaveta e vira sobra de caixa sem explicação.
+    // Remova os pagamentos antes de cancelar.
+    const paymentsCents =
+      await restaurantOrderPaymentsService.getPaymentsTotalCents(orderId);
+    if (paymentsCents > 0) {
+      throw Object.assign(
+        new Error(
+          `Esta comanda já tem ${fromCents(paymentsCents)} em pagamentos registrados. Remova os pagamentos antes de cancelar, senão o valor some da conferência de caixa.`,
+        ),
+        { code: "PAYMENTS_ALREADY_REGISTERED" },
+      );
+    }
+
     await db
       .update(restaurantOrders)
       .set({ status: "cancelada", closedAt: new Date() })

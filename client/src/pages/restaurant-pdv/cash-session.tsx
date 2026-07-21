@@ -49,9 +49,20 @@ interface CashMovement {
   createdAt: string;
 }
 
+interface SessionOrderRow {
+  id: string;
+  orderNumber: number;
+  tableNumber: number;
+  waiterName: string | null;
+  paymentMethod: string | null;
+  total: string | null;
+  closedAt: string | null;
+}
+
 export interface CashSessionDetail extends RestaurantCashSession {
   movements: CashMovement[];
   summary: CashSessionSummary;
+  closedOrders: SessionOrderRow[];
   openedByName: string | null;
   closedByName: string | null;
 }
@@ -61,6 +72,15 @@ const LIST_KEY = ["/api/restaurant-pdv/cash-sessions"];
 
 function formatDateTime(value: string | Date): string {
   return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+/** Dentro da sessão do dia, só a hora importa. */
+function formatTime(value: string | Date): string {
+  return new Date(value).toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default function RestaurantCashSessionPage() {
@@ -335,6 +355,71 @@ export default function RestaurantCashSessionPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle>Últimas vendas fechadas</CardTitle>
+              <span className="text-sm text-muted-foreground">
+                {summary?.orderCount ?? 0} comanda(s) · {formatCurrency(summary?.ordersTotal ?? 0)}
+              </span>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Comanda</TableHead>
+                    <TableHead>Mesa</TableHead>
+                    <TableHead>Garçom</TableHead>
+                    <TableHead>Pagamento</TableHead>
+                    <TableHead>Fechada às</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {session.closedOrders.map((o) => (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-medium">#{o.orderNumber}</TableCell>
+                      <TableCell>Mesa {o.tableNumber}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {o.waiterName ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        {o.paymentMethod ? (
+                          <Badge variant="outline">
+                            {PAYMENT_METHOD_LABELS[o.paymentMethod] ?? o.paymentMethod}
+                          </Badge>
+                        ) : (
+                          // `paymentMethod` nulo = conta dividida entre formas diferentes.
+                          <Badge variant="outline" className="text-blue-600 dark:text-blue-400">
+                            Dividido
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {o.closedAt ? formatTime(o.closedAt) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {formatCurrency(o.total ?? 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {session.closedOrders.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
+                        Nenhuma comanda fechada nesta sessão
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {(summary?.orderCount ?? 0) > session.closedOrders.length && (
+                <p className="pt-3 text-xs text-muted-foreground">
+                  Mostrando as {session.closedOrders.length} mais recentes. Veja todas em
+                  Relatórios.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

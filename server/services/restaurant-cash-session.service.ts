@@ -20,10 +20,23 @@ import {
 import { fromCents, toCents } from "../../shared/restaurant-order-totals";
 import { restaurantOrderAuditService } from "./restaurant-order-audit.service";
 
+export interface SessionOrderRow {
+  id: string;
+  orderNumber: number;
+  tableNumber: number;
+  waiterName: string | null;
+  /** Nulo quando a comanda foi dividida entre formas diferentes. */
+  paymentMethod: string | null;
+  total: string | null;
+  closedAt: Date | null;
+}
+
 export interface CashSessionDetail extends RestaurantCashSession {
   movements: RestaurantCashMovement[];
   /** Snapshot gravado (sessão fechada) ou cálculo ao vivo (sessão aberta). */
   summary: CashSessionSummary;
+  /** Comandas fechadas da sessão, mais recentes primeiro. */
+  closedOrders: SessionOrderRow[];
   openedByName: string | null;
   closedByName: string | null;
 }
@@ -185,6 +198,36 @@ export const restaurantCashSessionService = {
     });
   },
 
+  /**
+   * Comandas fechadas da sessão. Vale para sessão aberta e fechada — o vínculo
+   * é o `cashSessionId` carimbado no fechamento da comanda, não a janela de
+   * tempo.
+   */
+  async listSessionOrders(sessionId: string, limit = 20): Promise<SessionOrderRow[]> {
+    const rows = await db
+      .select({
+        id: restaurantOrders.id,
+        orderNumber: restaurantOrders.orderNumber,
+        tableNumber: restaurantOrders.tableNumber,
+        waiterName: users.name,
+        paymentMethod: restaurantOrders.paymentMethod,
+        total: restaurantOrders.total,
+        closedAt: restaurantOrders.closedAt,
+      })
+      .from(restaurantOrders)
+      .leftJoin(users, eq(restaurantOrders.waiterId, users.id))
+      .where(
+        and(
+          eq(restaurantOrders.cashSessionId, sessionId),
+          eq(restaurantOrders.status, "fechada"),
+        ),
+      )
+      .orderBy(desc(restaurantOrders.closedAt))
+      .limit(limit);
+
+    return rows;
+  },
+
   async getSessionDetail(sessionId: string): Promise<CashSessionDetail | null> {
     const [session] = await db
       .select()
@@ -210,6 +253,7 @@ export const restaurantCashSessionService = {
       ...session,
       movements,
       summary,
+      closedOrders: await this.listSessionOrders(session.id),
       openedByName: actorNames[session.openedBy] ?? null,
       closedByName: session.closedBy ? (actorNames[session.closedBy] ?? null) : null,
     };
