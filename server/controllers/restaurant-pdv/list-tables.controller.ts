@@ -4,7 +4,7 @@ import { restaurantTablesService } from "../../services/restaurant-tables.servic
 export const listTablesController = async (req: Request, res: Response) => {
   try {
     const includeInactive = req.query.includeInactive === "true";
-    const tables = await restaurantTablesService.listTables(includeInactive);
+    const tables = await restaurantTablesService.listTables(includeInactive, req.pdvUnitId);
     return res.json(tables);
   } catch (error) {
     console.error("Erro ao buscar mesas:", error);

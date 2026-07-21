@@ -12,12 +12,20 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+function getPdvUnitHeaders(url: string): Record<string, string> {
+  if (!url.includes("/api/restaurant-pdv/")) return {};
+  const unitId = localStorage.getItem("pdvCurrentUnitId");
+  return unitId ? { "X-PDV-Unit-Id": unitId } : {};
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    ...getPdvUnitHeaders(url),
+  };
 
   if (data) {
     headers["Content-Type"] = "application/json";
@@ -41,10 +49,12 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = new URL(queryKey.join("/") as string, window.location.origin);
+    const urlStr = queryKey.join("/") as string;
+    const url = new URL(urlStr, window.location.origin);
 
     const res = await fetch(url.toString(), {
       credentials: "include",
+      headers: getPdvUnitHeaders(urlStr),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

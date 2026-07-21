@@ -33,6 +33,7 @@ export const openOrderController = async (req: Request, res: Response) => {
       tableNumber: tableNumber,
       peopleCount,
       waiterId,
+      unitId: req.pdvUnitId ?? null,
       clientId: clientId ?? null,
       clientName: clientName ?? null,
     });

@@ -6,7 +6,7 @@ export const listCurrentSessionOrdersController = async (req: Request, res: Resp
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ message: "Usuário não autenticado" });
 
-    const session = await restaurantCashSessionService.getCurrentSession(userId);
+    const session = await restaurantCashSessionService.getCurrentSession(userId, req.pdvUnitId);
     if (!session) {
       return res.json({ orders: [] });
     }

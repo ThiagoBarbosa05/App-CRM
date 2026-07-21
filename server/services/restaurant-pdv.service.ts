@@ -6,6 +6,7 @@ import {
   restaurantTables,
   restaurantOrderPayments,
   restaurantPdvSettings,
+  pdvUnits,
   systemSettings,
   blingProductMappings,
   products,
@@ -44,11 +45,16 @@ export const restaurantPdvService = {
       );
     return setting?.value ?? undefined;
   },
-  async listMenuItems(activeOnly = true): Promise<RestaurantMenuItem[]> {
+  async listMenuItems(activeOnly = true, unitId?: string): Promise<RestaurantMenuItem[]> {
+    const conditions = [
+      activeOnly ? eq(restaurantMenuItems.isActive, true) : undefined,
+      unitId ? eq(restaurantMenuItems.unitId, unitId) : undefined,
+    ].filter((c): c is NonNullable<typeof c> => c !== undefined);
+
     return db
       .select()
       .from(restaurantMenuItems)
-      .where(activeOnly ? eq(restaurantMenuItems.isActive, true) : undefined)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(restaurantMenuItems.category, restaurantMenuItems.name);
   },
 
@@ -86,12 +92,13 @@ export const restaurantPdvService = {
     tableNumber?: number;
     peopleCount: number;
     waiterId: string;
+    unitId?: string | null;
     clientId?: string | null;
     clientName?: string | null;
   }): Promise<RestaurantOrder> {
     // Nada acontece sem caixa aberto: a comanda que nasce fora de uma sessão
     // fecharia sem entrar em nenhuma conferência.
-    await restaurantCashSessionService.assertSessionOpen(data.waiterId);
+    await restaurantCashSessionService.assertSessionOpen(data.waiterId, data.unitId ?? undefined);
 
     let resolvedTableNumber: number;
 
@@ -142,9 +149,15 @@ export const restaurantPdvService = {
 
     const blingConnectionId = await this.getRestaurantPdvBlingConnectionId();
 
-    // Lê a taxa de serviço padrão das configurações do PDV; fallback para 10%.
-    const [pdvSettings] = await db.select().from(restaurantPdvSettings).limit(1);
-    const serviceFeePercent = pdvSettings?.defaultServiceFeePercent ?? "10.00";
+    // Lê a taxa de serviço padrão da unidade PDV; fallback para settings legado; fallback 10%.
+    let serviceFeePercent = "10.00";
+    if (data.unitId) {
+      const [unit] = await db.select().from(pdvUnits).where(eq(pdvUnits.id, data.unitId)).limit(1);
+      serviceFeePercent = unit?.defaultServiceFeePercent ?? "10.00";
+    } else {
+      const [pdvSettings] = await db.select().from(restaurantPdvSettings).limit(1);
+      serviceFeePercent = pdvSettings?.defaultServiceFeePercent ?? "10.00";
+    }
 
     const [created] = await db
       .insert(restaurantOrders)
@@ -157,6 +170,7 @@ export const restaurantPdvService = {
         clientId: data.clientId ?? null,
         clientName: data.clientName ?? null,
         serviceFeePercent,
+        unitId: data.unitId ?? null,
       })
       .returning();
     return created;
@@ -193,12 +207,14 @@ export const restaurantPdvService = {
     waiterId?: string;
     from?: Date;
     to?: Date;
+    unitId?: string;
   }): Promise<(RestaurantOrder & { paymentsCount: number; waiterName: string | null })[]> {
     const conditions = [
       filters.status ? eq(restaurantOrders.status, filters.status) : undefined,
       filters.waiterId ? eq(restaurantOrders.waiterId, filters.waiterId) : undefined,
       filters.from ? gte(restaurantOrders.openedAt, filters.from) : undefined,
       filters.to ? lte(restaurantOrders.openedAt, filters.to) : undefined,
+      filters.unitId ? eq(restaurantOrders.unitId, filters.unitId) : undefined,
     ].filter((c): c is NonNullable<typeof c> => c !== undefined);
 
     const rows = await db

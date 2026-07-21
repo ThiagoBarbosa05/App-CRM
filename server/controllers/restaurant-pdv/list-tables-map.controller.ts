@@ -3,7 +3,7 @@ import { restaurantTablesService } from "../../services/restaurant-tables.servic
 
 export const listTablesMapController = async (req: Request, res: Response) => {
   try {
-    const tables = await restaurantTablesService.listTablesWithStatus();
+    const tables = await restaurantTablesService.listTablesWithStatus(req.pdvUnitId);
     return res.json(tables);
   } catch (error) {
     console.error("Erro ao buscar mapa de mesas:", error);

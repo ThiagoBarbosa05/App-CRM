@@ -21,6 +21,7 @@ export const openCashSessionController = async (req: Request, res: Response) => 
     const session = await restaurantCashSessionService.openSession(
       parsed.data.openingFloat,
       actorId,
+      req.pdvUnitId,
     );
     return res.status(201).json(session);
   } catch (error: any) {

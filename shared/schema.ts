@@ -42,6 +42,7 @@ export const users = pgTable("users", {
   isActive: text("is_active").notNull().default("true"),
   blingVendedorId: text("bling_vendedor_id"),
   blingVendedorName: text("bling_vendedor_name"),
+  pdvUnitId: varchar("pdv_unit_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -2394,6 +2395,26 @@ export type Sale = typeof sales.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
 
+// PDV Restaurante — Unidades (multi-CNPJ)
+export const pdvUnits = pgTable("pdv_units", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull().default("Unidade Principal"),
+  cnpj: text("cnpj"),
+  phone: text("phone"),
+  address: text("address"),
+  footerMessage: text("footer_message"),
+  defaultServiceFeePercent: decimal("default_service_fee_percent", { precision: 5, scale: 2 }).notNull().default("10.00"),
+  waiterCommissionPercent: decimal("waiter_commission_percent", { precision: 5, scale: 2 }).notNull().default("0.00"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type PdvUnit = typeof pdvUnits.$inferSelect;
+export const insertPdvUnitSchema = createInsertSchema(pdvUnits).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPdvUnit = z.infer<typeof insertPdvUnitSchema>;
+
 // PDV Restaurante — cardápio, mesas, comandas e itens de comanda (fluxo local, sem Bling)
 export const restaurantTables = pgTable(
   "restaurant_tables",
@@ -2405,6 +2426,7 @@ export const restaurantTables = pgTable(
     capacity: integer("capacity").notNull().default(4),
     section: text("section"),
     isActive: boolean("is_active").notNull().default(true),
+    unitId: varchar("unit_id").references(() => pdvUnits.id),
     createdBy: varchar("created_by")
       .references(() => users.id)
       .notNull(),
@@ -2412,8 +2434,8 @@ export const restaurantTables = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
-    numberActiveUidx: uniqueIndex("restaurant_tables_number_active_uidx")
-      .on(table.number)
+    numberUnitActiveUidx: uniqueIndex("restaurant_tables_number_unit_active_uidx")
+      .on(table.unitId, table.number)
       .where(sql`is_active = true`),
   }),
 );
@@ -2426,6 +2448,7 @@ export const restaurantMenuItems = pgTable("restaurant_menu_items", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   category: text("category"),
   isActive: boolean("is_active").notNull().default(true),
+  unitId: varchar("unit_id").references(() => pdvUnits.id),
   blingProductId: text("bling_product_id"),
   createdBy: varchar("created_by")
     .references(() => users.id)
@@ -2473,6 +2496,7 @@ export const restaurantCashSessions = pgTable(
     /** Snapshot imutável dos totais no momento do fechamento. */
     summary: jsonb("summary"),
     notes: text("notes"),
+    unitId: varchar("unit_id").references(() => pdvUnits.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -2571,6 +2595,7 @@ export const restaurantOrders = pgTable(
     // da abertura — referência solta (sem FK), mesmo padrão de mergedIntoOrderId
     blingConnectionId: varchar("bling_connection_id"),
     notes: text("notes"),
+    unitId: varchar("unit_id").references(() => pdvUnits.id),
     openedAt: timestamp("opened_at").defaultNow().notNull(),
     closedAt: timestamp("closed_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

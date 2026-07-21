@@ -4,7 +4,7 @@ import { restaurantCashSessionService } from "../../services/restaurant-cash-ses
 export const listCashSessionsController = async (req: Request, res: Response) => {
   try {
     const limit = Math.min(Number(req.query.limit) || 30, 100);
-    const sessions = await restaurantCashSessionService.listSessions(limit);
+    const sessions = await restaurantCashSessionService.listSessions(limit, req.pdvUnitId);
     return res.json(sessions);
   } catch (error) {
     console.error("Erro ao listar caixas:", error);

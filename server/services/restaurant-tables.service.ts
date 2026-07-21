@@ -1,13 +1,12 @@
 import { db } from "../db";
 import { restaurantTables, restaurantOrders } from "../../shared/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import type { RestaurantTable, InsertRestaurantTable } from "../../shared/schema";
 
 export type TableStatus = "livre" | "ocupada" | "aguardando_pagamento";
 
 export interface RestaurantTableWithStatus extends RestaurantTable {
   status: TableStatus;
-  /** Mesa cadastrada de origem, quando houver. Null em mesa avulsa. */
   tableId: string | null;
   orderId: string | null;
   peopleCount: number | null;
@@ -16,11 +15,16 @@ export interface RestaurantTableWithStatus extends RestaurantTable {
 }
 
 export const restaurantTablesService = {
-  async listTables(includeInactive = false): Promise<RestaurantTable[]> {
+  async listTables(includeInactive = false, unitId?: string): Promise<RestaurantTable[]> {
+    const conditions = [
+      includeInactive ? undefined : eq(restaurantTables.isActive, true),
+      unitId ? eq(restaurantTables.unitId, unitId) : undefined,
+    ].filter((c): c is NonNullable<typeof c> => c !== undefined);
+
     return db
       .select()
       .from(restaurantTables)
-      .where(includeInactive ? undefined : eq(restaurantTables.isActive, true))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(restaurantTables.number);
   },
 
@@ -61,16 +65,12 @@ export const restaurantTablesService = {
       .where(eq(restaurantTables.id, id));
   },
 
-  /**
-   * Todas as comandas abertas — inclusive as vinculadas a mesas cadastradas.
-   *
-   * Antes filtrava `table_id IS NULL`, listando só mesas avulsas. Comandas de
-   * mesas cadastradas ficavam invisíveis no mapa, mas continuavam bloqueando a
-   * reabertura da mesa (a checagem de duplicata olha só `table_number`) e
-   * impedindo o fechamento do caixa. Mesa fantasma: ninguém via, ninguém
-   * conseguia fechar.
-   */
-  async listTablesWithStatus(): Promise<RestaurantTableWithStatus[]> {
+  async listTablesWithStatus(unitId?: string): Promise<RestaurantTableWithStatus[]> {
+    const conditions = [
+      eq(restaurantOrders.status, "aberta"),
+      unitId ? eq(restaurantOrders.unitId, unitId) : undefined,
+    ].filter((c): c is NonNullable<typeof c> => c !== undefined);
+
     const orders = await db
       .select({
         id: restaurantOrders.id,
@@ -82,18 +82,17 @@ export const restaurantTablesService = {
         waiterId: restaurantOrders.waiterId,
       })
       .from(restaurantOrders)
-      .where(eq(restaurantOrders.status, "aberta"))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(restaurantOrders.tableNumber);
 
     return orders.map((o) => ({
-      // A identidade da linha é a COMANDA, não a mesa: é o que os diálogos de
-      // transferir/juntar precisam comparar para excluir a mesa atual.
       id: o.id,
       tableId: o.tableId,
       number: o.tableNumber,
       capacity: o.peopleCount ?? 0,
       section: null,
       isActive: true,
+      unitId: null,
       createdBy: o.waiterId,
       createdAt: o.openedAt ?? new Date(),
       updatedAt: o.openedAt ?? new Date(),

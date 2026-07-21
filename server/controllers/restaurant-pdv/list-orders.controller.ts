@@ -21,7 +21,7 @@ export const listOrdersController = async (req: Request, res: Response) => {
     const from = req.query.from ? new Date(String(req.query.from)) : undefined;
     const to = req.query.to ? new Date(String(req.query.to)) : undefined;
 
-    const orders = await restaurantPdvService.listOrders({ status, from, to });
+    const orders = await restaurantPdvService.listOrders({ status, from, to, unitId: req.pdvUnitId });
     return res.json(orders);
   } catch (error) {
     console.error("Erro ao buscar histórico de comandas:", error);

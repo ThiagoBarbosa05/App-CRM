@@ -97,17 +97,18 @@ async function fetchCancelledInWindow(from: Date, to: Date) {
 }
 
 export const restaurantCashSessionService = {
-  /** Sessão aberta de um usuário específico. */
-  async getCurrentSession(userId: string): Promise<RestaurantCashSession | null> {
+  /** Sessão aberta de um usuário específico, opcionalmente filtrada por unidade. */
+  async getCurrentSession(userId: string, unitId?: string): Promise<RestaurantCashSession | null> {
+    const conditions = [
+      eq(restaurantCashSessions.status, "aberto"),
+      eq(restaurantCashSessions.openedBy, userId),
+      unitId ? eq(restaurantCashSessions.unitId, unitId) : undefined,
+    ].filter((c): c is NonNullable<typeof c> => c !== undefined);
+
     const [session] = await db
       .select()
       .from(restaurantCashSessions)
-      .where(
-        and(
-          eq(restaurantCashSessions.status, "aberto"),
-          eq(restaurantCashSessions.openedBy, userId),
-        ),
-      )
+      .where(and(...conditions))
       .limit(1);
     return session ?? null;
   },
@@ -115,6 +116,7 @@ export const restaurantCashSessionService = {
   async openSession(
     openingFloat: string,
     actorId: string,
+    unitId?: string,
   ): Promise<RestaurantCashSession> {
     if (toCents(openingFloat) < 0) {
       throw Object.assign(new Error("O fundo de troco não pode ser negativo"), {
@@ -122,7 +124,7 @@ export const restaurantCashSessionService = {
       });
     }
 
-    const current = await this.getCurrentSession(actorId);
+    const current = await this.getCurrentSession(actorId, unitId);
     if (current) {
       throw Object.assign(
         new Error("Você já tem um caixa aberto — feche-o antes de abrir outro"),
@@ -133,12 +135,10 @@ export const restaurantCashSessionService = {
     try {
       const [created] = await db
         .insert(restaurantCashSessions)
-        .values({ openedBy: actorId, openingFloat, status: "aberto" })
+        .values({ openedBy: actorId, openingFloat, status: "aberto", unitId: unitId ?? null })
         .returning();
       return created;
     } catch (error: any) {
-      // Corrida entre duas aberturas simultâneas: o índice parcial
-      // `restaurant_cash_sessions_one_open_per_user` é quem garante a invariante.
       if (error?.code === "23505") {
         throw Object.assign(
           new Error("Você já tem um caixa aberto — feche-o antes de abrir outro"),
@@ -149,8 +149,8 @@ export const restaurantCashSessionService = {
     }
   },
 
-  async assertSessionOpen(userId: string): Promise<RestaurantCashSession> {
-    const session = await this.getCurrentSession(userId);
+  async assertSessionOpen(userId: string, unitId?: string): Promise<RestaurantCashSession> {
+    const session = await this.getCurrentSession(userId, unitId);
     if (!session) {
       throw Object.assign(
         new Error("Nenhum caixa aberto para este usuário — abra o caixa para operar"),
@@ -163,8 +163,9 @@ export const restaurantCashSessionService = {
   async addMovement(
     data: { type: "sangria" | "suprimento"; amount: string; reason: string },
     actorId: string,
+    unitId?: string,
   ): Promise<RestaurantCashMovement> {
-    const session = await this.assertSessionOpen(actorId);
+    const session = await this.assertSessionOpen(actorId, unitId);
 
     if (toCents(data.amount) <= 0) {
       throw Object.assign(new Error("O valor deve ser maior que zero"), {
@@ -428,16 +429,17 @@ export const restaurantCashSessionService = {
     return closed;
   },
 
-  async listSessions(limit = 30): Promise<RestaurantCashSession[]> {
+  async listSessions(limit = 30, unitId?: string): Promise<RestaurantCashSession[]> {
     return db
       .select()
       .from(restaurantCashSessions)
+      .where(unitId ? eq(restaurantCashSessions.unitId, unitId) : undefined)
       .orderBy(desc(restaurantCashSessions.openedAt))
       .limit(limit);
   },
 
   /** Visão gerencial: todas as sessões com nome do operador. */
-  async listSessionsOverview(limit = 100): Promise<SessionOverviewRow[]> {
+  async listSessionsOverview(unitId?: string, limit = 100): Promise<SessionOverviewRow[]> {
     const rows = await db
       .select({
         id: restaurantCashSessions.id,
@@ -454,6 +456,7 @@ export const restaurantCashSessionService = {
       })
       .from(restaurantCashSessions)
       .leftJoin(users, eq(restaurantCashSessions.openedBy, users.id))
+      .where(unitId ? eq(restaurantCashSessions.unitId, unitId) : undefined)
       .orderBy(desc(restaurantCashSessions.openedAt))
       .limit(limit);
     return rows;

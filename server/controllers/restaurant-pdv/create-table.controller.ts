@@ -26,6 +26,7 @@ export const createTableController = async (req: Request, res: Response) => {
       capacity: parsed.data.capacity ?? 4,
       section: parsed.data.section ?? null,
       isActive: parsed.data.isActive ?? true,
+      unitId: req.pdvUnitId ?? null,
       createdBy,
     });
     return res.status(201).json(table);

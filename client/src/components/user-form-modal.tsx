@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
+import type { PdvUnit } from "@shared/schema";
 import {
   Dialog,
   DialogContent,
@@ -112,6 +113,12 @@ export default function UserFormModal({
 
   const watchedRole = form.watch("role");
   const showAccessScope = isEditing && watchedRole === "vendedor";
+  const showPdvUnit = watchedRole === "garcom";
+
+  const { data: pdvUnits = [] } = useQuery<PdvUnit[]>({
+    queryKey: ["/api/restaurant-pdv/units"],
+    enabled: showPdvUnit,
+  });
 
   const { data: whatsappAccess } = useQuery<WhatsappAccess>({
     queryKey: ["/api/users", user?.id, "whatsapp-access"],
@@ -302,6 +309,39 @@ export default function UserFormModal({
                 onChangeSectorIds={setSelectedSectorIds}
                 onChangeChannelIds={setSelectedChannelIds}
                 onChangeQrChannelIds={setSelectedQrChannelIds}
+              />
+            )}
+
+            {showPdvUnit && (
+              <FormField
+                control={form.control}
+                name="pdvUnitId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unidade PDV</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a unidade" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {pdvUnits.filter((u) => u.isActive).map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.name}
+                            {u.cnpj ? ` — ${u.cnpj}` : ""}
+                          </SelectItem>
+                        ))}
+                        {pdvUnits.filter((u) => u.isActive).length === 0 && (
+                          <SelectItem value="_none" disabled>
+                            Nenhuma unidade ativa
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             )}
 

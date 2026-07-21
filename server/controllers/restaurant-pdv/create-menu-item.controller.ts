@@ -28,6 +28,7 @@ export const createMenuItemController = async (req: Request, res: Response) => {
       category: parsed.data.category ?? null,
       isActive: parsed.data.isActive ?? true,
       blingProductId: parsed.data.blingProductId ?? null,
+      unitId: req.pdvUnitId ?? null,
       createdBy,
     });
     return res.status(201).json(item);

@@ -22,7 +22,7 @@ export const addCashMovementController = async (req: Request, res: Response) => 
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
 
-    const movement = await restaurantCashSessionService.addMovement(parsed.data, actorId);
+    const movement = await restaurantCashSessionService.addMovement(parsed.data, actorId, req.pdvUnitId);
     return res.status(201).json(movement);
   } catch (error: any) {
     if (error?.code === "NO_CASH_SESSION") {
