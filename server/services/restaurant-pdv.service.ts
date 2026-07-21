@@ -123,19 +123,11 @@ export const restaurantPdvService = {
       // Mesa avulsa — sem vínculo a uma mesa cadastrada
       resolvedTableNumber = data.tableNumber!;
 
-      // Impede duplicata: verifica se já existe qualquer mesa aberta com o mesmo número
-      const [duplicate] = await db
-        .select({ id: restaurantOrders.id })
-        .from(restaurantOrders)
-        .where(
-          and(
-            eq(restaurantOrders.tableNumber, resolvedTableNumber),
-            eq(restaurantOrders.status, "aberta"),
-          ),
-        )
-        .limit(1);
-
-      if (duplicate) {
+      // Impede duplicata — usa SQL direto para garantir a comparação correta
+      const dupResult = await db.execute(
+        sql`SELECT id FROM restaurant_orders WHERE table_number = ${resolvedTableNumber} AND status = 'aberta' LIMIT 1`
+      );
+      if (dupResult.rows.length > 0) {
         throw Object.assign(
           new Error(`A Mesa ${resolvedTableNumber} já está aberta`),
           { code: "TABLE_OCCUPIED" },
