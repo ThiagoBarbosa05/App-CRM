@@ -97,11 +97,17 @@ async function fetchCancelledInWindow(from: Date, to: Date) {
 }
 
 export const restaurantCashSessionService = {
-  async getCurrentSession(): Promise<RestaurantCashSession | null> {
+  /** Sessão aberta de um usuário específico. */
+  async getCurrentSession(userId: string): Promise<RestaurantCashSession | null> {
     const [session] = await db
       .select()
       .from(restaurantCashSessions)
-      .where(eq(restaurantCashSessions.status, "aberto"))
+      .where(
+        and(
+          eq(restaurantCashSessions.status, "aberto"),
+          eq(restaurantCashSessions.openedBy, userId),
+        ),
+      )
       .limit(1);
     return session ?? null;
   },
@@ -116,10 +122,10 @@ export const restaurantCashSessionService = {
       });
     }
 
-    const current = await this.getCurrentSession();
+    const current = await this.getCurrentSession(actorId);
     if (current) {
       throw Object.assign(
-        new Error("Já existe um caixa aberto — feche o caixa atual antes de abrir outro"),
+        new Error("Você já tem um caixa aberto — feche-o antes de abrir outro"),
         { code: "SESSION_ALREADY_OPEN" },
       );
     }
@@ -132,10 +138,10 @@ export const restaurantCashSessionService = {
       return created;
     } catch (error: any) {
       // Corrida entre duas aberturas simultâneas: o índice parcial
-      // `restaurant_cash_sessions_single_open` é quem garante a invariante.
+      // `restaurant_cash_sessions_one_open_per_user` é quem garante a invariante.
       if (error?.code === "23505") {
         throw Object.assign(
-          new Error("Já existe um caixa aberto — feche o caixa atual antes de abrir outro"),
+          new Error("Você já tem um caixa aberto — feche-o antes de abrir outro"),
           { code: "SESSION_ALREADY_OPEN" },
         );
       }
@@ -143,11 +149,11 @@ export const restaurantCashSessionService = {
     }
   },
 
-  async assertSessionOpen(): Promise<RestaurantCashSession> {
-    const session = await this.getCurrentSession();
+  async assertSessionOpen(userId: string): Promise<RestaurantCashSession> {
+    const session = await this.getCurrentSession(userId);
     if (!session) {
       throw Object.assign(
-        new Error("Nenhum caixa aberto — peça a um gerente para abrir o caixa"),
+        new Error("Nenhum caixa aberto para este usuário — abra o caixa para operar"),
         { code: "NO_CASH_SESSION" },
       );
     }
@@ -158,7 +164,7 @@ export const restaurantCashSessionService = {
     data: { type: "sangria" | "suprimento"; amount: string; reason: string },
     actorId: string,
   ): Promise<RestaurantCashMovement> {
-    const session = await this.assertSessionOpen();
+    const session = await this.assertSessionOpen(actorId);
 
     if (toCents(data.amount) <= 0) {
       throw Object.assign(new Error("O valor deve ser maior que zero"), {
@@ -355,16 +361,23 @@ export const restaurantCashSessionService = {
 
     // Fechar o caixa com mesa aberta é o aviso que hoje não existe: a comanda
     // ficaria sem sessão e a receita cairia fora de qualquer conferência.
+    // Verifica apenas comandas do próprio operador — outros caixas abertos
+    // simultaneamente têm seus próprios garçons e não impedem este fechamento.
     const openOrders = await db
       .select({ id: restaurantOrders.id, tableNumber: restaurantOrders.tableNumber })
       .from(restaurantOrders)
-      .where(eq(restaurantOrders.status, "aberta"));
+      .where(
+        and(
+          eq(restaurantOrders.status, "aberta"),
+          eq(restaurantOrders.waiterId, session.openedBy),
+        ),
+      );
 
     if (openOrders.length > 0) {
       const tables = openOrders.map((o) => o.tableNumber).join(", ");
       throw Object.assign(
         new Error(
-          `Existem ${openOrders.length} comanda(s) aberta(s) (mesa ${tables}). Feche todas antes de fechar o caixa.`,
+          `Existem ${openOrders.length} comanda(s) abertas suas (mesa ${tables}). Feche todas antes de fechar o caixa.`,
         ),
         { code: "OPEN_ORDERS" },
       );
@@ -422,4 +435,41 @@ export const restaurantCashSessionService = {
       .orderBy(desc(restaurantCashSessions.openedAt))
       .limit(limit);
   },
+
+  /** Visão gerencial: todas as sessões com nome do operador. */
+  async listSessionsOverview(limit = 100): Promise<SessionOverviewRow[]> {
+    const rows = await db
+      .select({
+        id: restaurantCashSessions.id,
+        sessionNumber: restaurantCashSessions.sessionNumber,
+        status: restaurantCashSessions.status,
+        openedBy: restaurantCashSessions.openedBy,
+        openedByName: users.name,
+        openedAt: restaurantCashSessions.openedAt,
+        closedAt: restaurantCashSessions.closedAt,
+        expectedCash: restaurantCashSessions.expectedCash,
+        countedCash: restaurantCashSessions.countedCash,
+        difference: restaurantCashSessions.difference,
+        openingFloat: restaurantCashSessions.openingFloat,
+      })
+      .from(restaurantCashSessions)
+      .leftJoin(users, eq(restaurantCashSessions.openedBy, users.id))
+      .orderBy(desc(restaurantCashSessions.openedAt))
+      .limit(limit);
+    return rows;
+  },
 };
+
+export interface SessionOverviewRow {
+  id: string;
+  sessionNumber: number;
+  status: string;
+  openedBy: string;
+  openedByName: string | null;
+  openedAt: Date;
+  closedAt: Date | null;
+  expectedCash: string | null;
+  countedCash: string | null;
+  difference: string | null;
+  openingFloat: string;
+}

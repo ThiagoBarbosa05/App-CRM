@@ -7,3 +7,4 @@ export {
   getCashSessionController,
 } from "./list-cash-sessions.controller";
 export { listCurrentSessionOrdersController } from "./list-current-session-orders.controller";
+export { listSessionsOverviewController } from "./list-sessions-overview.controller";

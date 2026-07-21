@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -20,11 +21,13 @@ import {
 import {
   ArrowDownCircle,
   ArrowUpCircle,
+  CheckCircle2,
   Clock,
   Lock,
+  Users,
   Wallet,
 } from "lucide-react";
-import { formatDistanceToNowStrict } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { RestaurantCashSession } from "@shared/schema";
 import type { CashSessionSummary } from "@shared/restaurant-cash-session";
@@ -73,8 +76,23 @@ export interface CashSessionDetail extends RestaurantCashSession {
   closedByName: string | null;
 }
 
+interface SessionOverviewRow {
+  id: string;
+  sessionNumber: number;
+  status: string;
+  openedBy: string;
+  openedByName: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  expectedCash: string | null;
+  countedCash: string | null;
+  difference: string | null;
+  openingFloat: string;
+}
+
 const CURRENT_KEY = ["/api/restaurant-pdv/cash-sessions/current"];
 const LIST_KEY = ["/api/restaurant-pdv/cash-sessions"];
+const OVERVIEW_KEY = ["/api/restaurant-pdv/cash-sessions/overview"];
 
 function formatDateTime(value: string | Date): string {
   return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
@@ -104,9 +122,15 @@ export default function RestaurantCashSessionPage() {
     queryKey: LIST_KEY,
   });
 
+  const { data: overview = [] } = useQuery<SessionOverviewRow[]>({
+    queryKey: OVERVIEW_KEY,
+    refetchInterval: 20000,
+  });
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: CURRENT_KEY });
     queryClient.invalidateQueries({ queryKey: LIST_KEY });
+    queryClient.invalidateQueries({ queryKey: OVERVIEW_KEY });
     // O mapa de mesas mostra o bloqueio de caixa fechado.
     queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
   };
@@ -174,6 +198,8 @@ export default function RestaurantCashSessionPage() {
   const expectedCash = Number(summary?.cash.expected ?? 0);
   const divergence = Number(summary?.divergence ?? 0);
 
+  const openCount = overview.filter((s) => s.status === "aberto").length;
+
   return (
     <div className="w-full space-y-6 p-4">
       <PageHeader>
@@ -209,6 +235,29 @@ export default function RestaurantCashSessionPage() {
           </PageHeader.Actions>
         )}
       </PageHeader>
+
+      <Tabs defaultValue="meu-caixa">
+        <TabsList>
+          <TabsTrigger value="meu-caixa">
+            <Wallet className="mr-1.5 h-4 w-4" />
+            Meu Caixa
+          </TabsTrigger>
+          <TabsTrigger value="visao-geral">
+            <Users className="mr-1.5 h-4 w-4" />
+            Visão Geral
+            {openCount > 0 && (
+              <span className="ml-1.5 rounded-full bg-green-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {openCount}
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao-geral" className="mt-4">
+          <OverviewTab sessions={overview} />
+        </TabsContent>
+
+        <TabsContent value="meu-caixa" className="mt-4 space-y-6">
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando caixa...</p>
@@ -598,6 +647,144 @@ export default function RestaurantCashSessionPage() {
         isPending={closeMutation.isPending}
         onConfirm={(data) => closeMutation.mutate(data)}
       />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function OverviewTab({ sessions }: { sessions: SessionOverviewRow[] }) {
+  const open = sessions.filter((s) => s.status === "aberto");
+  const closed = sessions.filter((s) => s.status === "fechado");
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs uppercase text-muted-foreground">Caixas abertos agora</p>
+            <p className="mt-1 text-3xl font-bold text-green-600 dark:text-green-400">
+              {open.length}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs uppercase text-muted-foreground">Caixas fechados hoje</p>
+            <p className="mt-1 text-3xl font-bold">{closed.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs uppercase text-muted-foreground">Total de sessões</p>
+            <p className="mt-1 text-3xl font-bold">{sessions.length}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {open.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Abertos agora
+            </h3>
+          </div>
+          <div className="overflow-hidden rounded-xl border">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40">
+                  <TableHead>Caixa</TableHead>
+                  <TableHead>Operador</TableHead>
+                  <TableHead>Aberto às</TableHead>
+                  <TableHead>Tempo aberto</TableHead>
+                  <TableHead className="text-right">Fundo de troco</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {open.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-semibold">#{s.sessionNumber}</TableCell>
+                    <TableCell>{s.openedByName ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {format(new Date(s.openedAt), "HH:mm", { locale: ptBR })}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDistanceToNowStrict(new Date(s.openedAt), { locale: ptBR })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(s.openingFloat ?? 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Lock className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Histórico de sessões
+          </h3>
+        </div>
+        {closed.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma sessão fechada ainda.</p>
+        ) : (
+          <div className="overflow-hidden rounded-xl border">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40">
+                  <TableHead>Caixa</TableHead>
+                  <TableHead>Operador</TableHead>
+                  <TableHead>Abertura</TableHead>
+                  <TableHead>Fechamento</TableHead>
+                  <TableHead className="text-right">Esperado</TableHead>
+                  <TableHead className="text-right">Contado</TableHead>
+                  <TableHead className="text-right">Diferença</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {closed.map((s) => {
+                  const diff = Number(s.difference ?? 0);
+                  return (
+                    <TableRow key={s.id}>
+                      <TableCell className="font-semibold">#{s.sessionNumber}</TableCell>
+                      <TableCell>{s.openedByName ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {format(new Date(s.openedAt), "dd/MM HH:mm", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {s.closedAt
+                          ? format(new Date(s.closedAt), "dd/MM HH:mm", { locale: ptBR })
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(s.expectedCash ?? 0)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(s.countedCash ?? 0)}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right font-medium tabular-nums",
+                          diff < 0 && "text-red-600 dark:text-red-400",
+                          diff > 0 && "text-green-600 dark:text-green-400",
+                        )}
+                      >
+                        {diff > 0 ? "+" : ""}
+                        {formatCurrency(diff)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

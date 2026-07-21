@@ -9,7 +9,10 @@ import { restaurantCashSessionService } from "../../services/restaurant-cash-ses
  */
 export const getCurrentCashSessionController = async (req: Request, res: Response) => {
   try {
-    const session = await restaurantCashSessionService.getCurrentSession();
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: "Usuário não autenticado" });
+
+    const session = await restaurantCashSessionService.getCurrentSession(userId);
     if (!session) {
       return res.json({ session: null });
     }

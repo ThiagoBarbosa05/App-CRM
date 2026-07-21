@@ -91,7 +91,7 @@ export const restaurantPdvService = {
   }): Promise<RestaurantOrder> {
     // Nada acontece sem caixa aberto: a comanda que nasce fora de uma sessão
     // fecharia sem entrar em nenhuma conferência.
-    await restaurantCashSessionService.assertSessionOpen();
+    await restaurantCashSessionService.assertSessionOpen(data.waiterId);
 
     let resolvedTableNumber: number;
 
@@ -511,8 +511,8 @@ export const restaurantPdvService = {
       finalPaymentMethod = distinctMethods.size === 1 ? allPayments[0].method : null;
     }
 
-    // Carimba a sessão de caixa que está recebendo o dinheiro.
-    const cashSession = await restaurantCashSessionService.assertSessionOpen();
+    // Carimba a sessão de caixa do operador que está recebendo o dinheiro.
+    const cashSession = await restaurantCashSessionService.assertSessionOpen(actorId);
 
     const closed = await db.transaction(async (tx) => {
       if (allPayments.length === 0 && paymentMethod) {

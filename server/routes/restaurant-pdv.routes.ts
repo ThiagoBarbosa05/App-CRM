@@ -39,6 +39,7 @@ import {
   listCashSessionsController,
   getCashSessionController,
   listCurrentSessionOrdersController,
+  listSessionsOverviewController,
 } from "../controllers/restaurant-cash-session";
 import {
   getPdvSettingsController,
@@ -150,6 +151,7 @@ restaurantPdvRouter.get(
   listCurrentSessionOrdersController,
 );
 restaurantPdvRouter.get("/cash-sessions", requireGestor, listCashSessionsController);
+restaurantPdvRouter.get("/cash-sessions/overview", requireGestor, listSessionsOverviewController);
 restaurantPdvRouter.post("/cash-sessions", requireGarcomOrGestor, openCashSessionController);
 restaurantPdvRouter.post(
   "/cash-sessions/movements",
