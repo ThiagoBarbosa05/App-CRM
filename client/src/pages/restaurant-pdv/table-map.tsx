@@ -151,11 +151,11 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
           {tables.map((table) => {
             const isAguardando = table.status === "aguardando_pagamento";
             return (
-              <div key={table.id} className="relative">
+              <div key={table.id} className="group relative">
                 <button
                   onClick={() => table.orderId && onOrderOpened(table.orderId)}
                   className={cn(
-                    "group w-full flex flex-col rounded-xl border-2 p-4 text-left transition-all duration-150 hover:shadow-md active:scale-95",
+                    "w-full flex flex-col rounded-xl border-2 p-4 text-left transition-all duration-150 hover:shadow-md active:scale-95",
                     isAguardando
                       ? "border-blue-300 bg-blue-50 text-blue-900 hover:border-blue-400 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100"
                       : "border-orange-300 bg-orange-50 text-orange-900 hover:border-orange-400 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100",
