@@ -76,6 +76,7 @@ import {
   Bookmark,
   BookmarkCheck,
   Tag,
+  Pencil,
   Trash2,
   Zap,
   Bot,
@@ -1994,8 +1995,19 @@ interface WhatsappBot {
   triggerType: string;
 }
 
-function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
-  const [isCreating, setIsCreating] = useState(false);
+function QuickReplyPicker({
+  onPick,
+  canCreate,
+  canEdit,
+  canDelete,
+}: {
+  onPick: (content: string) => void;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const { toast } = useToast();
@@ -2010,33 +2022,58 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
     },
   });
 
-  const handleCreate = async () => {
+  function resetForm() {
+    setIsEditing(false);
+    setEditingId(null);
+    setNewTitle("");
+    setNewContent("");
+  }
+
+  function startEdit(e: React.MouseEvent, reply: QuickReply) {
+    e.stopPropagation();
+    setEditingId(reply.id);
+    setNewTitle(reply.title);
+    setNewContent(reply.content);
+    setIsEditing(true);
+  }
+
+  const handleSave = async () => {
     if (!newTitle.trim() || !newContent.trim()) return;
     try {
-      const res = await fetch("/api/whatsapp/quick-replies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: newTitle.trim(),
-          content: newContent.trim(),
-        }),
-      });
+      const res = await fetch(
+        editingId
+          ? `/api/whatsapp/quick-replies/${editingId}`
+          : "/api/whatsapp/quick-replies",
+        {
+          method: editingId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: newTitle.trim(),
+            content: newContent.trim(),
+          }),
+        },
+      );
       if (!res.ok) {
         const err = await res.json();
         toast({
-          title: err.message ?? "Erro ao criar resposta",
+          title:
+            err.message ??
+            (editingId ? "Erro ao salvar edição" : "Erro ao criar resposta"),
           variant: "destructive",
         });
         return;
       }
-      setNewTitle("");
-      setNewContent("");
-      setIsCreating(false);
+      resetForm();
       queryClient.invalidateQueries({
         queryKey: ["/api/whatsapp/quick-replies"],
       });
     } catch {
-      toast({ title: "Erro ao criar resposta rápida", variant: "destructive" });
+      toast({
+        title: editingId
+          ? "Erro ao salvar edição"
+          : "Erro ao criar resposta rápida",
+        variant: "destructive",
+      });
     }
   };
 
@@ -2061,16 +2098,18 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
             Respostas rápidas
           </span>
         </div>
-        <button
-          onClick={() => setIsCreating((v) => !v)}
-          className="h-5 w-5 rounded flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
-          title="Nova resposta"
-        >
-          <PlusCircle className="h-3.5 w-3.5" />
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => (isEditing ? resetForm() : setIsEditing(true))}
+            className="h-5 w-5 rounded flex items-center justify-center text-slate-400 hover:text-primary transition-colors"
+            title="Nova resposta"
+          >
+            <PlusCircle className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
-      {isCreating && (
+      {isEditing && (
         <div className="p-2 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-1.5">
           <input
             type="text"
@@ -2088,21 +2127,17 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
           />
           <div className="flex gap-1.5 justify-end">
             <button
-              onClick={() => {
-                setIsCreating(false);
-                setNewTitle("");
-                setNewContent("");
-              }}
+              onClick={resetForm}
               className="px-2 py-1 text-xs rounded text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
             >
               Cancelar
             </button>
             <button
-              onClick={handleCreate}
+              onClick={handleSave}
               disabled={!newTitle.trim() || !newContent.trim()}
               className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              Salvar
+              {editingId ? "Salvar edição" : "Salvar"}
             </button>
           </div>
         </div>
@@ -2118,7 +2153,9 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
           <p className="text-xs text-slate-400 dark:text-slate-500">
             Nenhuma resposta rápida criada.
             <br />
-            Clique em + para adicionar.
+            {canCreate
+              ? "Clique em + para adicionar."
+              : "Peça a um administrador para liberar a criação."}
           </p>
         </div>
       ) : (
@@ -2137,13 +2174,26 @@ function QuickReplyPicker({ onPick }: { onPick: (content: string) => void }) {
                   {r.content}
                 </p>
               </div>
-              <button
-                onClick={(e) => handleDelete(e, r.id)}
-                className="h-5 w-5 rounded flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-0.5"
-                title="Remover"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+              <div className="flex items-center gap-0.5 shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                {canEdit && (
+                  <button
+                    onClick={(e) => startEdit(e, r)}
+                    className="h-5 w-5 rounded flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-primary"
+                    title="Editar"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    onClick={(e) => handleDelete(e, r.id)}
+                    className="h-5 w-5 rounded flex items-center justify-center text-slate-300 dark:text-slate-600 hover:text-red-500"
+                    title="Remover"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -2854,6 +2904,9 @@ function ConversationMessages({
   onWhatsappTagsChange,
   canManageTags,
   canSendTemplates,
+  canCreateQuickReplies,
+  canEditQuickReplies,
+  canDeleteQuickReplies,
   initialDraft,
 }: {
   conversationKey: string;
@@ -2866,6 +2919,9 @@ function ConversationMessages({
   onWhatsappTagsChange: (clientId: string, tagIds: string[]) => void;
   canManageTags: boolean;
   canSendTemplates: boolean;
+  canCreateQuickReplies: boolean;
+  canEditQuickReplies: boolean;
+  canDeleteQuickReplies: boolean;
   /** Texto que já chega escrito no composer, editável antes do envio. */
   initialDraft?: string;
 }) {
@@ -5053,6 +5109,9 @@ function ConversationMessages({
                       setQuickReplyOpen(false);
                       setTimeout(() => textareaRef.current?.focus(), 0);
                     }}
+                    canCreate={canCreateQuickReplies}
+                    canEdit={canEditQuickReplies}
+                    canDelete={canDeleteQuickReplies}
                   />
                 </PopoverContent>
               </Popover>
@@ -5686,6 +5745,15 @@ export default function WhatsAppConversationsPage() {
   const canSendTemplates =
     isAdminOrGerente ||
     (myActionPermissions?.permissionKeys.includes("manage_templates") ?? false);
+  const canCreateQuickReplies =
+    isAdminOrGerente ||
+    (myActionPermissions?.permissionKeys.includes("quick_replies_create") ?? false);
+  const canEditQuickReplies =
+    isAdminOrGerente ||
+    (myActionPermissions?.permissionKeys.includes("quick_replies_edit") ?? false);
+  const canDeleteQuickReplies =
+    isAdminOrGerente ||
+    (myActionPermissions?.permissionKeys.includes("quick_replies_delete") ?? false);
 
   // Canais em que o usuário tem permissão explícita de leitura de QR (além
   // dos que já possui). Espelha canUserReadChannelQr no backend, que é quem
@@ -6895,6 +6963,9 @@ export default function WhatsAppConversationsPage() {
             }
             canManageTags={canManageTags}
             canSendTemplates={canSendTemplates}
+            canCreateQuickReplies={canCreateQuickReplies}
+            canEditQuickReplies={canEditQuickReplies}
+            canDeleteQuickReplies={canDeleteQuickReplies}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
