@@ -25,6 +25,7 @@ import {
   Clock,
   Combine,
   Lock,
+  LogOut,
   UserPlus,
   Users,
   UtensilsCrossed,
@@ -73,7 +74,7 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
 };
 
 export default function RestaurantPos() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   // A URL é a fonte da verdade da comanda ativa: um F5 dentro da mesa volta
   // para a mesma mesa, e o "voltar" do navegador leva ao mapa.
@@ -482,9 +483,20 @@ export default function RestaurantPos() {
           <span className="text-sm font-semibold">PDV Restaurante</span>
         </div>
         {user?.name && (
-          <span className="ml-auto text-xs text-muted-foreground">
-            Garçom: {user.name}
+          <span className={`text-xs text-muted-foreground ${isGarcom ? "" : "ml-auto"}`}>
+            {isGarcom ? "" : "Garçom: "}{user.name}
           </span>
+        )}
+        {isGarcom && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto h-8 shrink-0 px-2 text-muted-foreground"
+            onClick={() => logout()}
+          >
+            <LogOut className="mr-1 h-4 w-4" />
+            <span className="hidden sm:inline">Sair</span>
+          </Button>
         )}
       </header>
 
