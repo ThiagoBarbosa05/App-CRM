@@ -43,6 +43,7 @@ import ReferralProgramPage from "./pages/referral-program";
 import ZernioInboxPage from "./pages/zernio-inbox";
 import RestaurantPos from "@/pages/restaurant-pdv/pos";
 import RestaurantPdvHub from "@/pages/restaurant-pdv/hub";
+import AdminPanel from "@/pages/restaurant-pdv/admin-panel";
 
 const WhatsAppCampaignsList = lazy(() => import("@/pages/whatsapp/campaigns-list"));
 const WhatsAppCreateCampaign = lazy(() => import("@/pages/whatsapp/create-campaign"));
@@ -118,6 +119,7 @@ function RestaurantPdvSection() {
           <Route path="/pdv-restaurante/caixa" component={RestaurantCashSession} />
           <Route path="/pdv-restaurante/relatorios" component={RestaurantReports} />
           <Route path="/pdv-restaurante/configuracoes" component={PdvSettings} />
+          <Route path="/pdv-restaurante/admin" component={AdminPanel} />
         </Switch>
       </Suspense>
     </RestaurantPdvHub>

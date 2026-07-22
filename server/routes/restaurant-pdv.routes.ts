@@ -52,6 +52,7 @@ import {
   deactivatePdvUnitController,
   listPdvUnitUsersController,
 } from "../controllers/restaurant-pdv/pdv-units.controller";
+import { adminUnitsOverviewController } from "../controllers/restaurant-pdv/admin-units-overview.controller";
 import { db } from "../db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -133,6 +134,9 @@ restaurantPdvRouter.get("/units/:id/users", requireGestor, listPdvUnitUsersContr
 
 // Visão geral agrega TODAS as unidades — não precisa de contexto de unidade
 restaurantPdvRouter.get("/cash-sessions/overview", requireGestor, listSessionsOverviewController);
+
+// Painel multi-unidade do admin — agrega todas as unidades, sem contexto de unidade
+restaurantPdvRouter.get("/admin/units-overview", requireGestor, adminUnitsOverviewController);
 
 // ── Middleware: resolve unidade PDV para todas as rotas abaixo ───────────────
 // Para garçom: busca pdv_unit_id do usuário no banco.

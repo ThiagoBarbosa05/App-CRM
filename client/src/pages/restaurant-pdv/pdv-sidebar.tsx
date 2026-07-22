@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  LayoutDashboard,
   Settings,
   UtensilsCrossed,
   Wallet,
@@ -14,11 +15,13 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 const TABS = [
-  { href: "/pdv-restaurante/caixa", label: "Caixa", icon: Wallet },
-  { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3 },
-  { href: "/pdv-restaurante/configuracoes", label: "Configurações", icon: Settings },
+  { href: "/pdv-restaurante/caixa", label: "Caixa", icon: Wallet, adminOnly: false },
+  { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3, adminOnly: false },
+  { href: "/pdv-restaurante/configuracoes", label: "Configurações", icon: Settings, adminOnly: false },
+  { href: "/pdv-restaurante/admin", label: "Painel Admin", icon: LayoutDashboard, adminOnly: true },
 ];
 
 interface PdvSidebarProps {
@@ -29,6 +32,8 @@ interface PdvSidebarProps {
 
 export function PdvSidebar({ collapsed, onToggleCollapse, onCloseSidebar }: PdvSidebarProps) {
   const [location, navigate] = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const isActive = (tab: (typeof TABS)[number]) =>
     location === tab.href || location.startsWith(tab.href + "/");
@@ -96,7 +101,7 @@ export function PdvSidebar({ collapsed, onToggleCollapse, onCloseSidebar }: PdvS
           collapsed ? "px-2" : "px-3",
         )}
       >
-        {TABS.map((tab) => (
+        {TABS.filter((tab) => !tab.adminOnly || isAdmin).map((tab) => (
           <Link key={tab.href} href={tab.href}>
             <button
               onClick={onCloseSidebar}
