@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,6 +18,10 @@ import type { CartItem } from "@/pages/restaurant-pdv/pos";
 
 interface ProductsResponse {
   data: Product[];
+}
+
+interface CategoriesResponse {
+  categories: string[];
 }
 
 interface OrderItemSelectorProps {
@@ -47,6 +51,7 @@ export function OrderItemSelector({
 }: OrderItemSelectorProps) {
   const [productSearch, setProductSearch] = useState("");
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [showCart, setShowCart] = useState(false);
 
@@ -55,14 +60,36 @@ export function OrderItemSelector({
     return () => clearTimeout(handler);
   }, [productSearch]);
 
+  // Limpa a categoria selecionada quando o usuário digita uma busca
+  useEffect(() => {
+    if (productSearch) setSelectedCategory(null);
+  }, [productSearch]);
+
+  const { data: categoriesResponse } = useQuery<CategoriesResponse>({
+    queryKey: ["/api/restaurant-pdv/products/categories", { connectionId: blingConnectionId }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append("connectionId", blingConnectionId!);
+      const res = await fetch(`/api/restaurant-pdv/products/categories?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Erro ao buscar categorias");
+      return res.json();
+    },
+    enabled: !!blingConnectionId,
+    staleTime: 5 * 60 * 1000,
+  });
+  const categories = categoriesResponse?.categories ?? [];
+
   const { data: productsResponse, isFetching: isFetchingProducts } =
     useQuery<ProductsResponse>({
-      queryKey: ["/api/restaurant-pdv/products", { connectionId: blingConnectionId, name: debouncedProductSearch }],
+      queryKey: ["/api/restaurant-pdv/products", { connectionId: blingConnectionId, name: debouncedProductSearch, category: selectedCategory }],
       queryFn: async () => {
         const params = new URLSearchParams();
         params.append("connectionId", blingConnectionId!);
         if (debouncedProductSearch) params.append("name", debouncedProductSearch);
-        params.append("pageSize", "50");
+        if (selectedCategory) params.append("category", selectedCategory);
+        params.append("pageSize", "100");
         const res = await fetch(`/api/restaurant-pdv/products?${params.toString()}`, { credentials: "include" });
         if (!res.ok) throw new Error("Erro ao buscar produtos");
         return res.json();
@@ -77,7 +104,7 @@ export function OrderItemSelector({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* ── Barra de busca ───────────────────────────────────────── */}
-      <div className="shrink-0 border-b bg-muted/30 px-3 py-2">
+      <div className="shrink-0 border-b bg-muted/30 px-3 py-2 space-y-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -91,6 +118,40 @@ export function OrderItemSelector({
             <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
           )}
         </div>
+
+        {/* ── Chips de categoria ────────────────────────────────── */}
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                selectedCategory === null
+                  ? "bg-orange-500 text-white shadow-sm"
+                  : "bg-muted text-muted-foreground hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-950/40 dark:hover:text-orange-300",
+              )}
+            >
+              Todos
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => {
+                  setProductSearch("");
+                  setSelectedCategory(cat === selectedCategory ? null : cat);
+                }}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  selectedCategory === cat
+                    ? "bg-orange-500 text-white shadow-sm"
+                    : "bg-muted text-muted-foreground hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-950/40 dark:hover:text-orange-300",
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Grade de produtos ─────────────────────────────────────── */}

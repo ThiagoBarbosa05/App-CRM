@@ -79,12 +79,13 @@ function requireGestor(req: Request, res: Response, next: NextFunction) {
 // Busca de produtos Bling — acessível ao garçom sem contexto de unidade
 restaurantPdvRouter.get("/products", requireGarcomOrGestor, async (req: Request, res: Response) => {
   try {
-    const { name, connectionId } = req.query;
+    const { name, connectionId, category } = req.query;
     const pageSize = parseInt(req.query.pageSize as string) || 50;
     const { data, total } = await storage.getProducts(
       {
         name: name as string | undefined,
         connectionId: connectionId as string | undefined,
+        category: category as string | undefined,
       },
       1,
       pageSize,
@@ -93,6 +94,28 @@ restaurantPdvRouter.get("/products", requireGarcomOrGestor, async (req: Request,
   } catch (err) {
     console.error("[PDV] Erro ao buscar produtos:", err);
     return res.status(500).json({ message: "Erro ao buscar produtos" });
+  }
+});
+
+/** Lista as categorias distintas dos produtos mapeados para esta conexão Bling. */
+restaurantPdvRouter.get("/products/categories", requireGarcomOrGestor, async (req: Request, res: Response) => {
+  try {
+    const { connectionId } = req.query;
+    if (!connectionId) return res.json({ categories: [] });
+
+    const { data } = await storage.getProducts(
+      { connectionId: connectionId as string },
+      1,
+      2000,
+    );
+    const unique = [...new Set(
+      data.map((p: { category?: string }) => p.category).filter(Boolean) as string[]
+    )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    return res.json({ categories: unique });
+  } catch (err) {
+    console.error("[PDV] Erro ao buscar categorias:", err);
+    return res.status(500).json({ message: "Erro ao buscar categorias" });
   }
 });
 
