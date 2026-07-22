@@ -138,6 +138,25 @@ restaurantPdvRouter.get("/cash-sessions/overview", requireGestor, listSessionsOv
 // Painel multi-unidade do admin — agrega todas as unidades, sem contexto de unidade
 restaurantPdvRouter.get("/admin/units-overview", requireGestor, adminUnitsOverviewController);
 
+// Cancelamento de comanda pelo admin sem precisar de contexto de unidade
+restaurantPdvRouter.delete("/admin/orders/:id", requireGestor, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actorId = req.user?.userId;
+    if (!actorId) return res.status(401).json({ message: "Usuário não autenticado" });
+    const { restaurantPdvService } = await import("../services/restaurant-pdv.service");
+    await restaurantPdvService.forceCancelOrder(id, actorId);
+    return res.status(200).json({ success: true });
+  } catch (error: any) {
+    if (error?.code === "NOT_FOUND") return res.status(404).json({ message: error.message });
+    if (error?.code === "ORDER_CLOSED" || error?.code === "PAYMENTS_ALREADY_REGISTERED") {
+      return res.status(409).json({ message: error.message });
+    }
+    console.error("[Admin] Erro ao cancelar comanda:", error);
+    return res.status(500).json({ message: "Erro ao cancelar comanda" });
+  }
+});
+
 // ── Middleware: resolve unidade PDV para todas as rotas abaixo ───────────────
 // Para garçom: busca pdv_unit_id do usuário no banco.
 // Para admin/gerente: lê o header X-PDV-Unit-Id enviado pelo frontend.

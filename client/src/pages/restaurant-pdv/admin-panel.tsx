@@ -1,13 +1,26 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatCurrency } from "@/lib/utils";
 import { setPdvCurrentUnitId } from "@/lib/pdv-unit";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Building2,
   Clock,
@@ -15,6 +28,7 @@ import {
   RefreshCw,
   ShoppingCart,
   Table2,
+  Trash2,
   Users,
   Wallet,
 } from "lucide-react";
@@ -34,27 +48,28 @@ interface OpenOrder {
 }
 
 interface UnitOverview {
-  unit: {
-    id: string;
-    name: string;
-    cnpj: string | null;
-  };
-  cashSession: {
-    id: string;
-    openedAt: string;
-    status: string;
-  } | null;
+  unit: { id: string; name: string; cnpj: string | null };
+  cashSession: { id: string; openedAt: string; status: string } | null;
   openOrders: OpenOrder[];
-  stats: {
-    totalTables: number;
-    occupiedTables: number;
-    cashStatus: "aberto" | "fechado";
-  };
+  stats: { totalTables: number; occupiedTables: number; cashStatus: "aberto" | "fechado" };
 }
 
-function OrderRow({ order, onOpen }: { order: OpenOrder; onOpen: () => void }) {
+interface CancelDialogState {
+  order: OpenOrder;
+  unitName: string;
+}
+
+function OrderRow({
+  order,
+  onOpen,
+  onCancel,
+}: {
+  order: OpenOrder;
+  onOpen: () => void;
+  onCancel: () => void;
+}) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 hover:bg-accent/50 transition-colors">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 hover:bg-accent/30 transition-colors">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-orange-100 dark:bg-orange-900/30 text-orange-600 font-bold text-sm">
         {order.tableNumber}
       </div>
@@ -94,23 +109,29 @@ function OrderRow({ order, onOpen }: { order: OpenOrder; onOpen: () => void }) {
         <span className="text-sm font-semibold tabular-nums">
           {formatCurrency(order.subtotal)}
         </span>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-6 px-2 text-xs"
-          onClick={onOpen}
-        >
-          <ExternalLink className="h-3 w-3 mr-1" />
-          Abrir
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={onCancel}>
+            <Trash2 className="h-3 w-3 mr-1 text-destructive" />
+            Cancelar
+          </Button>
+          <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={onOpen}>
+            <ExternalLink className="h-3 w-3 mr-1" />
+            Abrir
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
 
-function UnitCard({ overview, onOpenOrder }: {
+function UnitCard({
+  overview,
+  onOpenOrder,
+  onCancelOrder,
+}: {
   overview: UnitOverview;
   onOpenOrder: (unitId: string, orderId: string) => void;
+  onCancelOrder: (order: OpenOrder, unitName: string) => void;
 }) {
   const { unit, cashSession, openOrders, stats } = overview;
 
@@ -122,24 +143,20 @@ function UnitCard({ overview, onOpenOrder }: {
             <Building2 className="h-4 w-4 text-orange-500 shrink-0" />
             <CardTitle className="text-base truncate">{unit.name}</CardTitle>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Badge
-              variant="outline"
-              className={
-                stats.cashStatus === "aberto"
-                  ? "border-emerald-400 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30"
-                  : "border-muted text-muted-foreground"
-              }
-            >
-              <Wallet className="h-3 w-3 mr-1" />
-              {stats.cashStatus === "aberto" ? "Caixa aberto" : "Caixa fechado"}
-            </Badge>
-          </div>
+          <Badge
+            variant="outline"
+            className={
+              stats.cashStatus === "aberto"
+                ? "border-emerald-400 text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 shrink-0"
+                : "border-muted text-muted-foreground shrink-0"
+            }
+          >
+            <Wallet className="h-3 w-3 mr-1" />
+            {stats.cashStatus === "aberto" ? "Caixa aberto" : "Caixa fechado"}
+          </Badge>
         </div>
 
-        {unit.cnpj && (
-          <p className="text-xs text-muted-foreground mt-1">{unit.cnpj}</p>
-        )}
+        {unit.cnpj && <p className="text-xs text-muted-foreground mt-1">{unit.cnpj}</p>}
 
         <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
@@ -173,6 +190,7 @@ function UnitCard({ overview, onOpenOrder }: {
                 key={order.id}
                 order={order}
                 onOpen={() => onOpenOrder(unit.id, order.id)}
+                onCancel={() => onCancelOrder(order, unit.name)}
               />
             ))}
           </div>
@@ -184,10 +202,28 @@ function UnitCard({ overview, onOpenOrder }: {
 
 export default function AdminPanel() {
   const [, navigate] = useLocation();
+  const [cancelDialog, setCancelDialog] = useState<CancelDialogState | null>(null);
 
   const { data: overview = [], isLoading, refetch, isFetching } = useQuery<UnitOverview[]>({
     queryKey: ["/api/restaurant-pdv/admin/units-overview"],
     refetchInterval: 30_000,
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (orderId: string) =>
+      apiRequest("DELETE", `/api/restaurant-pdv/admin/orders/${orderId}`),
+    onSuccess: () => {
+      toast({ title: "Mesa cancelada com sucesso" });
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/admin/units-overview"] });
+      setCancelDialog(null);
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Erro ao cancelar mesa",
+        description: err?.message ?? "Tente novamente",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleOpenOrder = (unitId: string, orderId: string) => {
@@ -201,6 +237,7 @@ export default function AdminPanel() {
 
   return (
     <div className="flex flex-col h-full overflow-auto">
+      {/* Cabeçalho */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
         <div>
           <h1 className="text-lg font-semibold">Painel Multi-Unidade</h1>
@@ -241,6 +278,7 @@ export default function AdminPanel() {
         </div>
       )}
 
+      {/* Cards de unidades */}
       <div className="flex-1 p-6">
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -270,11 +308,51 @@ export default function AdminPanel() {
                 key={unitOverview.unit.id}
                 overview={unitOverview}
                 onOpenOrder={handleOpenOrder}
+                onCancelOrder={(order, unitName) => setCancelDialog({ order, unitName })}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Dialog de confirmação de cancelamento */}
+      <AlertDialog open={!!cancelDialog} onOpenChange={(open) => !open && setCancelDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar Mesa {cancelDialog?.order.tableNumber}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  Você está cancelando a comanda da{" "}
+                  <strong className="text-foreground">Mesa {cancelDialog?.order.tableNumber}</strong>
+                  {cancelDialog?.unitName ? ` — ${cancelDialog.unitName}` : ""}.
+                </p>
+                {cancelDialog?.order.subtotal != null && cancelDialog.order.subtotal > 0 && (
+                  <p>
+                    Subtotal atual:{" "}
+                    <strong className="text-foreground">
+                      {formatCurrency(cancelDialog.order.subtotal)}
+                    </strong>
+                  </p>
+                )}
+                <p className="text-destructive font-medium">
+                  Esta ação não pode ser desfeita.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cancelMutation.isPending}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={cancelMutation.isPending}
+              onClick={() => cancelDialog && cancelMutation.mutate(cancelDialog.order.id)}
+            >
+              {cancelMutation.isPending ? "Cancelando..." : "Confirmar cancelamento"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
