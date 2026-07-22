@@ -381,6 +381,13 @@ function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProp
         )}
       </div>
 
+      {!card.suggestedMessage && !readOnly && (
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground/70 italic">
+          <Sparkles className="h-3 w-3 shrink-0" />
+          Clique em "Sugestões IA" para gerar uma mensagem personalizada para este cliente.
+        </p>
+      )}
+
       {card.suggestedMessage && (
         <div className="mt-3 rounded-md border border-border bg-muted/50 p-3">
           <div className="flex items-center justify-between gap-2">
@@ -486,7 +493,11 @@ function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProp
               onClick={() => onAction("snoozed")}
               title="Adiar por 3 dias"
             >
-              <CalendarClock className="mr-1.5 h-4 w-4" />
+              {isBusy ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <CalendarClock className="mr-1.5 h-4 w-4" />
+              )}
               Adiar
             </Button>
             <Button
@@ -496,7 +507,11 @@ function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProp
               onClick={() => onAction("dismissed")}
               title="Este card não faz sentido"
             >
-              <X className="mr-1.5 h-4 w-4" />
+              {isBusy ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <X className="mr-1.5 h-4 w-4" />
+              )}
               Não faz sentido
             </Button>
           </div>
@@ -714,6 +729,10 @@ export default function CopilotoPage() {
   }, [data?.cards, filter, rfmFilter]);
 
   const totalCards = data?.cards.length ?? 0;
+  const cardsWithoutMessage = useMemo(
+    () => (data?.cards ?? []).filter((c) => !c.suggestedMessage).length,
+    [data?.cards],
+  );
 
   if (isLoading) {
     return (
@@ -783,13 +802,13 @@ export default function CopilotoPage() {
                 </Button>
               </>
             )}
-            {totalCards > 0 && (
+            {cardsWithoutMessage > 0 && (
               <Button
                 size="sm"
                 variant="outline"
                 disabled={generateMessagesMutation.isPending}
                 onClick={() => generateMessagesMutation.mutate()}
-                title="Gerar sugestões de mensagem da IA para os cards da fila"
+                title={`Gerar sugestões de mensagem da IA para ${cardsWithoutMessage} card${cardsWithoutMessage !== 1 ? "s" : ""} sem mensagem`}
               >
                 {generateMessagesMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -797,6 +816,11 @@ export default function CopilotoPage() {
                   <MessageSquarePlus className="h-4 w-4" />
                 )}
                 <span className="ml-1.5 hidden sm:inline">Sugestões IA</span>
+                {cardsWithoutMessage > 0 && (
+                  <span className="ml-1.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                    {cardsWithoutMessage}
+                  </span>
+                )}
               </Button>
             )}
           </div>

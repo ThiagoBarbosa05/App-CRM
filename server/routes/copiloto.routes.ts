@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { eq } from "drizzle-orm";
+import { eq, inArray, and, isNull } from "drizzle-orm";
 
 import { requireAuth } from "../middleware/validation";
 import {
@@ -201,7 +201,7 @@ copilotoRouter.post("/generate-messages", requireAuth, async (req: Request, res:
       return res.status(503).json({ message: "IA não configurada neste servidor." });
     }
 
-    const [[seller], allCards] = await Promise.all([
+    const [[seller], cardsNeedingAi] = await Promise.all([
       db.select({ name: users.name }).from(users).where(eq(users.id, targetSellerId)).limit(1),
       db
         .select({
@@ -209,13 +209,16 @@ copilotoRouter.post("/generate-messages", requireAuth, async (req: Request, res:
           type: copilotoSignals.type,
           reason: copilotoSignals.reason,
           payload: copilotoSignals.payload,
-          suggestedMessage: copilotoSignals.suggestedMessage,
         })
         .from(copilotoSignals)
-        .where(eq(copilotoSignals.sellerId, targetSellerId)),
+        .where(
+          and(
+            eq(copilotoSignals.sellerId, targetSellerId),
+            inArray(copilotoSignals.status, ["pending", "backlog"]),
+            isNull(copilotoSignals.suggestedMessage),
+          ),
+        ),
     ]);
-
-    const cardsNeedingAi = allCards.filter((c) => !c.suggestedMessage);
 
     if (cardsNeedingAi.length === 0) {
       return res.json({ ok: true, generated: 0 });
