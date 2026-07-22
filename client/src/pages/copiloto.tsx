@@ -802,13 +802,17 @@ export default function CopilotoPage() {
                 </Button>
               </>
             )}
-            {cardsWithoutMessage > 0 && (
+            {totalCards > 0 && (
               <Button
                 size="sm"
                 variant="outline"
                 disabled={generateMessagesMutation.isPending}
                 onClick={() => generateMessagesMutation.mutate()}
-                title={`Gerar sugestões de mensagem da IA para ${cardsWithoutMessage} card${cardsWithoutMessage !== 1 ? "s" : ""} sem mensagem`}
+                title={
+                  cardsWithoutMessage > 0
+                    ? `Gerar sugestões de mensagem da IA para ${cardsWithoutMessage} card${cardsWithoutMessage !== 1 ? "s" : ""} sem mensagem`
+                    : "Regenerar sugestões de mensagem da IA para os cards da fila"
+                }
               >
                 {generateMessagesMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
