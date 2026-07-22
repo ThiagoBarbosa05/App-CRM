@@ -119,6 +119,28 @@ restaurantPdvRouter.get("/products/categories", requireGarcomOrGestor, async (re
   }
 });
 
+/** Lista os países distintos dos produtos mapeados para esta conexão Bling. */
+restaurantPdvRouter.get("/products/countries", requireGarcomOrGestor, async (req: Request, res: Response) => {
+  try {
+    const { connectionId } = req.query;
+    if (!connectionId) return res.json({ countries: [] });
+
+    const { data } = await storage.getProducts(
+      { connectionId: connectionId as string },
+      1,
+      2000,
+    );
+    const unique = [...new Set(
+      data.map((p: { country?: string }) => p.country).filter(Boolean) as string[]
+    )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    return res.json({ countries: unique });
+  } catch (err) {
+    console.error("[PDV] Erro ao buscar países:", err);
+    return res.status(500).json({ message: "Erro ao buscar países" });
+  }
+});
+
 restaurantPdvRouter.get("/units", requireGestor, listPdvUnitsController);
 restaurantPdvRouter.post("/units", requireGestor, createPdvUnitController);
 restaurantPdvRouter.put("/units/:id", requireGestor, updatePdvUnitController);

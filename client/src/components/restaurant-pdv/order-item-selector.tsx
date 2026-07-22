@@ -16,12 +16,18 @@ import {
 import type { Product } from "@shared/schema";
 import type { CartItem } from "@/pages/restaurant-pdv/pos";
 
+const HIDDEN_CATEGORIES = new Set(["NATAL", "OUTROS", "ACESSORIOS"]);
+
 interface ProductsResponse {
   data: Product[];
 }
 
 interface CategoriesResponse {
   categories: string[];
+}
+
+interface CountriesResponse {
+  countries: string[];
 }
 
 interface OrderItemSelectorProps {
@@ -52,6 +58,7 @@ export function OrderItemSelector({
   const [productSearch, setProductSearch] = useState("");
   const [debouncedProductSearch, setDebouncedProductSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [showCart, setShowCart] = useState(false);
 
@@ -60,37 +67,58 @@ export function OrderItemSelector({
     return () => clearTimeout(handler);
   }, [productSearch]);
 
-  // Limpa a categoria selecionada quando o usuário digita uma busca
   useEffect(() => {
-    if (productSearch) setSelectedCategory(null);
+    if (productSearch) {
+      setSelectedCategory(null);
+      setSelectedCountry(null);
+    }
   }, [productSearch]);
 
   const { data: categoriesResponse } = useQuery<CategoriesResponse>({
     queryKey: ["/api/restaurant-pdv/products/categories", { connectionId: blingConnectionId }],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      params.append("connectionId", blingConnectionId!);
-      const res = await fetch(`/api/restaurant-pdv/products/categories?${params.toString()}`, {
-        credentials: "include",
-      });
+      const params = new URLSearchParams({ connectionId: blingConnectionId! });
+      const res = await fetch(`/api/restaurant-pdv/products/categories?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error("Erro ao buscar categorias");
       return res.json();
     },
     enabled: !!blingConnectionId,
     staleTime: 5 * 60 * 1000,
   });
-  const categories = categoriesResponse?.categories ?? [];
+
+  const { data: countriesResponse } = useQuery<CountriesResponse>({
+    queryKey: ["/api/restaurant-pdv/products/countries", { connectionId: blingConnectionId }],
+    queryFn: async () => {
+      const params = new URLSearchParams({ connectionId: blingConnectionId! });
+      const res = await fetch(`/api/restaurant-pdv/products/countries?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao buscar países");
+      return res.json();
+    },
+    enabled: !!blingConnectionId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const categories = (categoriesResponse?.categories ?? []).filter(
+    (c) => !HIDDEN_CATEGORIES.has(c.toUpperCase()),
+  );
+  const countries = countriesResponse?.countries ?? [];
 
   const { data: productsResponse, isFetching: isFetchingProducts } =
     useQuery<ProductsResponse>({
-      queryKey: ["/api/restaurant-pdv/products", { connectionId: blingConnectionId, name: debouncedProductSearch, category: selectedCategory }],
+      queryKey: ["/api/restaurant-pdv/products", {
+        connectionId: blingConnectionId,
+        name: debouncedProductSearch,
+        category: selectedCategory,
+        country: selectedCountry,
+      }],
       queryFn: async () => {
         const params = new URLSearchParams();
         params.append("connectionId", blingConnectionId!);
         if (debouncedProductSearch) params.append("name", debouncedProductSearch);
         if (selectedCategory) params.append("category", selectedCategory);
+        if (selectedCountry) params.append("country", selectedCountry);
         params.append("pageSize", "100");
-        const res = await fetch(`/api/restaurant-pdv/products?${params.toString()}`, { credentials: "include" });
+        const res = await fetch(`/api/restaurant-pdv/products?${params}`, { credentials: "include" });
         if (!res.ok) throw new Error("Erro ao buscar produtos");
         return res.json();
       },
@@ -101,10 +129,17 @@ export function OrderItemSelector({
   const getCartQty = (productId: string) =>
     cart.find((c) => c.productId === productId)?.quantity ?? 0;
 
+  const chipBase =
+    "rounded-full px-3 py-1 text-xs font-medium transition-colors whitespace-nowrap";
+  const chipActive = "bg-orange-500 text-white shadow-sm";
+  const chipIdle =
+    "bg-muted text-muted-foreground hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-950/40 dark:hover:text-orange-300";
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* ── Barra de busca ───────────────────────────────────────── */}
+      {/* ── Barra de busca + filtros ─────────────────────────────── */}
       <div className="shrink-0 border-b bg-muted/30 px-3 py-2 space-y-2">
+        {/* Busca */}
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -119,17 +154,12 @@ export function OrderItemSelector({
           )}
         </div>
 
-        {/* ── Chips de categoria ────────────────────────────────── */}
+        {/* Chips de categoria */}
         {categories.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setSelectedCategory(null)}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                selectedCategory === null
-                  ? "bg-orange-500 text-white shadow-sm"
-                  : "bg-muted text-muted-foreground hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-950/40 dark:hover:text-orange-300",
-              )}
+              className={cn(chipBase, selectedCategory === null ? chipActive : chipIdle)}
             >
               Todos
             </button>
@@ -140,14 +170,33 @@ export function OrderItemSelector({
                   setProductSearch("");
                   setSelectedCategory(cat === selectedCategory ? null : cat);
                 }}
-                className={cn(
-                  "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                  selectedCategory === cat
-                    ? "bg-orange-500 text-white shadow-sm"
-                    : "bg-muted text-muted-foreground hover:bg-orange-100 hover:text-orange-700 dark:hover:bg-orange-950/40 dark:hover:text-orange-300",
-                )}
+                className={cn(chipBase, selectedCategory === cat ? chipActive : chipIdle)}
               >
                 {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Chips de país */}
+        {countries.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setSelectedCountry(null)}
+              className={cn(chipBase, selectedCountry === null ? chipActive : chipIdle)}
+            >
+              Todos os países
+            </button>
+            {countries.map((country) => (
+              <button
+                key={country}
+                onClick={() => {
+                  setProductSearch("");
+                  setSelectedCountry(country === selectedCountry ? null : country);
+                }}
+                className={cn(chipBase, selectedCountry === country ? chipActive : chipIdle)}
+              >
+                {country}
               </button>
             ))}
           </div>
