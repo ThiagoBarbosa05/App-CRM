@@ -455,10 +455,10 @@ export default function RestaurantPos() {
               variant="ghost"
               size="sm"
               className="h-8 shrink-0 px-2 text-muted-foreground"
-              onClick={() => navigate("/pdv-restaurante")}
+              onClick={() => navigate("/")}
             >
               <ArrowLeft className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">Menu PDV</span>
+              <span className="hidden sm:inline">CRM</span>
             </Button>
             <Separator orientation="vertical" className="h-5 shrink-0" />
           </>
