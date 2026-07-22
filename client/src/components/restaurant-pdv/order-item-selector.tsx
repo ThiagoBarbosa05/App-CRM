@@ -57,13 +57,13 @@ export function OrderItemSelector({
 
   const { data: productsResponse, isFetching: isFetchingProducts } =
     useQuery<ProductsResponse>({
-      queryKey: ["/api/products", { connectionId: blingConnectionId, name: debouncedProductSearch }],
+      queryKey: ["/api/restaurant-pdv/products", { connectionId: blingConnectionId, name: debouncedProductSearch }],
       queryFn: async () => {
         const params = new URLSearchParams();
         params.append("connectionId", blingConnectionId!);
         if (debouncedProductSearch) params.append("name", debouncedProductSearch);
         params.append("pageSize", "50");
-        const res = await fetch(`/api/products?${params.toString()}`, { credentials: "include" });
+        const res = await fetch(`/api/restaurant-pdv/products?${params.toString()}`, { credentials: "include" });
         if (!res.ok) throw new Error("Erro ao buscar produtos");
         return res.json();
       },

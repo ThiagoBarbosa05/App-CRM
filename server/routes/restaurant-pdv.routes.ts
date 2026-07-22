@@ -54,6 +54,7 @@ import {
 import { db } from "../db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { storage } from "../storage";
 
 export const restaurantPdvRouter = Router();
 
@@ -74,6 +75,27 @@ function requireGestor(req: Request, res: Response, next: NextFunction) {
 }
 
 // ── Rotas sem contexto de unidade (antes do middleware resolvePdvUnit) ────────
+
+// Busca de produtos Bling — acessível ao garçom sem contexto de unidade
+restaurantPdvRouter.get("/products", requireGarcomOrGestor, async (req: Request, res: Response) => {
+  try {
+    const { name, connectionId } = req.query;
+    const pageSize = parseInt(req.query.pageSize as string) || 50;
+    const { data, total } = await storage.getProducts(
+      {
+        name: name as string | undefined,
+        connectionId: connectionId as string | undefined,
+      },
+      1,
+      pageSize,
+    );
+    return res.json({ data, total });
+  } catch (err) {
+    console.error("[PDV] Erro ao buscar produtos:", err);
+    return res.status(500).json({ message: "Erro ao buscar produtos" });
+  }
+});
+
 restaurantPdvRouter.get("/units", requireGestor, listPdvUnitsController);
 restaurantPdvRouter.post("/units", requireGestor, createPdvUnitController);
 restaurantPdvRouter.put("/units/:id", requireGestor, updatePdvUnitController);
