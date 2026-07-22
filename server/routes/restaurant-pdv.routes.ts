@@ -148,11 +148,11 @@ restaurantPdvRouter.delete("/admin/orders/:id", requireGestor, async (req: Reque
     await restaurantPdvService.forceCancelOrder(id, actorId);
     return res.status(200).json({ success: true });
   } catch (error: any) {
+    console.error(`[Admin] Erro ao cancelar comanda ${req.params.id}: code=${error?.code} msg=${error?.message}`);
     if (error?.code === "NOT_FOUND") return res.status(404).json({ message: error.message });
     if (error?.code === "ORDER_CLOSED" || error?.code === "PAYMENTS_ALREADY_REGISTERED") {
       return res.status(409).json({ message: error.message });
     }
-    console.error("[Admin] Erro ao cancelar comanda:", error);
     return res.status(500).json({ message: "Erro ao cancelar comanda" });
   }
 });

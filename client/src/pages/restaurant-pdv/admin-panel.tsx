@@ -218,11 +218,16 @@ export default function AdminPanel() {
       setCancelDialog(null);
     },
     onError: (err: any) => {
-      toast({
-        title: "Erro ao cancelar mesa",
-        description: err?.message ?? "Tente novamente",
-        variant: "destructive",
-      });
+      let description = "Tente novamente";
+      const raw: string = err?.message ?? "";
+      const match = raw.match(/^\d+: (.+)$/s);
+      if (match) {
+        try { description = (JSON.parse(match[1]) as any).message ?? raw; }
+        catch { description = match[1]; }
+      } else if (raw) {
+        description = raw;
+      }
+      toast({ title: "Erro ao cancelar mesa", description, variant: "destructive" });
     },
   });
 
