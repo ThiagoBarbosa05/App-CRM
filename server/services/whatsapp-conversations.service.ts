@@ -22,7 +22,7 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fet
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
-import { getChannelById, getChannelForConversation, resolveChannelById, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel } from "./whatsapp-channels.service";
+import { getChannelById, getChannelForConversation, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
@@ -228,50 +228,20 @@ export async function autoLinkConversationsByPhone(phone: string, clientId: stri
   return linked.length;
 }
 
-// Resolve o canal de envio de uma conversa. Se channelId for fornecido (override
-// manual de admin), usa esse canal e o grava como último canal da conversa.
-// Caso contrário, usa o último canal por onde o cliente escreveu (conversa).
-// requestingUserId, quando informado e o usuário for "vendedor", valida que o
-// channelId pedido está entre os canais dele (dono ou concessão explícita) —
-// sem isso um vendedor poderia enviar mensagens usando as credenciais de um
-// canal alheio e sobrescrever channelId da conversa, tirando-a da fila de
-// outro setor/canal indevidamente.
+// Resolve o canal de envio de uma conversa — SEMPRE o canal ao qual a conversa
+// está vinculada (telefone + canal = identidade imutável da conversa). Isso
+// garante isolamento estrito: cada conversa envia e recebe por um único número,
+// e o outbound nunca sai por um canal diferente do da conversa.
+//
+// Os parâmetros `_channelId` (override) e `_requestingUserId` são mantidos por
+// compatibilidade de assinatura com os chamadores, mas são IGNORADOS: honrar um
+// override permitia a conversa "trocar de canal" e a resposta do contato cair na
+// conversa errada. O canal é definido uma vez em findOrCreateConversation.
 export async function resolveOutboundChannel(
   conversationId: string,
-  channelId?: number,
-  requestingUserId?: string,
+  _channelId?: number,
+  _requestingUserId?: string,
 ): Promise<ResolvedChannel | null> {
-  if (channelId != null) {
-    let allowed = true;
-    if (requestingUserId) {
-      const [requester] = await db
-        .select({ role: users.role })
-        .from(users)
-        .where(eq(users.id, requestingUserId))
-        .limit(1);
-      if (requester?.role === "vendedor") {
-        const allowedChannelIds = await listChannelIdsForUser(requestingUserId);
-        allowed = allowedChannelIds.includes(channelId);
-        if (!allowed) {
-          console.warn(
-            `[resolveOutboundChannel] usuário ${requestingUserId} tentou usar canal ${channelId} fora do seu escopo — ignorando override.`,
-          );
-        }
-      }
-    }
-
-    if (allowed) {
-      const ch = await resolveChannelById(channelId).catch(() => null);
-      if (ch) {
-        await db
-          .update(whatsappConversations)
-          .set({ channelId })
-          .where(eq(whatsappConversations.id, conversationId));
-        await backfillSectorFromChannel(conversationId, channelId);
-        return ch;
-      }
-    }
-  }
   return resolveChannelForConversation(conversationId).catch(() => null);
 }
 
@@ -1087,9 +1057,17 @@ export async function sendConversationMessage(
     replyToWaMessageId = ref?.waMessageId ?? null;
   }
 
-  // Resolve o canal de envio: override explícito (admin) tem prioridade; senão
-  // usa o último canal da conversa (por onde o cliente escreveu por último).
+  // Canal de envio = sempre o canal vinculado à conversa (imutável).
   const resolvedChannel = await resolveOutboundChannel(conversationId, channelId, userId);
+
+  // Sem canal resolvível, NÃO envia: cair no default global (wa_phone_number_id)
+  // faria a mensagem sair por um número diferente do da conversa (ex.: Dionisio),
+  // e a resposta do contato cairia na conversa errada.
+  if (!resolvedChannel) {
+    throw new Error(
+      "Conversa sem canal de envio configurado — não é possível enviar. Verifique o canal vinculado à conversa.",
+    );
+  }
 
   // Persiste a mensagem imediatamente como "failed" — atualiza para "sent" se a API responder ok
   const [savedMessage] = await db
@@ -1499,7 +1477,15 @@ export async function sendConversationMedia(
 
   const resolvedChannel = await resolveOutboundChannel(conversationId, channelId, userId);
 
-  console.log(`[sendConversationMedia] provider=${resolvedChannel?.provider ?? "null"}`);
+  // Sem canal resolvível, NÃO envia (mesma razão de sendConversationMessage):
+  // evita cair no número global e mandar a mídia pelo número errado.
+  if (!resolvedChannel) {
+    throw new Error(
+      "Conversa sem canal de envio configurado — não é possível enviar. Verifique o canal vinculado à conversa.",
+    );
+  }
+
+  console.log(`[sendConversationMedia] provider=${resolvedChannel.provider}`);
 
   let waMessageId: string | null = null;
   let waMediaId: string | null = null;
@@ -1652,15 +1638,25 @@ export async function retryFailedMessage(
     return null;
   }
 
-  const channelOverride = await getChannelForConversation(conversationId).catch(() => null);
-  console.log(`[retryFailedMessage] phone=${conv.phone} channelOverride=${channelOverride ? `phoneNumberId=${channelOverride.phoneNumberId}` : "null"}`);
+  // Resolve o canal vinculado à conversa (imutável). Sem canal, NÃO reenvia —
+  // não pode cair no número global (mandaria pelo número errado).
+  const resolvedChannel = await resolveOutboundChannel(conversationId);
+  if (!resolvedChannel) {
+    throw new Error(
+      "Conversa sem canal de envio configurado — não é possível reenviar. Verifique o canal vinculado à conversa.",
+    );
+  }
+  const cloudOverride = resolvedChannel.provider === "cloud_api"
+    ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
+    : undefined;
+  console.log(`[retryFailedMessage] phone=${conv.phone} provider=${resolvedChannel.provider}`);
 
   try {
     let result: unknown;
 
     // Mensagem de template do bot: re-envia o MESMO template (nome, idioma e
     // componentes interpolados gravados em rawPayload) em vez de mandar o texto
-    // placeholder "Template: X" literalmente.
+    // placeholder "Template: X" literalmente. Templates só existem no cloud_api.
     const payload = msg.rawPayload as
       | { kind?: string; templateName?: string; language?: string; components?: object[] }
       | null;
@@ -1669,13 +1665,16 @@ export async function retryFailedMessage(
       payload?.templateName &&
       (payload.kind === "bot_template" || payload.kind === "conversation_template")
     ) {
+      if (resolvedChannel.provider !== "cloud_api") {
+        throw new Error("Templates só podem ser reenviados pelo canal oficial (Cloud API).");
+      }
       console.log(`[retryFailedMessage] replay template="${payload.templateName}"`);
       const tplResult = await sendTemplateMessage(
         conv.phone,
         payload.templateName,
         payload.language ?? "pt_BR",
         payload.components ?? [],
-        channelOverride ?? undefined,
+        cloudOverride,
       );
       const tplWaId = ((tplResult as { messages?: Array<{ id?: string }> })?.messages)?.[0]?.id ?? null;
       await db
@@ -1692,7 +1691,17 @@ export async function retryFailedMessage(
 
     console.log(`[retryFailedMessage] isMedia=${isMedia} waMediaId=${msg.waMediaId}`);
 
-    if (isMedia && msg.waMediaId) {
+    if (isMedia) {
+      // Reenvio de mídia por canal evolution exigiria o buffer original (o
+      // waMediaId é um handle da Meta, sem equivalente no Baileys). Em vez de
+      // cair no número global, orienta a reenviar o arquivo.
+      if (resolvedChannel.provider !== "cloud_api") {
+        throw new Error("Reenvio automático de mídia não é suportado neste canal. Envie o arquivo novamente.");
+      }
+      if (!msg.waMediaId) {
+        console.error(`[retryFailedMessage] mensagem de mídia sem waMediaId — não é possível reenviar automaticamente`);
+        throw new Error("Não foi possível reenviar: ID de mídia do WhatsApp ausente. Envie o arquivo novamente.");
+      }
       const mediaTypeMap: Record<string, "image" | "document" | "video" | "audio"> = {
         image: "image", document: "document", video: "video", audio: "audio",
       };
@@ -1704,15 +1713,17 @@ export async function retryFailedMessage(
         mediaType,
         msg.caption ?? undefined,
         msg.filename ?? undefined,
-        channelOverride ?? undefined,
+        cloudOverride,
       );
-    } else if (isMedia && !msg.waMediaId) {
-      console.error(`[retryFailedMessage] mensagem de mídia sem waMediaId — não é possível reenviar automaticamente`);
-      throw new Error("Não foi possível reenviar: ID de mídia do WhatsApp ausente. Envie o arquivo novamente.");
     } else {
       if (!msg.content) throw new Error("Conteúdo da mensagem ausente para reenvio");
-      console.log(`[retryFailedMessage] sendTextMessage content="${msg.content}"`);
-      result = await sendTextMessage(conv.phone, msg.content, channelOverride ?? undefined);
+      console.log(`[retryFailedMessage] reenvio texto content="${msg.content}"`);
+      if (resolvedChannel.provider === "evolution") {
+        const evoResult = await evoSendText(resolvedChannel.evolutionInstanceName, conv.phone, msg.content);
+        result = { messages: [{ id: evoResult?.key?.id ?? null }] };
+      } else {
+        result = await sendTextMessage(conv.phone, msg.content, cloudOverride);
+      }
     }
 
     console.log(`[retryFailedMessage] envio OK:`, JSON.stringify(result));
@@ -1852,15 +1863,18 @@ export async function saveInboundMessage(data: {
     .where(and(eq(whatsappConversations.id, conv.id), eq(whatsappConversations.status, "closed")))
     .returning({ id: whatsappConversations.id });
 
-  // Atualiza o "último canal usado" da conversa para refletir por onde o cliente
-  // escreveu por último — usado como canal padrão de resposta.
+  // NÃO reescreve o channelId da conversa: ele é a identidade da conversa
+  // (telefone + canal) e é imutável após a criação por findOrCreateConversation.
+  // Um inbound que chegue por outro canal já foi roteado para a conversa daquele
+  // canal por findOrCreateConversation(phone, channelId) acima — reescrever aqui
+  // sequestraria esta conversa para o canal errado (ex.: conversa da Búzios
+  // virando conversa da Dionisio), fazendo o outbound sair pelo número errado.
   await db
     .update(whatsappConversations)
     .set({
       status: "open",
       lastMessageAt: new Date(),
       updatedAt: new Date(),
-      ...(data.channelId != null ? { channelId: data.channelId } : {}),
     })
     .where(eq(whatsappConversations.id, conv.id));
 

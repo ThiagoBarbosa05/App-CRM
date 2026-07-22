@@ -2977,9 +2977,12 @@ function ConversationMessages({
   const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
   const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
   const [replyingTo, setReplyingTo] = useState<WaMessage | null>(null);
-  const [selectedChannelId, setSelectedChannelId] = useState<
-    number | undefined
-  >(client.channelId ?? undefined);
+  // Canal da conversa (imutável). Não há setter: o canal não muda pela UI — ver
+  // ChannelSelect (apenas informativo) e o backend, que sempre envia pelo canal
+  // vinculado à conversa.
+  const [selectedChannelId] = useState<number | undefined>(
+    client.channelId ?? undefined,
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -3964,17 +3967,14 @@ function ConversationMessages({
 
   const showChannelSelect = isAdminOrGerente && channels.length > 0;
 
+  // O canal da conversa é imutável (telefone + canal = identidade da conversa) e
+  // o backend sempre envia por ele, ignorando qualquer override. Por isso o
+  // seletor é apenas informativo (disabled): trocar o canal aqui não mudaria por
+  // onde a mensagem sai e daria a falsa impressão de ter trocado.
   const ChannelSelect = () => (
     <Select
       value={selectedChannelId != null ? String(selectedChannelId) : ""}
-      onValueChange={(v) => {
-        if (!v) return;
-        const ch = channels.find((c) => c.id === Number(v));
-        if (!ch) return;
-        if (ch.provider === "evolution" && ch.connectionStatus !== "connected")
-          return;
-        setSelectedChannelId(Number(v));
-      }}
+      disabled
     >
       <SelectTrigger className="h-8 text-xs w-full border-slate-200 dark:border-slate-700">
         <SelectValue placeholder="Selecionar canal…">
