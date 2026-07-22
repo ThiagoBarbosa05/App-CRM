@@ -48,8 +48,8 @@ export function matchOptKeyword(text: string): OptKeywordMatch {
 function phoneCondition(column: PgColumn, phone: string) {
   const { digits, withoutCountry } = normalizePhone(phone);
   return or(
-    sql`regexp_replace(${column}, '\\D', '', 'g') = ${digits}`,
-    sql`regexp_replace(${column}, '\\D', '', 'g') = ${withoutCountry}`,
+    sql`regexp_replace(${column}, '[^0-9]', '', 'g') = ${digits}`,
+    sql`regexp_replace(${column}, '[^0-9]', '', 'g') = ${withoutCountry}`,
   );
 }
 

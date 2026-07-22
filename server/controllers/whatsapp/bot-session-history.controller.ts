@@ -127,7 +127,7 @@ export async function listBotDispatchHistory(
     .from(whatsappConversations)
     .where(
       inArray(
-        sql`regexp_replace(${whatsappConversations.phone}, '\D', '', 'g')`,
+        sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g')`,
         digitsList,
       ),
     );

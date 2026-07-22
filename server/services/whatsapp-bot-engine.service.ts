@@ -73,8 +73,8 @@ async function isWithinCustomerWindow(phone: string): Promise<boolean> {
       and(
         eq(whatsappMessages.direction, "inbound"),
         or(
-          sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${digits}`,
-          sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
+          sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${digits}`,
+          sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${withoutCountry}`,
         ),
       ),
     )

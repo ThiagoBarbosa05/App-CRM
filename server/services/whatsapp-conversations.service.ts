@@ -117,8 +117,8 @@ export async function findOrCreateConversation(phone: string, channelId?: number
   const { digits, withoutCountry } = normalizePhone(phone);
 
   const phoneCondition = or(
-    sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${digits}`,
-    sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
+    sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${digits}`,
+    sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${withoutCountry}`,
   );
 
   // Conversa é UMA por telefone + canal — cada canal pertence a um atendente
@@ -151,9 +151,9 @@ export async function findOrCreateConversation(phone: string, channelId?: number
     .from(clients)
     .where(
       or(
-        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') = ${digits}`,
-        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') = ${withoutCountry}`,
-        sql`'55' || regexp_replace(${clients.phone}, '\\D', '', 'g') = ${digits}`,
+        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${digits}`,
+        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${withoutCountry}`,
+        sql`'55' || regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${digits}`,
       ),
     )
     .limit(1);
@@ -214,8 +214,8 @@ export async function autoLinkConversationsByPhone(phone: string, clientId: stri
       and(
         isNull(whatsappConversations.clientId),
         or(
-          sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${digits}`,
-          sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
+          sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${digits}`,
+          sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${withoutCountry}`,
         ),
       ),
     )

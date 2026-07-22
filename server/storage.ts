@@ -821,7 +821,7 @@ export class DatabaseStorage implements IStorage {
     if (filters.phone) {
       const normalizedPhone = filters.phone.replace(/\D/g, ""); // só dígitos
       conditions.push(
-        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') LIKE ${
+        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') LIKE ${
           "%" + normalizedPhone + "%"
         }`,
       );

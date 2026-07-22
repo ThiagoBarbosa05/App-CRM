@@ -59,7 +59,7 @@ export class ClientsRepository {
     if (filters.phone) {
       const normalizedPhone = filters.phone.replace(/\D/g, "");
       conditions.push(
-        sql`regexp_replace(${clients.phone}, '\\D', '', 'g') LIKE ${
+        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') LIKE ${
           "%" + normalizedPhone + "%"
         }`,
       );
@@ -152,10 +152,10 @@ export class ClientsRepository {
           ilike(clients.cpf, searchTerm),
           ...(normalizedSearchDigits.length >= 5
             ? [
-                sql`regexp_replace(COALESCE(${clients.phone}, ''), '\\D', '', 'g') LIKE ${
+                sql`regexp_replace(COALESCE(${clients.phone}, ''), '[^0-9]', '', 'g') LIKE ${
                   "%" + normalizedSearchDigits + "%"
                 }`,
-                sql`regexp_replace(COALESCE(${clients.cpf}, ''), '\\D', '', 'g') LIKE ${
+                sql`regexp_replace(COALESCE(${clients.cpf}, ''), '[^0-9]', '', 'g') LIKE ${
                   "%" + normalizedSearchDigits + "%"
                 }`,
               ]
