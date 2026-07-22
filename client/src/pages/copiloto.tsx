@@ -1001,7 +1001,7 @@ export default function CopilotoPage() {
         </div>
       )}
 
-      {backlogAvailable > 0 && filter === "todos" && (
+      {backlogAvailable > 0 && (
         <div className="flex justify-center pt-2">
           <Button
             variant="outline"
