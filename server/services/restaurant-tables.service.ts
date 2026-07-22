@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { restaurantTables, restaurantOrders } from "../../shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { restaurantTables, restaurantOrders, restaurantOrderItems } from "../../shared/schema";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import type { RestaurantTable, InsertRestaurantTable } from "../../shared/schema";
 
 export type TableStatus = "livre" | "ocupada" | "aguardando_pagamento";
@@ -81,15 +81,33 @@ export const restaurantTablesService = {
         peopleCount: restaurantOrders.peopleCount,
         openedAt: restaurantOrders.openedAt,
         waiterId: restaurantOrders.waiterId,
-        orderSubtotal: sql<string>`(
-          SELECT COALESCE(SUM(unit_price::numeric * quantity), 0)::text
-          FROM restaurant_order_items
-          WHERE order_id = ${restaurantOrders.id} AND status = 'ativo'
-        )`,
       })
       .from(restaurantOrders)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(restaurantOrders.tableNumber);
+
+    if (orders.length === 0) return [];
+
+    const orderIds = orders.map((o) => o.id);
+
+    const subtotalRows = await db
+      .select({
+        orderId: restaurantOrderItems.orderId,
+        subtotal: sql<number>`SUM(${restaurantOrderItems.unitPrice}::numeric * ${restaurantOrderItems.quantity})`.mapWith(Number),
+      })
+      .from(restaurantOrderItems)
+      .where(
+        and(
+          inArray(restaurantOrderItems.orderId, orderIds),
+          eq(restaurantOrderItems.status, "ativo"),
+        ),
+      )
+      .groupBy(restaurantOrderItems.orderId);
+
+    const subtotalMap = new Map<string, number>();
+    for (const row of subtotalRows) {
+      if (row.orderId) subtotalMap.set(row.orderId, row.subtotal ?? 0);
+    }
 
     return orders.map((o) => ({
       id: o.id,
@@ -107,7 +125,7 @@ export const restaurantTablesService = {
       peopleCount: o.peopleCount ?? null,
       openedAt: o.openedAt ?? null,
       waiterId: o.waiterId ?? null,
-      orderSubtotal: o.orderSubtotal ?? null,
+      orderSubtotal: String(subtotalMap.get(o.id) ?? 0),
     }));
   },
 };
