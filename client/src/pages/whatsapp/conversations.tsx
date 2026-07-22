@@ -5746,15 +5746,23 @@ export default function WhatsAppConversationsPage() {
   const searchParams = new URLSearchParams(useSearch());
   const rawPhoneParam = searchParams.get("phone");
   const phoneParam = rawPhoneParam ? rawPhoneParam.replace(/\D/g, "") : null;
+  // Deep-link direto pelo conversationId (ex.: vindo do Copiloto).
+  // Tem precedência sobre ?phone= — mais confiável porque identifica a conversa
+  // exata (um cliente pode ter várias, uma por canal/atendente).
+  const conversationIdParam = searchParams.get("conversationId");
   // Rascunho vindo junto do deep-link (ex.: mensagem sugerida pelo Copiloto).
-  // Só é aplicado na conversa que o ?phone= selecionou — ver deepLinkedId.
+  // Só é aplicado na conversa que o deep-link selecionou — ver deepLinkedId.
   const draftParam = searchParams.get("text");
   const autoSelectedPhoneRef = useRef(false);
-  const [deepLinkedId, setDeepLinkedId] = useState<string | null>(null);
+  const [deepLinkedId, setDeepLinkedId] = useState<string | null>(() =>
+    conversationIdParam ?? null,
+  );
   // selectedId sempre é o conversationId — nunca clientId, pois um mesmo
   // cliente pode ter várias conversas paralelas (uma por canal/atendente) e
   // clientId sozinho não identifica qual delas está selecionada.
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    conversationIdParam ?? null,
+  );
   const [search, setSearch] = useState(phoneParam ?? "");
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);

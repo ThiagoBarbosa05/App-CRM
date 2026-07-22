@@ -277,14 +277,18 @@ function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProp
    */
   const openConversation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", "/api/whatsapp/conversations/start", {
+      const res = await apiRequest("POST", "/api/whatsapp/conversations/start", {
         clientId: card.clientId,
       });
+      return (await res.json()) as { conversationId: string };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       const text = message.trim();
+      // Navega pelo conversationId retornado pelo backend — mais confiável que
+      // ?phone= porque o mesmo telefone pode ter várias conversas (uma por canal).
+      // O backend já vincula a conversa ao canal ativo do vendedor.
       setLocation(
-        `/whatsapp/conversas?phone=${encodeURIComponent(digits)}` +
+        `/whatsapp/conversas?conversationId=${encodeURIComponent(result.conversationId)}` +
           (text ? `&text=${encodeURIComponent(text)}` : ""),
       );
     },
