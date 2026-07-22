@@ -9,13 +9,13 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/pdv-restaurante/cardapio", label: "Cardápio", icon: UtensilsCrossed },
   { href: "/pdv-restaurante/caixa", label: "Caixa", icon: Wallet },
   { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/pdv-restaurante/configuracoes", label: "Configurações", icon: Settings },

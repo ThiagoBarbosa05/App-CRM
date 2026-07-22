@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -226,6 +226,17 @@ function SignalCard({ card, isBusy, onAction, readOnly = false }: SignalCardProp
   const [, setLocation] = useLocation();
   const [message, setMessage] = useState(card.suggestedMessage ?? "");
   const [isEditing, setIsEditing] = useState(false);
+
+  // Ressincroniza o rascunho quando o card muda de identidade ou quando o
+  // servidor devolve uma nova sugestão para o mesmo id. O inicializador do
+  // useState só roda na montagem, então sem isto o textarea manteria o texto
+  // antigo após um refetch. Volta para o modo leitura para não exibir a nova
+  // sugestão dentro de uma edição já iniciada.
+  useEffect(() => {
+    setMessage(card.suggestedMessage ?? "");
+    setIsEditing(false);
+  }, [card.id, card.suggestedMessage]);
+
   const meta = SIGNAL_META[card.type];
   const Icon = meta?.icon ?? Sparkles;
   const digits = card.clientPhone?.replace(/\D/g, "") ?? "";
