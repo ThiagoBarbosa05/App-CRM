@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { eq, isNull, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { requireAuth } from "../middleware/validation";
 import {
