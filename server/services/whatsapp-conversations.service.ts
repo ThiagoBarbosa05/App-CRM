@@ -122,12 +122,26 @@ export async function findOrCreateConversation(phone: string, channelId?: number
     sql`regexp_replace(${whatsappConversations.phone}, '\\D', '', 'g') = ${withoutCountry}`,
   );
 
-  // Conversa é UMA por cliente/telefone, independente do canal. O channelId
-  // recebido representa apenas o "último canal usado" (gravado abaixo).
+  // Conversa é UMA por telefone + canal — cada canal pertence a um atendente
+  // (whatsapp_channels.user_id), então isso isola a conversa por atendente
+  // individual (ex.: Umbler). channelId `null` explícito forma seu próprio
+  // "balde" (ex.: disparo de campanha, que não tem canal/atendente dono).
+  // channelId OMITIDO (undefined) preserva o comportamento antigo de casar
+  // por telefone em QUALQUER canal — usado pelo motor de bot, que não tem
+  // identidade de canal própria e depende de sempre achar a mesma conversa
+  // ao longo de uma sessão, mesmo depois que ela ganha um canal (transferência
+  // para atendente, resposta do contato via webhook etc.).
+  const channelCondition =
+    channelId === undefined
+      ? undefined
+      : channelId === null
+        ? isNull(whatsappConversations.channelId)
+        : eq(whatsappConversations.channelId, channelId);
+
   const [existing] = await db
     .select()
     .from(whatsappConversations)
-    .where(phoneCondition)
+    .where(channelCondition ? and(phoneCondition, channelCondition) : phoneCondition)
     .orderBy(asc(whatsappConversations.createdAt))
     .limit(1);
 
@@ -377,7 +391,7 @@ export async function transferConversation(conversationId: string, targetChannel
   const { updated, channelName } = await applyChannelTransfer(conversationId, targetChannelId);
   if (updated) {
     await logTransferMessage(conversationId, `Conversa transferida para o canal ${channelName ?? "desconhecido"}.`, reason);
-    await revokeStaleConversationAccess(updated.clientId ?? conversationId, (userId, role) =>
+    await revokeStaleConversationAccess(conversationId, (userId, role) =>
       isConversationAccessibleToUser(conversationId, userId, role),
     );
   }
@@ -396,7 +410,7 @@ export async function transferConversationToUser(conversationId: string, targetU
   const { updated } = await applyChannelTransfer(conversationId, targetChannelId);
   if (updated) {
     await logTransferMessage(conversationId, `Conversa transferida para ${targetUser?.name ?? "o atendente"}.`, reason);
-    await revokeStaleConversationAccess(updated.clientId ?? conversationId, (userId, role) =>
+    await revokeStaleConversationAccess(conversationId, (userId, role) =>
       isConversationAccessibleToUser(conversationId, userId, role),
     );
   }
@@ -425,7 +439,7 @@ export async function transferConversationToSector(conversationId: string, secto
 
   if (updated) {
     await logTransferMessage(conversationId, `Conversa transferida para o setor ${sector?.name ?? "desconhecido"}.`, reason);
-    await revokeStaleConversationAccess(updated.clientId ?? conversationId, (userId, role) =>
+    await revokeStaleConversationAccess(conversationId, (userId, role) =>
       isConversationAccessibleToUser(conversationId, userId, role),
     );
   }
@@ -1126,7 +1140,7 @@ export async function sendConversationMessage(
     // Publica o evento SSE somente após o status "sent" estar gravado no banco,
     // evitando que o frontend refaça a query e veja status "failed" prematuramente
     if (conv.id) {
-      publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+      publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
     }
 
     return { waMessageId };
@@ -1189,7 +1203,7 @@ export async function addConversationNote(
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
 
-  publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+  publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
 
   return { id: savedNote.id };
 }
@@ -1394,7 +1408,7 @@ export async function sendConversationTemplate(
     console.log(`[sendConversationTemplate] DB update result:`, JSON.stringify(updateResult));
 
     if (conv.id) {
-      publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+      publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
     }
 
     return { waMessageId };
@@ -1574,7 +1588,7 @@ export async function sendConversationMedia(
     .where(eq(whatsappConversations.id, conversationId));
 
   if (conv.id) {
-    publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+    publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
   }
 
   return { id: savedMessage.id, status: "sent" };
@@ -1670,7 +1684,7 @@ export async function retryFailedMessage(
         .set({ status: "sent", waMessageId: tplWaId, sentAt: new Date() })
         .where(eq(whatsappMessages.id, messageId));
       if (conv.id) {
-        publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+        publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
       }
       return "sent";
     }
@@ -1711,7 +1725,7 @@ export async function retryFailedMessage(
       .where(eq(whatsappMessages.id, messageId));
 
     if (conv.id) {
-      publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+      publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
     }
 
     return "sent";
@@ -1892,10 +1906,10 @@ export async function saveInboundMessage(data: {
     `[WA Webhook] Inbound de ${data.phone} → conversa: ${conv.id} (cliente: ${conv.clientId ?? "não encontrado"})`,
   );
 
-  // Chaveado por clientId ?? id para casar com o conversationKey do frontend
-  // (clientId ?? conversationId) — assim conversas sem cliente também recebem
-  // atualização em tempo real no thread aberto.
-  publishConversationEvent(conv.clientId ?? conv.id, "new_message", {
+  // Chaveado por conversationId, igual ao conversationKey do frontend — um
+  // mesmo cliente pode ter várias conversas paralelas (uma por canal/atendente),
+  // então publicar por clientId vazaria o evento entre elas.
+  publishConversationEvent(conv.id, "new_message", {
     clientId: conv.clientId ?? null,
   });
 
@@ -1995,7 +2009,7 @@ export async function saveInboundReaction(data: {
     .limit(1);
 
   if (conv?.id) {
-    publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+    publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
   }
 }
 
@@ -2079,7 +2093,7 @@ export async function sendConversationReaction(
   }
 
   if (conv.id) {
-    publishConversationEvent(conv.clientId ?? conv.id, "new_message", { clientId: conv.clientId ?? null });
+    publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
   }
 
   return { ok: true };
@@ -2103,7 +2117,10 @@ export async function startConversationByClientId(
 
   if (!client?.phone) return null;
 
-  const conv = await findOrCreateConversation(client.phone);
+  // Usa o canal ativo do atendente que está iniciando a conversa, para que
+  // fique isolada das conversas de outros atendentes com o mesmo contato.
+  const channelId = await getActiveChannelIdByUserId(userId);
+  const conv = await findOrCreateConversation(client.phone, channelId);
 
   // Sempre grava o clientId escolhido pelo atendente, mesmo que a conversa já
   // tivesse um clientId diferente (ex.: telefone só foi conciliado depois que
@@ -2160,7 +2177,7 @@ export async function setContactWhatsappTags(clientId: string, whatsappTagIds: s
   if (!conversationId) return; // contato sem conversa de WhatsApp ainda
 
   await logTagChangeMessage(conversationId, addedTags, removedTags);
-  publishConversationEvent(clientId, "new_message", { clientId });
+  publishConversationEvent(conversationId, "new_message", { clientId });
 }
 
 export async function markConversationRead(userId: string, conversationId: string) {

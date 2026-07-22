@@ -5751,7 +5751,9 @@ export default function WhatsAppConversationsPage() {
   const draftParam = searchParams.get("text");
   const autoSelectedPhoneRef = useRef(false);
   const [deepLinkedId, setDeepLinkedId] = useState<string | null>(null);
-  // selectedId holds either a clientId or a conversationId (for unknown contacts)
+  // selectedId sempre é o conversationId — nunca clientId, pois um mesmo
+  // cliente pode ter várias conversas paralelas (uma por canal/atendente) e
+  // clientId sozinho não identifica qual delas está selecionada.
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState(phoneParam ?? "");
   const [newConvOpen, setNewConvOpen] = useState(false);
@@ -6005,9 +6007,8 @@ export default function WhatsAppConversationsPage() {
       return digits && (digits.endsWith(target) || target.endsWith(digits));
     });
     if (match) {
-      const id = match.clientId ?? match.conversationId;
-      setSelectedId(id);
-      setDeepLinkedId(id);
+      setSelectedId(match.conversationId);
+      setDeepLinkedId(match.conversationId);
       autoSelectedPhoneRef.current = true;
     }
   }, [clientList, phoneParam]);
@@ -6062,12 +6063,15 @@ export default function WhatsAppConversationsPage() {
     markRead(id);
   };
 
-  // After creating a client from an unknown conversation, switch to clientId-based selection
-  const handleClientLinked = (clientId: string) => {
-    setSelectedId(clientId);
-    queryClient.invalidateQueries({
-      queryKey: ["/api/whatsapp/conversations", clientId],
-    });
+  // Depois de criar/vincular um cliente a partir de uma conversa desconhecida:
+  // a seleção continua pelo mesmo conversationId (ele não muda ao vincular um
+  // cliente), só precisamos invalidar as queries para refletir o novo clientId.
+  const handleClientLinked = () => {
+    if (selectedId) {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/whatsapp/conversations", selectedId],
+      });
+    }
     queryClient.invalidateQueries({
       queryKey: ["/api/whatsapp/conversations-list"],
     });
@@ -6077,9 +6081,7 @@ export default function WhatsAppConversationsPage() {
 
   const selectedClient =
     selectedId != null
-      ? (clientList.find(
-          (c) => c.clientId === selectedId || c.conversationId === selectedId,
-        ) ?? null)
+      ? (clientList.find((c) => c.conversationId === selectedId) ?? null)
       : null;
 
   // Marca que a página inteira de conversas está montada (independente de
@@ -6948,15 +6950,9 @@ export default function WhatsAppConversationsPage() {
                 key={client.conversationId}
                 client={client}
                 selected={
-                  selectedId != null &&
-                  (client.clientId === selectedId ||
-                    client.conversationId === selectedId)
+                  selectedId != null && client.conversationId === selectedId
                 }
-                onClick={() =>
-                  handleSelectConversation(
-                    client.clientId ?? client.conversationId,
-                  )
-                }
+                onClick={() => handleSelectConversation(client.conversationId)}
                 availableTags={availableWaTags}
                 onTagsChange={(clientId, tagIds) =>
                   setTagsMutation.mutate({ clientId, tagIds })
@@ -6991,17 +6987,13 @@ export default function WhatsAppConversationsPage() {
         {selectedClient ? (
           <ConversationMessages
             key={selectedClient.conversationId}
-            conversationKey={
-              selectedClient.clientId ?? selectedClient.conversationId
-            }
+            conversationKey={selectedClient.conversationId}
             client={selectedClient}
             onBack={handleBack}
             channels={availableChannels}
             userRole={user?.role ?? "vendedor"}
             initialDraft={
-              deepLinkedId &&
-              deepLinkedId ===
-                (selectedClient.clientId ?? selectedClient.conversationId)
+              deepLinkedId && deepLinkedId === selectedClient.conversationId
                 ? (draftParam ?? undefined)
                 : undefined
             }

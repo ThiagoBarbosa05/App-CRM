@@ -71,19 +71,21 @@ getListenClient().catch((err) =>
   console.error("[SSE hub] Falha ao iniciar LISTEN de eventos SSE:", err),
 );
 
-// Per-conversation (WhatsApp clientId) subscribers
+// Per-conversation (whatsapp_conversations.id) subscribers — um cliente pode
+// ter várias conversas paralelas (uma por canal/atendente), então a chave
+// precisa ser o conversationId, nunca o clientId (que é ambíguo entre elas).
 type ConversationSubscriber = { userId: string; role: string; res: Response };
 const conversationClients = new Map<string, Set<ConversationSubscriber>>();
 
 export function addConversationSseClient(
-  clientId: string,
+  conversationId: string,
   userId: string,
   role: string,
   res: Response,
 ): () => void {
   const subscriber: ConversationSubscriber = { userId, role, res };
-  if (!conversationClients.has(clientId)) conversationClients.set(clientId, new Set());
-  conversationClients.get(clientId)!.add(subscriber);
+  if (!conversationClients.has(conversationId)) conversationClients.set(conversationId, new Set());
+  conversationClients.get(conversationId)!.add(subscriber);
   res.write(`:ok\n\n`);
   const ping = setInterval(() => {
     try {
@@ -94,16 +96,16 @@ export function addConversationSseClient(
   }, 25_000);
   return () => {
     clearInterval(ping);
-    const set = conversationClients.get(clientId);
+    const set = conversationClients.get(conversationId);
     if (set) {
       set.delete(subscriber);
-      if (set.size === 0) conversationClients.delete(clientId);
+      if (set.size === 0) conversationClients.delete(conversationId);
     }
   };
 }
 
-export function publishConversationEvent(clientId: string, event: string, data: unknown): void {
-  const set = conversationClients.get(clientId);
+export function publishConversationEvent(conversationId: string, event: string, data: unknown): void {
+  const set = conversationClients.get(conversationId);
   if (!set) return;
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const sub of set) {
@@ -125,10 +127,10 @@ export function publishConversationEvent(clientId: string, event: string, data: 
  * whatsapp-conversations.service.ts, que já importa deste módulo.
  */
 export async function revokeStaleConversationAccess(
-  clientId: string,
+  conversationId: string,
   checkAccess: (userId: string, role: string) => Promise<boolean>,
 ): Promise<void> {
-  const set = conversationClients.get(clientId);
+  const set = conversationClients.get(conversationId);
   if (!set) return;
   for (const sub of Array.from(set)) {
     const stillAllowed = await checkAccess(sub.userId, sub.role);
@@ -141,7 +143,7 @@ export async function revokeStaleConversationAccess(
     }
     set.delete(sub);
   }
-  if (set.size === 0) conversationClients.delete(clientId);
+  if (set.size === 0) conversationClients.delete(conversationId);
 }
 
 export function addSseClient(userId: string, res: Response): () => void {

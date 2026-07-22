@@ -272,7 +272,10 @@ router.get("/conversations/:clientId/stream", async (req, res) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
-  const cleanup = addConversationSseClient(req.params.clientId, user.userId, user.role, res);
+  // Assina pelo conversationId resolvido (não pelo param bruto) — várias
+  // conversas paralelas podem existir para o mesmo clientId, e publishConversationEvent
+  // agora publica sempre por conversation.id.
+  const cleanup = addConversationSseClient(conversationId ?? req.params.clientId, user.userId, user.role, res);
   req.on("close", cleanup);
 });
 
