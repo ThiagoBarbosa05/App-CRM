@@ -231,8 +231,8 @@ function UnitDialog({
                 <FormItem>
                   <FormLabel>Catálogo Bling</FormLabel>
                   <Select
-                    value={field.value ?? ""}
-                    onValueChange={field.onChange}
+                    value={field.value || "__none__"}
+                    onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -240,7 +240,7 @@ function UnitDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Sem catálogo Bling</SelectItem>
+                      <SelectItem value="__none__">Sem catálogo Bling</SelectItem>
                       {connectedAccounts.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
                           {a.blingAccountName ?? a.name}

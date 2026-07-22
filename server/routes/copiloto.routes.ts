@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { eq, inArray, and, isNull } from "drizzle-orm";
 
 import { requireAuth } from "../middleware/validation";
 import {
@@ -8,6 +9,9 @@ import {
   scanCopilotoSignals,
   type CopilotoAction,
 } from "../services/copiloto.service";
+import { generateSuggestionsBatch } from "../services/copiloto-ai.service";
+import { db } from "../db";
+import { copilotoSignals, users, type CopilotoSignalType } from "@shared/schema";
 
 const copilotoRouter = Router();
 
@@ -167,6 +171,88 @@ copilotoRouter.post("/scan-seller", requireAuth, async (req: Request, res: Respo
   } catch (error) {
     console.error("[copiloto] Erro na varredura por vendedor:", error);
     return res.status(500).json({ message: "Erro ao gerar fila do vendedor" });
+  }
+});
+
+/**
+ * Gera (ou regenera) mensagens da IA para os cards pendentes de um vendedor
+ * que ainda não têm suggested_message. Não recalcula sinais nem muda a fila —
+ * só preenche o campo de mensagem nos cards já existentes.
+ */
+copilotoRouter.post("/generate-messages", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const user = req.user!;
+    const isManager =
+      user.role === "admin" ||
+      user.role === "administrador" ||
+      user.role === "gerente";
+
+    const rawSellerId = req.body?.sellerId;
+    const targetSellerId =
+      typeof rawSellerId === "string" && rawSellerId && isManager
+        ? rawSellerId
+        : user.userId;
+
+    if (rawSellerId && rawSellerId !== user.userId && !isManager) {
+      return res.status(403).json({ message: "Sem permissão" });
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ message: "IA não configurada neste servidor." });
+    }
+
+    const [[seller], cardsNeedingAi] = await Promise.all([
+      db.select({ name: users.name }).from(users).where(eq(users.id, targetSellerId)).limit(1),
+      db
+        .select({
+          id: copilotoSignals.id,
+          type: copilotoSignals.type,
+          reason: copilotoSignals.reason,
+          payload: copilotoSignals.payload,
+        })
+        .from(copilotoSignals)
+        .where(
+          and(
+            eq(copilotoSignals.sellerId, targetSellerId),
+            inArray(copilotoSignals.status, ["pending", "backlog"]),
+            isNull(copilotoSignals.suggestedMessage),
+          ),
+        ),
+    ]);
+
+    if (cardsNeedingAi.length === 0) {
+      return res.json({ ok: true, generated: 0 });
+    }
+
+    const suggestions = await generateSuggestionsBatch(
+      cardsNeedingAi.map((c) => ({
+        clientName: String((c.payload as Record<string, unknown>)?.clientName ?? ""),
+        sellerName: seller?.name ?? "",
+        type: c.type as CopilotoSignalType,
+        reason: c.reason,
+        payload: c.payload as Record<string, unknown>,
+      })),
+    );
+
+    const now = new Date();
+    let generated = 0;
+    await Promise.all(
+      cardsNeedingAi.map((card, index) => {
+        const suggestion = suggestions[index];
+        if (!suggestion) return Promise.resolve();
+        generated++;
+        return db
+          .update(copilotoSignals)
+          .set({ suggestedMessage: suggestion.mensagem, aiGeneratedAt: now })
+          .where(eq(copilotoSignals.id, card.id));
+      }),
+    );
+
+    console.log(`[copiloto] ${generated} mensagem(s) gerada(s) pela IA para vendedor ${targetSellerId}`);
+    return res.json({ ok: true, generated });
+  } catch (error) {
+    console.error("[copiloto] Erro ao gerar mensagens:", error);
+    return res.status(500).json({ message: "Erro ao gerar mensagens" });
   }
 });
 
