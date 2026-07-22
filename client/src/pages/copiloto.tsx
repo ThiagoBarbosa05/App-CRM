@@ -19,6 +19,7 @@ import {
   Plus,
   Users,
   RefreshCw,
+  MessageSquarePlus,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { Link, useLocation } from "wouter";
@@ -625,6 +626,30 @@ export default function CopilotoPage() {
     },
   });
 
+  const generateMessagesMutation = useMutation({
+    mutationFn: async () => {
+      const body =
+        isInspecting && viewSellerId !== OWN_QUEUE
+          ? { sellerId: viewSellerId }
+          : {};
+      const res = await apiRequest("POST", "/api/copiloto/generate-messages", body);
+      return (await res.json()) as { generated: number };
+    },
+    onSuccess: (result) => {
+      if (result.generated === 0) {
+        toast({ title: "Todos os cards já têm mensagem da IA." });
+      } else {
+        toast({
+          title: `${result.generated} mensagem${result.generated !== 1 ? "s" : ""} gerada${result.generated !== 1 ? "s" : ""} pela IA.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/copiloto/feed"] });
+      }
+    },
+    onError: () => {
+      toast({ title: "Erro ao gerar mensagens", variant: "destructive" });
+    },
+  });
+
   const scanSellerMutation = useMutation({
     mutationFn: async (sellerId: string) => {
       const res = await apiRequest("POST", "/api/copiloto/scan-seller", { sellerId });
@@ -718,45 +743,63 @@ export default function CopilotoPage() {
             <Sparkles className="h-5 w-5 text-primary" />
             <h1 className="text-xl font-bold text-foreground">Copiloto</h1>
           </div>
-          {isManager && sellers.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Select value={viewSellerId} onValueChange={setViewSellerId}>
-                <SelectTrigger className="w-[220px]">
-                  <Users className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={OWN_QUEUE}>Minha fila</SelectItem>
-                  {sellers.map((seller) => (
-                    <SelectItem key={seller.id} value={seller.id}>
-                      {seller.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="flex items-center gap-2">
+            {isManager && sellers.length > 0 && (
+              <>
+                <Select value={viewSellerId} onValueChange={setViewSellerId}>
+                  <SelectTrigger className="w-[220px]">
+                    <Users className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={OWN_QUEUE}>Minha fila</SelectItem>
+                    {sellers.map((seller) => (
+                      <SelectItem key={seller.id} value={seller.id}>
+                        {seller.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={scanSellerMutation.isPending}
+                  onClick={() => {
+                    const targetId = viewSellerId === OWN_QUEUE ? user?.id : viewSellerId;
+                    if (targetId) scanSellerMutation.mutate(targetId);
+                  }}
+                  title={
+                    viewSellerId === OWN_QUEUE
+                      ? "Gerar fila para meus clientes"
+                      : `Gerar fila para ${viewedSellerName || "vendedor"}`
+                  }
+                >
+                  {scanSellerMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  <span className="ml-1.5 hidden sm:inline">Gerar fila</span>
+                </Button>
+              </>
+            )}
+            {totalCards > 0 && (
               <Button
                 size="sm"
                 variant="outline"
-                disabled={scanSellerMutation.isPending}
-                onClick={() => {
-                  const targetId = viewSellerId === OWN_QUEUE ? user?.id : viewSellerId;
-                  if (targetId) scanSellerMutation.mutate(targetId);
-                }}
-                title={
-                  viewSellerId === OWN_QUEUE
-                    ? "Gerar fila para meus clientes"
-                    : `Gerar fila para ${viewedSellerName || "vendedor"}`
-                }
+                disabled={generateMessagesMutation.isPending}
+                onClick={() => generateMessagesMutation.mutate()}
+                title="Gerar sugestões de mensagem da IA para os cards da fila"
               >
-                {scanSellerMutation.isPending ? (
+                {generateMessagesMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="h-4 w-4" />
+                  <MessageSquarePlus className="h-4 w-4" />
                 )}
-                <span className="ml-1.5 hidden sm:inline">Gerar fila</span>
+                <span className="ml-1.5 hidden sm:inline">Sugestões IA</span>
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         {isInspecting ? (
           <p className="mt-2 text-lg text-foreground">
