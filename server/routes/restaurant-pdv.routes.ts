@@ -1,9 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
 import {
-  listMenuItemsController,
-  createMenuItemController,
-  updateMenuItemController,
-  deactivateMenuItemController,
   openOrderController,
   getOrderController,
   listOrdersController,
@@ -130,12 +126,6 @@ restaurantPdvRouter.get("/tables", requireGestor, listTablesController);
 restaurantPdvRouter.post("/tables", requireGestor, createTableController);
 restaurantPdvRouter.put("/tables/:id", requireGestor, updateTableController);
 restaurantPdvRouter.delete("/tables/:id", requireGestor, deactivateTableController);
-
-// ── Cardápio ─────────────────────────────────────────────────────────────────
-restaurantPdvRouter.get("/menu-items", requireGarcomOrGestor, listMenuItemsController);
-restaurantPdvRouter.post("/menu-items", requireGestor, createMenuItemController);
-restaurantPdvRouter.put("/menu-items/:id", requireGestor, updateMenuItemController);
-restaurantPdvRouter.delete("/menu-items/:id", requireGestor, deactivateMenuItemController);
 
 // ── Comandas ─────────────────────────────────────────────────────────────────
 restaurantPdvRouter.get("/orders", requireGestor, listOrdersController);

@@ -36,7 +36,6 @@ import { ptBR } from "date-fns/locale";
 import { calculateOrderTotals } from "@shared/restaurant-order-totals";
 import type {
   Product,
-  RestaurantMenuItem,
   RestaurantOrderItem,
   RestaurantOrder,
   RestaurantPdvSettings,
@@ -57,7 +56,6 @@ export interface CartItem {
   name: string;
   unitPrice: string;
   quantity: number;
-  menuItemId?: string | null;
   productId?: string | null;
   notes?: string;
 }
@@ -321,28 +319,6 @@ export default function RestaurantPos() {
     setActiveOrder(null);
   };
 
-  const handleAddMenuItem = (menuItem: RestaurantMenuItem) => {
-    setCart((prev) => {
-      const existing = prev.find((i) => i.menuItemId === menuItem.id);
-      if (existing) {
-        return prev.map((i) =>
-          i.menuItemId === menuItem.id ? { ...i, quantity: i.quantity + 1 } : i,
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: `menu-${menuItem.id}`,
-          name: menuItem.name,
-          unitPrice: menuItem.price,
-          quantity: 1,
-          menuItemId: menuItem.id,
-          productId: null,
-        },
-      ];
-    });
-  };
-
   const handleAddProduct = (product: Product) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id);
@@ -363,20 +339,6 @@ export default function RestaurantPos() {
         },
       ];
     });
-  };
-
-  const handleAddCustomItem = (name: string, unitPrice: string) => {
-    setCart((prev) => [
-      ...prev,
-      {
-        id: `custom-${Date.now()}-${Math.random()}`,
-        name,
-        unitPrice,
-        quantity: 1,
-        menuItemId: null,
-        productId: null,
-      },
-    ]);
   };
 
   const handleCartIncrement = (id: string) => {
@@ -415,7 +377,6 @@ export default function RestaurantPos() {
     for (const item of itemsToSubmit) {
       try {
         await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/items`, {
-          menuItemId: item.menuItemId,
           productId: item.productId,
           name: item.name,
           unitPrice: item.unitPrice,
@@ -608,9 +569,7 @@ export default function RestaurantPos() {
                   <OrderItemSelector
                     blingConnectionId={order.blingConnectionId}
                     cart={cart}
-                    onAddMenuItem={handleAddMenuItem}
                     onAddProduct={handleAddProduct}
-                    onAddCustomItem={handleAddCustomItem}
                     onCartIncrement={handleCartIncrement}
                     onCartDecrement={handleCartDecrement}
                     onCartRemove={handleCartRemove}
