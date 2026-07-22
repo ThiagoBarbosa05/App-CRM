@@ -26,6 +26,7 @@ import {
   getSalesReportController,
   getCancellationsReportController,
   forceCancelOrderController,
+  updateOrderPeopleCountController,
 } from "../controllers/restaurant-pdv";
 import {
   openCashSessionController,
@@ -219,3 +220,4 @@ restaurantPdvRouter.put("/settings", requireGestor, updatePdvSettingsController)
 restaurantPdvRouter.get("/clients/search", requireGarcomOrGestor, searchClientsController);
 restaurantPdvRouter.post("/clients", requireGarcomOrGestor, quickCreateClientController);
 restaurantPdvRouter.patch("/orders/:id/client", requireGarcomOrGestor, updateOrderClientController);
+restaurantPdvRouter.patch("/orders/:id/people-count", requireGarcomOrGestor, updateOrderPeopleCountController);

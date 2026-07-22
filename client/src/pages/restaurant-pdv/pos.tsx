@@ -10,6 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -26,6 +31,8 @@ import {
   Combine,
   Lock,
   LogOut,
+  Minus,
+  Plus,
   UserPlus,
   Users,
   UtensilsCrossed,
@@ -89,6 +96,8 @@ export default function RestaurantPos() {
   const [isSubmittingCart, setIsSubmittingCart] = useState(false);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
   const [linkClientOpen, setLinkClientOpen] = useState(false);
+  const [peopleCountPopoverOpen, setPeopleCountPopoverOpen] = useState(false);
+  const [editingPeopleCount, setEditingPeopleCount] = useState(1);
 
   const setActiveOrder = (id: string | null) => {
     navigate(id ? `/pdv-restaurante?orderId=${id}` : "/pdv-restaurante");
@@ -225,6 +234,21 @@ export default function RestaurantPos() {
     onSuccess: invalidateOrder,
     onError: (err: Error) => {
       toast({ title: "Erro ao remover desconto", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updatePeopleCountMutation = useMutation({
+    mutationFn: async (count: number) => {
+      await apiRequest("PATCH", `/api/restaurant-pdv/orders/${activeOrderId}/people-count`, {
+        peopleCount: count,
+      });
+    },
+    onSuccess: () => {
+      invalidateOrder();
+      setPeopleCountPopoverOpen(false);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao atualizar número de pessoas", description: err.message, variant: "destructive" });
     },
   });
 
@@ -494,10 +518,57 @@ export default function RestaurantPos() {
               >
                 {order.paymentRequestedAt ? "Aguardando pagamento" : order.status}
               </Badge>
-              <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                <Users className="h-3 w-3" />
-                {order.peopleCount}p
-              </span>
+              <Popover
+                open={peopleCountPopoverOpen}
+                onOpenChange={(open) => {
+                  if (open) setEditingPeopleCount(order.peopleCount);
+                  setPeopleCountPopoverOpen(open);
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <button
+                    className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground shrink-0 rounded px-1 py-0.5 hover:bg-muted hover:text-foreground transition-colors"
+                    title="Alterar número de pessoas"
+                  >
+                    <Users className="h-3 w-3" />
+                    {order.peopleCount}p
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-3" align="start">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Número de pessoas</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => setEditingPeopleCount((v) => Math.max(1, v - 1))}
+                      disabled={editingPeopleCount <= 1}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="flex-1 text-center text-base font-semibold tabular-nums">
+                      {editingPeopleCount}
+                    </span>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => setEditingPeopleCount((v) => Math.min(100, v + 1))}
+                      disabled={editingPeopleCount >= 100}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="mt-3 w-full"
+                    disabled={editingPeopleCount === order.peopleCount || updatePeopleCountMutation.isPending}
+                    onClick={() => updatePeopleCountMutation.mutate(editingPeopleCount)}
+                  >
+                    {updatePeopleCountMutation.isPending ? "Salvando..." : "Confirmar"}
+                  </Button>
+                </PopoverContent>
+              </Popover>
               <span className="hidden md:flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                 <Clock className="h-3 w-3" />
                 {formatDistanceToNowStrict(new Date(order.openedAt), { locale: ptBR })}
