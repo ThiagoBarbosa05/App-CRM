@@ -97,47 +97,30 @@ restaurantPdvRouter.get("/products", requireGarcomOrGestor, async (req: Request,
   }
 });
 
-/** Lista as categorias distintas dos produtos mapeados para esta conexão Bling. */
-restaurantPdvRouter.get("/products/categories", requireGarcomOrGestor, async (req: Request, res: Response) => {
+/** Lista categorias e países distintos dos produtos mapeados para esta conexão Bling. */
+restaurantPdvRouter.get("/products/filters", requireGarcomOrGestor, async (req: Request, res: Response) => {
   try {
     const { connectionId } = req.query;
-    if (!connectionId) return res.json({ categories: [] });
+    if (!connectionId) return res.json({ categories: [], countries: [] });
 
     const { data } = await storage.getProducts(
       { connectionId: connectionId as string },
       1,
       2000,
     );
-    const unique = [...new Set(
+
+    const categories = [...new Set(
       data.map((p: { category?: string }) => p.category).filter(Boolean) as string[]
     )].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-    return res.json({ categories: unique });
-  } catch (err) {
-    console.error("[PDV] Erro ao buscar categorias:", err);
-    return res.status(500).json({ message: "Erro ao buscar categorias" });
-  }
-});
-
-/** Lista os países distintos dos produtos mapeados para esta conexão Bling. */
-restaurantPdvRouter.get("/products/countries", requireGarcomOrGestor, async (req: Request, res: Response) => {
-  try {
-    const { connectionId } = req.query;
-    if (!connectionId) return res.json({ countries: [] });
-
-    const { data } = await storage.getProducts(
-      { connectionId: connectionId as string },
-      1,
-      2000,
-    );
-    const unique = [...new Set(
+    const countries = [...new Set(
       data.map((p: { country?: string }) => p.country).filter(Boolean) as string[]
     )].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-    return res.json({ countries: unique });
+    return res.json({ categories, countries });
   } catch (err) {
-    console.error("[PDV] Erro ao buscar países:", err);
-    return res.status(500).json({ message: "Erro ao buscar países" });
+    console.error("[PDV] Erro ao buscar filtros:", err);
+    return res.status(500).json({ message: "Erro ao buscar filtros" });
   }
 });
 

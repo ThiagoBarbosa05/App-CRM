@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn, formatCurrency } from "@/lib/utils";
+import { getCountryFlag } from "@/lib/country-flags";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,16 +18,14 @@ import type { Product } from "@shared/schema";
 import type { CartItem } from "@/pages/restaurant-pdv/pos";
 
 const HIDDEN_CATEGORIES = new Set(["NATAL", "OUTROS", "ACESSORIOS"]);
+const HIDDEN_COUNTRIES = new Set(["OUTROS"]);
 
 interface ProductsResponse {
   data: Product[];
 }
 
-interface CategoriesResponse {
+interface FiltersResponse {
   categories: string[];
-}
-
-interface CountriesResponse {
   countries: string[];
 }
 
@@ -74,34 +73,24 @@ export function OrderItemSelector({
     }
   }, [productSearch]);
 
-  const { data: categoriesResponse } = useQuery<CategoriesResponse>({
-    queryKey: ["/api/restaurant-pdv/products/categories", { connectionId: blingConnectionId }],
+  const { data: filtersResponse } = useQuery<FiltersResponse>({
+    queryKey: ["/api/restaurant-pdv/products/filters", { connectionId: blingConnectionId }],
     queryFn: async () => {
       const params = new URLSearchParams({ connectionId: blingConnectionId! });
-      const res = await fetch(`/api/restaurant-pdv/products/categories?${params}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Erro ao buscar categorias");
+      const res = await fetch(`/api/restaurant-pdv/products/filters?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erro ao buscar filtros");
       return res.json();
     },
     enabled: !!blingConnectionId,
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: countriesResponse } = useQuery<CountriesResponse>({
-    queryKey: ["/api/restaurant-pdv/products/countries", { connectionId: blingConnectionId }],
-    queryFn: async () => {
-      const params = new URLSearchParams({ connectionId: blingConnectionId! });
-      const res = await fetch(`/api/restaurant-pdv/products/countries?${params}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Erro ao buscar países");
-      return res.json();
-    },
-    enabled: !!blingConnectionId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const categories = (categoriesResponse?.categories ?? []).filter(
+  const categories = (filtersResponse?.categories ?? []).filter(
     (c) => !HIDDEN_CATEGORIES.has(c.toUpperCase()),
   );
-  const countries = countriesResponse?.countries ?? [];
+  const countries = (filtersResponse?.countries ?? []).filter(
+    (c) => !HIDDEN_COUNTRIES.has(c.toUpperCase()),
+  );
 
   const { data: productsResponse, isFetching: isFetchingProducts } =
     useQuery<ProductsResponse>({
@@ -196,7 +185,7 @@ export function OrderItemSelector({
                 }}
                 className={cn(chipBase, selectedCountry === country ? chipActive : chipIdle)}
               >
-                {country}
+                {getCountryFlag(country)} {country}
               </button>
             ))}
           </div>
