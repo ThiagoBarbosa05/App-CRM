@@ -5601,14 +5601,14 @@ function NewConversationDialog({
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message ?? "Erro ao iniciar conversa");
       }
-      return res.json() as Promise<{ clientId: string }>;
+      return res.json() as Promise<{ clientId: string; conversationId: string }>;
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({
         queryKey: ["/api/whatsapp/conversations-list"],
       });
       onOpenChange(false);
-      onSelect(result.clientId);
+      onSelect(result.conversationId);
     },
     onError: (err: Error) => {
       toast({ title: err.message, variant: "destructive" });

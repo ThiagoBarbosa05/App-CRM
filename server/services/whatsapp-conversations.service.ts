@@ -15,7 +15,7 @@ import {
   whatsappSectors,
   users,
 } from "../../shared/schema";
-import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt } from "drizzle-orm";
+import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
@@ -36,23 +36,22 @@ export function normalizePhone(phone: string) {
 }
 
 // Escopo de visibilidade de um vendedor sobre conversas de WhatsApp: conversas
-// atribuídas a ele, conversas sem atribuição de clientes onde ele é o
-// responsável no CRM, e conversas da fila de setor (setor = fila; transferir
+// atribuídas a ele e conversas da fila de setor (setor = fila; transferir
 // para um setor sem escolher atendente deixa a conversa visível aos membros
 // dele). A visibilidade pela fila exige setor E canal permitidos — um vendedor
 // só vê a fila de um setor nos canais aos quais também tem acesso (ex: setor
 // "Suporte" recebe em vários números, mas o atendente só vê o que chegou pelos
 // números dele). Conversas já atribuídas diretamente continuam sempre visíveis,
-// independente de canal — isso é posse, não fila.
+// independente de canal — isso é posse, não fila. Ser "responsável" do
+// cliente no CRM NÃO dá acesso à conversa por si só (isso vale só para a
+// busca de cliente ao iniciar uma conversa nova, ver isClientAccessibleToUser)
+// — receber mensagem de um contato que não é "seu" no CRM é esperado.
 async function vendorScopeCondition(userId: string) {
   const [sectorIds, channelIds] = await Promise.all([
     listSectorIdsForUser(userId),
     listChannelIdsForUser(userId),
   ]);
-  const clauses = [
-    eq(whatsappConversations.assignedAgentId, userId),
-    and(isNull(whatsappConversations.assignedAgentId), eq(clients.responsavelId, userId)),
-  ];
+  const clauses: (SQL<unknown> | undefined)[] = [eq(whatsappConversations.assignedAgentId, userId)];
   if (sectorIds.length > 0 && channelIds.length > 0) {
     clauses.push(
       and(
