@@ -144,10 +144,14 @@ apiRouter.use("/elevenlabs", elevenLabsRouter);
 // Todas as rotas registradas abaixo exigem JWT válido no cookie auth_token
 apiRouter.use(requireAuth);
 
-// Garçom só pode acessar as rotas do PDV Restaurante — mesmo com JWT válido,
-// qualquer outra rota da API retorna 403 (espelha a restrição já feita no frontend)
+// Garçom só pode acessar as rotas do PDV Restaurante e produtos Bling — mesmo
+// com JWT válido, qualquer outra rota da API retorna 403
 apiRouter.use((req, res, next) => {
-  if (req.user?.role === "garcom" && !req.path.startsWith("/restaurant-pdv")) {
+  if (
+    req.user?.role === "garcom" &&
+    !req.path.startsWith("/restaurant-pdv") &&
+    !req.path.startsWith("/products")
+  ) {
     return res.status(403).json({
       message: "Acesso restrito à tela de PDV",
       code: "FORBIDDEN",
