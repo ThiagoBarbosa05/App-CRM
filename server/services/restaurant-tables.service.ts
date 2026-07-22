@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { restaurantTables, restaurantOrders } from "../../shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import type { RestaurantTable, InsertRestaurantTable } from "../../shared/schema";
 
 export type TableStatus = "livre" | "ocupada" | "aguardando_pagamento";
@@ -12,6 +12,7 @@ export interface RestaurantTableWithStatus extends RestaurantTable {
   peopleCount: number | null;
   openedAt: Date | null;
   waiterId: string | null;
+  orderSubtotal: string | null;
 }
 
 export const restaurantTablesService = {
@@ -80,6 +81,11 @@ export const restaurantTablesService = {
         peopleCount: restaurantOrders.peopleCount,
         openedAt: restaurantOrders.openedAt,
         waiterId: restaurantOrders.waiterId,
+        orderSubtotal: sql<string>`(
+          SELECT COALESCE(SUM(unit_price::numeric * quantity), 0)::text
+          FROM restaurant_order_items
+          WHERE order_id = ${restaurantOrders.id} AND status = 'ativo'
+        )`,
       })
       .from(restaurantOrders)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -101,6 +107,7 @@ export const restaurantTablesService = {
       peopleCount: o.peopleCount ?? null,
       openedAt: o.openedAt ?? null,
       waiterId: o.waiterId ?? null,
+      orderSubtotal: o.orderSubtotal ?? null,
     }));
   },
 };

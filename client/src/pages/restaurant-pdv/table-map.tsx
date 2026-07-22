@@ -139,6 +139,7 @@ export interface RestaurantTableWithStatus {
   peopleCount: number | null;
   openedAt: string | null;
   waiterId: string | null;
+  orderSubtotal: string | null;
 }
 
 function elapsedLabel(openedAt: string | null) {
@@ -372,6 +373,14 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
                       </div>
                     )}
                   </div>
+
+                  {table.orderSubtotal != null && parseFloat(table.orderSubtotal) > 0 && (
+                    <div className="mt-2 pt-2 border-t border-current/10">
+                      <span className="text-sm font-semibold">
+                        {formatCurrency(table.orderSubtotal)}
+                      </span>
+                    </div>
+                  )}
 
                   {isAguardando && (
                     <span className="mt-2 self-start rounded-full bg-blue-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-blue-800 dark:bg-blue-900 dark:text-blue-200">
