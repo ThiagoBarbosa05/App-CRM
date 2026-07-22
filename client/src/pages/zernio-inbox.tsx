@@ -38,7 +38,6 @@ import {
   Instagram,
   Facebook,
   Twitter,
-  Wifi,
   WifiOff,
   AlertCircle,
   Loader2,
@@ -46,7 +45,27 @@ import {
   UserCheck,
   X,
   Link2,
+  Paperclip,
 } from "lucide-react";
+
+// Paleta de cores para os avatares — determinística por contato, para
+// diferenciar visualmente as conversas na lista sem depender de foto de perfil.
+const AVATAR_PALETTE = [
+  "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
+  "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300",
+  "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300",
+  "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
+];
+
+function avatarColor(seed: string) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+}
 
 const PLATFORM_LABELS: Record<string, string> = {
   instagram: "Instagram",
@@ -60,34 +79,23 @@ const PLATFORM_LABELS: Record<string, string> = {
   all: "Todas as plataformas",
 };
 
-const PLATFORM_COLORS: Record<string, string> = {
-  instagram: "bg-pink-100 text-pink-700 border-pink-200",
-  facebook: "bg-blue-100 text-blue-700 border-blue-200",
-  whatsapp: "bg-green-100 text-green-700 border-green-200",
-  telegram: "bg-sky-100 text-sky-700 border-sky-200",
-  twitter: "bg-slate-100 text-slate-700 border-slate-200",
-  x: "bg-slate-100 text-slate-700 border-slate-200",
-  bluesky: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  reddit: "bg-orange-100 text-orange-700 border-orange-200",
+const PLATFORM_ICON_BG: Record<string, string> = {
+  instagram: "bg-gradient-to-br from-fuchsia-500 to-pink-500",
+  facebook: "bg-blue-600",
+  whatsapp: "bg-green-500",
+  telegram: "bg-sky-500",
+  twitter: "bg-slate-800",
+  x: "bg-slate-800",
+  bluesky: "bg-indigo-500",
+  reddit: "bg-orange-500",
 };
 
-function PlatformIcon({ platform }: { platform: string }) {
-  if (platform === "instagram") return <Instagram className="h-3.5 w-3.5" />;
-  if (platform === "facebook") return <Facebook className="h-3.5 w-3.5" />;
-  if (platform === "twitter" || platform === "x") return <Twitter className="h-3.5 w-3.5" />;
-  return <MessageSquare className="h-3.5 w-3.5" />;
-}
-
-function PlatformBadge({ platform }: { platform: string }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn("text-[10px] px-1.5 py-0 h-4 gap-1 capitalize", PLATFORM_COLORS[platform] ?? "bg-slate-100 text-slate-600")}
-    >
-      <PlatformIcon platform={platform} />
-      {PLATFORM_LABELS[platform] ?? platform}
-    </Badge>
-  );
+function PlatformIcon({ platform, className }: { platform: string; className?: string }) {
+  const cls = className ?? "h-3.5 w-3.5";
+  if (platform === "instagram") return <Instagram className={cls} />;
+  if (platform === "facebook") return <Facebook className={cls} />;
+  if (platform === "twitter" || platform === "x") return <Twitter className={cls} />;
+  return <MessageSquare className={cls} />;
 }
 
 function formatTime(ts: string) {
@@ -127,6 +135,19 @@ interface ConversationListData {
   pagination?: { nextCursor?: string };
 }
 
+interface ZernioAccount {
+  _id?: string;
+  accountId?: string;
+  platform: string;
+  username?: string;
+  displayName?: string;
+}
+
+interface AccountsData {
+  data?: ZernioAccount[];
+  accounts?: ZernioAccount[];
+}
+
 interface MessagesData {
   data: ZernioMessage[];
   pagination?: { nextCursor?: string };
@@ -153,6 +174,31 @@ export default function ZernioInboxPage() {
   const { data: status } = useQuery<{ configured: boolean; ok?: boolean }>({
     queryKey: ["/api/zernio/status"],
   });
+
+  // Contas conectadas (para exibir o @usuário do Instagram/etc. dono de cada conversa)
+  const { data: accountsData } = useQuery<AccountsData>({
+    queryKey: ["/api/zernio/accounts"],
+    queryFn: async () => {
+      const resp = await fetch("/api/zernio/accounts", { credentials: "include" });
+      if (!resp.ok) throw new Error("Erro ao carregar contas conectadas");
+      return resp.json();
+    },
+    enabled: status?.configured === true,
+    staleTime: 5 * 60_000,
+  });
+
+  const accountsById = new Map<string, ZernioAccount>();
+  for (const acc of accountsData?.accounts ?? accountsData?.data ?? []) {
+    const id = acc.accountId ?? acc._id;
+    if (id) accountsById.set(id, acc);
+  }
+  const accountLabel = (accountId?: string) => {
+    if (!accountId) return null;
+    const acc = accountsById.get(accountId);
+    if (!acc) return null;
+    const handle = acc.username ?? acc.displayName;
+    return handle ? (handle.startsWith("@") ? handle : `@${handle}`) : null;
+  };
 
   // Lista de conversas
   const { data: convsData, isLoading: convsLoading, refetch: refetchConvs } = useQuery<ConversationListData>({
@@ -317,6 +363,7 @@ export default function ZernioInboxPage() {
     return name.toLowerCase().includes(search.toLowerCase());
   });
   const messages = msgsData?.data ?? [];
+  const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
 
   const convName = (c: ZernioConversation) =>
     c.participant?.name ?? c.participant?.username ?? c.participant?.id ?? "Desconhecido";
@@ -325,10 +372,12 @@ export default function ZernioInboxPage() {
   if (status && !status.configured) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
-        <AlertCircle className="h-12 w-12 text-amber-400" />
+        <div className="h-16 w-16 rounded-2xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
+          <AlertCircle className="h-8 w-8 text-amber-500" />
+        </div>
         <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-300">Zernio não configurado</h2>
-        <p className="text-sm text-slate-500 max-w-sm">
-          A chave de API do Zernio (<code>ZERNIO_API_KEY</code>) não foi encontrada. Adicione-a nas configurações do projeto e reinicie o servidor.
+        <p className="text-sm text-slate-500 max-w-sm leading-relaxed">
+          A chave de API do Zernio (<code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px]">ZERNIO_API_KEY</code>) não foi encontrada. Adicione-a nas configurações do projeto e reinicie o servidor.
         </p>
       </div>
     );
@@ -344,23 +393,48 @@ export default function ZernioInboxPage() {
         )}
       >
         {/* Header */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 space-y-3">
+        <div className="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 space-y-3 bg-white dark:bg-slate-900 z-10">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Inbox className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-              <h1 className="font-semibold text-slate-900 dark:text-slate-100">Inbox Unificado</h1>
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center shrink-0">
+                <Inbox className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              </div>
+              <div>
+                <h1 className="font-semibold text-slate-900 dark:text-slate-100 leading-none">Inbox Unificado</h1>
+                {totalUnread > 0 && (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {totalUnread} {totalUnread === 1 ? "não lida" : "não lidas"}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               {sseConnected ? (
-                <span title="Recebendo em tempo real" className="flex items-center gap-1 text-[10px] text-green-600">
-                  <Wifi className="h-3 w-3" /> ao vivo
+                <span
+                  title="Recebendo mensagens em tempo real"
+                  className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 rounded-full px-2 py-1"
+                >
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                  </span>
+                  ao vivo
                 </span>
               ) : (
-                <span title="Desconectado" className="flex items-center gap-1 text-[10px] text-slate-400">
+                <span
+                  title="Desconectado do tempo real"
+                  className="flex items-center gap-1 text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full px-2 py-1"
+                >
                   <WifiOff className="h-3 w-3" />
                 </span>
               )}
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => refetchConvs()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                title="Atualizar conversas"
+                onClick={() => refetchConvs()}
+              >
                 <RefreshCw className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -391,14 +465,15 @@ export default function ZernioInboxPage() {
         </div>
 
         {/* Lista */}
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto">
           {convsLoading ? (
             <div className="space-y-0">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="p-4 border-b border-slate-100 dark:border-slate-800 flex gap-3">
-                  <Skeleton className="h-10 w-10 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-2">
+                  <Skeleton className="h-11 w-11 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2 pt-0.5">
                     <Skeleton className="h-3.5 w-32" />
+                    <Skeleton className="h-3 w-20" />
                     <Skeleton className="h-3 w-48" />
                   </div>
                 </div>
@@ -406,67 +481,114 @@ export default function ZernioInboxPage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
-              <MessageSquare className="h-10 w-10 opacity-30" />
-              <p className="text-sm">Nenhuma conversa encontrada</p>
+              <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <MessageSquare className="h-6 w-6 opacity-40" />
+              </div>
+              <p className="text-sm">
+                {search ? "Nenhum contato encontrado" : "Nenhuma conversa encontrada"}
+              </p>
             </div>
           ) : (
-            filtered.map((conv) => (
-              <button
-                key={conv.id}
-                type="button"
-                onClick={() => setActiveConv(conv)}
-                className={cn(
-                  "w-full text-left flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors",
-                  activeConv?.id === conv.id && "bg-rose-50 dark:bg-rose-950/20 border-l-2 border-l-rose-500",
-                )}
-              >
-                {/* Avatar */}
-                <div className="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-sm font-semibold text-slate-600 dark:text-slate-300">
-                  {(convName(conv)[0] ?? "?").toUpperCase()}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-                      {convName(conv)}
-                    </span>
-                    {conv.lastMessage?.timestamp && (
-                      <span className="text-[10px] text-slate-400 shrink-0">
-                        {formatTime(conv.lastMessage.timestamp)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <PlatformBadge platform={conv.platform} />
-                    {conv.clientId && (
-                      <span title={conv.clientName ?? "Cliente vinculado"}>
-                        <UserCheck className="h-3 w-3 text-emerald-600" />
-                      </span>
-                    )}
-                    {(conv.unreadCount ?? 0) > 0 && (
-                      <Badge className="text-[9px] h-4 px-1.5 bg-rose-500 text-white hover:bg-rose-500">
-                        {conv.unreadCount}
-                      </Badge>
-                    )}
-                  </div>
-                  {conv.lastMessage?.text && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                      {conv.lastMessage.direction === "outgoing" ? "Você: " : ""}
-                      {conv.lastMessage.text}
-                    </p>
+            filtered.map((conv) => {
+              const unread = (conv.unreadCount ?? 0) > 0;
+              const isActive = activeConv?.id === conv.id;
+              const name = convName(conv);
+              return (
+                <button
+                  key={conv.id}
+                  type="button"
+                  onClick={() => setActiveConv(conv)}
+                  className={cn(
+                    "group w-full text-left flex items-start gap-3 px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 transition-colors relative",
+                    isActive
+                      ? "bg-rose-50/70 dark:bg-rose-950/20"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-800/50",
                   )}
-                </div>
-              </button>
-            ))
+                >
+                  {isActive && <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-rose-500" />}
+
+                  {/* Avatar com selo da plataforma */}
+                  <div className="relative shrink-0">
+                    <div
+                      className={cn(
+                        "h-11 w-11 rounded-full flex items-center justify-center text-sm font-semibold ring-1 ring-inset ring-black/5",
+                        avatarColor(conv.id),
+                      )}
+                    >
+                      {(name[0] ?? "?").toUpperCase()}
+                    </div>
+                    <span
+                      className={cn(
+                        "absolute -bottom-0.5 -right-0.5 h-[18px] w-[18px] rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-900 text-white",
+                        PLATFORM_ICON_BG[conv.platform] ?? "bg-slate-500",
+                      )}
+                    >
+                      <PlatformIcon platform={conv.platform} className="h-2.5 w-2.5" />
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={cn(
+                          "text-sm truncate min-w-0 flex-1",
+                          unread ? "font-semibold text-slate-900 dark:text-slate-100" : "font-medium text-slate-700 dark:text-slate-300",
+                        )}
+                      >
+                        {name}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {conv.lastMessage?.timestamp && (
+                          <span className={cn("text-[10px]", unread ? "text-rose-600 font-medium" : "text-slate-400")}>
+                            {formatTime(conv.lastMessage.timestamp)}
+                          </span>
+                        )}
+                        {unread && <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-400 truncate mt-0.5">
+                      {conv.participant?.username && `@${conv.participant.username.replace(/^@/, "")}`}
+                      {conv.participant?.username && accountLabel(conv.accountId) && " · "}
+                      {accountLabel(conv.accountId) && `via ${accountLabel(conv.accountId)}`}
+                    </p>
+
+                    <div className="flex items-center justify-between gap-2 mt-1">
+                      {conv.lastMessage?.text ? (
+                        <p className={cn("text-xs truncate flex items-center gap-1 min-w-0 flex-1", unread ? "text-slate-600 dark:text-slate-300" : "text-slate-400")}>
+                          {conv.lastMessage.direction === "outgoing" && (
+                            <span className="text-slate-400 shrink-0">Você:</span>
+                          )}
+                          {conv.lastMessage.text.startsWith("📎") ? (
+                            <span className="flex items-center gap-1 italic text-slate-400 shrink-0">
+                              <Paperclip className="h-3 w-3 shrink-0" /> [Anexo]
+                            </span>
+                          ) : (
+                            <span className="truncate min-w-0">{conv.lastMessage.text}</span>
+                          )}
+                        </p>
+                      ) : (
+                        <span />
+                      )}
+                      {conv.clientId && (
+                        <span title={conv.clientName ?? "Cliente vinculado"} className="shrink-0">
+                          <UserCheck className="h-3 w-3 text-emerald-600" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })
           )}
-        </ScrollArea>
+        </div>
       </div>
 
       {/* PAINEL DIREITO — Conversa ativa */}
       {activeConv ? (
-        <div className="flex flex-col flex-1 min-w-0 bg-white dark:bg-slate-900">
+        <div className="flex flex-col flex-1 min-w-0 bg-slate-50/50 dark:bg-slate-900">
           {/* Header da conversa */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0 bg-white dark:bg-slate-900 shadow-sm z-10">
             <Button
               variant="ghost"
               size="sm"
@@ -475,18 +597,36 @@ export default function ZernioInboxPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div className="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-sm font-semibold text-slate-600 dark:text-slate-300 shrink-0">
-              {(convName(activeConv)[0] ?? "?").toUpperCase()}
+            <div className="relative shrink-0">
+              <div
+                className={cn(
+                  "h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold ring-1 ring-inset ring-black/5",
+                  avatarColor(activeConv.id),
+                )}
+              >
+                {(convName(activeConv)[0] ?? "?").toUpperCase()}
+              </div>
+              <span
+                className={cn(
+                  "absolute -bottom-0.5 -right-0.5 h-[16px] w-[16px] rounded-full flex items-center justify-center ring-2 ring-white dark:ring-slate-900 text-white",
+                  PLATFORM_ICON_BG[activeConv.platform] ?? "bg-slate-500",
+                )}
+              >
+                <PlatformIcon platform={activeConv.platform} className="h-2.5 w-2.5" />
+              </span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                 {convName(activeConv)}
               </p>
-              <PlatformBadge platform={activeConv.platform} />
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 truncate">
+                {activeConv.participant?.username && <span>@{activeConv.participant.username.replace(/^@/, "")}</span>}
+                {accountLabel(activeConv.accountId) && <span>· via {accountLabel(activeConv.accountId)}</span>}
+              </div>
             </div>
             {activeConv.clientId ? (
               <div className="flex items-center gap-1.5 shrink-0">
-                <Badge className="text-[10px] gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
+                <Badge className="text-[10px] gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20">
                   <UserCheck className="h-3 w-3" />
                   {activeConv.clientName ?? "Cliente vinculado"}
                 </Badge>
@@ -515,7 +655,7 @@ export default function ZernioInboxPage() {
           </div>
 
           {/* Mensagens */}
-          <ScrollArea className="flex-1 px-4 py-4">
+          <div className="flex-1 overflow-y-auto px-4 py-4">
             {msgsLoading ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -526,7 +666,9 @@ export default function ZernioInboxPage() {
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-32 gap-2 text-slate-400">
-                <MessageSquare className="h-8 w-8 opacity-30" />
+                <div className="h-12 w-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <MessageSquare className="h-5 w-5 opacity-40" />
+                </div>
                 <p className="text-sm">Nenhuma mensagem ainda</p>
               </div>
             ) : (
@@ -537,10 +679,10 @@ export default function ZernioInboxPage() {
                     <div key={msg.id} className={cn("flex", isOut ? "justify-end" : "justify-start")}>
                       <div
                         className={cn(
-                          "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                          "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm",
                           isOut
                             ? "bg-rose-600 text-white rounded-br-sm"
-                            : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-sm",
+                            : "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-sm border border-slate-100 dark:border-slate-700",
                         )}
                       >
                         {msg.text && <p className="whitespace-pre-wrap break-words">{msg.text}</p>}
@@ -554,10 +696,10 @@ export default function ZernioInboxPage() {
                 <div ref={messagesEndRef} />
               </div>
             )}
-          </ScrollArea>
+          </div>
 
           {/* Input de resposta */}
-          <div className="border-t border-slate-200 dark:border-slate-800 p-4 shrink-0">
+          <div className="border-t border-slate-200 dark:border-slate-800 p-4 shrink-0 bg-white dark:bg-slate-900">
             <div className="flex gap-2 items-end">
               <Textarea
                 placeholder="Digite sua resposta..."
@@ -570,11 +712,11 @@ export default function ZernioInboxPage() {
                   }
                 }}
                 rows={1}
-                className="flex-1 resize-none min-h-[40px] max-h-32 text-sm"
+                className="flex-1 resize-none min-h-[40px] max-h-32 text-sm focus-visible:ring-rose-500"
               />
               <Button
                 size="icon"
-                className="h-10 w-10 shrink-0 bg-rose-600 hover:bg-rose-700"
+                className="h-10 w-10 shrink-0 bg-rose-600 hover:bg-rose-700 transition-transform active:scale-95"
                 disabled={!replyText.trim() || sendMutation.isPending}
                 onClick={() => sendMutation.mutate()}
               >
@@ -589,9 +731,14 @@ export default function ZernioInboxPage() {
           </div>
         </div>
       ) : (
-        <div className="hidden md:flex flex-1 items-center justify-center flex-col gap-3 text-slate-400">
-          <MessageSquare className="h-14 w-14 opacity-20" />
-          <p className="text-sm">Selecione uma conversa para responder</p>
+        <div className="hidden md:flex flex-1 items-center justify-center flex-col gap-3 text-slate-400 bg-slate-50/50 dark:bg-slate-900">
+          <div className="h-20 w-20 rounded-full bg-white dark:bg-slate-800 shadow-sm flex items-center justify-center">
+            <MessageSquare className="h-9 w-9 opacity-30" />
+          </div>
+          <p className="text-sm font-medium text-slate-500">Selecione uma conversa para responder</p>
+          <p className="text-xs text-slate-400 max-w-xs text-center">
+            As mensagens recebidas de Instagram, WhatsApp e outras redes aparecem aqui em tempo real.
+          </p>
         </div>
       )}
 
@@ -633,16 +780,19 @@ export default function ZernioInboxPage() {
                       type="button"
                       disabled={linkMutation.isPending}
                       onClick={() => linkMutation.mutate(c)}
-                      className="w-full text-left px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between gap-2 disabled:opacity-50"
+                      className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 disabled:opacity-50 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                     >
-                      <div className="min-w-0">
+                      <div className={cn("h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0", avatarColor(c.id))}>
+                        {(c.name?.[0] ?? "?").toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{c.name}</p>
                         <p className="text-xs text-slate-500 truncate">{c.phone || c.email || "—"}</p>
                       </div>
                       {linkMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        <Loader2 className="h-4 w-4 animate-spin shrink-0 text-slate-400" />
                       ) : (
-                        <UserCheck className="h-4 w-4 text-slate-400 shrink-0" />
+                        <UserCheck className="h-4 w-4 text-slate-300 group-hover:text-slate-500 shrink-0" />
                       )}
                     </button>
                   ))}
