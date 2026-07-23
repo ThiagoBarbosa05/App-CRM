@@ -2136,7 +2136,14 @@ export async function startConversationByClientId(
 
   // Usa o canal ativo do atendente que está iniciando a conversa, para que
   // fique isolada das conversas de outros atendentes com o mesmo contato.
-  const channelId = await getActiveChannelIdByUserId(userId);
+  // getActiveChannelIdByUserId só enxerga canal PRÓPRIO (dono); quem só tem
+  // acesso concedido via whatsapp_channel_members (canal compartilhado, ex.
+  // "Eventos") não é dono de nada e cairia em channelId null — reaproveitando
+  // conversas "sem canal" órfãs, que ficam inacessíveis a qualquer vendedor
+  // (vendorScopeCondition exige setor E canal preenchidos). Por isso, sem
+  // canal próprio, cai para o primeiro canal concedido por membership.
+  const ownChannelId = await getActiveChannelIdByUserId(userId);
+  const channelId = ownChannelId ?? (await listChannelIdsForUser(userId))[0] ?? null;
   const conv = await findOrCreateConversation(client.phone, channelId);
 
   // Sempre grava o clientId escolhido pelo atendente, mesmo que a conversa já
