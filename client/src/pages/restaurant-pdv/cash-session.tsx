@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { cn, formatCurrency, parseBRL } from "@/lib/utils";
+import { PrintArea, printArea } from "@/components/restaurant-pdv/print-area";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -110,10 +111,19 @@ function formatTime(value: string | Date): string {
   });
 }
 
+type CloseFormData = { countedCash: string; countedByMethod: Record<string, string>; notes?: string };
+
+interface PrintSnapshot {
+  session: CashSessionDetail;
+  formData: CloseFormData;
+  closedAt: Date;
+}
+
 export default function RestaurantCashSessionPage() {
   const [openingFloat, setOpeningFloat] = useState("");
   const [movementType, setMovementType] = useState<CashMovementType | null>(null);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [printSnapshot, setPrintSnapshot] = useState<PrintSnapshot | null>(null);
 
   const { data, isLoading } = useQuery<{ session: CashSessionDetail | null }>({
     queryKey: CURRENT_KEY,
@@ -180,7 +190,11 @@ export default function RestaurantCashSessionPage() {
   });
 
   const closeMutation = useMutation({
-    mutationFn: async (data: { countedCash: string; countedByMethod: Record<string, string>; notes?: string }) => {
+    mutationFn: async (data: CloseFormData) => {
+      // Captura snapshot antes da invalidação do cache
+      if (session) {
+        setPrintSnapshot({ session, formData: data, closedAt: new Date() });
+      }
       await apiRequest(
         "POST",
         `/api/restaurant-pdv/cash-sessions/${session?.id}/close`,
@@ -191,8 +205,11 @@ export default function RestaurantCashSessionPage() {
       toast({ title: "Caixa fechado", description: "Conferência registrada." });
       setCloseDialogOpen(false);
       invalidate();
+      // Aciona impressão automática após DOM atualizar
+      setTimeout(() => printArea("close-session-print-area"), 300);
     },
     onError: (err: Error) => {
+      setPrintSnapshot(null);
       toast({ title: "Erro ao fechar o caixa", description: err.message, variant: "destructive" });
     },
   });
@@ -652,7 +669,120 @@ export default function RestaurantCashSessionPage() {
       />
         </TabsContent>
       </Tabs>
+
+      {printSnapshot && <CloseSessionPrintArea snapshot={printSnapshot} />}
     </div>
+  );
+}
+
+const PAYMENT_METHOD_LABELS_PRINT: Record<string, string> = {
+  pix: "Pix",
+  cartao_credito: "Cartao Credito",
+  cartao_debito: "Cartao Debito",
+  dinheiro: "Dinheiro",
+};
+
+function CloseSessionPrintArea({ snapshot }: { snapshot: PrintSnapshot }) {
+  const { session, formData, closedAt } = snapshot;
+  const s = session.summary;
+  const expectedCash = Number(s?.cash.expected ?? 0);
+  const countedCash = Number(formData.countedCash ?? 0);
+  const cashDiff = countedCash - expectedCash;
+
+  const lineStyle: CSSProperties = { display: "flex", justifyContent: "space-between", margin: "2px 0" };
+  const hrStyle: CSSProperties = { border: "none", borderTop: "1px dashed #000", margin: "6px 0" };
+  const centerStyle: CSSProperties = { textAlign: "center", margin: "4px 0" };
+  const boldStyle: CSSProperties = { fontWeight: "bold" };
+
+  return (
+    <PrintArea id="close-session-print-area">
+      <div style={{ maxWidth: 320, margin: "0 auto", fontFamily: "monospace", fontSize: 12, color: "#000" }}>
+        <div style={centerStyle}>
+          <div style={{ fontSize: 14, fontWeight: "bold" }}>FECHAMENTO DE CAIXA</div>
+          <div style={{ fontSize: 13, fontWeight: "bold" }}>Caixa #{session.sessionNumber}</div>
+        </div>
+        <hr style={hrStyle} />
+        <div style={lineStyle}><span>Abertura</span><span>{new Date(session.openedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</span></div>
+        <div style={lineStyle}><span>Fechamento</span><span>{closedAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</span></div>
+        {session.openedByName && <div style={lineStyle}><span>Aberto por</span><span>{session.openedByName}</span></div>}
+        <hr style={hrStyle} />
+
+        {/* Vendas */}
+        <div style={{ ...boldStyle, marginBottom: 4 }}>VENDAS</div>
+        {(s?.byPaymentMethod ?? []).map((p) => (
+          <div key={p.method} style={lineStyle}>
+            <span>{PAYMENT_METHOD_LABELS_PRINT[p.method] ?? p.method}</span>
+            <span>{formatCurrency(p.total)}</span>
+          </div>
+        ))}
+        <div style={{ ...lineStyle, ...boldStyle, borderTop: "1px solid #000", paddingTop: 2, marginTop: 2 }}>
+          <span>TOTAL VENDAS</span>
+          <span>{formatCurrency(s?.ordersTotal ?? 0)}</span>
+        </div>
+        <div style={{ fontSize: 11, color: "#333", margin: "2px 0 4px" }}>
+          {s?.orderCount ?? 0} comanda(s) fechada(s)
+        </div>
+        <hr style={hrStyle} />
+
+        {/* Composição do dinheiro */}
+        <div style={{ ...boldStyle, marginBottom: 4 }}>COMPOSICAO DO DINHEIRO</div>
+        <div style={lineStyle}><span>Fundo de troco</span><span>{formatCurrency(s?.cash.openingFloat ?? 0)}</span></div>
+        <div style={lineStyle}><span>Recebido em dinheiro</span><span>+{formatCurrency(s?.cash.cashPayments ?? 0)}</span></div>
+        {Number(s?.cash.suprimentos ?? 0) > 0 && (
+          <div style={lineStyle}><span>Suprimentos</span><span>+{formatCurrency(s?.cash.suprimentos ?? 0)}</span></div>
+        )}
+        {Number(s?.cash.sangrias ?? 0) > 0 && (
+          <div style={lineStyle}><span>Sangrias</span><span>-{formatCurrency(s?.cash.sangrias ?? 0)}</span></div>
+        )}
+        <div style={{ ...lineStyle, ...boldStyle, borderTop: "1px solid #000", paddingTop: 2, marginTop: 2 }}>
+          <span>ESPERADO NA GAVETA</span><span>{formatCurrency(expectedCash)}</span>
+        </div>
+        <hr style={hrStyle} />
+
+        {/* Conferência */}
+        <div style={{ ...boldStyle, marginBottom: 4 }}>CONFERENCIA</div>
+        {Object.entries(formData.countedByMethod).map(([method, val]) => (
+          <div key={method} style={lineStyle}>
+            <span>{PAYMENT_METHOD_LABELS_PRINT[method] ?? method} (contado)</span>
+            <span>{formatCurrency(Number(val))}</span>
+          </div>
+        ))}
+        <hr style={hrStyle} />
+        <div style={lineStyle}><span>Esperado</span><span>{formatCurrency(expectedCash)}</span></div>
+        <div style={lineStyle}><span>Contado (dinheiro)</span><span>{formatCurrency(countedCash)}</span></div>
+        <div style={{ ...lineStyle, ...boldStyle, borderTop: "1px solid #000", paddingTop: 2, marginTop: 2, color: cashDiff !== 0 ? "#c00" : "#000" }}>
+          <span>{cashDiff === 0 ? "CONFERIDO" : cashDiff < 0 ? "QUEBRA DE CAIXA" : "SOBRA DE CAIXA"}</span>
+          <span>{cashDiff > 0 ? "+" : ""}{formatCurrency(cashDiff)}</span>
+        </div>
+        {formData.notes && (
+          <>
+            <hr style={hrStyle} />
+            <div style={{ fontSize: 11 }}>Justificativa: {formData.notes}</div>
+          </>
+        )}
+
+        {/* Cancelamentos */}
+        {(s?.cancelledOrderCount ?? 0) > 0 && (
+          <>
+            <hr style={hrStyle} />
+            <div style={lineStyle}>
+              <span>Comandas canceladas</span>
+              <span>{s?.cancelledOrderCount} · {formatCurrency(s?.cancelledTotal ?? 0)}</span>
+            </div>
+          </>
+        )}
+        {Number(s?.discountTotal ?? 0) > 0 && (
+          <div style={lineStyle}><span>Descontos</span><span>{formatCurrency(s?.discountTotal ?? 0)}</span></div>
+        )}
+
+        <hr style={hrStyle} />
+        <div style={centerStyle}>
+          <div style={{ fontSize: 11 }}>
+            {closedAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+          </div>
+        </div>
+      </div>
+    </PrintArea>
   );
 }
 
