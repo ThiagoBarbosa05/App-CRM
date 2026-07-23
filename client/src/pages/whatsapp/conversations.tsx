@@ -13,6 +13,11 @@ import type { DateRange } from "react-day-picker";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/use-debounce";
 import { InternalChatPanel } from "./internal-chat/internal-chat-panel";
+import { CreateGroupDialog } from "./internal-chat/create-group-dialog";
+import {
+  useInternalConversations,
+  useStartDmConversation,
+} from "@/hooks/useInternalChat";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -89,6 +94,7 @@ import {
   Radio,
   User,
   Users,
+  Headphones,
   Lock,
   BellOff,
   ChevronDown,
@@ -5537,33 +5543,50 @@ interface CrmTag {
   type: string;
 }
 
+type NewConvTab = "contato" | "atendentes" | "grupo";
+
 function NewConversationDialog({
   open,
   onOpenChange,
   onSelect,
+  onSelectInternal,
   channels,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSelect: (clientId: string) => void;
+  onSelectInternal: (conversationId: string) => void;
   channels: Channel[];
 }) {
+  const [tab, setTab] = useState<NewConvTab>("contato");
+  // Passo 2 (escolha do canal) só existe quando há mais de um canal — com um
+  // só, não há escolha real a fazer e o fluxo permanece de um passo só.
+  const [step, setStep] = useState<1 | 2>(1);
+  const [selectedClient, setSelectedClient] = useState<{
+    id: string;
+    name: string;
+    phone: string | null;
+  } | null>(null);
   const [search, setSearch] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [selectedChannelId, setSelectedChannelId] = useState<number | undefined>(undefined);
+  const [attendantSearch, setAttendantSearch] = useState("");
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const debouncedSearch = useDebounce(search, 300);
+  const debouncedAttendantSearch = useDebounce(attendantSearch, 300);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Pré-seleciona o único canal disponível; com mais de um, o atendente
-  // escolhe explicitamente para não depender do fallback automático do
-  // backend (que pode não bater com a intenção de quem está iniciando).
+  // Reseta o fluxo ao fechar, pra não reabrir no meio da última tentativa.
   useEffect(() => {
-    if (!open) return;
-    if (channels.length === 1) {
-      setSelectedChannelId(channels[0].id);
+    if (!open) {
+      setTab("contato");
+      setStep(1);
+      setSelectedClient(null);
+      setSearch("");
+      setSelectedTagIds([]);
+      setAttendantSearch("");
     }
-  }, [open, channels]);
+  }, [open]);
 
   const { data: availableTags = [] } = useQuery<WhatsappClientTag[]>({
     queryKey: ["/api/whatsapp/tags"],
@@ -5592,7 +5615,7 @@ function NewConversationDialog({
         tags?: WhatsappClientTag[];
       }>;
     },
-    enabled: open,
+    enabled: open && tab === "contato",
   });
 
   const clientResults = Array.isArray(data) ? data : [];
@@ -5606,11 +5629,17 @@ function NewConversationDialog({
   };
 
   const startMutation = useMutation({
-    mutationFn: async (clientId: string) => {
+    mutationFn: async ({
+      clientId,
+      channelId,
+    }: {
+      clientId: string;
+      channelId?: number;
+    }) => {
       const res = await fetch("/api/whatsapp/conversations/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, channelId: selectedChannelId }),
+        body: JSON.stringify({ clientId, channelId }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -5630,146 +5659,371 @@ function NewConversationDialog({
     },
   });
 
+  function handlePickClient(c: { id: string; name: string; phone: string | null }) {
+    if (channels.length > 1) {
+      setSelectedClient(c);
+      setStep(2);
+    } else {
+      startMutation.mutate({ clientId: c.id, channelId: channels[0]?.id });
+    }
+  }
+
+  const { data: attendants = [], isLoading: loadingAttendants } = useInternalConversations(
+    "attendants",
+    debouncedAttendantSearch,
+  );
+  const startDm = useStartDmConversation();
+
+  async function handlePickAttendant(a: { id: string; otherUser: { id: string; name: string; email: string } | null }) {
+    if (!a.otherUser) return;
+    try {
+      const conv = a.id.startsWith("pending:")
+        ? await startDm.mutateAsync(a.otherUser.id)
+        : { id: a.id };
+      onOpenChange(false);
+      onSelectInternal(conv.id);
+    } catch {
+      toast({ title: "Erro ao iniciar conversa com o atendente", variant: "destructive" });
+    }
+  }
+
+  const tabs: { key: NewConvTab; label: string; icon: typeof User }[] = [
+    { key: "contato", label: "Contato", icon: User },
+    { key: "atendentes", label: "Atendentes", icon: Headphones },
+    { key: "grupo", label: "Grupo de atendentes", icon: Users },
+  ];
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full p-4 sm:p-6">
-        <DialogHeader>
-          <DialogTitle>Nova conversa</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md sm:w-full p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Nova conversa</DialogTitle>
+          </DialogHeader>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar cliente…"
-            className="pl-9 text-sm h-10"
-            autoFocus
-          />
-        </div>
-
-        {channels.length > 1 && (
-          <Select
-            value={selectedChannelId != null ? String(selectedChannelId) : ""}
-            onValueChange={(v) => setSelectedChannelId(Number(v))}
-          >
-            <SelectTrigger className="h-9 text-sm w-full">
-              <SelectValue placeholder="Canal para iniciar a conversa…" />
-            </SelectTrigger>
-            <SelectContent>
-              {channels.map((ch) => (
-                <SelectItem key={ch.id} value={String(ch.id)}>
-                  {ch.name}
-                  {ch.displayPhone ? ` — ${ch.displayPhone}` : ""}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-
-        {availableTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
-            {availableTags.map((tag) => {
-              const active = selectedTagIds.includes(tag.id);
-              const bg = resolveTagColor(tag.color, tag.id);
-              const emoji = resolveTagEmoji(tag.emoji);
+          <div className="flex items-center gap-1 rounded-full bg-slate-100 dark:bg-slate-800 p-1">
+            {tabs.map((t) => {
+              const Icon = t.icon;
+              const active = tab === t.key;
               return (
                 <button
-                  key={tag.id}
+                  key={t.key}
                   type="button"
-                  onClick={() => toggleTag(tag.id)}
+                  onClick={() => {
+                    if (t.key === "grupo") {
+                      onOpenChange(false);
+                      setGroupDialogOpen(true);
+                      return;
+                    }
+                    setTab(t.key);
+                  }}
                   className={cn(
-                    "inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border font-medium transition-colors",
+                    "flex-1 flex items-center justify-center gap-1.5 text-xs font-medium px-2 py-2 rounded-full transition-colors",
                     active
-                      ? "text-white"
-                      : "bg-transparent text-slate-600 dark:text-slate-400 hover:opacity-80",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200",
                   )}
-                  style={
-                    active
-                      ? { backgroundColor: bg, borderColor: bg }
-                      : { borderColor: bg, color: bg }
-                  }
                 >
-                  {emoji && <span>{emoji}</span>}
-                  {tag.name}
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{t.label}</span>
                 </button>
               );
             })}
           </div>
-        )}
 
-        <div className="max-h-[50vh] sm:max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-          {isLoading ? (
-            <div className="p-4 space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-9 w-9 rounded-full shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <Skeleton className="h-3.5 w-28" />
-                    <Skeleton className="h-3 w-20" />
+          {tab === "contato" && channels.length > 1 && (
+            <div className="flex items-center justify-center gap-2 text-xs">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "h-5 w-5 rounded-full flex items-center justify-center font-semibold shrink-0",
+                    step === 1
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-slate-200 dark:bg-slate-700 text-slate-500",
+                  )}
+                >
+                  1
+                </span>
+                <span
+                  className={
+                    step === 1
+                      ? "text-slate-700 dark:text-slate-200 font-medium"
+                      : "text-slate-400"
+                  }
+                >
+                  Escolha o contato
+                </span>
+              </div>
+              <div className="w-8 h-px bg-slate-200 dark:bg-slate-700 shrink-0" />
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "h-5 w-5 rounded-full flex items-center justify-center font-semibold shrink-0",
+                    step === 2
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-slate-200 dark:bg-slate-700 text-slate-500",
+                  )}
+                >
+                  2
+                </span>
+                <span
+                  className={
+                    step === 2
+                      ? "text-slate-700 dark:text-slate-200 font-medium"
+                      : "text-slate-400"
+                  }
+                >
+                  Escolha o canal
+                </span>
+              </div>
+            </div>
+          )}
+
+          {tab === "contato" && step === 1 && (
+            <>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar cliente…"
+                  className="pl-9 text-sm h-10"
+                  autoFocus
+                />
+              </div>
+
+              {availableTags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+                  {availableTags.map((tag) => {
+                    const active = selectedTagIds.includes(tag.id);
+                    const bg = resolveTagColor(tag.color, tag.id);
+                    const emoji = resolveTagEmoji(tag.emoji);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => toggleTag(tag.id)}
+                        className={cn(
+                          "inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full border font-medium transition-colors",
+                          active
+                            ? "text-white"
+                            : "bg-transparent text-slate-600 dark:text-slate-400 hover:opacity-80",
+                        )}
+                        style={
+                          active
+                            ? { backgroundColor: bg, borderColor: bg }
+                            : { borderColor: bg, color: bg }
+                        }
+                      >
+                        {emoji && <span>{emoji}</span>}
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="max-h-[50vh] sm:max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                {isLoading ? (
+                  <div className="p-4 space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-3.5 w-28" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : clientResults.length === 0 ? (
-            <div className="p-6 text-center">
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                {debouncedSearch || selectedTagIds.length > 0
-                  ? "Nenhum cliente encontrado"
-                  : "Digite para buscar ou filtre por tag"}
-              </p>
-            </div>
-          ) : (
-            clientResults.map((c) => (
+                ) : clientResults.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {debouncedSearch || selectedTagIds.length > 0
+                        ? "Nenhum cliente encontrado"
+                        : "Digite para buscar ou filtre por tag"}
+                    </p>
+                  </div>
+                ) : (
+                  clientResults.map((c) => (
+                    <button
+                      key={c.id}
+                      disabled={startMutation.isPending}
+                      onClick={() => handlePickClient(c)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
+                    >
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                        {getInitials(c.name, c.phone ?? "")}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                          {c.name}
+                        </p>
+                        {c.phone && (
+                          <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                            <Phone className="h-3 w-3 shrink-0" />
+                            {c.phone}
+                          </p>
+                        )}
+                        {((c.crmTags && c.crmTags.length > 0) ||
+                          (c.tags && c.tags.length > 0)) && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {c.crmTags?.map((tag) => (
+                              <span
+                                key={tag.id}
+                                className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
+                              >
+                                {tag.name}
+                              </span>
+                            ))}
+                            {c.tags?.map((tag) => (
+                              <WhatsappTagBadge key={tag.id} tag={tag} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {startMutation.isPending &&
+                        startMutation.variables?.clientId === c.id && (
+                          <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
+                        )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+
+          {tab === "contato" && step === 2 && selectedClient && (
+            <div className="space-y-3">
               <button
-                key={c.id}
-                disabled={
-                  startMutation.isPending ||
-                  (channels.length > 1 && selectedChannelId == null)
-                }
-                onClick={() => startMutation.mutate(c.id)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
+                type="button"
+                onClick={() => setStep(1)}
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
               >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Voltar
+              </button>
+
+              <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                  {getInitials(c.name, c.phone ?? "")}
+                  {getInitials(selectedClient.name, selectedClient.phone ?? "")}
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
-                    {c.name}
+                    {selectedClient.name}
                   </p>
-                  {c.phone && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                      <Phone className="h-3 w-3 shrink-0" />
-                      {c.phone}
+                  {selectedClient.phone && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                      {selectedClient.phone}
                     </p>
                   )}
-                  {((c.crmTags && c.crmTags.length > 0) ||
-                    (c.tags && c.tags.length > 0)) && (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {c.crmTags?.map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
-                        >
-                          {tag.name}
-                        </span>
-                      ))}
-                      {c.tags?.map((tag) => (
-                        <WhatsappTagBadge key={tag.id} tag={tag} />
-                      ))}
-                    </div>
-                  )}
                 </div>
-                {startMutation.isPending &&
-                  startMutation.variables === c.id && (
-                    <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
-                  )}
-              </button>
-            ))
+              </div>
+
+              <div className="divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto">
+                {channels.map((ch) => (
+                  <button
+                    key={ch.id}
+                    disabled={startMutation.isPending}
+                    onClick={() =>
+                      startMutation.mutate({ clientId: selectedClient.id, channelId: ch.id })
+                    }
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                        {ch.name}
+                      </p>
+                      {ch.displayPhone && (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                          {ch.displayPhone}
+                        </p>
+                      )}
+                    </div>
+                    {startMutation.isPending &&
+                      startMutation.variables?.channelId === ch.id && (
+                        <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
+                      )}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-        </div>
-      </DialogContent>
-    </Dialog>
+
+          {tab === "atendentes" && (
+            <>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  value={attendantSearch}
+                  onChange={(e) => setAttendantSearch(e.target.value)}
+                  placeholder="Buscar atendente…"
+                  className="pl-9 text-sm h-10"
+                  autoFocus
+                />
+              </div>
+
+              <div className="max-h-[50vh] sm:max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                {loadingAttendants ? (
+                  <div className="p-4 space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-3.5 w-28" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : attendants.length === 0 ? (
+                  <div className="p-6 text-center">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Nenhum atendente encontrado
+                    </p>
+                  </div>
+                ) : (
+                  attendants.map((a) => (
+                    <button
+                      key={a.id}
+                      disabled={startDm.isPending}
+                      onClick={() => handlePickAttendant(a)}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
+                    >
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+                        {getInitials(a.otherUser?.name ?? null, "")}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                          {a.otherUser?.name}
+                        </p>
+                        {a.otherUser?.email && (
+                          <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                            {a.otherUser.email}
+                          </p>
+                        )}
+                      </div>
+                      {startDm.isPending && (
+                        <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <CreateGroupDialog
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        onCreated={(conversationId) => {
+          setGroupDialogOpen(false);
+          onSelectInternal(conversationId);
+        }}
+      />
+    </>
   );
 }
 
@@ -5809,6 +6063,14 @@ export default function WhatsAppConversationsPage() {
   // por isso o painel de equipe é um componente autocontido renderizado no
   // lugar de toda a tela em vez de reaproveitar o estado desta página.
   const [viewMode, setViewMode] = useState<"clientes" | "equipe">("clientes");
+  // Conversa interna a abrir ao entrar no modo "equipe" — preenchida quando o
+  // usuário escolhe um atendente/grupo no diálogo "Nova conversa" (que já
+  // criou/encontrou a conversa via useStartDmConversation/useCreateGroup).
+  const [pendingInternalConversationId, setPendingInternalConversationId] = useState<string | null>(null);
+  const handleSelectInternalConversation = useCallback((conversationId: string) => {
+    setPendingInternalConversationId(conversationId);
+    setViewMode("equipe");
+  }, []);
   const [qrDialogChannel, setQrDialogChannel] = useState<Channel | null>(null);
   const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
   const [selectedAttendantId, setSelectedAttendantId] = useState<string | null>(null);
@@ -6157,7 +6419,13 @@ export default function WhatsAppConversationsPage() {
   );
 
   if (viewMode === "equipe") {
-    return <InternalChatPanel onExit={() => setViewMode("clientes")} />;
+    return (
+      <InternalChatPanel
+        onExit={() => setViewMode("clientes")}
+        initialConversationId={pendingInternalConversationId}
+        onInitialConsumed={() => setPendingInternalConversationId(null)}
+      />
+    );
   }
 
   return (
@@ -7090,6 +7358,7 @@ export default function WhatsAppConversationsPage() {
         open={newConvOpen}
         onOpenChange={setNewConvOpen}
         onSelect={handleSelectConversation}
+        onSelectInternal={handleSelectInternalConversation}
         channels={availableChannels}
       />
     </div>

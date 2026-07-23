@@ -37,6 +37,11 @@ function formatTime(iso: string | null): string {
 
 interface InternalChatPanelProps {
   onExit: () => void;
+  // Conversa (DM/grupo) a abrir automaticamente ao montar — usado quando se
+  // chega aqui a partir do diálogo "Nova conversa" (aba Atendentes/Grupo),
+  // que já criou/encontrou a conversa e só precisa que o painel a selecione.
+  initialConversationId?: string | null;
+  onInitialConsumed?: () => void;
 }
 
 /**
@@ -44,11 +49,18 @@ interface InternalChatPanelProps {
  * atendimento a cliente (whatsappConversations). Acessado pelo botão "Equipe"
  * na sidebar de conversas do WhatsApp, ao lado de Abertas/Encerradas.
  */
-export function InternalChatPanel({ onExit }: InternalChatPanelProps) {
+export function InternalChatPanel({ onExit, initialConversationId, onInitialConsumed }: InternalChatPanelProps) {
   const { user } = useAuth();
   const [tab, setTab] = useState<ChatTab>("all");
   const [search, setSearch] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialConversationId ?? null);
+
+  useEffect(() => {
+    if (!initialConversationId) return;
+    setSelectedId(initialConversationId);
+    onInitialConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialConversationId]);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
   const [messageDraft, setMessageDraft] = useState("");
