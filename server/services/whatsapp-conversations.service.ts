@@ -15,7 +15,7 @@ import {
   whatsappSectors,
   users,
 } from "../../shared/schema";
-import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt, type SQL } from "drizzle-orm";
+import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt, type SQL, type SQLWrapper } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
@@ -44,6 +44,45 @@ export { normalizePhone };
 // cliente no CRM NÃO dá acesso à conversa por si só (isso vale só para a
 // busca de cliente ao iniciar uma conversa nova, ver isClientAccessibleToUser)
 // — receber mensagem de um contato que não é "seu" no CRM é esperado.
+// Comparação de telefone com/sem DDI 55 em SQL — mesmo padrão de normalização
+// de normalizePhone/isSameChannelPhone (server/lib/phone.ts), só que expresso
+// como fragmento de comparação reaproveitável dentro de um EXISTS.
+const PHONE_DDI_MATCH = (channelPhoneCol: SQL | SQLWrapper, conversationPhoneCol: SQL | SQLWrapper) => sql`(
+  regexp_replace(${channelPhoneCol}, '[^0-9]', '', 'g') = regexp_replace(${conversationPhoneCol}, '[^0-9]', '', 'g')
+  OR '55' || regexp_replace(${channelPhoneCol}, '[^0-9]', '', 'g') = regexp_replace(${conversationPhoneCol}, '[^0-9]', '', 'g')
+  OR regexp_replace(${channelPhoneCol}, '[^0-9]', '', 'g') = '55' || regexp_replace(${conversationPhoneCol}, '[^0-9]', '', 'g')
+)`;
+
+/**
+ * Conversa endereçada ao número de um dos canais em `channelIds` — mesmo que a
+ * conversa "pertença" (sectorId/channelId armazenados) a outro canal nosso.
+ * Cenário: canal Eventos manda mensagem de verdade pro número do canal
+ * Búzios; a única linha criada fica com channelId=Eventos, então quem só tem
+ * acesso ao Búzios nunca bateria na regra normal de setor+canal. Um cliente
+ * externo nunca tem o número de um canal, então isso não afeta a visibilidade
+ * de conversas normais.
+ */
+function conversationAddressedToOwnChannel(channelIds: number[]): SQL | undefined {
+  if (channelIds.length === 0) return undefined;
+  return sql`EXISTS (
+    SELECT 1 FROM ${whatsappChannels} wc
+    WHERE wc.id = ANY(${channelIds})
+      AND ${PHONE_DDI_MATCH(sql`wc.display_phone`, whatsappConversations.phone)}
+  )`;
+}
+
+/** Mesma exceção que `conversationAddressedToOwnChannel`, mas resolvendo os
+ * canais pelo setor padrão deles em vez de por id — usado quando o filtro
+ * explícito da UI é só por setor (sem canal selecionado). */
+function conversationAddressedToOwnChannelInSectors(sectorIds: string[]): SQL | undefined {
+  if (sectorIds.length === 0) return undefined;
+  return sql`EXISTS (
+    SELECT 1 FROM ${whatsappChannels} wc
+    WHERE wc.default_sector_id = ANY(${sectorIds})
+      AND ${PHONE_DDI_MATCH(sql`wc.display_phone`, whatsappConversations.phone)}
+  )`;
+}
+
 async function vendorScopeCondition(userId: string) {
   const [sectorIds, channelIds] = await Promise.all([
     listSectorIdsForUser(userId),
@@ -57,6 +96,9 @@ async function vendorScopeCondition(userId: string) {
         inArray(whatsappConversations.channelId, channelIds),
       ),
     );
+  }
+  if (channelIds.length > 0) {
+    clauses.push(conversationAddressedToOwnChannel(channelIds));
   }
   return or(...clauses);
 }
@@ -722,11 +764,15 @@ export async function listClientsForChat(
         or(
           inArray(whatsappConversations.sectorId, realSectorIds),
           isNull(whatsappConversations.sectorId),
+          conversationAddressedToOwnChannelInSectors(realSectorIds),
         ) as unknown as ReturnType<typeof eq>,
       );
     } else if (realSectorIds.length > 0) {
       conditions.push(
-        inArray(whatsappConversations.sectorId, realSectorIds) as unknown as ReturnType<typeof eq>,
+        or(
+          inArray(whatsappConversations.sectorId, realSectorIds),
+          conversationAddressedToOwnChannelInSectors(realSectorIds),
+        ) as unknown as ReturnType<typeof eq>,
       );
     } else if (includeNoSector) {
       conditions.push(isNull(whatsappConversations.sectorId) as unknown as ReturnType<typeof eq>);
@@ -748,7 +794,10 @@ export async function listClientsForChat(
 
   if (filters.channelIds && filters.channelIds.length > 0) {
     conditions.push(
-      inArray(whatsappConversations.channelId, filters.channelIds) as unknown as ReturnType<typeof eq>,
+      or(
+        inArray(whatsappConversations.channelId, filters.channelIds),
+        conversationAddressedToOwnChannel(filters.channelIds),
+      ) as unknown as ReturnType<typeof eq>,
     );
   }
 
