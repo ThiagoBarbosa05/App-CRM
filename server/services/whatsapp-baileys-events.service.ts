@@ -1,4 +1,4 @@
-import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, getOwnChannelPhones, isOwnChannelPhone, listQrReaderUserIdsForChannel } from "./whatsapp-channels.service";
+import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, isSameChannelPhone, listQrReaderUserIdsForChannel } from "./whatsapp-channels.service";
 import { saveInboundMessage } from "./whatsapp-conversations.service";
 import { publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
@@ -47,17 +47,15 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     return;
   }
 
-  // Ignora mensagens cujo remetente é um número próprio da empresa (ex.: o bot
-  // dispara pelo canal Cloud API e a mensagem é espelhada de volta por este canal
-  // Evolution). Sem isso, o número do bot apareceria como um contato novo.
-  const ownPhones = await getOwnChannelPhones().catch(() => new Set<string>());
-  if (isOwnChannelPhone(ownPhones, phone)) {
-    // Log em vez de descarte 100% silencioso: se o número de um contato real
-    // colidir com o display_phone cadastrado de algum canal (erro de
-    // cadastro, ex.: cliente "Carol" com o número do canal Eventos), a
-    // mensagem dela some sem deixar rastro nenhum — isso já aconteceu.
+  // Ignora só o auto-echo deste MESMO canal (ex.: dispositivo vinculado via
+  // Evolution espelhando de volta uma mensagem que o próprio número do canal
+  // enviou). NÃO compara contra os demais canais da empresa: um canal
+  // diferente mandando mensagem de verdade para este número (ex.: repasse
+  // entre setores) é uma conversa legítima e deve seguir normalmente para
+  // saveInboundMessage, virando uma conversa comum no inbox deste canal.
+  if (isSameChannelPhone(channel.displayPhone, phone)) {
     console.warn(
-      `[Baileys Events] Mensagem de "${phone}" ignorada por bater com número próprio de um canal (instância "${instanceName}", canal "${channel.name}", id ${channel.id}). Se esse número pertence a um contato real, corrija o cadastro do canal ou do cliente.`,
+      `[Baileys Events] Mensagem de "${phone}" ignorada por ser eco do próprio número do canal "${channel.name}" (instância "${instanceName}", id ${channel.id}).`,
     );
     return;
   }

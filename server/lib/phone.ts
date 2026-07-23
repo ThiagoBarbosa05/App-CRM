@@ -13,13 +13,19 @@ export function normalizePhone(phone: string) {
 }
 
 /**
- * Confere se um número recebido bate com o de algum canal próprio da empresa,
- * comparando ambas as formas normalizadas (com e sem DDI 55) contra o conjunto
- * produzido por `getOwnChannelPhones()`. Use nos webhooks de inbound para
- * descartar echos do próprio número (ver whatsapp-baileys-events /
- * whatsapp-webhook). Puro (sem DB) para ser testável isoladamente.
+ * Confere se um número recebido é um auto-echo do MESMO canal que o recebeu —
+ * ex.: dispositivo vinculado via Evolution/Baileys espelhando de volta uma
+ * mensagem que o próprio número do canal enviou. Compara só contra o canal que
+ * recebeu o evento, nunca contra os demais canais da empresa: um canal
+ * diferente mandando mensagem de verdade para este número é uma conversa
+ * legítima, não um eco. Puro (sem DB) para ser testável isoladamente.
  */
-export function isOwnChannelPhone(ownPhones: Set<string>, phone: string): boolean {
-  const { digits, withoutCountry } = normalizePhone(phone);
-  return ownPhones.has(digits) || ownPhones.has(withoutCountry);
+export function isSameChannelPhone(
+  channelDisplayPhone: string | null | undefined,
+  phone: string,
+): boolean {
+  if (!channelDisplayPhone) return false;
+  const a = normalizePhone(channelDisplayPhone);
+  const b = normalizePhone(phone);
+  return a.digits === b.digits || a.digits === b.withoutCountry || a.withoutCountry === b.digits;
 }

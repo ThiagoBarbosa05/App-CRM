@@ -4,8 +4,8 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
 import { decryptToken, encryptToken } from "../lib/token-crypto";
-import { normalizePhone, isOwnChannelPhone } from "../lib/phone";
-export { isOwnChannelPhone };
+import { isSameChannelPhone } from "../lib/phone";
+export { isSameChannelPhone };
 
 /** Canal resolvido para envio — discrimina pelo provider */
 export type ResolvedChannel =
@@ -79,6 +79,21 @@ export async function getDefaultSectorIdForChannel(channelId: number): Promise<s
     .where(eq(whatsappChannels.id, channelId))
     .limit(1);
   return row?.defaultSectorId ?? null;
+}
+
+/**
+ * Nome do canal cujo displayPhone bate com o telefone informado (normalizado
+ * com/sem DDI). Usado só para exibição — enriquecer o `contactName` de uma
+ * conversa nova quando o remetente é, de fato, outro canal da empresa
+ * mandando mensagem de verdade (ex.: repasse entre setores), não um cliente.
+ */
+export async function getChannelNameByPhone(phone: string): Promise<string | null> {
+  const rows = await db
+    .select({ name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone })
+    .from(whatsappChannels)
+    .where(isNull(whatsappChannels.deletedAt));
+  const match = rows.find((r) => isSameChannelPhone(r.displayPhone, phone));
+  return match?.name ?? null;
 }
 
 export async function getChannelByPhoneNumberId(phoneNumberId: string) {
@@ -188,29 +203,6 @@ export async function listAccessibleChannelsForUser(
     .from(whatsappChannels)
     .where(and(inArray(whatsappChannels.id, ids), eq(whatsappChannels.isActive, true)))
     .orderBy(whatsappChannels.createdAt);
-}
-
-/**
- * Conjunto com os números (somente dígitos, com DDI) de todos os canais da
- * empresa. Usado para ignorar mensagens recebidas vindas de um número próprio
- * (ex.: o bot dispara pelo número Cloud API e a mensagem é espelhada de volta por
- * um canal Evolution conectado), que não devem virar conversas de contato.
- */
-export async function getOwnChannelPhones(): Promise<Set<string>> {
-  const rows = await db
-    .select({ displayPhone: whatsappChannels.displayPhone })
-    .from(whatsappChannels);
-  const phones = new Set<string>();
-  for (const r of rows) {
-    if (!r.displayPhone) continue;
-    // Guarda AMBAS as formas (com e sem DDI 55). Sem isso, um canal cadastrado
-    // sem o 55 (ex.: "21989014965") não casaria com o JID recebido, que sempre
-    // traz o 55 (ex.: "5521989014965"), deixando o echo escapar do guard.
-    const { digits, withoutCountry } = normalizePhone(r.displayPhone);
-    if (digits) phones.add(digits);
-    if (withoutCountry) phones.add(withoutCountry);
-  }
-  return phones;
 }
 
 /**

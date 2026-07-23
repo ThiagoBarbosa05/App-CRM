@@ -22,7 +22,7 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fet
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
-import { getChannelById, getChannelForConversation, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel } from "./whatsapp-channels.service";
+import { getChannelById, getChannelForConversation, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelNameByPhone } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
@@ -161,6 +161,12 @@ export async function findOrCreateConversation(phone: string, channelId?: number
   // de vendorScopeCondition (setor E canal).
   const defaultSectorId = channelId ? await getDefaultSectorIdForChannel(channelId) : null;
 
+  // Se o remetente é, na verdade, outro canal da empresa mandando mensagem de
+  // verdade (ex.: repasse entre setores), usa o nome do canal como
+  // contactName em vez de deixar em branco — deixa claro pro atendente que
+  // não é um cliente desconhecido, sem precisar de flag nova no schema.
+  const senderChannelName = matchedClient ? null : await getChannelNameByPhone(phone).catch(() => null);
+
   const [created] = await db
     .insert(whatsappConversations)
     .values({
@@ -168,7 +174,9 @@ export async function findOrCreateConversation(phone: string, channelId?: number
       clientId: matchedClient?.id ?? null,
       channelId: channelId ?? null,
       sectorId: defaultSectorId,
-      contactName: matchedClient ? null : (contactName ?? null),
+      contactName: matchedClient
+        ? null
+        : (senderChannelName ? `Canal: ${senderChannelName}` : (contactName ?? null)),
     })
     .returning();
 
