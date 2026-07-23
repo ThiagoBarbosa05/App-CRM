@@ -5541,16 +5541,29 @@ function NewConversationDialog({
   open,
   onOpenChange,
   onSelect,
+  channels,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSelect: (clientId: string) => void;
+  channels: Channel[];
 }) {
   const [search, setSearch] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [selectedChannelId, setSelectedChannelId] = useState<number | undefined>(undefined);
   const debouncedSearch = useDebounce(search, 300);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Pré-seleciona o único canal disponível; com mais de um, o atendente
+  // escolhe explicitamente para não depender do fallback automático do
+  // backend (que pode não bater com a intenção de quem está iniciando).
+  useEffect(() => {
+    if (!open) return;
+    if (channels.length === 1) {
+      setSelectedChannelId(channels[0].id);
+    }
+  }, [open, channels]);
 
   const { data: availableTags = [] } = useQuery<WhatsappClientTag[]>({
     queryKey: ["/api/whatsapp/tags"],
@@ -5597,7 +5610,7 @@ function NewConversationDialog({
       const res = await fetch("/api/whatsapp/conversations/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId }),
+        body: JSON.stringify({ clientId, channelId: selectedChannelId }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -5634,6 +5647,25 @@ function NewConversationDialog({
             autoFocus
           />
         </div>
+
+        {channels.length > 1 && (
+          <Select
+            value={selectedChannelId != null ? String(selectedChannelId) : ""}
+            onValueChange={(v) => setSelectedChannelId(Number(v))}
+          >
+            <SelectTrigger className="h-9 text-sm w-full">
+              <SelectValue placeholder="Canal para iniciar a conversa…" />
+            </SelectTrigger>
+            <SelectContent>
+              {channels.map((ch) => (
+                <SelectItem key={ch.id} value={String(ch.id)}>
+                  {ch.name}
+                  {ch.displayPhone ? ` — ${ch.displayPhone}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         {availableTags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
@@ -5691,7 +5723,10 @@ function NewConversationDialog({
             clientResults.map((c) => (
               <button
                 key={c.id}
-                disabled={startMutation.isPending}
+                disabled={
+                  startMutation.isPending ||
+                  (channels.length > 1 && selectedChannelId == null)
+                }
                 onClick={() => startMutation.mutate(c.id)}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
               >
@@ -7055,6 +7090,7 @@ export default function WhatsAppConversationsPage() {
         open={newConvOpen}
         onOpenChange={setNewConvOpen}
         onSelect={handleSelectConversation}
+        channels={availableChannels}
       />
     </div>
   );

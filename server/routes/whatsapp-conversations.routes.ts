@@ -300,6 +300,7 @@ router.post("/conversations/:clientId/read", async (req, res) => {
 
 const startConversationSchema = z.object({
   clientId: z.string().min(1),
+  channelId: z.number().int().positive().optional(),
 });
 
 router.post("/conversations/start", async (req, res) => {
@@ -316,6 +317,7 @@ router.post("/conversations/start", async (req, res) => {
       parsed.data.clientId,
       user.userId,
       user.role,
+      parsed.data.channelId,
     );
     if (!result) {
       return res.status(403).json({ message: "Cliente não encontrado ou sem permissão" });
@@ -323,6 +325,9 @@ router.post("/conversations/start", async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    if (err instanceof Error && err.message === "CHANNEL_NOT_ACCESSIBLE") {
+      return res.status(403).json({ message: "Você não tem acesso a este canal" });
+    }
     console.error("[WA Conversations] Erro ao iniciar conversa:", err);
     res.status(500).json({ message: "Erro ao iniciar conversa" });
   }

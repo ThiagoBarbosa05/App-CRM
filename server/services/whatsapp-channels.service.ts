@@ -333,10 +333,15 @@ export async function listChannelIdsForUser(userId: string): Promise<number[]> {
       .select({ id: whatsappChannels.id })
       .from(whatsappChannels)
       .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true))),
+    // Join com whatsappChannels e filtra isActive: um canal excluído/desativado
+    // não é removido de whatsapp_channel_members automaticamente, então sem
+    // esse filtro o grant continua "vivo" indefinidamente para um canal morto
+    // (ex.: some da tela de canais, mas o usuário ainda "tem acesso" a ele).
     db
       .select({ channelId: whatsappChannelMembers.channelId })
       .from(whatsappChannelMembers)
-      .where(eq(whatsappChannelMembers.userId, userId)),
+      .innerJoin(whatsappChannels, eq(whatsappChannels.id, whatsappChannelMembers.channelId))
+      .where(and(eq(whatsappChannelMembers.userId, userId), eq(whatsappChannels.isActive, true))),
   ]);
   const ids = new Set<number>(ownedRows.map((r) => r.id));
   for (const r of memberRows) ids.add(r.channelId);
