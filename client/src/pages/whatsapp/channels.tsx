@@ -784,8 +784,8 @@ function EvolutionConnectDialog({
 }) {
   return (
     <Dialog open={channel !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm w-[calc(100vw-2rem)] sm:w-full">
-        <DialogHeader>
+      <DialogContent className="max-w-sm w-[calc(100vw-2rem)] sm:w-full max-h-[90dvh] flex flex-col">
+        <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <QrCode className="h-4 w-4" />
             {channel?.name}
@@ -794,7 +794,9 @@ function EvolutionConnectDialog({
             Conexão via QR Code.
           </DialogDescription>
         </DialogHeader>
-        {channel && <EvolutionChannelConnect channel={channel} />}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {channel && <EvolutionChannelConnect channel={channel} />}
+        </div>
       </DialogContent>
     </Dialog>
   );
