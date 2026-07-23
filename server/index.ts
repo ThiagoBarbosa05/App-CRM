@@ -34,6 +34,7 @@ import "./jobs/reengagement-automation-scheduler";
 import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
 import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";
+import { startReconcileBaileysStatusJob } from "./jobs/reconcile-baileys-status.job";
 import { initSessionManager, shutdownAllSessions } from "./services/baileys/session-manager";
 import { db } from "./db";
 import { users } from "@shared/schema";
@@ -190,6 +191,7 @@ app.use((req, res, next) => {
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();
+  startReconcileBaileysStatusJob();
 
   // Reidrata as sessões do Baileys (canais via QR Code) que rodam in-process.
   // Não derruba o boot em caso de falha.

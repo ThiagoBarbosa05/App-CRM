@@ -21,6 +21,7 @@ import {
 } from "../whatsapp-baileys-events.service.js";
 import { pool } from "../../db.js";
 import { uploadWhatsappMedia } from "../../lib/r2.js";
+import { getChannelByEvolutionInstance, updateConnectionStatus } from "../whatsapp-channels.service.js";
 
 // Baileys roda DENTRO do processo do CRM. Os eventos são entregues chamando
 // diretamente os handlers do service (sem webhook HTTP).
@@ -57,11 +58,14 @@ async function getCmdListenClient(): Promise<PoolClient> {
       client.on("notification", (msg) => {
         if (msg.channel !== INSTANCE_CMD_CHANNEL || !msg.payload) return;
         try {
-          const { instanceName, action } = JSON.parse(msg.payload) as {
-            instanceName: string;
-            action: string;
-          };
-          if (action === "logout") teardownLocalSession(instanceName).catch(console.error);
+          const parsed = JSON.parse(msg.payload) as { instanceName?: string; action: string; [k: string]: unknown };
+          if (parsed.action === "logout") {
+            teardownLocalSession(parsed.instanceName!).catch(console.error);
+          } else if (parsed.action === "send_text" || parsed.action === "send_media") {
+            handleRemoteSendCommand(parsed as RemoteSendCommand).catch(console.error);
+          } else if (parsed.action === "send_result") {
+            handleSendResult(parsed as SendResultPayload);
+          }
         } catch (err) {
           console.error("[Baileys cmd] Payload de comando inválido:", err);
         }
@@ -83,10 +87,15 @@ getCmdListenClient().catch((err) =>
   console.error("[Baileys cmd] Falha ao iniciar LISTEN de comandos de instância:", err),
 );
 
+async function publishCmd(payload: Record<string, unknown>): Promise<void> {
+  const client = await getCmdListenClient();
+  await client.query("SELECT pg_notify($1, $2)", [INSTANCE_CMD_CHANNEL, JSON.stringify(payload)]);
+}
+
 function broadcastInstanceCommand(instanceName: string, action: string): void {
-  getCmdListenClient()
-    .then((client) => client.query("SELECT pg_notify($1, $2)", [INSTANCE_CMD_CHANNEL, JSON.stringify({ instanceName, action })]))
-    .catch((err) => console.error("[Baileys cmd] Falha ao propagar comando entre réplicas:", err));
+  publishCmd({ instanceName, action }).catch((err) =>
+    console.error("[Baileys cmd] Falha ao propagar comando entre réplicas:", err),
+  );
 }
 
 // Encerra a sessão desta instância NESTA réplica, se ela existir aqui: fecha o
@@ -529,6 +538,13 @@ export function getConnectionState(instanceName: string): string {
   return map[s.status] ?? "close";
 }
 
+// Usado pelo job de reconciliação: evita que esta réplica sonde o próprio
+// lock quando ela mesma já é a dona (confia no fluxo reativo de
+// handleConnectionUpdate em vez de disputar com ele).
+export function hasLocalLock(instanceName: string): boolean {
+  return sessions.get(instanceName)?.lockClient != null;
+}
+
 export async function logoutInstance(instanceName: string): Promise<void> {
   const s = sessions.get(instanceName);
   if (s) {
@@ -600,19 +616,41 @@ export async function shutdownAllSessions(): Promise<void> {
     entries.map(async ([instanceName, s]) => {
       try { s.socket?.end(undefined); } catch { /* ignore */ }
       if (s.lockClient) await releaseInstanceLock(instanceName, s.lockClient).catch(() => {});
+      // Best-effort: se o Baileys não disparar connection.update("close") a
+      // tempo do processo encerrar (comum em SIGTERM do Cloud Run durante
+      // deploy), o banco ficaria preso em "connected" para sempre. Timeout
+      // curto para não atrasar o shutdown se o Postgres estiver fora do ar.
+      await withTimeout(markChannelDisconnected(instanceName), 3000).catch(() => {});
     }),
   );
   sessions.clear();
 }
 
-export async function sendText(
+async function markChannelDisconnected(instanceName: string): Promise<void> {
+  const channel = await getChannelByEvolutionInstance(instanceName);
+  if (!channel) return;
+  await updateConnectionStatus(channel.id, "disconnected");
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+}
+
+interface EvolutionSendResultLike {
+  key: { remoteJid: string; fromMe: boolean; id: string };
+  status: string;
+}
+
+async function sendTextLocal(
+  s: SessionInfo,
   instanceName: string,
   to: string,
   text: string,
-  options: { delay?: number; quotedMsgId?: string } = {},
-): Promise<{ key: { remoteJid: string; fromMe: boolean; id: string }; status: string }> {
-  const s = sessions.get(instanceName);
-  if (!s?.socket) throw new Error(`Instância "${instanceName}" não encontrada ou desconectada`);
+  options: { delay?: number; quotedMsgId?: string },
+): Promise<EvolutionSendResultLike> {
   const jid = normalizeToJid(to);
 
   const sendOpts = buildQuoted(jid, options.quotedMsgId);
@@ -628,15 +666,13 @@ export async function sendText(
   };
 }
 
-export async function sendMedia(
+async function sendMediaLocal(
+  s: SessionInfo,
   instanceName: string,
   to: string,
   mediaType: "image" | "document" | "audio" | "video",
   opts: { url?: string; base64?: string; filename?: string; caption?: string; mimetype?: string; delay?: number },
-): Promise<{ key: { remoteJid: string; fromMe: boolean; id: string }; status: string }> {
-  const s = sessions.get(instanceName);
-  if (!s?.socket) throw new Error(`Instância "${instanceName}" não encontrada ou desconectada`);
-
+): Promise<EvolutionSendResultLike> {
   const jid = normalizeToJid(to);
   const mime = opts.mimetype ?? "application/octet-stream";
 
@@ -674,6 +710,128 @@ export async function sendMedia(
     },
     status: "sent",
   };
+}
+
+export async function sendText(
+  instanceName: string,
+  to: string,
+  text: string,
+  options: { delay?: number; quotedMsgId?: string } = {},
+): Promise<EvolutionSendResultLike> {
+  const s = sessions.get(instanceName);
+  if (s?.socket) return sendTextLocal(s, instanceName, to, text, options);
+  // Sem socket nesta réplica — pode estar vivo em outra (Cloud Run autoscale,
+  // sem sticky sessions). Encaminha via LISTEN/NOTIFY em vez de falhar direto.
+  return forwardSendCommand({ kind: "send_text", instanceName, to, text, options });
+}
+
+export async function sendMedia(
+  instanceName: string,
+  to: string,
+  mediaType: "image" | "document" | "audio" | "video",
+  opts: { url?: string; base64?: string; filename?: string; caption?: string; mimetype?: string; delay?: number },
+): Promise<EvolutionSendResultLike> {
+  const s = sessions.get(instanceName);
+  if (s?.socket) return sendMediaLocal(s, instanceName, to, mediaType, opts);
+  if (opts.base64) {
+    // Payload base64 estoura de longe o limite de 8000 bytes do NOTIFY do
+    // Postgres — sem encaminhamento possível, falha como hoje.
+    throw new Error(`Instância "${instanceName}" não encontrada ou desconectada`);
+  }
+  return forwardSendCommand({ kind: "send_media", instanceName, to, mediaType, opts });
+}
+
+// ── Encaminhamento de envio entre réplicas (Postgres LISTEN/NOTIFY) ─────────────
+//
+// Mesmo raciocínio do comando de logout acima: a réplica que atende a
+// requisição HTTP de envio pode não ser a dona do socket vivo. Em vez de
+// falhar direto com "não encontrada ou desconectada", publica um comando de
+// envio no mesmo canal e aguarda a réplica dona executar e responder.
+
+const NOTIFY_PAYLOAD_SAFE_LIMIT = 7500; // margem abaixo do limite real de 8000 bytes do Postgres
+const SEND_FORWARD_TIMEOUT_MS = 15_000;
+
+type SendForwardCommand =
+  | { kind: "send_text"; instanceName: string; to: string; text: string; options: { delay?: number; quotedMsgId?: string } }
+  | {
+      kind: "send_media";
+      instanceName: string;
+      to: string;
+      mediaType: "image" | "document" | "audio" | "video";
+      opts: { url?: string; filename?: string; caption?: string; mimetype?: string; delay?: number };
+    };
+
+type RemoteSendCommand = SendForwardCommand & { action: string; correlationId: string };
+
+type SendResultPayload = {
+  action: "send_result";
+  correlationId: string;
+  ok: boolean;
+  result?: EvolutionSendResultLike;
+  error?: string;
+};
+
+const pendingSendRequests = new Map<
+  string,
+  { resolve: (v: EvolutionSendResultLike) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
+>();
+
+async function forwardSendCommand(cmd: SendForwardCommand): Promise<EvolutionSendResultLike> {
+  const notFoundErr = () => new Error(`Instância "${cmd.instanceName}" não encontrada ou desconectada`);
+  const correlationId = crypto.randomUUID();
+  const payload = { action: cmd.kind, correlationId, ...cmd };
+
+  if (Buffer.byteLength(JSON.stringify(payload), "utf8") > NOTIFY_PAYLOAD_SAFE_LIMIT) {
+    // Mensagem grande demais para caber num NOTIFY — não adianta tentar.
+    throw notFoundErr();
+  }
+
+  return new Promise<EvolutionSendResultLike>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingSendRequests.delete(correlationId);
+      reject(notFoundErr()); // ninguém respondeu — trata como genuinamente offline
+    }, SEND_FORWARD_TIMEOUT_MS);
+    pendingSendRequests.set(correlationId, { resolve, reject, timer });
+
+    publishCmd(payload).catch((err) => {
+      clearTimeout(timer);
+      pendingSendRequests.delete(correlationId);
+      reject(err);
+    });
+  });
+}
+
+function handleSendResult(payload: SendResultPayload): void {
+  const pending = pendingSendRequests.get(payload.correlationId);
+  if (!pending) return; // não é nosso (outra réplica), ou já expirou — ignora
+  clearTimeout(pending.timer);
+  pendingSendRequests.delete(payload.correlationId);
+  if (payload.ok && payload.result) pending.resolve(payload.result);
+  else pending.reject(new Error(payload.error ?? "Falha ao encaminhar envio entre réplicas"));
+}
+
+async function handleRemoteSendCommand(cmd: RemoteSendCommand): Promise<void> {
+  const s = sessions.get(cmd.instanceName);
+  // Sem socket local: pode ser a própria réplica que originou o pedido
+  // recebendo de volta seu próprio broadcast (Postgres entrega NOTIFY a todo
+  // listener do canal, inclusive quem publicou). Ignora silenciosamente — não
+  // responde, não reencaminha.
+  if (!s?.socket) return;
+
+  try {
+    const result =
+      cmd.kind === "send_text"
+        ? await sendTextLocal(s, cmd.instanceName, cmd.to, cmd.text, cmd.options)
+        : await sendMediaLocal(s, cmd.instanceName, cmd.to, cmd.mediaType, cmd.opts);
+    await publishCmd({ action: "send_result", correlationId: cmd.correlationId, ok: true, result });
+  } catch (err) {
+    await publishCmd({
+      action: "send_result",
+      correlationId: cmd.correlationId,
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    }).catch(console.error);
+  }
 }
 
 export async function getProfilePictureUrl(instanceName: string, to: string): Promise<string | null> {

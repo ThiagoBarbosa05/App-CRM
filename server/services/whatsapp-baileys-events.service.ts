@@ -52,6 +52,13 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   // Evolution). Sem isso, o número do bot apareceria como um contato novo.
   const ownPhones = await getOwnChannelPhones().catch(() => new Set<string>());
   if (ownPhones.has(phone.replace(/\D/g, ""))) {
+    // Log em vez de descarte 100% silencioso: se o número de um contato real
+    // colidir com o display_phone cadastrado de algum canal (erro de
+    // cadastro, ex.: cliente "Carol" com o número do canal Eventos), a
+    // mensagem dela some sem deixar rastro nenhum — isso já aconteceu.
+    console.warn(
+      `[Baileys Events] Mensagem de "${phone}" ignorada por bater com número próprio de um canal (instância "${instanceName}", canal "${channel.name}", id ${channel.id}). Se esse número pertence a um contato real, corrija o cadastro do canal ou do cliente.`,
+    );
     return;
   }
 
