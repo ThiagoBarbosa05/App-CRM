@@ -4,6 +4,8 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { InsertWhatsappChannel } from "../../shared/schema";
 import type { ChannelOverride } from "../integrations/whatsapp";
 import { decryptToken, encryptToken } from "../lib/token-crypto";
+import { normalizePhone, isOwnChannelPhone } from "../lib/phone";
+export { isOwnChannelPhone };
 
 /** Canal resolvido para envio — discrimina pelo provider */
 export type ResolvedChannel =
@@ -200,8 +202,13 @@ export async function getOwnChannelPhones(): Promise<Set<string>> {
     .from(whatsappChannels);
   const phones = new Set<string>();
   for (const r of rows) {
-    const digits = r.displayPhone?.replace(/\D/g, "");
+    if (!r.displayPhone) continue;
+    // Guarda AMBAS as formas (com e sem DDI 55). Sem isso, um canal cadastrado
+    // sem o 55 (ex.: "21989014965") não casaria com o JID recebido, que sempre
+    // traz o 55 (ex.: "5521989014965"), deixando o echo escapar do guard.
+    const { digits, withoutCountry } = normalizePhone(r.displayPhone);
     if (digits) phones.add(digits);
+    if (withoutCountry) phones.add(withoutCountry);
   }
   return phones;
 }

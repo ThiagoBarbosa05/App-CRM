@@ -11,7 +11,7 @@ import {
   persistBotMessage,
 } from "../services/whatsapp-bot-engine.service";
 import { saveInboundMessage, saveInboundReaction } from "../services/whatsapp-conversations.service";
-import { getChannelByPhoneNumberId, getOwnChannelPhones } from "../services/whatsapp-channels.service";
+import { getChannelByPhoneNumberId, getOwnChannelPhones, isOwnChannelPhone } from "../services/whatsapp-channels.service";
 import { logAccountEvent } from "../services/whatsapp-account-events.service";
 import {
   updateTemplateMetaStatus,
@@ -297,7 +297,13 @@ async function handleIncomingMessage(
   // canal conectado espelhando o tráfego do bot), evitando criar uma conversa de
   // contato com o próprio número da empresa.
   const ownPhones = await getOwnChannelPhones().catch(() => new Set<string>());
-  if (ownPhones.has(message.from.replace(/\D/g, ""))) {
+  if (isOwnChannelPhone(ownPhones, message.from)) {
+    // Se esse número pertence a um contato real (colisão com o display_phone de
+    // algum canal — erro de cadastro), a mensagem some sem rastro. Loga em vez
+    // de descartar 100% silencioso, espelhando o guard do Baileys.
+    console.warn(
+      `[WA Webhook] Mensagem de "${message.from}" ignorada por bater com número próprio de um canal (phone_number_id "${metadata.phone_number_id}"). Se esse número pertence a um contato real, corrija o cadastro do canal ou do cliente.`,
+    );
     return;
   }
 

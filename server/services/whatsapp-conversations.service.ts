@@ -28,12 +28,10 @@ import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
 
-export function normalizePhone(phone: string) {
-  const digits = phone.replace(/\D/g, "");
-  const withoutCountry =
-    digits.startsWith("55") && digits.length >= 12 ? digits.slice(2) : digits;
-  return { digits, withoutCountry };
-}
+// Reexportado do util compartilhado para não quebrar imports existentes
+// (whatsapp-opt-out.service.ts, bot-session-history.controller.ts).
+import { normalizePhone } from "../lib/phone";
+export { normalizePhone };
 
 // Escopo de visibilidade de um vendedor sobre conversas de WhatsApp: conversas
 // atribuídas a ele e conversas da fila de setor (setor = fila; transferir
