@@ -1896,7 +1896,11 @@ export async function saveInboundMessage(data: {
   if (!conv.clientId) {
     const updates: Partial<typeof whatsappConversations.$inferInsert> = {};
 
-    if (data.pushName && data.pushName !== (conv as { contactName?: string | null }).contactName) {
+    // pushName só reflete o contato de verdade em mensagens inbound. Em
+    // outbound (_fromMe, ex.: vendedor respondendo direto pelo celular em vez
+    // do CRM), o Baileys manda o pushName da PRÓPRIA conta conectada, e usá-lo
+    // aqui sobrescreveria o nome do cliente pelo nome do canal.
+    if (!data._fromMe && data.pushName && data.pushName !== (conv as { contactName?: string | null }).contactName) {
       updates.contactName = data.pushName;
     }
 

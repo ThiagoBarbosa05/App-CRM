@@ -13,6 +13,7 @@ import {
   eventParticipants,
   connectOrders,
   contactTags,
+  whatsappConversations,
 } from "../../shared/schema";
 import { eq, sql, inArray, and } from "drizzle-orm";
 
@@ -95,6 +96,7 @@ export async function mergeClients(keepId: string, mergeId: string) {
     await tx.update(messageJobsLogs).set({ clientId: keepId }).where(eq(messageJobsLogs.clientId, mergeId));
     await tx.update(blingOrders).set({ appClientId: keepId }).where(eq(blingOrders.appClientId, mergeId));
     await tx.update(connectOrders).set({ appClientId: keepId }).where(eq(connectOrders.appClientId, mergeId));
+    await tx.update(whatsappConversations).set({ clientId: keepId }).where(eq(whatsappConversations.clientId, mergeId));
 
     // Tabelas com cascade ou set null — migrar ANTES do delete para preservar histórico
     await tx.update(clientInteractions).set({ clientId: keepId }).where(eq(clientInteractions.clientId, mergeId));
