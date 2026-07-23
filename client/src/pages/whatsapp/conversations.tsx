@@ -12,6 +12,7 @@ import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { useAuth } from "@/hooks/useAuth";
 import { useDebounce } from "@/hooks/use-debounce";
+import { InternalChatPanel } from "./internal-chat/internal-chat-panel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -87,6 +88,7 @@ import {
   WifiOff,
   Radio,
   User,
+  Users,
   Lock,
   BellOff,
   ChevronDown,
@@ -5767,6 +5769,11 @@ export default function WhatsAppConversationsPage() {
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<"open" | "closed">("open");
+  // Alterna entre atendimento a cliente (padrão) e chat interno da equipe —
+  // domínios de dados totalmente separados (ver internal-chat.service.ts),
+  // por isso o painel de equipe é um componente autocontido renderizado no
+  // lugar de toda a tela em vez de reaproveitar o estado desta página.
+  const [viewMode, setViewMode] = useState<"clientes" | "equipe">("clientes");
   const [qrDialogChannel, setQrDialogChannel] = useState<Channel | null>(null);
   const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
   const [selectedAttendantId, setSelectedAttendantId] = useState<string | null>(null);
@@ -6114,6 +6121,10 @@ export default function WhatsAppConversationsPage() {
     hasNextClientsPage === true,
   );
 
+  if (viewMode === "equipe") {
+    return <InternalChatPanel onExit={() => setViewMode("clientes")} />;
+  }
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left panel — contact list */}
@@ -6171,6 +6182,15 @@ export default function WhatsAppConversationsPage() {
                   </span>
                 )}
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-500 hover:text-primary"
+                onClick={() => setViewMode("equipe")}
+                title="Chat da equipe"
+              >
+                <Users className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

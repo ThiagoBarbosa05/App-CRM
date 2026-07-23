@@ -5163,6 +5163,133 @@ export const zernioSettings = pgTable("zernio_settings", {
 
 export type InsertCampaignClient = z.infer<typeof insertCampaignClientSchema>;
 
+// ─── Chat Interno da Equipe (DM + Grupos) ─────────────────────────────────────
+// Comunicação interna entre atendentes, desacoplada de whatsappConversations
+// (atendimento a cliente) e de grupos reais do WhatsApp (que continuam sendo
+// ignorados no Baileys — ver isGroupJid em server/services/baileys/jid.ts).
+
+export const internalConversations = pgTable("internal_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type", { enum: ["dm", "group"] }).notNull(),
+  name: text("name"),
+  avatarUrl: text("avatar_url"),
+  // Chave normalizada "menorUserId:maiorUserId", preenchida só para type="dm",
+  // garante via unique() que não existam duas conversas 1:1 para o mesmo par.
+  dmKey: text("dm_key").unique(),
+  createdByUserId: varchar("created_by_user_id")
+    .notNull()
+    .references(() => users.id),
+  isArchived: boolean("is_archived").notNull().default(false),
+  lastMessageAt: timestamp("last_message_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const internalConversationMembers = pgTable(
+  "internal_conversation_members",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversationId: varchar("conversation_id")
+      .notNull()
+      .references(() => internalConversations.id, { onDelete: "cascade" }),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // Só relevante para type="group"; em DM ambos ficam como "member".
+    role: text("role", { enum: ["owner", "admin", "member"] })
+      .notNull()
+      .default("member"),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+    // Sair do grupo não apaga a linha (preserva histórico de quem já esteve
+    // no grupo) — reentrar reativa a mesma linha (leftAt = null) em vez de
+    // duplicar, o que manteria a unique(conversationId, userId) intacta.
+    leftAt: timestamp("left_at"),
+  },
+  (t) => ({
+    conversationUserUnique: unique().on(t.conversationId, t.userId),
+    userIdx: index("internal_conversation_members_user_idx").on(t.userId),
+    conversationIdx: index("internal_conversation_members_conversation_idx").on(
+      t.conversationId,
+    ),
+  }),
+);
+
+export const internalMessages = pgTable(
+  "internal_messages",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversationId: varchar("conversation_id")
+      .notNull()
+      .references(() => internalConversations.id, { onDelete: "cascade" }),
+    // set null (não cascade): apagar um usuário não deve apagar o histórico
+    // de mensagens dele em grupos com outros membros ainda ativos.
+    senderId: varchar("sender_id").references(() => users.id, { onDelete: "set null" }),
+    content: text("content"),
+    type: text("type", { enum: ["text", "image", "file", "system"] })
+      .notNull()
+      .default("text"),
+    replyToMessageId: varchar("reply_to_message_id"),
+    editedAt: timestamp("edited_at"),
+    deletedAt: timestamp("deleted_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    conversationCreatedIdx: index("internal_messages_conversation_created_idx").on(
+      t.conversationId,
+      t.createdAt,
+    ),
+  }),
+);
+
+export const internalMessageMedia = pgTable("internal_message_media", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  messageId: varchar("message_id")
+    .notNull()
+    .references(() => internalMessages.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  mimeType: text("mime_type").notNull(),
+  fileName: text("file_name"),
+  sizeBytes: integer("size_bytes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const internalMessageReads = pgTable(
+  "internal_message_reads",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    conversationId: varchar("conversation_id")
+      .notNull()
+      .references(() => internalConversations.id, { onDelete: "cascade" }),
+    lastReadAt: timestamp("last_read_at").defaultNow().notNull(),
+  },
+  (t) => ({ userConversationUnique: unique().on(t.userId, t.conversationId) }),
+);
+
+export const insertInternalConversationSchema = createInsertSchema(internalConversations).omit({
+  id: true,
+  dmKey: true,
+  lastMessageAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertInternalMessageSchema = createInsertSchema(internalMessages).omit({
+  id: true,
+  editedAt: true,
+  deletedAt: true,
+  createdAt: true,
+});
+
+export type InternalConversation = typeof internalConversations.$inferSelect;
+export type InsertInternalConversation = z.infer<typeof insertInternalConversationSchema>;
+export type InternalConversationMember = typeof internalConversationMembers.$inferSelect;
+export type InternalMessage = typeof internalMessages.$inferSelect;
+export type InsertInternalMessage = z.infer<typeof insertInternalMessageSchema>;
+export type InternalMessageMedia = typeof internalMessageMedia.$inferSelect;
+export type InternalMessageRead = typeof internalMessageReads.$inferSelect;
+
 // ─── Automações (infraestrutura genérica) ─────────────────────────────────────
 // Modelos de mensagem reutilizáveis, multi-canal (SMS/e-mail), usados pelas
 // regras de automação. Cada template pertence a um canal e a um caso de uso
