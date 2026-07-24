@@ -5567,6 +5567,9 @@ function NewConversationDialog({
     name: string;
     phone: string | null;
   } | null>(null);
+  // Número avulso aguardando a escolha do canal (passo 2), quando o contato não
+  // é um cliente do CRM.
+  const [pendingPhone, setPendingPhone] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [attendantSearch, setAttendantSearch] = useState("");
@@ -5582,6 +5585,7 @@ function NewConversationDialog({
       setTab("contato");
       setStep(1);
       setSelectedClient(null);
+      setPendingPhone(null);
       setSearch("");
       setSelectedTagIds([]);
       setAttendantSearch("");
@@ -5631,21 +5635,23 @@ function NewConversationDialog({
   const startMutation = useMutation({
     mutationFn: async ({
       clientId,
+      phone,
       channelId,
     }: {
-      clientId: string;
+      clientId?: string;
+      phone?: string;
       channelId?: number;
     }) => {
       const res = await fetch("/api/whatsapp/conversations/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, channelId }),
+        body: JSON.stringify({ clientId, phone, channelId }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message ?? "Erro ao iniciar conversa");
       }
-      return res.json() as Promise<{ clientId: string; conversationId: string }>;
+      return res.json() as Promise<{ clientId: string | null; conversationId: string }>;
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({
@@ -5661,12 +5667,49 @@ function NewConversationDialog({
 
   function handlePickClient(c: { id: string; name: string; phone: string | null }) {
     if (channels.length > 1) {
+      setPendingPhone(null);
       setSelectedClient(c);
       setStep(2);
     } else {
       startMutation.mutate({ clientId: c.id, channelId: channels[0]?.id });
     }
   }
+
+  // Número avulso digitado na busca: permite abrir conversa com quem ainda não
+  // é cliente no CRM (equivalente ao "novo contato" do Umbler Talk). 10 dígitos
+  // = DDD + 8, o menor telefone brasileiro válido.
+  const searchDigits = search.replace(/\D/g, "");
+  const searchIsPhone = searchDigits.length >= 10;
+
+  function handleStartByPhone(phone: string) {
+    if (channels.length > 1) {
+      setSelectedClient(null);
+      setPendingPhone(phone);
+      // O passo 2 (escolha do canal) só é renderizado na aba "contato" — vindo
+      // da aba "atendentes", troca de aba para não cair numa tela vazia.
+      setTab("contato");
+      setStep(2);
+    } else {
+      startMutation.mutate({ phone, channelId: channels[0]?.id });
+    }
+  }
+
+  // Canais internos (outros setores/atendentes) com quem se pode abrir uma
+  // conversa de WhatsApp de verdade — diferente do chat interno, que não sai
+  // pelo WhatsApp.
+  const { data: directoryChannels = [] } = useQuery<
+    { id: number; name: string; displayPhone: string | null }[]
+  >({
+    queryKey: ["/api/whatsapp/channels/directory"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/channels/directory");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && tab === "atendentes",
+  });
+
+  const ownChannelIds = new Set(channels.map((c) => c.id));
 
   const { data: attendants = [], isLoading: loadingAttendants } = useInternalConversations(
     "attendants",
@@ -5786,7 +5829,7 @@ function NewConversationDialog({
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar cliente…"
+                  placeholder="Buscar cliente ou digitar um número…"
                   className="pl-9 text-sm h-10"
                   autoFocus
                 />
@@ -5824,6 +5867,30 @@ function NewConversationDialog({
               )}
 
               <div className="max-h-[50vh] sm:max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                {searchIsPhone && (
+                  <button
+                    type="button"
+                    disabled={startMutation.isPending}
+                    onClick={() => handleStartByPhone(searchDigits)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
+                  >
+                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shrink-0">
+                      <Phone className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                        Iniciar conversa com {searchDigits}
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                        Número não cadastrado no CRM
+                      </p>
+                    </div>
+                    {startMutation.isPending &&
+                      startMutation.variables?.phone === searchDigits && (
+                        <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
+                      )}
+                  </button>
+                )}
                 {isLoading ? (
                   <div className="p-4 space-y-3">
                     {[1, 2, 3].map((i) => (
@@ -5837,13 +5904,15 @@ function NewConversationDialog({
                     ))}
                   </div>
                 ) : clientResults.length === 0 ? (
-                  <div className="p-6 text-center">
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {debouncedSearch || selectedTagIds.length > 0
-                        ? "Nenhum cliente encontrado"
-                        : "Digite para buscar ou filtre por tag"}
-                    </p>
-                  </div>
+                  !searchIsPhone && (
+                    <div className="p-6 text-center">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {debouncedSearch || selectedTagIds.length > 0
+                          ? "Nenhum cliente encontrado"
+                          : "Digite para buscar ou filtre por tag"}
+                      </p>
+                    </div>
+                  )
                 ) : (
                   clientResults.map((c) => (
                     <button
@@ -5893,11 +5962,14 @@ function NewConversationDialog({
             </>
           )}
 
-          {tab === "contato" && step === 2 && selectedClient && (
+          {tab === "contato" && step === 2 && (selectedClient || pendingPhone) && (
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => setStep(1)}
+                onClick={() => {
+                  setStep(1);
+                  setPendingPhone(null);
+                }}
                 className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
@@ -5906,13 +5978,15 @@ function NewConversationDialog({
 
               <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
                 <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
-                  {getInitials(selectedClient.name, selectedClient.phone ?? "")}
+                  {selectedClient
+                    ? getInitials(selectedClient.name, selectedClient.phone ?? "")
+                    : <Phone className="h-4 w-4" />}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
-                    {selectedClient.name}
+                    {selectedClient ? selectedClient.name : pendingPhone}
                   </p>
-                  {selectedClient.phone && (
+                  {selectedClient?.phone && (
                     <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
                       {selectedClient.phone}
                     </p>
@@ -5926,7 +6000,11 @@ function NewConversationDialog({
                     key={ch.id}
                     disabled={startMutation.isPending}
                     onClick={() =>
-                      startMutation.mutate({ clientId: selectedClient.id, channelId: ch.id })
+                      startMutation.mutate(
+                        selectedClient
+                          ? { clientId: selectedClient.id, channelId: ch.id }
+                          : { phone: pendingPhone!, channelId: ch.id },
+                      )
                     }
                     className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
                   >
@@ -6010,6 +6088,45 @@ function NewConversationDialog({
                   ))
                 )}
               </div>
+
+              {/* Conversa de WhatsApp de verdade com o número de outro setor —
+                  diferente do chat interno acima, que não sai pelo WhatsApp. */}
+              {directoryChannels.filter((ch) => !ownChannelIds.has(ch.id)).length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    Pelo WhatsApp
+                  </p>
+                  <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                    {directoryChannels
+                      .filter((ch) => !ownChannelIds.has(ch.id))
+                      .map((ch) => (
+                        <button
+                          key={ch.id}
+                          type="button"
+                          disabled={startMutation.isPending || !ch.displayPhone}
+                          onClick={() => handleStartByPhone(ch.displayPhone!)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
+                        >
+                          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shrink-0">
+                            <Phone className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                              {ch.name}
+                            </p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                              {ch.displayPhone}
+                            </p>
+                          </div>
+                          {startMutation.isPending &&
+                            startMutation.variables?.phone === ch.displayPhone && (
+                              <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
+                            )}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </DialogContent>

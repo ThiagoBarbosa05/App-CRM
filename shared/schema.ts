@@ -5005,9 +5005,21 @@ export const whatsappConversations = pgTable("whatsapp_conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").references(() => clients.id),
   phone: text("phone").notNull(),
+  // Forma canônica de `phone` (canonicalPhone de server/lib/phone.ts): só
+  // dígitos, sempre com DDI 55 e com o 9º dígito. É a chave de unicidade da
+  // conversa junto com `channelId` (índice único parcial no banco) — sem ela o
+  // mesmo contato vira duas conversas quando o número chega em formatos
+  // diferentes.
+  phoneNormalized: text("phone_normalized"),
   contactName: text("contact_name"),
   contactPhotoUrl: text("contact_photo_url"),
   channelId: integer("channel_id").references(() => whatsappChannels.id),
+  // Preenchido quando `phone` é o número de OUTRO canal nosso — diálogo interno
+  // entre dois canais (ex.: Eventos ↔ Búzios). O par é reduzido a uma única
+  // conversa canônica (ver canonicalInternalPair em
+  // whatsapp-conversations.service.ts): `channelId` é o dono e `peerChannelId`
+  // o outro lado, que enxerga a mesma conversa pelo escopo de visibilidade.
+  peerChannelId: integer("peer_channel_id").references(() => whatsappChannels.id),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
   sectorId: varchar("sector_id").references(() => whatsappSectors.id),
   status: text("status").notNull().default("open"),

@@ -51,6 +51,36 @@ router.get("/channels/mine", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Diretório interno de canais: nome + número de cada canal conectado, para
+ * qualquer usuário autenticado. Alimenta a aba "Atendentes" do diálogo
+ * "Nova conversa", onde se inicia uma conversa de WhatsApp com o número de
+ * outro setor/atendente. Só expõe nome e telefone do canal — nenhuma
+ * credencial —, ao contrário de /channels/:id, que é restrito.
+ * Deve ficar antes de /channels/:id para não ser capturado como id.
+ */
+router.get("/channels/directory", async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const channels = await listActiveChannels();
+    res.json(
+      channels
+        .filter((c) => !!c.displayPhone)
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          displayPhone: c.displayPhone,
+          connectionStatus: c.connectionStatus,
+          provider: c.provider,
+        })),
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Erro ao listar canais";
+    res.status(500).json({ message });
+  }
+});
+
 router.get("/attendants", async (req: Request, res: Response) => {
   if (!isAdminOrGerente(req)) {
     res.status(403).json({ message: "Acesso restrito a administradores e gerentes" });

@@ -22,15 +22,15 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fet
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
-import { getChannelById, getChannelForConversation, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelNameByPhone } from "./whatsapp-channels.service";
-import type { ResolvedChannel } from "./whatsapp-channels.service";
+import { getChannelById, getChannelForConversation, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
+import type { ResolvedChannel, ChannelIdentity } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
 
 // Reexportado do util compartilhado para não quebrar imports existentes
 // (whatsapp-opt-out.service.ts, bot-session-history.controller.ts).
-import { normalizePhone } from "../lib/phone";
+import { normalizePhone, canonicalPhone, phoneVariants } from "../lib/phone";
 export { normalizePhone };
 
 // Escopo de visibilidade de um vendedor sobre conversas de WhatsApp: conversas
@@ -44,31 +44,17 @@ export { normalizePhone };
 // cliente no CRM NÃO dá acesso à conversa por si só (isso vale só para a
 // busca de cliente ao iniciar uma conversa nova, ver isClientAccessibleToUser)
 // — receber mensagem de um contato que não é "seu" no CRM é esperado.
-// Comparação de telefone com/sem DDI 55 em SQL — mesmo padrão de normalização
-// de normalizePhone/isSameChannelPhone (server/lib/phone.ts), só que expresso
-// como fragmento de comparação reaproveitável dentro de um EXISTS.
-const PHONE_DDI_MATCH = (channelPhoneCol: SQL | SQLWrapper, conversationPhoneCol: SQL | SQLWrapper) => sql`(
-  regexp_replace(${channelPhoneCol}, '[^0-9]', '', 'g') = regexp_replace(${conversationPhoneCol}, '[^0-9]', '', 'g')
-  OR '55' || regexp_replace(${channelPhoneCol}, '[^0-9]', '', 'g') = regexp_replace(${conversationPhoneCol}, '[^0-9]', '', 'g')
-  OR regexp_replace(${channelPhoneCol}, '[^0-9]', '', 'g') = '55' || regexp_replace(${conversationPhoneCol}, '[^0-9]', '', 'g')
-)`;
-
 /**
- * Conversa endereçada ao número de um dos canais em `channelIds` — mesmo que a
- * conversa "pertença" (sectorId/channelId armazenados) a outro canal nosso.
- * Cenário: canal Eventos manda mensagem de verdade pro número do canal
- * Búzios; a única linha criada fica com channelId=Eventos, então quem só tem
- * acesso ao Búzios nunca bateria na regra normal de setor+canal. Um cliente
- * externo nunca tem o número de um canal, então isso não afeta a visibilidade
- * de conversas normais.
+ * Diálogo interno cujo OUTRO lado é um dos canais em `channelIds`. A conversa
+ * canônica de um diálogo canal↔canal pertence a um só dos dois canais
+ * (`channelId`), e o outro fica em `peerChannelId` — sem esta cláusula, quem só
+ * tem acesso ao canal peer nunca bateria na regra normal de setor+canal e não
+ * veria a conversa. Um cliente externo nunca tem `peerChannelId`, então isso
+ * não afeta a visibilidade de conversas normais.
  */
 function conversationAddressedToOwnChannel(channelIds: number[]): SQL | undefined {
   if (channelIds.length === 0) return undefined;
-  return sql`EXISTS (
-    SELECT 1 FROM ${whatsappChannels} wc
-    WHERE wc.id = ANY(${channelIds})
-      AND ${PHONE_DDI_MATCH(sql`wc.display_phone`, whatsappConversations.phone)}
-  )`;
+  return inArray(whatsappConversations.peerChannelId, channelIds) as SQL;
 }
 
 /** Mesma exceção que `conversationAddressedToOwnChannel`, mas resolvendo os
@@ -78,8 +64,8 @@ function conversationAddressedToOwnChannelInSectors(sectorIds: string[]): SQL | 
   if (sectorIds.length === 0) return undefined;
   return sql`EXISTS (
     SELECT 1 FROM ${whatsappChannels} wc
-    WHERE wc.default_sector_id = ANY(${sectorIds})
-      AND ${PHONE_DDI_MATCH(sql`wc.display_phone`, whatsappConversations.phone)}
+    WHERE wc.id = ${whatsappConversations.peerChannelId}
+      AND wc.default_sector_id = ANY(${sectorIds})
   )`;
 }
 
@@ -98,6 +84,12 @@ async function vendorScopeCondition(userId: string) {
     );
   }
   if (channelIds.length > 0) {
+    // Conversa no meu canal que ainda não caiu em setor nenhum é minha: sem
+    // isso ela fica invisível a TODO vendedor (a regra acima exige setor E
+    // canal) — acontece sempre que o canal não tem default_sector_id, quando a
+    // conversa nasce de bot/campanha, ou quando o setor é apagado
+    // (deleteSector zera sector_id para preservar a conversa).
+    clauses.push(and(inArray(whatsappConversations.channelId, channelIds), isNull(whatsappConversations.sectorId)));
     clauses.push(conversationAddressedToOwnChannel(channelIds));
   }
   return or(...clauses);
@@ -153,13 +145,94 @@ export async function isClientAccessibleToUser(
   return !!client;
 }
 
-export async function findOrCreateConversation(phone: string, channelId?: number | null, contactName?: string) {
-  const { digits, withoutCountry } = normalizePhone(phone);
+/**
+ * Reduz um diálogo interno entre DOIS canais nossos a uma chave determinística
+ * e simétrica: `canonicalInternalPair(a, b)` e `canonicalInternalPair(b, a)`
+ * devolvem o mesmo resultado. O dono da conversa é sempre o canal de menor id,
+ * e o telefone da conversa é o número do outro canal.
+ *
+ * É isso que faz o diálogo virar UMA conversa em vez de duas espelhadas. Antes,
+ * cada lado criava a sua linha e — como `whatsapp_messages.wa_message_id` é
+ * unique global e o WhatsApp usa o mesmo id nas duas pontas — cada mensagem era
+ * gravada em apenas uma delas: os dois atendentes viam metade do histórico.
+ *
+ * Pura (sem DB) para ser testável isoladamente.
+ */
+export function canonicalInternalPair(
+  a: { id: number; displayPhone: string | null },
+  b: { id: number; displayPhone: string | null },
+): { ownerChannelId: number; peerChannelId: number; phone: string | null } {
+  const [owner, peer] = a.id <= b.id ? [a, b] : [b, a];
+  return { ownerChannelId: owner.id, peerChannelId: peer.id, phone: peer.displayPhone };
+}
 
-  const phoneCondition = or(
-    sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${digits}`,
-    sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${withoutCountry}`,
-  );
+/**
+ * Nome a exibir no lugar do contato quando o outro lado da conversa é um canal
+ * nosso. A conversa interna é única e pertence a um dos dois canais, então o
+ * "outro lado" depende de quem está olhando: o atendente do canal dono lê o
+ * nome do peer, o atendente do canal peer lê o nome do dono. Quem não é de
+ * nenhum dos dois (admin/gerente) lê o peer, que é o interlocutor do ponto de
+ * vista da conversa. Pura, para ser testável isoladamente.
+ */
+export function internalPeerLabel(
+  row: { channelId: number | null; peerChannelId: number | null; channelName: string | null; peerChannelName: string | null },
+  viewerChannelIds: number[],
+): string | null {
+  if (row.peerChannelId == null) return null;
+  const viewerIsPeer =
+    viewerChannelIds.includes(row.peerChannelId) &&
+    (row.channelId == null || !viewerChannelIds.includes(row.channelId));
+  const name = viewerIsPeer ? row.channelName : row.peerChannelName;
+  return name ? `Canal: ${name}` : null;
+}
+
+/** Condição SQL que casa uma conversa pelo telefone em qualquer forma conhecida
+ * (com/sem DDI 55, com/sem o 9º dígito) — pela coluna canônica quando existir e
+ * pelo texto cru como fallback para linhas ainda não migradas. */
+function conversationPhoneCondition(phone: string) {
+  const canonical = canonicalPhone(phone);
+  const variants = phoneVariants(phone);
+  const clauses: (SQL<unknown> | undefined)[] = [];
+  if (canonical) clauses.push(eq(whatsappConversations.phoneNormalized, canonical));
+  if (variants.length > 0) {
+    clauses.push(sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ANY(${variants})`);
+  }
+  return or(...clauses);
+}
+
+/**
+ * Resolve a identidade canônica de uma conversa a partir do telefone do outro
+ * lado e do canal que está processando a mensagem. Para um contato externo,
+ * devolve os valores originais; para um diálogo interno canal↔canal, devolve o
+ * par canônico (ver `canonicalInternalPair`).
+ */
+async function resolveConversationIdentity(phone: string, channelId?: number | null) {
+  const peerChannel = await getChannelByPhone(phone).catch(() => null);
+  if (!peerChannel) return { phone, channelId, peerChannelId: null as number | null };
+
+  // Telefone é de um canal nosso, mas não há canal de origem (bot/campanha) ou
+  // é o próprio canal: nada a canonicalizar, só registra o peer.
+  if (channelId == null || peerChannel.id === channelId) {
+    return { phone, channelId, peerChannelId: peerChannel.id === channelId ? null : peerChannel.id };
+  }
+
+  const ownChannel = await getChannelIdentityById(channelId).catch(() => null);
+  if (!ownChannel) return { phone, channelId, peerChannelId: peerChannel.id };
+
+  const pair = canonicalInternalPair(ownChannel, peerChannel);
+  return {
+    phone: pair.phone ?? phone,
+    channelId: pair.ownerChannelId,
+    peerChannelId: pair.peerChannelId,
+  };
+}
+
+export async function findOrCreateConversation(phone: string, channelId?: number | null, contactName?: string) {
+  const identity = await resolveConversationIdentity(phone, channelId);
+  const effectivePhone = identity.phone;
+  const effectiveChannelId = identity.channelId;
+
+  const phoneCondition = conversationPhoneCondition(effectivePhone);
 
   // Conversa é UMA por telefone + canal — cada canal pertence a um atendente
   // (whatsapp_channels.user_id), então isso isola a conversa por atendente
@@ -171,61 +244,82 @@ export async function findOrCreateConversation(phone: string, channelId?: number
   // ao longo de uma sessão, mesmo depois que ela ganha um canal (transferência
   // para atendente, resposta do contato via webhook etc.).
   const channelCondition =
-    channelId === undefined
+    effectiveChannelId === undefined
       ? undefined
-      : channelId === null
+      : effectiveChannelId === null
         ? isNull(whatsappConversations.channelId)
-        : eq(whatsappConversations.channelId, channelId);
+        : eq(whatsappConversations.channelId, effectiveChannelId);
 
-  const [existing] = await db
-    .select()
-    .from(whatsappConversations)
-    .where(channelCondition ? and(phoneCondition, channelCondition) : phoneCondition)
-    .orderBy(asc(whatsappConversations.createdAt))
-    .limit(1);
+  const findExisting = async () => {
+    const [row] = await db
+      .select()
+      .from(whatsappConversations)
+      .where(channelCondition ? and(phoneCondition, channelCondition) : phoneCondition)
+      .orderBy(asc(whatsappConversations.createdAt))
+      .limit(1);
+    return row ?? null;
+  };
 
-  if (existing) return existing;
+  const existing = await findExisting();
+  if (existing) {
+    // Linha anterior à migração pode estar sem as colunas novas — completa sem
+    // tocar em nada mais (o canal/telefone da conversa são imutáveis).
+    if (!existing.phoneNormalized || existing.peerChannelId !== identity.peerChannelId) {
+      await db
+        .update(whatsappConversations)
+        .set({
+          phoneNormalized: existing.phoneNormalized ?? canonicalPhone(existing.phone),
+          peerChannelId: identity.peerChannelId,
+        })
+        .where(eq(whatsappConversations.id, existing.id));
+    }
+    return existing;
+  }
 
   const [matchedClient] = await db
     .select({ id: clients.id })
     .from(clients)
-    .where(
-      or(
-        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${digits}`,
-        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${withoutCountry}`,
-        sql`'55' || regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${digits}`,
-      ),
-    )
+    .where(sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ANY(${phoneVariants(effectivePhone)})`)
     .limit(1);
 
   // Herda o setor padrão do canal (se configurado) para que a conversa não
   // nasça sem setor e, por isso, fique invisível a todo vendedor sob a regra
   // de vendorScopeCondition (setor E canal).
-  const defaultSectorId = channelId ? await getDefaultSectorIdForChannel(channelId) : null;
+  const defaultSectorId = effectiveChannelId ? await getDefaultSectorIdForChannel(effectiveChannelId) : null;
 
-  // Se o remetente é, na verdade, outro canal da empresa mandando mensagem de
-  // verdade (ex.: repasse entre setores), usa o nome do canal como
-  // contactName em vez de deixar em branco — deixa claro pro atendente que
-  // não é um cliente desconhecido, sem precisar de flag nova no schema.
-  const senderChannelName = matchedClient ? null : await getChannelNameByPhone(phone).catch(() => null);
+  try {
+    const [created] = await db
+      .insert(whatsappConversations)
+      .values({
+        phone: effectivePhone,
+        phoneNormalized: canonicalPhone(effectivePhone),
+        clientId: matchedClient?.id ?? null,
+        channelId: effectiveChannelId ?? null,
+        peerChannelId: identity.peerChannelId,
+        sectorId: defaultSectorId,
+        // Nunca inventamos nome: só o pushName real do contato entra aqui. Sem
+        // ele a conversa fica sem nome e a UI exibe o telefone. O rótulo de um
+        // canal interno é derivado de peerChannelId na leitura, não gravado
+        // aqui — assim cada atendente lê o nome do OUTRO lado, não o do próprio
+        // canal.
+        contactName: matchedClient || identity.peerChannelId ? null : (contactName ?? null),
+      })
+      .returning();
 
-  const [created] = await db
-    .insert(whatsappConversations)
-    .values({
-      phone,
-      clientId: matchedClient?.id ?? null,
-      channelId: channelId ?? null,
-      sectorId: defaultSectorId,
-      contactName: matchedClient
-        ? null
-        : (senderChannelName ? `Canal: ${senderChannelName}` : (contactName ?? null)),
-    })
-    .returning();
-
-  // Flag efêmera (não é coluna do banco) usada por saveInboundMessage para
-  // saber que este é o primeiro contato desse telefone, sem precisar de uma
-  // segunda query.
-  return { ...created, _wasCreated: true as const };
+    // Flag efêmera (não é coluna do banco) usada por saveInboundMessage para
+    // saber que este é o primeiro contato desse telefone, sem precisar de uma
+    // segunda query.
+    return { ...created, _wasCreated: true as const };
+  } catch (err: unknown) {
+    // Corrida com outro webhook do mesmo contato: o índice único
+    // (phone_normalized, channel_id) rejeita a segunda inserção — releitura
+    // devolve a conversa que o outro processo acabou de criar.
+    if ((err as { code?: string }).code === "23505") {
+      const raced = await findExisting();
+      if (raced) return raced;
+    }
+    throw err;
+  }
 }
 
 /**
@@ -252,8 +346,8 @@ async function backfillSectorFromChannel(conversationId: string, channelId: numb
 // ou com o telefone salvo num formato que o match em findOrCreateConversation
 // não reconciliou na hora.
 export async function autoLinkConversationsByPhone(phone: string, clientId: string) {
-  const { digits, withoutCountry } = normalizePhone(phone);
-  if (!digits) return;
+  const variants = phoneVariants(phone);
+  if (variants.length === 0) return;
 
   const linked = await db
     .update(whatsappConversations)
@@ -261,10 +355,10 @@ export async function autoLinkConversationsByPhone(phone: string, clientId: stri
     .where(
       and(
         isNull(whatsappConversations.clientId),
-        or(
-          sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${digits}`,
-          sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${withoutCountry}`,
-        ),
+        // Não sequestra um diálogo interno canal↔canal: aquele "telefone" é o
+        // número de um canal nosso, não de um cliente.
+        isNull(whatsappConversations.peerChannelId),
+        sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ANY(${variants})`,
       ),
     )
     .returning({ id: whatsappConversations.id });
@@ -834,6 +928,7 @@ export async function listClientsForChat(
   }
 
   const responsavelUsers = alias(users, "responsavel_users");
+  const peerChannels = alias(whatsappChannels, "peer_channels");
 
   const rows = await db
     .with(readsSub, unreadSub, lastMsgSub)
@@ -861,10 +956,13 @@ export async function listClientsForChat(
       responsavelId: clients.responsavelId,
       responsavelName: responsavelUsers.name,
       whatsappOptOut: clients.whatsappOptOut,
+      peerChannelId: whatsappConversations.peerChannelId,
+      peerChannelName: peerChannels.name,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .leftJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
+    .leftJoin(peerChannels, eq(whatsappConversations.peerChannelId, peerChannels.id))
     .leftJoin(whatsappSectors, eq(whatsappConversations.sectorId, whatsappSectors.id))
     .leftJoin(lastMsgSub, eq(whatsappConversations.id, lastMsgSub.conversationId))
     .leftJoin(unreadSub, eq(whatsappConversations.id, unreadSub.conversationId))
@@ -933,9 +1031,18 @@ export async function listClientsForChat(
     }
   }
 
+  // Rótulo do diálogo interno é resolvido por quem está lendo (ver
+  // internalPeerLabel) — não pode ser gravado em contact_name, senão o
+  // atendente do canal peer leria o nome do próprio canal como se fosse o
+  // contato.
+  const viewerChannelIds = pageRows.some((r) => r.peerChannelId != null)
+    ? await listChannelIdsForUser(userId)
+    : [];
+
   return {
     items: pageRows.map((row) => ({
       ...row,
+      contactName: internalPeerLabel(row, viewerChannelIds) ?? row.contactName,
       tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
       whatsappTags: row.clientId ? (whatsappTagsByClient.get(row.clientId) ?? []) : [],
     })),
@@ -960,20 +1067,36 @@ export async function getConversation(
     if (scope) whereConditions.push(scope);
   }
 
-  const [conv] = await db
+  const peerChannels = alias(whatsappChannels, "peer_channels");
+  const ownerChannels = alias(whatsappChannels, "owner_channels");
+
+  const [convRow] = await db
     .select({
       id: whatsappConversations.id,
       clientId: whatsappConversations.clientId,
       phone: whatsappConversations.phone,
       contactName: whatsappConversations.contactName,
       contactPhotoUrl: whatsappConversations.contactPhotoUrl,
+      channelId: whatsappConversations.channelId,
+      channelName: ownerChannels.name,
+      peerChannelId: whatsappConversations.peerChannelId,
+      peerChannelName: peerChannels.name,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
+    .leftJoin(ownerChannels, eq(whatsappConversations.channelId, ownerChannels.id))
+    .leftJoin(peerChannels, eq(whatsappConversations.peerChannelId, peerChannels.id))
     .where(and(...whereConditions))
     .limit(1);
 
-  if (!conv) return null;
+  if (!convRow) return null;
+
+  // Mesmo rótulo relativo ao leitor usado na listagem (ver internalPeerLabel).
+  const viewerChannelIds = convRow.peerChannelId != null ? await listChannelIdsForUser(userId) : [];
+  const conv = {
+    ...convRow,
+    contactName: internalPeerLabel(convRow, viewerChannelIds) ?? convRow.contactName,
+  };
 
   const replyMsg = alias(whatsappMessages, "reply_msg");
   const effectiveAt = sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`;
@@ -1800,6 +1923,74 @@ export async function retryFailedMessage(
   }
 }
 
+/**
+ * Direção da mensagem RELATIVA AO CANAL DONO da conversa. Num diálogo interno
+ * canal↔canal a mesma conversa é alimentada pelas duas instâncias Baileys: o
+ * que é `fromMe` para a instância do peer é `inbound` para a conversa. Por isso
+ * a direção sai da comparação entre o remetente real e o número do canal dono,
+ * e não do flag `_fromMe` do evento. Sem `senderPhone` (chamadores antigos),
+ * cai no comportamento anterior.
+ */
+async function resolveMessageDirection(
+  conv: { channelId: number | null; peerChannelId: number | null },
+  data: { senderPhone?: string; direction?: "inbound" | "outbound"; _fromMe?: boolean },
+): Promise<"inbound" | "outbound"> {
+  const fallback = data.direction ?? (data._fromMe ? "outbound" : "inbound");
+  if (!data.senderPhone || conv.channelId == null) return fallback;
+
+  const owner = await getChannelIdentityById(conv.channelId).catch(() => null);
+  if (!owner?.displayPhone) return fallback;
+
+  return isSameChannelPhone(owner.displayPhone, data.senderPhone) ? "outbound" : "inbound";
+}
+
+/** Janela em que um eco do WhatsApp ainda pode se referir a uma mensagem que o
+ * CRM acabou de enviar e cujo waMessageId ainda não foi gravado. */
+const ECHO_BACKFILL_WINDOW_MS = 60_000;
+
+/**
+ * Casa um eco `fromMe` com a mensagem outbound que o CRM já gravou para o mesmo
+ * envio, gravando nela o `waMessageId` que faltava. Retorna true quando o eco
+ * foi absorvido (o chamador não deve inserir nada).
+ */
+async function backfillEchoedOutboundMessage(
+  conversationId: string,
+  data: { waMessageId: string; type: string; content: string | null },
+): Promise<boolean> {
+  const since = new Date(Date.now() - ECHO_BACKFILL_WINDOW_MS);
+
+  const [pending] = await db
+    .select({ id: whatsappMessages.id })
+    .from(whatsappMessages)
+    .where(
+      and(
+        eq(whatsappMessages.conversationId, conversationId),
+        eq(whatsappMessages.direction, "outbound"),
+        eq(whatsappMessages.type, data.type),
+        isNull(whatsappMessages.waMessageId),
+        isNotNull(whatsappMessages.sentByUserId),
+        gte(whatsappMessages.createdAt, since),
+        data.content === null
+          ? isNull(whatsappMessages.content)
+          : eq(whatsappMessages.content, data.content),
+      ),
+    )
+    .orderBy(desc(whatsappMessages.createdAt))
+    .limit(1);
+
+  if (!pending) return false;
+
+  await db
+    .update(whatsappMessages)
+    .set({ waMessageId: data.waMessageId })
+    .where(and(eq(whatsappMessages.id, pending.id), isNull(whatsappMessages.waMessageId)));
+
+  console.log(
+    `[WA Webhook] Eco de mensagem enviada pelo CRM absorvido na mensagem ${pending.id} (${data.waMessageId}).`,
+  );
+  return true;
+}
+
 export async function saveInboundMessage(data: {
   phone: string;
   content: string | null;
@@ -1814,7 +2005,15 @@ export async function saveInboundMessage(data: {
   direction?: "inbound" | "outbound";
   /** @internal usado pelo Evolution webhook para indicar mensagem enviada pelo celular do vendedor */
   _fromMe?: boolean;
-  /** Nome de exibição do WhatsApp (Baileys pushName) — usado para enriquecer conversas sem cliente vinculado. */
+  /**
+   * Telefone de quem REALMENTE enviou a mensagem (no inbound, o contato; no
+   * eco fromMe, o próprio número do canal). Num diálogo interno canal↔canal a
+   * conversa é única e pertence a um só dos dois canais, então a direção não
+   * pode ser derivada de "quem recebeu o evento" — só o remetente diz se a
+   * mensagem é outbound (saiu do canal dono) ou inbound (veio do peer).
+   */
+  senderPhone?: string;
+  /** Nome de exibição do WhatsApp (Baileys pushName) — usado para enriquecer conversas sem cliente vinculado. Só deve vir em mensagens do contato (nunca em eco fromMe, que traz o nome da própria conta). */
   pushName?: string;
   /** Nome da instância Baileys — necessário para buscar a foto de perfil via socket ativo (canal QR Code). */
   instanceName?: string;
@@ -1839,7 +2038,15 @@ export async function saveInboundMessage(data: {
     return;
   }
 
-  const conv = await findOrCreateConversation(data.phone, data.channelId, data.pushName);
+  // pushName de um eco fromMe é o nome da PRÓPRIA conta conectada (o perfil do
+  // canal), não o do contato — passá-lo aqui batizaria a conversa nova com o
+  // nome do atendente/canal. Guard redundante com o do handler do Baileys, de
+  // propósito: é o último ponto antes da criação da conversa.
+  const conv = await findOrCreateConversation(
+    data.phone,
+    data.channelId,
+    data._fromMe ? undefined : data.pushName,
+  );
 
   const sentAt = data.timestamp
     ? new Date(Number(data.timestamp) * 1000)
@@ -1856,7 +2063,16 @@ export async function saveInboundMessage(data: {
     replyToMessageId = ref?.id ?? null;
   }
 
-  const direction = data.direction ?? (data._fromMe ? "outbound" : "inbound");
+  const direction = await resolveMessageDirection(conv, data);
+
+  // Eco de uma mensagem que o próprio CRM acabou de enviar: a linha já existe
+  // (gravada por sendConversationMessage/Media) só que ainda sem waMessageId,
+  // porque o eco do Baileys pode chegar antes do UPDATE que grava o id. Casa
+  // com ela em vez de inserir uma segunda cópia.
+  if (direction === "outbound") {
+    const backfilled = await backfillEchoedOutboundMessage(conv.id, data);
+    if (backfilled) return;
+  }
 
   let savedMessage: { id: string };
   try {
@@ -1933,8 +2149,10 @@ export async function saveInboundMessage(data: {
     })
     .where(eq(whatsappConversations.id, conv.id));
 
-  if (data.channelId != null) {
-    await backfillSectorFromChannel(conv.id, data.channelId);
+  // Setor sai do canal DONO da conversa, não do canal que recebeu o evento —
+  // num diálogo interno os dois são diferentes (ver canonicalInternalPair).
+  if (conv.channelId != null) {
+    await backfillSectorFromChannel(conv.id, conv.channelId);
   }
 
   // Só loga "iniciou conversa" para mensagens que vieram de fato do contato —
@@ -1947,15 +2165,17 @@ export async function saveInboundMessage(data: {
 
   // Enriquece conversas de contatos ainda sem cliente vinculado com nome/foto
   // do WhatsApp — só se aplica quando não há clientId (a UI usa clients.name
-  // como fonte de verdade quando há cliente casado).
-  if (!conv.clientId) {
+  // como fonte de verdade quando há cliente casado) e quando o outro lado não é
+  // um canal nosso (aí o nome exibido vem de peerChannelId, ver
+  // listClientsForChat).
+  if (!conv.clientId && !conv.peerChannelId) {
     const updates: Partial<typeof whatsappConversations.$inferInsert> = {};
 
     // pushName só reflete o contato de verdade em mensagens inbound. Em
-    // outbound (_fromMe, ex.: vendedor respondendo direto pelo celular em vez
-    // do CRM), o Baileys manda o pushName da PRÓPRIA conta conectada, e usá-lo
-    // aqui sobrescreveria o nome do cliente pelo nome do canal.
-    if (!data._fromMe && data.pushName && data.pushName !== (conv as { contactName?: string | null }).contactName) {
+    // outbound (eco fromMe, ex.: vendedor respondendo direto pelo celular em
+    // vez do CRM), o Baileys manda o pushName da PRÓPRIA conta conectada, e
+    // usá-lo aqui sobrescreveria o nome do cliente pelo nome do canal.
+    if (direction === "inbound" && data.pushName && data.pushName !== (conv as { contactName?: string | null }).contactName) {
       updates.contactName = data.pushName;
     }
 
@@ -2171,6 +2391,85 @@ export async function sendConversationReaction(
   return { ok: true };
 }
 
+/**
+ * Canal de saída de uma conversa que está sendo iniciada pelo atendente.
+ * Compartilhado por `startConversationByClientId` e `startConversationByPhone`.
+ */
+async function resolveStartConversationChannel(
+  userId: string,
+  userRole: string,
+  requestedChannelId?: number,
+): Promise<number | null> {
+  if (requestedChannelId != null) {
+    // Canal escolhido explicitamente na tela "Nova conversa" — valida que o
+    // usuário realmente tem acesso a ele (dono ou membro, canal ativo) antes
+    // de usar, para não permitir iniciar conversa por um canal alheio.
+    const accessibleIds =
+      userRole === "vendedor"
+        ? await listChannelIdsForUser(userId)
+        : (await getChannelById(requestedChannelId))
+          ? [requestedChannelId]
+          : [];
+    if (!accessibleIds.includes(requestedChannelId)) {
+      throw new Error("CHANNEL_NOT_ACCESSIBLE");
+    }
+    return requestedChannelId;
+  }
+
+  // Sem canal escolhido: usa o canal ativo do atendente que está iniciando a
+  // conversa, para que fique isolada das conversas de outros atendentes com
+  // o mesmo contato. getActiveChannelIdByUserId só enxerga canal PRÓPRIO
+  // (dono); quem só tem acesso concedido via whatsapp_channel_members (canal
+  // compartilhado, ex. "Eventos") não é dono de nada e cairia em channelId
+  // null — reaproveitando conversas "sem canal" órfãs, que ficam
+  // inacessíveis a qualquer vendedor (vendorScopeCondition exige setor E
+  // canal preenchidos). Por isso, sem canal próprio, cai para o primeiro
+  // canal concedido por membership.
+  const ownChannelId = await getActiveChannelIdByUserId(userId);
+  return ownChannelId ?? (await listChannelIdsForUser(userId))[0] ?? null;
+}
+
+/**
+ * Inicia (ou reabre) uma conversa com um número avulso — contato que ainda não
+ * é cliente no CRM, ou o próprio número de outro canal nosso (falar com o
+ * atendente do canal Eventos, por exemplo). É o caminho equivalente ao "novo
+ * contato" do Umbler Talk: sem ele só era possível conversar com quem já estava
+ * cadastrado e sob a responsabilidade do vendedor.
+ *
+ * Se o telefone casar com um cliente existente, `findOrCreateConversation` já
+ * faz o vínculo; se casar com um canal nosso, a conversa vira o diálogo interno
+ * canônico (ver `canonicalInternalPair`).
+ */
+export async function startConversationByPhone(
+  phone: string,
+  userId: string,
+  userRole: string,
+  requestedChannelId?: number,
+) {
+  const canonical = canonicalPhone(phone);
+  if (!canonical) throw new Error("INVALID_PHONE");
+
+  const channelId = await resolveStartConversationChannel(userId, userRole, requestedChannelId);
+
+  // Falar com o próprio canal não faz sentido (e o WhatsApp trata "nota para
+  // si" de forma especial) — recusa em vez de criar uma conversa degenerada.
+  if (channelId != null) {
+    const own = await getChannelIdentityById(channelId).catch(() => null);
+    if (own && isSameChannelPhone(own.displayPhone, phone)) {
+      throw new Error("SAME_CHANNEL_PHONE");
+    }
+  }
+
+  const conv = await findOrCreateConversation(phone, channelId);
+
+  return {
+    conversationId: conv.id,
+    clientId: conv.clientId,
+    clientName: null as string | null,
+    phone: conv.phone,
+  };
+}
+
 export async function startConversationByClientId(
   clientId: string,
   userId: string,
@@ -2190,34 +2489,7 @@ export async function startConversationByClientId(
 
   if (!client?.phone) return null;
 
-  let channelId: number | null;
-  if (requestedChannelId != null) {
-    // Canal escolhido explicitamente na tela "Nova conversa" — valida que o
-    // usuário realmente tem acesso a ele (dono ou membro, canal ativo) antes
-    // de usar, para não permitir iniciar conversa por um canal alheio.
-    const accessibleIds =
-      userRole === "vendedor"
-        ? await listChannelIdsForUser(userId)
-        : (await getChannelById(requestedChannelId))
-          ? [requestedChannelId]
-          : [];
-    if (!accessibleIds.includes(requestedChannelId)) {
-      throw new Error("CHANNEL_NOT_ACCESSIBLE");
-    }
-    channelId = requestedChannelId;
-  } else {
-    // Sem canal escolhido: usa o canal ativo do atendente que está iniciando a
-    // conversa, para que fique isolada das conversas de outros atendentes com
-    // o mesmo contato. getActiveChannelIdByUserId só enxerga canal PRÓPRIO
-    // (dono); quem só tem acesso concedido via whatsapp_channel_members (canal
-    // compartilhado, ex. "Eventos") não é dono de nada e cairia em channelId
-    // null — reaproveitando conversas "sem canal" órfãs, que ficam
-    // inacessíveis a qualquer vendedor (vendorScopeCondition exige setor E
-    // canal preenchidos). Por isso, sem canal próprio, cai para o primeiro
-    // canal concedido por membership.
-    const ownChannelId = await getActiveChannelIdByUserId(userId);
-    channelId = ownChannelId ?? (await listChannelIdsForUser(userId))[0] ?? null;
-  }
+  const channelId = await resolveStartConversationChannel(userId, userRole, requestedChannelId);
 
   const conv = await findOrCreateConversation(client.phone, channelId);
 

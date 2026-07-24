@@ -81,19 +81,53 @@ export async function getDefaultSectorIdForChannel(channelId: number): Promise<s
   return row?.defaultSectorId ?? null;
 }
 
-/**
- * Nome do canal cujo displayPhone bate com o telefone informado (normalizado
- * com/sem DDI). Usado só para exibição — enriquecer o `contactName` de uma
- * conversa nova quando o remetente é, de fato, outro canal da empresa
- * mandando mensagem de verdade (ex.: repasse entre setores), não um cliente.
- */
-export async function getChannelNameByPhone(phone: string): Promise<string | null> {
+/** Identidade mínima de um canal — o que basta para canonicalizar uma conversa interna. */
+export type ChannelIdentity = { id: number; name: string; displayPhone: string | null };
+
+// Lista de canais para o match por telefone. É consultada em TODA mensagem
+// recebida (findOrCreateConversation precisa saber se o remetente é um canal
+// nosso), então um cache curto evita um SELECT por mensagem. O TTL é baixo o
+// bastante para que um canal recém-conectado — que só ganha displayPhone no
+// connection.update — seja reconhecido em segundos.
+const CHANNEL_DIRECTORY_TTL_MS = 30_000;
+let channelDirectoryCache: { at: number; rows: ChannelIdentity[] } | null = null;
+
+/** Invalida o cache de `getChannelByPhone` — chamado sempre que um canal muda. */
+function invalidateChannelDirectory() {
+  channelDirectoryCache = null;
+}
+
+async function listChannelDirectory(): Promise<ChannelIdentity[]> {
+  if (channelDirectoryCache && Date.now() - channelDirectoryCache.at < CHANNEL_DIRECTORY_TTL_MS) {
+    return channelDirectoryCache.rows;
+  }
   const rows = await db
-    .select({ name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone })
     .from(whatsappChannels)
     .where(isNull(whatsappChannels.deletedAt));
-  const match = rows.find((r) => isSameChannelPhone(r.displayPhone, phone));
-  return match?.name ?? null;
+  channelDirectoryCache = { at: Date.now(), rows };
+  return rows;
+}
+
+/**
+ * Canal cujo displayPhone bate com o telefone informado (normalizado com/sem
+ * DDI e com/sem o 9º dígito). Retorna null quando o número é de um contato
+ * externo. É o que distingue um diálogo interno canal↔canal de uma conversa
+ * comum com cliente.
+ */
+export async function getChannelByPhone(phone: string): Promise<ChannelIdentity | null> {
+  const rows = await listChannelDirectory();
+  return rows.find((r) => isSameChannelPhone(r.displayPhone, phone)) ?? null;
+}
+
+/** Identidade de um canal por id — sem decifrar o access token (leitura barata). */
+export async function getChannelIdentityById(id: number): Promise<ChannelIdentity | null> {
+  const [row] = await db
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone })
+    .from(whatsappChannels)
+    .where(eq(whatsappChannels.id, id))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function getChannelByPhoneNumberId(phoneNumberId: string) {
@@ -125,6 +159,7 @@ export async function createChannel(data: ChannelWriteInput) {
     .insert(whatsappChannels)
     .values(toDbPatch(data) as InsertWhatsappChannel)
     .returning();
+  invalidateChannelDirectory();
   return decryptChannelRow(created);
 }
 
@@ -134,6 +169,7 @@ export async function updateChannel(id: number, data: Partial<ChannelWriteInput>
     .set(toDbPatch(data))
     .where(eq(whatsappChannels.id, id))
     .returning();
+  invalidateChannelDirectory();
   return updated ? decryptChannelRow(updated) : null;
 }
 
@@ -160,6 +196,7 @@ export async function deleteChannel(id: number) {
       })
       .where(eq(whatsappChannels.id, id));
   });
+  invalidateChannelDirectory();
 }
 
 export async function getChannelByUserId(userId: string): Promise<ChannelOverride | null> {

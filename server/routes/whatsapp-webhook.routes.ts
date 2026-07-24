@@ -76,7 +76,13 @@ router.post("/webhook", (req: Request, res: Response) => {
             );
           }
           for (const message of value.messages ?? []) {
-            handleIncomingMessage(message, value.metadata).catch((err) =>
+            // `contacts[]` traz o nome de perfil do WhatsApp de quem escreveu —
+            // é o equivalente ao pushName do Baileys e a única fonte de nome
+            // para um contato que ainda não está cadastrado no CRM.
+            const profileName = (value.contacts ?? []).find(
+              (c: { wa_id?: string; profile?: { name?: string } }) => c.wa_id === message.from,
+            )?.profile?.name as string | undefined;
+            handleIncomingMessage(message, value.metadata, profileName).catch((err) =>
               console.error("[WA Webhook] Erro ao processar mensagem:", err),
             );
           }
@@ -263,6 +269,7 @@ async function handleIncomingMessage(
     phone_number_id: string;
     display_phone_number: string;
   },
+  profileName?: string,
 ) {
   // Respostas de botão de template (type "button"), botões interativos
   // (interactive.button_reply) e listas (interactive.list_reply) trazem o texto
@@ -323,6 +330,10 @@ async function handleIncomingMessage(
     caption: (message.image?.caption ?? message.video?.caption ?? message.document?.caption) || undefined,
     rawPayload: message,
     channelId: channel?.id ?? null,
+    // A Cloud API só entrega mensagens recebidas — quem enviou é sempre o
+    // contato do outro lado.
+    senderPhone: message.from,
+    pushName: profileName,
     replyToWaMessageId: message.context?.id,
     mediaData: mediaObj
       ? {

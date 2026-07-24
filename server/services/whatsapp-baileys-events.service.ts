@@ -92,7 +92,13 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     channelId: channel.id,
     rawPayload: msg as Record<string, unknown>,
     _fromMe: fromMe,
-    pushName,
+    // Remetente real: no eco fromMe é o próprio número do canal. É o que
+    // permite derivar a direção quando os dois lados da conversa são canais
+    // nossos e compartilham UMA única conversa.
+    senderPhone: fromMe ? (channel.displayPhone ?? undefined) : phone,
+    // Em fromMe o Baileys manda o pushName da própria conta conectada (o nome
+    // do canal/atendente) — usá-lo batizaria o contato com o nome errado.
+    pushName: fromMe ? undefined : pushName,
     instanceName,
     mediaData: msg._baileysMedia
       ? {

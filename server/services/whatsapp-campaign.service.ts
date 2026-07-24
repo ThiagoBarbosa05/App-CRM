@@ -6,6 +6,7 @@ import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 import { normalizePhoneE164 } from "@shared/phone";
 import { startBotSession, buildClientVariables, interpolate } from "./whatsapp-bot-engine.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
+import { getChannelByPhoneNumberId } from "./whatsapp-channels.service";
 import { getPublicR2Url } from "../lib/r2";
 
 const DEFAULT_DELAY_MS = 1000;
@@ -145,7 +146,7 @@ export async function executeCampaign(
         continue;
       }
       try {
-        const { status, lastMessageId } = await startBotSession(campaign.waBotId, phoneE164, undefined, campaignId);
+        const { status, lastMessageId, channelId: botChannelId } = await startBotSession(campaign.waBotId, phoneE164, undefined, campaignId);
 
         if (status === "opted_out") {
           await db
@@ -181,7 +182,7 @@ export async function executeCampaign(
           .update(whatsappCampaignMessages)
           .set({ status: "sent", sentAt: new Date(), messageId: lastMessageId, updatedAt: new Date() })
           .where(eq(whatsappCampaignMessages.id, msg.id));
-        await persistCampaignMessageToConversation(phoneE164, lastMessageId, "Disparo via bot", msg.id);
+        await persistCampaignMessageToConversation(phoneE164, lastMessageId, "Disparo via bot", msg.id, botChannelId);
         sent++;
         console.log(`[WaCampaign] Bot ✓ ${msg.contactName} (${msg.phoneNumber})`);
       } catch (err) {
@@ -199,6 +200,10 @@ export async function executeCampaign(
       .where(eq(whatsappTemplates.id, campaign.waTemplateId!));
 
     if (!template) throw new Error(`Template ${campaign.waTemplateId} não encontrado`);
+
+    // Resolvido uma vez por execução: o número de disparo é o mesmo para toda a
+    // campanha de template.
+    const campaignChannelId = await resolveCampaignChannelId();
 
     for (const msg of pendingMessages) {
       if (!msg.phoneNumber) {
@@ -240,7 +245,7 @@ export async function executeCampaign(
             updatedAt: new Date(),
           })
           .where(eq(whatsappCampaignMessages.id, msg.id));
-        await persistCampaignMessageToConversation(phoneE164, waMessageId, `Template: ${template.name}`, msg.id);
+        await persistCampaignMessageToConversation(phoneE164, waMessageId, `Template: ${template.name}`, msg.id, campaignChannelId);
         sent++;
         console.log(`[WaCampaign] ✓ ${msg.contactName} (${msg.phoneNumber})`);
       } catch (err) {
@@ -256,16 +261,38 @@ export async function executeCampaign(
   return { sent, failed, skipped, retried };
 }
 
+/**
+ * Canal Cloud API correspondente ao número global de disparo
+ * (`wa_phone_number_id` das configurações) — é por ele que a campanha de
+ * template sai. Sem isso a mensagem seria gravada na conversa mais antiga do
+ * contato em qualquer canal, ou seja, possivelmente no inbox de outro
+ * atendente, e a resposta do contato cairia numa conversa diferente da que
+ * mostra o disparo.
+ */
+async function resolveCampaignChannelId(): Promise<number | null> {
+  try {
+    const raw = await getWhatsappSettingsRaw();
+    const phoneNumberId = raw["wa_phone_number_id"];
+    if (!phoneNumberId) return null;
+    const channel = await getChannelByPhoneNumberId(phoneNumberId);
+    return channel?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function persistCampaignMessageToConversation(
   phone: string,
   waMessageId: string | null,
   content: string,
   campaignMessageId: string,
+  channelId?: number | null,
 ): Promise<void> {
   try {
-    const conversation = await findOrCreateConversation(phone);
+    const conversation = await findOrCreateConversation(phone, channelId ?? undefined);
     await db.insert(whatsappMessages).values({
       conversationId: conversation.id,
+      channelId: conversation.channelId ?? null,
       waMessageId: waMessageId ?? undefined,
       direction: "outbound",
       type: "text",

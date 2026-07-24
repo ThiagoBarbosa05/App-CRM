@@ -15,6 +15,7 @@ import {
   markConversationRead,
   resolveConversationId,
   startConversationByClientId,
+  startConversationByPhone,
   retryFailedMessage,
   getMediaById,
   updateMediaStorageKey,
@@ -298,10 +299,18 @@ router.post("/conversations/:clientId/read", async (req, res) => {
   }
 });
 
-const startConversationSchema = z.object({
-  clientId: z.string().min(1),
-  channelId: z.number().int().positive().optional(),
-});
+// Aceita `clientId` (contato do CRM) OU `phone` (número avulso / número de
+// outro canal nosso) — os dois caminhos de "Nova conversa".
+const startConversationSchema = z
+  .object({
+    clientId: z.string().min(1).optional(),
+    phone: z.string().min(1).optional(),
+    channelId: z.number().int().positive().optional(),
+  })
+  .refine((d) => !!d.clientId || !!d.phone, {
+    message: "Informe clientId ou phone",
+    path: ["clientId"],
+  });
 
 router.post("/conversations/start", async (req, res) => {
   try {
@@ -313,12 +322,19 @@ router.post("/conversations/start", async (req, res) => {
       return res.status(400).json({ errors: parsed.error.flatten() });
     }
 
-    const result = await startConversationByClientId(
-      parsed.data.clientId,
-      user.userId,
-      user.role,
-      parsed.data.channelId,
-    );
+    const result = parsed.data.clientId
+      ? await startConversationByClientId(
+          parsed.data.clientId,
+          user.userId,
+          user.role,
+          parsed.data.channelId,
+        )
+      : await startConversationByPhone(
+          parsed.data.phone!,
+          user.userId,
+          user.role,
+          parsed.data.channelId,
+        );
     if (!result) {
       return res.status(403).json({ message: "Cliente não encontrado ou sem permissão" });
     }
@@ -327,6 +343,12 @@ router.post("/conversations/start", async (req, res) => {
   } catch (err) {
     if (err instanceof Error && err.message === "CHANNEL_NOT_ACCESSIBLE") {
       return res.status(403).json({ message: "Você não tem acesso a este canal" });
+    }
+    if (err instanceof Error && err.message === "INVALID_PHONE") {
+      return res.status(400).json({ message: "Número de telefone inválido" });
+    }
+    if (err instanceof Error && err.message === "SAME_CHANNEL_PHONE") {
+      return res.status(400).json({ message: "Não é possível iniciar uma conversa com o número do próprio canal" });
     }
     console.error("[WA Conversations] Erro ao iniciar conversa:", err);
     res.status(500).json({ message: "Erro ao iniciar conversa" });

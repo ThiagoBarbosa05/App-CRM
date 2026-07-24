@@ -241,13 +241,19 @@ async function tryDownloadMedia(
 // 155495012819150) que não casa com o cadastro do cliente, gerando duplicatas.
 async function resolveRealJid(
   sock: WASocket,
-  key: { remoteJid?: string | null; remoteJidAlt?: string | null },
-): Promise<string> {
+  key: {
+    remoteJid?: string | null;
+    remoteJidAlt?: string | null;
+    senderPn?: string | null;
+    participantPn?: string | null;
+  },
+): Promise<string | null> {
   const jid = key.remoteJid ?? "";
   if (!jid.endsWith("@lid")) return jid;
   // 1) A própria key normalmente já traz a forma @s.whatsapp.net em remoteJidAlt
-  if (key.remoteJidAlt && key.remoteJidAlt.endsWith("@s.whatsapp.net")) {
-    return key.remoteJidAlt;
+  //    (ou em senderPn/participantPn, dependendo da versão do Baileys)
+  for (const alt of [key.remoteJidAlt, key.senderPn, key.participantPn]) {
+    if (alt && alt.endsWith("@s.whatsapp.net")) return alt;
   }
   // 2) Fallback: store de mapeamento LID → PN do Baileys
   const lidMapping = (sock as unknown as {
@@ -257,7 +263,10 @@ async function resolveRealJid(
     const pn = await lidMapping.getPNForLID(jid).catch(() => null);
     if (pn) return pn;
   }
-  return jid;
+  // Sem telefone real, descartamos o evento: seguir com o número do @lid criaria
+  // uma conversa com um "telefone" que não existe, invisível ao atendente e
+  // impossível de conciliar com o cliente depois.
+  return null;
 }
 
 async function createSocket(instanceName: string, explicitLock?: PoolClient | null): Promise<void> {
@@ -410,6 +419,12 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
 
       // Resolve LID → telefone real antes de processar (ver resolveRealJid)
       const jid = await resolveRealJid(sock, msg.key ?? {});
+      if (!jid) {
+        console.warn(
+          `[Baileys] Instância ${instanceName}: mensagem ${msg.key?.id} descartada — não foi possível resolver o LID "${rawJid}" para um telefone real.`,
+        );
+        continue;
+      }
 
       const msgContent = serializeMsgContent(msg);
       const mimetype = detectMediaType(msgContent);
