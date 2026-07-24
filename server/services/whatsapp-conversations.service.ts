@@ -62,10 +62,15 @@ function conversationAddressedToOwnChannel(channelIds: number[]): SQL | undefine
  * explícito da UI é só por setor (sem canal selecionado). */
 function conversationAddressedToOwnChannelInSectors(sectorIds: string[]): SQL | undefined {
   if (sectorIds.length === 0) return undefined;
+  // inArray() em vez de `= ANY(${array})` — ver nota em conversationPhoneCondition.
+  // A condição do IN é montada separadamente e "splicada" dentro do EXISTS: o
+  // template `sql` do drizzle intercala objetos SQL aninhados como fragmentos
+  // de query, então isso continua sendo uma única query parametrizada.
+  const sectorMatch = inArray(sql`wc.default_sector_id`, sectorIds);
   return sql`EXISTS (
     SELECT 1 FROM ${whatsappChannels} wc
     WHERE wc.id = ${whatsappConversations.peerChannelId}
-      AND wc.default_sector_id = ANY(${sectorIds})
+      AND ${sectorMatch}
   )`;
 }
 
@@ -209,7 +214,12 @@ function conversationPhoneCondition(phone: string) {
   const clauses: (SQL<unknown> | undefined)[] = [];
   if (canonical) clauses.push(eq(whatsappConversations.phoneNormalized, canonical));
   if (variants.length > 0) {
-    clauses.push(sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ANY(${variants})`);
+    // inArray() (→ "IN ($1, $2, ...)") em vez de `= ANY(${array})`: o driver
+    // neon-http não faz bind de um array JS como parâmetro único de ANY(),
+    // gerando "op ANY/ALL (array) requires array on right side" em runtime
+    // (só aparece em produção — o teste unitário local não bate no driver
+    // real). inArray expande cada item como parâmetro próprio.
+    clauses.push(inArray(sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g')`, variants));
   }
   return or(...clauses);
 }
@@ -293,7 +303,7 @@ export async function findOrCreateConversation(phone: string, channelId?: number
   const [matchedClient] = await db
     .select({ id: clients.id })
     .from(clients)
-    .where(sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ANY(${phoneVariants(effectivePhone)})`)
+    .where(inArray(sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g')`, phoneVariants(effectivePhone)))
     .limit(1);
 
   // Herda o setor padrão do canal (se configurado) para que a conversa não
@@ -372,7 +382,7 @@ export async function autoLinkConversationsByPhone(phone: string, clientId: stri
         // Não sequestra um diálogo interno canal↔canal: aquele "telefone" é o
         // número de um canal nosso, não de um cliente.
         isNull(whatsappConversations.peerChannelId),
-        sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ANY(${variants})`,
+        inArray(sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g')`, variants),
       ),
     )
     .returning({ id: whatsappConversations.id });
