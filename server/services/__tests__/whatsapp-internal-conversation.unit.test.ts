@@ -22,6 +22,7 @@ import {
   internalPeerLabel,
   viewerIsPeerSide,
   directionForViewer,
+  messageIsUnreadIncoming,
 } from "../whatsapp-conversations.service";
 
 const eventos = { id: 7, displayPhone: "+5521989014965" };
@@ -141,5 +142,31 @@ describe("directionForViewer", () => {
     const row = { channelId: 7, peerChannelId: 12 };
     const daianeChannelIds = [12];
     expect(directionForViewer("inbound", viewerIsPeerSide(row, daianeChannelIds))).toBe("outbound");
+  });
+});
+
+describe("messageIsUnreadIncoming", () => {
+  // Diálogo interno: dona Eventos (7, Televendas), peer Búzios (12, Daiane).
+  const internal = { channelId: 7, peerChannelId: 12 };
+
+  it("conversa externa: só inbound conta como não-lida recebida", () => {
+    const external = { channelId: 7, peerChannelId: null };
+    expect(messageIsUnreadIncoming(external, "inbound", [7])).toBe(true);
+    expect(messageIsUnreadIncoming(external, "outbound", [7])).toBe(false);
+  });
+
+  it("dono (Televendas): mensagem do peer (gravada inbound) conta; a dele (outbound) não", () => {
+    expect(messageIsUnreadIncoming(internal, "inbound", [7])).toBe(true);
+    expect(messageIsUnreadIncoming(internal, "outbound", [7])).toBe(false);
+  });
+
+  it("peer (Daiane): mensagem do dono (gravada outbound) conta; a dela (inbound) NÃO — sem badge fantasma", () => {
+    expect(messageIsUnreadIncoming(internal, "outbound", [12])).toBe(true);
+    expect(messageIsUnreadIncoming(internal, "inbound", [12])).toBe(false);
+  });
+
+  it("admin sem canais: usa referencial do dono (inbound conta)", () => {
+    expect(messageIsUnreadIncoming(internal, "inbound", [])).toBe(true);
+    expect(messageIsUnreadIncoming(internal, "outbound", [])).toBe(false);
   });
 });

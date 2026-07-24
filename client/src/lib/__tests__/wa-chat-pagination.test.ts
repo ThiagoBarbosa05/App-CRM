@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeFirstPage } from "../wa-chat-pagination";
+import { mergeFirstPage, dedupById } from "../wa-chat-pagination";
 
 interface FakePage {
   items: string[];
@@ -39,5 +39,36 @@ describe("mergeFirstPage", () => {
       pages: [fresh],
       pageParams: [null],
     });
+  });
+});
+
+describe("dedupById", () => {
+  it("remove ids repetidos mantendo a primeira ocorrência (mensagens sobrepostas entre páginas)", () => {
+    const items = [
+      { id: "m1", content: "novo" },
+      { id: "m2", content: "b" },
+      { id: "m1", content: "antigo" },
+    ];
+    expect(dedupById(items)).toEqual([
+      { id: "m1", content: "novo" },
+      { id: "m2", content: "b" },
+    ]);
+  });
+
+  it("aceita seletor de chave customizado (lista de conversas por conversationId)", () => {
+    const items = [
+      { conversationId: "c1" },
+      { conversationId: "c1" },
+      { conversationId: "c2" },
+    ];
+    expect(dedupById(items, (i) => i.conversationId)).toEqual([
+      { conversationId: "c1" },
+      { conversationId: "c2" },
+    ]);
+  });
+
+  it("preserva a ordem e não altera uma lista já sem duplicatas", () => {
+    const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    expect(dedupById(items)).toEqual(items);
   });
 });

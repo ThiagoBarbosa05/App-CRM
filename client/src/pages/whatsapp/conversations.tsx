@@ -48,7 +48,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
-import { refreshFirstPage } from "@/lib/wa-chat-pagination";
+import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
+import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
 import { EvolutionChannelConnect } from "@/components/evolution-channel-connect";
@@ -3258,8 +3259,9 @@ function ConversationMessages({
   // Página 0 (cursor null) é a mais recente; páginas seguintes são mais
   // antigas. Invertendo a ordem das páginas e concatenando reconstrói a
   // ordem cronológica completa (cada página já vem ascendente internamente).
-  const rawMessages =
-    messagesData?.pages.slice().reverse().flatMap((p) => p.messages) ?? [];
+  const rawMessages = dedupById(
+    messagesData?.pages.slice().reverse().flatMap((p) => p.messages) ?? [],
+  );
 
   const messages = [...rawMessages].sort(
     (a, b) =>
@@ -3343,10 +3345,16 @@ function ConversationMessages({
     // (janela de 5s) — limitar a busca às mais recentes evita rescanear todo
     // o histórico conforme páginas antigas se acumulam via scroll.
     const recentMessages = rawMessages.slice(-50);
+    // Cada mensagem real do servidor só pode casar com UMA bolha otimista nesta
+    // passada — sem isso, duas mensagens idênticas enviadas em sequência
+    // ("ok"/"ok") casariam ambas com a MESMA mensagem real, deixando a outra
+    // bolha local presa (ou duplicada). Consumimos o id casado aqui.
+    const matchedServerIds = new Set<string>();
     for (const lm of localMessages) {
       if (swappingLocalIdsRef.current.has(lm.localId)) continue;
       const match = recentMessages.find((m) => {
         if (m.direction !== "outbound") return false;
+        if (matchedServerIds.has(m.id)) return false;
         const withinWindow =
           new Date(m.sentAt ?? m.createdAt).getTime() >=
           new Date(lm.createdAt).getTime() - 5_000;
@@ -3356,6 +3364,7 @@ function ConversationMessages({
           : m.content === lm.content;
       });
       if (!match) continue;
+      matchedServerIds.add(match.id);
 
       swappingLocalIdsRef.current.add(lm.localId);
       const remove = () => {
@@ -5709,9 +5718,11 @@ function NewConversationDialog({
     }
   }
 
-  // Canais internos (outros setores/atendentes) com quem se pode abrir uma
-  // conversa de WhatsApp de verdade — diferente do chat interno, que não sai
-  // pelo WhatsApp.
+  // Canais de outros setores/atendentes com quem se pode abrir uma conversa de
+  // WhatsApp de verdade (canal↔canal). Iniciar essa conversa é uma CONVERSA
+  // NORMAL e aparece na aba de conversas — por isso fica na aba "Contato", não
+  // na aba "Atendentes" (que é exclusivamente chat interno da equipe, e não sai
+  // pelo WhatsApp).
   const { data: directoryChannels = [] } = useQuery<
     { id: number; name: string; displayPhone: string | null }[]
   >({
@@ -5721,7 +5732,7 @@ function NewConversationDialog({
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: open && tab === "atendentes",
+    enabled: open && tab === "contato",
   });
 
   const ownChannelIds = new Set(channels.map((c) => c.id));
@@ -5974,6 +5985,56 @@ function NewConversationDialog({
                   ))
                 )}
               </div>
+
+              {/* Iniciar conversa de WhatsApp com o número de outro canal/setor
+                  (canal↔canal). É uma CONVERSA NORMAL e aparece na aba de
+                  conversas — não confundir com o chat interno da aba
+                  "Atendentes". Filtra pelo mesmo termo de busca por nome/número. */}
+              {(() => {
+                const dirMatches = directoryChannels.filter(
+                  (ch) =>
+                    !ownChannelIds.has(ch.id) &&
+                    !!ch.displayPhone &&
+                    (!debouncedSearch ||
+                      ch.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+                      (ch.displayPhone ?? "").replace(/\D/g, "").includes(searchDigits)),
+                );
+                if (dirMatches.length === 0) return null;
+                return (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                      Outros canais / setores (pelo WhatsApp)
+                    </p>
+                    <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                      {dirMatches.map((ch) => (
+                        <button
+                          key={ch.id}
+                          type="button"
+                          disabled={startMutation.isPending}
+                          onClick={() => handleStartByPhone(ch.displayPhone!)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
+                        >
+                          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shrink-0">
+                            <Phone className="h-4 w-4 text-white" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                              {ch.name}
+                            </p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+                              {ch.displayPhone}
+                            </p>
+                          </div>
+                          {startMutation.isPending &&
+                            startMutation.variables?.phone === ch.displayPhone && (
+                              <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
+                            )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
 
@@ -6103,45 +6164,6 @@ function NewConversationDialog({
                   ))
                 )}
               </div>
-
-              {/* Conversa de WhatsApp de verdade com o número de outro setor —
-                  diferente do chat interno acima, que não sai pelo WhatsApp. */}
-              {directoryChannels.filter((ch) => !ownChannelIds.has(ch.id)).length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                    Pelo WhatsApp
-                  </p>
-                  <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                    {directoryChannels
-                      .filter((ch) => !ownChannelIds.has(ch.id))
-                      .map((ch) => (
-                        <button
-                          key={ch.id}
-                          type="button"
-                          disabled={startMutation.isPending || !ch.displayPhone}
-                          onClick={() => handleStartByPhone(ch.displayPhone!)}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors text-left disabled:opacity-50"
-                        >
-                          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shrink-0">
-                            <Phone className="h-4 w-4 text-white" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
-                              {ch.name}
-                            </p>
-                            <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
-                              {ch.displayPhone}
-                            </p>
-                          </div>
-                          {startMutation.isPending &&
-                            startMutation.variables?.phone === ch.displayPhone && (
-                              <Loader2 className="h-4 w-4 animate-spin text-slate-400 shrink-0" />
-                            )}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              )}
             </>
           )}
         </DialogContent>
@@ -6410,7 +6432,10 @@ export default function WhatsAppConversationsPage() {
     getNextPageParam: (last) => last.nextCursor,
   });
 
-  const clientList = clientListData?.pages.flatMap((p) => p.items) ?? [];
+  const clientList = dedupById(
+    clientListData?.pages.flatMap((p) => p.items) ?? [],
+    (c) => c.conversationId,
+  );
 
   // Refs para o polling e o SSE global (não devem reabrir a conexão SSE nem
   // recriar o efeito a cada troca de busca/tag — só precisam ler o valor
@@ -6477,8 +6502,7 @@ export default function WhatsAppConversationsPage() {
   selectedIdRef.current = selectedId;
 
   useEffect(() => {
-    const es = new EventSource("/api/whatsapp/notifications/stream");
-    es.addEventListener("new_whatsapp_inbound", (e) => {
+    const unsubscribe = subscribeWaNotifications("new_whatsapp_inbound", (e) => {
       const data = JSON.parse(e.data) as {
         clientId: string | null;
         conversationId?: string | null;
@@ -6496,7 +6520,7 @@ export default function WhatsAppConversationsPage() {
         markRead(selectedIdRef.current!);
       }
     });
-    return () => es.close();
+    return unsubscribe;
   }, [queryClient, markRead]);
 
   const handleSelectConversation = (id: string) => {

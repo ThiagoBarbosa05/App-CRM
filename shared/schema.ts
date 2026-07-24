@@ -5026,7 +5026,19 @@ export const whatsappConversations = pgTable("whatsapp_conversations", {
   lastMessageAt: timestamp("last_message_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  // Unicidade da conversa: um único registro por (telefone canônico, canal).
+  // É a garantia contra conversas duplicadas da qual o código depende (os
+  // catch de 23505 em findOrCreateConversation/saveInboundMessage). Parcial —
+  // linhas sem phone_normalized ficam de fora — e COALESCE no canal porque
+  // NULL nunca conflita com NULL num índice único (o "balde" sem canal de
+  // campanha/bot também precisa ser único). Mesmo nome/definição que
+  // scripts/migrate-canonical-conversations.mjs cria com IF NOT EXISTS, para o
+  // schema refletir a constraint real sem divergir dela.
+  phoneChannelUnique: uniqueIndex("whatsapp_conversations_phone_channel_unique")
+    .on(table.phoneNormalized, sql`COALESCE(${table.channelId}, -1)`)
+    .where(sql`${table.phoneNormalized} IS NOT NULL AND ${table.phoneNormalized} <> ''`),
+}));
 
 export const whatsappMessages = pgTable("whatsapp_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

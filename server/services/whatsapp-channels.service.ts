@@ -318,6 +318,13 @@ export async function updateConnectionStatus(channelId: number, status: string):
     .update(whatsappChannels)
     .set({ connectionStatus: status })
     .where(eq(whatsappChannels.id, channelId));
+
+  // Ao conectar, o canal normalmente acabou de ganhar `displayPhone` (ver
+  // handleConnectionUpdate). Invalida o cache do diretório para que o PRIMEIRO
+  // inbound logo após a conexão já reconheça este número como canal nosso —
+  // sem isso, dentro da janela de TTL, um diálogo canal↔canal poderia ser
+  // classificado por engano como contato externo.
+  if (status === "connected") invalidateChannelDirectory();
 }
 
 /**

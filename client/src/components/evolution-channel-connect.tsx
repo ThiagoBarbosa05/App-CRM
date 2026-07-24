@@ -11,6 +11,7 @@ import {
 } from "@/hooks/use-whatsapp";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -144,12 +145,13 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Escuta eventos SSE de QR e conexão para este canal
+  // Escuta eventos SSE de QR e conexão para este canal. Usa o stream SSE
+  // COMPARTILHADO (uma única conexão para todo o app) — renderizamos um
+  // EvolutionChannelConnect por linha de canal, e abrir uma EventSource própria
+  // em cada um estourava o limite de conexões SSE do navegador.
   useEffect(() => {
-    const es = new EventSource("/api/whatsapp/notifications/stream");
-
-    es.addEventListener("evolution_qr_updated", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as {
+    const unsubQr = subscribeWaNotifications("evolution_qr_updated", (e) => {
+      const data = JSON.parse(e.data) as {
         instanceName: string;
         base64: string | null;
         code: string | null;
@@ -160,8 +162,8 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       setStatus("qr");
     });
 
-    es.addEventListener("evolution_connection_update", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as {
+    const unsubConn = subscribeWaNotifications("evolution_connection_update", (e) => {
+      const data = JSON.parse(e.data) as {
         instanceName: string;
         connectionStatus: string;
         reasonLabel?: string | null;
@@ -179,8 +181,11 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       });
     });
 
-    return () => es.close();
-  }, [channel.evolutionInstanceName, queryClient, clearConnectTimeout]);
+    return () => {
+      unsubQr();
+      unsubConn();
+    };
+  }, [channel.evolutionInstanceName, channel.id, queryClient, clearConnectTimeout]);
 
   const handleLogout = useCallback(async () => {
     clearConnectTimeout();

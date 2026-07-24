@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { isOnWaConversationsPage } from "@/lib/wa-active-conversation";
+import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
 
 interface ChatClient {
   id: string;
@@ -34,6 +35,10 @@ export function useWhatsAppNotifications(
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem("wa-notify-sound") !== "false";
   });
+  // Lido dentro do handler SSE via ref para o toggle de som NÃO derrubar e
+  // recriar o stream (antes `soundEnabled` estava nas deps do efeito).
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
 
   useEffect(() => {
     audioRef.current = new Audio("/notification.wav");
@@ -59,10 +64,8 @@ export function useWhatsAppNotifications(
   useEffect(() => {
     if (!user) return;
 
-    const es = new EventSource("/api/whatsapp/notifications/stream");
-
-    es.addEventListener("new_whatsapp_inbound", (e) => {
-      const data = JSON.parse((e as MessageEvent).data) as {
+    const unsubscribe = subscribeWaNotifications("new_whatsapp_inbound", (e) => {
+      const data = JSON.parse(e.data) as {
         clientId: string | null;
         conversationId?: string | null;
       };
@@ -94,7 +97,7 @@ export function useWhatsAppNotifications(
         ),
       });
 
-      if (soundEnabled) {
+      if (soundEnabledRef.current) {
         if (!audioUnlockedRef.current) {
           toast({
             title: "🔔 Ativar notificações sonoras",
@@ -112,8 +115,8 @@ export function useWhatsAppNotifications(
       }
     });
 
-    return () => es.close();
-  }, [user, queryClient, toast, navigate, soundEnabled, clientsRef]);
+    return unsubscribe;
+  }, [user, queryClient, toast, navigate, clientsRef]);
 
   function toggleSound() {
     setSoundEnabled((prev) => {

@@ -239,6 +239,25 @@ export function directionForViewer(
   return direction === "outbound" ? "inbound" : "outbound";
 }
 
+/**
+ * Uma mensagem conta como "recebida não-lida" para o leitor quando, no
+ * referencial DELE, ela é inbound. `whatsapp_messages.direction` é gravada
+ * relativa ao canal DONO da conversa (ver `directionForViewer`), então a
+ * contagem de não-lidas precisa traduzir para o leitor — senão, num diálogo
+ * interno canal↔canal, o atendente do lado peer não recebe badge das mensagens
+ * do outro lado (gravadas "outbound") e ganha badge fantasma das próprias
+ * (gravadas "inbound"). Pura, e reusa `viewerIsPeerSide`/`directionForViewer`
+ * para nunca divergir da tradução usada na renderização. A condição SQL em
+ * `listClientsForChat` espelha exatamente esta função.
+ */
+export function messageIsUnreadIncoming(
+  row: { channelId: number | null; peerChannelId: number | null },
+  messageDirection: "inbound" | "outbound",
+  viewerChannelIds: number[],
+): boolean {
+  return directionForViewer(messageDirection, viewerIsPeerSide(row, viewerChannelIds)) === "inbound";
+}
+
 /** Condição SQL que casa uma conversa pelo telefone em qualquer forma conhecida
  * (com/sem DDI 55, com/sem o 9º dígito) — pela coluna canônica quando existir e
  * pelo texto cru como fallback para linhas ainda não migradas. */
@@ -853,6 +872,12 @@ export async function listClientsForChat(
     dateTo?: string;
   } = {},
 ) {
+  // Canais do leitor — usado tanto na contagem de não-lidas relativa ao leitor
+  // (unreadSub, abaixo) quanto no rótulo/direção do par interno no mapeamento
+  // final. Calculado uma vez aqui em vez de sob demanda para poder alimentar a
+  // CTE de não-lidas.
+  const viewerChannelIds = await listChannelIdsForUser(userId).catch(() => []);
+
   // .mapWith aplica o mapper de timestamp do Drizzle ao SQL cru — sem ele o
   // valor chega ao cliente como string sem fuso ("2026-07-02 23:16:00") e o
   // browser a interpreta como hora local, exibindo o horário UTC (+3h em SP).
@@ -870,6 +895,23 @@ export async function listClientsForChat(
       .where(eq(whatsappConversationReads.userId, userId)),
   );
 
+  // Uma mensagem é "recebida não-lida" quando, no referencial do leitor, é
+  // inbound. Espelha `messageIsUnreadIncoming`/`directionForViewer`: para o
+  // leitor do lado peer de um diálogo interno, a direção gravada (relativa ao
+  // dono) é invertida — daí o CASE. Sem canais próprios o leitor nunca é peer,
+  // então basta `direction = 'inbound'` (caminho das conversas externas).
+  const unreadIncoming =
+    viewerChannelIds.length === 0
+      ? sql`${whatsappMessages.direction} = 'inbound'`
+      : sql`CASE
+              WHEN ${whatsappConversations.peerChannelId} IS NOT NULL
+               AND ${inArray(whatsappConversations.peerChannelId, viewerChannelIds)}
+               AND (${whatsappConversations.channelId} IS NULL
+                    OR NOT (${inArray(whatsappConversations.channelId, viewerChannelIds)}))
+              THEN ${whatsappMessages.direction} = 'outbound'
+              ELSE ${whatsappMessages.direction} = 'inbound'
+            END`;
+
   const unreadSub = db.$with("unread").as(
     db
       .select({
@@ -877,10 +919,13 @@ export async function listClientsForChat(
         unreadCount: sql<number>`cast(count(*) as int)`.as("unread_count"),
       })
       .from(whatsappMessages)
+      // Join com a conversa para conhecer peerChannelId/channelId — necessário
+      // para traduzir a direção ao referencial do leitor na condição acima.
+      .innerJoin(whatsappConversations, eq(whatsappMessages.conversationId, whatsappConversations.id))
       .leftJoin(readsSub, eq(whatsappMessages.conversationId, readsSub.conversationId))
       .where(
         and(
-          eq(whatsappMessages.direction, "inbound"),
+          unreadIncoming,
           sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${readsSub.lastReadAt}, '1970-01-01'::timestamp)`,
         ),
       )
@@ -1182,11 +1227,8 @@ export async function listClientsForChat(
   // Rótulo do diálogo interno é resolvido por quem está lendo (ver
   // internalPeerLabel) — não pode ser gravado em contact_name, senão o
   // atendente do canal peer leria o nome do próprio canal como se fosse o
-  // contato.
-  const viewerChannelIds = pageRows.some((r) => r.peerChannelId != null)
-    ? await listChannelIdsForUser(userId)
-    : [];
-
+  // contato. `viewerChannelIds` já foi calculado no topo (também alimenta a
+  // contagem de não-lidas relativa ao leitor).
   return {
     items: pageRows.map((row) => {
       const viewerIsPeer = viewerIsPeerSide(row, viewerChannelIds);
