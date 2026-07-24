@@ -413,6 +413,26 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
   sock.ev.on("messages.upsert", async ({ messages, type }: { messages: WAMessage[]; type: string }) => {
     if (type !== "notify") return;
 
+    // Auto-cura: uma mensagem chegando é prova inequívoca de que o socket está
+    // vivo e autenticado. Se o status em memória/banco ainda não refletir isso
+    // (ex.: a escrita da transição "open" falhou silenciosamente — o
+    // `.catch(() => {})` em handleConnectionUpdate engole o erro e não há
+    // retry), o canal ficaria PRESO em "disconnected"/"connecting" para
+    // sempre, mesmo recebendo mensagens normalmente — o reconcile job só
+    // corrige o sentido oposto (marcado conectado, mas sem socket vivo).
+    const currentSession = sessions.get(instanceName);
+    if (currentSession && currentSession.socket === sock && currentSession.status !== "connected") {
+      currentSession.status = "connected";
+      currentSession.qrBase64 = null;
+      currentSession.qrCode = null;
+      currentSession.reconnectAttempts = 0;
+      const meJid = state.creds.me?.id;
+      const phone = meJid ? jidToPhone(meJid) : undefined;
+      await handleConnectionUpdate(instanceName, { state: "open", phone }).catch((err) =>
+        console.error(`[Baileys] Instância ${instanceName}: falha ao auto-corrigir status para "connected":`, err),
+      );
+    }
+
     for (const msg of messages) {
       const rawJid = msg.key?.remoteJid ?? "";
       if (isIgnorableJid(rawJid)) continue;
