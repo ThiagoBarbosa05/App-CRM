@@ -238,20 +238,13 @@ router.get("/channels/:id/evolution/connect", async (req: Request, res: Response
       return;
     }
 
-    // Idempotência: se o canal já está conectado (fonte de verdade = banco,
-    // válida entre réplicas), não força restart nem marca "connecting" — apenas
-    // reporta o estado atual. Sem isso, abrir o CRM em outro dispositivo dispara
-    // um reconnect que derruba a sessão saudável / prende o canal em "connecting".
-    if (channel.connectionStatus === "connected") {
-      res.json({ code: "", connectionStatus: "connected" });
-      return;
-    }
-
-    // connectInstance gera um QR novo (forceRestart interno). O status do banco
-    // é atualizado reativamente por handleQrcodeUpdated ("qr") e
-    // handleConnectionUpdate ("connecting"/"connected"), então NÃO gravamos
-    // "connecting" aqui de forma incondicional.
+    // "Conectar via QR" é uma ação EXPLÍCITA do usuário (o frontend não dispara
+    // mais isso automaticamente ao montar). Portanto sempre força um QR novo —
+    // é o "reset" confiável do canal. A proteção contra reconexões incidentais
+    // (abrir o CRM em outro dispositivo) fica por conta do frontend, que apenas
+    // reflete o status e só chama este endpoint no clique do botão.
     const qrData = await connectInstance(channel.evolutionInstanceName);
+    await updateConnectionStatus(id, "connecting");
     res.json(qrData);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao gerar QR Code";

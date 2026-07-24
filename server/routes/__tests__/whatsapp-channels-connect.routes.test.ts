@@ -74,7 +74,7 @@ function makeApp(role = "vendedor", userId = "u1") {
   });
 }
 
-describe("GET /channels/:id/evolution/connect — idempotência", () => {
+describe("GET /channels/:id/evolution/connect", () => {
   beforeEach(() => {
     getChannelByIdMock.mockReset();
     updateConnectionStatusMock.mockReset();
@@ -82,28 +82,10 @@ describe("GET /channels/:id/evolution/connect — idempotência", () => {
     connectInstanceMock.mockReset();
   });
 
-  it("canal já conectado: NÃO reinicia nem grava status; devolve connected", async () => {
+  it("clique explícito força novo QR e marca 'connecting'", async () => {
     getChannelByIdMock.mockResolvedValue({
       id: 5,
       userId: "u1", // dono = usuário autenticado
-      evolutionInstanceName: "meu-whats",
-      connectionStatus: "connected",
-    });
-
-    const res = await request(makeApp())
-      .get("/api/whatsapp/channels/5/evolution/connect");
-
-    expect(res.status).toBe(200);
-    expect(res.body.connectionStatus).toBe("connected");
-    // Nenhuma ação destrutiva: sem forceRestart interno, sem flip para "connecting"
-    expect(connectInstanceMock).not.toHaveBeenCalled();
-    expect(updateConnectionStatusMock).not.toHaveBeenCalled();
-  });
-
-  it("canal desconectado: gera QR e NÃO grava 'connecting' incondicionalmente", async () => {
-    getChannelByIdMock.mockResolvedValue({
-      id: 5,
-      userId: "u1",
       evolutionInstanceName: "meu-whats",
       connectionStatus: "disconnected",
     });
@@ -115,8 +97,7 @@ describe("GET /channels/:id/evolution/connect — idempotência", () => {
     expect(res.status).toBe(200);
     expect(res.body.code).toBe("QR123");
     expect(connectInstanceMock).toHaveBeenCalledWith("meu-whats");
-    // O status passa a ser gerido reativamente (handleQrcodeUpdated/handleConnectionUpdate)
-    expect(updateConnectionStatusMock).not.toHaveBeenCalled();
+    expect(updateConnectionStatusMock).toHaveBeenCalledWith(5, "connecting");
   });
 
   it("nega acesso a quem não é dono, admin nem leitor de QR", async () => {
