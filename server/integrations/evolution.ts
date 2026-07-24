@@ -36,14 +36,22 @@ export async function createInstance(
   return { instanceName, instanceId, status };
 }
 
-export async function connectInstance(instanceName: string): Promise<{ code: string; base64?: string }> {
+export async function connectInstance(
+  instanceName: string,
+): Promise<{ code: string; base64?: string; connectionStatus?: string }> {
   // Reinicia a instância com credenciais limpas para evitar conflito 401
   // device_removed causado por chaves Signal obsoletas no banco.
-  // Se já estiver conectado, forceRestartInstance retorna sem interromper.
-  await forceRestartInstance(instanceName);
+  // Se já estiver conectado, forceRestartInstance é no-op (não mexe no socket
+  // real). Nesse caso não há QR a esperar — reportamos isso explicitamente
+  // para o chamador não bloquear 30s por um QR que nunca vai chegar, e para
+  // não sobrescrever o status do canal como se tivesse reiniciado.
+  const restart = await forceRestartInstance(instanceName);
+  if (restart.status === "connected" || restart.status === "open") {
+    return { code: "", base64: undefined, connectionStatus: "connected" };
+  }
   const qr = await waitForQr(instanceName, 30_000);
   if (!qr) return { code: "", base64: undefined };
-  return { code: qr.code, base64: qr.base64 ?? undefined };
+  return { code: qr.code, base64: qr.base64 ?? undefined, connectionStatus: "qr" };
 }
 
 export async function getInstanceStatus(instanceName: string): Promise<{ state: string }> {

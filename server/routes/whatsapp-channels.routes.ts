@@ -244,7 +244,17 @@ router.get("/channels/:id/evolution/connect", async (req: Request, res: Response
     // (abrir o CRM em outro dispositivo) fica por conta do frontend, que apenas
     // reflete o status e só chama este endpoint no clique do botão.
     const qrData = await connectInstance(channel.evolutionInstanceName);
-    await updateConnectionStatus(id, "connecting");
+    // Só grava no banco quando de fato houve reinício (QR novo) ou o backend
+    // confirmou que o canal já estava conectado. Se nenhum dos dois ocorreu
+    // (ex.: lock da instância pertence a outra réplica), não sobrescreve o
+    // status atual — sobrescrever aqui derrubava um "connected" legítimo
+    // para "connecting" mesmo com o socket real seguindo vivo e recebendo
+    // mensagens, deixando o canal preso em "desconectado" na UI.
+    if (qrData.connectionStatus === "connected") {
+      await updateConnectionStatus(id, "connected");
+    } else if (qrData.base64) {
+      await updateConnectionStatus(id, "connecting");
+    }
     res.json(qrData);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao gerar QR Code";
