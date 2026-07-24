@@ -2716,15 +2716,18 @@ export async function startConversationByClientId(
   userRole: string,
   requestedChannelId?: number,
 ) {
-  const whereClause =
-    userRole === "vendedor"
-      ? and(eq(clients.id, clientId), eq(clients.responsavelId, userId))
-      : eq(clients.id, clientId);
-
+  // Iniciar conversa não é uma ação de carteira: a busca de cliente na tela
+  // "Nova conversa" já ignora responsavelId de propósito
+  // (ignoreResponsavelScope=true, ver client/src/pages/whatsapp/conversations.tsx
+  // e server/repositories/clients.repository.ts:49) para deixar qualquer
+  // atendente localizar qualquer cliente do CRM — restringir aqui por
+  // responsavelId reintroduziria exatamente o bloqueio que aquela busca foi
+  // feita pra evitar, resultando num cliente visível na busca mas que falha
+  // ao iniciar ("Cliente não encontrado ou sem permissão").
   const [client] = await db
     .select({ id: clients.id, phone: clients.phone, name: clients.name })
     .from(clients)
-    .where(whereClause)
+    .where(eq(clients.id, clientId))
     .limit(1);
 
   if (!client?.phone) return null;
