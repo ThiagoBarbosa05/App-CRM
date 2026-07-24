@@ -5629,7 +5629,11 @@ function NewConversationDialog({
   const { data, isLoading } = useQuery({
     queryKey: ["/api/clients", "wa-new-conv", debouncedSearch, selectedTagIds],
     queryFn: async () => {
-      const params = new URLSearchParams({ pageSize: "20" });
+      // Iniciar uma conversa não é uma ação de carteira: qualquer atendente
+      // pode abrir conversa com qualquer cliente do CRM, não só os que é
+      // responsável (diferente da listagem principal de clientes, que
+      // continua restrita à carteira do vendedor).
+      const params = new URLSearchParams({ pageSize: "20", ignoreResponsavelScope: "true" });
       if (debouncedSearch) params.set("search", debouncedSearch);
       for (const id of selectedTagIds) params.append("whatsappTagIds", id);
       const res = await fetch(`/api/clients?${params}`);

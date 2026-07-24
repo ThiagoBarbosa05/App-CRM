@@ -124,7 +124,13 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
 
     try {
       const result = await connect.mutateAsync(channel.id);
-      if (result.base64) {
+      if (result.connectionStatus === "connected") {
+        // Backend respondeu que o canal já estava conectado (idempotência):
+        // nada foi reiniciado. Reflete "conectado" em vez de esperar timeout.
+        clearConnectTimeout();
+        setQrBase64(null);
+        setStatus("connected");
+      } else if (result.base64) {
         clearConnectTimeout();
         setQrBase64(result.base64);
         setStatus("qr");
@@ -137,13 +143,26 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
     }
   }, [connect, channel.id, clearConnectTimeout, toast]);
 
-  // Auto-dispara a geração do QR quando o canal não está conectado
+  // NÃO reconectamos automaticamente ao montar. Gerar QR chama forceRestart no
+  // backend (apaga credenciais Signal), então abrir o CRM em outro dispositivo
+  // derrubaria uma sessão saudável. A tela apenas REFLETE o status atual (prop
+  // vinda do banco + eventos SSE abaixo); a reconexão destrutiva só ocorre por
+  // clique explícito em "Conectar via QR" (handleConnect no onClick do botão).
+
+  // Mantém o status em sincronia com o banco quando a prop muda (refetch da
+  // lista) — cobre o caso do reconcile-baileys-status.job, que corrige o status
+  // sem emitir SSE. Mas NÃO atropela um fluxo de conexão em andamento
+  // (connecting/qr) iniciado pelo usuário com um valor defasado do refetch:
+  // só aceita a prop se ela já confirma "connected" ou se não há fluxo ativo.
   useEffect(() => {
-    if (status !== "connected") {
-      handleConnect();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const incoming = channel.connectionStatus ?? "disconnected";
+    setStatus((current) => {
+      if ((current === "connecting" || current === "qr") && incoming !== "connected") {
+        return current;
+      }
+      return incoming;
+    });
+  }, [channel.connectionStatus]);
 
   // Escuta eventos SSE de QR e conexão para este canal. Usa o stream SSE
   // COMPARTILHADO (uma única conexão para todo o app) — renderizamos um

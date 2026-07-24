@@ -46,7 +46,7 @@ export class ClientsRepository {
   ) {
     const conditions = [];
 
-    if (userRole === "vendedor" && userId) {
+    if (userRole === "vendedor" && userId && !filters.ignoreResponsavelScope) {
       conditions.push(eq(clients.responsavelId, userId));
     } else if (overrideResponsavelId) {
       conditions.push(eq(clients.responsavelId, overrideResponsavelId));

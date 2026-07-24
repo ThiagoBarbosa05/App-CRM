@@ -158,6 +158,15 @@ export interface ClientFilters {
   phone?: string;
   cpf?: string;
   responsavelId?: string;
+  /**
+   * Ignora a restrição padrão que limita um vendedor a ver apenas os clientes
+   * dos quais é responsável. Usado pela busca de "Nova conversa" do WhatsApp
+   * (server/routes/clients.routes.ts): iniciar uma conversa não é uma ação de
+   * carteira/propriedade do cliente, e qualquer atendente deve poder localizar
+   * qualquer cliente do CRM para isso — diferente da listagem principal de
+   * clientes, que continua restrita à carteira do vendedor.
+   */
+  ignoreResponsavelScope?: boolean;
   categoria?: string;
   origem?: string;
   status?: string;

@@ -135,6 +135,9 @@ export class ClientsService {
     ) {
       filters.responsavelId = rawFilters.responsavelId;
     }
+    if (rawFilters.ignoreResponsavelScope === true) {
+      filters.ignoreResponsavelScope = true;
+    }
     if (rawFilters.categoria && typeof rawFilters.categoria === "string") {
       filters.categoria = rawFilters.categoria;
     }
@@ -1142,6 +1145,7 @@ export class ClientsService {
       hasWineProfile: req.query.hasWineProfile === "true" ? true : undefined,
       rfmSegment: req.query.rfmSegment as string | undefined,
       eventId: req.query.eventId as string | undefined,
+      ignoreResponsavelScope: req.query.ignoreResponsavelScope === "true",
     });
 
     return {

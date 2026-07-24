@@ -582,9 +582,25 @@ export async function logoutInstance(instanceName: string): Promise<void> {
  */
 export async function forceRestartInstance(instanceName: string): Promise<{ instanceId: string; status: string }> {
   const existing = sessions.get(instanceName);
-  // Se já está conectado, não interrompe a sessão
+  // Se já está conectado NESTA réplica, não interrompe a sessão
   if (existing?.status === "connected") {
     return { instanceId: existing.instanceId, status: existing.status };
+  }
+
+  // Guard cross-réplica: `existing.status` só reflete o socket desta réplica.
+  // O banco (`connection_status`, mantido por handleConnectionUpdate e corrigido
+  // a cada minuto pelo reconcile-baileys-status.job) é a fonte de verdade para
+  // "alguma réplica tem o socket vivo". Se estiver "connected", NUNCA apagamos
+  // credenciais — senão um connect vindo de outro dispositivo/réplica derruba
+  // uma sessão saudável e força novo pareamento por QR. Também protege a janela
+  // transitória em que a própria réplica dona ainda não marcou "connected" em
+  // memória (restart 515, backoff) mas o canal está de fato conectado.
+  const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
+  if (channel?.connectionStatus === "connected") {
+    return {
+      instanceId: existing?.instanceId ?? crypto.randomUUID(),
+      status: "open",
+    };
   }
 
   // `existing` só reflete o estado desta réplica. Se esta réplica não detém o

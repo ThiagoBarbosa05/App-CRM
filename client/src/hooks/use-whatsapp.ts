@@ -883,7 +883,7 @@ export function useEvolutionConnect() {
   return useMutation({
     mutationFn: async (channelId: number) => {
       const res = await apiRequest("GET", `/api/whatsapp/channels/${channelId}/evolution/connect`);
-      return res.json() as Promise<{ code: string; base64?: string }>;
+      return res.json() as Promise<{ code: string; base64?: string; connectionStatus?: string }>;
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao gerar QR Code", description: error.message, variant: "destructive" });
