@@ -43,32 +43,42 @@ describe("canonicalInternalPair", () => {
 });
 
 describe("internalPeerLabel", () => {
-  // Conversa canônica do diálogo Eventos↔Búzios: dona é a Eventos (id 7),
-  // peer é a Búzios (id 12).
+  // Conversa canônica do diálogo Eventos↔Búzios: dona é a Eventos (id 7, atendente
+  // Televendas), peer é a Búzios (id 12, atendente Daiane).
   const row = {
     channelId: 7,
     peerChannelId: 12,
     channelName: "Eventos",
+    channelUserName: "Televendas",
     peerChannelName: "Búzios",
+    peerChannelUserName: "Daiane",
   };
 
-  it("mostra o canal peer para quem é do canal dono", () => {
-    expect(internalPeerLabel(row, [7])).toBe("Canal: Búzios");
+  it("mostra o nome do atendente do canal peer para quem é do canal dono", () => {
+    expect(internalPeerLabel(row, [7])).toBe("Daiane");
   });
 
-  it("mostra o canal dono para quem é do canal peer", () => {
-    expect(internalPeerLabel(row, [12])).toBe("Canal: Eventos");
+  it("mostra o nome do atendente do canal dono para quem é do canal peer", () => {
+    expect(internalPeerLabel(row, [12])).toBe("Televendas");
   });
 
-  it("mostra o peer para quem não é de nenhum dos dois (admin/gerente)", () => {
-    expect(internalPeerLabel(row, [])).toBe("Canal: Búzios");
+  it("mostra o atendente do peer para quem não é de nenhum dos dois (admin/gerente)", () => {
+    expect(internalPeerLabel(row, [])).toBe("Daiane");
   });
 
-  it("mostra o peer quando o usuário tem acesso aos DOIS canais", () => {
-    expect(internalPeerLabel(row, [7, 12])).toBe("Canal: Búzios");
+  it("mostra o atendente do peer quando o usuário tem acesso aos DOIS canais", () => {
+    expect(internalPeerLabel(row, [7, 12])).toBe("Daiane");
+  });
+
+  it("cai para o nome do canal quando ele não tem atendente dono definido", () => {
+    const semDono = { ...row, channelUserName: null, peerChannelUserName: null };
+    expect(internalPeerLabel(semDono, [7])).toBe("Búzios");
+    expect(internalPeerLabel(semDono, [12])).toBe("Eventos");
   });
 
   it("retorna null para conversa comum com cliente (sem peer)", () => {
-    expect(internalPeerLabel({ ...row, peerChannelId: null, peerChannelName: null }, [7])).toBeNull();
+    expect(
+      internalPeerLabel({ ...row, peerChannelId: null, peerChannelName: null, peerChannelUserName: null }, [7]),
+    ).toBeNull();
   });
 });

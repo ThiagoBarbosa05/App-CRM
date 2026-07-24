@@ -22,7 +22,7 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fet
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
-import { getChannelById, getChannelForConversation, resolveChannelForConversation, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
+import { getChannelById, getChannelForConversation, resolveChannelForConversation, resolveChannelById, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
 import type { ResolvedChannel, ChannelIdentity } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
@@ -172,18 +172,32 @@ export function canonicalInternalPair(
  * "outro lado" depende de quem está olhando: o atendente do canal dono lê o
  * nome do peer, o atendente do canal peer lê o nome do dono. Quem não é de
  * nenhum dos dois (admin/gerente) lê o peer, que é o interlocutor do ponto de
- * vista da conversa. Pura, para ser testável isoladamente.
+ * vista da conversa.
+ *
+ * Prioriza o nome do ATENDENTE dono do canal (`whatsapp_channels.userId →
+ * users.name`) — é o que a pessoa reconhece, não o nome interno do canal. Cai
+ * para o nome do canal quando ele não tem dono definido (canal de equipe,
+ * compartilhado por vários atendentes via whatsapp_channel_members). Pura,
+ * para ser testável isoladamente.
  */
 export function internalPeerLabel(
-  row: { channelId: number | null; peerChannelId: number | null; channelName: string | null; peerChannelName: string | null },
+  row: {
+    channelId: number | null;
+    peerChannelId: number | null;
+    channelName: string | null;
+    channelUserName: string | null;
+    peerChannelName: string | null;
+    peerChannelUserName: string | null;
+  },
   viewerChannelIds: number[],
 ): string | null {
   if (row.peerChannelId == null) return null;
   const viewerIsPeer =
     viewerChannelIds.includes(row.peerChannelId) &&
     (row.channelId == null || !viewerChannelIds.includes(row.channelId));
-  const name = viewerIsPeer ? row.channelName : row.peerChannelName;
-  return name ? `Canal: ${name}` : null;
+  return viewerIsPeer
+    ? (row.channelUserName ?? row.channelName)
+    : (row.peerChannelUserName ?? row.peerChannelName);
 }
 
 /** Condição SQL que casa uma conversa pelo telefone em qualquer forma conhecida
@@ -385,6 +399,72 @@ export async function resolveOutboundChannel(
   _requestingUserId?: string,
 ): Promise<ResolvedChannel | null> {
   return resolveChannelForConversation(conversationId).catch(() => null);
+}
+
+/**
+ * Resolve o canal E a direção de um envio a partir de QUEM está mandando —
+ * necessária só para diálogos internos canal↔canal, onde `resolveOutboundChannel`
+ * (sempre o canal dono) não é suficiente: os dois lados são canais nossos, e o
+ * que sai por qual depende de qual dos dois atendentes está na tela.
+ *
+ * Sem `peerChannelId` (conversa comum, com cliente externo) o comportamento é
+ * idêntico a `resolveOutboundChannel` — o isolamento estrito de canal dessas
+ * conversas não muda.
+ *
+ * Com `peerChannelId`: se o usuário logado for do canal PEER (e não do dono),
+ * a mensagem sai pelo número dele, com `direction: "inbound"` — do ponto de
+ * vista da conversa (dona = o outro canal), é como se o peer tivesse acabado
+ * de "chegar" nela, exatamente o que aconteceria se ele tivesse mandado a
+ * mesma mensagem pelo celular físico em vez do CRM (ver `resolveMessageDirection`,
+ * usado no caminho inbound real). Em qualquer outro caso — usuário é do canal
+ * dono, tem acesso aos dois, ou não tem canal nenhum (admin/gerente) — mantém
+ * o comportamento atual: envia pelo dono, `direction: "outbound"`.
+ */
+export async function resolveOutboundChannelForSender(
+  conversationId: string,
+  requestingUserId: string,
+): Promise<{
+  channel: ResolvedChannel;
+  channelId: number;
+  direction: "inbound" | "outbound";
+  /**
+   * Telefone de destino da chamada à API. `whatsapp_conversations.phone` guarda
+   * sempre o número do PEER visto pelo dono (ver `canonicalInternalPair`) — correto
+   * quando quem envia é o dono, mas quando é o peer enviando, o destino tem que
+   * ser o número do dono, não `conv.phone` (que é o número do próprio peer).
+   */
+  targetPhone: string;
+} | null> {
+  const [conv] = await db
+    .select({
+      channelId: whatsappConversations.channelId,
+      peerChannelId: whatsappConversations.peerChannelId,
+      phone: whatsappConversations.phone,
+    })
+    .from(whatsappConversations)
+    .where(eq(whatsappConversations.id, conversationId))
+    .limit(1);
+
+  if (!conv?.channelId) return null;
+
+  if (conv.peerChannelId != null) {
+    const userChannelIds = await listChannelIdsForUser(requestingUserId);
+    const isPeer = userChannelIds.includes(conv.peerChannelId);
+    const isOwner = userChannelIds.includes(conv.channelId);
+    if (isPeer && !isOwner) {
+      const [peerResolved, owner] = await Promise.all([
+        resolveChannelById(conv.peerChannelId).catch(() => null),
+        getChannelIdentityById(conv.channelId).catch(() => null),
+      ]);
+      if (peerResolved && owner?.displayPhone) {
+        return { channel: peerResolved, channelId: conv.peerChannelId, direction: "inbound", targetPhone: owner.displayPhone };
+      }
+    }
+  }
+
+  const ownerResolved = await resolveChannelForConversation(conversationId).catch(() => null);
+  if (!ownerResolved) return null;
+  return { channel: ownerResolved, channelId: conv.channelId, direction: "outbound", targetPhone: conv.phone };
 }
 
 export async function resolveConversationIdByClientId(clientId: string) {
@@ -929,6 +1009,12 @@ export async function listClientsForChat(
 
   const responsavelUsers = alias(users, "responsavel_users");
   const peerChannels = alias(whatsappChannels, "peer_channels");
+  // Nome do atendente dono de cada canal (whatsapp_channels.userId → users.name)
+  // — usado no rótulo de diálogo interno em vez do nome do canal (ver
+  // internalPeerLabel). Canal sem dono (compartilhado) deixa esses campos null
+  // e o rótulo cai para o nome do canal.
+  const ownerChannelUsers = alias(users, "owner_channel_users");
+  const peerChannelUsers = alias(users, "peer_channel_users");
 
   const rows = await db
     .with(readsSub, unreadSub, lastMsgSub)
@@ -946,6 +1032,7 @@ export async function listClientsForChat(
       unreadCount: sql<number>`coalesce(${unreadSub.unreadCount}, 0)`,
       channelId: whatsappConversations.channelId,
       channelName: whatsappChannels.name,
+      channelUserName: ownerChannelUsers.name,
       channelDisplayPhone: whatsappChannels.displayPhone,
       channelConnectionStatus: whatsappChannels.connectionStatus,
       channelProvider: whatsappChannels.provider,
@@ -958,11 +1045,14 @@ export async function listClientsForChat(
       whatsappOptOut: clients.whatsappOptOut,
       peerChannelId: whatsappConversations.peerChannelId,
       peerChannelName: peerChannels.name,
+      peerChannelUserName: peerChannelUsers.name,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .leftJoin(whatsappChannels, eq(whatsappConversations.channelId, whatsappChannels.id))
     .leftJoin(peerChannels, eq(whatsappConversations.peerChannelId, peerChannels.id))
+    .leftJoin(ownerChannelUsers, eq(whatsappChannels.userId, ownerChannelUsers.id))
+    .leftJoin(peerChannelUsers, eq(peerChannels.userId, peerChannelUsers.id))
     .leftJoin(whatsappSectors, eq(whatsappConversations.sectorId, whatsappSectors.id))
     .leftJoin(lastMsgSub, eq(whatsappConversations.id, lastMsgSub.conversationId))
     .leftJoin(unreadSub, eq(whatsappConversations.id, unreadSub.conversationId))
@@ -1069,6 +1159,8 @@ export async function getConversation(
 
   const peerChannels = alias(whatsappChannels, "peer_channels");
   const ownerChannels = alias(whatsappChannels, "owner_channels");
+  const ownerChannelUsers = alias(users, "owner_channel_users");
+  const peerChannelUsers = alias(users, "peer_channel_users");
 
   const [convRow] = await db
     .select({
@@ -1079,13 +1171,17 @@ export async function getConversation(
       contactPhotoUrl: whatsappConversations.contactPhotoUrl,
       channelId: whatsappConversations.channelId,
       channelName: ownerChannels.name,
+      channelUserName: ownerChannelUsers.name,
       peerChannelId: whatsappConversations.peerChannelId,
       peerChannelName: peerChannels.name,
+      peerChannelUserName: peerChannelUsers.name,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .leftJoin(ownerChannels, eq(whatsappConversations.channelId, ownerChannels.id))
+    .leftJoin(ownerChannelUsers, eq(ownerChannels.userId, ownerChannelUsers.id))
     .leftJoin(peerChannels, eq(whatsappConversations.peerChannelId, peerChannels.id))
+    .leftJoin(peerChannelUsers, eq(peerChannels.userId, peerChannelUsers.id))
     .where(and(...whereConditions))
     .limit(1);
 
@@ -1235,25 +1331,28 @@ export async function sendConversationMessage(
     replyToWaMessageId = ref?.waMessageId ?? null;
   }
 
-  // Canal de envio = sempre o canal vinculado à conversa (imutável).
-  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId, userId);
+  // Canal de envio: o dono da conversa, exceto em diálogo interno canal↔canal
+  // em que quem está enviando é o atendente do lado peer — aí sai pelo canal
+  // dele, não pelo dono (ver resolveOutboundChannelForSender).
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId);
 
   // Sem canal resolvível, NÃO envia: cair no default global (wa_phone_number_id)
   // faria a mensagem sair por um número diferente do da conversa (ex.: Dionisio),
   // e a resposta do contato cairia na conversa errada.
-  if (!resolvedChannel) {
+  if (!resolved) {
     throw new Error(
       "Conversa sem canal de envio configurado — não é possível enviar. Verifique o canal vinculado à conversa.",
     );
   }
+  const resolvedChannel = resolved.channel;
 
   // Persiste a mensagem imediatamente como "failed" — atualiza para "sent" se a API responder ok
   const [savedMessage] = await db
     .insert(whatsappMessages)
     .values({
       conversationId,
-      channelId: resolvedChannel?.id ?? null,
-      direction: "outbound",
+      channelId: resolved.channelId,
+      direction: resolved.direction,
       type: "text",
       content: message,
       status: "failed",
@@ -1274,7 +1373,7 @@ export async function sendConversationMessage(
     if (resolvedChannel?.provider === "evolution") {
       const evoResult = await evoSendText(
         resolvedChannel.evolutionInstanceName,
-        conv.phone,
+        resolved.targetPhone,
         message,
         { quotedMsgId: replyToWaMessageId ?? undefined },
       );
@@ -1283,7 +1382,7 @@ export async function sendConversationMessage(
       const cloudOverride = resolvedChannel?.provider === "cloud_api"
         ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
         : null;
-      const result = await sendTextMessage(conv.phone, message, cloudOverride ?? undefined, replyToWaMessageId ?? undefined);
+      const result = await sendTextMessage(resolved.targetPhone, message, cloudOverride ?? undefined, replyToWaMessageId ?? undefined);
       waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
     }
 
@@ -1451,14 +1550,15 @@ export async function sendConversationTemplate(
     return null;
   }
 
-  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId, userId);
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId);
 
   // Templates oficiais só existem no canal cloud_api (API da Meta).
-  if (resolvedChannel?.provider !== "cloud_api") {
+  if (resolved?.channel.provider !== "cloud_api") {
     throw new Error(
       "Templates só podem ser enviados pelo canal oficial do WhatsApp (Cloud API).",
     );
   }
+  const resolvedChannel = resolved.channel;
 
   // Inclui parameter_name somente quando o template usa formato NAMED explicitamente.
   // Para POSITIONAL (o mais comum) ou quando format não foi informado, usa só "text".
@@ -1499,8 +1599,8 @@ export async function sendConversationTemplate(
     .insert(whatsappMessages)
     .values({
       conversationId,
-      channelId: resolvedChannel.id,
-      direction: "outbound",
+      channelId: resolved.channelId,
+      direction: resolved.direction,
       type: "template",
       content: previewText ?? templateName,
       status: "failed",
@@ -1527,7 +1627,7 @@ export async function sendConversationTemplate(
       accessToken: resolvedChannel.accessToken,
     };
 
-    console.log(`[sendConversationTemplate] template="${templateName}" lang="${languageCode}" parameterFormat="${parameterFormat ?? "não informado"}" phone="${conv.phone}"`);
+    console.log(`[sendConversationTemplate] template="${templateName}" lang="${languageCode}" parameterFormat="${parameterFormat ?? "não informado"}" phone="${resolved.targetPhone}"`);
     console.log(`[sendConversationTemplate] components enviados à Meta:`, JSON.stringify(components, null, 2));
 
     // Busca os componentes completos do template (inclui botões) para diagnóstico.
@@ -1543,7 +1643,7 @@ export async function sendConversationTemplate(
     }
 
     const result = await sendTemplateMessage(
-      conv.phone,
+      resolved.targetPhone,
       templateName,
       languageCode,
       components,
@@ -1653,15 +1753,16 @@ export async function sendConversationMedia(
     replyToWaMessageId = ref?.waMessageId ?? null;
   }
 
-  const resolvedChannel = await resolveOutboundChannel(conversationId, channelId, userId);
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId);
 
   // Sem canal resolvível, NÃO envia (mesma razão de sendConversationMessage):
   // evita cair no número global e mandar a mídia pelo número errado.
-  if (!resolvedChannel) {
+  if (!resolved) {
     throw new Error(
       "Conversa sem canal de envio configurado — não é possível enviar. Verifique o canal vinculado à conversa.",
     );
   }
+  const resolvedChannel = resolved.channel;
 
   console.log(`[sendConversationMedia] provider=${resolvedChannel.provider}`);
 
@@ -1675,7 +1776,7 @@ export async function sendConversationMedia(
     try {
       const evoResult = await evoSendMedia(
         resolvedChannel.evolutionInstanceName,
-        conv.phone,
+        resolved.targetPhone,
         evoMediaType,
         { base64: `data:${effectiveMime};base64,${base64}`, caption, filename: effectiveName, mimetype: effectiveMime },
       );
@@ -1698,7 +1799,7 @@ export async function sendConversationMedia(
     }
     console.log(`[sendConversationMedia] waMediaId=${waMediaId} → sendMediaMessage type=${mediaType}`);
     try {
-      const result = await sendMediaMessage(conv.phone, waMediaId, mediaType, caption ?? undefined, undefined, cloudOverride ?? undefined);
+      const result = await sendMediaMessage(resolved.targetPhone, waMediaId, mediaType, caption ?? undefined, undefined, cloudOverride ?? undefined);
       waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
     } catch (err) {
       console.error(`[sendConversationMedia] sendMediaMessage falhou:`, err);
@@ -1710,8 +1811,8 @@ export async function sendConversationMedia(
     .insert(whatsappMessages)
     .values({
       conversationId,
-      channelId: resolvedChannel?.id ?? null,
-      direction: "outbound",
+      channelId: resolved.channelId,
+      direction: resolved.direction,
       type: mediaType,
       content: null,
       caption: caption ?? null,
