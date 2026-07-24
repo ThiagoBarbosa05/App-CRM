@@ -234,6 +234,10 @@ export interface ChatClient {
   responsavelId?: string | null;
   responsavelName?: string | null;
   whatsappOptOut?: boolean | null;
+  /** Presente quando esta conversa é um diálogo interno canal↔canal (ver
+   * peerChannelId no backend) — nesse caso `contactName` já traz o nome do
+   * atendente do outro lado, e não faz sentido oferecer "criar cliente". */
+  peerChannelId?: number | null;
 }
 
 interface WaMedia {
@@ -264,6 +268,9 @@ interface WaMessage {
   createdAt: string;
   channelId: number | null;
   channelName: string | null;
+  /** Nome do atendente dono do canal por onde esta mensagem saiu — usado no
+   * badge por mensagem em vez do nome do canal (ver Fase 13). */
+  channelUserName?: string | null;
   channelProvider: string | null;
   rawPayload?: {
     kind?: string;
@@ -3037,7 +3044,9 @@ function ConversationMessages({
   const [transferSheetOpen, setTransferSheetOpen] = useState(false);
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
-  const isUnknownContact = !client.clientId;
+  // Diálogo interno canal↔canal nunca é "contato desconhecido" — o outro lado
+  // é um atendente nosso, não um cliente em potencial.
+  const isUnknownContact = !client.clientId && !client.peerChannelId;
 
   const closeConversationMutation = useMutation({
     mutationFn: async () => {
@@ -4154,16 +4163,19 @@ function ConversationMessages({
             </div>
           )}
 
-          {/* Detalhes do contato */}
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            title="Ver detalhes do contato"
-            onClick={() => setContactDetailsOpen(true)}
-          >
-            <User className="h-3.5 w-3.5" />
-          </Button>
+          {/* Detalhes do contato — não faz sentido em diálogo interno canal↔canal,
+              onde o outro lado é um atendente nosso, não um contato do CRM. */}
+          {!client.peerChannelId && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              title="Ver detalhes do contato"
+              onClick={() => setContactDetailsOpen(true)}
+            >
+              <User className="h-3.5 w-3.5" />
+            </Button>
+          )}
 
           {/* Editar etiquetas */}
           {client.clientId && canManageTags && (
@@ -4396,8 +4408,11 @@ function ConversationMessages({
                     "HH:mm",
                   );
                   // Canal por mensagem (não mais por conversa) — deixa claro
-                  // por qual número cada resposta saiu numa conversa unificada.
-                  const channelName = msg.channelName ?? "";
+                  // por qual número/atendente cada resposta saiu numa conversa
+                  // unificada. Prioriza o nome do atendente dono do canal;
+                  // cai para o nome do canal quando ele não tem dono definido
+                  // (canal de equipe).
+                  const channelName = msg.channelUserName ?? msg.channelName ?? "";
                   const prevMsg = msgIndex > 0 ? msgs[msgIndex - 1] : null;
                   const showChannelBadge =
                     isOutbound &&
@@ -4454,7 +4469,7 @@ function ConversationMessages({
                       {showChannelBadge && (
                         <div className="shrink-0 flex flex-col items-center gap-1 self-end">
                           <div
-                            title={`Canal: ${channelName}`}
+                            title={msg.channelUserName ? `Enviado por ${channelName}` : `Canal: ${channelName}`}
                             className="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center shadow-sm"
                           >
                             <span className="text-[11px] font-bold text-white uppercase leading-none text-center">

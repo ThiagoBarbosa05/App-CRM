@@ -185,6 +185,24 @@ export function canonicalInternalPair(
  * compartilhado por vários atendentes via whatsapp_channel_members). Pura,
  * para ser testável isoladamente.
  */
+/**
+ * True quando o usuário logado é do lado PEER da conversa (e não do dono) —
+ * a mesma regra usada tanto para decidir o rótulo (`internalPeerLabel`) quanto
+ * para traduzir `direction`/reações para o referencial de quem está lendo
+ * (`directionForViewer`). Extraída à parte para as duas nunca divergirem.
+ * Conversa externa (`peerChannelId` null) nunca tem "lado peer" — sempre false.
+ */
+export function viewerIsPeerSide(
+  row: { channelId: number | null; peerChannelId: number | null },
+  viewerChannelIds: number[],
+): boolean {
+  if (row.peerChannelId == null) return false;
+  return (
+    viewerChannelIds.includes(row.peerChannelId) &&
+    (row.channelId == null || !viewerChannelIds.includes(row.channelId))
+  );
+}
+
 export function internalPeerLabel(
   row: {
     channelId: number | null;
@@ -197,12 +215,28 @@ export function internalPeerLabel(
   viewerChannelIds: number[],
 ): string | null {
   if (row.peerChannelId == null) return null;
-  const viewerIsPeer =
-    viewerChannelIds.includes(row.peerChannelId) &&
-    (row.channelId == null || !viewerChannelIds.includes(row.channelId));
-  return viewerIsPeer
+  return viewerIsPeerSide(row, viewerChannelIds)
     ? (row.channelUserName ?? row.channelName)
     : (row.peerChannelUserName ?? row.peerChannelName);
+}
+
+/**
+ * `direction` no banco é sempre relativa ao canal DONO da conversa (ver
+ * `canonicalInternalPair`/`resolveMessageDirection`) — necessário porque a
+ * linha é única e compartilhada pelos dois lados. Só que toda a UI trata
+ * `direction` como relativa a QUEM ESTÁ LENDO ("outbound" = bolha à direita,
+ * "é minha"). Para o atendente do lado dono os dois referenciais coincidem;
+ * para o atendente do lado peer, invertidos — sem isso as bolhas aparecem
+ * trocadas, o prefixo "Você:" some do lado errado, e a reconciliação otimista
+ * do frontend (que só casa contra mensagens "outbound") nunca encontra a
+ * mensagem real, deixando a bolha local presa. Pura.
+ */
+export function directionForViewer(
+  direction: "inbound" | "outbound",
+  viewerIsPeer: boolean,
+): "inbound" | "outbound" {
+  if (!viewerIsPeer) return direction;
+  return direction === "outbound" ? "inbound" : "outbound";
 }
 
 /** Condição SQL que casa uma conversa pelo telefone em qualquer forma conhecida
@@ -289,22 +323,36 @@ export async function findOrCreateConversation(phone: string, channelId?: number
     // Linha anterior à migração pode estar sem as colunas novas — completa sem
     // tocar em nada mais (o canal/telefone da conversa são imutáveis).
     if (!existing.phoneNormalized || existing.peerChannelId !== identity.peerChannelId) {
+      // Linha criada antes desta identificação de par interno pode ter sido
+      // vinculada por engano a um cliente cujo telefone coincidiu com o do
+      // canal peer — desfaz aqui, no mesmo momento em que peerChannelId é
+      // detectado pela primeira vez.
+      const clearClientId = identity.peerChannelId != null && existing.clientId != null;
       await db
         .update(whatsappConversations)
         .set({
           phoneNormalized: existing.phoneNormalized ?? canonicalPhone(existing.phone),
           peerChannelId: identity.peerChannelId,
+          ...(clearClientId ? { clientId: null } : {}),
         })
         .where(eq(whatsappConversations.id, existing.id));
+      if (clearClientId) existing.clientId = null;
     }
     return existing;
   }
 
-  const [matchedClient] = await db
-    .select({ id: clients.id })
-    .from(clients)
-    .where(inArray(sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g')`, phoneVariants(effectivePhone)))
-    .limit(1);
+  // Diálogo interno canal↔canal nunca vira cliente: o "telefone" da conversa é
+  // o número de OUTRO canal nosso, não de um contato de verdade — mesmo que,
+  // por coincidência, alguém tenha cadastrado esse número como cliente.
+  const matchedClient = identity.peerChannelId
+    ? null
+    : (
+        await db
+          .select({ id: clients.id })
+          .from(clients)
+          .where(inArray(sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g')`, phoneVariants(effectivePhone)))
+          .limit(1)
+      )[0];
 
   // Herda o setor padrão do canal (se configurado) para que a conversa não
   // nasça sem setor e, por isso, fique invisível a todo vendedor sob a regra
@@ -1140,12 +1188,18 @@ export async function listClientsForChat(
     : [];
 
   return {
-    items: pageRows.map((row) => ({
-      ...row,
-      contactName: internalPeerLabel(row, viewerChannelIds) ?? row.contactName,
-      tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
-      whatsappTags: row.clientId ? (whatsappTagsByClient.get(row.clientId) ?? []) : [],
-    })),
+    items: pageRows.map((row) => {
+      const viewerIsPeer = viewerIsPeerSide(row, viewerChannelIds);
+      return {
+        ...row,
+        contactName: internalPeerLabel(row, viewerChannelIds) ?? row.contactName,
+        lastMessageDirection: row.lastMessageDirection
+          ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
+          : row.lastMessageDirection,
+        tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
+        whatsappTags: row.clientId ? (whatsappTagsByClient.get(row.clientId) ?? []) : [],
+      };
+    }),
     nextCursor,
   };
 }
@@ -1199,12 +1253,14 @@ export async function getConversation(
 
   // Mesmo rótulo relativo ao leitor usado na listagem (ver internalPeerLabel).
   const viewerChannelIds = convRow.peerChannelId != null ? await listChannelIdsForUser(userId) : [];
+  const viewerIsPeer = viewerIsPeerSide(convRow, viewerChannelIds);
   const conv = {
     ...convRow,
     contactName: internalPeerLabel(convRow, viewerChannelIds) ?? convRow.contactName,
   };
 
   const replyMsg = alias(whatsappMessages, "reply_msg");
+  const messageChannelUsers = alias(users, "message_channel_users");
   const effectiveAt = sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`;
 
   const messageConditions: ReturnType<typeof eq>[] = [
@@ -1236,6 +1292,11 @@ export async function getConversation(
       replyToDirection: replyMsg.direction,
       channelId: whatsappMessages.channelId,
       channelName: whatsappChannels.name,
+      // Nome do atendente dono do canal por onde ESTA mensagem saiu — usado no
+      // badge por mensagem em vez do nome do canal (mesma ideia da Fase 9,
+      // mas por mensagem: numa conversa unificada, cada mensagem pode ter
+      // saído por um canal/atendente diferente).
+      channelUserName: messageChannelUsers.name,
       channelProvider: whatsappChannels.provider,
       rawPayload: whatsappMessages.rawPayload,
       media: {
@@ -1251,6 +1312,7 @@ export async function getConversation(
     .leftJoin(whatsappMedia, eq(whatsappMessages.id, whatsappMedia.messageId))
     .leftJoin(replyMsg, eq(whatsappMessages.replyToMessageId, replyMsg.id))
     .leftJoin(whatsappChannels, eq(whatsappMessages.channelId, whatsappChannels.id))
+    .leftJoin(messageChannelUsers, eq(whatsappChannels.userId, messageChannelUsers.id))
     .where(and(...messageConditions))
     .orderBy(desc(effectiveAt), desc(whatsappMessages.id))
     .limit(limit + 1);
@@ -1290,7 +1352,14 @@ export async function getConversation(
 
   const messages = pageRows.map((m) => ({
     ...m,
-    reactions: reactionsByMessage.get(m.id) ?? [],
+    direction: directionForViewer(m.direction as "inbound" | "outbound", viewerIsPeer),
+    replyToDirection: m.replyToDirection
+      ? directionForViewer(m.replyToDirection as "inbound" | "outbound", viewerIsPeer)
+      : m.replyToDirection,
+    reactions: (reactionsByMessage.get(m.id) ?? []).map((r) => ({
+      ...r,
+      direction: directionForViewer(r.direction, viewerIsPeer),
+    })),
   }));
 
   return { conversation: conv, messages, nextCursor };
@@ -2060,11 +2129,18 @@ async function resolveMessageDirection(
 const ECHO_BACKFILL_WINDOW_MS = 60_000;
 
 /**
- * Casa um eco `fromMe` com a mensagem outbound que o CRM já gravou para o mesmo
- * envio, gravando nela o `waMessageId` que faltava. Retorna true quando o eco
- * foi absorvido (o chamador não deve inserir nada).
+ * Casa um eco `fromMe` com a mensagem que o CRM já gravou para o mesmo envio,
+ * gravando nela o `waMessageId` que faltava. Retorna true quando o eco foi
+ * absorvido (o chamador não deve inserir nada).
+ *
+ * O critério de "foi o CRM que gravou" é `sentByUserId IS NOT NULL` — não
+ * `direction = "outbound"`. Numa conversa interna, o envio do atendente do
+ * lado PEER grava `direction: "inbound"` (relativo ao dono, ver
+ * `resolveOutboundChannelForSender`); se este filtro exigisse "outbound", o
+ * eco do envio do peer nunca casaria com a linha do CRM e viraria uma segunda
+ * mensagem real no banco.
  */
-async function backfillEchoedOutboundMessage(
+export async function backfillEchoedOutboundMessage(
   conversationId: string,
   data: { waMessageId: string; type: string; content: string | null },
 ): Promise<boolean> {
@@ -2076,7 +2152,6 @@ async function backfillEchoedOutboundMessage(
     .where(
       and(
         eq(whatsappMessages.conversationId, conversationId),
-        eq(whatsappMessages.direction, "outbound"),
         eq(whatsappMessages.type, data.type),
         isNull(whatsappMessages.waMessageId),
         isNotNull(whatsappMessages.sentByUserId),
@@ -2180,7 +2255,13 @@ export async function saveInboundMessage(data: {
   // (gravada por sendConversationMessage/Media) só que ainda sem waMessageId,
   // porque o eco do Baileys pode chegar antes do UPDATE que grava o id. Casa
   // com ela em vez de inserir uma segunda cópia.
-  if (direction === "outbound") {
+  //
+  // O guard é `_fromMe`, não `direction === "outbound"`: numa conversa interna
+  // o envio do atendente do lado PEER grava `direction: "inbound"` (relativo
+  // ao dono), mas `_fromMe` continua `true` no evento capturado pela própria
+  // instância que enviou — é esse o sinal de "isto pode ser eco de um envio
+  // nosso", em qualquer lado da conversa.
+  if (data._fromMe) {
     const backfilled = await backfillEchoedOutboundMessage(conv.id, data);
     if (backfilled) return;
   }
@@ -2476,19 +2557,25 @@ export async function sendConversationReaction(
 
   await sendReaction(conv.phone, targetMsg.waMessageId, emoji, channelOverride ?? undefined);
 
+  // A reação, assim como a mensagem (ver resolveOutboundChannelForSender), tem
+  // que ser gravada com a direção relativa ao DONO da conversa — sem isso, uma
+  // reação do atendente do lado peer ficaria marcada "outbound" incondicional,
+  // e o leitor do lado dono veria como se fosse dele mesmo.
+  const reactionDirection = (await resolveOutboundChannelForSender(conversationId, userId))?.direction ?? "outbound";
+
   if (!emoji) {
     await db
       .delete(whatsappReactions)
       .where(
         and(
           eq(whatsappReactions.messageId, messageId),
-          eq(whatsappReactions.direction, "outbound"),
+          eq(whatsappReactions.direction, reactionDirection),
         ),
       );
   } else {
     await db
       .insert(whatsappReactions)
-      .values({ messageId, emoji, direction: "outbound" })
+      .values({ messageId, emoji, direction: reactionDirection })
       .onConflictDoUpdate({
         target: [whatsappReactions.messageId, whatsappReactions.direction],
         set: { emoji },

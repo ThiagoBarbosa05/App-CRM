@@ -17,7 +17,12 @@ vi.mock("../../integrations/evolution", () => ({
   fetchProfilePictureUrl: async () => null,
 }));
 
-import { canonicalInternalPair, internalPeerLabel } from "../whatsapp-conversations.service";
+import {
+  canonicalInternalPair,
+  internalPeerLabel,
+  viewerIsPeerSide,
+  directionForViewer,
+} from "../whatsapp-conversations.service";
 
 const eventos = { id: 7, displayPhone: "+5521989014965" };
 const buzios = { id: 12, displayPhone: "+5522996212581" };
@@ -80,5 +85,61 @@ describe("internalPeerLabel", () => {
     expect(
       internalPeerLabel({ ...row, peerChannelId: null, peerChannelName: null, peerChannelUserName: null }, [7]),
     ).toBeNull();
+  });
+});
+
+describe("viewerIsPeerSide", () => {
+  // Dona é a Eventos (7), peer é a Búzios (12) — mesmo cenário real do bug:
+  // Televendas (dono) enviou "teste", Daiane (peer) respondeu ".".
+  const row = { channelId: 7, peerChannelId: 12 };
+
+  it("false para quem é do canal dono", () => {
+    expect(viewerIsPeerSide(row, [7])).toBe(false);
+  });
+
+  it("true para quem é do canal peer", () => {
+    expect(viewerIsPeerSide(row, [12])).toBe(true);
+  });
+
+  it("false para quem não é de nenhum dos dois (admin/gerente)", () => {
+    expect(viewerIsPeerSide(row, [])).toBe(false);
+  });
+
+  it("false para quem tem acesso aos dois canais", () => {
+    expect(viewerIsPeerSide(row, [7, 12])).toBe(false);
+  });
+
+  it("false para conversa externa (sem peerChannelId), mesmo que o channelId bata", () => {
+    expect(viewerIsPeerSide({ channelId: 7, peerChannelId: null }, [7])).toBe(false);
+  });
+});
+
+describe("directionForViewer", () => {
+  it("não inverte para o dono — direction do banco já é a dele", () => {
+    expect(directionForViewer("outbound", false)).toBe("outbound");
+    expect(directionForViewer("inbound", false)).toBe("inbound");
+  });
+
+  it("inverte para o peer — outbound do dono é o que o peer recebeu", () => {
+    expect(directionForViewer("outbound", true)).toBe("inbound");
+    expect(directionForViewer("inbound", true)).toBe("outbound");
+  });
+
+  it("cenário real do bug: Televendas (dono) manda 'teste' — ele deve ver como outbound (dele)", () => {
+    const row = { channelId: 7, peerChannelId: 12 };
+    const televendasChannelIds = [7];
+    expect(directionForViewer("outbound", viewerIsPeerSide(row, televendasChannelIds))).toBe("outbound");
+  });
+
+  it("cenário real do bug: Daiane (peer) lê o 'teste' do Televendas — deve ver como inbound (recebida)", () => {
+    const row = { channelId: 7, peerChannelId: 12 };
+    const daianeChannelIds = [12];
+    expect(directionForViewer("outbound", viewerIsPeerSide(row, daianeChannelIds))).toBe("inbound");
+  });
+
+  it("cenário real do bug: Daiane (peer) manda '.' — a linha grava inbound (relativo ao dono), mas ela deve ver como outbound (dela)", () => {
+    const row = { channelId: 7, peerChannelId: 12 };
+    const daianeChannelIds = [12];
+    expect(directionForViewer("inbound", viewerIsPeerSide(row, daianeChannelIds))).toBe("outbound");
   });
 });
