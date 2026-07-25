@@ -14,6 +14,16 @@ import {
   connectOrders,
   contactTags,
   whatsappConversations,
+  blingContactMappings,
+  calls,
+  callNotifications,
+  restaurantOrders,
+  smsIndividualMessages,
+  automationExecutionLog,
+  campaignClients,
+  copilotoSignals,
+  reengagementProgress,
+  zernioConversations,
 } from "../../shared/schema";
 import { eq, sql, inArray, and } from "drizzle-orm";
 
@@ -123,6 +133,88 @@ export async function mergeClients(keepId: string, mergeId: string) {
     }
     // Transferir as tags restantes para o cliente mantido
     await tx.update(contactTags).set({ clientId: keepId }).where(eq(contactTags.clientId, mergeId));
+
+    // ── Tabelas simples (sem constraint unique em clientId) ─────────────────
+    await tx.update(calls).set({ clientId: keepId }).where(eq(calls.clientId, mergeId));
+    await tx.update(callNotifications).set({ clientId: keepId }).where(eq(callNotifications.clientId, mergeId));
+    await tx.update(restaurantOrders).set({ clientId: keepId }).where(eq(restaurantOrders.clientId, mergeId));
+    await tx.update(smsIndividualMessages).set({ clientId: keepId }).where(eq(smsIndividualMessages.clientId, mergeId));
+    await tx.update(automationExecutionLog).set({ clientId: keepId }).where(eq(automationExecutionLog.clientId, mergeId));
+    await tx.update(zernioConversations).set({ clientId: keepId }).where(eq(zernioConversations.clientId, mergeId));
+    await tx.update(copilotoSignals).set({ clientId: keepId }).where(eq(copilotoSignals.clientId, mergeId));
+
+    // ── blingContactMappings: unique (connectionId, blingContactId) ─────────
+    // Buscar conexões que o cliente mantido já possui mapeadas
+    const keepMappingRows = await tx
+      .select({ connectionId: blingContactMappings.connectionId, blingContactId: blingContactMappings.blingContactId })
+      .from(blingContactMappings)
+      .where(eq(blingContactMappings.clientId, keepId));
+
+    if (keepMappingRows.length > 0) {
+      // Deletar do removido os mapeamentos que o mantido já possui (evita violação de unique)
+      for (const row of keepMappingRows) {
+        await tx.delete(blingContactMappings).where(
+          and(
+            eq(blingContactMappings.clientId, mergeId),
+            eq(blingContactMappings.connectionId, row.connectionId),
+            eq(blingContactMappings.blingContactId, row.blingContactId),
+          ),
+        );
+      }
+    }
+    // Transferir os mapeamentos restantes
+    await tx.update(blingContactMappings).set({ clientId: keepId }).where(eq(blingContactMappings.clientId, mergeId));
+
+    // ── campaignClients: unique (campaignId, clientId) ──────────────────────
+    // Buscar campanhas em que o cliente mantido já está
+    const keepCampaignRows = await tx
+      .select({ campaignId: campaignClients.campaignId })
+      .from(campaignClients)
+      .where(eq(campaignClients.clientId, keepId));
+    const keepCampaignIds = keepCampaignRows.map((r) => r.campaignId);
+
+    if (keepCampaignIds.length > 0) {
+      // Deletar do removido as campanhas que o mantido já possui
+      await tx.delete(campaignClients).where(
+        and(
+          eq(campaignClients.clientId, mergeId),
+          inArray(campaignClients.campaignId, keepCampaignIds),
+        ),
+      );
+    }
+    // Transferir as campanhas restantes
+    await tx.update(campaignClients).set({ clientId: keepId }).where(eq(campaignClients.clientId, mergeId));
+
+    // ── reengagementProgress: PK = clientId — só pode existir uma linha por cliente
+    // Se o cliente mantido já tem progresso, descarta o do removido (mantém o do principal)
+    // Se não tem, migra a linha do removido para o keepId
+    const [mergeReengagement] = await tx
+      .select()
+      .from(reengagementProgress)
+      .where(eq(reengagementProgress.clientId, mergeId))
+      .limit(1);
+
+    if (mergeReengagement) {
+      const [keepReengagement] = await tx
+        .select()
+        .from(reengagementProgress)
+        .where(eq(reengagementProgress.clientId, keepId))
+        .limit(1);
+
+      if (keepReengagement) {
+        // Mantém o do cliente principal, descarta o do removido
+        await tx.delete(reengagementProgress).where(eq(reengagementProgress.clientId, mergeId));
+      } else {
+        // Migra a linha do removido para o cliente mantido
+        await tx.delete(reengagementProgress).where(eq(reengagementProgress.clientId, mergeId));
+        await tx.insert(reengagementProgress).values({
+          clientId: keepId,
+          attemptsSent: mergeReengagement.attemptsSent,
+          lastAttemptAt: mergeReengagement.lastAttemptAt,
+          updatedAt: new Date(),
+        });
+      }
+    }
 
     // ── 2. Merge de saldo de cashback (somar se ambos tiverem) ──────────────
     const [mergeBalance] = await tx
