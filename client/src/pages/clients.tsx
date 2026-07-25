@@ -111,34 +111,35 @@ export default function Clients() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isBulkDealModalOpen, setIsBulkDealModalOpen] = useState(false);
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
-  const [selectedClients, setSelectedClients] = useState<Client[]>([]); // Tipagem melhorada
-  const [clientFilters, setClientFilters] = useState<ClientFiltersType>(() => {
+  // ── Busca e filtros inicializados da URL para sobreviver ao botão Voltar ──
+  const [searchQuery, setSearchQuery] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const eventId = params.get("eventId") || "all";
-    const isEventParticipant = params.get("isEventParticipant") === "true" || undefined;
-    // Filtros que podem chegar via deep-link (ex.: página de Segmentação).
+    return params.get("search") || "";
+  });
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [selectedClients, setSelectedClients] = useState<Client[]>([]);
+  const [clientFilters, setClientFilters] = useState<ClientFiltersType>(() => {
+    const p = new URLSearchParams(window.location.search);
     return {
-      name: "",
-      phone: "",
-      cpf: "",
-      responsavelId: "all",
-      categoria: params.get("categoria") || "",
-      origem: params.get("origem") || "",
-      status: params.get("status") || "",
-      markers: params.get("markers") || "",
-      purchaseStatus: params.get("purchaseStatus") || "all",
-      wineGrape: params.get("wineGrape") || "",
-      wineRegion: params.get("wineRegion") || "",
-      wineType: params.get("wineType") || "all",
-      wineBody: "all",
-      wineSweetness: "all",
-      winePriceMin: "",
-      winePriceMax: "",
-      rfmSegment: params.get("rfmSegment") || "all",
-      eventId,
-      isEventParticipant,
+      name:              p.get("name")              || "",
+      phone:             p.get("phone")             || "",
+      cpf:               p.get("cpf")               || "",
+      responsavelId:     p.get("responsavelId")     || "all",
+      categoria:         p.get("categoria")         || "",
+      origem:            p.get("origem")            || "",
+      status:            p.get("status")            || "",
+      markers:           p.get("markers")           || "",
+      purchaseStatus:    p.get("purchaseStatus")    || "all",
+      wineGrape:         p.get("wineGrape")         || "",
+      wineRegion:        p.get("wineRegion")        || "",
+      wineType:          p.get("wineType")          || "all",
+      wineBody:          p.get("wineBody")          || "all",
+      wineSweetness:     p.get("wineSweetness")     || "all",
+      winePriceMin:      p.get("winePriceMin")      || "",
+      winePriceMax:      p.get("winePriceMax")      || "",
+      rfmSegment:        p.get("rfmSegment")        || "all",
+      eventId:           p.get("eventId")           || "all",
+      isEventParticipant: p.get("isEventParticipant") === "true" || undefined,
     };
   });
 
@@ -150,12 +151,45 @@ export default function Clients() {
     10,
   );
   const [currentPage, setCurrentPage] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    const urlPage = p.get("page");
+    if (urlPage) return parseInt(urlPage, 10);
     const saved = sessionStorage.getItem("clients_page");
     return saved ? parseInt(saved, 10) : 1;
   });
   const itemsPerPage = 50;
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Sincroniza filtros + busca + página na URL (replaceState = sem entrada extra no histórico).
+  // Assim o botão Voltar do navegador restaura exatamente o estado da lista.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (debouncedSearchQuery)                                        p.set("search",            debouncedSearchQuery);
+    if (clientFilters.name)                                          p.set("name",              clientFilters.name);
+    if (clientFilters.phone)                                         p.set("phone",             clientFilters.phone);
+    if (clientFilters.cpf)                                           p.set("cpf",               clientFilters.cpf);
+    if (clientFilters.responsavelId && clientFilters.responsavelId !== "all") p.set("responsavelId", clientFilters.responsavelId);
+    if (clientFilters.categoria)                                     p.set("categoria",         clientFilters.categoria);
+    if (clientFilters.origem)                                        p.set("origem",            clientFilters.origem);
+    if (clientFilters.status)                                        p.set("status",            clientFilters.status);
+    if (clientFilters.markers)                                       p.set("markers",           clientFilters.markers);
+    if (clientFilters.purchaseStatus && clientFilters.purchaseStatus !== "all") p.set("purchaseStatus", clientFilters.purchaseStatus);
+    if (clientFilters.wineGrape)                                     p.set("wineGrape",         clientFilters.wineGrape);
+    if (clientFilters.wineRegion)                                    p.set("wineRegion",        clientFilters.wineRegion);
+    if (clientFilters.wineType && clientFilters.wineType !== "all")  p.set("wineType",          clientFilters.wineType);
+    if (clientFilters.wineBody && clientFilters.wineBody !== "all")  p.set("wineBody",          clientFilters.wineBody);
+    if (clientFilters.wineSweetness && clientFilters.wineSweetness !== "all") p.set("wineSweetness", clientFilters.wineSweetness);
+    if (clientFilters.winePriceMin)                                  p.set("winePriceMin",      clientFilters.winePriceMin);
+    if (clientFilters.winePriceMax)                                  p.set("winePriceMax",      clientFilters.winePriceMax);
+    if (clientFilters.rfmSegment && clientFilters.rfmSegment !== "all") p.set("rfmSegment",    clientFilters.rfmSegment);
+    if (clientFilters.eventId && clientFilters.eventId !== "all")    p.set("eventId",           clientFilters.eventId);
+    if (clientFilters.isEventParticipant)                            p.set("isEventParticipant","true");
+    if (currentPage > 1)                                             p.set("page",              String(currentPage));
+
+    const qs = p.toString();
+    window.history.replaceState({}, "", qs ? `/clientes?${qs}` : "/clientes");
+  }, [debouncedSearchQuery, clientFilters, currentPage]);
 
   useEffect(() => {
     sessionStorage.setItem("clients_page", String(currentPage));
