@@ -33,10 +33,16 @@ async function validateTwilioWebhookInline(req: Request, res: Response): Promise
     res.status(401).send("Assinatura ausente");
     return false;
   }
-  const baseUrl = await getServerBaseUrl();
-  const fullUrl = `${baseUrl}${req.originalUrl}`;
+  // Usa o host da requisição (URL real que o Twilio chamou) em vez de
+  // getServerBaseUrl(), que pode retornar localhost e causar falha na validação.
+  const proto = (req.headers["x-forwarded-proto"] as string | undefined) || req.protocol;
+  const fullUrl = `${proto}://${req.headers.host}${req.originalUrl}`;
   const valid = twilio.validateRequest(authToken, signatureHeader, fullUrl, req.body);
-  if (!valid) { res.status(401).send("Assinatura inválida"); return false; }
+  if (!valid) {
+    console.warn(`[twilio-webhook] assinatura inválida | url testada: ${fullUrl}`);
+    res.status(401).send("Assinatura inválida");
+    return false;
+  }
   return true;
 }
 
