@@ -24,14 +24,19 @@ export interface DuplicateGroup {
 export type DuplicateField = "cpf" | "email" | "phone" | "name";
 
 /**
- * Normaliza telefone para dígitos (com DDI), usando normalizePhoneE164 como
- * base — mesma lógica canônica usada no resto do app. Cai para extração
- * simples de dígitos se o formato não for reconhecido, para não quebrar a
- * checagem de duplicidade em números fora do padrão BR.
+ * Normaliza telefone para dígitos SEM DDI brasileiro.
+ * Usa normalizePhoneE164 como base e depois remove o prefixo "55" quando o
+ * resultado tem 12-13 dígitos — assim "+5521999961728" e "21999961728"
+ * produzem o mesmo valor canônico "21999961728".
  */
 function normalizePhone(phone: string): string {
   const e164 = normalizePhoneE164(phone);
-  return e164 ? toMetaWhatsAppId(e164) : phone.replace(/\D/g, "");
+  const digits = e164 ? toMetaWhatsAppId(e164) : phone.replace(/\D/g, "");
+  // Remove DDI Brasil (55) se presente: 55 + 10-11 dígitos = 12-13 dígitos
+  if (digits.length >= 12 && digits.length <= 13 && digits.startsWith("55")) {
+    return digits.slice(2);
+  }
+  return digits;
 }
 
 /**
@@ -46,6 +51,22 @@ function normalizeDocument(doc: string | null): string | null {
   // Rejeita sequências com todos os dígitos iguais (0000…, 1111…, 9999…)
   if (/^(\d)\1+$/.test(d)) return null;
   return d;
+}
+
+/**
+ * Expressão SQL que normaliza a coluna `phone` para dígitos sem DDI brasileiro.
+ * "+5521999961728" → "21999961728", "21999961728" → "21999961728".
+ * Substitua <COL> pelo nome qualificado da coluna (ex: "c.phone", "a.phone").
+ */
+function phoneNormSql(col: string): string {
+  return `
+    CASE
+      WHEN length(regexp_replace(${col}, '[^0-9]', '', 'g')) BETWEEN 12 AND 13
+           AND left(regexp_replace(${col}, '[^0-9]', '', 'g'), 2) = '55'
+      THEN substring(regexp_replace(${col}, '[^0-9]', '', 'g') FROM 3)
+      ELSE regexp_replace(${col}, '[^0-9]', '', 'g')
+    END
+  `.trim();
 }
 
 /**
@@ -97,7 +118,7 @@ export async function checkDuplicates(params: {
       c.categoria,
       u.name AS responsavel_name,
       c.created_at,
-      (regexp_replace(c.phone, '[^0-9]', '', 'g') = ${normalizedPhone ?? ""})               AS phone_match,
+      (${sql.raw(phoneNormSql("c.phone"))} = ${normalizedPhone ?? ""})                       AS phone_match,
       (
         ${normalizedDoc ?? ""} <> ''
         AND c.cpf IS NOT NULL
@@ -115,7 +136,7 @@ export async function checkDuplicates(params: {
     WHERE
       ${excludeId ? sql`c.id <> ${excludeId} AND` : sql``}
       (
-        (${normalizedPhone ?? ""} <> '' AND regexp_replace(c.phone, '[^0-9]', '', 'g') = ${normalizedPhone ?? ""})
+        (${normalizedPhone ?? ""} <> '' AND ${sql.raw(phoneNormSql("c.phone"))} = ${normalizedPhone ?? ""})
         OR (${normalizedDoc ?? ""} <> '' AND c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') = ${normalizedDoc ?? ""} AND regexp_replace(c.cpf, '[^0-9]', '', 'g') !~ '^(0+|1+|2+|3+|4+|5+|6+|7+|8+|9+)$')
         OR (${email ?? ""} <> '' AND c.email IS NOT NULL AND lower(c.email) = lower(${email ?? ""}))
         OR (${name ?? ""} <> '' AND similarity(lower(c.name), lower(${name ?? ""})) >= 0.6)
@@ -258,7 +279,7 @@ export async function findAllDuplicates(
       ids: string; names: string; phones: string; cpfs: string; emails: string; categorias: string; created_ats: string;
     }>(sql`
       SELECT
-        regexp_replace(phone, '[^0-9]', '', 'g') AS phone_normalized,
+        ${sql.raw(phoneNormSql("phone"))} AS phone_normalized,
         string_agg(id::text, '|' ORDER BY created_at)            AS ids,
         string_agg(name, '|' ORDER BY created_at)                AS names,
         string_agg(phone, '|' ORDER BY created_at)               AS phones,
@@ -271,7 +292,7 @@ export async function findAllDuplicates(
         AND phone <> ''
         AND regexp_replace(phone, '[^0-9]', '', 'g') <> ''
         AND length(regexp_replace(phone, '[^0-9]', '', 'g')) >= 8
-      GROUP BY regexp_replace(phone, '[^0-9]', '', 'g')
+      GROUP BY ${sql.raw(phoneNormSql("phone"))}
       HAVING count(*) > 1
       ORDER BY count(*) DESC
     `);
@@ -318,7 +339,7 @@ export async function findAllDuplicates(
       FROM clients a
       JOIN clients b ON a.id < b.id
       WHERE similarity(lower(a.name), lower(b.name)) >= 0.75
-        AND regexp_replace(a.phone, '[^0-9]', '', 'g') <> regexp_replace(b.phone, '[^0-9]', '', 'g')
+        AND ${sql.raw(phoneNormSql("a.phone"))} <> ${sql.raw(phoneNormSql("b.phone"))}
       ORDER BY sim DESC
       LIMIT 50
     `);
