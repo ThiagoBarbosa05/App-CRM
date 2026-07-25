@@ -60,18 +60,19 @@ export default function Products() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isBlingModalOpen, setIsBlingModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [debouncedTypeFilter, setDebouncedTypeFilter] = useState("");
-  const [countryFilter, setCountryFilter] = useState("");
-  const [debouncedCountryFilter, setDebouncedCountryFilter] = useState("");
-  const [volumeFilter, setVolumeFilter] = useState("");
-  const [debouncedVolumeFilter, setDebouncedVolumeFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [debouncedCategoryFilter, setDebouncedCategoryFilter] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  // ── Filtros inicializados da URL para sobreviver ao botão Voltar ─────────
+  const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(() => new URLSearchParams(window.location.search).get("search") || "");
+  const [typeFilter, setTypeFilter] = useState(() => new URLSearchParams(window.location.search).get("type") || "");
+  const [debouncedTypeFilter, setDebouncedTypeFilter] = useState(() => new URLSearchParams(window.location.search).get("type") || "");
+  const [countryFilter, setCountryFilter] = useState(() => new URLSearchParams(window.location.search).get("country") || "");
+  const [debouncedCountryFilter, setDebouncedCountryFilter] = useState(() => new URLSearchParams(window.location.search).get("country") || "");
+  const [volumeFilter, setVolumeFilter] = useState(() => new URLSearchParams(window.location.search).get("volume") || "");
+  const [debouncedVolumeFilter, setDebouncedVolumeFilter] = useState(() => new URLSearchParams(window.location.search).get("volume") || "");
+  const [categoryFilter, setCategoryFilter] = useState(() => new URLSearchParams(window.location.search).get("category") || "");
+  const [debouncedCategoryFilter, setDebouncedCategoryFilter] = useState(() => new URLSearchParams(window.location.search).get("category") || "");
+  const [currentPage, setCurrentPage] = useState(() => parseInt(new URLSearchParams(window.location.search).get("page") || "1", 10));
+  const [pageSize, setPageSize] = useState(() => parseInt(new URLSearchParams(window.location.search).get("pageSize") || "20", 10));
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
@@ -86,6 +87,21 @@ export default function Products() {
     }, 500);
     return () => clearTimeout(handler);
   }, [searchQuery, typeFilter, countryFilter, volumeFilter, categoryFilter]);
+
+  // Sincroniza filtros + página na URL (replaceState = sem entrada extra no histórico).
+  // Assim o botão Voltar restaura exatamente o estado da listagem.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (debouncedSearchQuery)  p.set("search",   debouncedSearchQuery);
+    if (debouncedTypeFilter)   p.set("type",     debouncedTypeFilter);
+    if (debouncedCountryFilter) p.set("country", debouncedCountryFilter);
+    if (debouncedVolumeFilter) p.set("volume",   debouncedVolumeFilter);
+    if (debouncedCategoryFilter) p.set("category", debouncedCategoryFilter);
+    if (currentPage > 1)       p.set("page",     String(currentPage));
+    if (pageSize !== 20)       p.set("pageSize", String(pageSize));
+    const qs = p.toString();
+    window.history.replaceState({}, "", qs ? `/produtos?${qs}` : "/produtos");
+  }, [debouncedSearchQuery, debouncedTypeFilter, debouncedCountryFilter, debouncedVolumeFilter, debouncedCategoryFilter, currentPage, pageSize]);
 
   const { data, isFetching } = useQuery({
     queryKey: [
