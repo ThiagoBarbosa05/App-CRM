@@ -24,6 +24,7 @@ import {
   copilotoSignals,
   reengagementProgress,
   zernioConversations,
+  cpfVerificationLogs,
 } from "../../shared/schema";
 import { eq, sql, inArray, and } from "drizzle-orm";
 
@@ -142,6 +143,7 @@ export async function mergeClients(keepId: string, mergeId: string) {
     await tx.update(automationExecutionLog).set({ clientId: keepId }).where(eq(automationExecutionLog.clientId, mergeId));
     await tx.update(zernioConversations).set({ clientId: keepId }).where(eq(zernioConversations.clientId, mergeId));
     await tx.update(copilotoSignals).set({ clientId: keepId }).where(eq(copilotoSignals.clientId, mergeId));
+    await tx.update(cpfVerificationLogs).set({ clientId: keepId }).where(eq(cpfVerificationLogs.clientId, mergeId));
 
     // ── blingContactMappings: unique (connectionId, blingContactId) ─────────
     // Buscar conexões que o cliente mantido já possui mapeadas
