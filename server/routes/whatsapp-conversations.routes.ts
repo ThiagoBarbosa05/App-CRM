@@ -233,10 +233,18 @@ router.get("/conversations/:clientId", async (req, res) => {
 
     const cursor = decodeCursor(req.query.cursor);
     const limit = clampLimit(req.query.limit, { fallback: 20, max: 50 });
-    const result = await getConversation(conversationId, user.userId, user.role, {
-      cursor,
-      limit,
-    });
+    // asChannelId: admin/gerente espiando um diálogo interno pela perspectiva do
+    // outro lado do par. A autorização/validação real fica em getConversation —
+    // aqui só se converte o param; valores inválidos são ignorados lá.
+    const asChannelIdRaw = Number(req.query.asChannelId);
+    const asChannelId = Number.isFinite(asChannelIdRaw) ? asChannelIdRaw : undefined;
+    const result = await getConversation(
+      conversationId,
+      user.userId,
+      user.role,
+      { cursor, limit },
+      { asChannelId },
+    );
     if (result === null) return res.status(404).json({ message: "Conversa não encontrada" });
 
     res.json(result);

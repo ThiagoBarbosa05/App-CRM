@@ -92,6 +92,7 @@ import {
   StickyNote,
   Wifi,
   WifiOff,
+  Eye,
   Radio,
   User,
   Users,
@@ -223,6 +224,9 @@ export interface ChatClient {
   unreadCount?: number | null;
   channelId?: number | null;
   channelName?: string | null;
+  /** Nome do atendente dono do canal desta conversa (ver internalPeerLabel no
+   * backend) — usado no seletor de perspectiva de diálogo interno. */
+  channelUserName?: string | null;
   channelDisplayPhone?: string | null;
   channelConnectionStatus?: string | null;
   channelProvider?: string | null;
@@ -239,6 +243,26 @@ export interface ChatClient {
    * peerChannelId no backend) — nesse caso `contactName` já traz o nome do
    * atendente do outro lado, e não faz sentido oferecer "criar cliente". */
   peerChannelId?: number | null;
+  /** Nome do canal e do atendente do OUTRO lado do par interno — usados no
+   * rótulo da perspectiva (admin/gerente vendo como o outro lado vê). */
+  peerChannelName?: string | null;
+  peerChannelUserName?: string | null;
+  /** Canal cuja "caixa" esta entrada da lista representa, num diálogo interno
+   * desdobrado para admin/gerente (uma entrada por lado do par). null numa
+   * conversa comum ou na visão única do próprio participante. Serve como
+   * identidade do item (dois itens dividem o mesmo conversationId) e como
+   * asChannelId ao abrir/enviar. Ver clientKey(). */
+  perspectiveChannelId?: number | null;
+}
+
+/** Identidade de um item da lista. Um diálogo interno desdobrado em duas caixas
+ * compartilha o conversationId, então o lado (perspectiveChannelId) faz parte da
+ * chave. Conversa comum mantém a chave = conversationId (compatível com
+ * deep-links por conversationId). */
+function clientKey(c: { conversationId: string; perspectiveChannelId?: number | null }): string {
+  return c.perspectiveChannelId != null
+    ? `${c.conversationId}:${c.perspectiveChannelId}`
+    : c.conversationId;
 }
 
 interface WaMedia {
@@ -2999,6 +3023,17 @@ function ConversationMessages({
   const [selectedChannelId] = useState<number | undefined>(
     client.channelId ?? undefined,
   );
+  // Perspectiva desta caixa. Num diálogo interno desdobrado, cada item da lista
+  // já vem fixado num lado do par (client.perspectiveChannelId) — o componente é
+  // remontado por item (key=clientKey), então basta derivar, sem estado nem
+  // seletor. Vai ao backend como ?asChannelId= na LEITURA (perspectiva do lado)
+  // e como channelId no ENVIO (a mensagem "assina" pelo canal daquele lado).
+  const viewAsChannelId = client.perspectiveChannelId ?? null;
+  // Canal pelo qual o envio deve "assinar". Numa caixa interna desdobrada é o
+  // lado desta caixa (o backend, via resolveOutboundChannelForSender, faz a
+  // mensagem sair por esse canal); caso contrário, o canal da conversa. Só é
+  // aplicado no backend para admin/gerente.
+  const sendAsChannelId = viewAsChannelId ?? selectedChannelId;
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -3227,11 +3262,17 @@ function ConversationMessages({
     nextCursor: string | null;
   }
 
-  const messagesQueryKey = ["/api/whatsapp/conversations", conversationKey];
+  // viewAsChannelId entra na key: trocar de perspectiva refaz o fetch.
+  const messagesQueryKey = [
+    "/api/whatsapp/conversations",
+    conversationKey,
+    viewAsChannelId,
+  ];
 
   async function fetchMessagesPage(cursor: string | null): Promise<MessagesPage> {
     const params = new URLSearchParams();
     if (cursor) params.set("cursor", cursor);
+    if (viewAsChannelId != null) params.set("asChannelId", String(viewAsChannelId));
     const res = await fetch(
       `/api/whatsapp/conversations/${conversationKey}?${params}`,
     );
@@ -3279,7 +3320,7 @@ function ConversationMessages({
       );
     }, 15_000);
     return () => clearInterval(interval);
-  }, [conversationKey, queryClient]);
+  }, [conversationKey, queryClient, viewAsChannelId]);
 
   const loadOlderMessages = useCallback(() => {
     if (!hasMoreMessages || isFetchingOlderMessages) return;
@@ -3436,7 +3477,10 @@ function ConversationMessages({
       onBack();
     });
     return () => es.close();
-  }, [conversationKey, queryClient]);
+    // viewAsChannelId nas deps: ao trocar de perspectiva, o handler precisa
+    // re-fechar sobre a messagesQueryKey/fetch atuais para atualizar a página
+    // certa quando chega mensagem nova.
+  }, [conversationKey, queryClient, viewAsChannelId]);
 
   const attemptSend = useCallback(
     async (
@@ -3563,9 +3607,9 @@ function ConversationMessages({
         if (caption) form.append("caption", caption);
         if (
           (userRole === "admin" || userRole === "gerente") &&
-          selectedChannelId != null
+          sendAsChannelId != null
         ) {
-          form.append("channelId", String(selectedChannelId));
+          form.append("channelId", String(sendAsChannelId));
         }
         if (replyingTo) {
           form.append("replyToMessageId", replyingTo.id);
@@ -3902,9 +3946,9 @@ function ConversationMessages({
         };
         if (
           (userRole === "admin" || userRole === "gerente") &&
-          selectedChannelId != null
+          sendAsChannelId != null
         ) {
-          body.channelId = selectedChannelId;
+          body.channelId = sendAsChannelId;
         }
         const res = await fetch(
           `/api/whatsapp/conversations/${conversationKey}/messages/template`,
@@ -3968,7 +4012,7 @@ function ConversationMessages({
     setMessage("");
     setReplyingTo(null);
     textareaRef.current?.focus();
-    attemptSend(text, localId, selectedChannelId, replyId);
+    attemptSend(text, localId, sendAsChannelId, replyId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -3989,9 +4033,35 @@ function ConversationMessages({
     }
   }
 
+  // O rótulo do contato já vem resolvido pela perspectiva deste item (o backend
+  // calcula contactName por lado ao desdobrar o diálogo interno, ver
+  // listClientsForChat). Então basta usar client.contactName.
   const displayName = client.clientName ?? client.contactName ?? client.phone;
 
   const showChannelSelect = isAdminOrGerente && channels.length > 0;
+
+  // Nome a exibir na badge por mensagem (quem enviou) num diálogo interno. NÃO
+  // dá para usar o canal cru da mensagem (whatsapp_messages.channel_id): em
+  // diálogo canal↔canal o mesmo wa_message_id dispara webhook nas DUAS contas e
+  // o channel_id gravado pode ser o do lado errado (corrida de webhooks), ficando
+  // incoerente com a direção. A direção (relativa ao dono, e aqui já ajustada à
+  // perspectiva) é a fonte confiável: toda mensagem "outbound" nesta caixa foi
+  // enviada pelo lado desta caixa. Então a badge mostra o nome do lado desta
+  // perspectiva (o "eu" desta caixa).
+  const ownerSideName = client.channelUserName ?? client.channelName ?? null;
+  const peerSideName = client.peerChannelUserName ?? client.peerChannelName ?? null;
+  const internalOwnSideName =
+    client.peerChannelId == null
+      ? null
+      : viewAsChannelId === client.peerChannelId
+        ? peerSideName
+        : viewAsChannelId === client.channelId
+          ? ownerSideName
+          : // Participante em visão única (sem perspectiva explícita): "meu lado"
+            // é o que não é o contato exibido.
+            client.contactName === peerSideName
+            ? ownerSideName
+            : peerSideName;
 
   // O canal da conversa é imutável (telefone + canal = identidade da conversa) e
   // o backend sempre envia por ele, ignorando qualquer override. Por isso o
@@ -4172,6 +4242,7 @@ function ConversationMessages({
             </div>
           )}
 
+
           {/* Detalhes do contato — não faz sentido em diálogo interno canal↔canal,
               onde o outro lado é um atendente nosso, não um contato do CRM. */}
           {!client.peerChannelId && (
@@ -4249,6 +4320,7 @@ function ConversationMessages({
             </div>
           </div>
         )}
+
 
         {/* Setor + canal desta conversa: sempre visível (não só admin/gerente),
             para não depender da faixa "meus canais" da barra lateral — que é
@@ -4421,7 +4493,12 @@ function ConversationMessages({
                   // unificada. Prioriza o nome do atendente dono do canal;
                   // cai para o nome do canal quando ele não tem dono definido
                   // (canal de equipe).
-                  const channelName = msg.channelUserName ?? msg.channelName ?? "";
+                  // Diálogo interno: o canal cru da mensagem é pouco confiável
+                  // (ver internalOwnSideName) — a badge mostra o lado desta caixa.
+                  const channelName =
+                    client.peerChannelId != null
+                      ? (internalOwnSideName ?? "")
+                      : (msg.channelUserName ?? msg.channelName ?? "");
                   const prevMsg = msgIndex > 0 ? msgs[msgIndex - 1] : null;
                   const showChannelBadge =
                     isOutbound &&
@@ -4431,7 +4508,11 @@ function ConversationMessages({
                     channelName.length > 0 &&
                     (!prevMsg ||
                       prevMsg.direction !== "outbound" ||
-                      prevMsg.channelId !== msg.channelId);
+                      // Interno: nome constante por caixa, então basta reabrir a
+                      // badge no início de cada sequência outbound; externo mantém
+                      // a troca por canal (múltiplos atendentes numa conversa).
+                      (client.peerChannelId == null &&
+                        prevMsg.channelId !== msg.channelId));
 
                   // Mensagens de sistema (ex: bot iniciado) — banner centralizado
                   if (msg.type === "system") {
@@ -6438,7 +6519,10 @@ export default function WhatsAppConversationsPage() {
 
   const clientList = dedupById(
     clientListData?.pages.flatMap((p) => p.items) ?? [],
-    (c) => c.conversationId,
+    // Diálogo interno desdobrado gera dois itens com o mesmo conversationId — a
+    // identidade inclui o lado (ver clientKey), senão a deduplicação colapsaria
+    // as duas caixas numa só.
+    (c) => clientKey(c),
   );
 
   // Refs para o polling e o SSE global (não devem reabrir a conexão SSE nem
@@ -6480,7 +6564,7 @@ export default function WhatsAppConversationsPage() {
       return digits && (digits.endsWith(target) || target.endsWith(digits));
     });
     if (match) {
-      setSelectedId(match.conversationId);
+      setSelectedId(clientKey(match));
       setDeepLinkedId(match.conversationId);
       autoSelectedPhoneRef.current = true;
     }
@@ -6502,8 +6586,10 @@ export default function WhatsAppConversationsPage() {
     [queryClient],
   );
 
-  const selectedIdRef = useRef(selectedId);
-  selectedIdRef.current = selectedId;
+  // selectedId é a identidade do ITEM (pode ser composta: conversationId:lado).
+  // Para operações sobre a conversa em si (markRead, invalidação, match de SSE)
+  // usa-se o conversationId puro, mantido à parte.
+  const selectedConversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeWaNotifications("new_whatsapp_inbound", (e) => {
@@ -6514,19 +6600,20 @@ export default function WhatsAppConversationsPage() {
       refreshFirstPage(queryClient, conversationsListQueryKeyRef.current, () =>
         fetchConversationsListPageRef.current(null),
       );
-      const isSelected =
-        (data.clientId && data.clientId === selectedIdRef.current) ||
-        (data.conversationId && data.conversationId === selectedIdRef.current);
+      const selConvId = selectedConversationIdRef.current;
+      const isSelected = !!data.conversationId && data.conversationId === selConvId;
       // Não precisa re-buscar as mensagens aqui: se a conversa está
       // selecionada, o próprio ConversationMessages já tem seu stream SSE por
       // conversa (/conversations/:id/stream) que atualiza a 1ª página.
       if (isSelected) {
-        markRead(selectedIdRef.current!);
+        markRead(selConvId!);
       }
     });
     return unsubscribe;
   }, [queryClient, markRead]);
 
+  // NewConversationDialog devolve um conversationId puro (conversa comum recém
+  // criada) — a identidade do item coincide com o conversationId.
   const handleSelectConversation = (id: string) => {
     queryClient.invalidateQueries({
       queryKey: ["/api/whatsapp/conversations", id],
@@ -6535,13 +6622,24 @@ export default function WhatsAppConversationsPage() {
     markRead(id);
   };
 
+  // Clique num item da lista: a seleção usa a identidade do item (pode ser
+  // composta, ver clientKey), mas markRead/invalidação usam o conversationId.
+  const handleSelectClient = (client: ChatClient) => {
+    queryClient.invalidateQueries({
+      queryKey: ["/api/whatsapp/conversations", client.conversationId],
+    });
+    setSelectedId(clientKey(client));
+    markRead(client.conversationId);
+  };
+
   // Depois de criar/vincular um cliente a partir de uma conversa desconhecida:
   // a seleção continua pelo mesmo conversationId (ele não muda ao vincular um
   // cliente), só precisamos invalidar as queries para refletir o novo clientId.
   const handleClientLinked = () => {
-    if (selectedId) {
+    const convId = selectedClient?.conversationId;
+    if (convId) {
       queryClient.invalidateQueries({
-        queryKey: ["/api/whatsapp/conversations", selectedId],
+        queryKey: ["/api/whatsapp/conversations", convId],
       });
     }
     queryClient.invalidateQueries({
@@ -6553,8 +6651,13 @@ export default function WhatsAppConversationsPage() {
 
   const selectedClient =
     selectedId != null
-      ? (clientList.find((c) => c.conversationId === selectedId) ?? null)
+      ? (clientList.find((c) => clientKey(c) === selectedId) ??
+        // Fallback: deep-link/seleção por conversationId puro casa a primeira
+        // caixa daquele diálogo (itens internos têm chave composta).
+        clientList.find((c) => c.conversationId === selectedId) ??
+        null)
       : null;
+  selectedConversationIdRef.current = selectedClient?.conversationId ?? null;
 
   // Marca que a página inteira de conversas está montada (independente de
   // qual conversa está selecionada) — o hook global de notificações usa isso
@@ -6590,11 +6693,609 @@ export default function WhatsAppConversationsPage() {
 
   return (
     <div className="flex h-full overflow-hidden">
+      {/* Filters panel — a column of its own, next to the conversation list
+          instead of an overlay on top of it (so the list stays visible while
+          filtering). Same mobile/desktop visibility rule as the list itself:
+          full width when the list would show, hidden once a conversation is
+          open. */}
+      {showMoreFilters && (
+        <div
+          className={cn(
+            "flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0",
+            showList ? "flex w-full md:flex" : "hidden md:flex",
+            "md:w-72 lg:w-80",
+          )}
+        >
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+            <button
+              onClick={() => setShowMoreFilters(false)}
+              className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-slate-100"
+            >
+              <ChevronUp className="h-4 w-4 text-slate-400" />
+              Filtros
+            </button>
+            <button
+              onClick={() => setShowMoreFilters(false)}
+              className="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto py-3 flex flex-col gap-3">
+            {/* Setor */}
+            {availableSectors.length > 0 && (
+              <div className="px-4">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                  Setor
+                </p>
+                <Popover
+                  open={sectorPickerOpen}
+                  onOpenChange={(v) => {
+                    setSectorPickerOpen(v);
+                    if (v) setSectorPickerSearch("");
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-between text-xs font-normal h-10 rounded-full"
+                    >
+                      <span className="truncate">
+                        {selectedSectorIds.length === 0
+                          ? "Todos"
+                          : selectedSectorIds.length === 1
+                            ? (selectedSectorIds[0] === "__none__"
+                                ? "Sem setor"
+                                : (availableSectors.find((s) => s.id === selectedSectorIds[0])
+                                    ?.name ?? "1 selecionado"))
+                            : `${selectedSectorIds.length} selecionados`}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-0" align="start">
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+                      <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        Setores
+                      </span>
+                      <button
+                        onClick={() => setSectorPickerOpen(false)}
+                        className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                          value={sectorPickerSearch}
+                          onChange={(e) => setSectorPickerSearch(e.target.value)}
+                          placeholder="Pesquisar"
+                          className="pl-9 text-sm h-9"
+                          autoFocus
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                        {sectorPickerSearch
+                          ? `${availableSectors.filter((s) => s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase())).length} resultado(s)`
+                          : "Exibindo todos os itens"}
+                      </p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {!sectorPickerSearch && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedSectorIds((prev) =>
+                              prev.includes("__none__")
+                                ? prev.filter((id) => id !== "__none__")
+                                : [...prev, "__none__"],
+                            )
+                          }
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                          <span className="flex-1 truncate">Sem setor</span>
+                          {selectedSectorIds.includes("__none__") && (
+                            <Check className="h-4 w-4 shrink-0 text-primary" />
+                          )}
+                        </button>
+                      )}
+                      {availableSectors
+                        .filter((s) =>
+                          !sectorPickerSearch ||
+                          s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase()),
+                        )
+                        .map((sector) => {
+                          const active = selectedSectorIds.includes(sector.id);
+                          return (
+                            <button
+                              key={sector.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedSectorIds((prev) =>
+                                  prev.includes(sector.id)
+                                    ? prev.filter((id) => id !== sector.id)
+                                    : [...prev, sector.id],
+                                )
+                              }
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <span
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{ backgroundColor: sector.color }}
+                              />
+                              <span className="flex-1 truncate">{sector.name}</span>
+                              {active && (
+                                <Check className="h-4 w-4 shrink-0 text-primary" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      {availableSectors.filter(
+                        (s) =>
+                          !sectorPickerSearch ||
+                          s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase()),
+                      ).length === 0 && (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                          Nenhum setor encontrado
+                        </p>
+                      )}
+                    </div>
+                    {selectedSectorIds.length > 0 && (
+                      <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                        <button
+                          onClick={() => setSelectedSectorIds([])}
+                          className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {/* Etiquetas */}
+            {availableWaTags.length > 0 && (
+              <div className="px-4">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                  Etiquetas
+                </p>
+                <Popover
+                  open={tagPickerOpen}
+                  onOpenChange={(v) => {
+                    setTagPickerOpen(v);
+                    if (v) setTagPickerSearch("");
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-between text-xs font-normal h-10 rounded-full"
+                    >
+                      <span className="truncate">
+                        {selectedTagIds.length === 0
+                          ? "Todos"
+                          : selectedTagIds.length === 1
+                            ? (selectedTagIds[0] === "__none__"
+                                ? "Sem etiquetas"
+                                : (availableWaTags.find((t) => t.id === selectedTagIds[0])
+                                    ?.name ?? "1 selecionada"))
+                            : `${selectedTagIds.length} selecionadas`}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-0" align="start">
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+                      <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        Etiquetas
+                      </span>
+                      <button
+                        onClick={() => setTagPickerOpen(false)}
+                        className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                          value={tagPickerSearch}
+                          onChange={(e) => setTagPickerSearch(e.target.value)}
+                          placeholder="Pesquisar"
+                          className="pl-9 text-sm h-9"
+                          autoFocus
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                        {tagPickerSearch
+                          ? `${availableWaTags.filter((t) => t.name.toLowerCase().includes(tagPickerSearch.toLowerCase())).length} resultado(s)`
+                          : "Exibindo todos os itens"}
+                      </p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {!tagPickerSearch && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedTagIds((prev) =>
+                              prev.includes("__none__")
+                                ? prev.filter((id) => id !== "__none__")
+                                : [...prev, "__none__"],
+                            )
+                          }
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                          <span className="flex-1 truncate">Sem etiquetas</span>
+                          {selectedTagIds.includes("__none__") && (
+                            <Check className="h-4 w-4 shrink-0 text-primary" />
+                          )}
+                        </button>
+                      )}
+                      {availableWaTags
+                        .filter((t) =>
+                          !tagPickerSearch ||
+                          t.name.toLowerCase().includes(tagPickerSearch.toLowerCase()),
+                        )
+                        .map((tag) => {
+                          const active = selectedTagIds.includes(tag.id);
+                          const tagColor = resolveTagColor(tag.color, tag.id);
+                          const tagEmoji = resolveTagEmoji(tag.emoji);
+                          return (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedTagIds((prev) =>
+                                  prev.includes(tag.id)
+                                    ? prev.filter((id) => id !== tag.id)
+                                    : [...prev, tag.id],
+                                )
+                              }
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <span
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{ backgroundColor: tagColor }}
+                              />
+                              {tagEmoji && (
+                                <span className="shrink-0 leading-none">{tagEmoji}</span>
+                              )}
+                              <span className="flex-1 truncate">{tag.name}</span>
+                              {active && (
+                                <Check className="h-4 w-4 shrink-0 text-primary" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      {availableWaTags.filter(
+                        (t) =>
+                          !tagPickerSearch ||
+                          t.name.toLowerCase().includes(tagPickerSearch.toLowerCase()),
+                      ).length === 0 && (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                          Nenhuma etiqueta encontrada
+                        </p>
+                      )}
+                    </div>
+                    {selectedTagIds.length > 0 && (
+                      <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                        <button
+                          onClick={() => setSelectedTagIds([])}
+                          className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {/* Atendente — só admin/gerente */}
+            {isAdminOrGerente && availableAttendants.length > 0 && (
+              <div className="px-4">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                  Atendente
+                </p>
+                <Popover
+                  open={attendantPickerOpen}
+                  onOpenChange={(v) => {
+                    setAttendantPickerOpen(v);
+                    if (v) setAttendantPickerSearch("");
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-between text-xs font-normal h-10 rounded-full"
+                    >
+                      <span className="truncate">
+                        {selectedAttendantId
+                          ? (availableAttendants.find((a) => a.userId === selectedAttendantId)
+                              ?.name ?? "Todos")
+                          : "Todos"}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-0" align="start">
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+                      <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        Atendentes
+                      </span>
+                      <button
+                        onClick={() => setAttendantPickerOpen(false)}
+                        className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                          value={attendantPickerSearch}
+                          onChange={(e) => setAttendantPickerSearch(e.target.value)}
+                          placeholder="Pesquisar"
+                          className="pl-9 text-sm h-9"
+                          autoFocus
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                        {attendantPickerSearch
+                          ? `${availableAttendants.filter((a) => a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase())).length} resultado(s)`
+                          : "Exibindo todos os itens"}
+                      </p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {availableAttendants
+                        .filter((a) =>
+                          !attendantPickerSearch ||
+                          a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase()),
+                        )
+                        .map((attendant) => {
+                          const active = selectedAttendantId === attendant.userId;
+                          return (
+                            <button
+                              key={attendant.userId}
+                              type="button"
+                              onClick={() => {
+                                setSelectedAttendantId(active ? null : attendant.userId);
+                                setAttendantPickerOpen(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <span className="flex-1 truncate">{attendant.name}</span>
+                              {active && (
+                                <Check className="h-4 w-4 shrink-0 text-primary" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      {availableAttendants.filter(
+                        (a) =>
+                          !attendantPickerSearch ||
+                          a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase()),
+                      ).length === 0 && (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                          Nenhum atendente encontrado
+                        </p>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {/* Canal */}
+            {availableChannels.length > 0 && (
+              <div className="px-4">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                  Canal
+                </p>
+                <Popover
+                  open={channelPickerOpen}
+                  onOpenChange={(v) => {
+                    setChannelPickerOpen(v);
+                    if (v) setChannelPickerSearch("");
+                  }}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-between text-xs font-normal h-10 rounded-full"
+                    >
+                      <span className="truncate">
+                        {selectedChannelIds.length === 0
+                          ? "Todos"
+                          : selectedChannelIds.length === 1
+                            ? (availableChannels.find((c) => c.id === selectedChannelIds[0])
+                                ?.name ?? "1 selecionado")
+                            : `${selectedChannelIds.length} selecionados`}
+                      </span>
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-0" align="start">
+                    <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
+                      <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                        Canais
+                      </span>
+                      <button
+                        onClick={() => setChannelPickerOpen(false)}
+                        className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                          value={channelPickerSearch}
+                          onChange={(e) => setChannelPickerSearch(e.target.value)}
+                          placeholder="Pesquisar"
+                          className="pl-9 text-sm h-9"
+                          autoFocus
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
+                        {channelPickerSearch
+                          ? `${availableChannels.filter((c) => c.name.toLowerCase().includes(channelPickerSearch.toLowerCase())).length} resultado(s)`
+                          : "Exibindo todos os itens"}
+                      </p>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto py-1">
+                      {availableChannels
+                        .filter((c) =>
+                          !channelPickerSearch ||
+                          c.name.toLowerCase().includes(channelPickerSearch.toLowerCase()),
+                        )
+                        .map((channel) => {
+                          const active = selectedChannelIds.includes(channel.id);
+                          return (
+                            <button
+                              key={channel.id}
+                              type="button"
+                              onClick={() =>
+                                setSelectedChannelIds((prev) =>
+                                  prev.includes(channel.id)
+                                    ? prev.filter((id) => id !== channel.id)
+                                    : [...prev, channel.id],
+                                )
+                              }
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <span className="flex-1 truncate">
+                                {channel.name}
+                                {channel.displayPhone ? ` · ${channel.displayPhone}` : ""}
+                              </span>
+                              {active && (
+                                <Check className="h-4 w-4 shrink-0 text-primary" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      {availableChannels.filter(
+                        (c) =>
+                          !channelPickerSearch ||
+                          c.name.toLowerCase().includes(channelPickerSearch.toLowerCase()),
+                      ).length === 0 && (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
+                          Nenhum canal encontrado
+                        </p>
+                      )}
+                    </div>
+                    {selectedChannelIds.length > 0 && (
+                      <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                        <button
+                          onClick={() => setSelectedChannelIds([])}
+                          className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
+            {/* Data */}
+            <div className="px-4">
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
+                Data
+              </p>
+              <Popover open={dateRangeOpen} onOpenChange={setDateRangeOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-between gap-2 text-xs font-normal h-10 rounded-full"
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <span>
+                            {format(dateRange.from, "dd/MM/yy")} –{" "}
+                            {format(dateRange.to, "dd/MM/yy")}
+                          </span>
+                        ) : (
+                          <span>{format(dateRange.from, "dd/MM/yy")}</span>
+                        )
+                      ) : (
+                        <span>Todos</span>
+                      )}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    locale={ptBR}
+                    numberOfMonths={1}
+                    initialFocus
+                  />
+                  {dateRange?.from && (
+                    <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setDateRange(undefined)}
+                        className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+                      >
+                        Limpar período
+                      </button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* Footer */}
+          {activeMoreFiltersCount > 0 && (
+            <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-between">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {activeMoreFiltersCount} filtro(s) ativo(s)
+              </span>
+              <button
+                onClick={() => {
+                  setSelectedTagIds([]);
+                  setSelectedSectorIds([]);
+                  setSelectedAttendantId(null);
+                  setSelectedChannelIds([]);
+                  setDateRange(undefined);
+                }}
+                className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Left panel — contact list */}
       <div
         className={cn(
           "flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-[width] duration-200",
-          showList ? "flex w-full md:flex" : "hidden md:flex",
+          showMoreFilters ? "hidden md:flex" : showList ? "flex w-full md:flex" : "hidden md:flex",
           sidebarCollapsed ? "md:w-14" : "md:w-80 lg:w-96",
         )}
       >
@@ -6814,596 +7515,8 @@ export default function WhatsAppConversationsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Client list — relative so the filters panel can overlay it */}
+        {/* Client list */}
         <div className="flex-1 overflow-y-auto relative" ref={sidebarContainerRef}>
-          {/* Filters overlay panel (etiquetas, setor, atendente, canal, data) */}
-          {showMoreFilters && (
-            <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-slate-900">
-              {/* Panel header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
-                <button
-                  onClick={() => setShowMoreFilters(false)}
-                  className="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-slate-100"
-                >
-                  <ChevronUp className="h-4 w-4 text-slate-400" />
-                  Filtros
-                </button>
-                <button
-                  onClick={() => setShowMoreFilters(false)}
-                  className="h-7 w-7 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto py-3 flex flex-col gap-3">
-                {/* Etiquetas */}
-                {availableWaTags.length > 0 && (
-                  <div className="px-4">
-                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
-                      Etiquetas
-                    </p>
-                    <Popover
-                      open={tagPickerOpen}
-                      onOpenChange={(v) => {
-                        setTagPickerOpen(v);
-                        if (v) setTagPickerSearch("");
-                      }}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-between text-xs font-normal h-10 rounded-full"
-                        >
-                          <span className="truncate">
-                            {selectedTagIds.length === 0
-                              ? "Todos"
-                              : selectedTagIds.length === 1
-                                ? (selectedTagIds[0] === "__none__"
-                                    ? "Sem etiquetas"
-                                    : (availableWaTags.find((t) => t.id === selectedTagIds[0])
-                                        ?.name ?? "1 selecionada"))
-                                : `${selectedTagIds.length} selecionadas`}
-                          </span>
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-0" align="start">
-                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
-                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            Etiquetas
-                          </span>
-                          <button
-                            onClick={() => setTagPickerOpen(false)}
-                            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                            <Input
-                              value={tagPickerSearch}
-                              onChange={(e) => setTagPickerSearch(e.target.value)}
-                              placeholder="Pesquisar"
-                              className="pl-9 text-sm h-9"
-                              autoFocus
-                            />
-                          </div>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
-                            {tagPickerSearch
-                              ? `${availableWaTags.filter((t) => t.name.toLowerCase().includes(tagPickerSearch.toLowerCase())).length} resultado(s)`
-                              : "Exibindo todos os itens"}
-                          </p>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto py-1">
-                          {!tagPickerSearch && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedTagIds((prev) =>
-                                  prev.includes("__none__")
-                                    ? prev.filter((id) => id !== "__none__")
-                                    : [...prev, "__none__"],
-                                )
-                              }
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            >
-                              <span className="flex-1 truncate">Sem etiquetas</span>
-                              {selectedTagIds.includes("__none__") && (
-                                <Check className="h-4 w-4 shrink-0 text-primary" />
-                              )}
-                            </button>
-                          )}
-                          {availableWaTags
-                            .filter((t) =>
-                              !tagPickerSearch ||
-                              t.name.toLowerCase().includes(tagPickerSearch.toLowerCase()),
-                            )
-                            .map((tag) => {
-                              const active = selectedTagIds.includes(tag.id);
-                              const tagColor = resolveTagColor(tag.color, tag.id);
-                              const tagEmoji = resolveTagEmoji(tag.emoji);
-                              return (
-                                <button
-                                  key={tag.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedTagIds((prev) =>
-                                      prev.includes(tag.id)
-                                        ? prev.filter((id) => id !== tag.id)
-                                        : [...prev, tag.id],
-                                    )
-                                  }
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                  <span
-                                    className="h-2 w-2 rounded-full shrink-0"
-                                    style={{ backgroundColor: tagColor }}
-                                  />
-                                  {tagEmoji && (
-                                    <span className="shrink-0 leading-none">{tagEmoji}</span>
-                                  )}
-                                  <span className="flex-1 truncate">{tag.name}</span>
-                                  {active && (
-                                    <Check className="h-4 w-4 shrink-0 text-primary" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          {availableWaTags.filter(
-                            (t) =>
-                              !tagPickerSearch ||
-                              t.name.toLowerCase().includes(tagPickerSearch.toLowerCase()),
-                          ).length === 0 && (
-                            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
-                              Nenhuma etiqueta encontrada
-                            </p>
-                          )}
-                        </div>
-                        {selectedTagIds.length > 0 && (
-                          <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                            <button
-                              onClick={() => setSelectedTagIds([])}
-                              className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
-                            >
-                              Limpar
-                            </button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
-
-                {/* Setor */}
-                {availableSectors.length > 0 && (
-                  <div className="px-4">
-                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
-                      Setor
-                    </p>
-                    <Popover
-                      open={sectorPickerOpen}
-                      onOpenChange={(v) => {
-                        setSectorPickerOpen(v);
-                        if (v) setSectorPickerSearch("");
-                      }}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-between text-xs font-normal h-10 rounded-full"
-                        >
-                          <span className="truncate">
-                            {selectedSectorIds.length === 0
-                              ? "Todos"
-                              : selectedSectorIds.length === 1
-                                ? (selectedSectorIds[0] === "__none__"
-                                    ? "Sem setor"
-                                    : (availableSectors.find((s) => s.id === selectedSectorIds[0])
-                                        ?.name ?? "1 selecionado"))
-                                : `${selectedSectorIds.length} selecionados`}
-                          </span>
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-0" align="start">
-                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
-                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            Setores
-                          </span>
-                          <button
-                            onClick={() => setSectorPickerOpen(false)}
-                            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                            <Input
-                              value={sectorPickerSearch}
-                              onChange={(e) => setSectorPickerSearch(e.target.value)}
-                              placeholder="Pesquisar"
-                              className="pl-9 text-sm h-9"
-                              autoFocus
-                            />
-                          </div>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
-                            {sectorPickerSearch
-                              ? `${availableSectors.filter((s) => s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase())).length} resultado(s)`
-                              : "Exibindo todos os itens"}
-                          </p>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto py-1">
-                          {!sectorPickerSearch && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedSectorIds((prev) =>
-                                  prev.includes("__none__")
-                                    ? prev.filter((id) => id !== "__none__")
-                                    : [...prev, "__none__"],
-                                )
-                              }
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            >
-                              <span className="flex-1 truncate">Sem setor</span>
-                              {selectedSectorIds.includes("__none__") && (
-                                <Check className="h-4 w-4 shrink-0 text-primary" />
-                              )}
-                            </button>
-                          )}
-                          {availableSectors
-                            .filter((s) =>
-                              !sectorPickerSearch ||
-                              s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase()),
-                            )
-                            .map((sector) => {
-                              const active = selectedSectorIds.includes(sector.id);
-                              return (
-                                <button
-                                  key={sector.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedSectorIds((prev) =>
-                                      prev.includes(sector.id)
-                                        ? prev.filter((id) => id !== sector.id)
-                                        : [...prev, sector.id],
-                                    )
-                                  }
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                  <span
-                                    className="h-2 w-2 rounded-full shrink-0"
-                                    style={{ backgroundColor: sector.color }}
-                                  />
-                                  <span className="flex-1 truncate">{sector.name}</span>
-                                  {active && (
-                                    <Check className="h-4 w-4 shrink-0 text-primary" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          {availableSectors.filter(
-                            (s) =>
-                              !sectorPickerSearch ||
-                              s.name.toLowerCase().includes(sectorPickerSearch.toLowerCase()),
-                          ).length === 0 && (
-                            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
-                              Nenhum setor encontrado
-                            </p>
-                          )}
-                        </div>
-                        {selectedSectorIds.length > 0 && (
-                          <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                            <button
-                              onClick={() => setSelectedSectorIds([])}
-                              className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
-                            >
-                              Limpar
-                            </button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
-
-                {/* Atendente — só admin/gerente */}
-                {isAdminOrGerente && availableAttendants.length > 0 && (
-                  <div className="px-4">
-                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
-                      Atendente
-                    </p>
-                    <Popover
-                      open={attendantPickerOpen}
-                      onOpenChange={(v) => {
-                        setAttendantPickerOpen(v);
-                        if (v) setAttendantPickerSearch("");
-                      }}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-between text-xs font-normal h-10 rounded-full"
-                        >
-                          <span className="truncate">
-                            {selectedAttendantId
-                              ? (availableAttendants.find((a) => a.userId === selectedAttendantId)
-                                  ?.name ?? "Todos")
-                              : "Todos"}
-                          </span>
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-0" align="start">
-                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
-                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            Atendentes
-                          </span>
-                          <button
-                            onClick={() => setAttendantPickerOpen(false)}
-                            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                            <Input
-                              value={attendantPickerSearch}
-                              onChange={(e) => setAttendantPickerSearch(e.target.value)}
-                              placeholder="Pesquisar"
-                              className="pl-9 text-sm h-9"
-                              autoFocus
-                            />
-                          </div>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
-                            {attendantPickerSearch
-                              ? `${availableAttendants.filter((a) => a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase())).length} resultado(s)`
-                              : "Exibindo todos os itens"}
-                          </p>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto py-1">
-                          {availableAttendants
-                            .filter((a) =>
-                              !attendantPickerSearch ||
-                              a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase()),
-                            )
-                            .map((attendant) => {
-                              const active = selectedAttendantId === attendant.userId;
-                              return (
-                                <button
-                                  key={attendant.userId}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedAttendantId(active ? null : attendant.userId);
-                                    setAttendantPickerOpen(false);
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                  <span className="flex-1 truncate">{attendant.name}</span>
-                                  {active && (
-                                    <Check className="h-4 w-4 shrink-0 text-primary" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          {availableAttendants.filter(
-                            (a) =>
-                              !attendantPickerSearch ||
-                              a.name.toLowerCase().includes(attendantPickerSearch.toLowerCase()),
-                          ).length === 0 && (
-                            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
-                              Nenhum atendente encontrado
-                            </p>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
-
-                {/* Canal */}
-                {availableChannels.length > 0 && (
-                  <div className="px-4">
-                    <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
-                      Canal
-                    </p>
-                    <Popover
-                      open={channelPickerOpen}
-                      onOpenChange={(v) => {
-                        setChannelPickerOpen(v);
-                        if (v) setChannelPickerSearch("");
-                      }}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full justify-between text-xs font-normal h-10 rounded-full"
-                        >
-                          <span className="truncate">
-                            {selectedChannelIds.length === 0
-                              ? "Todos"
-                              : selectedChannelIds.length === 1
-                                ? (availableChannels.find((c) => c.id === selectedChannelIds[0])
-                                    ?.name ?? "1 selecionado")
-                                : `${selectedChannelIds.length} selecionados`}
-                          </span>
-                          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-0" align="start">
-                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-800">
-                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            Canais
-                          </span>
-                          <button
-                            onClick={() => setChannelPickerOpen(false)}
-                            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                            <Input
-                              value={channelPickerSearch}
-                              onChange={(e) => setChannelPickerSearch(e.target.value)}
-                              placeholder="Pesquisar"
-                              className="pl-9 text-sm h-9"
-                              autoFocus
-                            />
-                          </div>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">
-                            {channelPickerSearch
-                              ? `${availableChannels.filter((c) => c.name.toLowerCase().includes(channelPickerSearch.toLowerCase())).length} resultado(s)`
-                              : "Exibindo todos os itens"}
-                          </p>
-                        </div>
-                        <div className="max-h-64 overflow-y-auto py-1">
-                          {availableChannels
-                            .filter((c) =>
-                              !channelPickerSearch ||
-                              c.name.toLowerCase().includes(channelPickerSearch.toLowerCase()),
-                            )
-                            .map((channel) => {
-                              const active = selectedChannelIds.includes(channel.id);
-                              return (
-                                <button
-                                  key={channel.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedChannelIds((prev) =>
-                                      prev.includes(channel.id)
-                                        ? prev.filter((id) => id !== channel.id)
-                                        : [...prev, channel.id],
-                                    )
-                                  }
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                                >
-                                  <span className="flex-1 truncate">
-                                    {channel.name}
-                                    {channel.displayPhone ? ` · ${channel.displayPhone}` : ""}
-                                  </span>
-                                  {active && (
-                                    <Check className="h-4 w-4 shrink-0 text-primary" />
-                                  )}
-                                </button>
-                              );
-                            })}
-                          {availableChannels.filter(
-                            (c) =>
-                              !channelPickerSearch ||
-                              c.name.toLowerCase().includes(channelPickerSearch.toLowerCase()),
-                          ).length === 0 && (
-                            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-6">
-                              Nenhum canal encontrado
-                            </p>
-                          )}
-                        </div>
-                        {selectedChannelIds.length > 0 && (
-                          <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                            <button
-                              onClick={() => setSelectedChannelIds([])}
-                              className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
-                            >
-                              Limpar
-                            </button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                )}
-
-                {/* Período */}
-                <div className="px-4">
-                  <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">
-                    Período
-                  </p>
-                  <Popover open={dateRangeOpen} onOpenChange={setDateRangeOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-between gap-2 text-xs font-normal h-10 rounded-full"
-                      >
-                        <span className="flex items-center gap-2 truncate">
-                          <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
-                          {dateRange?.from ? (
-                            dateRange.to ? (
-                              <span>
-                                {format(dateRange.from, "dd/MM/yy")} –{" "}
-                                {format(dateRange.to, "dd/MM/yy")}
-                              </span>
-                            ) : (
-                              <span>{format(dateRange.from, "dd/MM/yy")}</span>
-                            )
-                          ) : (
-                            <span>Todos</span>
-                          )}
-                        </span>
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="range"
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        locale={ptBR}
-                        numberOfMonths={1}
-                        initialFocus
-                      />
-                      {dateRange?.from && (
-                        <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-800 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setDateRange(undefined)}
-                            className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
-                          >
-                            Limpar período
-                          </button>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-
-              {/* Footer */}
-              {activeMoreFiltersCount > 0 && (
-                <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {activeMoreFiltersCount} filtro(s) ativo(s)
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSelectedTagIds([]);
-                      setSelectedSectorIds([]);
-                      setSelectedAttendantId(null);
-                      setSelectedChannelIds([]);
-                      setDateRange(undefined);
-                    }}
-                    className="text-xs text-red-500 hover:text-red-600 font-medium transition-colors"
-                  >
-                    Limpar filtros
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
           {isLoadingClients ? (
             <div className="p-4 space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -7438,12 +7551,10 @@ export default function WhatsAppConversationsPage() {
           ) : (
             clientList.map((client) => (
               <ClientListItem
-                key={client.conversationId}
+                key={clientKey(client)}
                 client={client}
-                selected={
-                  selectedId != null && client.conversationId === selectedId
-                }
-                onClick={() => handleSelectConversation(client.conversationId)}
+                selected={selectedId != null && clientKey(client) === selectedId}
+                onClick={() => handleSelectClient(client)}
                 availableTags={availableWaTags}
                 onTagsChange={(clientId, tagIds) =>
                   setTagsMutation.mutate({ clientId, tagIds })
@@ -7477,7 +7588,7 @@ export default function WhatsAppConversationsPage() {
       >
         {selectedClient ? (
           <ConversationMessages
-            key={selectedClient.conversationId}
+            key={clientKey(selectedClient)}
             conversationKey={selectedClient.conversationId}
             client={selectedClient}
             onBack={handleBack}

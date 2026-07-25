@@ -23,6 +23,7 @@ import {
   viewerIsPeerSide,
   directionForViewer,
   messageIsUnreadIncoming,
+  resolvePerspectiveOverride,
 } from "../whatsapp-conversations.service";
 
 const eventos = { id: 7, displayPhone: "+5521989014965" };
@@ -168,5 +169,38 @@ describe("messageIsUnreadIncoming", () => {
   it("admin sem canais: usa referencial do dono (inbound conta)", () => {
     expect(messageIsUnreadIncoming(internal, "inbound", [])).toBe(true);
     expect(messageIsUnreadIncoming(internal, "outbound", [])).toBe(false);
+  });
+});
+
+describe("resolvePerspectiveOverride", () => {
+  // Diálogo interno canônico: dono Eventos (7), peer Búzios (12).
+  const internal = { channelId: 7, peerChannelId: 12 };
+
+  it("admin espiando pelo lado peer usa o canal peer como referencial", () => {
+    expect(resolvePerspectiveOverride("admin", internal, 12)).toBe(12);
+  });
+
+  it("admin espiando pelo lado dono usa o canal dono como referencial", () => {
+    expect(resolvePerspectiveOverride("admin", internal, 7)).toBe(7);
+  });
+
+  it("gerente também pode espiar", () => {
+    expect(resolvePerspectiveOverride("gerente", internal, 12)).toBe(12);
+  });
+
+  it("vendedor NUNCA aplica override (mesmo pedindo um canal do par)", () => {
+    expect(resolvePerspectiveOverride("vendedor", internal, 12)).toBeNull();
+  });
+
+  it("ignora asChannelId que não é nenhum dos dois lados do par", () => {
+    expect(resolvePerspectiveOverride("admin", internal, 999)).toBeNull();
+  });
+
+  it("ignora quando não há asChannelId", () => {
+    expect(resolvePerspectiveOverride("admin", internal, undefined)).toBeNull();
+  });
+
+  it("conversa externa (sem peer) nunca tem perspectiva a espiar", () => {
+    expect(resolvePerspectiveOverride("admin", { channelId: 7, peerChannelId: null }, 7)).toBeNull();
   });
 });

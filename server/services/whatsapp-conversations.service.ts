@@ -258,6 +258,32 @@ export function messageIsUnreadIncoming(
   return directionForViewer(messageDirection, viewerIsPeerSide(row, viewerChannelIds)) === "inbound";
 }
 
+/**
+ * Decide se um admin/gerente pode "espiar" um diálogo interno pela perspectiva
+ * de um dos lados do par (ver getConversation). Retorna o channelId a usar como
+ * referencial do leitor, ou null quando o override não se aplica — caindo então
+ * na perspectiva derivada dos próprios canais do usuário. O override só vale
+ * quando: o papel é admin/gerente, a conversa é interna (tem peerChannelId) e o
+ * asChannelId pedido é EXATAMENTE um dos dois canais do par. Pura, para ser
+ * testável sem banco.
+ */
+export function resolvePerspectiveOverride(
+  userRole: string,
+  row: { channelId: number | null; peerChannelId: number | null },
+  asChannelId: number | undefined,
+): number | null {
+  const canOverride = userRole === "admin" || userRole === "gerente";
+  if (
+    canOverride &&
+    row.peerChannelId != null &&
+    asChannelId != null &&
+    (asChannelId === row.channelId || asChannelId === row.peerChannelId)
+  ) {
+    return asChannelId;
+  }
+  return null;
+}
+
 /** Condição SQL que casa uma conversa pelo telefone em qualquer forma conhecida
  * (com/sem DDI 55, com/sem o 9º dígito) — pela coluna canônica quando existir e
  * pelo texto cru como fallback para linhas ainda não migradas. */
@@ -500,6 +526,15 @@ export async function resolveOutboundChannel(
 export async function resolveOutboundChannelForSender(
   conversationId: string,
   requestingUserId: string,
+  /**
+   * Canal pelo qual o envio deve "assinar", sobrepondo a inferência por
+   * participação. Usado quando um supervisor (admin/gerente) responde pela caixa
+   * de um dos lados de um diálogo interno — ex.: thiago, olhando a caixa do
+   * eventos, envia PELO número do eventos. O chamador é responsável por só
+   * passar isto para papéis autorizados. Ignorado se não for um dos dois canais
+   * do par.
+   */
+  actAsChannelId?: number,
 ): Promise<{
   channel: ResolvedChannel;
   channelId: number;
@@ -525,10 +560,21 @@ export async function resolveOutboundChannelForSender(
   if (!conv?.channelId) return null;
 
   if (conv.peerChannelId != null) {
-    const userChannelIds = await listChannelIdsForUser(requestingUserId);
-    const isPeer = userChannelIds.includes(conv.peerChannelId);
-    const isOwner = userChannelIds.includes(conv.channelId);
-    if (isPeer && !isOwner) {
+    // Quem "assina" o envio: o canal escolhido explicitamente (supervisor pela
+    // caixa de um lado) tem prioridade; senão infere pela participação do
+    // usuário logado (peer sem ser dono → envia como peer).
+    let sendAsPeer: boolean;
+    if (actAsChannelId === conv.peerChannelId) {
+      sendAsPeer = true;
+    } else if (actAsChannelId === conv.channelId) {
+      sendAsPeer = false;
+    } else {
+      const userChannelIds = await listChannelIdsForUser(requestingUserId);
+      const isPeer = userChannelIds.includes(conv.peerChannelId);
+      const isOwner = userChannelIds.includes(conv.channelId);
+      sendAsPeer = isPeer && !isOwner;
+    }
+    if (sendAsPeer) {
       const [peerResolved, owner] = await Promise.all([
         resolveChannelById(conv.peerChannelId).catch(() => null),
         getChannelIdentityById(conv.channelId).catch(() => null),
@@ -1224,23 +1270,131 @@ export async function listClientsForChat(
     }
   }
 
+  // Diálogo interno para admin/gerente vira DUAS entradas na lista — a "caixa"
+  // de cada lado do par (ver expansão no return). Cada lado tem sua própria
+  // contagem de não-lidas, relativa ao ATENDENTE dono daquele canal (não ao
+  // admin que está olhando): a badge da caixa do eventos reflete o que o eventos
+  // ainda não leu. Calculado só para os diálogos internos da página e só quando
+  // o leitor é supervisor.
+  const isSupervisor = userRole === "admin" || userRole === "gerente";
+  const internalIds = isSupervisor
+    ? pageRows.filter((r) => r.peerChannelId != null && r.channelId != null).map((r) => r.conversationId)
+    : [];
+  const perspectiveUnread = new Map<string, { owner: number; peer: number }>();
+  if (internalIds.length > 0) {
+    // Não-lida por lado = mensagens que, no referencial daquele lado, são
+    // recebidas (dono: direction 'inbound'; peer: 'outbound', pois direction é
+    // gravada relativa ao dono) e chegaram após o last_read do atendente do
+    // canal. Duas agregações simples em vez de uma com FILTER, para manter o
+    // padrão do query builder e ler o read certo em cada join.
+    const ownerReads = alias(whatsappConversationReads, "owner_side_reads");
+    const ownerCh = alias(whatsappChannels, "owner_side_ch");
+    const peerReads = alias(whatsappConversationReads, "peer_side_reads");
+    const peerCh = alias(whatsappChannels, "peer_side_ch");
+
+    const [ownerUnreadRows, peerUnreadRows] = await Promise.all([
+      db
+        .select({
+          conversationId: whatsappMessages.conversationId,
+          cnt: sql<number>`cast(count(*) as int)`,
+        })
+        .from(whatsappMessages)
+        .innerJoin(whatsappConversations, eq(whatsappMessages.conversationId, whatsappConversations.id))
+        .leftJoin(ownerCh, eq(whatsappConversations.channelId, ownerCh.id))
+        .leftJoin(
+          ownerReads,
+          and(eq(ownerReads.conversationId, whatsappConversations.id), eq(ownerReads.userId, ownerCh.userId)),
+        )
+        .where(
+          and(
+            inArray(whatsappMessages.conversationId, internalIds),
+            eq(whatsappMessages.direction, "inbound"),
+            sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${ownerReads.lastReadAt}, '1970-01-01'::timestamp)`,
+          ),
+        )
+        .groupBy(whatsappMessages.conversationId),
+      db
+        .select({
+          conversationId: whatsappMessages.conversationId,
+          cnt: sql<number>`cast(count(*) as int)`,
+        })
+        .from(whatsappMessages)
+        .innerJoin(whatsappConversations, eq(whatsappMessages.conversationId, whatsappConversations.id))
+        .leftJoin(peerCh, eq(whatsappConversations.peerChannelId, peerCh.id))
+        .leftJoin(
+          peerReads,
+          and(eq(peerReads.conversationId, whatsappConversations.id), eq(peerReads.userId, peerCh.userId)),
+        )
+        .where(
+          and(
+            inArray(whatsappMessages.conversationId, internalIds),
+            eq(whatsappMessages.direction, "outbound"),
+            sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${peerReads.lastReadAt}, '1970-01-01'::timestamp)`,
+          ),
+        )
+        .groupBy(whatsappMessages.conversationId),
+    ]);
+
+    for (const r of ownerUnreadRows) {
+      const cur = perspectiveUnread.get(r.conversationId) ?? { owner: 0, peer: 0 };
+      cur.owner = r.cnt;
+      perspectiveUnread.set(r.conversationId, cur);
+    }
+    for (const r of peerUnreadRows) {
+      const cur = perspectiveUnread.get(r.conversationId) ?? { owner: 0, peer: 0 };
+      cur.peer = r.cnt;
+      perspectiveUnread.set(r.conversationId, cur);
+    }
+  }
+
   // Rótulo do diálogo interno é resolvido por quem está lendo (ver
   // internalPeerLabel) — não pode ser gravado em contact_name, senão o
   // atendente do canal peer leria o nome do próprio canal como se fosse o
   // contato. `viewerChannelIds` já foi calculado no topo (também alimenta a
   // contagem de não-lidas relativa ao leitor).
   return {
-    items: pageRows.map((row) => {
-      const viewerIsPeer = viewerIsPeerSide(row, viewerChannelIds);
-      return {
+    items: pageRows.flatMap((row) => {
+      const base = {
         ...row,
-        contactName: internalPeerLabel(row, viewerChannelIds) ?? row.contactName,
-        lastMessageDirection: row.lastMessageDirection
-          ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
-          : row.lastMessageDirection,
+        perspectiveChannelId: null as number | null,
         tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
         whatsappTags: row.clientId ? (whatsappTagsByClient.get(row.clientId) ?? []) : [],
       };
+
+      // Diálogo interno + supervisor: uma entrada por lado do par. Cada uma abre
+      // a conversa fixada naquela perspectiva (perspectiveChannelId), e o
+      // frontend usa esse id como identidade do item e como asChannelId.
+      if (isSupervisor && row.peerChannelId != null && row.channelId != null) {
+        const un = perspectiveUnread.get(row.conversationId) ?? { owner: 0, peer: 0 };
+        const makeItem = (perspectiveChannelId: number, unreadCount: number) => {
+          const viewerIsPeer = viewerIsPeerSide(row, [perspectiveChannelId]);
+          return {
+            ...base,
+            perspectiveChannelId,
+            contactName: internalPeerLabel(row, [perspectiveChannelId]) ?? row.contactName,
+            lastMessageDirection: row.lastMessageDirection
+              ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
+              : row.lastMessageDirection,
+            unreadCount,
+          };
+        };
+        return [
+          makeItem(row.channelId, un.owner),
+          makeItem(row.peerChannelId, un.peer),
+        ];
+      }
+
+      // Demais casos: um item, perspectiva derivada do leitor logado (como hoje).
+      const viewerIsPeer = viewerIsPeerSide(row, viewerChannelIds);
+      return [
+        {
+          ...base,
+          contactName: internalPeerLabel(row, viewerChannelIds) ?? row.contactName,
+          lastMessageDirection: row.lastMessageDirection
+            ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
+            : row.lastMessageDirection,
+        },
+      ];
     }),
     nextCursor,
   };
@@ -1251,6 +1405,7 @@ export async function getConversation(
   userId: string,
   userRole: string,
   pagination: { cursor?: Cursor | null; limit?: number } = {},
+  opts: { asChannelId?: number } = {},
 ) {
   const limit = clampLimit(pagination.limit, { fallback: 20, max: 50 });
   const cursor = pagination.cursor ?? null;
@@ -1294,7 +1449,18 @@ export async function getConversation(
   if (!convRow) return null;
 
   // Mesmo rótulo relativo ao leitor usado na listagem (ver internalPeerLabel).
-  const viewerChannelIds = convRow.peerChannelId != null ? await listChannelIdsForUser(userId) : [];
+  // Admin/gerente podem "espiar" um diálogo interno pela perspectiva do outro
+  // lado do par (ex.: thiago vendo como o eventos vê). O override troca de qual
+  // canal se considera o leitor — toda a lógica de perspectiva (rótulo, direção,
+  // viewerIsPeer) já deriva de viewerChannelIds, então nada mais precisa mudar.
+  // Só vale para conversa interna e quando asChannelId é um dos dois lados do par.
+  const perspectiveOverride = resolvePerspectiveOverride(userRole, convRow, opts.asChannelId);
+  const viewerChannelIds =
+    perspectiveOverride != null
+      ? [perspectiveOverride]
+      : convRow.peerChannelId != null
+        ? await listChannelIdsForUser(userId)
+        : [];
   const viewerIsPeer = viewerIsPeerSide(convRow, viewerChannelIds);
   const conv = {
     ...convRow,
@@ -1454,8 +1620,12 @@ export async function sendConversationMessage(
 
   // Canal de envio: o dono da conversa, exceto em diálogo interno canal↔canal
   // em que quem está enviando é o atendente do lado peer — aí sai pelo canal
-  // dele, não pelo dono (ver resolveOutboundChannelForSender).
-  const resolved = await resolveOutboundChannelForSender(conversationId, userId);
+  // dele, não pelo dono (ver resolveOutboundChannelForSender). Admin/gerente
+  // podem "assinar" pelo canal escolhido (channelId) — responder pela caixa de
+  // um lado de um diálogo interno; para os demais o override é ignorado.
+  const actAsChannelId =
+    userRole === "admin" || userRole === "gerente" ? channelId : undefined;
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId, actAsChannelId);
 
   // Sem canal resolvível, NÃO envia: cair no default global (wa_phone_number_id)
   // faria a mensagem sair por um número diferente do da conversa (ex.: Dionisio),
@@ -1671,7 +1841,9 @@ export async function sendConversationTemplate(
     return null;
   }
 
-  const resolved = await resolveOutboundChannelForSender(conversationId, userId);
+  const actAsChannelId =
+    userRole === "admin" || userRole === "gerente" ? channelId : undefined;
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId, actAsChannelId);
 
   // Templates oficiais só existem no canal cloud_api (API da Meta).
   if (resolved?.channel.provider !== "cloud_api") {
@@ -1874,7 +2046,9 @@ export async function sendConversationMedia(
     replyToWaMessageId = ref?.waMessageId ?? null;
   }
 
-  const resolved = await resolveOutboundChannelForSender(conversationId, userId);
+  const actAsChannelId =
+    userRole === "admin" || userRole === "gerente" ? channelId : undefined;
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId, actAsChannelId);
 
   // Sem canal resolvível, NÃO envia (mesma razão de sendConversationMessage):
   // evita cair no número global e mandar a mídia pelo número errado.
