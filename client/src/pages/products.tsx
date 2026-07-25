@@ -100,7 +100,7 @@ export default function Products() {
     if (currentPage > 1)       p.set("page",     String(currentPage));
     if (pageSize !== 20)       p.set("pageSize", String(pageSize));
     const qs = p.toString();
-    window.history.replaceState({}, "", qs ? `/produtos?${qs}` : "/produtos");
+    window.history.replaceState({}, "", qs ? `/products?${qs}` : "/products");
   }, [debouncedSearchQuery, debouncedTypeFilter, debouncedCountryFilter, debouncedVolumeFilter, debouncedCategoryFilter, currentPage, pageSize]);
 
   const { data, isFetching } = useQuery({
