@@ -612,6 +612,16 @@ export class BlingOrdersService {
    * CPF tem prioridade; em seguida celular, depois telefone fixo.
    * Retorna o primeiro cliente encontrado ou null.
    */
+  /**
+   * Remove o código de país brasileiro (+55 / 55) de um número já sem formatação,
+   * retornando apenas DDD + número (10 ou 11 dígitos).
+   * Ex.: "5521999961728" → "21999961728"  |  "21999961728" → "21999961728"
+   */
+  private stripBrCountryCode(digits: string): string {
+    if (/^55\d{10,11}$/.test(digits)) return digits.slice(2);
+    return digits;
+  }
+
   private async findAppClientByCpfOrPhone(
     cpf: string | null,
     celular: string | null,
@@ -620,22 +630,35 @@ export class BlingOrdersService {
     const conditions: ReturnType<typeof sql>[] = [];
 
     const normalizedCpf = cpf ? cpf.replace(/\D/g, "") : null;
-    const normalizedCelular = celular ? celular.replace(/\D/g, "") : null;
-    const normalizedTelefone = telefone ? telefone.replace(/\D/g, "") : null;
+
+    // Normaliza input: remove não-dígitos e depois strip do prefixo 55
+    const rawCelular = celular ? celular.replace(/\D/g, "") : null;
+    const rawTelefone = telefone ? telefone.replace(/\D/g, "") : null;
+    const normalizedCelular = rawCelular ? this.stripBrCountryCode(rawCelular) : null;
+    const normalizedTelefone = rawTelefone ? this.stripBrCountryCode(rawTelefone) : null;
+
+    // Expressão SQL que normaliza o telefone do banco da mesma forma:
+    // 1. remove não-dígitos  2. strip do prefixo 55 de números com 12-13 dígitos
+    const dbPhoneNorm = (col: ReturnType<typeof sql>) => sql`
+      CASE
+        WHEN regexp_replace(${col}, '[^0-9]', '', 'g') ~ '^55\d{10,11}$'
+        THEN substring(regexp_replace(${col}, '[^0-9]', '', 'g'), 3)
+        ELSE regexp_replace(${col}, '[^0-9]', '', 'g')
+      END`;
 
     if (normalizedCpf && normalizedCpf.length === 11) {
       conditions.push(eq(clients.cpf, normalizedCpf));
     }
     if (normalizedCelular) {
       conditions.push(
-        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${normalizedCelular}`,
-        sql`regexp_replace(COALESCE(${clients.fixedPhone}, ''), '[^0-9]', '', 'g') = ${normalizedCelular}`,
+        sql`${dbPhoneNorm(sql`${clients.phone}`)} = ${normalizedCelular}`,
+        sql`${dbPhoneNorm(sql`COALESCE(${clients.fixedPhone}, '')`)} = ${normalizedCelular}`,
       );
     }
     if (normalizedTelefone && normalizedTelefone !== normalizedCelular) {
       conditions.push(
-        sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${normalizedTelefone}`,
-        sql`regexp_replace(COALESCE(${clients.fixedPhone}, ''), '[^0-9]', '', 'g') = ${normalizedTelefone}`,
+        sql`${dbPhoneNorm(sql`${clients.phone}`)} = ${normalizedTelefone}`,
+        sql`${dbPhoneNorm(sql`COALESCE(${clients.fixedPhone}, '')`)} = ${normalizedTelefone}`,
       );
     }
 
