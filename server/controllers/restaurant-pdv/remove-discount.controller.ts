@@ -9,7 +9,7 @@ export const removeDiscountController = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
 
-    const order = await restaurantPdvService.removeDiscount(orderId, actorId);
+    const order = await restaurantPdvService.removeDiscount(orderId, actorId, req.pdvUnitId);
     return res.json(order);
   } catch (error: any) {
     if (error?.code === "NOT_FOUND") {

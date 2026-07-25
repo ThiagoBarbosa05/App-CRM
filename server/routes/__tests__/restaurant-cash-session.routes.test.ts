@@ -59,13 +59,24 @@ describe("rotas de caixa", () => {
       expect(response.body).toEqual({ session: null });
     });
 
-    it("garçom não pode abrir caixa", async () => {
-      const response = await request(appAs("garcom"))
+    // Abrir o caixa é operação de turno; fechar é conferência de dinheiro e
+    // responde por divergência. Por isso a assimetria abaixo é intencional.
+    it("garçom pode abrir caixa", async () => {
+      const response = await request(appAs("garcom", "waiter-1"))
         .post("/restaurant-pdv/cash-sessions")
         .send({ openingFloat: "200.00" });
 
+      expect(response.status).toBe(201);
+      expect(openSessionMock).toHaveBeenCalledWith("200.00", "waiter-1", "test-unit-id");
+    });
+
+    it("garçom não pode fechar caixa", async () => {
+      const response = await request(appAs("garcom"))
+        .post("/restaurant-pdv/cash-sessions/s1/close")
+        .send({ countedCash: "500.00" });
+
       expect(response.status).toBe(403);
-      expect(openSessionMock).not.toHaveBeenCalled();
+      expect(closeSessionMock).not.toHaveBeenCalled();
     });
 
     it("garçom não pode registrar sangria", async () => {
@@ -83,7 +94,7 @@ describe("rotas de caixa", () => {
         .send({ openingFloat: "200.00" });
 
       expect(response.status).toBe(201);
-      expect(openSessionMock).toHaveBeenCalledWith("200.00", "ger-9");
+      expect(openSessionMock).toHaveBeenCalledWith("200.00", "ger-9", "test-unit-id");
     });
   });
 
@@ -153,6 +164,7 @@ describe("rotas de caixa", () => {
       expect(addMovementMock).toHaveBeenCalledWith(
         { type: "suprimento", amount: "100.00", reason: "Reforço de troco" },
         "adm-2",
+        "test-unit-id",
       );
     });
   });

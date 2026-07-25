@@ -10,11 +10,19 @@ type CreateRouteTestAppOptions = {
 
 const JSON_LIMIT = "50mb";
 
+type MockAuthOverrides = Partial<JwtPayload> & {
+  /**
+   * Unidade PDV da requisição. `null` desliga a injeção, para exercitar o 400
+   * `NO_PDV_UNIT` do middleware real.
+   */
+  pdvUnitId?: string | null;
+};
+
 /**
  * Cria um middleware que injeta req.user diretamente (bypassa JWT para testes)
  */
 export const createMockAuthMiddleware = (
-  overrides: Partial<JwtPayload> = {},
+  overrides: MockAuthOverrides = {},
 ): RequestHandler => {
   return (req, _res, next) => {
     req.user = {
@@ -22,6 +30,13 @@ export const createMockAuthMiddleware = (
       role: overrides.role ?? "admin",
       email: overrides.email ?? "test@example.com",
     };
+    // As rotas do PDV resolvem a unidade num middleware que consulta o banco
+    // (`resolvePdvUnit`). Injetar aqui é o que mantém o project `unit` sem
+    // banco: o middleware real tem curto-circuito quando `req.pdvUnitId` já
+    // veio resolvido, então ele continua montado e testável.
+    if (overrides.pdvUnitId !== null) {
+      req.pdvUnitId = overrides.pdvUnitId ?? "test-unit-id";
+    }
     next();
   };
 };

@@ -175,7 +175,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   // Sem caixa aberto o backend recusa abrir mesa (409). O garçom consulta o
   // estado mesmo sem poder operar o caixa, para a tela explicar o bloqueio em
   // vez de deixá-lo preencher o diálogo e falhar no final.
-  const { data: cashData } = useQuery<{
+  const { data: cashData, isError: isCashError } = useQuery<{
     session: {
       id: string;
       summary?: { byPaymentMethod: { method: string; total: string }[] };
@@ -185,6 +185,9 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
     refetchInterval: 30000,
   });
   const cashSessionOpen = !!cashData?.session;
+  // Falha na consulta não é "caixa fechado": afirmar isso bloqueia "Nova Mesa"
+  // com o caixa aberto, e o operador fica sem entender por quê.
+  const cashStatusUnknown = isCashError;
 
   const openCashMutation = useMutation({
     mutationFn: async () => {
@@ -315,10 +318,12 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
           <Lock className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-amber-900 dark:text-amber-100">
-              Caixa fechado
+              {cashStatusUnknown ? "Não foi possível consultar o caixa" : "Caixa fechado"}
             </p>
             <p className="text-sm text-amber-800 dark:text-amber-200">
-              Abra o caixa para liberar a abertura de mesas.
+              {cashStatusUnknown
+                ? "O caixa pode estar aberto — verifique a conexão e recarregue antes de concluir que está fechado."
+                : "Abra o caixa para liberar a abertura de mesas."}
             </p>
           </div>
           {isGestor && (

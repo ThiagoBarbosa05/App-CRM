@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { db, type DbExecutor } from "../db";
 import {
   restaurantCashSessions,
   restaurantCashMovements,
@@ -135,13 +135,22 @@ export const restaurantCashSessionService = {
     try {
       const [created] = await db
         .insert(restaurantCashSessions)
-        .values({ openedBy: actorId, openingFloat, status: "aberto", unitId: unitId ?? null })
+        .values({
+          openedBy: actorId,
+          openingFloat: fromCents(toCents(openingFloat)),
+          status: "aberto",
+          unitId: unitId ?? null,
+        })
         .returning();
       return created;
     } catch (error: any) {
+      // A checagem acima roda fora de transação; quem garante é o índice único
+      // parcial (opened_by, unit_id) WHERE status='aberto'. Se caiu aqui, o
+      // caixa concorrente é desta mesma unidade — a checagem já teria pego um
+      // de outra unidade, já que ela filtra por unidade também.
       if (error?.code === "23505") {
         throw Object.assign(
-          new Error("Você já tem um caixa aberto — feche-o antes de abrir outro"),
+          new Error("Você já tem um caixa aberto nesta unidade — feche-o antes de abrir outro"),
           { code: "SESSION_ALREADY_OPEN" },
         );
       }
@@ -167,40 +176,63 @@ export const restaurantCashSessionService = {
   ): Promise<RestaurantCashMovement> {
     const session = await this.assertSessionOpen(actorId, unitId);
 
-    if (toCents(data.amount) <= 0) {
+    const amountCents = toCents(data.amount);
+    if (amountCents <= 0) {
       throw Object.assign(new Error("O valor deve ser maior que zero"), {
         code: "INVALID_AMOUNT",
       });
     }
 
-    if (data.type === "sangria") {
-      const { expectedCents } = await this.calculateSessionCash(session);
-      if (toCents(data.amount) > expectedCents) {
-        throw Object.assign(
-          new Error(
-            `A sangria (${fromCents(toCents(data.amount))}) é maior que o dinheiro em caixa (${fromCents(expectedCents)})`,
-          ),
-          { code: "INSUFFICIENT_CASH" },
-        );
+    // Travar a sessão e conferir o saldo na mesma transação. Antes o cálculo e
+    // o insert eram independentes: duas sangrias simultâneas de R$ 100 num
+    // caixa com R$ 150 passavam as duas pela checagem e deixavam a gaveta
+    // negativa.
+    return db.transaction(async (tx) => {
+      const [locked] = await tx
+        .select()
+        .from(restaurantCashSessions)
+        .where(eq(restaurantCashSessions.id, session.id))
+        .limit(1)
+        .for("update");
+
+      if (!locked || locked.status !== "aberto") {
+        throw Object.assign(new Error("Este caixa já foi fechado"), {
+          code: "SESSION_CLOSED",
+        });
       }
-    }
 
-    const [created] = await db
-      .insert(restaurantCashMovements)
-      .values({
-        sessionId: session.id,
-        type: data.type,
-        amount: data.amount,
-        reason: data.reason,
-        actorId,
-      })
-      .returning();
+      if (data.type === "sangria") {
+        const { expectedCents } = await this.calculateSessionCash(locked, tx);
+        if (amountCents > expectedCents) {
+          throw Object.assign(
+            new Error(
+              `A sangria (${fromCents(amountCents)}) é maior que o dinheiro em caixa (${fromCents(expectedCents)})`,
+            ),
+            { code: "INSUFFICIENT_CASH" },
+          );
+        }
+      }
 
-    return created;
+      const [created] = await tx
+        .insert(restaurantCashMovements)
+        .values({
+          sessionId: session.id,
+          type: data.type,
+          amount: fromCents(amountCents),
+          reason: data.reason,
+          actorId,
+        })
+        .returning();
+
+      return created;
+    });
   },
 
-  async listMovements(sessionId: string): Promise<RestaurantCashMovement[]> {
-    return db
+  async listMovements(
+    sessionId: string,
+    executor: DbExecutor = db,
+  ): Promise<RestaurantCashMovement[]> {
+    return executor
       .select()
       .from(restaurantCashMovements)
       .where(eq(restaurantCashMovements.sessionId, sessionId))
@@ -208,8 +240,11 @@ export const restaurantCashSessionService = {
   },
 
   /** Dinheiro esperado em gaveta agora — usado na sangria e no fechamento. */
-  async calculateSessionCash(session: RestaurantCashSession) {
-    const orders = await db
+  async calculateSessionCash(
+    session: RestaurantCashSession,
+    executor: DbExecutor = db,
+  ) {
+    const orders = await executor
       .select({ id: restaurantOrders.id })
       .from(restaurantOrders)
       .where(eq(restaurantOrders.cashSessionId, session.id));
@@ -217,13 +252,13 @@ export const restaurantCashSessionService = {
     const orderIds = orders.map((o) => o.id);
     const payments =
       orderIds.length > 0
-        ? await db
+        ? await executor
             .select()
             .from(restaurantOrderPayments)
             .where(inArray(restaurantOrderPayments.orderId, orderIds))
         : [];
 
-    const movements = await this.listMovements(session.id);
+    const movements = await this.listMovements(session.id, executor);
 
     return calculateExpectedCash({
       openingFloat: session.openingFloat,
@@ -364,6 +399,8 @@ export const restaurantCashSessionService = {
     // ficaria sem sessão e a receita cairia fora de qualquer conferência.
     // Verifica apenas comandas do próprio operador — outros caixas abertos
     // simultaneamente têm seus próprios garçons e não impedem este fechamento.
+    // Filtra pela unidade da sessão: sem isso, uma mesa aberta pelo mesmo
+    // operador em OUTRA unidade impedia o fechamento deste caixa.
     const openOrders = await db
       .select({ id: restaurantOrders.id, tableNumber: restaurantOrders.tableNumber })
       .from(restaurantOrders)
@@ -371,6 +408,7 @@ export const restaurantCashSessionService = {
         and(
           eq(restaurantOrders.status, "aberta"),
           eq(restaurantOrders.waiterId, session.openedBy),
+          ...(session.unitId ? [eq(restaurantOrders.unitId, session.unitId)] : []),
         ),
       );
 
@@ -420,8 +458,21 @@ export const restaurantCashSessionService = {
           notes: data.notes ?? null,
           updatedAt: new Date(),
         })
-        .where(eq(restaurantCashSessions.id, sessionId))
+        // Guard de status no WHERE: dois fechamentos concorrentes sobrescreviam
+        // o `summary` e o `countedCash` um do outro, sem ninguém notar.
+        .where(
+          and(
+            eq(restaurantCashSessions.id, sessionId),
+            eq(restaurantCashSessions.status, "aberto"),
+          ),
+        )
         .returning();
+
+      if (!updated) {
+        throw Object.assign(new Error("Este caixa já foi fechado"), {
+          code: "SESSION_CLOSED",
+        });
+      }
 
       return updated;
     });

@@ -10,7 +10,7 @@ export const mergeOrdersController = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
 
-    await restaurantPdvService.mergeOrders(sourceOrderId, targetOrderId, actorId);
+    await restaurantPdvService.mergeOrders(sourceOrderId, targetOrderId, actorId, req.pdvUnitId);
     return res.json({ message: "Mesas mescladas" });
   } catch (error: any) {
     if (error?.code === "NOT_FOUND") {

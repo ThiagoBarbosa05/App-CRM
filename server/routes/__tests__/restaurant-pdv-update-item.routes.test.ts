@@ -44,6 +44,7 @@ describe("PUT /restaurant-pdv/orders/:id/items/:itemId", () => {
       "item-1",
       { quantity: 3 },
       "user-1",
+      "test-unit-id",
     );
   });
 
@@ -58,6 +59,7 @@ describe("PUT /restaurant-pdv/orders/:id/items/:itemId", () => {
       "item-1",
       { unitPrice: "5.00" },
       "gerente-1",
+      "test-unit-id",
     );
   });
 
@@ -71,6 +73,7 @@ describe("PUT /restaurant-pdv/orders/:id/items/:itemId", () => {
       "item-1",
       { unitPrice: "5.00", quantity: 2 },
       "admin-9",
+      "test-unit-id",
     );
   });
 });

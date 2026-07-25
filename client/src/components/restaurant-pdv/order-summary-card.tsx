@@ -26,6 +26,8 @@ import {
   Receipt,
   Split,
   Trash2,
+  TicketPercent,
+  X,
 } from "lucide-react";
 import type { RestaurantOrder, RestaurantOrderItem } from "@shared/schema";
 import { formatPercent } from "@shared/restaurant-order-totals";
@@ -52,6 +54,7 @@ interface OrderSummaryCardProps {
   onPaymentMethodChange: (value: string) => void;
   onUpdateItemQuantity: (itemId: string, quantity: number) => void;
   onUpdateItemPrice: (itemId: string, unitPrice: string) => void;
+  updateItemPending: boolean;
   onCancelItem: (item: RestaurantOrderItem) => void;
   onRemoveDiscount: () => void;
   removeDiscountPending: boolean;
@@ -78,7 +81,11 @@ export function OrderSummaryCard({
   onPaymentMethodChange,
   onUpdateItemQuantity,
   onUpdateItemPrice,
+  updateItemPending,
   onCancelItem,
+  onRemoveDiscount,
+  removeDiscountPending,
+  onApplyDiscountClick,
   onSplitClick,
   onCloseOrder,
   closeOrderPending,
@@ -152,7 +159,10 @@ export function OrderSummaryCard({
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6"
-                        disabled={item.quantity <= 1}
+                        // Travar durante a mutação: sem isso, cliques rápidos
+                        // disparam N PUTs calculados sobre a quantidade de um
+                        // render antigo, e o último a responder vence.
+                        disabled={item.quantity <= 1 || updateItemPending}
                         onClick={() => onUpdateItemQuantity(item.id, item.quantity - 1)}
                       >
                         <Minus className="h-3 w-3" />
@@ -162,6 +172,7 @@ export function OrderSummaryCard({
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6"
+                        disabled={updateItemPending}
                         onClick={() => onUpdateItemQuantity(item.id, item.quantity + 1)}
                       >
                         <Plus className="h-3 w-3" />
@@ -222,11 +233,43 @@ export function OrderSummaryCard({
             <span>Subtotal</span>
             <span className="tabular-nums">{formatCurrency(subtotal)}</span>
           </div>
-          {hasDiscount && (
-            <div className="flex justify-between text-sm text-emerald-600">
-              <span>Desconto{order.discountReason ? ` (${order.discountReason})` : ""}</span>
-              <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
+          {hasDiscount ? (
+            <div className="flex items-center justify-between text-sm text-emerald-600">
+              <span className="truncate">
+                Desconto{order.discountReason ? ` (${order.discountReason})` : ""}
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                <span className="tabular-nums">-{formatCurrency(discountAmount)}</span>
+                {!isGarcom && !isPaymentPhase && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-5 w-5 text-muted-foreground hover:text-red-600"
+                    disabled={removeDiscountPending}
+                    onClick={onRemoveDiscount}
+                    title="Remover desconto"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </span>
             </div>
+          ) : (
+            // Aplicar desconto exige gestor no backend (`requireGestor`), então
+            // o botão não aparece para o garçom.
+            !isGarcom &&
+            !isPaymentPhase &&
+            items.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-full justify-start px-0 text-xs text-muted-foreground hover:text-emerald-600"
+                onClick={onApplyDiscountClick}
+              >
+                <TicketPercent className="mr-1.5 h-3.5 w-3.5" />
+                Aplicar desconto
+              </Button>
+            )
           )}
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Taxa de serviço ({formatPercent(serviceFeePercent)})</span>

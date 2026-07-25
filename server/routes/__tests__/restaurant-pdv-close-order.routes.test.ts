@@ -33,7 +33,13 @@ describe("POST /restaurant-pdv/orders/:id/close", () => {
       .send({ payments });
 
     expect(response.status).toBe(200);
-    expect(closeOrderMock).toHaveBeenCalledWith("order-1", undefined, "waiter-1", payments);
+    expect(closeOrderMock).toHaveBeenCalledWith(
+      "order-1",
+      undefined,
+      "waiter-1",
+      payments,
+      "test-unit-id",
+    );
   });
 
   it("mantém o fechamento simples com forma de pagamento única", async () => {
@@ -42,7 +48,13 @@ describe("POST /restaurant-pdv/orders/:id/close", () => {
       .send({ paymentMethod: "pix" });
 
     expect(response.status).toBe(200);
-    expect(closeOrderMock).toHaveBeenCalledWith("order-1", "pix", "waiter-1", undefined);
+    expect(closeOrderMock).toHaveBeenCalledWith(
+      "order-1",
+      "pix",
+      "waiter-1",
+      undefined,
+      "test-unit-id",
+    );
   });
 
   it("rejeita método de pagamento inválido dentro de payments", async () => {

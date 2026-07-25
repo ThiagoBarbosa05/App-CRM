@@ -25,10 +25,11 @@ export const transferOrderItemsController = async (req: Request, res: Response) 
       parsed.data.itemIds,
       parsed.data.targetOrderId,
       actorId,
+      req.pdvUnitId,
     );
     return res.json({ message: "Itens transferidos" });
   } catch (error: any) {
-    if (error?.code === "NOT_FOUND") {
+    if (error?.code === "NOT_FOUND" || error?.code === "FORBIDDEN") {
       return res.status(404).json({ message: error.message });
     }
     if (

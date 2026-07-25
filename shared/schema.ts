@@ -2463,8 +2463,15 @@ export const restaurantMenuItems = pgTable("restaurant_menu_items", {
  * abertura: a receita pertence ao caixa que recebeu o dinheiro, e não ao que
  * estava aberto quando a mesa sentou (mesa aberta 23h e fechada 1h).
  *
- * Só existe uma sessão aberta por vez — garantido pelo índice parcial
- * `restaurant_cash_sessions_single_open`, não por regra de aplicação.
+ * Um caixa aberto por operador POR UNIDADE — garantido pelo índice parcial
+ * `restaurant_cash_sessions_one_open_per_user_unit`, declarado abaixo e criado
+ * por `scripts/create-restaurant-pdv-constraints.mjs`.
+ *
+ * A forma do índice decide o multi-unidade: versões anteriores desta regra eram
+ * globais por `status` (um caixa no sistema inteiro) ou por `opened_by` apenas
+ * (gestor sem caixa em duas unidades) — ambas divergiam de
+ * `getCurrentSession(userId, unitId)`. Confirme a definição real com
+ * `node scripts/diagnose-restaurant-pdv-constraints.mjs` antes de confiar.
  */
 export const restaurantCashSessions = pgTable(
   "restaurant_cash_sessions",
@@ -2503,6 +2510,17 @@ export const restaurantCashSessions = pgTable(
   },
   (table) => ({
     statusIdx: index("restaurant_cash_sessions_status_idx").on(table.status),
+    // Um caixa aberto por operador POR UNIDADE — a mesma chave que
+    // `getCurrentSession(userId, unitId)` usa. Criado por
+    // scripts/create-restaurant-pdv-constraints.mjs, que também remove as
+    // versões anteriores da regra (global por status, e por opened_by apenas).
+    oneOpenPerUserUnit: uniqueIndex("restaurant_cash_sessions_one_open_per_user_unit")
+      .on(table.openedBy, sql`COALESCE(unit_id, '-')`)
+      .where(sql`status = 'aberto'`),
+    openingFloatValid: check(
+      "restaurant_cash_sessions_opening_float_valid",
+      sql`${table.openingFloat} >= 0 AND ${table.openingFloat} <> 'NaN'::numeric`,
+    ),
   }),
 );
 
@@ -2526,6 +2544,10 @@ export const restaurantCashMovements = pgTable(
   },
   (table) => ({
     sessionIdx: index("restaurant_cash_movements_session_idx").on(table.sessionId),
+    amountValid: check(
+      "restaurant_cash_movements_amount_valid",
+      sql`${table.amount} > 0 AND ${table.amount} <> 'NaN'::numeric`,
+    ),
   }),
 );
 
@@ -2605,6 +2627,33 @@ export const restaurantOrders = pgTable(
   (table) => ({
     statusIdx: index("restaurant_orders_status_idx").on(table.status),
     tableIdx: index("restaurant_orders_table_idx").on(table.tableId),
+    // Uma comanda aberta por mesa — no banco, não na aplicação. `openOrder` faz
+    // check-then-insert, e duas aberturas simultâneas passam as duas pela
+    // checagem; só o índice único é avaliado dentro do commit.
+    // Criados por scripts/create-restaurant-pdv-constraints.mjs.
+    oneOpenPerTable: uniqueIndex("restaurant_orders_one_open_per_table")
+      .on(table.tableId)
+      .where(sql`status = 'aberta' AND table_id IS NOT NULL`),
+    // Mesa avulsa: a chave é (unidade, número). O COALESCE existe porque índice
+    // único não deduplica NULLs.
+    oneOpenPerLooseTable: uniqueIndex("restaurant_orders_one_open_per_loose_table")
+      .on(sql`COALESCE(unit_id, '-')`, table.tableNumber)
+      .where(sql`status = 'aberta' AND table_id IS NULL`),
+    discountPercentRange: check(
+      "restaurant_orders_discount_percent_range",
+      sql`${table.discountPercent} IS NULL OR (${table.discountPercent} >= 0 AND ${table.discountPercent} <= 100)`,
+    ),
+    // `<> 'NaN'` não é redundante: o Postgres aceita 'NaN' em coluna numeric e
+    // `'NaN' > 0` é verdadeiro, então um CHECK só de sinal deixaria passar
+    // exatamente o valor que envenena toda soma de caixa posterior.
+    discountAmountValid: check(
+      "restaurant_orders_discount_amount_valid",
+      sql`${table.discountAmount} IS NULL OR (${table.discountAmount} >= 0 AND ${table.discountAmount} <> 'NaN'::numeric)`,
+    ),
+    totalsValid: check(
+      "restaurant_orders_totals_valid",
+      sql`(${table.subtotal} IS NULL OR (${table.subtotal} >= 0 AND ${table.subtotal} <> 'NaN'::numeric)) AND (${table.total} IS NULL OR (${table.total} >= 0 AND ${table.total} <> 'NaN'::numeric)) AND (${table.serviceFeeAmount} IS NULL OR (${table.serviceFeeAmount} >= 0 AND ${table.serviceFeeAmount} <> 'NaN'::numeric))`,
+    ),
   }),
 );
 
@@ -2646,6 +2695,14 @@ export const restaurantOrderItems = pgTable(
       "restaurant_order_items_source_check",
       sql`(${table.menuItemId} IS NOT NULL)::int + (${table.productId} IS NOT NULL)::int <= 1`,
     ),
+    quantityPositive: check(
+      "restaurant_order_items_quantity_positive",
+      sql`${table.quantity} > 0`,
+    ),
+    unitPriceValid: check(
+      "restaurant_order_items_unit_price_valid",
+      sql`${table.unitPrice} >= 0 AND ${table.unitPrice} <> 'NaN'::numeric`,
+    ),
   }),
 );
 
@@ -2667,6 +2724,10 @@ export const restaurantOrderPayments = pgTable(
   },
   (table) => ({
     orderIdx: index("restaurant_order_payments_order_idx").on(table.orderId),
+    amountValid: check(
+      "restaurant_order_payments_amount_valid",
+      sql`${table.amount} > 0 AND ${table.amount} <> 'NaN'::numeric`,
+    ),
   }),
 );
 
@@ -2691,6 +2752,8 @@ export const restaurantOrderAuditLog = pgTable(
         "pagamento_cancelado",
         "comanda_fechada",
         "mesa_excluida",
+        "cliente_vinculado",
+        "pessoas_alteradas",
         "caixa_aberto",
         "caixa_fechado",
         "movimento_caixa",

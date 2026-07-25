@@ -8,7 +8,7 @@ export const cancelPaymentRequestController = async (req: Request, res: Response
     if (!actorId) {
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
-    const order = await restaurantPdvService.cancelPaymentRequest(id, actorId);
+    const order = await restaurantPdvService.cancelPaymentRequest(id, actorId, req.pdvUnitId);
     return res.json(order);
   } catch (error: any) {
     if (error?.code === "NOT_FOUND") {
