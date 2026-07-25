@@ -8,7 +8,7 @@ export const forceCancelOrderController = async (req: Request, res: Response) =>
     if (!actorId) {
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
-    await restaurantPdvService.forceCancelOrder(id, actorId);
+    await restaurantPdvService.forceCancelOrder(id, actorId, req.pdvUnitId);
     return res.status(200).json({ success: true });
   } catch (error: any) {
     if (error?.code === "NOT_FOUND") {

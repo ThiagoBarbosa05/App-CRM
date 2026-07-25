@@ -2,10 +2,7 @@ import { db } from "../db";
 import { restaurantOrderPayments } from "../../shared/schema";
 import { eq, and } from "drizzle-orm";
 import type { RestaurantOrderPayment } from "../../shared/schema";
-
-function toCents(value: string | number): number {
-  return Math.round(Number(value) * 100);
-}
+import { toCents, fromCents } from "../../shared/restaurant-order-totals";
 
 export const restaurantOrderPaymentsService = {
   async listPayments(orderId: string): Promise<RestaurantOrderPayment[]> {
@@ -24,12 +21,24 @@ export const restaurantOrderPaymentsService = {
       payerLabel?: string | null;
     },
   ): Promise<RestaurantOrderPayment> {
+    // `amount` vinha do cliente e era gravado cru. A coluna é `numeric`, que no
+    // Postgres aceita `'NaN'` — e `'NaN' > 0` é verdadeiro, então nem um CHECK
+    // no banco pegaria. `toCents` recusa NaN, vazio e texto; aqui sobra barrar
+    // zero e negativo, que são numeric perfeitamente válidos.
+    const amountCents = toCents(data.amount);
+    if (amountCents <= 0) {
+      throw Object.assign(
+        new Error("O valor do pagamento deve ser maior que zero"),
+        { code: "INVALID_AMOUNT" },
+      );
+    }
+
     const [created] = await db
       .insert(restaurantOrderPayments)
       .values({
         orderId,
         method: data.method,
-        amount: data.amount,
+        amount: fromCents(amountCents),
         payerLabel: data.payerLabel ?? null,
       })
       .returning();

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { restaurantPdvService } from "../../services/restaurant-pdv.service";
+import { positiveMoneyString } from "./money.schema";
 
 const closeOrderSchema = z.object({
   paymentMethod: z.enum(["pix", "cartao_credito", "cartao_debito", "dinheiro"]).optional(),
@@ -10,7 +11,7 @@ const closeOrderSchema = z.object({
     .array(
       z.object({
         method: z.enum(["pix", "cartao_credito", "cartao_debito", "dinheiro"]),
-        amount: z.string().min(1, "Valor é obrigatório"),
+        amount: positiveMoneyString,
         payerLabel: z.string().optional(),
       }),
     )
@@ -35,11 +36,15 @@ export const closeOrderController = async (req: Request, res: Response) => {
       parsed.data.paymentMethod,
       actorId,
       parsed.data.payments,
+      req.pdvUnitId,
     );
     return res.json(closed);
   } catch (error: any) {
-    if (error?.code === "NOT_FOUND") {
+    if (error?.code === "NOT_FOUND" || error?.code === "FORBIDDEN") {
       return res.status(404).json({ message: error.message });
+    }
+    if (error?.code === "INVALID_AMOUNT") {
+      return res.status(400).json({ message: error.message });
     }
     if (
       error?.code === "ORDER_CLOSED" ||

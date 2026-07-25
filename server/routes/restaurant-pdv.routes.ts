@@ -53,10 +53,8 @@ import {
   listPdvUnitUsersController,
 } from "../controllers/restaurant-pdv/pdv-units.controller";
 import { adminUnitsOverviewController } from "../controllers/restaurant-pdv/admin-units-overview.controller";
-import { db } from "../db";
-import { users } from "@shared/schema";
-import { eq } from "drizzle-orm";
 import { storage } from "../storage";
+import { resolvePdvUnit } from "../middleware/resolve-pdv-unit";
 
 export const restaurantPdvRouter = Router();
 
@@ -81,13 +79,16 @@ function requireGestor(req: Request, res: Response, next: NextFunction) {
 // Busca de produtos Bling — acessível ao garçom sem contexto de unidade
 restaurantPdvRouter.get("/products", requireGarcomOrGestor, async (req: Request, res: Response) => {
   try {
-    const { name, connectionId, category } = req.query;
+    const { name, connectionId, category, country } = req.query;
     const pageSize = parseInt(req.query.pageSize as string) || 50;
     const { data, total } = await storage.getProducts(
       {
         name: name as string | undefined,
         connectionId: connectionId as string | undefined,
         category: category as string | undefined,
+        // O frontend já mandava `country` (chips de país); a rota descartava
+        // silenciosamente, então clicar num chip não filtrava nada.
+        country: country as string | undefined,
       },
       1,
       pageSize,
@@ -158,41 +159,7 @@ restaurantPdvRouter.delete("/admin/orders/:id", requireGestor, async (req: Reque
 });
 
 // ── Middleware: resolve unidade PDV para todas as rotas abaixo ───────────────
-// Para garçom: busca pdv_unit_id do usuário no banco.
-// Para admin/gerente: lê o header X-PDV-Unit-Id enviado pelo frontend.
-restaurantPdvRouter.use(async (req: Request, res: Response, next: NextFunction) => {
-  const role = req.user?.role;
-  const userId = req.user?.userId;
-
-  if (!userId) return next(); // Rotas sem autenticação passam direto
-
-  if (role === "garcom") {
-    const [user] = await db
-      .select({ pdvUnitId: users.pdvUnitId })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!user?.pdvUnitId) {
-      return res.status(400).json({
-        message: "Garçom não vinculado a nenhuma unidade PDV. Fale com o administrador.",
-        code: "NO_PDV_UNIT",
-      });
-    }
-    req.pdvUnitId = user.pdvUnitId;
-  } else {
-    const unitId = req.headers["x-pdv-unit-id"] as string | undefined;
-    if (!unitId) {
-      return res.status(400).json({
-        message: "Selecione uma unidade PDV para continuar.",
-        code: "NO_PDV_UNIT",
-      });
-    }
-    req.pdvUnitId = unitId;
-  }
-
-  return next();
-});
+restaurantPdvRouter.use(resolvePdvUnit);
 
 // ── Mesas ────────────────────────────────────────────────────────────────────
 restaurantPdvRouter.get("/tables/map", requireGarcomOrGestor, listTablesMapController);
@@ -228,7 +195,9 @@ restaurantPdvRouter.get("/cash-sessions", requireGestor, listCashSessionsControl
 restaurantPdvRouter.post("/cash-sessions", requireGarcomOrGestor, openCashSessionController);
 restaurantPdvRouter.post("/cash-sessions/movements", requireGestor, addCashMovementController);
 restaurantPdvRouter.get("/cash-sessions/:id", requireGestor, getCashSessionController);
-restaurantPdvRouter.post("/cash-sessions/:id/close", requireGarcomOrGestor, closeCashSessionController);
+// Abrir o caixa é operação de turno (garçom pode); fechar é conferência de
+// dinheiro e responde por divergência, então fica com o gestor.
+restaurantPdvRouter.post("/cash-sessions/:id/close", requireGestor, closeCashSessionController);
 
 // ── Relatórios ────────────────────────────────────────────────────────────────
 restaurantPdvRouter.get("/reports/daily-summary", requireGestor, getDailySummaryController);

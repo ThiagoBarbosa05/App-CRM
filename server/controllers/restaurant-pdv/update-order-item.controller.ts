@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { restaurantPdvService } from "../../services/restaurant-pdv.service";
+import { moneyString } from "./money.schema";
 
 const updateItemSchema = z.object({
-  unitPrice: z.string().min(1).optional(),
+  unitPrice: moneyString.optional(),
   quantity: z.number().int().positive().optional(),
 });
 
@@ -33,14 +34,18 @@ export const updateOrderItemController = async (req: Request, res: Response) => 
       itemId,
       parsed.data,
       actorId,
+      req.pdvUnitId,
     );
     if (!updated) {
       return res.status(404).json({ message: "Item não encontrado" });
     }
     return res.json(updated);
   } catch (error: any) {
-    if (error?.code === "NOT_FOUND") {
+    if (error?.code === "NOT_FOUND" || error?.code === "FORBIDDEN") {
       return res.status(404).json({ message: error.message });
+    }
+    if (error?.code === "INVALID_AMOUNT") {
+      return res.status(400).json({ message: error.message });
     }
     if (error?.code === "ORDER_CLOSED" || error?.code === "PAYMENT_REQUESTED") {
       return res.status(409).json({ message: error.message });

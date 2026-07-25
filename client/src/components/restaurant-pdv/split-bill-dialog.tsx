@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, parseBRL } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,13 +105,20 @@ export function SplitBillDialog({
     }
   }, [open]);
 
-  const peopleTotalCents = peopleRows.reduce(
-    (sum, r) => sum + Math.round((Number(r.amount) || 0) * 100),
+  // `parseBRL` e não `Number`: o separador decimal em pt-BR é a vírgula, e
+  // `Number("33,34")` é NaN. O valor virava 0 em silêncio, a soma nunca fechava
+  // e o botão ficava travado sem dizer por quê.
+  const peopleAmounts = peopleRows.map((r) => parseBRL(r.amount));
+  const peopleTotalCents = peopleAmounts.reduce<number>(
+    (sum, amount) => sum + Math.round((amount ?? 0) * 100),
     0,
   );
   const peopleTotal = peopleTotalCents / 100;
   const peopleMatchesTotal = peopleTotalCents === Math.round(total * 100);
-  const peopleValid = peopleMatchesTotal && peopleRows.every((r) => r.method);
+  const peopleValid =
+    peopleMatchesTotal &&
+    peopleRows.every((r) => r.method) &&
+    peopleAmounts.every((amount) => amount !== null && amount > 0);
 
   const itemGroupTotals = useMemo(() => {
     const groupSubtotalsCents = itemGroups.map((_, groupIndex) =>
@@ -141,9 +148,11 @@ export function SplitBillDialog({
 
   const handleConfirmPeople = () => {
     onConfirm(
-      peopleRows.map((r) => ({
+      peopleRows.map((r, i) => ({
         method: r.method,
-        amount: r.amount,
+        // Normaliza para o formato que a API aceita (ponto decimal, 2 casas) —
+        // antes o texto digitado ia cru para o backend.
+        amount: (peopleAmounts[i] ?? 0).toFixed(2),
         payerLabel: r.payerLabel,
       })),
     );
@@ -197,13 +206,30 @@ export function SplitBillDialog({
                 <div key={i} className="flex items-center gap-2">
                   <span className="w-20 shrink-0 text-sm text-muted-foreground">{row.payerLabel}</span>
                   <Input
-                    className="w-24"
+                    className={
+                      peopleAmounts[i] === null ? "w-24 border-red-500" : "w-24"
+                    }
                     value={row.amount}
                     onChange={(e) => {
                       const next = [...peopleRows];
                       next[i] = { ...next[i], amount: e.target.value };
                       setPeopleRows(next);
                     }}
+                    onBlur={() => {
+                      // Normaliza no blur para o operador ver o valor que será
+                      // efetivamente cobrado, em vez de descobrir só no erro.
+                      const parsed = peopleAmounts[i];
+                      if (parsed === null) return;
+                      const next = [...peopleRows];
+                      next[i] = { ...next[i], amount: parsed.toFixed(2) };
+                      setPeopleRows(next);
+                    }}
+                    aria-invalid={peopleAmounts[i] === null}
+                    title={
+                      peopleAmounts[i] === null
+                        ? "Valor inválido — use vírgula ou ponto, ex.: 33,34"
+                        : undefined
+                    }
                   />
                   <Select
                     value={row.method}

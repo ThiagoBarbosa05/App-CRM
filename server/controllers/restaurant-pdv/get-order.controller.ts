@@ -4,7 +4,7 @@ import { restaurantPdvService } from "../../services/restaurant-pdv.service";
 export const getOrderController = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const order = await restaurantPdvService.getOrderWithItems(id);
+    const order = await restaurantPdvService.getOrderWithItems(id, req.pdvUnitId);
     if (!order) {
       return res.status(404).json({ message: "Comanda não encontrada" });
     }

@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRightLeft,
   Clock,
@@ -110,7 +111,13 @@ export default function RestaurantPos() {
     setCart([]);
   }, [activeOrderId]);
 
-  const { data: order, isLoading: isLoadingOrder } = useQuery<RestaurantOrderWithItems>({
+  const {
+    data: order,
+    isLoading: isLoadingOrder,
+    isError: isOrderError,
+    error: orderError,
+    refetch: refetchOrder,
+  } = useQuery<RestaurantOrderWithItems>({
     queryKey: ["/api/restaurant-pdv/orders", activeOrderId],
     enabled: !!activeOrderId,
     // Duas pessoas podem atender a mesma mesa; sem isto, os lançamentos de uma
@@ -127,6 +134,22 @@ export default function RestaurantPos() {
       queryKey: ["/api/restaurant-pdv/orders", activeOrderId],
     });
     queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+  };
+
+  /**
+   * Fechar/mesclar comanda mexe em mais coisa que o mapa de mesas: o cache da
+   * própria comanda continuava marcando-a como aberta, e "Últimas vendas
+   * fechadas" só atualizava no poll de 15s. Existiam três cópias divergentes
+   * desta invalidação — foi assim que a divergência passou despercebida.
+   */
+  const invalidateAfterClose = () => {
+    invalidateOrder();
+    queryClient.invalidateQueries({
+      queryKey: ["/api/restaurant-pdv/cash-sessions/current/orders"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/restaurant-pdv/cash-sessions/current"],
+    });
   };
 
   const requestPaymentMutation = useMutation({
@@ -155,22 +178,6 @@ export default function RestaurantPos() {
     onSuccess: invalidateOrder,
     onError: (err: Error) => {
       toast({ title: "Erro ao cancelar pedido", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const addItemMutation = useMutation({
-    mutationFn: async (data: {
-      menuItemId?: string | null;
-      productId?: string | null;
-      name: string;
-      unitPrice: string;
-      quantity: number;
-    }) => {
-      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/items`, data);
-    },
-    onSuccess: invalidateOrder,
-    onError: (err: Error) => {
-      toast({ title: "Erro ao adicionar item", description: err.message, variant: "destructive" });
     },
   });
 
@@ -261,7 +268,7 @@ export default function RestaurantPos() {
     },
     onSuccess: () => {
       toast({ title: "Comanda fechada", description: "Venda registrada com sucesso!" });
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+      invalidateAfterClose();
       setActiveOrder(null);
       setPaymentMethod("");
     },
@@ -283,7 +290,7 @@ export default function RestaurantPos() {
     },
     onSuccess: () => {
       toast({ title: "Comanda fechada", description: "Conta dividida com sucesso!" });
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+      invalidateAfterClose();
       setSplitDialogOpen(false);
       setActiveOrder(null);
       setPaymentMethod("");
@@ -325,7 +332,7 @@ export default function RestaurantPos() {
     },
     onSuccess: () => {
       toast({ title: "Mesas mescladas com sucesso" });
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
+      invalidateAfterClose();
       setMergeDialogOpen(false);
       setActiveOrder(null);
     },
@@ -359,7 +366,6 @@ export default function RestaurantPos() {
           name: product.name,
           unitPrice: product.negotiatedPrice,
           quantity: 1,
-          menuItemId: null,
           productId: product.id,
         },
       ];
@@ -503,8 +509,32 @@ export default function RestaurantPos() {
           <div className="flex-1 overflow-auto">
             <TableMapGrid onOrderOpened={(id) => setActiveOrder(id)} />
           </div>
-        ) : isLoadingOrder || !order ? (
+        ) : isLoadingOrder ? (
           <div className="p-6 text-center text-muted-foreground">Carregando comanda...</div>
+        ) : isOrderError || !order ? (
+          // Sem este ramo a tela ficava presa em "Carregando comanda..." para
+          // sempre: com `retry: false` global, qualquer 404 (outro garçom
+          // fechou a mesa), 400 ou 500 deixa `isLoading` falso e `order`
+          // indefinido, sem toast e sem saída.
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+            <AlertCircle className="h-10 w-10 text-muted-foreground/40" />
+            <div>
+              <p className="font-medium">Não foi possível carregar a comanda</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {orderError instanceof Error
+                  ? orderError.message
+                  : "Ela pode ter sido fechada por outro operador."}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => refetchOrder()}>
+                Tentar novamente
+              </Button>
+              <Button size="sm" onClick={() => setActiveOrder(null)}>
+                Voltar às mesas
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="flex flex-1 flex-col overflow-hidden">
             {/* ── Mesa sub-header ─────────────────────────────── */}
@@ -683,6 +713,7 @@ export default function RestaurantPos() {
                   onUpdateItemQuantity={(itemId, quantity) =>
                     updateItemMutation.mutate({ itemId, data: { quantity } })
                   }
+                  updateItemPending={updateItemMutation.isPending}
                   onUpdateItemPrice={(itemId, unitPrice) =>
                     updateItemMutation.mutate({ itemId, data: { unitPrice } })
                   }

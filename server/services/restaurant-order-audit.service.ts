@@ -8,20 +8,12 @@ export interface RestaurantOrderAuditLogWithActor extends RestaurantOrderAuditLo
   actorName: string;
 }
 
-export type OrderAuditAction =
-  | "item_cancelado"
-  | "item_editado"
-  | "desconto_aplicado"
-  | "desconto_removido"
-  | "itens_transferidos"
-  | "mesas_mescladas"
-  | "pagamento_solicitado"
-  | "pagamento_cancelado"
-  | "comanda_fechada"
-  | "mesa_excluida"
-  | "caixa_aberto"
-  | "caixa_fechado"
-  | "movimento_caixa";
+/**
+ * Derivado do schema em vez de reescrito: esta lista já existiu como união
+ * literal própria e saiu de sincronia com `restaurantOrderAuditLog.action`,
+ * fazendo ação válida no banco não compilar aqui.
+ */
+export type OrderAuditAction = RestaurantOrderAuditLog["action"];
 
 export const restaurantOrderAuditService = {
   async logOrderAudit(

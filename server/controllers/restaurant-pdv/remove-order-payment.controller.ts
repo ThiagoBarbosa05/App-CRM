@@ -5,7 +5,7 @@ import { restaurantOrderPaymentsService } from "../../services/restaurant-order-
 export const removeOrderPaymentController = async (req: Request, res: Response) => {
   try {
     const { id: orderId, paymentId } = req.params;
-    await restaurantPdvService.assertOrderOpen(orderId);
+    await restaurantPdvService.assertOrderOpen(orderId, req.pdvUnitId);
     await restaurantOrderPaymentsService.removePayment(orderId, paymentId);
     return res.json({ message: "Pagamento removido" });
   } catch (error: any) {

@@ -19,7 +19,7 @@ export const cancelOrderItemController = async (req: Request, res: Response) => 
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
 
-    await restaurantPdvService.cancelItem(orderId, itemId, parsed.data.reason, actorId);
+    await restaurantPdvService.cancelItem(orderId, itemId, parsed.data.reason, actorId, req.pdvUnitId);
     return res.json({ message: "Item cancelado" });
   } catch (error: any) {
     if (error?.code === "NOT_FOUND") {

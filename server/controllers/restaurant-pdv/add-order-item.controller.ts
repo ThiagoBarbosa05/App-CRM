@@ -1,13 +1,16 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { restaurantPdvService } from "../../services/restaurant-pdv.service";
+import { moneyString } from "./money.schema";
 
 const addItemSchema = z
   .object({
     menuItemId: z.string().optional().nullable(),
     productId: z.string().optional().nullable(),
     name: z.string().min(1, "Nome é obrigatório"),
-    unitPrice: z.string().min(1, "Valor é obrigatório"),
+    // Item de cardápio e de catálogo têm o preço relido do banco no service;
+    // este valor só prevalece no item avulso.
+    unitPrice: moneyString,
     quantity: z.number().int().positive().default(1),
     notes: z.string().optional().nullable(),
   })
@@ -23,10 +26,15 @@ export const addOrderItemController = async (req: Request, res: Response) => {
       return res.status(400).json({ message: parsed.error.errors[0].message });
     }
 
-    const item = await restaurantPdvService.addItem(orderId, parsed.data);
+    const item = await restaurantPdvService.addItem(
+      orderId,
+      parsed.data,
+      req.pdvUnitId,
+      req.user?.userId,
+    );
     return res.status(201).json(item);
   } catch (error: any) {
-    if (error?.code === "NOT_FOUND") {
+    if (error?.code === "NOT_FOUND" || error?.code === "FORBIDDEN") {
       return res.status(404).json({ message: error.message });
     }
     if (error?.code === "ORDER_CLOSED" || error?.code === "PAYMENT_REQUESTED") {
@@ -34,7 +42,8 @@ export const addOrderItemController = async (req: Request, res: Response) => {
     }
     if (
       error?.code === "NO_BLING_CONNECTION" ||
-      error?.code === "PRODUCT_NOT_LINKED"
+      error?.code === "PRODUCT_NOT_LINKED" ||
+      error?.code === "INVALID_AMOUNT"
     ) {
       return res.status(400).json({ message: error.message });
     }
