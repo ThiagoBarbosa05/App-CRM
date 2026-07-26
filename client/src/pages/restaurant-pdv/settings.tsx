@@ -45,9 +45,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
+import { cn } from "@/lib/utils";
 
 const SETTINGS_KEY = ["/api/restaurant-pdv/settings"];
 const UNITS_KEY = ["/api/restaurant-pdv/units"];
+
+/** O que GET /units devolve: a unidade + o catálogo Bling resolvido pelo servidor. */
+type PdvUnitWithCatalog = PdvUnit & {
+  blingAccountName: string | null;
+  blingProductCount: number;
+};
 
 const formSchema = z.object({
   companyName: z.string().min(1, "Informe o nome da empresa"),
@@ -86,6 +93,38 @@ type UnitFormValues = z.infer<typeof unitFormSchema>;
 
 function normalizePercent(val: string) {
   return val.replace(",", ".");
+}
+
+/**
+ * Mostra o catálogo Bling da unidade sem precisar abrir cada uma. O caso
+ * "vinculada mas com 0 produtos" ganha destaque: é ele que faz o PDV parecer
+ * quebrado, já que o garçom não consegue lançar nenhum item de catálogo.
+ */
+function CatalogBadge({ unit }: { unit: PdvUnitWithCatalog }) {
+  if (!unit.blingConnectionId) {
+    return (
+      <Badge variant="outline" className="text-xs font-normal">
+        Sem catálogo Bling
+      </Badge>
+    );
+  }
+  const isEmpty = unit.blingProductCount === 0;
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "text-xs font-normal",
+        isEmpty
+          ? "border-amber-500/50 text-amber-700 dark:text-amber-500"
+          : "border-emerald-500/50 text-emerald-700 dark:text-emerald-500",
+      )}
+    >
+      {unit.blingAccountName ?? "Conta Bling"} ·{" "}
+      {isEmpty
+        ? "catálogo vazio, sincronize os produtos"
+        : `${unit.blingProductCount} produtos`}
+    </Badge>
+  );
 }
 
 function UnitDialog({
@@ -307,7 +346,7 @@ export default function PdvSettingsPage() {
   });
 
   /* ── Unidades ─────────────────────────────────────────────────────────── */
-  const { data: units = [] } = useQuery<PdvUnit[]>({ queryKey: UNITS_KEY });
+  const { data: units = [] } = useQuery<PdvUnitWithCatalog[]>({ queryKey: UNITS_KEY });
 
   const deactivateUnit = useMutation({
     mutationFn: async (id: string) => apiRequest("DELETE", `/api/restaurant-pdv/units/${id}`),
@@ -413,6 +452,9 @@ export default function PdvSettingsPage() {
                 {unit.cnpj && (
                   <span className="text-xs text-muted-foreground">{unit.cnpj}</span>
                 )}
+                <div className="mt-1">
+                  <CatalogBadge unit={unit} />
+                </div>
               </div>
               <div className="flex items-center gap-1 shrink-0 ml-2">
                 <Button

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { pdvUnitsService } from "../../services/pdv-units.service";
+import { blingConnectionsService } from "../../services/bling-connections.service";
 import { db } from "../../db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -11,13 +12,32 @@ const createUnitSchema = z.object({
   phone: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   footerMessage: z.string().optional().nullable(),
+  // null = desvincular o catálogo Bling da unidade.
+  blingConnectionId: z.string().optional().nullable(),
   defaultServiceFeePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   waiterCommissionPercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
 });
 
+/**
+ * O dropdown do frontend já só oferece contas conectadas, mas a conexão pode ter
+ * sido revogada com o modal aberto — e uma conexão inválida aqui vira um PDV com
+ * catálogo vazio, sem erro visível. Retorna a mensagem de erro ou null.
+ */
+async function validateBlingConnection(
+  connectionId: string | null | undefined,
+): Promise<string | null> {
+  if (!connectionId) return null;
+  const connection = await blingConnectionsService.getById(connectionId);
+  if (!connection) return "Conta Bling não encontrada";
+  if (connection.status !== "connected") {
+    return "Conta Bling não está conectada";
+  }
+  return null;
+}
+
 export const listPdvUnitsController = async (_req: Request, res: Response) => {
   try {
-    const units = await pdvUnitsService.listUnits();
+    const units = await pdvUnitsService.listUnitsWithCatalog();
     return res.json(units);
   } catch (err) {
     console.error("Erro ao listar unidades:", err);
@@ -31,12 +51,17 @@ export const createPdvUnitController = async (req: Request, res: Response) => {
     if (!parsed.success) {
       return res.status(400).json({ message: parsed.error.errors[0].message });
     }
+    const blingError = await validateBlingConnection(parsed.data.blingConnectionId);
+    if (blingError) {
+      return res.status(400).json({ message: blingError });
+    }
     const unit = await pdvUnitsService.createUnit({
       name: parsed.data.name,
       cnpj: parsed.data.cnpj ?? null,
       phone: parsed.data.phone ?? null,
       address: parsed.data.address ?? null,
       footerMessage: parsed.data.footerMessage ?? null,
+      blingConnectionId: parsed.data.blingConnectionId ?? null,
       defaultServiceFeePercent: parsed.data.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: parsed.data.waiterCommissionPercent ?? "0.00",
       isActive: true,
@@ -53,6 +78,10 @@ export const updatePdvUnitController = async (req: Request, res: Response) => {
     const parsed = createUnitSchema.partial().safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ message: parsed.error.errors[0].message });
+    }
+    const blingError = await validateBlingConnection(parsed.data.blingConnectionId);
+    if (blingError) {
+      return res.status(400).json({ message: blingError });
     }
     const unit = await pdvUnitsService.updateUnit(req.params.id, parsed.data);
     if (!unit) return res.status(404).json({ message: "Unidade não encontrada" });

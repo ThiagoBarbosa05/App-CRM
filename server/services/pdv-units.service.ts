@@ -1,7 +1,13 @@
 import { db } from "../db";
-import { pdvUnits } from "../../shared/schema";
-import { eq } from "drizzle-orm";
+import { pdvUnits, blingConnections, blingProductMappings } from "../../shared/schema";
+import { eq, sql } from "drizzle-orm";
 import type { PdvUnit, InsertPdvUnit } from "../../shared/schema";
+
+/** Unidade + qual conta Bling ela usa e quantos produtos do CRM estão nesse catálogo. */
+export type PdvUnitWithCatalog = PdvUnit & {
+  blingAccountName: string | null;
+  blingProductCount: number;
+};
 
 export const pdvUnitsService = {
   async listUnits(activeOnly = false): Promise<PdvUnit[]> {
@@ -10,6 +16,38 @@ export const pdvUnitsService = {
       .from(pdvUnits)
       .where(activeOnly ? eq(pdvUnits.isActive, true) : undefined)
       .orderBy(pdvUnits.name);
+  },
+
+  async listUnitsWithCatalog(activeOnly = false): Promise<PdvUnitWithCatalog[]> {
+    const counts = db
+      .select({
+        connectionId: blingProductMappings.connectionId,
+        total: sql<number>`count(*)::int`.as("total"),
+      })
+      .from(blingProductMappings)
+      .groupBy(blingProductMappings.connectionId)
+      .as("counts");
+
+    const rows = await db
+      .select({
+        unit: pdvUnits,
+        // blingAccountName é preenchido no OAuth; cai para o nome da conexão quando ausente.
+        blingAccountName: sql<
+          string | null
+        >`coalesce(${blingConnections.blingAccountName}, ${blingConnections.name})`,
+        blingProductCount: sql<number>`coalesce(${counts.total}, 0)`,
+      })
+      .from(pdvUnits)
+      .leftJoin(blingConnections, eq(blingConnections.id, pdvUnits.blingConnectionId))
+      .leftJoin(counts, eq(counts.connectionId, pdvUnits.blingConnectionId))
+      .where(activeOnly ? eq(pdvUnits.isActive, true) : undefined)
+      .orderBy(pdvUnits.name);
+
+    return rows.map(({ unit, blingAccountName, blingProductCount }) => ({
+      ...unit,
+      blingAccountName,
+      blingProductCount,
+    }));
   },
 
   async getUnit(id: string): Promise<PdvUnit | null> {
