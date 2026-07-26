@@ -283,6 +283,7 @@ interface WaMessage {
   content: string | null;
   caption: string | null;
   status: string | null;
+  statusReason?: string | null;
   replyToMessageId: string | null;
   replyToContent: string | null;
   replyToType: string | null;
@@ -4480,6 +4481,9 @@ function ConversationMessages({
                   const isOutbound = msg.direction === "outbound";
                   const isFailed = isOutbound && msg.status === "failed";
                   const isRetrying = retryingIds.has(msg.id);
+                  // Erro 463 do Baileys (conta restrita pelo WhatsApp): reenviar conta
+                  // como novo "reach-out" e piora a restrição — nunca oferecer retry.
+                  const isAccountRestricted = isFailed && msg.statusReason === "account_restricted";
                   const isMedia =
                     msg.type === "image" ||
                     msg.type === "video" ||
@@ -4577,8 +4581,19 @@ function ConversationMessages({
                         </div>
                       )}
 
-                      {/* Botão de reenvio à esquerda da bolha (só para falhas) */}
-                      {isFailed && (
+                      {/* Conta restrita pelo WhatsApp (463): sem botão de reenvio — reenviar piora a restrição */}
+                      {isAccountRestricted && (
+                        <span
+                          className="shrink-0 mb-1 flex items-center gap-1 text-[11px] text-red-500 dark:text-red-400 max-w-[140px]"
+                          title="O WhatsApp restringiu este número para novas conversas. Reenviar agrava a restrição — aguarde ou use outro canal."
+                        >
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span className="leading-tight">Número restrito pelo WhatsApp — não reenvie</span>
+                        </span>
+                      )}
+
+                      {/* Botão de reenvio à esquerda da bolha (só para falhas comuns) */}
+                      {isFailed && !isAccountRestricted && (
                         <button
                           onClick={() => handleRetry(msg.id)}
                           disabled={isRetrying}
@@ -4784,7 +4799,12 @@ function ConversationMessages({
                               {time}
                             </span>
                             {isFailed ? (
-                              <AlertCircle className="h-3 w-3 text-red-400 dark:text-red-500" />
+                              <AlertCircle
+                                className="h-3 w-3 text-red-400 dark:text-red-500"
+                                {...(isAccountRestricted
+                                  ? { title: "Número restrito pelo WhatsApp — não reenvie" }
+                                  : {})}
+                              />
                             ) : isOutbound ? (
                               <CheckCheck
                                 className={cn(

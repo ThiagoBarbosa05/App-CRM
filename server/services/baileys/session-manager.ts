@@ -480,7 +480,10 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
   sock.ev.on("messages.update", async (updates: WAMessageUpdate[]) => {
     const mapped = updates.map((u) => ({
       key: u.key,
-      update: { status: mapBaileysStatus(u.update?.status as number | undefined) },
+      update: {
+        status: mapBaileysStatus(u.update?.status as number | undefined),
+        messageStubParameters: u.update?.messageStubParameters,
+      },
     }));
     await handleMessagesUpdate(mapped).catch(console.error);
   });

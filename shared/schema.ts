@@ -5115,6 +5115,7 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   content: text("content"),
   caption: text("caption"),
   status: text("status", { enum: ["sent", "delivered", "read", "failed"] }),
+  statusReason: text("status_reason"),
   replyToMessageId: text("reply_to_message_id"),
   rawPayload: jsonb("raw_payload"),
   sentByUserId: varchar("sent_by_user_id").references(() => users.id),

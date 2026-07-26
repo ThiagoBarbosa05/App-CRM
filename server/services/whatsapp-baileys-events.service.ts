@@ -150,10 +150,25 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
 
 // ── messages.update ────────────────────────────────────────────────────────────
 
+// Erro 463 do Baileys ("account restricted or missing tctoken") — WhatsApp
+// bloqueia novos "reach-outs" para o número. Não há retry possível: reenviar
+// conta como novo reach-out e piora a restrição (ver docs/diagnostico-canal-eventos-erro-463.md).
+const ACCOUNT_RESTRICTION_MARKERS = ["463", "Your account has been restricted"];
+
+function isAccountRestrictionError(messageStubParameters: unknown): boolean {
+  if (!Array.isArray(messageStubParameters)) return false;
+  return messageStubParameters.some(
+    (p) => typeof p === "string" && ACCOUNT_RESTRICTION_MARKERS.includes(p),
+  );
+}
+
 export async function handleMessagesUpdate(data: unknown) {
   const updates = Array.isArray(data) ? data : [data];
   for (const update of updates) {
-    const u = update as { key?: { id?: string }; update?: { status?: string } };
+    const u = update as {
+      key?: { id?: string };
+      update?: { status?: string; messageStubParameters?: unknown };
+    };
     const waMessageId = u.key?.id;
     const status = u.update?.status?.toLowerCase();
     if (!waMessageId || !status) continue;
@@ -168,12 +183,20 @@ export async function handleMessagesUpdate(data: unknown) {
     const mapped = statusMap[status] ?? status;
     if (!["sent", "delivered", "read", "failed"].includes(mapped)) continue;
 
+    const statusReason =
+      mapped === "failed" && isAccountRestrictionError(u.update?.messageStubParameters)
+        ? "account_restricted"
+        : undefined;
+
     const { db } = await import("../db");
     const { whatsappMessages } = await import("../../shared/schema");
     const { eq } = await import("drizzle-orm");
     await db
       .update(whatsappMessages)
-      .set({ status: mapped as "sent" | "delivered" | "read" | "failed" })
+      .set({
+        status: mapped as "sent" | "delivered" | "read" | "failed",
+        ...(statusReason ? { statusReason } : {}),
+      })
       .where(eq(whatsappMessages.waMessageId, waMessageId))
       .catch((err) => console.error("[Baileys Events] Erro ao atualizar status:", err));
   }

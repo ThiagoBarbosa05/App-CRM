@@ -1490,6 +1490,7 @@ export async function getConversation(
       content: whatsappMessages.content,
       caption: whatsappMessages.caption,
       status: whatsappMessages.status,
+      statusReason: whatsappMessages.statusReason,
       replyToMessageId: whatsappMessages.replyToMessageId,
       sentByUserId: whatsappMessages.sentByUserId,
       campaignMessageId: whatsappMessages.campaignMessageId,
@@ -1677,10 +1678,13 @@ export async function sendConversationMessage(
       waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
     }
 
+    // Guard: se um nack tardio (ex.: erro 463 — conta restrita) já gravou um
+    // motivo de falha nesta mensagem entre o insert e aqui, não sobrescrever
+    // com "sent" — o motivo registrado é mais preciso que o ack de envio.
     await db
       .update(whatsappMessages)
       .set({ status: "sent", waMessageId })
-      .where(eq(whatsappMessages.id, savedMessage.id));
+      .where(and(eq(whatsappMessages.id, savedMessage.id), isNull(whatsappMessages.statusReason)));
 
     // Publica o evento SSE somente após o status "sent" estar gravado no banco,
     // evitando que o frontend refaça a query e veja status "failed" prematuramente
@@ -2254,7 +2258,7 @@ export async function retryFailedMessage(
       await db
         .update(whatsappMessages)
         .set({ status: "sent", waMessageId: tplWaId, sentAt: new Date() })
-        .where(eq(whatsappMessages.id, messageId));
+        .where(and(eq(whatsappMessages.id, messageId), isNull(whatsappMessages.statusReason)));
       if (conv.id) {
         publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
       }
@@ -2306,7 +2310,7 @@ export async function retryFailedMessage(
     await db
       .update(whatsappMessages)
       .set({ status: "sent", waMessageId, sentAt: new Date() })
-      .where(eq(whatsappMessages.id, messageId));
+      .where(and(eq(whatsappMessages.id, messageId), isNull(whatsappMessages.statusReason)));
 
     if (conv.id) {
       publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
