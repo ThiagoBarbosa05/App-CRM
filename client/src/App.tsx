@@ -54,6 +54,7 @@ const WhatsAppChannels = lazy(() => import("@/pages/whatsapp/channels"));
 const WhatsAppAttendants = lazy(() => import("@/pages/whatsapp/attendants"));
 const WhatsAppBotsList = lazy(() => import("@/pages/whatsapp/bots-list"));
 const WhatsAppBotHistory = lazy(() => import("@/pages/whatsapp/bot-history"));
+const WhatsAppMessageLog = lazy(() => import("@/pages/whatsapp/message-log"));
 const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
 const WhatsAppConversations = lazy(() => import("@/pages/whatsapp/conversations"));
 const WhatsAppMetaMonitor = lazy(() => import("@/pages/whatsapp/meta-monitor"));
@@ -93,6 +94,7 @@ function WhatsAppSection() {
           <Route path="/whatsapp/atendentes" component={WhatsAppAttendants} />
           <Route path="/whatsapp/bots" component={WhatsAppBotsList} />
           <Route path="/whatsapp/historico-bots" component={WhatsAppBotHistory} />
+          <Route path="/whatsapp/log-mensagens" component={WhatsAppMessageLog} />
           <Route path="/whatsapp/conversas" component={WhatsAppConversations} />
           <Route path="/whatsapp/monitor" component={WhatsAppMetaMonitor} />
         </Switch>

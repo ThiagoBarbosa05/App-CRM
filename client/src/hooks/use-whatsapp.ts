@@ -304,6 +304,89 @@ export function useWhatsappBotDispatchHistory(filters: BotDispatchHistoryFilters
   });
 }
 
+// ---- Message log ----
+
+export interface WhatsappMessageLogRow {
+  id: string;
+  direction: "inbound" | "outbound";
+  type: string;
+  content: string | null;
+  caption: string | null;
+  status: "sent" | "delivered" | "read" | "failed" | null;
+  statusReason: string | null;
+  conversationId: string;
+  contactPhone: string;
+  contactName: string | null;
+  clientId: string | null;
+  clientName: string | null;
+  channelId: number | null;
+  channelName: string | null;
+  channelProvider: string | null;
+  channelDisplayPhone: string | null;
+  sentByUserId: string | null;
+  sentByUserName: string | null;
+  campaignMessageId: string | null;
+  campaignId: string | null;
+  campaignName: string | null;
+  effectiveAt: string;
+  createdAt: string;
+}
+
+export interface WhatsappMessageLogResult {
+  rows: WhatsappMessageLogRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface WhatsappMessageLogFilters {
+  direction?: "inbound" | "outbound";
+  status?: "sent" | "delivered" | "read" | "failed";
+  origin?: "manual" | "campaign";
+  channelIds?: number[];
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  pageSize: number;
+}
+
+// Considerado "recente" para fins de polling — mensagem enviada há mais tempo
+// que isso não deve mais mudar de status, então não vale a pena repollar.
+const MESSAGE_LOG_POLL_WINDOW_MS = 10 * 60 * 1000;
+
+export function useWhatsappMessageLog(filters: WhatsappMessageLogFilters) {
+  return useQuery<WhatsappMessageLogResult>({
+    queryKey: ["whatsapp", "message-log", filters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.direction) params.set("direction", filters.direction);
+      if (filters.status) params.set("status", filters.status);
+      if (filters.origin) params.set("origin", filters.origin);
+      filters.channelIds?.forEach((id) => params.append("channelIds", String(id)));
+      if (filters.search) params.set("search", filters.search);
+      if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+      if (filters.dateTo) params.set("dateTo", filters.dateTo);
+      params.set("page", String(filters.page));
+      params.set("pageSize", String(filters.pageSize));
+      const res = await fetch(`/api/whatsapp/message-log?${params}`);
+      if (!res.ok) throw new Error("Erro ao buscar log de mensagens");
+      return res.json();
+    },
+    refetchInterval: (query) => {
+      const data = query.state.data as WhatsappMessageLogResult | undefined;
+      if (!data) return false;
+      const now = Date.now();
+      const hasPending = data.rows.some((row) => {
+        const isFinal = row.status === "read" || row.status === "failed";
+        if (isFinal) return false;
+        return now - new Date(row.effectiveAt).getTime() < MESSAGE_LOG_POLL_WINDOW_MS;
+      });
+      return hasPending ? 4000 : false;
+    },
+  });
+}
+
 export function useExecuteCampaign() {
   const { toast } = useToast();
   return useMutation({

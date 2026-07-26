@@ -186,9 +186,14 @@ async function handleMessageStatus(status: {
     console.error("[WA Webhook] Erro ao atualizar status de campanha:", err),
   );
 
+  const statusReason =
+    status.status === "failed" && status.errors?.length
+      ? (status.errors[0].message || status.errors[0].title)?.slice(0, 500)
+      : undefined;
+
   await db
     .update(whatsappMessages)
-    .set({ status: status.status })
+    .set({ status: status.status, ...(statusReason ? { statusReason } : {}) })
     .where(eq(whatsappMessages.waMessageId, status.id))
     .catch((err) =>
       console.error("[WA Webhook] Erro ao atualizar status de conversa:", err),
