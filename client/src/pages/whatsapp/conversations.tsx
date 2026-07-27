@@ -3774,12 +3774,16 @@ function ConversationMessages({
     async (messageId: string, emoji: string) => {
       setReactingToId(null);
       try {
+        // sendAsChannelId (não selectedChannelId): numa caixa de diálogo
+        // interno desdobrado, selectedChannelId é o canal DONO da conversa —
+        // igual nas duas caixas. A reação tem que "assinar" pelo lado desta
+        // caixa, como já fazem texto/mídia/template.
         const body: { emoji: string; channelId?: number } = { emoji };
         if (
           (userRole === "admin" || userRole === "gerente") &&
-          selectedChannelId != null
+          sendAsChannelId != null
         ) {
-          body.channelId = selectedChannelId;
+          body.channelId = sendAsChannelId;
         }
         await fetch(
           `/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/reaction`,
@@ -3796,7 +3800,7 @@ function ConversationMessages({
         toast({ title: "Erro ao reagir à mensagem", variant: "destructive" });
       }
     },
-    [conversationKey, queryClient, selectedChannelId, toast, userRole],
+    [conversationKey, queryClient, sendAsChannelId, toast, userRole],
   );
 
   const stopRecording = useCallback(() => {

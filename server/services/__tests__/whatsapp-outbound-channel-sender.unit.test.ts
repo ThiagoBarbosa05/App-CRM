@@ -60,7 +60,7 @@ vi.mock("../whatsapp-channels.service", () => ({
 }));
 
 import { db } from "../../db";
-import { resolveOutboundChannelForSender } from "../whatsapp-conversations.service";
+import { resolveOutboundChannelForSender, retryActAsChannelId } from "../whatsapp-conversations.service";
 
 /** Monta o mock de `db.select(...).from(...).where(...).limit(1)` devolvendo `rows`. */
 function mockConversationRow(row: Record<string, unknown> | undefined) {
@@ -183,5 +183,129 @@ describe("resolveOutboundChannelForSender", () => {
 
     expect(result?.channelId).toBe(7);
     expect(result?.direction).toBe("outbound");
+  });
+});
+
+// O 3º parâmetro é o que faz o supervisor conseguir enviar/reagir pela caixa de
+// um lado específico do par (diálogo interno desdobrado em duas entradas na
+// lista). Sem estes casos, ele não tinha cobertura nenhuma.
+describe("resolveOutboundChannelForSender — actAsChannelId (supervisor pela caixa de um lado)", () => {
+  beforeEach(() => {
+    listChannelIdsForUserMock.mockReset();
+    getChannelIdentityByIdMock.mockReset();
+    resolveChannelByIdMock.mockReset();
+    resolveChannelForConversationMock.mockReset();
+  });
+
+  it("supervisor sem canal próprio, actAs = PEER: assina pelo peer, inbound, destino = telefone do dono", async () => {
+    mockConversationRow({ channelId: 7, peerChannelId: 12, phone: "+5522996212581" });
+    resolveChannelByIdMock.mockResolvedValue(CLOUD_CHANNEL(12));
+    getChannelIdentityByIdMock.mockResolvedValue({ id: 7, name: "Eventos", displayPhone: "+5521989014965" });
+
+    const result = await resolveOutboundChannelForSender("conv-8", "thiago", 12);
+
+    expect(result).toEqual({
+      channel: CLOUD_CHANNEL(12),
+      channelId: 12,
+      direction: "inbound",
+      targetPhone: "+5521989014965",
+    });
+    // Override explícito curto-circuita a inferência por participação.
+    expect(listChannelIdsForUserMock).not.toHaveBeenCalled();
+  });
+
+  it("supervisor sem canal próprio, actAs = DONO: dono, outbound, destino = conv.phone", async () => {
+    mockConversationRow({ channelId: 7, peerChannelId: 12, phone: "+5522996212581" });
+    resolveChannelForConversationMock.mockResolvedValue(CLOUD_CHANNEL(7));
+
+    const result = await resolveOutboundChannelForSender("conv-9", "thiago", 7);
+
+    expect(result).toEqual({
+      channel: CLOUD_CHANNEL(7),
+      channelId: 7,
+      direction: "outbound",
+      targetPhone: "+5522996212581",
+    });
+    expect(listChannelIdsForUserMock).not.toHaveBeenCalled();
+    expect(resolveChannelByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("actAs de um canal FORA do par é ignorado — cai na inferência por participação", async () => {
+    mockConversationRow({ channelId: 7, peerChannelId: 12, phone: "+5522996212581" });
+    listChannelIdsForUserMock.mockResolvedValue([12]);
+    resolveChannelByIdMock.mockResolvedValue(CLOUD_CHANNEL(12));
+    getChannelIdentityByIdMock.mockResolvedValue({ id: 7, name: "Eventos", displayPhone: "+5521989014965" });
+
+    const result = await resolveOutboundChannelForSender("conv-10", "televendas", 99);
+
+    expect(listChannelIdsForUserMock).toHaveBeenCalledWith("televendas");
+    expect(result?.channelId).toBe(12);
+    expect(result?.direction).toBe("inbound");
+  });
+
+  it("override vence a participação: atendente do lado DONO com actAs = peer assina pelo peer", async () => {
+    mockConversationRow({ channelId: 7, peerChannelId: 12, phone: "+5522996212581" });
+    resolveChannelByIdMock.mockResolvedValue(CLOUD_CHANNEL(12));
+    getChannelIdentityByIdMock.mockResolvedValue({ id: 7, name: "Eventos", displayPhone: "+5521989014965" });
+
+    const result = await resolveOutboundChannelForSender("conv-11", "daiane", 12);
+
+    expect(result?.channelId).toBe(12);
+    expect(result?.direction).toBe("inbound");
+  });
+
+  it("conversa EXTERNA: actAs é ignorado por completo — dono/outbound", async () => {
+    mockConversationRow({ channelId: 5, peerChannelId: null, phone: "5511999998888" });
+    resolveChannelForConversationMock.mockResolvedValue(CLOUD_CHANNEL(5));
+
+    const result = await resolveOutboundChannelForSender("conv-12", "thiago", 999);
+
+    expect(result?.channelId).toBe(5);
+    expect(result?.direction).toBe("outbound");
+    expect(resolveChannelByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("actAs = peer mas o DONO não tem displayPhone: sem destino conhecido, cai no dono/outbound", async () => {
+    mockConversationRow({ channelId: 7, peerChannelId: 12, phone: "+5522996212581" });
+    resolveChannelByIdMock.mockResolvedValue(CLOUD_CHANNEL(12));
+    getChannelIdentityByIdMock.mockResolvedValue({ id: 7, name: "Eventos", displayPhone: null });
+    resolveChannelForConversationMock.mockResolvedValue(CLOUD_CHANNEL(7));
+
+    const result = await resolveOutboundChannelForSender("conv-13", "thiago", 12);
+
+    expect(result?.channelId).toBe(7);
+    expect(result?.direction).toBe("outbound");
+  });
+});
+
+describe("retryActAsChannelId", () => {
+  // Diálogo interno canônico: dono Eventos (7), peer Búzios (12).
+  const internal = { channelId: 7, peerChannelId: 12 };
+
+  it("usa o snapshot channel_id da mensagem quando existe (lado peer)", () => {
+    expect(retryActAsChannelId({ channelId: 12, direction: "inbound" }, internal)).toBe(12);
+  });
+
+  it("usa o snapshot channel_id da mensagem quando existe (lado dono)", () => {
+    expect(retryActAsChannelId({ channelId: 7, direction: "outbound" }, internal)).toBe(7);
+  });
+
+  it("linha antiga sem channel_id, interna e inbound: reenvia como PEER", () => {
+    expect(retryActAsChannelId({ channelId: null, direction: "inbound" }, internal)).toBe(12);
+  });
+
+  it("linha antiga sem channel_id, interna e outbound: reenvia como DONO", () => {
+    expect(retryActAsChannelId({ channelId: null, direction: "outbound" }, internal)).toBe(7);
+  });
+
+  it("conversa externa sem channel_id: sempre o dono, mesmo com direction inbound", () => {
+    const external = { channelId: 5, peerChannelId: null };
+    expect(retryActAsChannelId({ channelId: null, direction: "inbound" }, external)).toBe(5);
+  });
+
+  it("conversa sem canal nenhum: undefined (o retry aborta com erro de canal ausente)", () => {
+    expect(
+      retryActAsChannelId({ channelId: null, direction: "outbound" }, { channelId: null, peerChannelId: null }),
+    ).toBeUndefined();
   });
 });

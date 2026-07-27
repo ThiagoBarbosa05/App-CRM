@@ -22,7 +22,7 @@ import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fet
 import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
-import { getChannelById, getChannelForConversation, resolveChannelForConversation, resolveChannelById, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
+import { getChannelById, resolveChannelForConversation, resolveChannelById, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
 import type { ResolvedChannel, ChannelIdentity } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
@@ -287,6 +287,29 @@ export function resolvePerspectiveOverride(
     return asChannelId;
   }
   return null;
+}
+
+/**
+ * Qual canal deve "assinar" o REENVIO de uma mensagem que falhou. Um retry não
+ * é um envio novo: tem que sair do MESMO lado que tentou enviar da primeira
+ * vez, não do lado de quem clicou em "reenviar" — senão, num diálogo interno
+ * canal↔canal, a mensagem do peer volta pelo canal DONO, chega ao destinatário
+ * errado e continua gravada como "inbound" (a UI segue mostrando como se fosse
+ * do peer, embora o dono é que tenha enviado).
+ *
+ * `whatsapp_messages.channel_id` é o snapshot do canal de origem e resolve o
+ * caso normal. Quando é null (linhas antigas, anteriores à coluna), cai na
+ * direção: uma mensagem com status=failed só existe porque o CRM tentou
+ * enviá-la, e `direction` é relativa ao dono — logo "inbound" numa conversa
+ * interna significa que quem enviou foi o lado PEER. Pura, testável sem banco.
+ */
+export function retryActAsChannelId(
+  msg: { channelId: number | null; direction: "inbound" | "outbound" },
+  conv: { channelId: number | null; peerChannelId: number | null },
+): number | undefined {
+  if (msg.channelId != null) return msg.channelId;
+  if (conv.peerChannelId != null && msg.direction === "inbound") return conv.peerChannelId;
+  return conv.channelId ?? undefined;
 }
 
 /** Condição SQL que casa uma conversa pelo telefone em qualquer forma conhecida
@@ -2199,6 +2222,10 @@ export async function retryFailedMessage(
   const [msg] = await db
     .select({
       id: whatsappMessages.id,
+      // channelId/direction alimentam retryActAsChannelId — o reenvio tem que
+      // sair pelo lado que originalmente tentou enviar.
+      channelId: whatsappMessages.channelId,
+      direction: whatsappMessages.direction,
       content: whatsappMessages.content,
       type: whatsappMessages.type,
       caption: whatsappMessages.caption,
@@ -2235,7 +2262,13 @@ export async function retryFailedMessage(
   }
 
   const [conv] = await db
-    .select({ id: whatsappConversations.id, phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
+    .select({
+      id: whatsappConversations.id,
+      phone: whatsappConversations.phone,
+      clientId: whatsappConversations.clientId,
+      channelId: whatsappConversations.channelId,
+      peerChannelId: whatsappConversations.peerChannelId,
+    })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .where(and(...whereConditions))
@@ -2246,18 +2279,27 @@ export async function retryFailedMessage(
     return null;
   }
 
-  // Resolve o canal vinculado à conversa (imutável). Sem canal, NÃO reenvia —
-  // não pode cair no número global (mandaria pelo número errado).
-  const resolvedChannel = await resolveOutboundChannel(conversationId);
-  if (!resolvedChannel) {
+  // Reenvia SEMPRE pelo lado que originalmente tentou enviar (ver
+  // retryActAsChannelId) — não pelo lado de quem clicou em reenviar. Num
+  // diálogo interno isso decide tanto o canal quanto o DESTINO: mandar para
+  // conv.phone estando no lado peer seria mandar para o próprio número.
+  // Sem canal resolvível, NÃO reenvia — cair no número global mandaria pelo
+  // número errado.
+  const resolved = await resolveOutboundChannelForSender(
+    conversationId,
+    userId,
+    retryActAsChannelId(msg, conv),
+  );
+  if (!resolved) {
     throw new Error(
       "Conversa sem canal de envio configurado — não é possível reenviar. Verifique o canal vinculado à conversa.",
     );
   }
+  const resolvedChannel = resolved.channel;
   const cloudOverride = resolvedChannel.provider === "cloud_api"
     ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
     : undefined;
-  console.log(`[retryFailedMessage] phone=${conv.phone} provider=${resolvedChannel.provider}`);
+  console.log(`[retryFailedMessage] to=${resolved.targetPhone} channelId=${resolved.channelId} provider=${resolvedChannel.provider}`);
 
   try {
     let result: unknown;
@@ -2278,16 +2320,19 @@ export async function retryFailedMessage(
       }
       console.log(`[retryFailedMessage] replay template="${payload.templateName}"`);
       const tplResult = await sendTemplateMessage(
-        conv.phone,
+        resolved.targetPhone,
         payload.templateName,
         payload.language ?? "pt_BR",
         payload.components ?? [],
         cloudOverride,
       );
       const tplWaId = ((tplResult as { messages?: Array<{ id?: string }> })?.messages)?.[0]?.id ?? null;
+      // channelId grava o snapshot do canal de origem em linhas antigas que
+      // ainda não o tinham. `direction` NÃO é tocada: continua relativa ao
+      // dono, que é o que directionForViewer espera.
       await db
         .update(whatsappMessages)
-        .set({ status: "sent", waMessageId: tplWaId, sentAt: new Date() })
+        .set({ status: "sent", waMessageId: tplWaId, sentAt: new Date(), channelId: resolved.channelId })
         .where(and(eq(whatsappMessages.id, messageId), isNull(whatsappMessages.statusReason)));
       if (conv.id) {
         publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
@@ -2316,7 +2361,7 @@ export async function retryFailedMessage(
       const mediaType = mediaTypeMap[msg.type!] ?? "document";
       console.log(`[retryFailedMessage] sendMediaMessage type=${mediaType} waMediaId=${msg.waMediaId}`);
       result = await sendMediaMessage(
-        conv.phone,
+        resolved.targetPhone,
         msg.waMediaId,
         mediaType,
         msg.caption ?? undefined,
@@ -2327,19 +2372,20 @@ export async function retryFailedMessage(
       if (!msg.content) throw new Error("Conteúdo da mensagem ausente para reenvio");
       console.log(`[retryFailedMessage] reenvio texto content="${msg.content}"`);
       if (resolvedChannel.provider === "evolution") {
-        const evoResult = await evoSendText(resolvedChannel.evolutionInstanceName, conv.phone, msg.content);
+        const evoResult = await evoSendText(resolvedChannel.evolutionInstanceName, resolved.targetPhone, msg.content);
         result = { messages: [{ id: evoResult?.key?.id ?? null }] };
       } else {
-        result = await sendTextMessage(conv.phone, msg.content, cloudOverride);
+        result = await sendTextMessage(resolved.targetPhone, msg.content, cloudOverride);
       }
     }
 
     console.log(`[retryFailedMessage] envio OK:`, JSON.stringify(result));
     const waMessageId = ((result as { messages?: Array<{ id?: string }> })?.messages)?.[0]?.id ?? null;
 
+    // channelId: ver comentário no ramo de template acima.
     await db
       .update(whatsappMessages)
-      .set({ status: "sent", waMessageId, sentAt: new Date() })
+      .set({ status: "sent", waMessageId, sentAt: new Date(), channelId: resolved.channelId })
       .where(and(eq(whatsappMessages.id, messageId), isNull(whatsappMessages.statusReason)));
 
     if (conv.id) {
@@ -2763,8 +2809,11 @@ export async function sendConversationReaction(
     if (scope) whereConditions.push(scope);
   }
 
+  // Sem `phone` de propósito: o destino da reação sai de
+  // resolveOutboundChannelForSender (relativo ao lado que envia), nunca de
+  // conv.phone — que é o número do PEER e só serve ao lado dono.
   const [conv] = await db
-    .select({ id: whatsappConversations.id, phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
+    .select({ id: whatsappConversations.id, clientId: whatsappConversations.clientId })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .where(and(...whereConditions))
@@ -2785,33 +2834,45 @@ export async function sendConversationReaction(
 
   if (!targetMsg?.waMessageId) return null;
 
-  // Canal explícito (override do admin/gerente via seletor) tem prioridade;
-  // senão usa sempre o canal atual da conversa — igual ao texto/mídia/template,
-  // sem preferir o canal pessoal do atendente. Se o remetente for vendedor,
-  // valida que o canal pedido está no escopo dele antes de usar suas
-  // credenciais — evita reagir "no nome" de um canal alheio.
-  let channelOverride = null;
-  if (channelId != null) {
-    let allowed = true;
-    if (userRole === "vendedor") {
-      const allowedChannelIds = await listChannelIdsForUser(userId);
-      allowed = allowedChannelIds.includes(channelId);
-    }
-    if (allowed) {
-      const ch = await getChannelById(channelId).catch(() => null);
-      if (ch && ch.phoneNumberId && ch.accessToken) channelOverride = { phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
-    }
-  } else {
-    channelOverride = await getChannelForConversation(conversationId).catch(() => null);
+  // Canal, DIREÇÃO e destino saem de UMA única resolução — mesmo contrato de
+  // texto/mídia/template (ver sendConversationMessage). Antes eram duas
+  // resoluções independentes (credencial x direção) que podiam divergir: era
+  // exatamente esse o bug. Admin/gerente podem "assinar" pela caixa em que
+  // estão (channelId); para os demais o override é ignorado aqui, e
+  // resolveOutboundChannelForSender só o honra se for um dos DOIS canais do
+  // par — não há como reagir por um canal alheio à conversa.
+  const actAsChannelId =
+    userRole === "admin" || userRole === "gerente" ? channelId : undefined;
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId, actAsChannelId);
+  if (!resolved) {
+    throw new Error(
+      "Conversa sem canal de envio configurado — não é possível reagir. Verifique o canal vinculado à conversa.",
+    );
+  }
+  const resolvedChannel = resolved.channel;
+
+  // Reação só existe na API da Meta; o Evolution/Baileys não tem endpoint de
+  // reação nesta base. Antes deste guard o override caía em null e sendReaction
+  // saía pelo número GLOBAL com um waMessageId do Baileys que a Meta não
+  // conhece — erro opaco em vez de mensagem legível. Mesmo padrão do template.
+  if (resolvedChannel.provider !== "cloud_api") {
+    throw new Error(
+      "Reações só podem ser enviadas pelo canal oficial do WhatsApp (Cloud API).",
+    );
   }
 
-  await sendReaction(conv.phone, targetMsg.waMessageId, emoji, channelOverride ?? undefined);
+  // Destino é o do lado que está reagindo, não conv.phone: conv.phone é o
+  // número do PEER (ver canonicalInternalPair), então reagir pelo lado peer
+  // mandando para conv.phone seria mandar para o próprio número.
+  await sendReaction(resolved.targetPhone, targetMsg.waMessageId, emoji, {
+    phoneNumberId: resolvedChannel.phoneNumberId,
+    accessToken: resolvedChannel.accessToken,
+  });
 
-  // A reação, assim como a mensagem (ver resolveOutboundChannelForSender), tem
-  // que ser gravada com a direção relativa ao DONO da conversa — sem isso, uma
-  // reação do atendente do lado peer ficaria marcada "outbound" incondicional,
-  // e o leitor do lado dono veria como se fosse dele mesmo.
-  const reactionDirection = (await resolveOutboundChannelForSender(conversationId, userId))?.direction ?? "outbound";
+  // Direção relativa ao DONO, vinda da MESMA resolução que escolheu o canal —
+  // as duas não podem divergir: a linha é unique(messageId, direction) e um
+  // onConflictDoUpdate com a direção errada SOBRESCREVE a reação do outro lado.
+  const reactionDirection = resolved.direction;
 
   if (!emoji) {
     await db
