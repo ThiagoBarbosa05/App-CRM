@@ -6614,27 +6614,6 @@ export default function WhatsAppConversationsPage() {
     }
   }, [clientList, phoneParam]);
 
-  // Quando quoteId está presente e uma conversa é selecionada, busca o PDF
-  // do orçamento e o coloca como anexo pendente — uma única vez por navegação.
-  useEffect(() => {
-    if (!quoteIdParam || quotePdfFetchedRef.current || !selectedClient) return;
-    quotePdfFetchedRef.current = true;
-    (async () => {
-      try {
-        const res = await fetch(`/api/quotes/${quoteIdParam}/pdf`, { credentials: "include" });
-        if (!res.ok) return;
-        const blob = await res.blob();
-        const cd = res.headers.get("Content-Disposition") ?? "";
-        const nameMatch = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        const filename = nameMatch ? nameMatch[1].replace(/['"]/g, "") : `orcamento-${quoteIdParam}.pdf`;
-        setPendingQuoteFile(new File([blob], filename, { type: "application/pdf" }));
-      } catch {
-        // silencia — o usuário pode anexar manualmente se falhar
-      }
-    })();
-  }, [quoteIdParam, selectedClient]);
-
-
   const markRead = useCallback(
     async (id: string, asChannelId?: number | null) => {
       try {
@@ -6734,6 +6713,26 @@ export default function WhatsAppConversationsPage() {
       : null;
   selectedConversationIdRef.current = selectedClient?.conversationId ?? null;
   selectedPerspectiveChannelIdRef.current = selectedClient?.perspectiveChannelId ?? null;
+
+  // Quando quoteId está presente e uma conversa é selecionada, busca o PDF
+  // do orçamento e o coloca como anexo pendente — uma única vez por navegação.
+  useEffect(() => {
+    if (!quoteIdParam || quotePdfFetchedRef.current || !selectedClient) return;
+    quotePdfFetchedRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/quotes/${quoteIdParam}/pdf`, { credentials: "include" });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const cd = res.headers.get("Content-Disposition") ?? "";
+        const nameMatch = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        const filename = nameMatch ? nameMatch[1].replace(/['"]/g, "") : `orcamento-${quoteIdParam}.pdf`;
+        setPendingQuoteFile(new File([blob], filename, { type: "application/pdf" }));
+      } catch {
+        // silencia — o usuário pode anexar manualmente se falhar
+      }
+    })();
+  }, [quoteIdParam, selectedClient]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Marca que a página inteira de conversas está montada (independente de
   // qual conversa está selecionada) — o hook global de notificações usa isso
