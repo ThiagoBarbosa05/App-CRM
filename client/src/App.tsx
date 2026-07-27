@@ -37,6 +37,8 @@ import CalculadoraVinho from "./pages/calculadora-vinho";
 import EventsPage from "./pages/events";
 import TarefasPage from "./pages/tarefas";
 import MarketingGastosPage from "./pages/marketing-gastos";
+import OrcamentosPage from "./pages/orcamentos";
+import OrcamentoEditor from "./pages/orcamento-editor";
 import RankingPage from "./pages/ranking";
 import CopilotoPage from "./pages/copiloto";
 import TelemarketingPage from "./pages/telemarketing";
@@ -390,6 +392,30 @@ function Router() {
         component={() => (
           <MainLayout>
             <MarketingGastosPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/orcamentos/novo"
+        component={() => (
+          <MainLayout>
+            <OrcamentoEditor />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/orcamentos/:id"
+        component={() => (
+          <MainLayout>
+            <OrcamentoEditor />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/orcamentos"
+        component={() => (
+          <MainLayout>
+            <OrcamentosPage />
           </MainLayout>
         )}
       />

@@ -5664,3 +5664,47 @@ export const marketingBudgets = pgTable("marketing_budgets", {
 
 export type MarketingBudget = typeof marketingBudgets.$inferSelect;
 export type InsertMarketingBudget = typeof marketingBudgets.$inferInsert;
+
+// ─── Quotes (Orçamentos) ──────────────────────────────────────────────────────
+
+export const quotes = pgTable("quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteNumber: text("quote_number").notNull().default(sql`'ORC-' || LPAD(nextval('quotes_number_seq')::TEXT, 4, '0')`),
+  clientId: varchar("client_id").references(() => clients.id),
+  clientName: text("client_name"),
+  clientPhone: text("client_phone"),
+  assignedToId: varchar("assigned_to_id").references(() => users.id),
+  status: text("status", {
+    enum: ["draft", "sent", "accepted", "rejected", "converted", "cancelled"],
+  }).notNull().default("draft"),
+  validUntil: date("valid_until"),
+  paymentConditions: text("payment_conditions").notNull().default("avista"),
+  notes: text("notes"),
+  globalDiscount: decimal("global_discount", { precision: 12, scale: 2 }).notNull().default("0"),
+  globalDiscountType: text("global_discount_type", { enum: ["percent", "fixed"] }).notNull().default("percent"),
+  subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
+  total: decimal("total", { precision: 12, scale: 2 }).notNull().default("0"),
+  convertedSaleId: varchar("converted_sale_id"),
+  createdById: varchar("created_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const quoteItems = pgTable("quote_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull().references(() => quotes.id, { onDelete: "cascade" }),
+  productId: varchar("product_id").references(() => products.id),
+  productName: text("product_name").notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 3 }).notNull().default("1"),
+  unitPrice: decimal("unit_price", { precision: 12, scale: 2 }).notNull().default("0"),
+  discount: decimal("discount", { precision: 12, scale: 2 }).notNull().default("0"),
+  discountType: text("discount_type", { enum: ["percent", "fixed"] }).notNull().default("percent"),
+  lineTotal: decimal("line_total", { precision: 12, scale: 2 }).notNull().default("0"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Quote = typeof quotes.$inferSelect;
+export type InsertQuote = typeof quotes.$inferInsert;
+export type QuoteItem = typeof quoteItems.$inferSelect;
+export type InsertQuoteItem = typeof quoteItems.$inferInsert;

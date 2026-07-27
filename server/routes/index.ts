@@ -110,6 +110,7 @@ import { restaurantPdvRouter } from "./restaurant-pdv.routes";
 import { productGoalsRouter } from "./product-goals.routes";
 import { wineryGoalsRouter } from "./winery-goals.routes";
 import { categoryGoalsRouter } from "./category-goals.routes";
+import { quotesRouter } from "./quotes.routes";
 
 /**
  * Router principal que organiza todos os routers de domínio
@@ -251,6 +252,7 @@ apiRouter.use("/integrations/assertiva", assertivaRouter);
 apiRouter.use("/integrations/openai", openaiStatusRouter);
 apiRouter.use("/marketing", marketingRouter);
 apiRouter.use("/marketing-expenses", marketingExpensesRouter);
+apiRouter.use("/quotes", quotesRouter);
 apiRouter.use("/email-campaigns", emailCampaignsRouter);
 apiRouter.use("/sms-campaigns", smsCampaignsRouter);
 apiRouter.use("/zernio", zernioRouter);

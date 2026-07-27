@@ -47,6 +47,7 @@ import { migrateWineryGoals } from "./jobs/migrate-winery-goals";
 import { migrateCategoryGoals } from "./jobs/migrate-category-goals";
 import { migratePdvSettings } from "./jobs/migrate-pdv-settings";
 import { migrateOrderClient } from "./jobs/migrate-order-client";
+import { migrateQuotes } from "./jobs/migrate-quotes";
 import { redactPii } from "./lib/log-redaction";
 // import "./jobs/umbler-sync-scheduler";
 
@@ -189,6 +190,7 @@ app.use((req, res, next) => {
   migrateCategoryGoals().catch((err) => console.error("[Migrate] migrateCategoryGoals falhou:", err));
   migratePdvSettings().catch((err) => console.error("[Migrate] migratePdvSettings falhou:", err));
   migrateOrderClient().catch((err) => console.error("[Migrate] migrateOrderClient falhou:", err));
+  migrateQuotes().catch((err) => console.error("[Migrate] migrateQuotes falhou:", err));
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();
