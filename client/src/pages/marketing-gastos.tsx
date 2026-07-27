@@ -16,6 +16,8 @@ import {
   X,
   DollarSign,
   Plus,
+  Trash2,
+  ListFilter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -342,6 +344,23 @@ export default function MarketingGastosPage() {
     onError: (e: Error) =>
       toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
+
+  // Delete individual launch
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/marketing-expenses/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["marketing-expenses", year] });
+      toast({ title: "Lançamento excluído" });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" }),
+  });
+
+  // Filter state for the launches section
+  const [filterChannel, setFilterChannel] = useState<ChannelId | "all">("all");
+  const [filterMonth, setFilterMonth] = useState<number | 0>(0); // 0 = all months
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -831,6 +850,187 @@ export default function MarketingGastosPage() {
           </table>
         </CardContent>
       </Card>
+
+      {/* ── Lançamentos individuais ──────────────────────────────────────── */}
+      {(() => {
+        const filtered = [...expenses]
+          .filter((e) => filterChannel === "all" || e.channel === filterChannel)
+          .filter((e) => filterMonth === 0 || e.month === filterMonth)
+          .sort((a, b) => b.launchedAt.localeCompare(a.launchedAt));
+
+        const filteredTotal = filtered.reduce((s, e) => s + parseFloat(e.amount), 0);
+
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <CardTitle className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <ListFilter className="h-4 w-4 text-slate-400" />
+                  Lançamentos — {year}
+                  <span className="ml-1 text-xs font-normal text-slate-400">
+                    ({filtered.length} registro{filtered.length !== 1 ? "s" : ""})
+                  </span>
+                </CardTitle>
+
+                {/* Filters */}
+                <div className="flex gap-2 flex-wrap">
+                  {/* Channel filter */}
+                  <div className="flex rounded-lg border overflow-hidden text-xs">
+                    <button
+                      onClick={() => setFilterChannel("all")}
+                      className={cn(
+                        "px-2.5 py-1.5 font-medium transition-colors",
+                        filterChannel === "all"
+                          ? "bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-800"
+                          : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700",
+                      )}
+                    >
+                      Todos
+                    </button>
+                    {CHANNELS.map((ch) => (
+                      <button
+                        key={ch.id}
+                        onClick={() => setFilterChannel(ch.id)}
+                        className={cn(
+                          "px-2.5 py-1.5 font-medium transition-colors border-l flex items-center gap-1",
+                          filterChannel === ch.id
+                            ? "text-white"
+                            : "bg-white dark:bg-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700",
+                        )}
+                        style={filterChannel === ch.id ? { backgroundColor: ch.color } : {}}
+                      >
+                        <ch.Icon className="h-3 w-3" />
+                        {ch.short}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Month filter */}
+                  <select
+                    value={filterMonth}
+                    onChange={(e) => setFilterMonth(parseInt(e.target.value))}
+                    className="text-xs border rounded-lg px-2.5 py-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 outline-none focus:border-primary"
+                  >
+                    <option value={0}>Todos os meses</option>
+                    {MONTH_NAMES.map((name, i) => (
+                      <option key={i + 1} value={i + 1}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              {filtered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
+                  <DollarSign className="h-10 w-10 opacity-20" />
+                  <p className="text-sm">Nenhum lançamento encontrado</p>
+                  <Button size="sm" variant="outline" onClick={openNew} className="mt-1">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Novo Lançamento
+                  </Button>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-slate-50 dark:bg-slate-800/40 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      <th className="text-left px-4 py-2.5">Data</th>
+                      <th className="text-left px-4 py-2.5">Canal</th>
+                      <th className="text-right px-4 py-2.5">Valor</th>
+                      <th className="text-left px-4 py-2.5 hidden sm:table-cell">Observações</th>
+                      <th className="px-4 py-2.5 w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((e) => {
+                      const ch = CHANNELS.find((c) => c.id === e.channel);
+                      const isConfirming = confirmDeleteId === e.id;
+                      return (
+                        <tr
+                          key={e.id}
+                          className="border-b last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors"
+                        >
+                          {/* Data */}
+                          <td className="px-4 py-2.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                            {formatDateBR(e.launchedAt)}
+                          </td>
+
+                          {/* Canal */}
+                          <td className="px-4 py-2.5">
+                            {ch ? (
+                              <span
+                                className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium", ch.bg, ch.text)}
+                              >
+                                <ch.Icon className="h-3 w-3" />
+                                {ch.short}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">{e.channel}</span>
+                            )}
+                          </td>
+
+                          {/* Valor */}
+                          <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-800 dark:text-slate-100 whitespace-nowrap">
+                            {formatBRL(parseFloat(e.amount))}
+                          </td>
+
+                          {/* Observações */}
+                          <td className="px-4 py-2.5 text-slate-400 text-xs hidden sm:table-cell max-w-[200px] truncate">
+                            {e.notes || <span className="italic">—</span>}
+                          </td>
+
+                          {/* Excluir */}
+                          <td className="px-3 py-2.5 text-right">
+                            {isConfirming ? (
+                              <div className="flex items-center gap-1 justify-end">
+                                <span className="text-[10px] text-slate-500 whitespace-nowrap">Excluir?</span>
+                                <button
+                                  onClick={() => {
+                                    deleteMutation.mutate(e.id);
+                                    setConfirmDeleteId(null);
+                                  }}
+                                  className="p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteId(null)}
+                                  className="p-1 rounded text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDeleteId(e.id)}
+                                className="p-1.5 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors opacity-0 group-hover:opacity-100"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  {filtered.length > 0 && (
+                    <tfoot>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-t-2 border-slate-200 dark:border-slate-600">
+                        <td colSpan={2} className="px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          Total filtrado
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold font-mono text-slate-800 dark:text-slate-100">
+                          {formatBRL(filteredTotal)}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* ── Novo Lançamento Dialog ────────────────────────────────────────── */}
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
