@@ -211,140 +211,186 @@ async function recordSyncResult(
  * venda no Bling.
  */
 export async function sendOrderToBling(orderId: string): Promise<void> {
+  // `box` em vez de `let` direto: TypeScript não consegue estreitar (narrow) uma variável
+  // `let` reatribuída apenas dentro de uma closure aninhada seguida de `throw` — o resultado
+  // é um falso `never` no `if (pendingRecovery.value)` do catch externo. Um objeto mutável
+  // captado por referência não sofre esse problema de control-flow analysis.
+  const pendingRecovery: { value: { order: RestaurantOrder; blingSalesOrderIdStr: string } | null } = {
+    value: null,
+  };
+
   try {
     await db.transaction(async (tx) => {
-    const [order] = await tx
-      .select()
-      .from(restaurantOrders)
-      .where(and(eq(restaurantOrders.id, orderId), eq(restaurantOrders.status, "fechada")))
-      .for("update", { skipLocked: true });
+      const [order] = await tx
+        .select()
+        .from(restaurantOrders)
+        .where(and(eq(restaurantOrders.id, orderId), eq(restaurantOrders.status, "fechada")))
+        .for("update", { skipLocked: true });
 
-    if (!order) return;
+      if (!order) return;
 
-    if (!order.blingConnectionId) {
-      await recordSyncResult(tx, order, {
-        result: "bloqueado",
-        reason: "Comanda sem conta Bling vinculada (unidade sem catálogo configurado)",
-      });
-      return;
-    }
-    const connectionId = order.blingConnectionId;
-
-    const items = await tx
-      .select()
-      .from(restaurantOrderItems)
-      .where(
-        and(
-          eq(restaurantOrderItems.orderId, orderId),
-          eq(restaurantOrderItems.status, "ativo"),
-        ),
-      );
-
-    const productIds = items
-      .map((item) => item.productId)
-      .filter((id): id is string => !!id);
-
-    const mappingRows =
-      productIds.length > 0
-        ? await tx
-            .select({
-              productId: blingProductMappings.productId,
-              blingProductId: blingProductMappings.blingProductId,
-            })
-            .from(blingProductMappings)
-            .where(
-              and(
-                eq(blingProductMappings.connectionId, connectionId),
-                inArray(blingProductMappings.productId, productIds),
-              ),
-            )
-        : [];
-
-    const blingProductIdByProductId = new Map(
-      mappingRows.map((row) => [row.productId, row.blingProductId]),
-    );
-
-    const [contactBlingId, sellerBlingId] = await Promise.all([
-      resolveContactBlingId(tx, order, connectionId),
-      resolveSellerBlingId(tx, order, connectionId),
-    ]);
-
-    const resolved = resolveBlingSalesOrderPayload({
-      order,
-      items,
-      blingProductIdByProductId,
-      contactBlingId,
-      sellerBlingId,
-    });
-
-    if (!resolved.ok) {
-      await recordSyncResult(tx, order, { result: "bloqueado", reason: resolved.reason });
-      return;
-    }
-
-    try {
-      const connection = await blingConnectionsService.getById(connectionId);
-      if (!connection?.accessTokenEncrypted) {
-        throw new Error("Conexão Bling sem token de acesso");
+      if (!order.blingConnectionId) {
+        await recordSyncResult(tx, order, {
+          result: "bloqueado",
+          reason: "Comanda sem conta Bling vinculada (unidade sem catálogo configurado)",
+        });
+        return;
       }
+      const connectionId = order.blingConnectionId;
 
-      let accessToken = decryptToken(connection.accessTokenEncrypted);
-      const onTokenRefresh = async (): Promise<string> => {
-        await blingConnectionsService.refreshConnection(connectionId);
-        const refreshed = await blingConnectionsService.getById(connectionId);
-        if (!refreshed?.accessTokenEncrypted) {
-          throw new Error("Não foi possível renovar o token do Bling");
-        }
-        accessToken = decryptToken(refreshed.accessTokenEncrypted);
-        return accessToken;
-      };
+      const items = await tx
+        .select()
+        .from(restaurantOrderItems)
+        .where(
+          and(
+            eq(restaurantOrderItems.orderId, orderId),
+            eq(restaurantOrderItems.status, "ativo"),
+          ),
+        );
 
-      const { id: blingSalesOrderId } = await createBlingPedidoVenda(
-        accessToken,
-        resolved.payload,
-        onTokenRefresh,
+      const productIds = items
+        .map((item) => item.productId)
+        .filter((id): id is string => !!id);
+
+      const mappingRows =
+        productIds.length > 0
+          ? await tx
+              .select({
+                productId: blingProductMappings.productId,
+                blingProductId: blingProductMappings.blingProductId,
+              })
+              .from(blingProductMappings)
+              .where(
+                and(
+                  eq(blingProductMappings.connectionId, connectionId),
+                  inArray(blingProductMappings.productId, productIds),
+                ),
+              )
+          : [];
+
+      const blingProductIdByProductId = new Map(
+        mappingRows.map((row) => [row.productId, row.blingProductId]),
       );
-      const blingSalesOrderIdStr = String(blingSalesOrderId);
+
+      const [contactBlingId, sellerBlingId] = await Promise.all([
+        resolveContactBlingId(tx, order, connectionId),
+        resolveSellerBlingId(tx, order, connectionId),
+      ]);
+
+      const resolved = resolveBlingSalesOrderPayload({
+        order,
+        items,
+        blingProductIdByProductId,
+        contactBlingId,
+        sellerBlingId,
+      });
+
+      if (!resolved.ok) {
+        await recordSyncResult(tx, order, { result: "bloqueado", reason: resolved.reason });
+        return;
+      }
 
       try {
-        await recordSyncResult(tx, order, {
-          result: "enviado",
-          reason: null,
-          blingSalesOrderId: blingSalesOrderIdStr,
-          attempts: order.blingSyncAttempts,
-        });
-      } catch (recordErr) {
-        const recordErrMessage =
-          recordErr instanceof Error ? recordErr.message : String(recordErr);
-        console.error(
-          `[BlingSalesOrderSync] Pedido de venda ${blingSalesOrderIdStr} foi criado no Bling ` +
-            `para orderId ${order.id}, mas a gravação do resultado dentro da transação falhou ` +
-            `(${recordErrMessage}). Tentando gravação de fallback fora da transação para não ` +
-            `perder o id do pedido já criado.`,
+        const connection = await blingConnectionsService.getById(connectionId);
+        if (!connection?.accessTokenEncrypted) {
+          throw new Error("Conexão Bling sem token de acesso");
+        }
+
+        let accessToken = decryptToken(connection.accessTokenEncrypted);
+        const onTokenRefresh = async (): Promise<string> => {
+          await blingConnectionsService.refreshConnection(connectionId);
+          const refreshed = await blingConnectionsService.getById(connectionId);
+          if (!refreshed?.accessTokenEncrypted) {
+            throw new Error("Não foi possível renovar o token do Bling");
+          }
+          accessToken = decryptToken(refreshed.accessTokenEncrypted);
+          return accessToken;
+        };
+
+        const { id: blingSalesOrderId } = await createBlingPedidoVenda(
+          accessToken,
+          resolved.payload,
+          onTokenRefresh,
         );
-        // Retry on the plain, non-transactional `db` handle: `tx` is poisoned after the
-        // failed write above (Postgres aborts the whole transaction on any error), so any
-        // further statement on `tx` would fail too. `db` is a separate connection, unaffected
-        // by that abort, and is the only way left to persist the real Bling sales order id.
-        await recordSyncResult(db, order, {
-          result: "enviado",
-          reason: null,
-          blingSalesOrderId: blingSalesOrderIdStr,
-          attempts: order.blingSyncAttempts,
+        const blingSalesOrderIdStr = String(blingSalesOrderId);
+
+        try {
+          await recordSyncResult(tx, order, {
+            result: "enviado",
+            reason: null,
+            blingSalesOrderId: blingSalesOrderIdStr,
+            attempts: order.blingSyncAttempts,
+          });
+        } catch (recordErr) {
+          const recordErrMessage =
+            recordErr instanceof Error ? recordErr.message : String(recordErr);
+          console.error(
+            `[BlingSalesOrderSync] Pedido de venda ${blingSalesOrderIdStr} foi criado no Bling ` +
+              `para orderId ${order.id}, mas a gravação do resultado dentro da transação falhou ` +
+              `(${recordErrMessage}). A transação será revertida e o resultado será gravado ` +
+              `separadamente após a liberação do lock, para não duplicar o pedido e não travar ` +
+              `a linha indefinidamente.`,
+          );
+          // Não grava aqui: `tx` ainda segura o lock da linha (FOR UPDATE), e uma escrita numa
+          // conexão separada nesse momento ficaria esperando esse mesmo lock — um deadlock de
+          // aplicação que o Postgres não detecta (não há ciclo no nível do lock manager, só no
+          // nível do código). Em vez disso, guarda os dados e relança para que a transação
+          // reverta e libere o lock; a gravação de verdade acontece depois, fora do `tx`.
+          pendingRecovery.value = { order, blingSalesOrderIdStr };
+          throw recordErr;
+        }
+      } catch (err) {
+        if (pendingRecovery.value) {
+          // Este é o `recordErr` relançado acima — não tenta gravar "erro" numa tx já
+          // envenenada; a recuperação acontece fora, depois que a transação reverter.
+          throw err;
+        }
+        const attempts = order.blingSyncAttempts + 1;
+        const finalStatus = attempts >= MAX_SYNC_ATTEMPTS ? "bloqueado" : "erro";
+        await recordSyncResult(tx, order, {
+          result: "erro",
+          reason: err instanceof Error ? err.message : String(err),
+          attempts,
+          finalStatus,
         });
       }
-    } catch (err) {
-      const attempts = order.blingSyncAttempts + 1;
-      const finalStatus = attempts >= MAX_SYNC_ATTEMPTS ? "bloqueado" : "erro";
-      await recordSyncResult(tx, order, {
-        result: "erro",
-        reason: err instanceof Error ? err.message : String(err),
-        attempts,
-        finalStatus,
-      });
-    }
     });
   } catch (err) {
+    if (pendingRecovery.value) {
+      // O lock já foi liberado (a transação reverteu antes de chegar aqui). Grava o sucesso
+      // numa transação curta separada, para manter a atualização da comanda e a linha de
+      // auditoria atômicas entre si, sem segurar o lock original.
+      //
+      // Residual conhecido: entre o rollback acima e o commit desta transação de recuperação
+      // existe uma janela mínima em que um chamador concorrente poderia adquirir o lock (agora
+      // livre) e reenviar a mesma comanda ao Bling antes desta gravação terminar — bem mais
+      // estreita que a janela original (é a duração de uma escrita local, não de uma chamada
+      // HTTP externa), mas não nula. Fechar isso por completo exigiria uma chave de
+      // idempotência no payload do Bling ou um novo estado "em andamento", nenhum dos dois
+      // faz parte desta correção.
+      const { order, blingSalesOrderIdStr } = pendingRecovery.value;
+      try {
+        await db.transaction(async (recoveryTx) => {
+          await recordSyncResult(recoveryTx, order, {
+            result: "enviado",
+            reason: null,
+            blingSalesOrderId: blingSalesOrderIdStr,
+            attempts: order.blingSyncAttempts,
+          });
+        });
+      } catch (recoveryErr) {
+        const recoveryMessage =
+          recoveryErr instanceof Error ? recoveryErr.message : String(recoveryErr);
+        console.error(
+          `[BlingSalesOrderSync] Pedido de venda ${blingSalesOrderIdStr} foi criado no Bling ` +
+            `para orderId ${order.id}, mas não foi possível registrar isso mesmo após a ` +
+            `transação reverter (${recoveryMessage}). Nenhum registro foi persistido — ` +
+            `intervenção manual necessária para evitar duplicar o pedido no próximo retry.`,
+        );
+      }
+      return;
+    }
+
     const message = err instanceof Error ? err.message : String(err);
     console.error(
       `[BlingSalesOrderSync] Transação falhou para orderId ${orderId} — nenhum registro de sincronização foi persistido para esta comanda: ${message}`,
