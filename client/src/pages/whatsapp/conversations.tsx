@@ -3074,17 +3074,20 @@ function ConversationMessages({
   const { toast } = useToast();
 
   // Pré-carrega arquivo de anexo passado pelo componente pai (ex.: PDF do orçamento).
-  // O componente é remontado a cada troca de conversa, então o efeito roda uma vez por conversa.
+  // O PDF chega de forma assíncrona, então o efeito observa a prop initialFile.
+  // Um ref de guarda garante que o arquivo só é anexado uma vez por conversa,
+  // mesmo que o componente pai re-renderize com o mesmo arquivo.
+  const initialFileSentRef = useRef(false);
   useEffect(() => {
-    if (!initialFile) return;
+    if (!initialFile || initialFileSentRef.current) return;
+    initialFileSentRef.current = true;
     setPendingMedia({
       file: initialFile,
       url: URL.createObjectURL(initialFile),
       kind: "document",
     });
     setPendingMediaCaption("");
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialFile]);
 
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
