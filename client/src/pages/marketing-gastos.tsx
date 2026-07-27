@@ -15,10 +15,27 @@ import {
   Check,
   X,
   DollarSign,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -225,6 +242,25 @@ export default function MarketingGastosPage() {
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // 1-12
   const [editingCell, setEditingCell] = useState<{ month: number; channel: ChannelId } | null>(null);
 
+  // ── Novo Lançamento dialog state ────────────────────────────────────────────
+  const [newOpen, setNewOpen] = useState(false);
+  const [newChannel, setNewChannel] = useState<ChannelId>("whatsapp_disparos");
+  const [newMonth, setNewMonth] = useState(today.getMonth() + 1);
+  const [newYear, setNewYear] = useState(today.getFullYear());
+  const [newAmount, setNewAmount] = useState("");
+  const [newBudget, setNewBudget] = useState("");
+  const [newNotes, setNewNotes] = useState("");
+
+  function openNew() {
+    setNewChannel("whatsapp_disparos");
+    setNewMonth(today.getMonth() + 1);
+    setNewYear(year);
+    setNewAmount("");
+    setNewBudget("");
+    setNewNotes("");
+    setNewOpen(true);
+  }
+
   // Guard: admin only
   if (user && user.role !== "admin") return <Redirect to="/dashboard" />;
 
@@ -236,26 +272,31 @@ export default function MarketingGastosPage() {
 
   const upsertMutation = useMutation({
     mutationFn: ({
+      yr,
       month,
       channel,
       amount,
       budget,
+      notes,
     }: {
+      yr: number;
       month: number;
       channel: string;
       amount: string;
       budget: string;
+      notes?: string;
     }) =>
-      apiFetch(`/api/marketing-expenses/${year}/${month}/${channel}`, {
+      apiFetch(`/api/marketing-expenses/${yr}/${month}/${channel}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: parseFloat(amount) || 0,
           budget: budget ? parseFloat(budget) : null,
+          notes: notes || null,
         }),
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["marketing-expenses", year] });
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["marketing-expenses", vars.yr] });
       setEditingCell(null);
     },
     onError: (e: Error) =>
@@ -338,6 +379,12 @@ export default function MarketingGastosPage() {
             </PageHeader.Description>
           </PageHeader.Text>
         </PageHeader.Info>
+        <PageHeader.Actions>
+          <Button onClick={openNew} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Lançamento
+          </Button>
+        </PageHeader.Actions>
       </PageHeader>
 
       {/* ── Year navigation ─────────────────────────────────────────────────── */}
@@ -746,6 +793,189 @@ export default function MarketingGastosPage() {
           </table>
         </CardContent>
       </Card>
+
+      {/* ── Novo Lançamento Dialog ────────────────────────────────────────── */}
+      <Dialog open={newOpen} onOpenChange={setNewOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Plus className="h-4 w-4 text-primary" />
+              Novo Lançamento de Marketing
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-5 pt-1">
+            {/* Canal */}
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                Canal
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                {CHANNELS.map((ch) => {
+                  const selected = newChannel === ch.id;
+                  return (
+                    <button
+                      key={ch.id}
+                      onClick={() => setNewChannel(ch.id)}
+                      className={cn(
+                        "flex flex-col items-center gap-2 rounded-xl border-2 py-3 px-2 transition-all",
+                        selected
+                          ? ch.bg
+                          : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600",
+                      )}
+                      style={selected ? { borderColor: ch.color } : {}}
+                    >
+                      <div className={cn("p-2 rounded-lg", selected ? ch.bg : "bg-slate-100 dark:bg-slate-800")}>
+                        <ch.Icon className="h-5 w-5" style={{ color: selected ? ch.color : undefined }} />
+                      </div>
+                      <span
+                        className={cn(
+                          "text-[11px] font-medium leading-tight text-center",
+                          selected ? ch.text : "text-slate-500 dark:text-slate-400",
+                        )}
+                      >
+                        {ch.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Data */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                  Mês
+                </Label>
+                <Select value={String(newMonth)} onValueChange={(v) => setNewMonth(parseInt(v))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES.map((name, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                  Ano
+                </Label>
+                <Select value={String(newYear)} onValueChange={(v) => setNewYear(parseInt(v))}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1].map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Valores */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                  Valor Gasto (R$)
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0,00"
+                  value={newAmount}
+                  onChange={(e) => setNewAmount(e.target.value)}
+                  className="h-9"
+                  autoFocus
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                  Orçamento (R$){" "}
+                  <span className="font-normal text-slate-400 normal-case tracking-normal">opcional</span>
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0,00"
+                  value={newBudget}
+                  onChange={(e) => setNewBudget(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+            </div>
+
+            {/* Observações */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                Observações{" "}
+                <span className="font-normal text-slate-400 normal-case tracking-normal">opcional</span>
+              </Label>
+              <Textarea
+                rows={2}
+                placeholder="Ex.: Campanha de remarketing, black friday..."
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                className="resize-none text-sm"
+              />
+            </div>
+
+            {/* Preview */}
+            {newAmount && parseFloat(newAmount) > 0 && (() => {
+              const ch = CHANNELS.find((c) => c.id === newChannel)!;
+              return (
+                <div className={cn("rounded-lg p-3 flex items-center justify-between border", ch.bg, ch.border)}>
+                  <div className="flex items-center gap-2">
+                    <ch.Icon className="h-4 w-4" style={{ color: ch.color }} />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      {ch.label} — {MONTH_SHORT[newMonth - 1]}/{newYear}
+                    </span>
+                  </div>
+                  <span className="font-bold text-slate-800 dark:text-slate-100">
+                    {formatBRL(parseFloat(newAmount))}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end pt-1">
+              <Button variant="outline" onClick={() => setNewOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                disabled={!newAmount || parseFloat(newAmount) <= 0 || upsertMutation.isPending}
+                onClick={() => {
+                  const ch = CHANNELS.find((c) => c.id === newChannel)!;
+                  upsertMutation.mutate(
+                    { yr: newYear, month: newMonth, channel: newChannel, amount: newAmount, budget: newBudget, notes: newNotes },
+                    {
+                      onSuccess: () => {
+                        setNewOpen(false);
+                        toast({
+                          title: "Lançamento salvo!",
+                          description: `${ch.label} — ${MONTH_NAMES[newMonth - 1]}/${newYear}: ${formatBRL(parseFloat(newAmount))}`,
+                        });
+                      },
+                    },
+                  );
+                }}
+              >
+                {upsertMutation.isPending ? "Salvando..." : "Salvar Lançamento"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
