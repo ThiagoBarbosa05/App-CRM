@@ -34,6 +34,7 @@ import {
 } from "./telemarketing-goals.routes";
 import blingAccountsRouter from "./bling-accounts.routes";
 import blingProductsRouter from "./bling-products.routes";
+import blingFinancialCategoriesRouter from "./bling-financial-categories.routes";
 import connectOrdersRouter from "./connect-orders.routes";
 import unifiedOrdersRouter from "./unified-orders.routes";
 import blingWebhookRouter from "./bling-webhook.routes";
@@ -225,6 +226,10 @@ apiRouter.use("/product-goals", productGoalsRouter);
 apiRouter.use("/winery-goals", wineryGoalsRouter);
 apiRouter.use("/category-goals", categoryGoalsRouter);
 apiRouter.use("/bling-products", blingProductsRouter);
+apiRouter.use(
+  "/bling-financial-categories",
+  blingFinancialCategoriesRouter,
+);
 apiRouter.use("/connect-orders", connectOrdersRouter);
 apiRouter.use("/unified-orders", unifiedOrdersRouter);
 apiRouter.use("/system-settings", systemSettingsRouter);

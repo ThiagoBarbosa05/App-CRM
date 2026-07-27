@@ -66,6 +66,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BlingProductReplicateSection } from "@/components/bling-product-replicate-section";
+import { BlingFinancialCategoryMigrationSection } from "@/components/bling-financial-category-migration-section";
 
 function getExportStatusBadge(status: ExportProgress["status"]) {
   switch (status) {
@@ -1124,7 +1125,10 @@ export default function BlingAccountsManagement() {
           />
 
           {connections.filter((c) => c.status === "connected").length >= 2 ? (
-            <BlingProductReplicateSection />
+            <>
+              <BlingProductReplicateSection />
+              <BlingFinancialCategoryMigrationSection />
+            </>
           ) : connections.length > 0 ? (
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Conecte pelo menos duas contas para replicar produtos entre elas.

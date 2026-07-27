@@ -833,6 +833,112 @@ function formatBlingApiError(rawBody: string, fallback: string): string {
   }
 }
 
+export interface BlingFinancialCategory {
+  id: number;
+  idCategoriaPai: number;
+  descricao: string;
+  /** 1 = despesa, conforme o contrato atual do endpoint. */
+  tipo: number;
+}
+
+export interface BlingFinancialCategoryPayload {
+  grupoDRE: number;
+  idCategoriaPai: number;
+  descricao: string;
+  /** A migração financeira usa exclusivamente 1 (despesa). */
+  tipo: 1;
+}
+
+/**
+ * Lista categorias financeiras do Bling. A migração usa explicitamente
+ * tipo=1 (despesas) e situacao=0 (ativas e inativas).
+ */
+export async function getBlingFinancialCategories(
+  accessToken: string,
+  pagina: number,
+  limite: number,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingFinancialCategory[]> {
+  let token = accessToken;
+  const params = {
+    pagina: String(pagina),
+    limite: String(limite),
+    tipo: "1",
+    situacao: "0",
+  };
+
+  let response = await fetchBlingApi(
+    token,
+    "/categorias/receitas-despesas",
+    params,
+  );
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(
+      token,
+      "/categorias/receitas-despesas",
+      params,
+    );
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new BlingApiError(
+      response.status,
+      `Falha ao listar categorias financeiras do Bling: ${formatBlingApiError(errorText, response.statusText)}`,
+    );
+  }
+
+  const body = (await response.json()) as {
+    data?: BlingFinancialCategory[];
+  };
+
+  return (body.data ?? []).filter((category) => category.tipo === 1);
+}
+
+/** Cria uma categoria financeira de despesa na conta Bling de destino. */
+export async function createBlingFinancialCategory(
+  accessToken: string,
+  payload: BlingFinancialCategoryPayload,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<{ id: number }> {
+  let token = accessToken;
+  const requestInit: RequestInit = {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  };
+
+  let response = await fetchBlingApi(
+    token,
+    "/categorias/receitas-despesas",
+    undefined,
+    requestInit,
+  );
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(
+      token,
+      "/categorias/receitas-despesas",
+      undefined,
+      requestInit,
+    );
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new BlingApiError(
+      response.status,
+      `Falha ao criar categoria financeira no Bling: ${formatBlingApiError(errorText, response.statusText)}`,
+    );
+  }
+
+  const body = (await response.json()) as { data: { id: number } };
+  return { id: body.data.id };
+}
+
 /**
  * Cria uma categoria de produto no Bling.
  *
