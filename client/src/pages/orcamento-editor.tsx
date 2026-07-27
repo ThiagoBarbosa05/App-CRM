@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { PageHeader } from "@/components/page-header";
@@ -173,7 +174,9 @@ function ProductSearchCell({
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(
     () =>
@@ -183,34 +186,42 @@ function ProductSearchCell({
     [products, value],
   );
 
+  // Recalculate dropdown position whenever it opens
+  useEffect(() => {
+    if (!open || !inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: "fixed",
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: Math.max(rect.width, 256),
+      zIndex: 9999,
+    });
+  }, [open]);
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  return (
-    <div ref={ref} className="relative">
-      <input
-        type="text"
-        value={value}
-        placeholder="Produto..."
-        onChange={(e) => {
-          onChange(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        className="w-full text-xs border rounded px-2 py-1.5 bg-white dark:bg-slate-800 outline-none focus:border-primary dark:border-slate-600"
-      />
-      {open && filtered.length > 0 && (
-        <div className="absolute z-50 top-full left-0 mt-1 w-64 bg-white dark:bg-slate-800 border rounded-lg shadow-lg overflow-hidden">
+  const dropdown = open && filtered.length > 0
+    ? createPortal(
+        <div
+          style={dropdownStyle}
+          className="bg-white dark:bg-slate-800 border rounded-lg shadow-xl overflow-hidden"
+        >
           {filtered.map((p) => (
             <button
               key={p.id}
               type="button"
-              onClick={() => {
+              onMouseDown={(e) => {
+                // Use mousedown so the selection fires before the input blur
+                e.preventDefault();
                 onSelect(p);
                 setOpen(false);
               }}
@@ -223,8 +234,26 @@ function ProductSearchCell({
               </div>
             </button>
           ))}
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        placeholder="Produto..."
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        className="w-full text-xs border rounded px-2 py-1.5 bg-white dark:bg-slate-800 outline-none focus:border-primary dark:border-slate-600"
+      />
+      {dropdown}
     </div>
   );
 }
