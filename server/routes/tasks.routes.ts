@@ -226,25 +226,6 @@ tasksRouter.delete("/:id", async (req, res) => {
   }
 });
 
-// Reordena tarefas dentro de uma coluna
-tasksRouter.post("/reorder", async (req, res) => {
-  try {
-    const { orderedIds } = req.body as { orderedIds: string[] };
-    if (!Array.isArray(orderedIds)) {
-      return res.status(400).json({ message: "orderedIds deve ser um array" });
-    }
-    await Promise.all(
-      orderedIds.map((id, index) =>
-        db.update(tasks).set({ order: index }).where(eq(tasks.id, id))
-      )
-    );
-    return res.json({ message: "Ordem atualizada" });
-  } catch (error) {
-    console.error("Erro ao reordenar tarefas:", error);
-    return res.status(500).json({ message: "Erro ao reordenar tarefas" });
-  }
-});
-
 // Adiciona comentário — qualquer usuário autenticado com acesso à tarefa
 tasksRouter.post("/:id/comments", async (req, res) => {
   try {

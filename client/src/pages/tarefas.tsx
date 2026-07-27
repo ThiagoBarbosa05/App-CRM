@@ -1563,6 +1563,16 @@ function TaskDetailDialog({
     enabled: !!taskId,
   });
 
+  // Invalida todos os caches relevantes — usa o boardId real da tarefa (task.boardId)
+  // pois o prop boardId pode ser "" quando aberto da aba "Minhas Tarefas".
+  const invalidateTaskCaches = () => {
+    queryClient.invalidateQueries({ queryKey: ["tasks", "all"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks", "detail", taskId] });
+    if (boardId) queryClient.invalidateQueries({ queryKey: ["tasks", boardId] });
+    if (task?.boardId && task.boardId !== boardId)
+      queryClient.invalidateQueries({ queryKey: ["tasks", task.boardId] });
+  };
+
   const patchMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       apiFetch(`/api/tasks/${taskId}`, {
@@ -1571,9 +1581,7 @@ function TaskDetailDialog({
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", boardId] });
-      queryClient.invalidateQueries({ queryKey: ["tasks", "detail", taskId] });
-      queryClient.invalidateQueries({ queryKey: ["tasks", "all"] });
+      invalidateTaskCaches();
       toast({ title: "Tarefa atualizada" });
     },
     onError: (e: Error) =>
@@ -1583,8 +1591,7 @@ function TaskDetailDialog({
   const deleteMutation = useMutation({
     mutationFn: () => apiFetch(`/api/tasks/${taskId}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", boardId] });
-      queryClient.invalidateQueries({ queryKey: ["tasks", "all"] });
+      invalidateTaskCaches();
       queryClient.invalidateQueries({ queryKey: ["task-boards"] });
       toast({ title: "Tarefa excluída" });
       onClose();
@@ -2888,12 +2895,12 @@ export default function TarefasPage() {
   const isGerente = user?.role === "gerente";
   const canManage = isAdmin || isGerente;
 
-  // Boards
+  // Boards — buscados para todos os roles pois vendedor precisa do nome do board
+  // na aba "Minhas Tarefas". O backend retorna todos os boards sem restrição de role.
   const { data: boards = [], isLoading: boardsLoading } = useQuery<TaskBoard[]>(
     {
       queryKey: ["task-boards"],
       queryFn: () => apiFetch<TaskBoard[]>("/api/task-boards"),
-      enabled: canManage,
     },
   );
 
