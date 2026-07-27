@@ -50,10 +50,10 @@ export const postClientController = async (req: Request, res: Response) => {
       });
     }
 
-    // Tratamento específico para telefone duplicado
+    // Tratamento específico para duplicatas conhecidas (telefone, CPF/CNPJ, etc.)
     if (
       error instanceof Error &&
-      error.message.includes("telefone já está cadastrado")
+      error.message.includes("já está cadastrado")
     ) {
       return res.status(400).json({
         message: error.message,
