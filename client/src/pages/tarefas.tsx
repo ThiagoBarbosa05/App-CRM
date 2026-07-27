@@ -46,6 +46,16 @@ import {
   AppTabsContent,
 } from "@/components/app-tabs";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -300,6 +310,45 @@ async function apiFetch<T = unknown>(
   return parsed as T;
 }
 
+// ─── Confirm delete dialog ────────────────────────────────────────────────────
+
+function ConfirmDeleteDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  title = "Confirmar exclusão",
+  description = "Esta ação não pode ser desfeita. Deseja continuar?",
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  title?: string;
+  description?: string;
+  isPending?: boolean;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-red-600 hover:bg-red-700 text-white"
+            onClick={onConfirm}
+            disabled={isPending}
+          >
+            {isPending ? "Excluindo..." : "Excluir"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // ─── Shared sub-components ───────────────────────────────────────────────────
 
 function DueDateBadge({ dueDate }: { dueDate: string | null }) {
@@ -408,14 +457,21 @@ function TaskCard({
 function QuickAddCard({
   onConfirm,
   onCancel,
+  users = [],
+  defaultAssigneeId = "",
 }: {
-  onConfirm: (title: string) => void;
+  onConfirm: (title: string, assigneeId: string) => void;
   onCancel: () => void;
+  users?: TaskUser[];
+  defaultAssigneeId?: string;
 }) {
   const [title, setTitle] = useState("");
+  const [assigneeId, setAssigneeId] = useState(
+    defaultAssigneeId || users[0]?.id || "",
+  );
   const submit = () => {
     const t = title.trim();
-    if (t) onConfirm(t);
+    if (t) onConfirm(t, assigneeId);
   };
   return (
     <div className="rounded-lg border border-purple-300 bg-white dark:bg-slate-800 p-2 shadow-sm flex flex-col gap-2">
@@ -434,6 +490,19 @@ function QuickAddCard({
         }}
         className="w-full resize-none text-sm bg-transparent outline-none text-slate-800 dark:text-slate-100 placeholder:text-slate-400"
       />
+      {users.length > 1 && (
+        <select
+          value={assigneeId}
+          onChange={(e) => setAssigneeId(e.target.value)}
+          className="text-xs rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 py-1 outline-none focus:border-purple-400"
+        >
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </select>
+      )}
       <div className="flex gap-1.5">
         <button
           onClick={submit}
@@ -479,17 +548,21 @@ function KanbanView({
   onAddStage,
   canManageStages,
   boardId,
+  platformUsers = [],
+  currentUserId = "",
 }: {
   tasks: Task[];
   stages: TaskStage[];
   onOpen: (t: Task) => void;
   onDropToStatus: (taskId: string, slug: string) => void;
   onReorder?: (orderedIds: string[]) => void;
-  onQuickCreate?: (title: string, slug: string) => void;
+  onQuickCreate?: (title: string, slug: string, assigneeId: string) => void;
   onRenameStage?: (id: string, name: string) => void;
   onAddStage?: (name: string) => void;
   canManageStages?: boolean;
   boardId?: string;
+  platformUsers?: TaskUser[];
+  currentUserId?: string;
 }) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [overSlug, setOverSlug] = useState<string | null>(null);
@@ -691,11 +764,13 @@ function KanbanView({
               {onQuickCreate &&
                 (addingIn === stage.slug ? (
                   <QuickAddCard
-                    onConfirm={(title) => {
-                      onQuickCreate(title, stage.slug);
+                    onConfirm={(title, assigneeId) => {
+                      onQuickCreate(title, stage.slug, assigneeId);
                       setAddingIn(null);
                     }}
                     onCancel={() => setAddingIn(null)}
+                    users={platformUsers}
+                    defaultAssigneeId={currentUserId}
                   />
                 ) : (
                   <button
@@ -1556,12 +1631,19 @@ function TaskDetailDialog({
   const [comment, setComment] = useState("");
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
 
   const { data: task, isLoading } = useQuery<TaskWithComments>({
     queryKey: ["tasks", "detail", taskId],
     queryFn: () => apiFetch<TaskWithComments>(`/api/tasks/${taskId}`),
     enabled: !!taskId,
   });
+
+  // Sincroniza o rascunho da descrição ao carregar/trocar a tarefa
+  useEffect(() => {
+    if (task) setDescriptionDraft(task.description ?? "");
+  }, [task?.id]);
 
   // Invalida todos os caches relevantes — usa o boardId real da tarefa (task.boardId)
   // pois o prop boardId pode ser "" quando aberto da aba "Minhas Tarefas".
@@ -1668,25 +1750,82 @@ function TaskDetailDialog({
                   </DialogTitle>
                 )}
                 {canDelete && (
-                  <button
-                    onClick={() => deleteMutation.mutate()}
-                    className="text-red-500 hover:text-red-700 p-1 rounded flex-shrink-0"
-                    title="Excluir tarefa"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setConfirmDeleteOpen(true)}
+                      className="text-red-500 hover:text-red-700 p-1 rounded flex-shrink-0"
+                      title="Excluir tarefa"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <ConfirmDeleteDialog
+                      open={confirmDeleteOpen}
+                      onOpenChange={setConfirmDeleteOpen}
+                      onConfirm={() => deleteMutation.mutate()}
+                      title="Excluir tarefa"
+                      description="A tarefa e todos os seus comentários serão removidos permanentemente."
+                      isPending={deleteMutation.isPending}
+                    />
+                  </>
                 )}
               </div>
             </DialogHeader>
             <ScrollArea className="flex-1 pr-2">
               <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap gap-2 items-center">
-                  <PriorityBadge priority={task.priority} />
-                  <span className="text-xs px-1.5 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
-                    {CATEGORY_LABELS[task.category]}
-                  </span>
-                  <DueDateBadge dueDate={task.dueDate} />
-                </div>
+                {canEdit ? (
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <Select
+                      value={task.priority}
+                      onValueChange={(v) => patchMutation.mutate({ priority: v })}
+                    >
+                      <SelectTrigger className="h-7 text-xs w-32 border-dashed">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="urgente">🔴 Urgente</SelectItem>
+                        <SelectItem value="alta">🟠 Alta</SelectItem>
+                        <SelectItem value="media">🟡 Média</SelectItem>
+                        <SelectItem value="baixa">🟢 Baixa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={task.category}
+                      onValueChange={(v) =>
+                        patchMutation.mutate({ category: v })
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs w-36 border-dashed">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>
+                            {v}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <input
+                      type="date"
+                      value={task.dueDate ? task.dueDate.slice(0, 10) : ""}
+                      onChange={(e) =>
+                        patchMutation.mutate({
+                          dueDate: e.target.value || null,
+                        })
+                      }
+                      className="h-7 text-xs rounded-md border border-dashed border-input bg-background px-2 text-slate-700 dark:text-slate-200 outline-none focus:border-purple-400"
+                      title="Prazo"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <PriorityBadge priority={task.priority} />
+                    <span className="text-xs px-1.5 py-0.5 rounded border bg-purple-50 text-purple-700 border-purple-200">
+                      {CATEGORY_LABELS[task.category]}
+                    </span>
+                    <DueDateBadge dueDate={task.dueDate} />
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-500">Status:</span>
                   <Select
@@ -1732,10 +1871,26 @@ function TaskDetailDialog({
                     <span>{task.assignee?.name ?? "—"}</span>
                   </div>
                 )}
-                {task.description && (
-                  <div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/40 rounded-lg p-3">
-                    {task.description}
-                  </div>
+                {canEdit ? (
+                  <Textarea
+                    rows={3}
+                    placeholder="Descrição (opcional)..."
+                    value={descriptionDraft}
+                    onChange={(e) => setDescriptionDraft(e.target.value)}
+                    onBlur={() => {
+                      const trimmed = descriptionDraft.trim();
+                      if (trimmed !== (task.description ?? "").trim()) {
+                        patchMutation.mutate({ description: trimmed || null });
+                      }
+                    }}
+                    className="text-sm resize-none"
+                  />
+                ) : (
+                  task.description && (
+                    <div className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/40 rounded-lg p-3">
+                      {task.description}
+                    </div>
+                  )
                 )}
                 <Separator />
                 <div className="flex flex-col gap-3">
@@ -1820,6 +1975,11 @@ function NotesView() {
     "idle",
   );
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [confirmDeleteSectionOpen, setConfirmDeleteSectionOpen] =
+    useState(false);
+  const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(
+    null,
+  );
 
   const { data: sections = [], isLoading: sectionsLoading } = useQuery<
     NoteSection[]
@@ -2176,14 +2336,22 @@ function NotesView() {
                   Nova nota
                 </Button>
                 <button
-                  onClick={() =>
-                    deleteSectionMutation.mutate(selectedSectionId)
-                  }
+                  onClick={() => setConfirmDeleteSectionOpen(true)}
                   className="text-red-400 hover:text-red-600 p-1 rounded transition-colors"
                   title="Excluir seção"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
+                <ConfirmDeleteDialog
+                  open={confirmDeleteSectionOpen}
+                  onOpenChange={setConfirmDeleteSectionOpen}
+                  onConfirm={() =>
+                    deleteSectionMutation.mutate(selectedSectionId)
+                  }
+                  title="Excluir seção"
+                  description="Todas as notas desta seção também serão removidas. Esta ação não pode ser desfeita."
+                  isPending={deleteSectionMutation.isPending}
+                />
               </div>
             </div>
             <div className="flex-1 p-4">
@@ -2209,7 +2377,7 @@ function NotesView() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          deleteNoteMutation.mutate(note.id);
+                          setConfirmDeleteNoteId(note.id);
                         }}
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-all"
                       >
@@ -2303,7 +2471,7 @@ function NotesView() {
                     })}
                 </span>
                 <button
-                  onClick={() => deleteNoteMutation.mutate(selectedNoteId)}
+                  onClick={() => setConfirmDeleteNoteId(selectedNoteId)}
                   className="text-red-400 hover:text-red-600 transition-colors flex items-center gap-1"
                 >
                   <Trash2 className="h-3 w-3" />
@@ -2392,6 +2560,22 @@ function NotesView() {
           </div>
         </DialogContent>
       </Dialog>
+      <ConfirmDeleteDialog
+        open={!!confirmDeleteNoteId}
+        onOpenChange={(o) => {
+          if (!o) setConfirmDeleteNoteId(null);
+        }}
+        onConfirm={() => {
+          if (confirmDeleteNoteId) {
+            deleteNoteMutation.mutate(confirmDeleteNoteId);
+            if (selectedNoteId === confirmDeleteNoteId) setSelectedNoteId(null);
+          }
+          setConfirmDeleteNoteId(null);
+        }}
+        title="Excluir nota"
+        description="Esta nota será removida permanentemente."
+        isPending={deleteNoteMutation.isPending}
+      />
     </div>
   );
 }
@@ -2466,6 +2650,10 @@ function FilesView() {
   const [editingFolderName, setEditingFolderName] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [confirmDeleteFolderOpen, setConfirmDeleteFolderOpen] = useState(false);
+  const [confirmDeleteFileId, setConfirmDeleteFileId] = useState<string | null>(
+    null,
+  );
 
   const { data: folders = [], isLoading: foldersLoading } = useQuery<
     TaskFileFolder[]
@@ -2783,12 +2971,22 @@ function FilesView() {
                   )}
                 </Button>
                 <button
-                  onClick={() => deleteFolderMutation.mutate(selectedFolderId)}
+                  onClick={() => setConfirmDeleteFolderOpen(true)}
                   className="text-red-400 hover:text-red-600 p-1 rounded transition-colors"
                   title="Excluir pasta"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
+                <ConfirmDeleteDialog
+                  open={confirmDeleteFolderOpen}
+                  onOpenChange={setConfirmDeleteFolderOpen}
+                  onConfirm={() =>
+                    deleteFolderMutation.mutate(selectedFolderId)
+                  }
+                  title="Excluir pasta"
+                  description="Todos os arquivos desta pasta também serão removidos. Esta ação não pode ser desfeita."
+                  isPending={deleteFolderMutation.isPending}
+                />
               </div>
             </div>
 
@@ -2827,7 +3025,7 @@ function FilesView() {
                           <Download className="h-3.5 w-3.5" />
                         </a>
                         <button
-                          onClick={() => deleteFileMutation.mutate(file.id)}
+                          onClick={() => setConfirmDeleteFileId(file.id)}
                           className="text-red-400 hover:text-red-600 p-0.5 rounded"
                           title="Excluir"
                         >
@@ -2874,6 +3072,20 @@ function FilesView() {
           </div>
         )}
       </div>
+      <ConfirmDeleteDialog
+        open={!!confirmDeleteFileId}
+        onOpenChange={(o) => {
+          if (!o) setConfirmDeleteFileId(null);
+        }}
+        onConfirm={() => {
+          if (confirmDeleteFileId)
+            deleteFileMutation.mutate(confirmDeleteFileId);
+          setConfirmDeleteFileId(null);
+        }}
+        title="Excluir arquivo"
+        description="O arquivo será removido permanentemente."
+        isPending={deleteFileMutation.isPending}
+      />
     </div>
   );
 }
@@ -2890,6 +3102,7 @@ export default function TarefasPage() {
   const [addBoardOpen, setAddBoardOpen] = useState(false);
   const [editingBoard, setEditingBoard] = useState<TaskBoard | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [boardToDelete, setBoardToDelete] = useState<TaskBoard | null>(null);
 
   const isAdmin = user?.role === "admin";
   const isGerente = user?.role === "gerente";
@@ -2954,7 +3167,15 @@ export default function TarefasPage() {
   });
 
   const quickCreateMutation = useMutation({
-    mutationFn: ({ title, status }: { title: string; status: string }) =>
+    mutationFn: ({
+      title,
+      status,
+      assigneeId,
+    }: {
+      title: string;
+      status: string;
+      assigneeId: string;
+    }) =>
       apiFetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2962,7 +3183,7 @@ export default function TarefasPage() {
           title,
           status,
           boardId: selectedBoardId,
-          assigneeId: user!.id,
+          assigneeId,
           category: "outro",
           priority: "media",
         }),
@@ -3140,14 +3361,16 @@ export default function TarefasPage() {
                 moveMutation.mutate({ id, status: slug })
               }
               onReorder={(orderedIds) => reorderMutation.mutate(orderedIds)}
-              onQuickCreate={(title, slug) =>
-                quickCreateMutation.mutate({ title, status: slug })
+              onQuickCreate={(title, slug, assigneeId) =>
+                quickCreateMutation.mutate({ title, status: slug, assigneeId })
               }
               onRenameStage={(id, name) =>
                 renameStageMutation.mutate({ id, name })
               }
               onAddStage={(name) => addStageMutation.mutate(name)}
               canManageStages={canManage}
+              platformUsers={platformUsers}
+              currentUserId={user!.id}
             />
           )}
         </div>
@@ -3218,7 +3441,7 @@ export default function TarefasPage() {
                       board={board}
                       onClick={() => setSelectedBoardId(board.id)}
                       onEdit={() => setEditingBoard(board)}
-                      onDelete={() => deleteBoardMutation.mutate(board.id)}
+                      onDelete={() => setBoardToDelete(board)}
                       canManage={canManage}
                       canDelete={isAdmin}
                     />
@@ -3282,6 +3505,20 @@ export default function TarefasPage() {
         platformUsers={platformUsers}
         stages={selectedBoard ? boardStages : allStages}
         boardId={selectedBoardId ?? ""}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!boardToDelete}
+        onOpenChange={(o) => {
+          if (!o) setBoardToDelete(null);
+        }}
+        onConfirm={() => {
+          if (boardToDelete) deleteBoardMutation.mutate(boardToDelete.id);
+          setBoardToDelete(null);
+        }}
+        title="Excluir board"
+        description={`O board "${boardToDelete?.name}" e todas as suas tarefas e etapas serão removidos permanentemente.`}
+        isPending={deleteBoardMutation.isPending}
       />
     </div>
   );
