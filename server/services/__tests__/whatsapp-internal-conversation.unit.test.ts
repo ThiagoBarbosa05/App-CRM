@@ -188,8 +188,16 @@ describe("resolvePerspectiveOverride", () => {
     expect(resolvePerspectiveOverride("gerente", internal, 12)).toBe(12);
   });
 
-  it("vendedor NUNCA aplica override (mesmo pedindo um canal do par)", () => {
+  it("vendedor NUNCA aplica override (mesmo pedindo um canal do par) — mantém markConversationRead gravando a marcação da conversa inteira, não a de um lado", () => {
     expect(resolvePerspectiveOverride("vendedor", internal, 12)).toBeNull();
+  });
+
+  it("os dois lados do par resolvem para valores DIFERENTES — é o que garante que markConversationRead grave/limpe só o lado clicado, não os dois", () => {
+    const owner = resolvePerspectiveOverride("admin", internal, 7);
+    const peer = resolvePerspectiveOverride("admin", internal, 12);
+    expect(owner).not.toBeNull();
+    expect(peer).not.toBeNull();
+    expect(owner).not.toBe(peer);
   });
 
   it("ignora asChannelId que não é nenhum dos dois lados do par", () => {

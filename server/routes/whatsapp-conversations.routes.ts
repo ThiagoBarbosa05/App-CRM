@@ -288,6 +288,10 @@ router.get("/conversations/:clientId/stream", async (req, res) => {
   req.on("close", cleanup);
 });
 
+const markReadSchema = z.object({
+  asChannelId: z.number().int().positive().optional(),
+});
+
 router.post("/conversations/:clientId/read", async (req, res) => {
   try {
     const user = (req as any).user;
@@ -299,7 +303,15 @@ router.post("/conversations/:clientId/read", async (req, res) => {
     const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
     if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
 
-    await markConversationRead(user.userId, conversationId);
+    // asChannelId: lado do diálogo interno que está sendo lido (admin/gerente
+    // desdobrado em duas caixas na lista). Autorização/validação real fica em
+    // markConversationRead, via resolvePerspectiveOverride — mesma regra do
+    // GET; valor ausente/inválido vira marcação da conversa inteira em vez de
+    // erro.
+    const parsed = markReadSchema.safeParse(req.body ?? {});
+    const asChannelId = parsed.success ? parsed.data.asChannelId : undefined;
+
+    await markConversationRead(user.userId, conversationId, { userRole: user.role, asChannelId });
     res.json({ ok: true });
   } catch (err) {
     console.error("[WA Conversations] Erro ao marcar como lido:", err);

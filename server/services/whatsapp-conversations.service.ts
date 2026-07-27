@@ -266,6 +266,11 @@ export function messageIsUnreadIncoming(
  * quando: o papel é admin/gerente, a conversa é interna (tem peerChannelId) e o
  * asChannelId pedido é EXATAMENTE um dos dois canais do par. Pura, para ser
  * testável sem banco.
+ *
+ * Também reusada por markConversationRead para decidir o perspectiveChannelId
+ * da marcação de leitura — a mesma regra que autoriza a perspectiva de LEITURA
+ * autoriza a de GRAVAÇÃO, então as duas nunca podem divergir sobre qual
+ * asChannelId é legítimo.
  */
 export function resolvePerspectiveOverride(
   userRole: string,
@@ -938,7 +943,18 @@ export async function listClientsForChat(
         lastReadAt: whatsappConversationReads.lastReadAt,
       })
       .from(whatsappConversationReads)
-      .where(eq(whatsappConversationReads.userId, userId)),
+      .where(
+        and(
+          eq(whatsappConversationReads.userId, userId),
+          // Só a marcação da conversa inteira. As marcações por lado (gravadas
+          // pelo mesmo admin/gerente ao abrir uma caixa de diálogo interno
+          // desdobrado, ver perspectiveUnread abaixo) não podem entrar aqui: o
+          // join de unreadSub é só por conversationId, então cada linha extra
+          // MULTIPLICARIA o count(*) — contando a mesma mensagem não-lida
+          // várias vezes para o mesmo admin em toda conversa da lista.
+          isNull(whatsappConversationReads.perspectiveChannelId),
+        ),
+      ),
   );
 
   // Uma mensagem é "recebida não-lida" quando, no referencial do leitor, é
@@ -1272,10 +1288,12 @@ export async function listClientsForChat(
 
   // Diálogo interno para admin/gerente vira DUAS entradas na lista — a "caixa"
   // de cada lado do par (ver expansão no return). Cada lado tem sua própria
-  // contagem de não-lidas, relativa ao ATENDENTE dono daquele canal (não ao
-  // admin que está olhando): a badge da caixa do eventos reflete o que o eventos
-  // ainda não leu. Calculado só para os diálogos internos da página e só quando
-  // o leitor é supervisor.
+  // contagem de não-lidas, relativa ao SUPERVISOR LOGADO (não ao atendente
+  // dono do canal): a badge de cada caixa reflete o que o admin ainda não leu
+  // NAQUELE lado — a marcação é o perspectiveChannelId gravado por
+  // markConversationRead ao clicar naquela caixa (ver
+  // whatsapp_conversation_reads em shared/schema.ts). Calculado só para os
+  // diálogos internos da página e só quando o leitor é supervisor.
   const isSupervisor = userRole === "admin" || userRole === "gerente";
   const internalIds = isSupervisor
     ? pageRows.filter((r) => r.peerChannelId != null && r.channelId != null).map((r) => r.conversationId)
@@ -1284,13 +1302,19 @@ export async function listClientsForChat(
   if (internalIds.length > 0) {
     // Não-lida por lado = mensagens que, no referencial daquele lado, são
     // recebidas (dono: direction 'inbound'; peer: 'outbound', pois direction é
-    // gravada relativa ao dono) e chegaram após o last_read do atendente do
-    // canal. Duas agregações simples em vez de uma com FILTER, para manter o
-    // padrão do query builder e ler o read certo em cada join.
+    // gravada relativa ao dono) e chegaram após o last_read DO SUPERVISOR para
+    // aquele lado especificamente (perspectiveChannelId = channelId do lado).
+    // Duas agregações simples em vez de uma com FILTER, para manter o padrão
+    // do query builder e ler o read certo em cada join.
+    //
+    // Chave do join é channelId/peerChannelId da CONVERSA, não mais o userId
+    // do canal (whatsappChannels.userId): channelId nunca é null aqui —
+    // internalIds já exige isso — enquanto whatsappChannels.userId é
+    // nullable, e um canal sem dono fazia o left join não casar, o lastReadAt
+    // cair em null e COALESCE tratar todo o histórico como não-lido para
+    // sempre. Trocar a chave elimina esse caso por construção.
     const ownerReads = alias(whatsappConversationReads, "owner_side_reads");
-    const ownerCh = alias(whatsappChannels, "owner_side_ch");
     const peerReads = alias(whatsappConversationReads, "peer_side_reads");
-    const peerCh = alias(whatsappChannels, "peer_side_ch");
 
     const [ownerUnreadRows, peerUnreadRows] = await Promise.all([
       db
@@ -1300,10 +1324,13 @@ export async function listClientsForChat(
         })
         .from(whatsappMessages)
         .innerJoin(whatsappConversations, eq(whatsappMessages.conversationId, whatsappConversations.id))
-        .leftJoin(ownerCh, eq(whatsappConversations.channelId, ownerCh.id))
         .leftJoin(
           ownerReads,
-          and(eq(ownerReads.conversationId, whatsappConversations.id), eq(ownerReads.userId, ownerCh.userId)),
+          and(
+            eq(ownerReads.conversationId, whatsappConversations.id),
+            eq(ownerReads.userId, userId),
+            eq(ownerReads.perspectiveChannelId, whatsappConversations.channelId),
+          ),
         )
         .where(
           and(
@@ -1320,10 +1347,13 @@ export async function listClientsForChat(
         })
         .from(whatsappMessages)
         .innerJoin(whatsappConversations, eq(whatsappMessages.conversationId, whatsappConversations.id))
-        .leftJoin(peerCh, eq(whatsappConversations.peerChannelId, peerCh.id))
         .leftJoin(
           peerReads,
-          and(eq(peerReads.conversationId, whatsappConversations.id), eq(peerReads.userId, peerCh.userId)),
+          and(
+            eq(peerReads.conversationId, whatsappConversations.id),
+            eq(peerReads.userId, userId),
+            eq(peerReads.perspectiveChannelId, whatsappConversations.peerChannelId),
+          ),
         )
         .where(
           and(
@@ -2972,15 +3002,65 @@ export async function setContactWhatsappTags(clientId: string, whatsappTagIds: s
   publishConversationEvent(conversationId, "new_message", { clientId });
 }
 
-export async function markConversationRead(userId: string, conversationId: string) {
+/**
+ * Marca a conversa como lida para o usuário. `asChannelId` só tem efeito para
+ * admin/gerente sobre um diálogo interno, e só quando é um dos dois canais do
+ * par (mesma regra de `resolvePerspectiveOverride`, reusada aqui para a
+ * perspectiva de LEITURA e a de GRAVAÇÃO nunca poderem divergir) — nesse caso
+ * a marcação cobre só aquele lado. Fora disso, grava a marcação da conversa
+ * inteira (perspectiveChannelId null), que é o comportamento de sempre.
+ * asChannelId inválido é ignorado, não rejeitado — espelha o GET, onde valor
+ * inválido cai na perspectiva derivada dos canais do leitor.
+ */
+export async function markConversationRead(
+  userId: string,
+  conversationId: string,
+  opts: { userRole?: string; asChannelId?: number } = {},
+) {
+  let perspectiveChannelId: number | null = null;
+  if (opts.asChannelId != null && opts.userRole) {
+    const [row] = await db
+      .select({
+        channelId: whatsappConversations.channelId,
+        peerChannelId: whatsappConversations.peerChannelId,
+      })
+      .from(whatsappConversations)
+      .where(eq(whatsappConversations.id, conversationId))
+      .limit(1);
+    if (row) {
+      perspectiveChannelId = resolvePerspectiveOverride(opts.userRole, row, opts.asChannelId);
+    }
+  }
+
+  const lastReadAt = new Date();
+
+  // Dois braços porque a chave da linha depende de perspectiveChannelId ser
+  // null ou não — cada braço infere o índice único parcial correspondente
+  // (ver whatsapp_conversation_reads em shared/schema.ts). Um ON CONFLICT só
+  // com as três colunas nunca dispararia na linha null (unique parcial não
+  // cobre as duas formas ao mesmo tempo).
+  if (perspectiveChannelId == null) {
+    await db
+      .insert(whatsappConversationReads)
+      .values({ userId, conversationId, perspectiveChannelId: null, lastReadAt })
+      .onConflictDoUpdate({
+        target: [whatsappConversationReads.userId, whatsappConversationReads.conversationId],
+        targetWhere: sql`perspective_channel_id IS NULL`,
+        set: { lastReadAt },
+      });
+    return;
+  }
+
   await db
     .insert(whatsappConversationReads)
-    .values({ userId, conversationId, lastReadAt: new Date() })
+    .values({ userId, conversationId, perspectiveChannelId, lastReadAt })
     .onConflictDoUpdate({
       target: [
         whatsappConversationReads.userId,
         whatsappConversationReads.conversationId,
+        whatsappConversationReads.perspectiveChannelId,
       ],
-      set: { lastReadAt: new Date() },
+      targetWhere: sql`perspective_channel_id IS NOT NULL`,
+      set: { lastReadAt },
     });
 }

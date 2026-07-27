@@ -6591,10 +6591,15 @@ export default function WhatsAppConversationsPage() {
   }, [clientList, phoneParam]);
 
   const markRead = useCallback(
-    async (id: string) => {
+    async (id: string, asChannelId?: number | null) => {
       try {
         await fetch(`/api/whatsapp/conversations/${id}/read`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          // asChannelId identifica o LADO do diálogo interno desdobrado — sem
+          // ele o backend marca a conversa inteira e a badge do outro lado
+          // sumiria junto (ver perspectiveChannelId em ChatClient).
+          body: JSON.stringify(asChannelId != null ? { asChannelId } : {}),
         });
         queryClient.invalidateQueries({
           queryKey: ["/api/whatsapp/conversations-list"],
@@ -6610,6 +6615,11 @@ export default function WhatsAppConversationsPage() {
   // Para operações sobre a conversa em si (markRead, invalidação, match de SSE)
   // usa-se o conversationId puro, mantido à parte.
   const selectedConversationIdRef = useRef<string | null>(null);
+  // Lado selecionado, par do ref acima: o handler de SSE roda fora do render e
+  // precisa saber por qual caixa do diálogo interno a leitura está aberta,
+  // senão markRead limparia a badge do lado errado (ou dos dois, se caísse na
+  // marcação de conversa inteira).
+  const selectedPerspectiveChannelIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeWaNotifications("new_whatsapp_inbound", (e) => {
@@ -6626,7 +6636,7 @@ export default function WhatsAppConversationsPage() {
       // selecionada, o próprio ConversationMessages já tem seu stream SSE por
       // conversa (/conversations/:id/stream) que atualiza a 1ª página.
       if (isSelected) {
-        markRead(selConvId!);
+        markRead(selConvId!, selectedPerspectiveChannelIdRef.current);
       }
     });
     return unsubscribe;
@@ -6649,7 +6659,7 @@ export default function WhatsAppConversationsPage() {
       queryKey: ["/api/whatsapp/conversations", client.conversationId],
     });
     setSelectedId(clientKey(client));
-    markRead(client.conversationId);
+    markRead(client.conversationId, client.perspectiveChannelId ?? null);
   };
 
   // Depois de criar/vincular um cliente a partir de uma conversa desconhecida:
@@ -6678,6 +6688,7 @@ export default function WhatsAppConversationsPage() {
         null)
       : null;
   selectedConversationIdRef.current = selectedClient?.conversationId ?? null;
+  selectedPerspectiveChannelIdRef.current = selectedClient?.perspectiveChannelId ?? null;
 
   // Marca que a página inteira de conversas está montada (independente de
   // qual conversa está selecionada) — o hook global de notificações usa isso
