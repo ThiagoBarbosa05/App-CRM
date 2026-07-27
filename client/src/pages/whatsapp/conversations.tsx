@@ -5700,6 +5700,7 @@ function NewConversationDialog({
   onSelectInternal,
   channels,
   initialSearch,
+  skipChannelPicker,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -5707,6 +5708,8 @@ function NewConversationDialog({
   onSelectInternal: (conversationId: string) => void;
   channels: Channel[];
   initialSearch?: string;
+  /** Quando true, ignora o seletor de canal e usa channels[0] diretamente. */
+  skipChannelPicker?: boolean;
 }) {
   const [tab, setTab] = useState<NewConvTab>("contato");
   // Passo 2 (escolha do canal) só existe quando há mais de um canal — com um
@@ -5820,7 +5823,7 @@ function NewConversationDialog({
   });
 
   function handlePickClient(c: { id: string; name: string; phone: string | null }) {
-    if (channels.length > 1) {
+    if (channels.length > 1 && !skipChannelPicker) {
       setPendingPhone(null);
       setSelectedClient(c);
       setStep(2);
@@ -5836,7 +5839,7 @@ function NewConversationDialog({
   const searchIsPhone = searchDigits.length >= 10;
 
   function handleStartByPhone(phone: string) {
-    if (channels.length > 1) {
+    if (channels.length > 1 && !skipChannelPicker) {
       setSelectedClient(null);
       setPendingPhone(phone);
       // O passo 2 (escolha do canal) só é renderizado na aba "contato" — vindo
@@ -7715,6 +7718,7 @@ export default function WhatsAppConversationsPage() {
         onSelectInternal={handleSelectInternalConversation}
         channels={availableChannels}
         initialSearch={phoneParam ?? undefined}
+        skipChannelPicker={newConvParam === "true"}
       />
     </div>
   );
