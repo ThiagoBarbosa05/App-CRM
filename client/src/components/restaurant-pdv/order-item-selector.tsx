@@ -15,7 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Product } from "@shared/schema";
-import type { CartItem } from "@/pages/restaurant-pdv/pos";
+import type { CartItem } from "@/pages/restaurant-pdv/comanda";
 
 const HIDDEN_CATEGORIES = new Set(["NATAL", "OUTROS", "ACESSORIOS"]);
 const HIDDEN_COUNTRIES = new Set(["OUTROS"]);

@@ -58,7 +58,7 @@ export default function RestaurantOrdersHistory() {
       <OrdersHistoryFilters value={filters} onChange={setFilters} />
       <OrdersHistoryTable
         orders={orders}
-        onContinueOrder={(orderId) => setLocation(`/pdv-restaurante?orderId=${orderId}`)}
+        onContinueOrder={(orderId) => setLocation(`/pdv-restaurante/comanda/${orderId}`)}
       />
 
       <Button onClick={() => setLocation("/pdv-restaurante")}>

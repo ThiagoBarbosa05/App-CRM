@@ -41,7 +41,8 @@ import CopilotoPage from "./pages/copiloto";
 import TelemarketingPage from "./pages/telemarketing";
 import ReferralProgramPage from "./pages/referral-program";
 import ZernioInboxPage from "./pages/zernio-inbox";
-import RestaurantPos from "@/pages/restaurant-pdv/pos";
+import RestaurantMesasPage from "@/pages/restaurant-pdv/mesas";
+import RestaurantComandaPage from "@/pages/restaurant-pdv/comanda";
 import RestaurantPdvHub from "@/pages/restaurant-pdv/hub";
 import AdminPanel from "@/pages/restaurant-pdv/admin-panel";
 
@@ -142,7 +143,8 @@ function Router() {
   if (user.role === "garcom") {
     return (
       <Switch>
-        <Route path="/pdv-restaurante" component={RestaurantPos} />
+        <Route path="/pdv-restaurante" component={RestaurantMesasPage} />
+        <Route path="/pdv-restaurante/comanda/:orderId" component={RestaurantComandaPage} />
         <Route component={() => <Redirect to="/pdv-restaurante" />} />
       </Switch>
     );
@@ -391,7 +393,8 @@ function Router() {
         )}
       />
       {/* PDV Restaurante — hub próprio, separado do CRM (sem MainLayout/sidebar) */}
-      <Route path="/pdv-restaurante" component={RestaurantPos} />
+      <Route path="/pdv-restaurante" component={RestaurantMesasPage} />
+      <Route path="/pdv-restaurante/comanda/:orderId" component={RestaurantComandaPage} />
       <Route path="/pdv-restaurante/:rest*" component={RestaurantPdvSection} />
       <Route component={NotFound} />
     </Switch>

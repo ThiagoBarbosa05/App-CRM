@@ -233,7 +233,7 @@ export default function AdminPanel() {
 
   const handleOpenOrder = (unitId: string, orderId: string) => {
     setPdvCurrentUnitId(unitId);
-    navigate(`/pdv-restaurante?orderId=${orderId}`);
+    navigate(`/pdv-restaurante/comanda/${orderId}`);
   };
 
   const totalOccupied = overview.reduce((s, u) => s + u.stats.occupiedTables, 0);

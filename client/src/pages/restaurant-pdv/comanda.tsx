@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useLocation, useSearch } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Popover,
   PopoverContent,
@@ -30,14 +28,11 @@ import {
   ArrowRightLeft,
   Clock,
   Combine,
-  LayoutDashboard,
   Lock,
-  LogOut,
   Minus,
   Plus,
   UserPlus,
   Users,
-  UtensilsCrossed,
   XCircle,
 } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -49,7 +44,7 @@ import type {
   RestaurantOrder,
   RestaurantPdvSettings,
 } from "@shared/schema";
-import { TableMapGrid } from "./table-map";
+import { PdvHeader } from "@/components/restaurant-pdv/pdv-header";
 import { ReasonPromptDialog } from "@/components/restaurant-pdv/reason-prompt-dialog";
 import { ApplyDiscountDialog } from "@/components/restaurant-pdv/apply-discount-dialog";
 import { SplitBillDialog } from "@/components/restaurant-pdv/split-bill-dialog";
@@ -80,13 +75,10 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   aguardando_pagamento: "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400",
 };
 
-export default function RestaurantPos() {
-  const { user, logout } = useAuth();
+export default function RestaurantComandaPage() {
+  const { user } = useAuth();
   const [, navigate] = useLocation();
-  // A URL é a fonte da verdade da comanda ativa: um F5 dentro da mesa volta
-  // para a mesma mesa, e o "voltar" do navegador leva ao mapa.
-  const search = useSearch();
-  const activeOrderId = new URLSearchParams(search).get("orderId");
+  const { orderId } = useParams<{ orderId: string }>();
 
   const [paymentMethod, setPaymentMethod] = useState<string>("");
   const [itemToCancel, setItemToCancel] = useState<RestaurantOrderItem | null>(null);
@@ -101,15 +93,12 @@ export default function RestaurantPos() {
   const [peopleCountPopoverOpen, setPeopleCountPopoverOpen] = useState(false);
   const [editingPeopleCount, setEditingPeopleCount] = useState(1);
 
-  const setActiveOrder = (id: string | null) => {
-    navigate(id ? `/pdv-restaurante?orderId=${id}` : "/pdv-restaurante");
-  };
-
-  // Trocar de comanda zera o carrinho — inclusive quando a troca vem do
-  // "voltar" do navegador, que não passa por setActiveOrder.
+  // wouter reaproveita a instância do componente ao trocar só o parâmetro da
+  // rota (não remonta) — sem isto, ir e voltar entre duas comandas pelo
+  // histórico do navegador vazaria o carrinho de uma mesa para outra.
   useEffect(() => {
     setCart([]);
-  }, [activeOrderId]);
+  }, [orderId]);
 
   const {
     data: order,
@@ -118,8 +107,8 @@ export default function RestaurantPos() {
     error: orderError,
     refetch: refetchOrder,
   } = useQuery<RestaurantOrderWithItems>({
-    queryKey: ["/api/restaurant-pdv/orders", activeOrderId],
-    enabled: !!activeOrderId,
+    queryKey: ["/api/restaurant-pdv/orders", orderId],
+    enabled: !!orderId,
     // Duas pessoas podem atender a mesma mesa; sem isto, os lançamentos de uma
     // só aparecem para a outra quando alguma mutation força a revalidação.
     refetchInterval: 15000,
@@ -131,7 +120,7 @@ export default function RestaurantPos() {
 
   const invalidateOrder = () => {
     queryClient.invalidateQueries({
-      queryKey: ["/api/restaurant-pdv/orders", activeOrderId],
+      queryKey: ["/api/restaurant-pdv/orders", orderId],
     });
     queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
   };
@@ -154,7 +143,7 @@ export default function RestaurantPos() {
 
   const requestPaymentMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/request-payment`);
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${orderId}/request-payment`);
     },
     onSuccess: () => {
       invalidateOrder();
@@ -172,7 +161,7 @@ export default function RestaurantPos() {
     mutationFn: async () => {
       await apiRequest(
         "POST",
-        `/api/restaurant-pdv/orders/${activeOrderId}/cancel-payment-request`,
+        `/api/restaurant-pdv/orders/${orderId}/cancel-payment-request`,
       );
     },
     onSuccess: invalidateOrder,
@@ -191,7 +180,7 @@ export default function RestaurantPos() {
     }) => {
       await apiRequest(
         "PUT",
-        `/api/restaurant-pdv/orders/${activeOrderId}/items/${itemId}`,
+        `/api/restaurant-pdv/orders/${orderId}/items/${itemId}`,
         data,
       );
     },
@@ -205,7 +194,7 @@ export default function RestaurantPos() {
     mutationFn: async ({ itemId, reason }: { itemId: string; reason: string }) => {
       await apiRequest(
         "DELETE",
-        `/api/restaurant-pdv/orders/${activeOrderId}/items/${itemId}`,
+        `/api/restaurant-pdv/orders/${orderId}/items/${itemId}`,
         { reason },
       );
     },
@@ -224,7 +213,7 @@ export default function RestaurantPos() {
       discountAmount?: string;
       reason: string;
     }) => {
-      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/discount`, data);
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${orderId}/discount`, data);
     },
     onSuccess: () => {
       invalidateOrder();
@@ -237,7 +226,7 @@ export default function RestaurantPos() {
 
   const removeDiscountMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("DELETE", `/api/restaurant-pdv/orders/${activeOrderId}/discount`);
+      await apiRequest("DELETE", `/api/restaurant-pdv/orders/${orderId}/discount`);
     },
     onSuccess: invalidateOrder,
     onError: (err: Error) => {
@@ -247,7 +236,7 @@ export default function RestaurantPos() {
 
   const updatePeopleCountMutation = useMutation({
     mutationFn: async (count: number) => {
-      await apiRequest("PATCH", `/api/restaurant-pdv/orders/${activeOrderId}/people-count`, {
+      await apiRequest("PATCH", `/api/restaurant-pdv/orders/${orderId}/people-count`, {
         peopleCount: count,
       });
     },
@@ -262,14 +251,14 @@ export default function RestaurantPos() {
 
   const closeOrderMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/close`, {
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${orderId}/close`, {
         paymentMethod,
       });
     },
     onSuccess: () => {
       toast({ title: "Comanda fechada", description: "Venda registrada com sucesso!" });
       invalidateAfterClose();
-      setActiveOrder(null);
+      navigate("/pdv-restaurante");
       setPaymentMethod("");
     },
     onError: (err: Error) => {
@@ -284,7 +273,7 @@ export default function RestaurantPos() {
       // Uma requisição só: o backend grava os pagamentos e fecha na mesma
       // transação. Em duas etapas, um erro no fechamento deixava pagamentos
       // órfãos na comanda.
-      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/close`, {
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${orderId}/close`, {
         payments,
       });
     },
@@ -292,7 +281,7 @@ export default function RestaurantPos() {
       toast({ title: "Comanda fechada", description: "Conta dividida com sucesso!" });
       invalidateAfterClose();
       setSplitDialogOpen(false);
-      setActiveOrder(null);
+      navigate("/pdv-restaurante");
       setPaymentMethod("");
     },
     onError: (err: Error) => {
@@ -308,7 +297,7 @@ export default function RestaurantPos() {
       itemIds: string[];
       targetOrderId: string;
     }) => {
-      await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/transfer-items`, {
+      await apiRequest("POST", `/api/restaurant-pdv/orders/${orderId}/transfer-items`, {
         itemIds,
         targetOrderId,
       });
@@ -327,14 +316,14 @@ export default function RestaurantPos() {
     mutationFn: async (targetOrderId: string) => {
       await apiRequest(
         "POST",
-        `/api/restaurant-pdv/orders/${activeOrderId}/merge-into/${targetOrderId}`,
+        `/api/restaurant-pdv/orders/${orderId}/merge-into/${targetOrderId}`,
       );
     },
     onSuccess: () => {
       toast({ title: "Mesas mescladas com sucesso" });
       invalidateAfterClose();
       setMergeDialogOpen(false);
-      setActiveOrder(null);
+      navigate("/pdv-restaurante");
     },
     onError: (err: Error) => {
       toast({ title: "Erro ao juntar mesas", description: err.message, variant: "destructive" });
@@ -348,7 +337,7 @@ export default function RestaurantPos() {
       setConfirmLeaveOpen(true);
       return;
     }
-    setActiveOrder(null);
+    navigate("/pdv-restaurante");
   };
 
   const handleAddProduct = (product: Product) => {
@@ -407,7 +396,7 @@ export default function RestaurantPos() {
 
     for (const item of itemsToSubmit) {
       try {
-        await apiRequest("POST", `/api/restaurant-pdv/orders/${activeOrderId}/items`, {
+        await apiRequest("POST", `/api/restaurant-pdv/orders/${orderId}/items`, {
           productId: item.productId,
           name: item.name,
           unitPrice: item.unitPrice,
@@ -455,61 +444,10 @@ export default function RestaurantPos() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-3 sm:px-4">
-        {!isGarcom && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 shrink-0 px-2 text-muted-foreground"
-              onClick={() => navigate("/")}
-            >
-              <ArrowLeft className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">CRM</span>
-            </Button>
-            <Separator orientation="vertical" className="h-5 shrink-0" />
-            {user?.role === "admin" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 shrink-0 px-2 text-muted-foreground"
-                onClick={() => navigate("/pdv-restaurante/admin")}
-              >
-                <LayoutDashboard className="mr-1 h-4 w-4" />
-                <span className="hidden sm:inline">Painel Admin</span>
-              </Button>
-            )}
-            <Separator orientation="vertical" className="h-5 shrink-0" />
-          </>
-        )}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <UtensilsCrossed className="h-4 w-4 text-orange-500" />
-          <span className="text-sm font-semibold">PDV Restaurante</span>
-        </div>
-        {user?.name && (
-          <span className={`text-xs text-muted-foreground ${isGarcom ? "" : "ml-auto"}`}>
-            {isGarcom ? "" : "Garçom: "}{user.name}
-          </span>
-        )}
-        {isGarcom && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto h-8 shrink-0 px-2 text-muted-foreground"
-            onClick={() => logout()}
-          >
-            <LogOut className="mr-1 h-4 w-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </Button>
-        )}
-      </header>
+      <PdvHeader />
 
       <main className="flex flex-1 flex-col overflow-hidden">
-        {!activeOrderId ? (
-          <div className="flex-1 overflow-auto">
-            <TableMapGrid onOrderOpened={(id) => setActiveOrder(id)} />
-          </div>
-        ) : isLoadingOrder ? (
+        {isLoadingOrder ? (
           <div className="p-6 text-center text-muted-foreground">Carregando comanda...</div>
         ) : isOrderError || !order ? (
           // Sem este ramo a tela ficava presa em "Carregando comanda..." para
@@ -530,7 +468,7 @@ export default function RestaurantPos() {
               <Button variant="outline" size="sm" onClick={() => refetchOrder()}>
                 Tentar novamente
               </Button>
-              <Button size="sm" onClick={() => setActiveOrder(null)}>
+              <Button size="sm" onClick={() => navigate("/pdv-restaurante")}>
                 Voltar às mesas
               </Button>
             </div>
@@ -747,7 +685,7 @@ export default function RestaurantPos() {
             <AlertDialogAction
               onClick={() => {
                 setConfirmLeaveOpen(false);
-                setActiveOrder(null);
+                navigate("/pdv-restaurante");
               }}
             >
               Descartar e sair
