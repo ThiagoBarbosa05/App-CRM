@@ -16,6 +16,7 @@ import {
   uniqueIndex,
   jsonb,
   primaryKey,
+  date,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -5615,16 +5616,31 @@ export const marketingExpenses = pgTable("marketing_expenses", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  year: integer("year").notNull(),
-  month: integer("month").notNull(), // 1-12
+  launchedAt: date("launched_at").notNull().default(sql`CURRENT_DATE`),
+  year: integer("year").notNull(),   // derived from launchedAt for easy querying
+  month: integer("month").notNull(), // derived from launchedAt for easy querying
   channel: text("channel").notNull(), // 'whatsapp_disparos' | 'google_ads' | 'meta_ads'
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull().default("0.00"),
-  budget: decimal("budget", { precision: 12, scale: 2 }),
   notes: text("notes"),
   createdById: varchar("created_by_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export type MarketingExpense = typeof marketingExpenses.$inferSelect;
 export type InsertMarketingExpense = typeof marketingExpenses.$inferInsert;
+
+// Monthly budget targets (separate from individual launches)
+export const marketingBudgets = pgTable("marketing_budgets", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(),
+  channel: text("channel").notNull(),
+  budget: decimal("budget", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type MarketingBudget = typeof marketingBudgets.$inferSelect;
+export type InsertMarketingBudget = typeof marketingBudgets.$inferInsert;

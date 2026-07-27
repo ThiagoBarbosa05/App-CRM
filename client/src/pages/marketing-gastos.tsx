@@ -115,16 +115,36 @@ const MONTH_SHORT = [
   "Jul", "Ago", "Set", "Out", "Nov", "Dez",
 ];
 
+const formatDateBR = (dateStr: string) => {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MarketingExpense {
   id: string;
+  launchedAt: string;
   year: number;
   month: number;
   channel: string;
   amount: string;
-  budget: string | null;
   notes: string | null;
+}
+
+interface MarketingBudget {
+  id: string;
+  year: number;
+  month: number;
+  channel: string;
+  budget: string;
+}
+
+interface SessionLaunch {
+  channel: ChannelId;
+  date: string;
+  amount: number;
+  notes: string;
 }
 
 // ─── Budget progress bar ──────────────────────────────────────────────────────
@@ -150,49 +170,37 @@ function BudgetBar({ amount, budget }: { amount: number; budget: number | null }
   );
 }
 
-// ─── Inline cell editor ───────────────────────────────────────────────────────
+// ─── Budget-only inline cell editor ──────────────────────────────────────────
 
-function CellEditor({
-  initialAmount,
+function BudgetCellEditor({
   initialBudget,
   onSave,
   onCancel,
 }: {
-  initialAmount: number;
   initialBudget: number | null;
-  onSave: (amount: string, budget: string) => void;
+  onSave: (budget: string) => void;
   onCancel: () => void;
 }) {
-  const [amount, setAmount] = useState(initialAmount > 0 ? String(initialAmount) : "");
   const [budget, setBudget] = useState(initialBudget != null ? String(initialBudget) : "");
-  const amountRef = useRef<HTMLInputElement>(null);
+  const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    amountRef.current?.focus();
-    amountRef.current?.select();
+    ref.current?.focus();
+    ref.current?.select();
   }, []);
 
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") onSave(amount, budget);
-    if (e.key === "Escape") onCancel();
-  };
-
   return (
-    <div className="flex flex-col gap-1 min-w-[130px]" onKeyDown={handleKey}>
+    <div
+      className="flex flex-col gap-1 min-w-[110px]"
+      onKeyDown={(e) => {
+        if (e.key === "Enter") onSave(budget);
+        if (e.key === "Escape") onCancel();
+      }}
+    >
       <div className="flex items-center gap-0.5">
-        <span className="text-[10px] text-slate-400 w-12">Gasto</span>
+        <span className="text-[10px] text-slate-400 w-10">Orç.</span>
         <input
-          ref={amountRef}
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0"
-          className="w-full text-xs border rounded px-1.5 py-0.5 bg-white dark:bg-slate-800 outline-none focus:border-primary"
-        />
-      </div>
-      <div className="flex items-center gap-0.5">
-        <span className="text-[10px] text-slate-400 w-12">Orç.</span>
-        <input
+          ref={ref}
           type="number"
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
@@ -202,7 +210,7 @@ function CellEditor({
       </div>
       <div className="flex gap-1 justify-end">
         <button
-          onClick={() => onSave(amount, budget)}
+          onClick={() => onSave(budget)}
           className="p-0.5 rounded text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
         >
           <Check className="h-3.5 w-3.5" />
@@ -245,20 +253,23 @@ export default function MarketingGastosPage() {
   // ── Novo Lançamento dialog state ────────────────────────────────────────────
   const [newOpen, setNewOpen] = useState(false);
   const [newChannel, setNewChannel] = useState<ChannelId>("whatsapp_disparos");
-  const [newMonth, setNewMonth] = useState(today.getMonth() + 1);
-  const [newYear, setNewYear] = useState(today.getFullYear());
+  const [newDate, setNewDate] = useState(today.toISOString().slice(0, 10));
   const [newAmount, setNewAmount] = useState("");
-  const [newBudget, setNewBudget] = useState("");
   const [newNotes, setNewNotes] = useState("");
+  const [sessionLaunches, setSessionLaunches] = useState<SessionLaunch[]>([]);
 
   function openNew() {
     setNewChannel("whatsapp_disparos");
-    setNewMonth(today.getMonth() + 1);
-    setNewYear(year);
+    setNewDate(today.toISOString().slice(0, 10));
     setNewAmount("");
-    setNewBudget("");
     setNewNotes("");
+    setSessionLaunches([]);
     setNewOpen(true);
+  }
+
+  function resetForm() {
+    setNewAmount("");
+    setNewNotes("");
   }
 
   // Guard: admin only
@@ -270,33 +281,62 @@ export default function MarketingGastosPage() {
     enabled: !!user,
   });
 
-  const upsertMutation = useMutation({
+  const { data: budgets = [] } = useQuery<MarketingBudget[]>({
+    queryKey: ["marketing-budgets", year],
+    queryFn: () => apiFetch<MarketingBudget[]>(`/api/marketing-expenses/budgets?year=${year}`),
+    enabled: !!user,
+  });
+
+  // Create individual launch (POST — additive)
+  const createMutation = useMutation({
+    mutationFn: ({
+      launchedAt,
+      channel,
+      amount,
+      notes,
+    }: {
+      launchedAt: string;
+      channel: string;
+      amount: string;
+      notes: string;
+    }) =>
+      apiFetch("/api/marketing-expenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          launchedAt,
+          channel,
+          amount: parseFloat(amount),
+          notes: notes || null,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["marketing-expenses", year] });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Erro ao lançar", description: e.message, variant: "destructive" }),
+  });
+
+  // Set monthly budget (PUT — upsert per month/channel)
+  const budgetMutation = useMutation({
     mutationFn: ({
       yr,
       month,
       channel,
-      amount,
       budget,
-      notes,
     }: {
       yr: number;
       month: number;
       channel: string;
-      amount: string;
       budget: string;
-      notes?: string;
     }) =>
-      apiFetch(`/api/marketing-expenses/${yr}/${month}/${channel}`, {
+      apiFetch(`/api/marketing-expenses/budgets/${yr}/${month}/${channel}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: parseFloat(amount) || 0,
-          budget: budget ? parseFloat(budget) : null,
-          notes: notes || null,
-        }),
+        body: JSON.stringify({ budget: parseFloat(budget) || 0 }),
       }),
     onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["marketing-expenses", vars.yr] });
+      queryClient.invalidateQueries({ queryKey: ["marketing-budgets", vars.yr] });
       setEditingCell(null);
     },
     onError: (e: Error) =>
@@ -305,15 +345,16 @@ export default function MarketingGastosPage() {
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
-  function getExpense(month: number, channel: string) {
-    return expenses.find((e) => e.month === month && e.channel === channel) ?? null;
-  }
+  // Sum all individual launches for a given month + channel
   function getAmount(month: number, channel: string): number {
-    return parseFloat(getExpense(month, channel)?.amount ?? "0");
+    return expenses
+      .filter((e) => e.month === month && e.channel === channel)
+      .reduce((sum, e) => sum + parseFloat(e.amount), 0);
   }
+  // Monthly budget from the budgets query (separate table)
   function getBudget(month: number, channel: string): number | null {
-    const b = getExpense(month, channel)?.budget;
-    return b ? parseFloat(b) : null;
+    const b = budgets.find((b) => b.month === month && b.channel === channel);
+    return b ? parseFloat(b.budget) : null;
   }
   function getMonthTotal(month: number): number {
     return CHANNELS.reduce((sum, ch) => sum + getAmount(month, ch.id), 0);
@@ -671,14 +712,13 @@ export default function MarketingGastosPage() {
                       return (
                         <td key={ch.id} className="px-3 py-1.5 text-right">
                           {isEditing ? (
-                            <CellEditor
-                              initialAmount={amount}
+                            <BudgetCellEditor
                               initialBudget={budget}
-                              onSave={(a, b) =>
-                                upsertMutation.mutate({
+                              onSave={(b) =>
+                                budgetMutation.mutate({
+                                  yr: year,
                                   month,
                                   channel: ch.id,
-                                  amount: a,
                                   budget: b,
                                 })
                               }
@@ -691,41 +731,39 @@ export default function MarketingGastosPage() {
                                 setEditingCell({ month, channel: ch.id })
                               }
                               disabled={isFuture}
+                              title={!isFuture ? "Clique para definir orçamento" : undefined}
                               className={cn(
                                 "group text-right w-full rounded px-1.5 py-1 transition-colors",
-                                !isFuture &&
-                                  "hover:bg-slate-100 dark:hover:bg-slate-700",
+                                !isFuture && "hover:bg-slate-100 dark:hover:bg-slate-700",
                               )}
                             >
                               <div className="flex items-center justify-end gap-1">
                                 {isOver && (
                                   <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />
                                 )}
-                                {amount === 0 ? (
-                                <span className="text-xs text-slate-300 dark:text-slate-600 group-hover:text-primary group-hover:font-medium transition-colors">
-                                  + Lançar
-                                </span>
-                              ) : (
                                 <span
                                   className={cn(
                                     "font-mono text-xs",
-                                    isOver
+                                    amount === 0
+                                      ? "text-slate-300 dark:text-slate-600"
+                                      : isOver
                                       ? "text-red-600 dark:text-red-400 font-semibold"
                                       : "text-slate-700 dark:text-slate-200",
                                   )}
                                 >
-                                  {formatBRL(amount)}
+                                  {amount === 0 ? "—" : formatBRL(amount)}
                                 </span>
-                              )}
-                                {!isFuture && (
-                                  <Pencil className="h-2.5 w-2.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                                )}
                               </div>
-                              {budget != null && budget > 0 && (
-                                <div className="text-[9px] text-slate-400 mt-0.5">
-                                  / {formatBRL(budget)}
+                              {budget != null && budget > 0 ? (
+                                <div className="flex items-center justify-end gap-1 mt-0.5">
+                                  <span className="text-[9px] text-slate-400">orç. {formatBRL(budget)}</span>
+                                  <Pencil className="h-2 w-2 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                                 </div>
-                              )}
+                              ) : !isFuture ? (
+                                <div className="text-[9px] text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                                  + orçamento
+                                </div>
+                              ) : null}
                             </button>
                           )}
                         </td>
@@ -796,7 +834,7 @@ export default function MarketingGastosPage() {
 
       {/* ── Novo Lançamento Dialog ────────────────────────────────────────── */}
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Plus className="h-4 w-4 text-primary" />
@@ -842,76 +880,34 @@ export default function MarketingGastosPage() {
               </div>
             </div>
 
-            {/* Data */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                  Mês
-                </Label>
-                <Select value={String(newMonth)} onValueChange={(v) => setNewMonth(parseInt(v))}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTH_NAMES.map((name, i) => (
-                      <SelectItem key={i + 1} value={String(i + 1)}>
-                        {name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                  Ano
-                </Label>
-                <Select value={String(newYear)} onValueChange={(v) => setNewYear(parseInt(v))}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1].map((y) => (
-                      <SelectItem key={y} value={String(y)}>
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Data do lançamento */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                Data do lançamento
+              </Label>
+              <Input
+                type="date"
+                value={newDate}
+                onChange={(e) => setNewDate(e.target.value)}
+                className="h-9"
+              />
             </div>
 
-            {/* Valores */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                  Valor Gasto (R$)
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  placeholder="0,00"
-                  value={newAmount}
-                  onChange={(e) => setNewAmount(e.target.value)}
-                  className="h-9"
-                  autoFocus
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                  Orçamento (R$){" "}
-                  <span className="font-normal text-slate-400 normal-case tracking-normal">opcional</span>
-                </Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  placeholder="0,00"
-                  value={newBudget}
-                  onChange={(e) => setNewBudget(e.target.value)}
-                  className="h-9"
-                />
-              </div>
+            {/* Valor */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
+                Valor (R$)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.01}
+                placeholder="0,00"
+                value={newAmount}
+                onChange={(e) => setNewAmount(e.target.value)}
+                className="h-9"
+                autoFocus
+              />
             </div>
 
             {/* Observações */}
@@ -929,48 +925,90 @@ export default function MarketingGastosPage() {
               />
             </div>
 
-            {/* Preview */}
-            {newAmount && parseFloat(newAmount) > 0 && (() => {
-              const ch = CHANNELS.find((c) => c.id === newChannel)!;
-              return (
-                <div className={cn("rounded-lg p-3 flex items-center justify-between border", ch.bg, ch.border)}>
-                  <div className="flex items-center gap-2">
-                    <ch.Icon className="h-4 w-4" style={{ color: ch.color }} />
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                      {ch.label} — {MONTH_SHORT[newMonth - 1]}/{newYear}
-                    </span>
-                  </div>
-                  <span className="font-bold text-slate-800 dark:text-slate-100">
-                    {formatBRL(parseFloat(newAmount))}
+            {/* Log da sessão */}
+            {sessionLaunches.length > 0 && (
+              <div className="rounded-lg border bg-slate-50 dark:bg-slate-800/50 p-3 flex flex-col gap-2">
+                <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  Lançamentos desta sessão
+                </p>
+                {sessionLaunches.map((sl, i) => {
+                  const ch = CHANNELS.find((c) => c.id === sl.channel)!;
+                  return (
+                    <div key={i} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Check className="h-3 w-3 text-green-500 flex-shrink-0" />
+                        <ch.Icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: ch.color }} />
+                        <span className="text-xs text-slate-600 dark:text-slate-300 truncate">
+                          {ch.short} — {formatDateBR(sl.date)}
+                          {sl.notes && <span className="text-slate-400"> · {sl.notes}</span>}
+                        </span>
+                      </div>
+                      <span className="text-xs font-semibold font-mono text-slate-700 dark:text-slate-200 flex-shrink-0">
+                        {formatBRL(sl.amount)}
+                      </span>
+                    </div>
+                  );
+                })}
+                <div className="border-t pt-2 flex justify-between">
+                  <span className="text-xs text-slate-500">{sessionLaunches.length} lançamento(s) — total:</span>
+                  <span className="text-xs font-bold font-mono text-slate-700 dark:text-slate-200">
+                    {formatBRL(sessionLaunches.reduce((s, l) => s + l.amount, 0))}
                   </span>
                 </div>
-              );
-            })()}
+              </div>
+            )}
 
             {/* Actions */}
-            <div className="flex gap-2 justify-end pt-1">
+            <div className="flex gap-2 justify-end pt-1 flex-wrap">
               <Button variant="outline" onClick={() => setNewOpen(false)}>
-                Cancelar
+                Fechar
               </Button>
               <Button
-                disabled={!newAmount || parseFloat(newAmount) <= 0 || upsertMutation.isPending}
+                variant="secondary"
+                disabled={!newAmount || parseFloat(newAmount) <= 0 || createMutation.isPending}
                 onClick={() => {
                   const ch = CHANNELS.find((c) => c.id === newChannel)!;
-                  upsertMutation.mutate(
-                    { yr: newYear, month: newMonth, channel: newChannel, amount: newAmount, budget: newBudget, notes: newNotes },
+                  const amt = parseFloat(newAmount);
+                  createMutation.mutate(
+                    { launchedAt: newDate, channel: newChannel, amount: newAmount, notes: newNotes },
                     {
                       onSuccess: () => {
-                        setNewOpen(false);
+                        setSessionLaunches((prev) => [
+                          ...prev,
+                          { channel: newChannel, date: newDate, amount: amt, notes: newNotes },
+                        ]);
+                        resetForm();
                         toast({
-                          title: "Lançamento salvo!",
-                          description: `${ch.label} — ${MONTH_NAMES[newMonth - 1]}/${newYear}: ${formatBRL(parseFloat(newAmount))}`,
+                          title: "Lançado!",
+                          description: `${ch.label} — ${formatBRL(amt)}`,
                         });
                       },
                     },
                   );
                 }}
               >
-                {upsertMutation.isPending ? "Salvando..." : "Salvar Lançamento"}
+                {createMutation.isPending ? "Salvando..." : "Salvar e Adicionar Mais"}
+              </Button>
+              <Button
+                disabled={!newAmount || parseFloat(newAmount) <= 0 || createMutation.isPending}
+                onClick={() => {
+                  const ch = CHANNELS.find((c) => c.id === newChannel)!;
+                  const amt = parseFloat(newAmount);
+                  createMutation.mutate(
+                    { launchedAt: newDate, channel: newChannel, amount: newAmount, notes: newNotes },
+                    {
+                      onSuccess: () => {
+                        setNewOpen(false);
+                        toast({
+                          title: "Lançamento salvo!",
+                          description: `${ch.label} — ${formatDateBR(newDate)}: ${formatBRL(amt)}`,
+                        });
+                      },
+                    },
+                  );
+                }}
+              >
+                {createMutation.isPending ? "Salvando..." : "Salvar Lançamento"}
               </Button>
             </div>
           </div>
