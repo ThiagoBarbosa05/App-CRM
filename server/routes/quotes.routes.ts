@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import PDFDocument from "pdfkit";
 import { db } from "../db";
-import { quotes, quoteItems, products, users } from "@shared/schema";
+import { quotes, quoteItems, products, users, clients } from "@shared/schema";
 import { storage } from "../storage";
 import { sendTextMessage } from "../integrations/whatsapp";
 
@@ -471,16 +471,16 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
       .where(eq(quoteItems.quoteId, id))
       .orderBy(quoteItems.sortOrder);
 
-    // ── Fetch product details (país, tipo, volume/"Por") ─────────────────────
+    // ── Fetch product details (país, tipo) ────────────────────────────────────
     const productIds = items.map(i => i.productId).filter(Boolean) as string[];
-    type ProductDetail = { country: string | null; type: string | null; volume: string | null };
+    type ProductDetail = { country: string | null; type: string | null };
     const productDetailMap: Record<string, ProductDetail> = {};
     if (productIds.length > 0) {
       const pRows = await db
-        .select({ id: products.id, country: products.country, type: products.type, volume: products.volume })
+        .select({ id: products.id, country: products.country, type: products.type })
         .from(products)
         .where(inArray(products.id, productIds));
-      for (const p of pRows) productDetailMap[p.id] = { country: p.country, type: p.type, volume: p.volume };
+      for (const p of pRows) productDetailMap[p.id] = { country: p.country, type: p.type };
     }
 
     // ── Fetch vendedor name ───────────────────────────────────────────────────
@@ -490,10 +490,28 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
       if (u) vendedorName = u.name;
     }
 
+    // ── Fetch client address ──────────────────────────────────────────────────
+    let clientAddress = "";
+    if (quote.clientId) {
+      const [cl] = await db
+        .select({ address: clients.address, number: clients.number, neighborhood: clients.neighborhood, city: clients.city, state: clients.state })
+        .from(clients)
+        .where(eq(clients.id, quote.clientId));
+      if (cl) {
+        const parts = [
+          cl.address && cl.number ? `${cl.address}, ${cl.number}` : cl.address,
+          cl.neighborhood,
+          cl.city && cl.state ? `${cl.city}/${cl.state}` : cl.city,
+        ].filter(Boolean);
+        clientAddress = parts.join(" – ");
+      }
+    }
+
     const paymentMap: Record<string, string> = {
       avista: "À Vista", "30d": "30 dias", "60d": "60 dias",
       "30-60d": "30/60 dias", "30-60-90d": "30/60/90 dias",
     };
+    const paymentLabel = paymentMap[quote.paymentConditions] ?? quote.paymentConditions;
 
     const fmtBRL = (v: number) =>
       "R$ " + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -525,55 +543,76 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
     // ── Header band ────────────────────────────────────────────────────────────
     doc.rect(0, 0, PAGE_W, 110).fill(WINE);
 
+    // Logo — white pill background so it stays visible on any dark header
     const logoPath = path.join(process.cwd(), "client", "public", "logo.png");
     if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, MARGIN, 35, { width: 160, height: 32 });
+      // Draw a white rounded rect behind the logo for contrast
+      doc.roundedRect(MARGIN - 6, 28, 176, 46, 6).fill("#FFFFFF");
+      doc.image(logoPath, MARGIN + 4, 36, { width: 154, height: 30 });
     } else {
       doc.font("Helvetica-Bold").fontSize(18).fillColor("#FFFFFF").text("Grand Cru", MARGIN, 40);
     }
 
-    doc
-      .font("Helvetica").fontSize(9).fillColor("rgba(255,255,255,0.7)")
+    // Right: ORÇAMENTO label + number + status
+    doc.font("Helvetica").fontSize(9).fillColor("rgba(255,255,255,0.7)")
       .text("ORÇAMENTO", 0, 32, { align: "right", width: PAGE_W - MARGIN });
-    doc
-      .font("Helvetica-Bold").fontSize(22).fillColor("#FFFFFF")
+    doc.font("Helvetica-Bold").fontSize(22).fillColor("#FFFFFF")
       .text(quote.quoteNumber, 0, 44, { align: "right", width: PAGE_W - MARGIN });
 
     const statusLabels: Record<string, string> = {
       draft: "RASCUNHO", sent: "ENVIADO", accepted: "ACEITO",
       rejected: "RECUSADO", converted: "CONVERTIDO", cancelled: "CANCELADO",
     };
-    doc
-      .font("Helvetica").fontSize(8).fillColor("rgba(255,255,255,0.75)")
+    doc.font("Helvetica").fontSize(8).fillColor("rgba(255,255,255,0.75)")
       .text(statusLabels[quote.status] ?? quote.status.toUpperCase(), 0, 74, {
         align: "right", width: PAGE_W - MARGIN,
       });
 
+    // Gold accent line
     doc.rect(0, 110, PAGE_W, 3).fill(GOLD);
 
-    let y = 128;
+    let y = 126;
 
-    // ── Info cards row: Cliente | Válido até | Pagamento | Vendedor ────────────
-    const CARD_H = 72;
+    // ── Info cards row: Cliente (wide) | Válido até | Vendedor ────────────────
+    // Pagamento is shown at the bottom, near totals
+    const CARD_H = 80;
     const GAP    = 8;
-    const CARD_W = (CONTENT_W - GAP * 3) / 4;
 
-    const drawCard = (x: number, label: string, value: string, sub?: string) => {
-      doc.rect(x, y, CARD_W, CARD_H).fill(LIGHT).stroke(BORDER);
+    // Cliente card is wider (has address), the other two share the rest
+    const CLIENTE_W = CONTENT_W * 0.48;
+    const OTHER_W   = (CONTENT_W - CLIENTE_W - GAP * 2) / 2;
+
+    // Draw Cliente card (tall, with address sub-line)
+    doc.rect(MARGIN, y, CLIENTE_W, CARD_H).fill(LIGHT).stroke(BORDER);
+    doc.font("Helvetica-Bold").fontSize(7).fillColor(WINE)
+      .text("CLIENTE", MARGIN + 10, y + 10, { width: CLIENTE_W - 20 });
+    doc.font("Helvetica-Bold").fontSize(12).fillColor(DARK)
+      .text(quote.clientName ?? "—", MARGIN + 10, y + 22, { width: CLIENTE_W - 20 });
+    // Phone
+    if (quote.clientPhone) {
+      doc.font("Helvetica").fontSize(8).fillColor(MID)
+        .text(quote.clientPhone, MARGIN + 10, y + 40, { width: CLIENTE_W - 20 });
+    }
+    // Address
+    if (clientAddress) {
+      const addrY = quote.clientPhone ? y + 52 : y + 40;
+      doc.font("Helvetica").fontSize(7.5).fillColor(MID)
+        .text(clientAddress, MARGIN + 10, addrY, { width: CLIENTE_W - 20, lineBreak: false });
+    }
+
+    // Helper for the two right-side cards
+    const drawSmallCard = (x: number, label: string, value: string) => {
+      doc.rect(x, y, OTHER_W, CARD_H).fill(LIGHT).stroke(BORDER);
       doc.font("Helvetica-Bold").fontSize(7).fillColor(WINE)
-        .text(label.toUpperCase(), x + 10, y + 10, { width: CARD_W - 20 });
-      doc.font("Helvetica-Bold").fontSize(10).fillColor(DARK)
-        .text(value || "—", x + 10, y + 23, { width: CARD_W - 20 });
-      if (sub) {
-        doc.font("Helvetica").fontSize(8).fillColor(MID)
-          .text(sub, x + 10, y + 42, { width: CARD_W - 20 });
-      }
+        .text(label.toUpperCase(), x + 10, y + 10, { width: OTHER_W - 20 });
+      doc.font("Helvetica-Bold").fontSize(11).fillColor(DARK)
+        .text(value || "—", x + 10, y + 26, { width: OTHER_W - 20 });
     };
 
-    drawCard(MARGIN,                         "Cliente",    quote.clientName ?? "—", quote.clientPhone ?? undefined);
-    drawCard(MARGIN + (CARD_W + GAP),        "Válido até", validStr);
-    drawCard(MARGIN + (CARD_W + GAP) * 2,    "Pagamento",  paymentMap[quote.paymentConditions] ?? quote.paymentConditions);
-    drawCard(MARGIN + (CARD_W + GAP) * 3,    "Vendedor",   vendedorName);
+    const card2X = MARGIN + CLIENTE_W + GAP;
+    const card3X = card2X + OTHER_W + GAP;
+    drawSmallCard(card2X, "Válido até", validStr);
+    drawSmallCard(card3X, "Vendedor",   vendedorName);
 
     y += CARD_H + 20;
 
@@ -582,24 +621,25 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
     y += 14;
 
     // ── Table header ───────────────────────────────────────────────────────────
-    // Columns: Produto (wider, holds sub-line) | Qtd | Preço Unit. | Por | Desconto | Total
+    // Columns: PRODUTO | QUANTI | PREÇO UNIT | DESCONTO | POR | TOTAL
+    // "POR" = unit price after discount applied
     const COL = {
-      produto:  { x: MARGIN,           w: 182 },
-      qtd:      { x: MARGIN + 182,     w:  38 },
-      unitario: { x: MARGIN + 220,     w:  80 },
-      por:      { x: MARGIN + 300,     w:  58 },
-      desconto: { x: MARGIN + 358,     w:  62 },
-      total:    { x: MARGIN + 420,     w: CONTENT_W - 420 },
+      produto:  { x: MARGIN,           w: 185 },
+      quanti:   { x: MARGIN + 185,     w:  38 },
+      unitario: { x: MARGIN + 223,     w:  78 },
+      desconto: { x: MARGIN + 301,     w:  65 },
+      por:      { x: MARGIN + 366,     w:  78 },
+      total:    { x: MARGIN + 444,     w: CONTENT_W - 444 },
     };
 
     const HDR_H = 20;
     doc.rect(MARGIN, y, CONTENT_W, HDR_H).fill(WINE);
     const headers: [keyof typeof COL, string][] = [
       ["produto",  "Produto"],
-      ["qtd",      "Qtd"],
+      ["quanti",   "Quanti"],
       ["unitario", "Preço Unit."],
-      ["por",      "Por"],
       ["desconto", "Desconto"],
+      ["por",      "Por"],
       ["total",    "Total"],
     ];
     for (const [key, label] of headers) {
@@ -616,27 +656,28 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
       const hasSubLine = !!subLine;
       const rowH = hasSubLine ? 32 : 22;
 
-      if (idx % 2 === 0) {
-        doc.rect(MARGIN, y, CONTENT_W, rowH).fill("#FFFFFF");
-      } else {
-        doc.rect(MARGIN, y, CONTENT_W, rowH).fill(LIGHT);
-      }
+      doc.rect(MARGIN, y, CONTENT_W, rowH).fill(idx % 2 === 0 ? "#FFFFFF" : LIGHT);
       doc.moveTo(MARGIN, y + rowH).lineTo(MARGIN + CONTENT_W, y + rowH)
         .strokeColor(BORDER).lineWidth(0.5).stroke();
 
-      const qty      = parseFloat(item.quantity);
-      const price    = parseFloat(item.unitPrice);
-      const disc     = parseFloat(item.discount);
-      const lt       = parseFloat(item.lineTotal);
+      const qty   = parseFloat(item.quantity);
+      const price = parseFloat(item.unitPrice);
+      const disc  = parseFloat(item.discount);
+      const lt    = parseFloat(item.lineTotal);
+
       const discLabel = item.discountType === "percent"
-        ? (disc > 0 ? disc + "%" : "—")
+        ? (disc > 0 ? `${disc}%` : "—")
         : (disc > 0 ? fmtBRL(disc) : "—");
-      const porLabel  = pd?.volume || "—";
+
+      // "Por" = preço unitário após desconto
+      const unitAfterDisc = item.discountType === "percent"
+        ? price * (1 - disc / 100)
+        : Math.max(0, price - disc);
 
       const textY = hasSubLine ? y + 6 : y + 7;
-      const midY  = y + (rowH / 2) - 4; // vertical center for single-height columns
+      const dataY = hasSubLine ? y + (rowH / 2) - 4 : textY;
 
-      // Produto name (top line) + sub-line
+      // Produto name + sub-line (país · tipo)
       doc.font("Helvetica").fontSize(8).fillColor(DARK)
         .text(item.productName || "—", COL.produto.x + 5, textY, { width: COL.produto.w - 8 });
       if (hasSubLine) {
@@ -644,14 +685,14 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
           .text(subLine, COL.produto.x + 5, textY + 13, { width: COL.produto.w - 8 });
       }
 
-      // Other columns — vertically centered in row
-      const dataY = hasSubLine ? midY : textY;
+      // Other columns — vertically centred
       doc.font("Helvetica").fontSize(8).fillColor(DARK);
-      doc.text(String(qty),     COL.qtd.x      + 5, dataY, { width: COL.qtd.w      - 8 });
-      doc.text(fmtBRL(price),   COL.unitario.x + 5, dataY, { width: COL.unitario.w - 8 });
-      doc.text(porLabel,        COL.por.x      + 5, dataY, { width: COL.por.w      - 8 });
-      doc.text(discLabel,       COL.desconto.x + 5, dataY, { width: COL.desconto.w - 8 });
-      doc.font("Helvetica-Bold")
+      doc.text(String(qty),        COL.quanti.x   + 5, dataY, { width: COL.quanti.w   - 8 });
+      doc.text(fmtBRL(price),      COL.unitario.x + 5, dataY, { width: COL.unitario.w - 8 });
+      doc.text(discLabel,          COL.desconto.x + 5, dataY, { width: COL.desconto.w - 8 });
+      doc.font("Helvetica-Bold").fillColor(WINE)
+        .text(fmtBRL(unitAfterDisc), COL.por.x    + 5, dataY, { width: COL.por.w      - 8 });
+      doc.font("Helvetica-Bold").fillColor(DARK)
         .text(fmtBRL(lt), COL.total.x + 5, dataY, { width: COL.total.w - 10, align: "right" });
 
       y += rowH;
@@ -666,7 +707,7 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
 
     y += 16;
 
-    // ── Totals box ─────────────────────────────────────────────────────────────
+    // ── Totals + Pagamento side-by-side ────────────────────────────────────────
     const TOTALS_W = 220;
     const TOTALS_X = PAGE_W - MARGIN - TOTALS_W;
 
@@ -683,8 +724,9 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
       y += bold ? 18 : 16;
     };
 
-    drawTotalRow("Subtotal", fmtBRL(subtotal));
+    const totalsStartY = y;
 
+    drawTotalRow("Subtotal", fmtBRL(subtotal));
     if (globalDisc > 0) {
       const discLabel = quote.globalDiscountType === "percent"
         ? `Desconto (${globalDisc}%)`
@@ -699,7 +741,18 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
     doc.font("Helvetica-Bold").fontSize(13).fillColor("#FFFFFF")
       .text(fmtBRL(total), TOTALS_X, y + 4, { width: TOTALS_W - 12, align: "right" });
 
-    y += TOTAL_ROW_H + 24;
+    y += TOTAL_ROW_H + 10;
+
+    // Pagamento card — left-aligned, same baseline as totals area
+    const PAY_W = TOTALS_X - MARGIN - 16;
+    const payH  = y - totalsStartY;
+    doc.rect(MARGIN, totalsStartY - 4, PAY_W, payH + 8).fill(LIGHT).stroke(BORDER);
+    doc.font("Helvetica-Bold").fontSize(7).fillColor(WINE)
+      .text("CONDIÇÃO DE PAGAMENTO", MARGIN + 10, totalsStartY + 6, { width: PAY_W - 20 });
+    doc.font("Helvetica-Bold").fontSize(14).fillColor(DARK)
+      .text(paymentLabel, MARGIN + 10, totalsStartY + 20, { width: PAY_W - 20 });
+
+    y += 16;
 
     // ── Notes ──────────────────────────────────────────────────────────────────
     if (quote.notes) {
@@ -710,17 +763,16 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
     }
 
     // ── Footer ─────────────────────────────────────────────────────────────────
-    const FOOTER_Y = PAGE_H - 48;
-    doc.rect(0, FOOTER_Y - 4, PAGE_W, 52).fill(LIGHT);
+    const FOOTER_Y = PAGE_H - 44;
+    doc.rect(0, FOOTER_Y - 4, PAGE_W, 48).fill(LIGHT);
     doc.moveTo(0, FOOTER_Y - 4).lineTo(PAGE_W, FOOTER_Y - 4).strokeColor(BORDER).lineWidth(1).stroke();
     doc.font("Helvetica").fontSize(8).fillColor(MID)
       .text(
-        `Grand Cru  •  Orçamento emitido em ${new Date().toLocaleDateString("pt-BR")}  •  Válido até ${validStr}  •  Vendedor: ${vendedorName}`,
-        0, FOOTER_Y + 8,
-        { align: "center", width: PAGE_W },
+        `Grand Cru  •  Emitido em ${new Date().toLocaleDateString("pt-BR")}  •  Válido até ${validStr}  •  Vendedor: ${vendedorName}`,
+        0, FOOTER_Y + 6, { align: "center", width: PAGE_W },
       );
     doc.font("Helvetica").fontSize(7).fillColor(BORDER)
-      .text(quote.quoteNumber, 0, FOOTER_Y + 24, { align: "center", width: PAGE_W });
+      .text(quote.quoteNumber, 0, FOOTER_Y + 22, { align: "center", width: PAGE_W });
 
     doc.end();
   } catch (err) {
