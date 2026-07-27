@@ -2408,6 +2408,9 @@ export const pdvUnits = pgTable("pdv_units", {
   defaultServiceFeePercent: decimal("default_service_fee_percent", { precision: 5, scale: 2 }).notNull().default("10.00"),
   waiterCommissionPercent: decimal("waiter_commission_percent", { precision: 5, scale: 2 }).notNull().default("0.00"),
   blingConnectionId: varchar("bling_connection_id"),
+  // Consumidor Final da unidade — usado ao enviar pedido de venda ao Bling
+  // quando a comanda fecha sem cliente vinculado. FK real (não é snapshot).
+  defaultClientId: varchar("default_client_id").references(() => clients.id),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
