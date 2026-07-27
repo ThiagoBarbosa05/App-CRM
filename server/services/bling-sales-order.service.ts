@@ -211,7 +211,8 @@ async function recordSyncResult(
  * venda no Bling.
  */
 export async function sendOrderToBling(orderId: string): Promise<void> {
-  await db.transaction(async (tx) => {
+  try {
+    await db.transaction(async (tx) => {
     const [order] = await tx
       .select()
       .from(restaurantOrders)
@@ -315,10 +316,16 @@ export async function sendOrderToBling(orderId: string): Promise<void> {
       const finalStatus = attempts >= MAX_SYNC_ATTEMPTS ? "bloqueado" : "erro";
       await recordSyncResult(tx, order, {
         result: "erro",
-        reason: (err as Error).message,
+        reason: err instanceof Error ? err.message : String(err),
         attempts,
         finalStatus,
       });
     }
-  });
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[BlingSalesOrderSync] Transação falhou para orderId ${orderId} — nenhum registro de sincronização foi persistido para esta comanda: ${message}`,
+    );
+  }
 }
