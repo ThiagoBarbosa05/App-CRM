@@ -20,6 +20,7 @@ import type {
   RestaurantOrderItem,
 } from "../../shared/schema";
 import { restaurantOrderAuditService } from "./restaurant-order-audit.service";
+import { sendOrderToBling } from "./bling-sales-order.service";
 import { restaurantOrderPaymentsService } from "./restaurant-order-payments.service";
 import { restaurantCashSessionService } from "./restaurant-cash-session.service";
 import {
@@ -838,6 +839,16 @@ export const restaurantPdvService = {
       });
 
       return updated;
+    });
+
+    // Fire-and-forget: o fechamento nunca espera nem falha por causa do
+    // Bling. Falha vira `bling_sync_status = 'erro'`/`'bloqueado'`, coberta
+    // pelo cron de retry (bling-sales-order-sync-scheduler.ts).
+    sendOrderToBling(closed.id).catch((err) => {
+      console.error(
+        `[Bling Sync] Falha ao iniciar envio da comanda ${closed.id}:`,
+        err,
+      );
     });
 
     return closed;

@@ -22,6 +22,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
 import "./jobs/update-expired-events-scheduler";
 import "./jobs/bling-token-refresh-scheduler";
+import "./jobs/bling-sales-order-sync-scheduler";
 import "./jobs/assertiva-token-refresh-scheduler";
 import "./jobs/campaign-dispatcher";
 import "./jobs/whatsapp-campaign-dispatcher";
