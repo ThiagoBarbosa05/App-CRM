@@ -145,12 +145,12 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const PAYMENT_OPTIONS = [
-  { value: "avista", label: "À Vista" },
-  { value: "30d", label: "30 dias" },
-  { value: "60d", label: "60 dias" },
-  { value: "30-60d", label: "30/60 dias" },
-  { value: "30-60-90d", label: "30/60/90 dias" },
-  { value: "custom", label: "Personalizado" },
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "pix", label: "PIX" },
+  { value: "deposito", label: "Depósito Bancário" },
+  { value: "credito", label: "Cartão de Crédito" },
+  { value: "debito", label: "Cartão de Débito" },
+  { value: "a-combinar", label: "A Combinar" },
 ];
 
 // Default validity: today + 15 days
@@ -412,7 +412,7 @@ export default function OrcamentoEditor() {
   const [clientName, setClientName] = useState<string | null>(null);
   const [clientPhone, setClientPhone] = useState<string | null>(null);
   const [validUntil, setValidUntil] = useState(defaultValidUntil());
-  const [paymentConditions, setPaymentConditions] = useState("avista");
+  const [paymentConditions, setPaymentConditions] = useState("dinheiro");
   const [notes, setNotes] = useState("");
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountType, setGlobalDiscountType] = useState<"percent" | "fixed">("percent");

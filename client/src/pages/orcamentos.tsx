@@ -98,6 +98,13 @@ function StatusBadge({ status }: { status: QuoteStatus }) {
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
+  dinheiro: "Dinheiro",
+  pix: "PIX",
+  deposito: "Depósito Bancário",
+  credito: "Cartão de Crédito",
+  debito: "Cartão de Débito",
+  "a-combinar": "A Combinar",
+  // legado
   avista: "À Vista",
   "30d": "30 dias",
   "60d": "60 dias",
