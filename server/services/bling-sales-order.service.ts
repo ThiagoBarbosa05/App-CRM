@@ -304,13 +304,35 @@ export async function sendOrderToBling(orderId: string): Promise<void> {
         resolved.payload,
         onTokenRefresh,
       );
+      const blingSalesOrderIdStr = String(blingSalesOrderId);
 
-      await recordSyncResult(tx, order, {
-        result: "enviado",
-        reason: null,
-        blingSalesOrderId: String(blingSalesOrderId),
-        attempts: order.blingSyncAttempts,
-      });
+      try {
+        await recordSyncResult(tx, order, {
+          result: "enviado",
+          reason: null,
+          blingSalesOrderId: blingSalesOrderIdStr,
+          attempts: order.blingSyncAttempts,
+        });
+      } catch (recordErr) {
+        const recordErrMessage =
+          recordErr instanceof Error ? recordErr.message : String(recordErr);
+        console.error(
+          `[BlingSalesOrderSync] Pedido de venda ${blingSalesOrderIdStr} foi criado no Bling ` +
+            `para orderId ${order.id}, mas a gravação do resultado dentro da transação falhou ` +
+            `(${recordErrMessage}). Tentando gravação de fallback fora da transação para não ` +
+            `perder o id do pedido já criado.`,
+        );
+        // Retry on the plain, non-transactional `db` handle: `tx` is poisoned after the
+        // failed write above (Postgres aborts the whole transaction on any error), so any
+        // further statement on `tx` would fail too. `db` is a separate connection, unaffected
+        // by that abort, and is the only way left to persist the real Bling sales order id.
+        await recordSyncResult(db, order, {
+          result: "enviado",
+          reason: null,
+          blingSalesOrderId: blingSalesOrderIdStr,
+          attempts: order.blingSyncAttempts,
+        });
+      }
     } catch (err) {
       const attempts = order.blingSyncAttempts + 1;
       const finalStatus = attempts >= MAX_SYNC_ATTEMPTS ? "bloqueado" : "erro";
