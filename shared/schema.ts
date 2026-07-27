@@ -5146,9 +5146,29 @@ export const whatsappConversationReads = pgTable(
     conversationId: varchar("conversation_id")
       .notNull()
       .references(() => whatsappConversations.id),
+    // Lado do diálogo interno que esta marcação cobre. NULL = marcação da
+    // conversa inteira (todo caso não-interno e todo leitor que não é
+    // admin/gerente) — é o estado de repouso e o que toda linha antiga tem.
+    perspectiveChannelId: integer("perspective_channel_id").references(
+      () => whatsappChannels.id,
+    ),
     lastReadAt: timestamp("last_read_at").defaultNow().notNull(),
   },
-  (t) => ({ userConversationUnique: unique().on(t.userId, t.conversationId) }),
+  (t) => ({
+    // Dois índices PARCIAIS em vez de um unique(user, conv, perspective):
+    // unique comum não deduplica NULL, então a linha "conversa inteira"
+    // perderia a chave e o ON CONFLICT pararia de disparar no caminho que
+    // hoje funciona. Cada índice é inferível pelo ON CONFLICT correspondente
+    // em markConversationRead (whatsapp-conversations.service.ts). Mesmos
+    // nomes que scripts/add-whatsapp-conversation-reads-perspective.mjs cria
+    // com IF NOT EXISTS, para o schema refletir a constraint real.
+    userConversationUnique: uniqueIndex("whatsapp_conversation_reads_user_conv_unique")
+      .on(t.userId, t.conversationId)
+      .where(sql`${t.perspectiveChannelId} IS NULL`),
+    userConversationSideUnique: uniqueIndex("whatsapp_conversation_reads_user_conv_side_unique")
+      .on(t.userId, t.conversationId, t.perspectiveChannelId)
+      .where(sql`${t.perspectiveChannelId} IS NOT NULL`),
+  }),
 );
 
 export const whatsappReactions = pgTable(
