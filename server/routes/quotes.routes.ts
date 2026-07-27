@@ -647,10 +647,14 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
       ["por",      "Por"],
       ["total",    "Total"],
     ];
+    const HDR_ALIGN: Record<keyof typeof COL, "left" | "center" | "right"> = {
+      produto: "left", quanti: "center", unitario: "center",
+      desconto: "center", por: "center", total: "right",
+    };
     for (const [key, label] of headers) {
       const col = COL[key];
       doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#FFFFFF")
-        .text(label, col.x + 5, y + 6, { width: col.w - 8, align: key === "total" ? "right" : "left" });
+        .text(label, col.x + 2, y + 6, { width: col.w - 4, align: HDR_ALIGN[key] });
     }
     y += HDR_H;
 
@@ -692,13 +696,13 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
 
       // Other columns — vertically centred
       doc.font("Helvetica").fontSize(8).fillColor(DARK);
-      doc.text(String(qty),        COL.quanti.x   + 5, dataY, { width: COL.quanti.w   - 8 });
-      doc.text(fmtBRL(price),      COL.unitario.x + 5, dataY, { width: COL.unitario.w - 8 });
-      doc.text(discLabel,          COL.desconto.x + 5, dataY, { width: COL.desconto.w - 8 });
+      doc.text(String(qty),        COL.quanti.x   + 2, dataY, { width: COL.quanti.w   - 4, align: "center" });
+      doc.text(fmtBRL(price),      COL.unitario.x + 2, dataY, { width: COL.unitario.w - 4, align: "center" });
+      doc.text(discLabel,          COL.desconto.x + 2, dataY, { width: COL.desconto.w - 4, align: "center" });
       doc.font("Helvetica-Bold").fillColor(WINE)
-        .text(fmtBRL(unitAfterDisc), COL.por.x    + 5, dataY, { width: COL.por.w      - 8 });
+        .text(fmtBRL(unitAfterDisc), COL.por.x    + 2, dataY, { width: COL.por.w      - 4, align: "center" });
       doc.font("Helvetica-Bold").fillColor(DARK)
-        .text(fmtBRL(lt), COL.total.x + 5, dataY, { width: COL.total.w - 10, align: "right" });
+        .text(fmtBRL(lt), COL.total.x + 2, dataY, { width: COL.total.w - 6, align: "right" });
 
       y += rowH;
     });

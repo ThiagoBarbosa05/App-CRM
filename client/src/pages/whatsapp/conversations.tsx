@@ -2993,6 +2993,7 @@ function ConversationMessages({
   canEditQuickReplies,
   canDeleteQuickReplies,
   initialDraft,
+  initialFile,
 }: {
   conversationKey: string;
   onBack: () => void;
@@ -3009,6 +3010,8 @@ function ConversationMessages({
   canDeleteQuickReplies: boolean;
   /** Texto que já chega escrito no composer, editável antes do envio. */
   initialDraft?: string;
+  /** Arquivo (ex.: PDF do orçamento) pré-carregado na área de anexo ao abrir a conversa. */
+  initialFile?: File;
 }) {
   const isAdminOrGerente = userRole === "admin" || userRole === "gerente";
   // O componente é remontado a cada troca de conversa (key=conversationId no
@@ -3069,6 +3072,19 @@ function ConversationMessages({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { toast } = useToast();
+
+  // Pré-carrega arquivo de anexo passado pelo componente pai (ex.: PDF do orçamento).
+  // O componente é remontado a cada troca de conversa, então o efeito roda uma vez por conversa.
+  useEffect(() => {
+    if (!initialFile) return;
+    setPendingMedia({
+      file: initialFile,
+      url: URL.createObjectURL(initialFile),
+      kind: "document",
+    });
+    setPendingMediaCaption("");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [createClientOpen, setCreateClientOpen] = useState(false);
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
@@ -6307,6 +6323,10 @@ export default function WhatsAppConversationsPage() {
   // Rascunho vindo junto do deep-link (ex.: mensagem sugerida pelo Copiloto).
   // Só é aplicado na conversa que o deep-link selecionou — ver deepLinkedId.
   const draftParam = searchParams.get("text");
+  // ID do orçamento passado pelo editor (/orcamentos/:id) para pré-anexar o PDF.
+  const quoteIdParam = searchParams.get("quoteId");
+  const [pendingQuoteFile, setPendingQuoteFile] = useState<File | null>(null);
+  const quotePdfFetchedRef = useRef(false);
   const autoSelectedPhoneRef = useRef(false);
   const [deepLinkedId, setDeepLinkedId] = useState<string | null>(() =>
     conversationIdParam ?? null,
@@ -6593,6 +6613,27 @@ export default function WhatsAppConversationsPage() {
       autoSelectedPhoneRef.current = true;
     }
   }, [clientList, phoneParam]);
+
+  // Quando quoteId está presente e uma conversa é selecionada, busca o PDF
+  // do orçamento e o coloca como anexo pendente — uma única vez por navegação.
+  useEffect(() => {
+    if (!quoteIdParam || quotePdfFetchedRef.current || !selectedClient) return;
+    quotePdfFetchedRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/quotes/${quoteIdParam}/pdf`, { credentials: "include" });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const cd = res.headers.get("Content-Disposition") ?? "";
+        const nameMatch = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        const filename = nameMatch ? nameMatch[1].replace(/['"]/g, "") : `orcamento-${quoteIdParam}.pdf`;
+        setPendingQuoteFile(new File([blob], filename, { type: "application/pdf" }));
+      } catch {
+        // silencia — o usuário pode anexar manualmente se falhar
+      }
+    })();
+  }, [quoteIdParam, selectedClient]);
+
 
   const markRead = useCallback(
     async (id: string, asChannelId?: number | null) => {
@@ -7634,6 +7675,7 @@ export default function WhatsAppConversationsPage() {
                 ? (draftParam ?? undefined)
                 : undefined
             }
+            initialFile={pendingQuoteFile ?? undefined}
             onClientLinked={handleClientLinked}
             availableWhatsappTags={availableWaTags}
             onWhatsappTagsChange={(clientId, tagIds) =>

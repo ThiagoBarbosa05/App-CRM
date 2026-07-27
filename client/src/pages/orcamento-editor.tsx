@@ -1084,14 +1084,13 @@ export default function OrcamentoEditor() {
                           variant="outline"
                           size="sm"
                           className="w-full gap-2 text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-900/20"
-                          onClick={() => whatsappMutation.mutate()}
-                          disabled={whatsappMutation.isPending}
+                          onClick={() =>
+                            navigate(
+                              `/whatsapp/conversas?phone=${encodeURIComponent(clientPhone)}&quoteId=${quoteId}`,
+                            )
+                          }
                         >
-                          {whatsappMutation.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <MessageCircle className="h-3.5 w-3.5" />
-                          )}
+                          <MessageCircle className="h-3.5 w-3.5" />
                           Enviar via WhatsApp
                         </Button>
                       )}
@@ -1126,14 +1125,13 @@ export default function OrcamentoEditor() {
                           variant="outline"
                           size="sm"
                           className="w-full gap-2 text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-900/20"
-                          onClick={() => whatsappMutation.mutate()}
-                          disabled={whatsappMutation.isPending}
+                          onClick={() =>
+                            navigate(
+                              `/whatsapp/conversas?phone=${encodeURIComponent(clientPhone)}&quoteId=${quoteId}`,
+                            )
+                          }
                         >
-                          {whatsappMutation.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <MessageCircle className="h-3.5 w-3.5" />
-                          )}
+                          <MessageCircle className="h-3.5 w-3.5" />
                           Reenviar via WhatsApp
                         </Button>
                       )}
