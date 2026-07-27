@@ -31,6 +31,7 @@ import {
   Trash2,
   Cake,
   BellOff,
+  FileText,
 } from "lucide-react";
 import { FaWhatsapp, FaInstagram } from "react-icons/fa";
 import { type Client } from "@shared/schema";
@@ -47,6 +48,7 @@ import { ClientEventsTab } from "@/components/clients/client-events-tab";
 import { ClientWineProfileTab } from "@/components/clients/client-wine-profile-tab";
 import { ClientTelemarketingTab } from "@/components/clients/client-telemarketing-tab";
 import { ClientReferralsTab } from "@/components/clients/client-referrals-tab";
+import { ClientQuotesTab } from "@/components/clients/client-quotes-tab";
 import ClientFormModal from "@/components/client-form-modal";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -632,6 +634,11 @@ export default function ClientProfilePage() {
                 <Users className="h-3.5 w-3.5" />
                 Indicações
               </UnderlineTabsTrigger>
+
+              <UnderlineTabsTrigger value="orcamentos" color="blue">
+                <FileText className="h-3.5 w-3.5" />
+                Orçamentos
+              </UnderlineTabsTrigger>
             </UnderlineTabsList>
           </div>
 
@@ -698,6 +705,13 @@ export default function ClientProfilePage() {
 
                 {activeTab === "indicacoes" && (
                   <ClientReferralsTab clientId={client.id} />
+                )}
+
+                {activeTab === "orcamentos" && (
+                  <ClientQuotesTab
+                    clientId={client.id}
+                    clientName={client.name}
+                  />
                 )}
               </motion.div>
             </AnimatePresence>

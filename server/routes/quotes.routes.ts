@@ -83,7 +83,7 @@ function buildItemRows(rawItems: any[], quoteId: string) {
 
 quotesRouter.get("/", async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, clientId } = req.query;
     const userId = req.user!.userId;
     const role = req.user!.role;
 
@@ -95,6 +95,10 @@ quotesRouter.get("/", async (req, res) => {
 
     if (status && status !== "all" && status !== "expired") {
       conditions.push(eq(quotes.status, status as string));
+    }
+
+    if (clientId && typeof clientId === "string") {
+      conditions.push(eq(quotes.clientId, clientId));
     }
 
     const rows = await db
