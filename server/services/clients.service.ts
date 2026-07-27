@@ -1145,7 +1145,9 @@ export class ClientsService {
       hasWineProfile: req.query.hasWineProfile === "true" ? true : undefined,
       rfmSegment: req.query.rfmSegment as string | undefined,
       eventId: req.query.eventId as string | undefined,
-      ignoreResponsavelScope: req.query.ignoreResponsavelScope === "true",
+      // Vendedores nunca podem ignorar o escopo de responsável — bloqueia bypass via query string
+      ignoreResponsavelScope:
+        userRole === "vendedor" ? false : req.query.ignoreResponsavelScope === "true",
     });
 
     return {

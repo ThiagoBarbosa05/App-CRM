@@ -248,7 +248,7 @@ function ClientSearch({
 
   const { data: results = [] } = useQuery<{ data: ClientResult[] }>({
     queryKey: ["clients-search", query],
-    queryFn: () => apiFetch(`/api/clients?search=${encodeURIComponent(query)}&limit=10`),
+    queryFn: () => apiFetch(`/api/clients?search=${encodeURIComponent(query)}&pageSize=10`),
     enabled: query.length >= 2,
     staleTime: 30_000,
     select: (r) => r.data ?? [],
