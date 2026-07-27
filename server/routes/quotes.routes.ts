@@ -514,6 +514,7 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
       credito: "Cartão de Crédito", debito: "Cartão de Débito", "a-combinar": "A Combinar",
       avista: "À Vista", "30d": "30 dias", "60d": "60 dias",
       "30-60d": "30/60 dias", "30-60-90d": "30/60/90 dias",
+      custom: "A Combinar",
     };
     const paymentLabel = paymentMap[quote.paymentConditions] ?? quote.paymentConditions;
 
