@@ -34,6 +34,21 @@ export type ResolveBlingSalesOrderResult =
   | { ok: false; reason: string };
 
 /**
+ * Simula a criação do pedido de venda no Bling, sem chamar a API real. Usado
+ * enquanto o PDV Restaurante está em fase de testes, para não gerar pedidos
+ * de venda de teste na conta Bling real (ver `BLING_PEDIDO_VENDA_MOCK`).
+ */
+function createMockBlingPedidoVenda(
+  orderId: string,
+): { id: number; alertas: string[] } {
+  const mockId = -Date.now();
+  console.log(
+    `[Bling Sync] MOCK ativo — pedido de venda simulado (id=${mockId}) para orderId ${orderId}`,
+  );
+  return { id: mockId, alertas: [] };
+}
+
+/**
  * Monta o payload de POST /pedidos/vendas a partir dos dados já carregados da
  * comanda. Nunca lança — qualquer vínculo faltando (item sem produto Bling,
  * contato não resolvido) vira `{ ok: false, reason }`, que o chamador trata
@@ -291,27 +306,34 @@ export async function sendOrderToBling(orderId: string): Promise<void> {
       }
 
       try {
-        const connection = await blingConnectionsService.getById(connectionId);
-        if (!connection?.accessTokenEncrypted) {
-          throw new Error("Conexão Bling sem token de acesso");
-        }
+        const isBlingMock = process.env.BLING_PEDIDO_VENDA_MOCK === "true";
 
-        let accessToken = decryptToken(connection.accessTokenEncrypted);
-        const onTokenRefresh = async (): Promise<string> => {
-          await blingConnectionsService.refreshConnection(connectionId);
-          const refreshed = await blingConnectionsService.getById(connectionId);
-          if (!refreshed?.accessTokenEncrypted) {
-            throw new Error("Não foi possível renovar o token do Bling");
+        let blingSalesOrderId: number;
+        if (isBlingMock) {
+          ({ id: blingSalesOrderId } = createMockBlingPedidoVenda(order.id));
+        } else {
+          const connection = await blingConnectionsService.getById(connectionId);
+          if (!connection?.accessTokenEncrypted) {
+            throw new Error("Conexão Bling sem token de acesso");
           }
-          accessToken = decryptToken(refreshed.accessTokenEncrypted);
-          return accessToken;
-        };
 
-        const { id: blingSalesOrderId } = await createBlingPedidoVenda(
-          accessToken,
-          resolved.payload,
-          onTokenRefresh,
-        );
+          let accessToken = decryptToken(connection.accessTokenEncrypted);
+          const onTokenRefresh = async (): Promise<string> => {
+            await blingConnectionsService.refreshConnection(connectionId);
+            const refreshed = await blingConnectionsService.getById(connectionId);
+            if (!refreshed?.accessTokenEncrypted) {
+              throw new Error("Não foi possível renovar o token do Bling");
+            }
+            accessToken = decryptToken(refreshed.accessTokenEncrypted);
+            return accessToken;
+          };
+
+          ({ id: blingSalesOrderId } = await createBlingPedidoVenda(
+            accessToken,
+            resolved.payload,
+            onTokenRefresh,
+          ));
+        }
         const blingSalesOrderIdStr = String(blingSalesOrderId);
 
         try {
