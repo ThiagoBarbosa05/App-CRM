@@ -20,6 +20,7 @@ import {
   Trophy,
   ClipboardList,
   QrCode,
+  TrendingDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
@@ -345,6 +346,23 @@ export default function Sidebar() {
                   >
                     <Shield className="mr-3 h-4 w-4" />
                     <span className="mobile-text">Admin Metas</span>
+                  </button>
+                </Link>
+              )}
+
+              {user?.role === "admin" && (
+                <Link href="/marketing-gastos">
+                  <button
+                    onClick={closeMobileMenu}
+                    className={cn(
+                      "w-full flex items-center px-3 py-2 sm:px-4 sm:py-3 text-left rounded-lg font-medium transition-colors mobile-button",
+                      isActive("/marketing-gastos")
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                    )}
+                  >
+                    <TrendingDown className="mr-3 h-4 w-4" />
+                    <span className="mobile-text">Gastos Marketing</span>
                   </button>
                 </Link>
               )}

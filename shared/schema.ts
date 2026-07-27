@@ -5608,3 +5608,23 @@ export const copilotoSignals = pgTable(
 export type CopilotoSignal = typeof copilotoSignals.$inferSelect;
 export type InsertCopilotoSignal = typeof copilotoSignals.$inferInsert;
 export type CopilotoSignalType = CopilotoSignal["type"];
+
+// ─── Marketing Expenses ───────────────────────────────────────────────────────
+
+export const marketingExpenses = pgTable("marketing_expenses", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  year: integer("year").notNull(),
+  month: integer("month").notNull(), // 1-12
+  channel: text("channel").notNull(), // 'whatsapp_disparos' | 'google_ads' | 'meta_ads'
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  budget: decimal("budget", { precision: 12, scale: 2 }),
+  notes: text("notes"),
+  createdById: varchar("created_by_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type MarketingExpense = typeof marketingExpenses.$inferSelect;
+export type InsertMarketingExpense = typeof marketingExpenses.$inferInsert;

@@ -78,6 +78,7 @@ import {
   interactionGoalsRouter,
   interactionStatsRouter,
 } from "./interaction-goals.routes";
+import { marketingExpensesRouter } from "./marketing-expenses.routes";
 import { referralsRouter } from "./referrals.routes";
 import rfmRouter from "./rfm.routes";
 import copilotoRouter from "./copiloto.routes";
@@ -249,6 +250,7 @@ apiRouter.use("/media-library", mediaLibraryRouter);
 apiRouter.use("/integrations/assertiva", assertivaRouter);
 apiRouter.use("/integrations/openai", openaiStatusRouter);
 apiRouter.use("/marketing", marketingRouter);
+apiRouter.use("/marketing-expenses", marketingExpensesRouter);
 apiRouter.use("/email-campaigns", emailCampaignsRouter);
 apiRouter.use("/sms-campaigns", smsCampaignsRouter);
 apiRouter.use("/zernio", zernioRouter);

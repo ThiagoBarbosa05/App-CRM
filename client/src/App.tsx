@@ -36,6 +36,7 @@ import ClientsRegistrationQualityPage from "./pages/clients-registration-quality
 import CalculadoraVinho from "./pages/calculadora-vinho";
 import EventsPage from "./pages/events";
 import TarefasPage from "./pages/tarefas";
+import MarketingGastosPage from "./pages/marketing-gastos";
 import RankingPage from "./pages/ranking";
 import CopilotoPage from "./pages/copiloto";
 import TelemarketingPage from "./pages/telemarketing";
@@ -381,6 +382,14 @@ function Router() {
         component={() => (
           <MainLayout>
             <ReferralProgramPage />
+          </MainLayout>
+        )}
+      />
+      <Route
+        path="/marketing-gastos"
+        component={() => (
+          <MainLayout>
+            <MarketingGastosPage />
           </MainLayout>
         )}
       />
