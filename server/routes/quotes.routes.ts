@@ -629,12 +629,12 @@ quotesRouter.get("/:id/pdf", async (req, res) => {
     // Columns: PRODUTO | QUANTI | PREÇO UNIT | DESCONTO | POR | TOTAL
     // "POR" = unit price after discount applied
     const COL = {
-      produto:  { x: MARGIN,           w: 185 },
-      quanti:   { x: MARGIN + 185,     w:  38 },
-      unitario: { x: MARGIN + 223,     w:  78 },
-      desconto: { x: MARGIN + 301,     w:  65 },
-      por:      { x: MARGIN + 366,     w:  78 },
-      total:    { x: MARGIN + 444,     w: CONTENT_W - 444 },
+      produto:  { x: MARGIN,           w: 245 },
+      quanti:   { x: MARGIN + 245,     w:  30 },
+      unitario: { x: MARGIN + 275,     w:  65 },
+      desconto: { x: MARGIN + 340,     w:  45 },
+      por:      { x: MARGIN + 385,     w:  63 },
+      total:    { x: MARGIN + 448,     w: CONTENT_W - 448 },
     };
 
     const HDR_H = 20;
