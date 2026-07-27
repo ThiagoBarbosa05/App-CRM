@@ -654,18 +654,22 @@ export default function MarketingGastosPage() {
                                 {isOver && (
                                   <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />
                                 )}
+                                {amount === 0 ? (
+                                <span className="text-xs text-slate-300 dark:text-slate-600 group-hover:text-primary group-hover:font-medium transition-colors">
+                                  + Lançar
+                                </span>
+                              ) : (
                                 <span
                                   className={cn(
                                     "font-mono text-xs",
-                                    amount === 0
-                                      ? "text-slate-300 dark:text-slate-600"
-                                      : isOver
+                                    isOver
                                       ? "text-red-600 dark:text-red-400 font-semibold"
                                       : "text-slate-700 dark:text-slate-200",
                                   )}
                                 >
-                                  {amount === 0 ? "—" : formatBRL(amount)}
+                                  {formatBRL(amount)}
                                 </span>
+                              )}
                                 {!isFuture && (
                                   <Pencil className="h-2.5 w-2.5 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                                 )}
