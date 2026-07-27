@@ -2620,6 +2620,16 @@ export const restaurantOrders = pgTable(
     // snapshot de system_settings.restaurant_pdv_bling_connection_id no momento
     // da abertura — referência solta (sem FK), mesmo padrão de mergedIntoOrderId
     blingConnectionId: varchar("bling_connection_id"),
+    // Estado atual do envio do pedido de venda ao Bling — null enquanto a
+    // comanda está aberta, vira 'pendente' no fechamento. Histórico completo
+    // de tentativas fica em restaurant_order_bling_sync_log.
+    blingSyncStatus: text("bling_sync_status", {
+      enum: ["pendente", "enviado", "bloqueado", "erro"],
+    }),
+    blingSalesOrderId: text("bling_sales_order_id"),
+    blingSyncError: text("bling_sync_error"),
+    blingSyncAttempts: integer("bling_sync_attempts").notNull().default(0),
+    blingSyncAttemptedAt: timestamp("bling_sync_attempted_at"),
     notes: text("notes"),
     unitId: varchar("unit_id").references(() => pdvUnits.id),
     openedAt: timestamp("opened_at").defaultNow().notNull(),
@@ -2773,6 +2783,36 @@ export const restaurantOrderAuditLog = pgTable(
     orderIdx: index("restaurant_order_audit_log_order_idx").on(table.orderId),
   }),
 );
+
+// Histórico de tentativas de envio do pedido de venda ao Bling — separado de
+// restaurant_order_audit_log porque o "ator" aqui é o job/tentativa
+// automática, não um usuário (aquela tabela exige actor_id NOT NULL).
+export const restaurantOrderBlingSyncLog = pgTable(
+  "restaurant_order_bling_sync_log",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    orderId: varchar("order_id")
+      .references(() => restaurantOrders.id)
+      .notNull(),
+    unitId: varchar("unit_id").references(() => pdvUnits.id),
+    attemptedAt: timestamp("attempted_at").defaultNow().notNull(),
+    result: text("result", { enum: ["enviado", "bloqueado", "erro"] }).notNull(),
+    reason: text("reason"),
+    blingSalesOrderId: text("bling_sales_order_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    orderIdx: index("restaurant_order_bling_sync_log_order_idx").on(table.orderId),
+    unitResultIdx: index("restaurant_order_bling_sync_log_unit_idx").on(
+      table.unitId,
+      table.result,
+    ),
+  }),
+);
+export type RestaurantOrderBlingSyncLog = typeof restaurantOrderBlingSyncLog.$inferSelect;
+export type InsertRestaurantOrderBlingSyncLog = typeof restaurantOrderBlingSyncLog.$inferInsert;
 
 export const insertRestaurantTableSchema = createInsertSchema(
   restaurantTables,
