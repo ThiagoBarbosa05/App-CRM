@@ -32,6 +32,7 @@ import {
   Loader2,
   Percent,
   DollarSign,
+  Download,
 } from "lucide-react";
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -390,6 +391,31 @@ export default function OrcamentoEditor() {
   const [quoteStatus, setQuoteStatus] = useState("draft");
   const [quoteNumber, setQuoteNumber] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(isNew);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  // ── PDF download ──────────────────────────────────────────────────────────
+  const handleDownloadPdf = async () => {
+    if (!quoteId) return;
+    setIsDownloadingPdf(true);
+    try {
+      const res = await fetch(`/api/quotes/${quoteId}/pdf`, { credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Erro ao gerar PDF" }));
+        throw new Error((err as { message?: string }).message ?? "Erro ao gerar PDF");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${quoteNumber ?? "orcamento"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ title: "Erro ao gerar PDF", description: err.message, variant: "destructive" });
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   // ── Load existing quote ───────────────────────────────────────────────────
   const { data: existingQuote, isLoading: loadingQuote } = useQuery<Quote>({
@@ -994,6 +1020,22 @@ export default function OrcamentoEditor() {
                   <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Ações
                   </p>
+
+                  {/* Download PDF */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-slate-700 dark:text-slate-200"
+                    onClick={handleDownloadPdf}
+                    disabled={isDownloadingPdf}
+                  >
+                    {isDownloadingPdf ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    Baixar PDF
+                  </Button>
 
                   {/* Draft → send / whatsapp */}
                   {quoteStatus === "draft" && (
