@@ -5699,12 +5699,14 @@ function NewConversationDialog({
   onSelect,
   onSelectInternal,
   channels,
+  initialSearch,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSelect: (clientId: string) => void;
   onSelectInternal: (conversationId: string) => void;
   channels: Channel[];
+  initialSearch?: string;
 }) {
   const [tab, setTab] = useState<NewConvTab>("contato");
   // Passo 2 (escolha do canal) só existe quando há mais de um canal — com um
@@ -5718,7 +5720,7 @@ function NewConversationDialog({
   // Número avulso aguardando a escolha do canal (passo 2), quando o contato não
   // é um cliente do CRM.
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch ?? "");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [attendantSearch, setAttendantSearch] = useState("");
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
@@ -6328,6 +6330,8 @@ export default function WhatsAppConversationsPage() {
   const draftParam = searchParams.get("text");
   // ID do orçamento passado pelo editor (/orcamentos/:id) para pré-anexar o PDF.
   const quoteIdParam = searchParams.get("quoteId");
+  // Quando newConv=true, abre automaticamente o diálogo "Nova conversa".
+  const newConvParam = searchParams.get("newConv");
   const [pendingQuoteFile, setPendingQuoteFile] = useState<File | null>(null);
   const quotePdfFetchedRef = useRef(false);
   const autoSelectedPhoneRef = useRef(false);
@@ -6341,7 +6345,7 @@ export default function WhatsAppConversationsPage() {
     conversationIdParam ?? null,
   );
   const [search, setSearch] = useState(phoneParam ?? "");
-  const [newConvOpen, setNewConvOpen] = useState(false);
+  const [newConvOpen, setNewConvOpen] = useState(newConvParam === "true");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<"open" | "closed">("open");
   // Alterna entre atendimento a cliente (padrão) e chat interno da equipe —
@@ -7710,6 +7714,7 @@ export default function WhatsAppConversationsPage() {
         onSelect={handleSelectConversation}
         onSelectInternal={handleSelectInternalConversation}
         channels={availableChannels}
+        initialSearch={phoneParam ?? undefined}
       />
     </div>
   );

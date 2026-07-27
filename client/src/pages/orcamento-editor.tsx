@@ -1086,7 +1086,7 @@ export default function OrcamentoEditor() {
                           className="w-full gap-2 text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-900/20"
                           onClick={() =>
                             navigate(
-                              `/whatsapp/conversas?phone=${encodeURIComponent(clientPhone)}&quoteId=${quoteId}`,
+                              `/whatsapp/conversas?newConv=true&phone=${encodeURIComponent(clientPhone)}&quoteId=${quoteId}`,
                             )
                           }
                         >
@@ -1127,7 +1127,7 @@ export default function OrcamentoEditor() {
                           className="w-full gap-2 text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-900/20"
                           onClick={() =>
                             navigate(
-                              `/whatsapp/conversas?phone=${encodeURIComponent(clientPhone)}&quoteId=${quoteId}`,
+                              `/whatsapp/conversas?newConv=true&phone=${encodeURIComponent(clientPhone)}&quoteId=${quoteId}`,
                             )
                           }
                         >
