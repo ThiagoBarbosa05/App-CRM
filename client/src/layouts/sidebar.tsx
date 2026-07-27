@@ -24,6 +24,7 @@ import {
   ShoppingBag,
   Sparkles,
   Target,
+  TrendingDown,
   UtensilsCrossed,
   Zap,
   User,
@@ -51,6 +52,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/copiloto", icon: Compass, label: "Copiloto" },
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/marketing-gastos", icon: TrendingDown, label: "Gastos Marketing", roles: ["admin"] },
   { href: "/metas", icon: Target, label: "Metas" },
   { href: "/clientes", icon: Users, label: "Clientes" },
   { href: "/calendario", icon: CalendarDays, label: "Aniversários" },
