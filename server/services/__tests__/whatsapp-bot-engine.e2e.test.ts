@@ -64,6 +64,7 @@ import {
   listBots,
 } from "../whatsapp-bot.service";
 import * as wa from "../../integrations/whatsapp";
+import * as evolution from "../../integrations/evolution";
 import * as r2lib from "../../lib/r2";
 import {
   addEdge,
@@ -89,6 +90,7 @@ const sendButtonsMessage = vi.mocked(wa.sendButtonsMessage);
 const sendTemplateMessage = vi.mocked(wa.sendTemplateMessage);
 const sendMediaMessage = vi.mocked(wa.sendMediaMessage);
 const uploadMedia = vi.mocked(wa.uploadMedia);
+const evolutionSendText = vi.mocked(evolution.sendText);
 const r2Send = vi.mocked(r2lib.r2.send);
 
 /** Telefones distintos por teste evitam colisão na janela de 24h / sessão. */
@@ -157,6 +159,68 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
 
     expect(result.status).toBe("started");
     expect(sentTexts()).toEqual(["Entrada manual"]);
+  });
+
+  it("usa o canal explícito da campanha mesmo quando o contato possui conversa em outro canal", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const [previousChannel, selectedChannel] = await db
+      .insert(whatsappChannels)
+      .values([
+        {
+          name: "Canal anterior",
+          provider: "evolution",
+          evolutionInstanceName: `previous-${phone}`,
+        },
+        {
+          name: "Canal da campanha",
+          provider: "evolution",
+          evolutionInstanceName: `campaign-${phone}`,
+        },
+      ])
+      .returning();
+    const [previousConversation] = await db
+      .insert(whatsappConversations)
+      .values({ phone, channelId: previousChannel.id })
+      .returning();
+    await db.insert(whatsappMessages).values({
+      conversationId: previousConversation.id,
+      channelId: previousChannel.id,
+      direction: "inbound",
+      type: "text",
+      content: "Mensagem anterior",
+      status: "read",
+      sentAt: new Date(),
+    });
+
+    const start = await addNode(bot.id, { type: "start_manual" });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Mensagem da campanha" },
+    });
+    await addEdge(bot.id, start.id, send.id);
+
+    const result = await startBotSession(
+      bot.id,
+      phone,
+      undefined,
+      undefined,
+      selectedChannel.id,
+    );
+
+    expect(result.channelId).toBe(selectedChannel.id);
+    expect((await getSession(phone))?.channelId).toBe(selectedChannel.id);
+    expect(evolutionSendText).toHaveBeenCalledWith(
+      selectedChannel.evolutionInstanceName,
+      phone,
+      "Mensagem da campanha",
+    );
+    expect(evolutionSendText).not.toHaveBeenCalledWith(
+      previousChannel.evolutionInstanceName,
+      phone,
+      "Mensagem da campanha",
+    );
   });
 
   it("inicia o bot automático pelo canal e não reutiliza a mensagem gatilho", async () => {

@@ -21,6 +21,7 @@ import {
   Filter,
   ChevronDown,
   Tag,
+  RadioTower,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -61,10 +62,12 @@ import { AttachFileDialog } from "@/components/media-library/attach-file-dialog"
 import { useQuery } from "@tanstack/react-query";
 import {
   useWhatsappBots,
+  useAccessibleWhatsappChannels,
   useWhatsappMetaTemplates,
   useCreateCampaignWithDispatch,
   type MetaTemplate,
   type WhatsappBot,
+  type WhatsappChannelOption,
 } from "@/hooks/use-whatsapp";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -999,8 +1002,12 @@ function TemplateConfigForm({
 function StepTemplateOrBot({
   selectedTemplate,
   selectedBotId,
+  selectedChannelId,
+  channels,
+  channelsLoading,
   onSelectTemplate,
   onSelectBot,
+  onSelectChannel,
   bodyParams,
   onBodyParamsChange,
   headerParams,
@@ -1010,8 +1017,12 @@ function StepTemplateOrBot({
 }: {
   selectedTemplate: MetaTemplate | null;
   selectedBotId: string;
+  selectedChannelId: number | null;
+  channels: WhatsappChannelOption[];
+  channelsLoading: boolean;
   onSelectTemplate: (t: MetaTemplate | null) => void;
   onSelectBot: (id: string) => void;
+  onSelectChannel: (id: number) => void;
   bodyParams: string[];
   onBodyParamsChange: (values: string[]) => void;
   headerParams: string[];
@@ -1216,6 +1227,79 @@ function StepTemplateOrBot({
             ))}
           </div>
         )}
+        {selectedBotId && (
+          <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
+            <div className="flex items-start gap-3 border-b border-border bg-muted/35 px-4 py-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <RadioTower className="h-4 w-4" />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Canal de envio</Label>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                  Todas as mensagens desta campanha sairão por este número,
+                  mesmo que o contato tenha conversas em outros canais.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 p-3">
+              {channelsLoading ? (
+                Array.from({ length: 2 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-14 animate-pulse rounded-lg bg-muted"
+                  />
+                ))
+              ) : channels.length === 0 ? (
+                <div className="px-2 py-5 text-center">
+                  <p className="text-sm font-medium">Nenhum canal ativo disponível</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Conecte ou ative um canal antes de criar a campanha.
+                  </p>
+                </div>
+              ) : (
+                channels.map((channel) => {
+                  const selected = selectedChannelId === channel.id;
+                  return (
+                    <button
+                      key={channel.id}
+                      type="button"
+                      onClick={() => onSelectChannel(channel.id)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors",
+                        selected
+                          ? "border-emerald-500 bg-emerald-500/5"
+                          : "border-transparent hover:border-border hover:bg-muted/40",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
+                          selected
+                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            : "border-muted-foreground/40",
+                        )}
+                      >
+                        {selected ? <Check className="h-3 w-3" /> : null}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">
+                          {channel.name}
+                        </span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {channel.displayPhone ?? "Número não informado"} ·{" "}
+                          {channel.provider === "evolution"
+                            ? "Conectado por QR Code"
+                            : "Cloud API"}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </TabsContent>
     </Tabs>
   );
@@ -1229,6 +1313,7 @@ function StepConfirm({
   clientCount,
   templateName,
   botId,
+  channelName,
   scheduledAt,
   onScheduleChange,
   dedupeWindowHours,
@@ -1241,6 +1326,7 @@ function StepConfirm({
   clientCount: number;
   templateName?: string;
   botId: string;
+  channelName?: string;
   scheduledAt: string;
   onScheduleChange: (value: string) => void;
   dedupeWindowHours: number;
@@ -1297,6 +1383,7 @@ function StepConfirm({
     },
     templateName ? { label: "Template", value: templateName } : null,
     bot ? { label: "Bot", value: bot.name } : null,
+    bot && channelName ? { label: "Canal de envio", value: channelName } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
@@ -1459,6 +1546,9 @@ export default function WhatsAppCreateCampaign() {
     null,
   );
   const [selectedBotId, setSelectedBotId] = useState("");
+  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(
+    null,
+  );
   const [templateBodyParams, setTemplateBodyParams] = useState<string[]>([]);
   const [templateHeaderParams, setTemplateHeaderParams] = useState<string[]>(
     [],
@@ -1470,6 +1560,13 @@ export default function WhatsAppCreateCampaign() {
   const [postSendTagId, setPostSendTagId] = useState("");
 
   const createMutation = useCreateCampaignWithDispatch();
+  const {
+    data: availableChannels = [],
+    isLoading: channelsLoading,
+  } = useAccessibleWhatsappChannels();
+  const selectedChannel = availableChannels.find(
+    (channel) => channel.id === selectedChannelId,
+  );
 
   const handleSelectTemplate = (t: MetaTemplate | null) => {
     setSelectedTemplate(t);
@@ -1522,7 +1619,7 @@ export default function WhatsAppCreateCampaign() {
     if (step === 3)
       return (
         (selectedTemplate !== null && templateVarsComplete) ||
-        selectedBotId.length > 0
+        (selectedBotId.length > 0 && selectedChannelId != null)
       );
     return true;
   }, [
@@ -1531,6 +1628,7 @@ export default function WhatsAppCreateCampaign() {
     selectedClientIds,
     selectedTemplate,
     selectedBotId,
+    selectedChannelId,
     templateVarsComplete,
   ]);
 
@@ -1565,6 +1663,7 @@ export default function WhatsAppCreateCampaign() {
             ? templateHeaderMedia
             : undefined,
         waBotId: selectedBotId || undefined,
+        waChannelId: selectedBotId ? (selectedChannelId ?? undefined) : undefined,
         clientIds: selectedClientIds,
         scheduledAt: scheduledIso,
         dedupeWindowHours,
@@ -1593,6 +1692,7 @@ export default function WhatsAppCreateCampaign() {
     templateHeaderParams,
     templateHeaderMedia,
     selectedBotId,
+    selectedChannelId,
     selectedClientIds,
     scheduledAt,
     dedupeWindowHours,
@@ -1669,8 +1769,12 @@ export default function WhatsAppCreateCampaign() {
                 <StepTemplateOrBot
                   selectedTemplate={selectedTemplate}
                   selectedBotId={selectedBotId}
+                  selectedChannelId={selectedChannelId}
+                  channels={availableChannels}
+                  channelsLoading={channelsLoading}
                   onSelectTemplate={handleSelectTemplate}
                   onSelectBot={handleSelectBot}
+                  onSelectChannel={setSelectedChannelId}
                   bodyParams={templateBodyParams}
                   onBodyParamsChange={setTemplateBodyParams}
                   headerParams={templateHeaderParams}
@@ -1686,6 +1790,7 @@ export default function WhatsAppCreateCampaign() {
                   clientCount={selectedClientIds.length}
                   templateName={selectedTemplate?.name}
                   botId={selectedBotId}
+                  channelName={selectedChannel?.name}
                   scheduledAt={scheduledAt}
                   onScheduleChange={setScheduledAt}
                   dedupeWindowHours={dedupeWindowHours}

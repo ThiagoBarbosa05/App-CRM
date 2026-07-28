@@ -1,12 +1,12 @@
 import { db } from "server/db";
-import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappMessages, clients } from "@shared/schema";
+import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappChannels, whatsappMessages, clients } from "@shared/schema";
 import { eq, and, or, isNull, lte } from "drizzle-orm";
 import { sendTemplateMessage, WhatsAppApiError } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 import { normalizePhoneE164 } from "@shared/phone";
 import { startBotSession, buildClientVariables, interpolate } from "./whatsapp-bot-engine.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
-import { getChannelByPhoneNumberId } from "./whatsapp-channels.service";
+import { getChannelByPhoneNumberId, resolveChannelById } from "./whatsapp-channels.service";
 import { getPublicR2Url } from "../lib/r2";
 import {
   applyCampaignTag,
@@ -170,6 +170,28 @@ export async function executeCampaign(
 
     if (!bot) throw new Error(`Bot ${campaign.waBotId} não encontrado`);
 
+    if (campaign.waChannelId != null) {
+      const [activeChannel] = await db
+        .select({ id: whatsappChannels.id })
+        .from(whatsappChannels)
+        .where(
+          and(
+            eq(whatsappChannels.id, campaign.waChannelId),
+            eq(whatsappChannels.isActive, true),
+            isNull(whatsappChannels.deletedAt),
+          ),
+        )
+        .limit(1);
+      const resolvedChannel = activeChannel
+        ? await resolveChannelById(activeChannel.id)
+        : null;
+      if (!resolvedChannel) {
+        throw new Error(
+          "O canal de envio da campanha está inativo, removido ou sem conexão configurada",
+        );
+      }
+    }
+
     for (const msg of pendingMessages) {
       if (!msg.phoneNumber) {
         skipped++;
@@ -185,7 +207,14 @@ export async function executeCampaign(
         continue;
       }
       try {
-        const { status, lastMessageId, channelId: botChannelId } = await startBotSession(campaign.waBotId, phoneE164, undefined, campaignId);
+        const { status, lastMessageId, channelId: botChannelId } =
+          await startBotSession(
+            campaign.waBotId,
+            phoneE164,
+            undefined,
+            campaignId,
+            campaign.waChannelId ?? undefined,
+          );
 
         if (status === "opted_out") {
           await db

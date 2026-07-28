@@ -4833,6 +4833,7 @@ export const campaigns = pgTable("campaigns", {
   waEnabled: boolean("wa_enabled").default(false).notNull(),
   waTemplateId: varchar("wa_template_id").references(() => whatsappTemplates.id),
   waBotId: varchar("wa_bot_id").references(() => whatsappBots.id),
+  waChannelId: integer("wa_channel_id").references(() => whatsappChannels.id),
   waTriggerDecision: text("wa_trigger_decision"),
   metaTemplateBodyParams: jsonb("meta_template_body_params"),
   metaTemplateHeaderParams: jsonb("meta_template_header_params"),

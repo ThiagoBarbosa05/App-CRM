@@ -6,6 +6,7 @@ import {
   campaignTriggers,
   calls,
   clients,
+  whatsappChannels,
 } from "@shared/schema";
 import { eq, and, inArray, ne, sql, isNull } from "drizzle-orm";
 import twilio from "twilio";
@@ -56,6 +57,7 @@ router.post("/", async (req: Request, res: Response) => {
       waEnabled,
       waTemplateId,
       waBotId,
+      waChannelId,
       metaTemplateName,
       metaTemplateLanguage,
       metaTemplateCategory,
@@ -79,6 +81,7 @@ router.post("/", async (req: Request, res: Response) => {
       waEnabled?: boolean;
       waTemplateId?: string;
       waBotId?: string;
+      waChannelId?: number | null;
       metaTemplateName?: string;
       metaTemplateLanguage?: string;
       metaTemplateCategory?: string;
@@ -92,6 +95,35 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     // Seleção de template da Meta → resolve/cria a linha local usada no disparo.
+    let resolvedWaChannelId: number | null = null;
+    if (waChannelId != null) {
+      if (!Number.isInteger(waChannelId) || waChannelId <= 0) {
+        return res.status(400).json({ message: "Canal de envio inválido" });
+      }
+      const [channel] = await db
+        .select({ id: whatsappChannels.id })
+        .from(whatsappChannels)
+        .where(
+          and(
+            eq(whatsappChannels.id, waChannelId),
+            eq(whatsappChannels.isActive, true),
+            isNull(whatsappChannels.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (!channel) {
+        return res.status(400).json({
+          message: "O canal de envio selecionado não existe ou está inativo",
+        });
+      }
+      resolvedWaChannelId = channel.id;
+    }
+    if (waBotId && resolvedWaChannelId == null) {
+      return res.status(400).json({
+        message: "Selecione o canal que será usado para enviar a campanha do bot",
+      });
+    }
+
     let resolvedTemplateId = waTemplateId ?? null;
     if (!resolvedTemplateId && metaTemplateName) {
       if (!userId) {
@@ -125,6 +157,7 @@ router.post("/", async (req: Request, res: Response) => {
         waEnabled: waEnabled ?? false,
         waTemplateId: resolvedTemplateId,
         waBotId: waBotId ?? null,
+        waChannelId: resolvedWaChannelId,
         metaTemplateBodyParams: metaTemplateBodyParams ?? null,
         metaTemplateHeaderParams: metaTemplateHeaderParams ?? null,
         metaTemplateHeaderMediaStorageKey: metaTemplateHeaderMedia?.storageKey ?? null,

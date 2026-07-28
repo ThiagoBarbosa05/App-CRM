@@ -155,6 +155,15 @@ export interface WhatsappChannel {
   createdAt: string;
 }
 
+export interface WhatsappChannelOption {
+  id: number;
+  name: string;
+  provider: "cloud_api" | "evolution";
+  displayPhone: string | null;
+  connectionStatus: string | null;
+  userId?: string | null;
+}
+
 export interface MetaPhoneNumber {
   id: string;
   display_phone_number: string;
@@ -470,6 +479,7 @@ export function useCreateCampaignWithDispatch() {
       description?: string;
       waTemplateId?: string;
       waBotId?: string;
+      waChannelId?: number;
       metaTemplateName?: string;
       metaTemplateLanguage?: string;
       metaTemplateCategory?: string;
@@ -488,6 +498,7 @@ export function useCreateCampaignWithDispatch() {
         waEnabled: true,
         waTemplateId: data.waTemplateId ?? null,
         waBotId: data.waBotId ?? null,
+        waChannelId: data.waChannelId ?? null,
         metaTemplateName: data.metaTemplateName,
         metaTemplateLanguage: data.metaTemplateLanguage,
         metaTemplateCategory: data.metaTemplateCategory,
@@ -825,6 +836,17 @@ export function useWhatsappChannels() {
     queryFn: async () => {
       const res = await fetch("/api/whatsapp/channels");
       if (!res.ok) throw new Error("Erro ao buscar canais");
+      return res.json();
+    },
+  });
+}
+
+export function useAccessibleWhatsappChannels() {
+  return useQuery<WhatsappChannelOption[]>({
+    queryKey: ["whatsapp", "channels", "mine"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/channels/mine");
+      if (!res.ok) throw new Error("Erro ao buscar canais disponíveis");
       return res.json();
     },
   });
