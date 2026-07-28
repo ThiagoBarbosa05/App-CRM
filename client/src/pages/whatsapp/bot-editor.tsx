@@ -1,16 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  type ComponentType,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useParams, useLocation } from "wouter";
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
+  NodeToolbar,
+  Position,
   addEdge,
   useNodesState,
   useEdgesState,
   type Connection,
   type Edge,
   type Node,
+  type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { nanoid } from "nanoid";
@@ -48,6 +60,7 @@ import {
   FileVideo,
   FileText as FileTextIcon,
   User,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +97,11 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useWhatsappBotFlow, useWhatsappBots, useSaveFlow } from "@/hooks/use-whatsapp-bots";
@@ -143,22 +161,95 @@ import type {
 type FlowNode = Node<BotNodeData & { label: string }>;
 type FlowEdge = Edge;
 
+interface NodeActionsContextValue {
+  deleteNode: (id: string) => void;
+  duplicateNode: (id: string) => void;
+}
+
+const NodeActionsContext = createContext<NodeActionsContextValue | null>(null);
+
+function ActionableNode({
+  component: NodeComponent,
+  ...props
+}: NodeProps & { component: ComponentType<NodeProps> }) {
+  const actions = useContext(NodeActionsContext);
+  const [isHovered, setIsHovered] = useState(false);
+  const isStartNode = props.type === "start";
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {!isStartNode && actions ? (
+        <NodeToolbar
+          isVisible={isHovered || props.selected}
+          position={Position.Top}
+          offset={10}
+          className="flex items-center gap-1 rounded-lg border border-border/80 bg-background/95 p-1 shadow-lg backdrop-blur-sm"
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Duplicar nó"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  actions.duplicateNode(props.id);
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Duplicar nó</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className="nodrag nopan flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+                aria-label="Excluir nó"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  actions.deleteNode(props.id);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Excluir nó</TooltipContent>
+          </Tooltip>
+        </NodeToolbar>
+      ) : null}
+      <NodeComponent {...props} />
+    </div>
+  );
+}
+
+function withNodeActions(NodeComponent: ComponentType<NodeProps>) {
+  return function NodeWithActions(props: NodeProps) {
+    return <ActionableNode {...props} component={NodeComponent} />;
+  };
+}
+
 const NODE_TYPES = {
-  start: StartNode,
-  send_message: SendMessageNode,
-  condition: ConditionNode,
-  menu: MenuNode,
-  action: ActionNode,
-  flow_form: FlowFormNode,
-  wait: WaitNode,
-  end: EndNode,
-  end_conversation: EndConversationNode,
-  transfer_agent: TransferAgentNode,
-  transfer_sector: TransferSectorNode,
-  distribute_flow: DistributeFlowNode,
-  edit_tags: EditTagsNode,
-  send_template: SendTemplateNode,
-  trigger_flow: TriggerFlowNode,
+  start: withNodeActions(StartNode),
+  send_message: withNodeActions(SendMessageNode),
+  condition: withNodeActions(ConditionNode),
+  menu: withNodeActions(MenuNode),
+  action: withNodeActions(ActionNode),
+  flow_form: withNodeActions(FlowFormNode),
+  wait: withNodeActions(WaitNode),
+  end: withNodeActions(EndNode),
+  end_conversation: withNodeActions(EndConversationNode),
+  transfer_agent: withNodeActions(TransferAgentNode),
+  transfer_sector: withNodeActions(TransferSectorNode),
+  distribute_flow: withNodeActions(DistributeFlowNode),
+  edit_tags: withNodeActions(EditTagsNode),
+  send_template: withNodeActions(SendTemplateNode),
+  trigger_flow: withNodeActions(TriggerFlowNode),
 };
 
 // ─── Palette config ───────────────────────────────────────────────────────────
@@ -3545,9 +3636,39 @@ export default function BotEditor() {
   }
 
   function deleteNode(id: string) {
+    const node = nodes.find((candidate) => candidate.id === id);
+    if (!node || node.type === "start") return;
+
     setNodes((nds) => nds.filter((n) => n.id !== id));
     setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
     setSelectedNodeId((cur) => (cur === id ? null : cur));
+  }
+
+  function duplicateNode(id: string) {
+    const sourceNode = nodes.find((node) => node.id === id);
+    if (!sourceNode || sourceNode.type === "start") return;
+
+    const duplicateId = `${sourceNode.type ?? "node"}-${nanoid(6)}`;
+    const duplicatedNode: FlowNode = {
+      ...sourceNode,
+      id: duplicateId,
+      position: {
+        x: sourceNode.position.x + 40,
+        y: sourceNode.position.y + 40,
+      },
+      data: structuredClone(sourceNode.data),
+      selected: false,
+      dragging: false,
+      deletable: true,
+    };
+
+    setNodes((currentNodes) => [
+      ...currentNodes.map((node) =>
+        node.selected ? { ...node, selected: false } : node,
+      ),
+      duplicatedNode,
+    ]);
+    setSelectedNodeId(duplicateId);
   }
 
   /** Valida o fluxo antes de salvar. Retorna lista de problemas (vazia = ok). */
@@ -3791,34 +3912,36 @@ export default function BotEditor() {
               Carregando fluxo...
             </div>
           ) : (
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              nodeTypes={NODE_TYPES}
-              onNodeClick={(_e, node) => {
-                setSelectedNodeId(node.id);
-                if (window.innerWidth < 640) setShowMobileProps(true);
-              }}
-              onNodesDelete={(deleted) =>
-                setSelectedNodeId((cur) =>
-                  deleted.some((n) => n.id === cur) ? null : cur,
-                )
-              }
-              onPaneClick={() => setSelectedNodeId(null)}
-              deleteKeyCode={["Backspace", "Delete"]}
-              fitView
-            >
-              <Background className="bg-muted/20" />
-              <Controls className="!shadow-md [&_button]:!bg-background [&_button]:!border-border [&_button]:!text-foreground" />
-              <MiniMap
-                className="!bg-muted hidden sm:block"
-                nodeColor="hsl(var(--muted-foreground))"
-                maskColor="hsl(var(--background) / 0.6)"
-              />
-            </ReactFlow>
+            <NodeActionsContext.Provider value={{ deleteNode, duplicateNode }}>
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                nodeTypes={NODE_TYPES}
+                onNodeClick={(_e, node) => {
+                  setSelectedNodeId(node.id);
+                  if (window.innerWidth < 640) setShowMobileProps(true);
+                }}
+                onNodesDelete={(deleted) =>
+                  setSelectedNodeId((cur) =>
+                    deleted.some((n) => n.id === cur) ? null : cur,
+                  )
+                }
+                onPaneClick={() => setSelectedNodeId(null)}
+                deleteKeyCode={["Backspace", "Delete"]}
+                fitView
+              >
+                <Background className="bg-muted/20" />
+                <Controls className="!shadow-md [&_button]:!bg-background [&_button]:!border-border [&_button]:!text-foreground" />
+                <MiniMap
+                  className="!bg-muted hidden sm:block"
+                  nodeColor="hsl(var(--muted-foreground))"
+                  maskColor="hsl(var(--background) / 0.6)"
+                />
+              </ReactFlow>
+            </NodeActionsContext.Provider>
           )}
         </div>
 
