@@ -1433,14 +1433,24 @@ export class DatabaseStorage implements IStorage {
         (buyerRows.rows as any[]).map((r) => [r.product_id, r.cnt]),
       );
 
-      // Fetch Bling connection info for this page's products
+      // Fetch Bling connection info for this page's products.
+      // Covers both the normalised mapping (bpm.product_id) and the legacy
+      // field (products.bling_product_id = bpm.bling_product_id).
       const blingRows = await this.db.execute(sql`
-        SELECT bpm.product_id, bpm.connection_id, bpm.bling_product_id,
-               bc.name AS connection_name, bc.bling_account_name
-        FROM bling_product_mappings bpm
-        INNER JOIN bling_connections bc ON bc.id = bpm.connection_id
-        WHERE bpm.product_id IN (${idList})
-        ORDER BY bc.name
+        SELECT DISTINCT ON (p.id, bpm.connection_id)
+               p.id AS product_id,
+               bpm.connection_id,
+               bpm.bling_product_id,
+               bc.name AS connection_name,
+               bc.bling_account_name
+        FROM   products p
+        JOIN   bling_product_mappings bpm
+               ON bpm.product_id = p.id
+               OR (p.bling_product_id IS NOT NULL
+                   AND bpm.bling_product_id = p.bling_product_id)
+        JOIN   bling_connections bc ON bc.id = bpm.connection_id
+        WHERE  p.id IN (${idList})
+        ORDER  BY p.id, bpm.connection_id, bc.name
       `);
 
       type BlingConn = { connectionId: string; connectionName: string; blingAccountName: string | null; blingProductId: string };
@@ -5418,14 +5428,23 @@ export class DatabaseStorage implements IStorage {
 
     const clientCount = (buyerRows.rows[0] as any)?.cnt ?? 0;
 
-    // Fetch Bling connections for this product
+    // Fetch Bling connections for this product.
+    // Covers both normalised mapping (bpm.product_id) and the legacy
+    // field (products.bling_product_id = bpm.bling_product_id).
     const blingRows = await db.execute(sql`
-      SELECT bpm.connection_id, bpm.bling_product_id,
-             bc.name AS connection_name, bc.bling_account_name
-      FROM bling_product_mappings bpm
-      INNER JOIN bling_connections bc ON bc.id = bpm.connection_id
-      WHERE bpm.product_id = ${productId}
-      ORDER BY bc.name
+      SELECT DISTINCT ON (bpm.connection_id)
+             bpm.connection_id,
+             bpm.bling_product_id,
+             bc.name AS connection_name,
+             bc.bling_account_name
+      FROM   products p
+      JOIN   bling_product_mappings bpm
+             ON bpm.product_id = p.id
+             OR (p.bling_product_id IS NOT NULL
+                 AND bpm.bling_product_id = p.bling_product_id)
+      JOIN   bling_connections bc ON bc.id = bpm.connection_id
+      WHERE  p.id = ${productId}
+      ORDER  BY bpm.connection_id, bc.name
     `);
 
     const blingConnections = (blingRows.rows as any[]).map((r) => ({
