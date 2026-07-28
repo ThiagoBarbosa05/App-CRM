@@ -1330,7 +1330,9 @@ export default function ProductProfilePage() {
           ) : (
             <div className="space-y-4">
               <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                {(product?.blingConnections?.length ?? 0)} conexão(ões) encontrada(s)
+                {(product?.blingConnections?.length ?? 0) > 0
+                  ? `${product!.blingConnections!.length} conexão(ões) encontrada(s)`
+                  : "Sincronizado via integração legado"}
               </p>
               {(product?.blingConnections ?? []).map((conn) => {
                 const isConnected = conn.connectionStatus === "connected";

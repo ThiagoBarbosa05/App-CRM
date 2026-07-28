@@ -1434,23 +1434,32 @@ export class DatabaseStorage implements IStorage {
       );
 
       // Fetch Bling connection info for this page's products.
-      // Covers both the normalised mapping (bpm.product_id) and the legacy
-      // field (products.bling_product_id = bpm.bling_product_id).
+      // Uses UNION to cover both normalised mapping (bpm.product_id)
+      // and the legacy field (products.bling_product_id = bpm.bling_product_id).
       const blingRows = await this.db.execute(sql`
-        SELECT DISTINCT ON (p.id, bpm.connection_id)
-               p.id AS product_id,
+        SELECT bpm.product_id,
+               bpm.connection_id,
+               bpm.bling_product_id,
+               bc.name AS connection_name,
+               bc.bling_account_name
+        FROM   bling_product_mappings bpm
+        JOIN   bling_connections bc ON bc.id = bpm.connection_id
+        WHERE  bpm.product_id IN (${idList})
+
+        UNION
+
+        SELECT p.id AS product_id,
                bpm.connection_id,
                bpm.bling_product_id,
                bc.name AS connection_name,
                bc.bling_account_name
         FROM   products p
-        JOIN   bling_product_mappings bpm
-               ON bpm.product_id = p.id
-               OR (p.bling_product_id IS NOT NULL
-                   AND bpm.bling_product_id = p.bling_product_id)
+        JOIN   bling_product_mappings bpm ON bpm.bling_product_id = p.bling_product_id
         JOIN   bling_connections bc ON bc.id = bpm.connection_id
         WHERE  p.id IN (${idList})
-        ORDER  BY p.id, bpm.connection_id, bc.name
+          AND  p.bling_product_id IS NOT NULL
+
+        ORDER  BY connection_name
       `);
 
       type BlingConn = { connectionId: string; connectionName: string; blingAccountName: string | null; blingProductId: string };
@@ -5429,25 +5438,36 @@ export class DatabaseStorage implements IStorage {
     const clientCount = (buyerRows.rows[0] as any)?.cnt ?? 0;
 
     // Fetch Bling connections for this product.
-    // Covers both normalised mapping (bpm.product_id) and the legacy
-    // field (products.bling_product_id = bpm.bling_product_id).
+    // Uses UNION to cover both the normalised mapping (bpm.product_id)
+    // and the legacy field (products.bling_product_id = bpm.bling_product_id).
     const blingRows = await db.execute(sql`
-      SELECT DISTINCT ON (bpm.connection_id)
-             bpm.connection_id,
+      SELECT bpm.connection_id,
              bpm.bling_product_id,
-             bc.name AS connection_name,
+             bc.name   AS connection_name,
+             bc.bling_account_name,
+             bc.bling_login,
+             bc.status AS connection_status,
+             bc.last_sync_at
+      FROM   bling_product_mappings bpm
+      JOIN   bling_connections bc ON bc.id = bpm.connection_id
+      WHERE  bpm.product_id = ${productId}
+
+      UNION
+
+      SELECT bpm.connection_id,
+             bpm.bling_product_id,
+             bc.name   AS connection_name,
              bc.bling_account_name,
              bc.bling_login,
              bc.status AS connection_status,
              bc.last_sync_at
       FROM   products p
-      JOIN   bling_product_mappings bpm
-             ON bpm.product_id = p.id
-             OR (p.bling_product_id IS NOT NULL
-                 AND bpm.bling_product_id = p.bling_product_id)
+      JOIN   bling_product_mappings bpm ON bpm.bling_product_id = p.bling_product_id
       JOIN   bling_connections bc ON bc.id = bpm.connection_id
       WHERE  p.id = ${productId}
-      ORDER  BY bpm.connection_id, bc.name
+        AND  p.bling_product_id IS NOT NULL
+
+      ORDER  BY connection_name
     `);
 
     const blingConnections = (blingRows.rows as any[]).map((r) => ({
