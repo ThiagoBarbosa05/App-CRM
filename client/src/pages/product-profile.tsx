@@ -704,10 +704,12 @@ export default function ProductProfilePage() {
           <UnderlineTabsTrigger value="buyers" color="wine">
             Compradores
           </UnderlineTabsTrigger>
-          <UnderlineTabsTrigger value="bling" color="wine" className="flex items-center gap-1.5">
-            <PlugZap className="h-3.5 w-3.5" />
-            Bling
-          </UnderlineTabsTrigger>
+          {isAdmin && (
+            <UnderlineTabsTrigger value="bling" color="wine" className="flex items-center gap-1.5">
+              <PlugZap className="h-3.5 w-3.5" />
+              Bling
+            </UnderlineTabsTrigger>
+          )}
         </UnderlineTabsList>
 
         {/* Tab: Detalhes */}
@@ -1311,7 +1313,8 @@ export default function ProductProfilePage() {
           )}
         </AppTabsContent>
 
-        {/* Tab: Bling */}
+        {/* Tab: Bling — admin only */}
+        {isAdmin && (
         <AppTabsContent value="bling" className="mt-6">
           {isLoadingProduct ? (
             <div className="space-y-3">
@@ -1466,6 +1469,7 @@ export default function ProductProfilePage() {
             </div>
           )}
         </AppTabsContent>
+        )}
       </AppTabs>
 
       {/* Modal: todos os compradores */}
