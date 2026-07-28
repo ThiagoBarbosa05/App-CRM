@@ -61,6 +61,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { ProductFormModal } from "@/components/product-form-modal";
+import { BlingProductSyncModal } from "@/components/bling-product-sync-modal";
 import { getCountryFlag } from "@/lib/country-flags";
 import { CountryFlag } from "@/components/country-flag";
 
@@ -401,6 +402,7 @@ export default function ProductProfilePage() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [showBuyersModal, setShowBuyersModal] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isBlingModalOpen, setIsBlingModalOpen] = useState(false);
   const [period, setPeriod] = useState<"12m" | "6m" | "3m" | "last" | "current">("12m");
 
   const PERIOD_OPTIONS: { value: typeof period; label: string }[] = [
@@ -1323,17 +1325,36 @@ export default function ProductProfilePage() {
               <p className="font-semibold text-slate-700 dark:text-slate-300 text-lg">
                 Nenhuma conexão Bling
               </p>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-sm text-slate-400 mt-1 mb-5">
                 Este produto ainda não foi sincronizado com o Bling
               </p>
+              {isAdmin && (
+                <Button onClick={() => setIsBlingModalOpen(true)} className="gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Sincronizar com Bling
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
-                {(product?.blingConnections?.length ?? 0) > 0
-                  ? `${product!.blingConnections!.length} conexão(ões) encontrada(s)`
-                  : "Sincronizado via integração legado"}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                  {(product?.blingConnections?.length ?? 0) > 0
+                    ? `${product!.blingConnections!.length} conexão(ões) encontrada(s)`
+                    : "Sincronizado via integração legado"}
+                </p>
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 h-8 text-xs"
+                    onClick={() => setIsBlingModalOpen(true)}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Sincronizar Bling
+                  </Button>
+                )}
+              </div>
               {(product?.blingConnections ?? []).map((conn) => {
                 const isConnected = conn.connectionStatus === "connected";
                 const isExpired = conn.connectionStatus === "expired" || conn.connectionStatus === "reauth_required";
@@ -1513,6 +1534,20 @@ export default function ProductProfilePage() {
           open={isEditModalOpen}
           onOpenChange={setIsEditModalOpen}
           product={product}
+        />
+      )}
+
+      {/* Modal: sincronizar Bling */}
+      {isAdmin && (
+        <BlingProductSyncModal
+          open={isBlingModalOpen}
+          onOpenChange={(open) => {
+            setIsBlingModalOpen(open);
+            if (!open) {
+              // Refresca os dados do produto após fechar o modal
+              queryClient.invalidateQueries({ queryKey: [`/api/products/${id}/detail`] });
+            }
+          }}
         />
       )}
     </div>
