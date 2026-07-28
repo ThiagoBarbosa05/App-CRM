@@ -53,6 +53,10 @@ import {
   Pencil,
   CheckCircle2,
   XCircle,
+  PlugZap,
+  AlertCircle,
+  Clock,
+  Hash,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -89,7 +93,10 @@ interface BlingConnection {
   connectionId: string;
   connectionName: string;
   blingAccountName?: string | null;
+  blingLogin?: string | null;
   blingProductId: string;
+  connectionStatus?: string;
+  lastSyncAt?: string | null;
 }
 
 interface ProductData {
@@ -567,22 +574,14 @@ export default function ProductProfilePage() {
                       {product.category}
                     </Badge>
                   )}
-                  {product?.blingConnections && product.blingConnections.length > 0 ? (
-                    product.blingConnections.map((conn) => (
-                      <div key={conn.connectionId} className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-full px-2 py-0.5" title={conn.blingAccountName ? `${conn.connectionName} — ${conn.blingAccountName}` : conn.connectionName}>
-                        <CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" />
-                        <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wide">
-                          {conn.connectionName}
-                          {conn.blingAccountName && (
-                            <span className="normal-case font-semibold text-blue-400 dark:text-blue-500"> · {conn.blingAccountName}</span>
-                          )}
-                        </span>
-                      </div>
-                    ))
-                  ) : product?.blingProductId ? (
+                  {(product?.blingConnections?.length ?? 0) > 0 || product?.blingProductId ? (
                     <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-full px-2 py-0.5">
                       <CheckCircle2 className="h-3 w-3 text-blue-500" />
-                      <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wide">Sincronizado com Bling</span>
+                      <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                        {(product?.blingConnections?.length ?? 0) > 1
+                          ? `${product!.blingConnections!.length} conexões Bling`
+                          : "Sincronizado com Bling"}
+                      </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full px-2 py-0.5">
@@ -702,6 +701,10 @@ export default function ProductProfilePage() {
           </UnderlineTabsTrigger>
           <UnderlineTabsTrigger value="buyers" color="wine">
             Compradores
+          </UnderlineTabsTrigger>
+          <UnderlineTabsTrigger value="bling" color="wine" className="flex items-center gap-1.5">
+            <PlugZap className="h-3.5 w-3.5" />
+            Bling
           </UnderlineTabsTrigger>
         </UnderlineTabsList>
 
@@ -1303,6 +1306,141 @@ export default function ProductProfilePage() {
                 </div>
               )}
             </>
+          )}
+        </AppTabsContent>
+
+        {/* Tab: Bling */}
+        <AppTabsContent value="bling" className="mt-6">
+          {isLoadingProduct ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+            </div>
+          ) : (product?.blingConnections?.length ?? 0) === 0 && !product?.blingProductId ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <div className="p-5 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
+                <PlugZap className="h-10 w-10 text-slate-400" />
+              </div>
+              <p className="font-semibold text-slate-700 dark:text-slate-300 text-lg">
+                Nenhuma conexão Bling
+              </p>
+              <p className="text-sm text-slate-400 mt-1">
+                Este produto ainda não foi sincronizado com o Bling
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                {(product?.blingConnections?.length ?? 0)} conexão(ões) encontrada(s)
+              </p>
+              {(product?.blingConnections ?? []).map((conn) => {
+                const isConnected = conn.connectionStatus === "connected";
+                const isExpired = conn.connectionStatus === "expired" || conn.connectionStatus === "reauth_required";
+                const statusColor = isConnected
+                  ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/40"
+                  : isExpired
+                  ? "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/40"
+                  : "bg-slate-50 border-slate-200 dark:bg-slate-800/40 dark:border-slate-700";
+
+                return (
+                  <div key={conn.connectionId} className={`rounded-2xl border p-5 space-y-4 ${statusColor}`}>
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+                          <PlugZap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                            {conn.connectionName}
+                          </p>
+                          {conn.blingAccountName && (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              {conn.blingAccountName}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0">
+                        {isConnected && (
+                          <span className="inline-flex items-center gap-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-full">
+                            <CheckCircle2 className="h-3 w-3" /> Conectado
+                          </span>
+                        )}
+                        {isExpired && (
+                          <span className="inline-flex items-center gap-1 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-full">
+                            <AlertCircle className="h-3 w-3" /> Requer reautenticação
+                          </span>
+                        )}
+                        {!isConnected && !isExpired && (
+                          <span className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-full">
+                            <XCircle className="h-3 w-3" /> {conn.connectionStatus ?? "Desconhecido"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Details grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div className="flex items-start gap-2.5">
+                        <Hash className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ID no Bling</p>
+                          <p className="text-sm font-bold text-slate-700 dark:text-slate-300 font-mono">
+                            {conn.blingProductId}
+                          </p>
+                        </div>
+                      </div>
+                      {conn.blingLogin && (
+                        <div className="flex items-start gap-2.5">
+                          <User className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Login Bling</p>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                              {conn.blingLogin}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {conn.lastSyncAt && (
+                        <div className="flex items-start gap-2.5">
+                          <Clock className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Última sincronização</p>
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                              {format(new Date(conn.lastSyncAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Legacy fallback: blingProductId sem mapeamento */}
+              {(product?.blingConnections?.length ?? 0) === 0 && product?.blingProductId && (
+                <div className="rounded-2xl border border-blue-200 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-900/20 p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+                      <PlugZap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900 dark:text-slate-100 text-sm">Conexão Bling (legado)</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Sincronizado via integração anterior</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2.5 pt-1">
+                    <Hash className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ID no Bling</p>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 font-mono">
+                        {product.blingProductId}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </AppTabsContent>
       </AppTabs>

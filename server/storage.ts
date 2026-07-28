@@ -5436,7 +5436,10 @@ export class DatabaseStorage implements IStorage {
              bpm.connection_id,
              bpm.bling_product_id,
              bc.name AS connection_name,
-             bc.bling_account_name
+             bc.bling_account_name,
+             bc.bling_login,
+             bc.status AS connection_status,
+             bc.last_sync_at
       FROM   products p
       JOIN   bling_product_mappings bpm
              ON bpm.product_id = p.id
@@ -5451,7 +5454,10 @@ export class DatabaseStorage implements IStorage {
       connectionId: r.connection_id as string,
       connectionName: r.connection_name as string,
       blingAccountName: (r.bling_account_name as string | null) ?? null,
+      blingLogin: (r.bling_login as string | null) ?? null,
       blingProductId: r.bling_product_id as string,
+      connectionStatus: r.connection_status as string,
+      lastSyncAt: (r.last_sync_at as string | null) ?? null,
     }));
 
     return { ...result, clientCount, blingConnections };
