@@ -1,5 +1,5 @@
 import { db } from "server/db";
-import { campaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappMessages, clients } from "@shared/schema";
+import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappMessages, clients } from "@shared/schema";
 import { eq, and, or, isNull, lte } from "drizzle-orm";
 import { sendTemplateMessage, WhatsAppApiError } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
@@ -8,6 +8,11 @@ import { startBotSession, buildClientVariables, interpolate } from "./whatsapp-b
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
 import { getChannelByPhoneNumberId } from "./whatsapp-channels.service";
 import { getPublicR2Url } from "../lib/r2";
+import {
+  applyCampaignTag,
+  markImpactSent,
+  releaseImpact,
+} from "./whatsapp-campaign-dedupe.service";
 
 const DEFAULT_DELAY_MS = 1000;
 const MAX_SEND_ATTEMPTS = 5;
@@ -61,7 +66,31 @@ async function handleSendFailure(
     .update(whatsappCampaignMessages)
     .set({ status: "failed", attempts: nextAttempts, errorMessage, updatedAt: new Date() })
     .where(eq(whatsappCampaignMessages.id, msg.id));
+  await releaseImpact(msg.id);
   return "failed";
+}
+
+async function completeSuccessfulImpact(
+  msg: typeof whatsappCampaignMessages.$inferSelect,
+  postSendWhatsappTagId: string | null,
+  sentAt: Date,
+): Promise<void> {
+  await markImpactSent(msg.id, sentAt);
+  if (!postSendWhatsappTagId) return;
+  try {
+    await applyCampaignTag(msg.contactId, postSendWhatsappTagId);
+    await db
+      .update(whatsappCampaignMessages)
+      .set({ tagApplicationStatus: "applied", tagApplicationError: null, updatedAt: new Date() })
+      .where(eq(whatsappCampaignMessages.id, msg.id));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await db
+      .update(whatsappCampaignMessages)
+      .set({ tagApplicationStatus: "failed", tagApplicationError: message, updatedAt: new Date() })
+      .where(eq(whatsappCampaignMessages.id, msg.id));
+    console.error(`[WaCampaign] Falha ao aplicar etiqueta para ${msg.id}:`, error);
+  }
 }
 
 export async function executeCampaign(
@@ -77,6 +106,11 @@ export async function executeCampaign(
     .select()
     .from(campaigns)
     .where(eq(campaigns.id, campaignId));
+
+  const [campaignLog] = await db
+    .select({ postSendWhatsappTagId: whatsappCampaigns.postSendWhatsappTagId })
+    .from(whatsappCampaigns)
+    .where(eq(whatsappCampaigns.id, campaignId));
 
   if (!campaign) throw new Error(`Campanha ${campaignId} não encontrada`);
 
@@ -178,10 +212,12 @@ export async function executeCampaign(
           continue;
         }
 
+        const sentAt = new Date();
         await db
           .update(whatsappCampaignMessages)
-          .set({ status: "sent", sentAt: new Date(), messageId: lastMessageId, updatedAt: new Date() })
+          .set({ status: "sent", sentAt, messageId: lastMessageId, updatedAt: new Date() })
           .where(eq(whatsappCampaignMessages.id, msg.id));
+        await completeSuccessfulImpact(msg, campaignLog?.postSendWhatsappTagId ?? null, sentAt);
         await persistCampaignMessageToConversation(phoneE164, lastMessageId, "Disparo via bot", msg.id, botChannelId);
         sent++;
         console.log(`[WaCampaign] Bot ✓ ${msg.contactName} (${msg.phoneNumber})`);
@@ -236,15 +272,17 @@ export async function executeCampaign(
           components,
         );
         const waMessageId = result?.messages?.[0]?.id ?? null;
+        const sentAt = new Date();
         await db
           .update(whatsappCampaignMessages)
           .set({
             status: "sent",
-            sentAt: new Date(),
+            sentAt,
             messageId: waMessageId,
             updatedAt: new Date(),
           })
           .where(eq(whatsappCampaignMessages.id, msg.id));
+        await completeSuccessfulImpact(msg, campaignLog?.postSendWhatsappTagId ?? null, sentAt);
         await persistCampaignMessageToConversation(phoneE164, waMessageId, `Template: ${template.name}`, msg.id, campaignChannelId);
         sent++;
         console.log(`[WaCampaign] ✓ ${msg.contactName} (${msg.phoneNumber})`);

@@ -3887,6 +3887,11 @@ export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
   exclusiveTagFilter: boolean("exclusive_tag_filter").notNull().default(true),
   tagIds: text("tag_ids").array().notNull(),
   organizationId: text("organization_id").notNull(),
+  dedupeWindowHours: integer("dedupe_window_hours").notNull().default(24),
+  postSendWhatsappTagId: varchar("post_send_whatsapp_tag_id").references(
+    () => whatsappTags.id,
+  ),
+  contentFingerprintSnapshot: text("content_fingerprint_snapshot"),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -3903,9 +3908,11 @@ export const whatsappCampaignMessages = pgTable(
     contactId: text("contact_id"),
     contactName: text("contact_name").notNull(),
     phoneNumber: text("phone_number").notNull(),
+    phoneNormalized: text("phone_normalized"),
+    contentFingerprint: text("content_fingerprint"),
     status: text("status", {
       // scheduled→sent (API aceitou)→delivered→read; failed/cancelled são terminais.
-      enum: ["scheduled", "sent", "delivered", "read", "failed", "cancelled"],
+      enum: ["scheduled", "sent", "delivered", "read", "failed", "cancelled", "suppressed"],
     })
       .notNull()
       .default("scheduled"),
@@ -3914,6 +3921,12 @@ export const whatsappCampaignMessages = pgTable(
     deliveredAt: timestamp("delivered_at"),
     readAt: timestamp("read_at"),
     errorMessage: text("error_message"),
+    suppressionReason: text("suppression_reason"),
+    conflictingCampaignMessageId: varchar("conflicting_campaign_message_id"),
+    tagApplicationStatus: text("tag_application_status", {
+      enum: ["not_requested", "pending", "applied", "failed"],
+    }).notNull().default("not_requested"),
+    tagApplicationError: text("tag_application_error"),
     messageId: text("message_id"), // waMessageId retornado pela Meta (para casar status do webhook)
     attempts: integer("attempts").default(0).notNull(),
     nextAttemptAt: timestamp("next_attempt_at"),
@@ -3926,6 +3939,36 @@ export const whatsappCampaignMessages = pgTable(
     uniqueIndex("wa_campaign_messages_campaign_contact_uidx")
       .on(t.campaignId, t.contactId)
       .where(sql`contact_id IS NOT NULL`),
+  ],
+);
+
+export const whatsappCampaignImpacts = pgTable(
+  "whatsapp_campaign_impacts",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    phoneNormalized: text("phone_normalized").notNull(),
+    contentFingerprint: text("content_fingerprint").notNull(),
+    campaignId: varchar("campaign_id")
+      .references(() => whatsappCampaigns.id, { onDelete: "cascade" })
+      .notNull(),
+    campaignMessageId: varchar("campaign_message_id")
+      .references(() => whatsappCampaignMessages.id, { onDelete: "cascade" })
+      .notNull()
+      .unique(),
+    scheduledFor: timestamp("scheduled_for").notNull(),
+    sentAt: timestamp("sent_at"),
+    status: text("status", {
+      enum: ["reserved", "sent", "released", "cancelled"],
+    }).notNull().default("reserved"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("wa_campaign_impacts_lookup_idx").on(
+      t.phoneNormalized,
+      t.contentFingerprint,
+      t.scheduledFor,
+    ),
   ],
 );
 
@@ -3942,6 +3985,7 @@ export type WhatsappCampaignMessage = typeof whatsappCampaignMessages.$inferSele
 export type InsertWhatsappCampaignMessage = z.infer<
   typeof insertWhatsappCampaignMessageSchema
 >;
+export type WhatsappCampaignImpact = typeof whatsappCampaignImpacts.$inferSelect;
 
 // Relações
 export const whatsappCampaignsRelations = relations(

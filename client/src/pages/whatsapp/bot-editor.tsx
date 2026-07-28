@@ -1554,12 +1554,46 @@ function TagMultiSelect({
   onToggle: (id: string) => void;
   label: string;
 }) {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
-  const filtered = tags.filter((t) =>
+  const [createdTags, setCreatedTags] = useState<TagOption[]>([]);
+  const [creating, setCreating] = useState(false);
+  const allTags = [...tags, ...createdTags.filter((tag) => !tags.some((item) => item.id === tag.id))];
+  const filtered = allTags.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const selectedTags = tags.filter((t) => selectedIds.includes(t.id));
+  const selectedTags = allTags.filter((t) => selectedIds.includes(t.id));
+
+  async function createTag(): Promise<void> {
+    const name = search.trim();
+    if (name.length < 2) return;
+    setCreating(true);
+    try {
+      const response = await fetch("/api/whatsapp/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) throw new Error("Erro ao criar etiqueta");
+      const tag = await response.json() as TagOption;
+      setCreatedTags((current) => [...current, tag]);
+      onToggle(tag.id);
+      setSearch("");
+      toast({
+        title: "Etiqueta criada",
+        description: `A etiqueta “${tag.name}” foi criada e selecionada.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao criar etiqueta",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
+  }
 
   return (
     <Popover>
@@ -1612,6 +1646,31 @@ function TagMultiSelect({
               })}
             </div>
           )}
+        </div>
+        <div className="border-t p-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-xs"
+            disabled={
+              creating ||
+              search.trim().length < 2 ||
+              allTags.some(
+                (tag) => tag.name.toLowerCase() === search.trim().toLowerCase(),
+              )
+            }
+            onClick={createTag}
+          >
+            {creating ? (
+              <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+            ) : (
+              <Plus className="h-3.5 w-3.5 mr-2" />
+            )}
+            {search.trim().length >= 2
+              ? `Criar etiqueta “${search.trim()}”`
+              : "Digite o nome acima para criar uma etiqueta"}
+          </Button>
         </div>
         {selectedIds.length > 0 && (
           <div className="border-t p-2 text-[11px] text-muted-foreground">
@@ -3311,6 +3370,10 @@ function ConditionEditor({
           Senão → saída <span className="text-red-500 font-medium">Não atende nenhuma</span>
         </p>
       </div>
+
+      <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+        Etiquetas ajudam na segmentação do fluxo. A proteção contra campanhas repetidas é configurada na criação da campanha.
+      </p>
 
       {/* Validation hint */}
       {hasEmptyField && (

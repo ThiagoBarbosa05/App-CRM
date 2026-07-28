@@ -45,6 +45,9 @@ import { resolveChannelById } from "../services/whatsapp-channels.service";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
 import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
 import { isAdminOrGerente } from "../middleware/validation";
+import { db } from "../db";
+import { whatsappTags } from "@shared/schema";
+import { randomUUID } from "crypto";
 
 const router = Router();
 
@@ -947,6 +950,35 @@ router.post("/conversations/:conversationId/transfer-sector", async (req, res) =
 
 const perspectiveActionSchema = z.object({
   asChannelId: z.number().int().positive().optional(),
+});
+
+router.post("/tags", async (req, res) => {
+  try {
+    const user = (req as { user?: { userId?: string } }).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const parsed = z.object({
+      name: z.string().trim().min(2).max(80),
+      color: z.string().trim().max(40).optional(),
+      emoji: z.string().trim().max(16).optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ message: "Etiqueta inválida", errors: parsed.error.errors });
+    }
+    const [tag] = await db
+      .insert(whatsappTags)
+      .values({
+        umblerTagId: `local-${randomUUID()}`,
+        name: parsed.data.name,
+        color: parsed.data.color ?? "Gray",
+        emoji: parsed.data.emoji ?? null,
+        description: "Etiqueta criada no CRM",
+      })
+      .returning();
+    return res.status(201).json(tag);
+  } catch (error) {
+    console.error("[WhatsApp tags] Erro ao criar etiqueta:", error);
+    return res.status(500).json({ message: "Erro ao criar etiqueta" });
+  }
 });
 
 router.post("/conversations/:conversationId/close", async (req, res) => {

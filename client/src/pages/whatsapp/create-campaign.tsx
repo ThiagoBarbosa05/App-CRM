@@ -1231,6 +1231,10 @@ function StepConfirm({
   botId,
   scheduledAt,
   onScheduleChange,
+  dedupeWindowHours,
+  onDedupeWindowChange,
+  postSendTagId,
+  onPostSendTagChange,
 }: {
   title: string;
   description: string;
@@ -1239,9 +1243,43 @@ function StepConfirm({
   botId: string;
   scheduledAt: string;
   onScheduleChange: (value: string) => void;
+  dedupeWindowHours: number;
+  onDedupeWindowChange: (value: number) => void;
+  postSendTagId: string;
+  onPostSendTagChange: (value: string) => void;
 }) {
   const { data: bots = [] } = useWhatsappBots();
   const bot = bots.find((b) => b.id === botId);
+  const { data: campaignTags = [], refetch: refetchTags } = useQuery<WhatsappFilterTag[]>({
+    queryKey: ["/api/whatsapp/tags"],
+    queryFn: async () => {
+      const response = await fetch("/api/whatsapp/tags");
+      if (!response.ok) throw new Error("Erro ao buscar etiquetas");
+      return response.json();
+    },
+  });
+  const [newTagName, setNewTagName] = useState("");
+  const [creatingTag, setCreatingTag] = useState(false);
+
+  const createTag = async () => {
+    const name = newTagName.trim();
+    if (!name) return;
+    setCreatingTag(true);
+    try {
+      const response = await fetch("/api/whatsapp/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) throw new Error("Não foi possível criar a etiqueta");
+      const tag = await response.json() as WhatsappFilterTag;
+      await refetchTags();
+      onPostSendTagChange(tag.id);
+      setNewTagName("");
+    } finally {
+      setCreatingTag(false);
+    }
+  };
 
   const mode = scheduledAt ? "schedule" : "now";
   const minDateTime = new Date(
@@ -1332,6 +1370,68 @@ function StepConfirm({
         </CardContent>
       </Card>
 
+      <Card>
+        <CardContent className="p-5 space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="dedupe-window">Evitar mensagem repetida por</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="dedupe-window"
+                type="number"
+                min={1}
+                max={8760}
+                value={dedupeWindowHours}
+                onChange={(event) =>
+                  onDedupeWindowChange(
+                    Math.min(8760, Math.max(1, Number(event.target.value) || 1)),
+                  )
+                }
+                className="w-28"
+              />
+              <span className="text-sm text-muted-foreground">horas</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Contatos que receberam ou já têm agendada a mesma abertura serão excluídos automaticamente.
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label htmlFor="post-send-tag">Marcar após o primeiro envio</Label>
+            <select
+              id="post-send-tag"
+              value={postSendTagId}
+              onChange={(event) => onPostSendTagChange(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Não aplicar etiqueta</option>
+              {campaignTags.map((tag) => (
+                <option key={tag.id} value={tag.id}>{tag.name}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <Input
+                value={newTagName}
+                onChange={(event) => setNewTagName(event.target.value)}
+                placeholder="Ex.: RECEBEU — BLACK FRIDAY 2026"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={creatingTag || newTagName.trim().length < 2}
+                onClick={createTag}
+              >
+                {creatingTag ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              A etiqueta é aplicada somente quando o WhatsApp aceitar o primeiro envio.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Info notice */}
       <div className="flex items-start gap-2.5 p-3.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl">
         <MessageCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
@@ -1366,6 +1466,8 @@ export default function WhatsAppCreateCampaign() {
   const [templateHeaderMedia, setTemplateHeaderMedia] =
     useState<TemplateHeaderMediaValue | null>(null);
   const [scheduledAt, setScheduledAt] = useState("");
+  const [dedupeWindowHours, setDedupeWindowHours] = useState(24);
+  const [postSendTagId, setPostSendTagId] = useState("");
 
   const createMutation = useCreateCampaignWithDispatch();
 
@@ -1465,6 +1567,8 @@ export default function WhatsAppCreateCampaign() {
         waBotId: selectedBotId || undefined,
         clientIds: selectedClientIds,
         scheduledAt: scheduledIso,
+        dedupeWindowHours,
+        postSendWhatsappTagId: postSendTagId || undefined,
       },
       {
         onSuccess: (data) => {
@@ -1491,6 +1595,8 @@ export default function WhatsAppCreateCampaign() {
     selectedBotId,
     selectedClientIds,
     scheduledAt,
+    dedupeWindowHours,
+    postSendTagId,
     toast,
     navigate,
   ]);
@@ -1582,6 +1688,10 @@ export default function WhatsAppCreateCampaign() {
                   botId={selectedBotId}
                   scheduledAt={scheduledAt}
                   onScheduleChange={setScheduledAt}
+                  dedupeWindowHours={dedupeWindowHours}
+                  onDedupeWindowChange={setDedupeWindowHours}
+                  postSendTagId={postSendTagId}
+                  onPostSendTagChange={setPostSendTagId}
                 />
               )}
             </div>

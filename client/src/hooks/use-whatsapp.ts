@@ -27,12 +27,16 @@ export interface WhatsappCampaignMessage {
   contactId?: string | null;
   contactName: string;
   phoneNumber: string;
-  status: "scheduled" | "sent" | "delivered" | "read" | "failed" | "cancelled";
+  status: "scheduled" | "sent" | "delivered" | "read" | "failed" | "cancelled" | "suppressed";
   scheduledAt: string;
   sentAt?: string;
   deliveredAt?: string;
   readAt?: string;
   errorMessage?: string;
+  suppressionReason?: string;
+  conflictingCampaignMessageId?: string;
+  tagApplicationStatus?: "not_requested" | "pending" | "applied" | "failed";
+  tagApplicationError?: string;
 }
 
 export interface WhatsappCampaignDetails extends WhatsappCampaign {
@@ -49,6 +53,9 @@ export interface WhatsappCampaignStats {
     failed: number;
     pending: number;
     cancelled: number;
+    suppressed: number;
+    tagsApplied: number;
+    tagFailures: number;
   };
   timestamp: string;
 }
@@ -471,6 +478,8 @@ export function useCreateCampaignWithDispatch() {
       metaTemplateHeaderMedia?: { storageKey: string; mediaType: "image" | "video" | "document" };
       clientIds: string[];
       scheduledAt?: string; // ISO; se no futuro, a campanha fica agendada
+      dedupeWindowHours?: number;
+      postSendWhatsappTagId?: string;
     }) => {
       const campaignRes = await apiRequest("POST", "/api/campaigns", {
         name: data.name,
@@ -492,6 +501,8 @@ export function useCreateCampaignWithDispatch() {
         campaignId: campaign.id,
         clientIds: data.clientIds,
         scheduledAt: data.scheduledAt,
+        dedupeWindowHours: data.dedupeWindowHours ?? 24,
+        postSendWhatsappTagId: data.postSendWhatsappTagId ?? null,
       });
       return dispatchRes.json();
     },

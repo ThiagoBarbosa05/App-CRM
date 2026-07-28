@@ -8,6 +8,7 @@ vite.config.ts.*
 bling-control-0f37ef3dad78.json
 # server/index.ts
 *.sql
+!migrations/0001_whatsapp_campaign_dedupe.sql
 .worktrees/
 .claude/
 # *.png

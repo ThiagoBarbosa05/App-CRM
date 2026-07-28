@@ -180,6 +180,9 @@ export async function getCampaignStats(campaignId: string): Promise<{
   failed: number;
   pending: number;
   cancelled: number;
+  suppressed: number;
+  tagsApplied: number;
+  tagFailures: number;
 } | null> {
   try {
     console.log("📈 Getting stats for campaign:", campaignId);
@@ -201,6 +204,9 @@ export async function getCampaignStats(campaignId: string): Promise<{
       failed: messages.filter((m) => m.status === "failed").length,
       pending: messages.filter((m) => m.status === "scheduled").length,
       cancelled: messages.filter((m) => m.status === "cancelled").length,
+      suppressed: messages.filter((m) => m.status === "suppressed").length,
+      tagsApplied: messages.filter((m) => m.tagApplicationStatus === "applied").length,
+      tagFailures: messages.filter((m) => m.tagApplicationStatus === "failed").length,
     };
 
     console.log("✅ Stats retrieved from database:", stats);

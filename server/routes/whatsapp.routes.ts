@@ -4,6 +4,7 @@ import { db } from "../db";
 import {
   campaigns,
   clients,
+  whatsappCampaignImpacts,
   whatsappCampaigns,
   whatsappCampaignMessages,
 } from "@shared/schema";
@@ -20,6 +21,16 @@ import {
   listBotDispatchHistory,
   parseBotSessionHistoryQuery,
 } from "../controllers/whatsapp/bot-session-history.controller";
+import {
+  buildCampaignContentSnapshot,
+  applyCampaignTag,
+  DEFAULT_DEDUPE_WINDOW_HOURS,
+  fingerprintForClient,
+  findConflict,
+  loadCampaignClients,
+  MAX_DEDUPE_WINDOW_HOURS,
+  reserveCampaignMessage,
+} from "../services/whatsapp-campaign-dedupe.service";
 
 const router = Router();
 
@@ -74,11 +85,86 @@ router.post("/template-messages", async (req, res) => {
 // Recebe um campaignId (tabela campaigns) com waEnabled + waTemplateId
 // e uma lista de clientIds do CRM. Agenda mensagens e executa imediatamente.
 
+router.post("/campaigns/preview", async (req, res) => {
+  const parsed = z.object({
+    campaignId: z.string().uuid(),
+    clientIds: z.array(z.string()).min(1),
+    scheduledAt: z.string().datetime().optional(),
+    dedupeWindowHours: z.number().int().min(1).max(MAX_DEDUPE_WINDOW_HOURS)
+      .default(DEFAULT_DEDUPE_WINDOW_HOURS),
+  }).safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: "Parâmetros inválidos", errors: parsed.error.errors });
+  }
+  try {
+    const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, parsed.data.campaignId));
+    if (!campaign) return res.status(404).json({ message: "Campanha não encontrada" });
+    const rows = await loadCampaignClients(parsed.data.clientIds);
+    const snapshot = await buildCampaignContentSnapshot(campaign);
+    const scheduledFor = parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : new Date();
+    const seenPhones = new Set<string>();
+    let optedOut = 0;
+    let invalidPhone = 0;
+    let duplicatePhone = 0;
+    let suppressedDuplicate = 0;
+    const conflicts: Array<{
+      campaignId: string;
+      campaignMessageId: string;
+      scheduledFor: string;
+      phoneMasked: string;
+    }> = [];
+    for (const client of rows) {
+      if (client.whatsappOptOut) {
+        optedOut++;
+        continue;
+      }
+      const phone = normalizePhoneE164(client.phone);
+      if (!phone) {
+        invalidPhone++;
+        continue;
+      }
+      if (seenPhones.has(phone)) {
+        duplicatePhone++;
+        continue;
+      }
+      seenPhones.add(phone);
+      const conflict = await findConflict(
+        db,
+        phone,
+        fingerprintForClient(snapshot, client as typeof clients.$inferSelect, phone),
+        scheduledFor,
+        parsed.data.dedupeWindowHours,
+      );
+      if (conflict) {
+        suppressedDuplicate++;
+        if (conflicts.length < 10) {
+          conflicts.push({ ...conflict, scheduledFor: conflict.scheduledFor.toISOString() });
+        }
+      }
+    }
+    return res.json({
+      selected: parsed.data.clientIds.length,
+      eligible: seenPhones.size - suppressedDuplicate,
+      optedOut,
+      invalidPhone,
+      duplicatePhone,
+      suppressedDuplicate,
+      conflicts,
+    });
+  } catch (error) {
+    console.error("[WA campaigns preview] erro:", error);
+    return res.status(500).json({ message: "Erro ao calcular prévia" });
+  }
+});
+
 router.post("/campaigns", async (req, res) => {
   const schema = z.object({
     campaignId: z.string().uuid(),
     clientIds: z.array(z.string()).min(1),
     scheduledAt: z.string().datetime().optional(),
+    dedupeWindowHours: z.number().int().min(1).max(MAX_DEDUPE_WINDOW_HOURS)
+      .default(DEFAULT_DEDUPE_WINDOW_HOURS),
+    postSendWhatsappTagId: z.string().uuid().nullable().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -86,7 +172,13 @@ router.post("/campaigns", async (req, res) => {
     return res.status(400).json({ message: "Parâmetros inválidos", errors: parsed.error.errors });
   }
 
-  const { campaignId, clientIds, scheduledAt } = parsed.data;
+  const {
+    campaignId,
+    clientIds,
+    scheduledAt,
+    dedupeWindowHours,
+    postSendWhatsappTagId,
+  } = parsed.data;
 
   // Se a data de agendamento estiver no futuro, a campanha fica "created"
   // (agendada) e o job só inicia quando startDate <= agora.
@@ -199,6 +291,55 @@ router.post("/campaigns", async (req, res) => {
     const alreadyQueuedIds = new Set(alreadyQueued.map((m) => m.contactId));
 
     const now = new Date();
+    const contentSnapshot = await buildCampaignContentSnapshot(campaign);
+    await db
+      .update(whatsappCampaigns)
+      .set({
+        dedupeWindowHours,
+        postSendWhatsappTagId: postSendWhatsappTagId ?? null,
+        contentFingerprintSnapshot: contentSnapshot,
+        updatedAt: new Date(),
+      })
+      .where(eq(whatsappCampaigns.id, campaignId));
+
+    let queued = 0;
+    let suppressedDuplicate = 0;
+    const conflicts: Array<{
+      campaignId: string;
+      campaignMessageId: string;
+      scheduledFor: string;
+      phoneMasked: string;
+    }> = [];
+    for (const client of validClients.filter((item) => !alreadyQueuedIds.has(item.id))) {
+      const fullClient = clientRows.find((row) => row.id === client.id);
+      if (!fullClient) continue;
+      const result = await reserveCampaignMessage({
+        campaignId,
+        client: fullClient as typeof clients.$inferSelect,
+        phoneNormalized: client.phoneE164,
+        contentFingerprint: fingerprintForClient(
+          contentSnapshot,
+          fullClient as typeof clients.$inferSelect,
+          client.phoneE164,
+        ),
+        scheduledFor: scheduledDate ?? now,
+        windowHours: dedupeWindowHours,
+        postSendTagRequested: Boolean(postSendWhatsappTagId),
+      });
+      if (result.queued) {
+        queued++;
+      } else {
+        suppressedDuplicate++;
+        if (result.conflict && conflicts.length < 10) {
+          conflicts.push({
+            ...result.conflict,
+            scheduledFor: result.conflict.scheduledFor.toISOString(),
+          });
+        }
+      }
+    }
+
+    /*
     const messageValues = validClients
       .filter((client) => !alreadyQueuedIds.has(client.id))
       .map((client) => ({
@@ -217,18 +358,39 @@ router.post("/campaigns", async (req, res) => {
     if (messageValues.length > 0) {
       await db.insert(whatsappCampaignMessages).values(messageValues).onConflictDoNothing();
     }
+    */
+
+    await db
+      .update(whatsappCampaigns)
+      .set({
+        totalContacts: queued + suppressedDuplicate,
+        scheduledMessages: queued,
+        status: queued === 0 ? "completed" : isScheduled ? "created" : "in_progress",
+        completedAt: queued === 0 ? new Date() : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(whatsappCampaigns.id, campaignId));
 
     // 5. NÃO dispara inline — apenas enfileira. O job whatsapp-campaign-dispatcher
     //    processa as mensagens "scheduled" em lotes (evita timeout em disparo em massa).
-    res.status(202).json({
+    const responseBody = {
       campaignId,
-      queued: messageValues.length,
+      queued,
+      suppressedDuplicate,
       skippedNoPhone: skippedInvalidPhone,
       skippedDuplicatePhone,
       skippedOptedOut,
       skippedAlreadyQueued: alreadyQueuedIds.size,
+      conflicts,
       scheduledAt: isScheduled ? scheduledDate?.toISOString() : null,
-    });
+    };
+    if (queued === 0) {
+      return res.status(409).json({
+        ...responseBody,
+        message: "Nenhum destinatário elegível permaneceu após a proteção contra duplicidade",
+      });
+    }
+    return res.status(202).json(responseBody);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao enfileirar campanha";
     console.error("[WA campaigns] erro:", e);
@@ -265,6 +427,43 @@ router.post("/campaigns/:id/retry-failed", async (req, res) => {
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao reprocessar falhas";
     res.status(500).json({ message });
+  }
+});
+
+router.post("/campaigns/:id/retry-tags", async (req, res) => {
+  const campaignId = req.params.id;
+  try {
+    const [campaign] = await db
+      .select({ tagId: whatsappCampaigns.postSendWhatsappTagId })
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.id, campaignId));
+    if (!campaign?.tagId) {
+      return res.status(400).json({ message: "Campanha sem etiqueta pós-envio configurada" });
+    }
+    const messages = await db
+      .select()
+      .from(whatsappCampaignMessages)
+      .where(and(
+        eq(whatsappCampaignMessages.campaignId, campaignId),
+        eq(whatsappCampaignMessages.tagApplicationStatus, "failed"),
+      ));
+    let applied = 0;
+    for (const message of messages) {
+      try {
+        await applyCampaignTag(message.contactId, campaign.tagId);
+        await db
+          .update(whatsappCampaignMessages)
+          .set({ tagApplicationStatus: "applied", tagApplicationError: null, updatedAt: new Date() })
+          .where(eq(whatsappCampaignMessages.id, message.id));
+        applied++;
+      } catch (error) {
+        console.error(`[WA campaigns] retry tag ${message.id}:`, error);
+      }
+    }
+    return res.json({ campaignId, attempted: messages.length, applied });
+  } catch (error) {
+    console.error("[WA campaigns] erro ao reaplicar etiquetas:", error);
+    return res.status(500).json({ message: "Erro ao reaplicar etiquetas" });
   }
 });
 
@@ -320,6 +519,13 @@ router.post("/campaigns/:id/cancel", async (req, res) => {
         ),
       )
       .returning({ id: whatsappCampaignMessages.id });
+
+    if (cancelled.length > 0) {
+      await db
+        .update(whatsappCampaignImpacts)
+        .set({ status: "cancelled", updatedAt: new Date() })
+        .where(inArray(whatsappCampaignImpacts.campaignMessageId, cancelled.map((item) => item.id)));
+    }
 
     await db
       .update(whatsappCampaigns)

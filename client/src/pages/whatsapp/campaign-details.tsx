@@ -91,6 +91,7 @@ const MSG_STATUS_CONFIG: Record<
   read: { label: "Lido", icon: Eye, className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
   failed: { label: "Falhou", icon: XCircle, className: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" },
   cancelled: { label: "Cancelado", icon: AlertCircle, className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
+  suppressed: { label: "Suprimido", icon: AlertCircle, className: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" },
 };
 
 const STATUS_FILTER_OPTIONS: { value: WhatsappCampaignMessage["status"] | "all"; label: string }[] = [
@@ -101,6 +102,7 @@ const STATUS_FILTER_OPTIONS: { value: WhatsappCampaignMessage["status"] | "all";
   { value: "read", label: "Lido" },
   { value: "failed", label: "Falhou" },
   { value: "cancelled", label: "Cancelado" },
+  { value: "suppressed", label: "Suprimido por duplicidade" },
 ];
 
 function formatDate(dateStr: string | undefined | null) {
