@@ -4186,6 +4186,7 @@ export const whatsappBots = pgTable("whatsapp_bots", {
     .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const whatsappBotNodes = pgTable("whatsapp_bot_nodes", {
@@ -4196,7 +4197,7 @@ export const whatsappBotNodes = pgTable("whatsapp_bot_nodes", {
   type: text("type", {
     // "question" mantido apenas para compatibilidade com fluxos legados;
     // o nó não é mais criável no editor.
-    enum: ["start", "send_message", "question", "condition", "menu", "action", "flow_form", "wait", "end", "end_conversation", "transfer_agent", "transfer_sector", "distribute_flow", "edit_tags", "send_template", "trigger_flow"],
+    enum: ["start", "start_manual", "start_channel", "send_message", "question", "condition", "menu", "action", "flow_form", "wait", "end", "end_conversation", "transfer_agent", "transfer_sector", "distribute_flow", "edit_tags", "send_template", "trigger_flow"],
   }).notNull(),
   label: text("label").notNull(),
   positionX: integer("position_x").notNull().default(0),
@@ -4280,6 +4281,14 @@ export type SendMessageAttachment = {
   type: "image" | "document";
   name?: string;
   mimeType?: string;
+};
+
+export type StartManualNodeData = {
+  unlisted: boolean;
+};
+
+export type StartChannelNodeData = {
+  channelIds: number[];
 };
 
 export type TemplateHeaderMedia = {
@@ -4519,6 +4528,8 @@ export type TriggerFlowNodeData = {
 };
 
 export type BotNodeData =
+  | StartManualNodeData
+  | StartChannelNodeData
   | SendMessageNodeData
   | QuestionNodeData
   | ConditionNodeData
@@ -4572,6 +4583,7 @@ export const insertWhatsappBotSchema = createInsertSchema(whatsappBots).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
 });
 
 export const insertWhatsappBotNodeSchema = createInsertSchema(

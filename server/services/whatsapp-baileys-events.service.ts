@@ -10,7 +10,7 @@ import {
   OPT_OUT_CONFIRMATION_TEXT,
   OPT_IN_CONFIRMATION_TEXT,
 } from "./whatsapp-opt-out.service";
-import { persistBotMessage } from "./whatsapp-bot-engine.service";
+import { handleInboundBotMessage, persistBotMessage } from "./whatsapp-bot-engine.service";
 import { logChannelConnectionEvent } from "./baileys/connection-events.service";
 
 // Eventos do Baileys são processados in-process (sem webhook HTTP). Os nomes de
@@ -83,7 +83,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     ? String(msg.messageTimestamp)
     : undefined;
 
-  await saveInboundMessage({
+  const inboundResult = await saveInboundMessage({
     phone,
     content: text,
     type,
@@ -108,17 +108,20 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
           size: msg._baileysMedia.size,
         }
       : undefined,
-  }).catch((err) =>
-    console.error("[Baileys Events] Erro ao salvar mensagem:", err),
-  );
+  }).catch((err) => {
+    console.error("[Baileys Events] Erro ao salvar mensagem:", err);
+    return null;
+  });
 
   // Opt-out/opt-in de marketing via palavra-chave, mesmo mecanismo do webhook
   // da Cloud API (ver server/routes/whatsapp-webhook.routes.ts) — necessário
   // aqui também porque mensagens de canais QR Code (Evolution/Baileys) não
   // passam por aquele webhook.
+  let handledOptKeyword = false;
   if (!fromMe && text) {
     const match = matchOptKeyword(text);
     if (match === "opt_out") {
+      handledOptKeyword = true;
       await optOutClientByPhone(phone, "keyword").catch((err) =>
         console.error("[Baileys Events] Erro ao processar opt-out:", err),
       );
@@ -132,6 +135,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
         content: OPT_OUT_CONFIRMATION_TEXT,
       });
     } else if (match === "opt_in") {
+      handledOptKeyword = true;
       await optInClientByPhone(phone).catch((err) =>
         console.error("[Baileys Events] Erro ao processar opt-in:", err),
       );
@@ -145,6 +149,15 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
         content: OPT_IN_CONFIRMATION_TEXT,
       });
     }
+  }
+
+  if (!fromMe && !handledOptKeyword && inboundResult?.saved) {
+    await handleInboundBotMessage({
+      phone,
+      messageText: text,
+      channelId: inboundResult.channelId,
+      startsConversation: inboundResult.startsConversation,
+    });
   }
 }
 

@@ -290,8 +290,11 @@ export default function WhatsAppBotsList() {
     try {
       await toggleActive.mutateAsync({ botId: bot.id, active: !bot.isActive });
       toast({ title: bot.isActive ? "Bot desativado" : "Bot ativado" });
-    } catch {
-      toast({ title: "Erro ao alterar status", variant: "destructive" });
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Erro ao alterar status",
+        variant: "destructive",
+      });
     }
   }
 

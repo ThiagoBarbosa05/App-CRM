@@ -10,6 +10,7 @@ import {
   deleteBot,
   duplicateBot,
   saveFlow,
+  BotFlowValidationError,
 } from "../services/whatsapp-bot.service";
 import { r2 } from "../lib/r2";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -55,6 +56,8 @@ const saveFlowSchema = z.object({
         botId: z.string(),
         type: z.enum([
           "start",
+          "start_manual",
+          "start_channel",
           "send_message",
           // "question" mantido apenas para compatibilidade com fluxos legados;
           // o nó não é mais criável no editor.
@@ -98,8 +101,11 @@ router.get("/bots", async (req, res) => {
   try {
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const activeOnly = req.query.activeOnly === "true";
+    const manualOnly = req.query.manualOnly === "true";
     const bots = await listBots(
-      search || activeOnly ? { search: search || undefined, activeOnly } : undefined,
+      search || activeOnly || manualOnly
+        ? { search: search || undefined, activeOnly, manualOnly }
+        : undefined,
     );
     res.json(bots);
   } catch {
@@ -142,7 +148,10 @@ router.put("/bots/:id", async (req, res) => {
     }
     const bot = await updateBot(req.params.id, parsed.data);
     res.json(bot);
-  } catch {
+  } catch (error) {
+    if (error instanceof BotFlowValidationError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     res.status(500).json({ message: "Erro ao atualizar bot" });
   }
 });
@@ -164,9 +173,13 @@ router.post("/bots/:id/duplicate", async (req, res) => {
 
 router.delete("/bots/:id", async (req, res) => {
   try {
-    await deleteBot(req.params.id);
+    const deleted = await deleteBot(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ message: "Bot não encontrado" });
+    }
     res.status(204).send();
-  } catch {
+  } catch (error) {
+    console.error("[WhatsApp Bots] Erro ao remover bot:", error);
     res.status(500).json({ message: "Erro ao excluir bot" });
   }
 });
@@ -179,7 +192,10 @@ router.put("/bots/:id/flow", async (req, res) => {
     }
     await saveFlow(req.params.id, parsed.data.nodes, parsed.data.edges);
     res.json({ ok: true });
-  } catch {
+  } catch (error) {
+    if (error instanceof BotFlowValidationError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     res.status(500).json({ message: "Erro ao salvar fluxo" });
   }
 });
@@ -188,7 +204,10 @@ router.post("/bots/:id/activate", async (req, res) => {
   try {
     const bot = await updateBot(req.params.id, { isActive: true });
     res.json(bot);
-  } catch {
+  } catch (error) {
+    if (error instanceof BotFlowValidationError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     res.status(500).json({ message: "Erro ao ativar bot" });
   }
 });

@@ -47,6 +47,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { findOrCreateConversation, resolveOutboundChannel, transferConversationToSector } from "./whatsapp-conversations.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { classifyMessageIntent } from "../ai-helpers";
+import { getAutomaticBotForChannel } from "./whatsapp-bot.service";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
 const SESSION_TIMEOUT_MINUTES = 30;
@@ -342,7 +343,8 @@ export type BotSessionCompletionReason =
   | "delivery_failed"
   | "unsupported_node"
   | "opted_out"
-  | "closed_by_agent";
+  | "closed_by_agent"
+  | "bot_deleted";
 
 async function updateSession(
   sessionId: string,
@@ -597,7 +599,9 @@ async function executeNode(
   let lastMessageId: string | null = null;
 
   switch (node.type) {
-    case "start": {
+    case "start":
+    case "start_manual":
+    case "start_channel": {
       const next = await getNextNode(botId, node.id);
       if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
       break;
@@ -1489,6 +1493,7 @@ export async function startBotSession(
 
   if (startNodeId) {
     entryNode = await getNode(startNodeId);
+    if (entryNode?.botId !== botId) entryNode = null;
   } else {
     const [found] = await db
       .select()
@@ -1496,7 +1501,7 @@ export async function startBotSession(
       .where(
         and(
           eq(whatsappBotNodes.botId, botId),
-          eq(whatsappBotNodes.type, "start"),
+          inArray(whatsappBotNodes.type, ["start_manual", "start"]),
         ),
       )
       .limit(1);
@@ -1508,8 +1513,18 @@ export async function startBotSession(
   const existingSession = await getActiveSession(phone);
   if (existingSession) return { status: "already_active", lastMessageId: null };
 
-  const [bot] = await db.select({ name: whatsappBots.name }).from(whatsappBots).where(eq(whatsappBots.id, botId)).limit(1);
-  const botName = bot?.name ?? "Bot";
+  const [bot] = await db
+    .select({ name: whatsappBots.name })
+    .from(whatsappBots)
+    .where(
+      and(
+        eq(whatsappBots.id, botId),
+        isNull(whatsappBots.deletedAt),
+      ),
+    )
+    .limit(1);
+  if (!bot) return { status: "no_start_node", lastMessageId: null };
+  const botName = bot.name;
 
   // Injeta campos do cliente como variáveis iniciais da sessão
   const [convRow] = await db
@@ -1625,6 +1640,38 @@ export async function handleFlowResponse(
   } catch (err) {
     console.error("[BotEngine] Erro ao processar resposta de Flow:", err);
     if (sessionId) await markSessionFailed(sessionId, err);
+  }
+}
+
+export async function handleInboundBotMessage(params: {
+  phone: string;
+  messageText?: string | null;
+  replyId?: string | null;
+  channelId?: number | null;
+  startsConversation: boolean;
+}): Promise<void> {
+  if (params.startsConversation && params.channelId != null) {
+    const automaticBot = await getAutomaticBotForChannel(params.channelId);
+    if (automaticBot) {
+      await startBotSession(
+        automaticBot.botId,
+        params.phone,
+        automaticBot.startNodeId,
+        undefined,
+        params.channelId,
+      );
+      // A mensagem que abriu/reabriu a conversa é o gatilho. Ela nunca deve ser
+      // consumida como resposta do primeiro nó interativo criado nesta execução.
+      return;
+    }
+  }
+
+  if (params.messageText) {
+    await handleIncomingMessage(
+      params.phone,
+      params.messageText,
+      params.replyId,
+    );
   }
 }
 

@@ -3166,9 +3166,9 @@ function ConversationMessages({
   });
 
   const { data: bots = [] } = useQuery<WhatsappBot[]>({
-    queryKey: ["/api/whatsapp/bots"],
+    queryKey: ["/api/whatsapp/bots", "manual"],
     queryFn: async () => {
-      const res = await fetch("/api/whatsapp/bots");
+      const res = await fetch("/api/whatsapp/bots?activeOnly=true&manualOnly=true");
       if (!res.ok) return [];
       return res.json();
     },
@@ -3187,7 +3187,7 @@ function ConversationMessages({
   >({
     queryKey: ["/api/whatsapp/bots", "picker", debouncedBotSearch],
     queryFn: async () => {
-      const params = new URLSearchParams({ activeOnly: "true" });
+      const params = new URLSearchParams({ activeOnly: "true", manualOnly: "true" });
       if (debouncedBotSearch) params.set("search", debouncedBotSearch);
       const res = await fetch(`/api/whatsapp/bots?${params}`);
       if (!res.ok) return [];

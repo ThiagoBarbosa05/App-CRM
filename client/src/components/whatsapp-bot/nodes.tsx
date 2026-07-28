@@ -1,7 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { MessageCircle, GitBranch, Zap, PlayCircle, StopCircle, LayoutTemplate, FileText, Hourglass, ListChecks, CheckCircle2, UserRoundCog, Users, Shuffle, Tag, SendHorizonal, ArrowRightLeft } from "lucide-react";
+import { MessageCircle, GitBranch, Zap, PlayCircle, RadioTower, StopCircle, LayoutTemplate, FileText, Hourglass, ListChecks, CheckCircle2, UserRoundCog, Users, Shuffle, Tag, SendHorizonal, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BotNodeData, SendMessageNodeData, SendMessageAttachment, ConditionNodeData, ConditionRule, MenuNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData, EndConversationNodeData, TransferAgentNodeData, TransferSectorNodeData, DistributeFlowNodeData, EditTagsNodeData, SendTemplateNodeData, SendTemplateButtonHandle, TriggerFlowNodeData } from "@shared/schema";
+import type { BotNodeData, StartManualNodeData, StartChannelNodeData, SendMessageNodeData, SendMessageAttachment, ConditionNodeData, ConditionRule, MenuNodeData, ActionNodeData, FlowFormNodeData, WaitNodeData, EndConversationNodeData, TransferAgentNodeData, TransferSectorNodeData, DistributeFlowNodeData, EditTagsNodeData, SendTemplateNodeData, SendTemplateButtonHandle, TriggerFlowNodeData } from "@shared/schema";
 
 interface NodeData extends Record<string, unknown> {
   label: string;
@@ -59,19 +59,41 @@ function NodeCard({
   );
 }
 
-export function StartNode({ data, selected }: NodeProps) {
+export function StartManualNode({ data, selected }: NodeProps) {
+  const d = data as NodeData & StartManualNodeData;
   return (
     <>
       <NodeCard
-        color="bg-green-500"
+        color="bg-sky-600"
         icon={PlayCircle}
-        title={(data as NodeData).label || "Início"}
+        title={d.label || "Iniciar manualmente"}
+        preview={d.unlisted ? "Não listado para atendentes" : "Disponível para atendentes"}
         selected={selected}
       />
       <Handle type="source" position={Position.Bottom} />
     </>
   );
 }
+
+export function StartChannelNode({ data, selected }: NodeProps) {
+  const d = data as NodeData & StartChannelNodeData;
+  const count = d.channelIds?.length ?? 0;
+  return (
+    <>
+      <NodeCard
+        color="bg-emerald-600"
+        icon={RadioTower}
+        title={d.label || "Iniciar por um canal"}
+        preview={count > 0 ? `${count} canal(is) selecionado(s)` : "Selecione pelo menos um canal"}
+        selected={selected}
+      />
+      <Handle type="source" position={Position.Bottom} />
+    </>
+  );
+}
+
+/** Compatibilidade visual para fluxos ainda não migrados. */
+export const StartNode = StartManualNode;
 
 export function SendMessageNode({ data, selected }: NodeProps) {
   const d = data as NodeData & SendMessageNodeData;

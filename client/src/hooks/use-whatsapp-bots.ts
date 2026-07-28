@@ -29,6 +29,11 @@ export interface BotWithFlow {
   edges: WhatsappBotEdge[];
 }
 
+async function throwBotApiError(res: Response, fallback: string): Promise<never> {
+  const body = await res.json().catch(() => ({})) as { message?: string };
+  throw new Error(body.message ?? fallback);
+}
+
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 export function useWhatsappBots() {
@@ -105,7 +110,7 @@ export function useUpdateBot() {
         },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Erro ao atualizar bot");
+      if (!res.ok) return throwBotApiError(res, "Erro ao atualizar bot");
       return res.json() as Promise<WhatsappBot>;
     },
     onSuccess: (_data, vars) => {
@@ -125,7 +130,7 @@ export function useDeleteBot() {
         method: "DELETE",
         headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
       });
-      if (!res.ok) throw new Error("Erro ao excluir bot");
+      if (!res.ok) return throwBotApiError(res, "Erro ao excluir bot");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "bots"] });
@@ -185,7 +190,7 @@ export function useSaveFlow() {
         },
         body: JSON.stringify({ nodes, edges }),
       });
-      if (!res.ok) throw new Error("Erro ao salvar fluxo");
+      if (!res.ok) return throwBotApiError(res, "Erro ao salvar fluxo");
       return res.json();
     },
     onSuccess: (_data, vars) => {
@@ -211,7 +216,7 @@ export function useToggleBotActive() {
         method: "POST",
         headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
       });
-      if (!res.ok) throw new Error("Erro ao alterar status do bot");
+      if (!res.ok) return throwBotApiError(res, "Erro ao alterar status do bot");
       return res.json() as Promise<WhatsappBot>;
     },
     onSuccess: () => {

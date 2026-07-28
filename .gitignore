@@ -9,6 +9,8 @@ bling-control-0f37ef3dad78.json
 # server/index.ts
 *.sql
 !migrations/0001_whatsapp_campaign_dedupe.sql
+!migrations/0002_whatsapp_bot_start_nodes.sql
+!migrations/0003_whatsapp_bots_soft_delete.sql
 .worktrees/
 .claude/
 # *.png

@@ -51,12 +51,18 @@ vi.mock("../../ai-helpers", () => ({
 }));
 
 import {
+  handleInboundBotMessage,
   handleIncomingMessage,
   handleTemplateDeliveryFailure,
   processTemplateTimeouts,
   expireInactiveSessions,
   startBotSession,
 } from "../whatsapp-bot-engine.service";
+import {
+  deleteBot,
+  getBot,
+  listBots,
+} from "../whatsapp-bot.service";
 import * as wa from "../../integrations/whatsapp";
 import * as r2lib from "../../lib/r2";
 import {
@@ -75,7 +81,7 @@ import {
   resetBotTables,
 } from "../../test/bot-fixtures";
 import { db } from "../../db";
-import { contactTags, whatsappBotSessions, whatsappConversations, whatsappMessages } from "@shared/schema";
+import { contactTags, whatsappBotNodes, whatsappBotSessions, whatsappBots, whatsappChannels, whatsappConversations, whatsappMessages } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
 const sendTextMessage = vi.mocked(wa.sendTextMessage);
@@ -129,6 +135,59 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
     const outbound = await getOutboundMessages(conversationId);
     const contents = outbound.map((m) => m.content);
     expect(contents).toContain("Olá, tudo bem?");
+  });
+
+  it("usa start_manual como entrada padrão para disparos sob demanda", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, {
+      type: "start_manual",
+      data: { unlisted: false },
+    });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Entrada manual" },
+    });
+    await addEdge(bot.id, start.id, send.id);
+
+    const result = await startBotSession(bot.id, phone);
+
+    expect(result.status).toBe("started");
+    expect(sentTexts()).toEqual(["Entrada manual"]);
+  });
+
+  it("inicia o bot automático pelo canal e não reutiliza a mensagem gatilho", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+    const [channel] = await db
+      .insert(whatsappChannels)
+      .values({ name: "Canal automático", provider: "cloud_api" })
+      .returning();
+
+    const start = await addNode(bot.id, {
+      type: "start_channel",
+      data: { channelIds: [channel.id] },
+    });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Boas-vindas automáticas" },
+    });
+    await addEdge(bot.id, start.id, send.id);
+
+    await handleInboundBotMessage({
+      phone,
+      messageText: "mensagem que abriu a conversa",
+      channelId: channel.id,
+      startsConversation: true,
+    });
+
+    expect(sentTexts()).toEqual(["Boas-vindas automáticas"]);
+    expect((await getSession(phone))?.currentNodeId).toBe(send.id);
   });
 
   it("pausa no nó de pergunta, valida e captura a resposta", async () => {
@@ -1272,5 +1331,47 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
     await expect(startBotSession(bot.id, phone)).rejects.toThrow(
       "Falha ao enviar template",
     );
+  });
+
+  it("remoção arquiva o bot, preserva o fluxo e encerra sessões ativas", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id, { isActive: true });
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start_manual" });
+    const question = await addNode(bot.id, {
+      type: "question",
+      data: { messageText: "Qual seu nome?", captureVariable: "nome" },
+    });
+    await addEdge(bot.id, start.id, question.id);
+
+    await startBotSession(bot.id, phone);
+    expect((await getSession(phone))?.status).toBe("active");
+
+    await expect(deleteBot(bot.id)).resolves.toBe(true);
+
+    const [archivedBot] = await db
+      .select()
+      .from(whatsappBots)
+      .where(eq(whatsappBots.id, bot.id));
+    const preservedNodes = await db
+      .select({ id: whatsappBotNodes.id })
+      .from(whatsappBotNodes)
+      .where(eq(whatsappBotNodes.botId, bot.id));
+
+    expect(archivedBot.isActive).toBe(false);
+    expect(archivedBot.deletedAt).toBeInstanceOf(Date);
+    expect(preservedNodes).toHaveLength(2);
+    expect(await getBot(bot.id)).toBeNull();
+    expect((await listBots()).some((listedBot) => listedBot.id === bot.id)).toBe(false);
+    expect(await getSession(phone)).toMatchObject({
+      status: "completed",
+      completionReason: "bot_deleted",
+    });
+    await expect(startBotSession(bot.id, nextPhone())).resolves.toMatchObject({
+      status: "no_start_node",
+    });
+    await expect(deleteBot(bot.id)).resolves.toBe(false);
   });
 });

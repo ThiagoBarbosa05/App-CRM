@@ -226,6 +226,7 @@ export const BOT_COMPLETION_REASON_LABELS: Record<BotSessionCompletionReason, st
   transferred_to_agent: "Transferido para atendente",
   transferred_to_sector: "Transferido para setor",
   handed_off_to_bot: "Encaminhado para outro bot",
+  bot_deleted: "Bot removido",
   timed_out: "Sessão expirada por inatividade",
   delivery_failed: "Falha na entrega da mensagem",
   unsupported_node: "Erro: nó não suportado",

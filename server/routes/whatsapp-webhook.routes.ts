@@ -5,7 +5,7 @@ import { whatsappCampaignMessages, whatsappFlows, whatsappMessages } from "@shar
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { upsertWhatsappSetting } from "../services/whatsapp-settings.service";
 import {
-  handleIncomingMessage as runBotEngine,
+  handleInboundBotMessage,
   handleFlowResponse,
   handleTemplateDeliveryFailure,
   persistBotMessage,
@@ -326,7 +326,7 @@ async function handleIncomingMessage(
     return;
   }
 
-  await saveInboundMessage({
+  const inboundResult = await saveInboundMessage({
     phone: message.from,
     content: text || null,
     type: effectiveType,
@@ -347,7 +347,10 @@ async function handleIncomingMessage(
           filename: message.document?.filename,
         }
       : undefined,
-  }).catch((err) => console.error("[WA Webhook] Erro ao salvar mensagem:", err));
+  }).catch((err) => {
+    console.error("[WA Webhook] Erro ao salvar mensagem:", err);
+    return null;
+  });
 
   // Opt-out/opt-in de marketing via palavra-chave — verificado antes de acionar
   // o bot para que a resposta encerre uma sessão ativa em vez de avançá-la.
@@ -381,8 +384,14 @@ async function handleIncomingMessage(
 
   // Aciona o bot tanto para texto comum quanto para respostas de botão/lista,
   // que devem avançar o fluxo como se fossem uma mensagem do contato.
-  if (text && message.type !== "reaction") {
-    await runBotEngine(message.from, text, replyId);
+  if (inboundResult?.saved && message.type !== "reaction") {
+    await handleInboundBotMessage({
+      phone: message.from,
+      messageText: text || null,
+      replyId,
+      channelId: inboundResult.channelId,
+      startsConversation: inboundResult.startsConversation,
+    });
   }
 
   if (message.type === "interactive" && message.interactive?.type === "nfm_reply") {

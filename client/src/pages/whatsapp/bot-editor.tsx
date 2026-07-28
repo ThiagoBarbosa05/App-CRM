@@ -38,6 +38,7 @@ import {
   GitBranch,
   Zap,
   PlayCircle,
+  RadioTower,
   StopCircle,
   Plus,
   Trash2,
@@ -120,6 +121,8 @@ import {
 } from "@/lib/whatsapp-template";
 import {
   StartNode,
+  StartManualNode,
+  StartChannelNode,
   SendMessageNode,
   ConditionNode,
   MenuNode,
@@ -137,6 +140,8 @@ import {
 } from "@/components/whatsapp-bot/nodes";
 import type {
   BotNodeData,
+  StartManualNodeData,
+  StartChannelNodeData,
   SendMessageNodeData,
   SendMessageAttachment,
   TemplateHeaderMedia,
@@ -165,6 +170,10 @@ import type {
 type FlowNode = Node<BotNodeData & { label: string }>;
 type FlowEdge = Edge;
 
+function isEntryNodeType(type: string | undefined): boolean {
+  return type === "start" || type === "start_manual" || type === "start_channel";
+}
+
 interface NodeActionsContextValue {
   deleteNode: (id: string) => void;
   duplicateNode: (id: string) => void;
@@ -179,7 +188,7 @@ function ActionableNode({
 }: NodeProps & { component: ComponentType<NodeProps> }) {
   const actions = useContext(NodeActionsContext);
   const [isHovered, setIsHovered] = useState(false);
-  const isStartNode = props.type === "start";
+  const isStartNode = isEntryNodeType(props.type);
 
   return (
     <div
@@ -315,6 +324,8 @@ function ActionableEdge(props: EdgeProps) {
 
 const NODE_TYPES = {
   start: withNodeActions(StartNode),
+  start_manual: withNodeActions(StartManualNode),
+  start_channel: withNodeActions(StartChannelNode),
   send_message: withNodeActions(SendMessageNode),
   condition: withNodeActions(ConditionNode),
   menu: withNodeActions(MenuNode),
@@ -338,6 +349,8 @@ const EDGE_TYPES = {
 // ─── Palette config ───────────────────────────────────────────────────────────
 
 const PALETTE = [
+  { type: "start_manual", label: "Iniciar manualmente", icon: PlayCircle, color: "bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100" },
+  { type: "start_channel", label: "Iniciar por um canal", icon: RadioTower, color: "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100" },
   { type: "send_message", label: "Enviar Mensagem", icon: MessageCircle, color: "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100" },
   { type: "menu", label: "Menu (opções)", icon: ListChecks, color: "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100" },
   { type: "condition", label: "Condição", icon: GitBranch, color: "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100" },
@@ -416,7 +429,13 @@ function useSyncFlows() {
 type AgentOption = { id: string; name: string };
 type SectorOption = { id: string; name: string; color?: string };
 type TagOption = { id: string; name: string; color?: string | null; emoji?: string | null };
-type ChannelOption = { id: string; name: string; phoneNumber?: string | null };
+type ChannelOption = {
+  id: number;
+  name: string;
+  displayPhone?: string | null;
+  connectionStatus?: string | null;
+  provider?: string;
+};
 type BotOption = { id: string; name: string };
 
 function authFetch(url: string) {
@@ -448,8 +467,8 @@ function useBots() {
 
 function useChannels() {
   return useQuery<ChannelOption[]>({
-    queryKey: ["/api/whatsapp/channels"],
-    queryFn: () => authFetch("/api/whatsapp/channels"),
+    queryKey: ["/api/whatsapp/channels/mine"],
+    queryFn: () => authFetch("/api/whatsapp/channels/mine"),
   });
 }
 
@@ -538,6 +557,76 @@ function PropertiesPanel({
           placeholder="Rótulo"
         />
       </div>
+
+      {(node.type === "start" || node.type === "start_manual") && (
+        <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-sky-950">Não listado</p>
+              <p className="text-[11px] text-sky-700">
+                Oculta este bot do seletor e dos atalhos dos atendentes.
+              </p>
+            </div>
+            <Switch
+              checked={(d as StartManualNodeData).unlisted === true}
+              onCheckedChange={(checked) => update({ unlisted: checked })}
+              aria-label="Ocultar bot da lista manual"
+            />
+          </div>
+        </div>
+      )}
+
+      {node.type === "start_channel" && (
+        <div className="space-y-2">
+          <div>
+            <Label className="text-xs">Canais que iniciam o bot</Label>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              O bot inicia na primeira mensagem de uma conversa nova ou reaberta.
+            </p>
+          </div>
+          <div className="rounded-lg border divide-y max-h-56 overflow-y-auto">
+            {channels.length === 0 ? (
+              <p className="p-3 text-xs text-muted-foreground">
+                Nenhum canal ativo disponível.
+              </p>
+            ) : (
+              channels.map((channel) => {
+                const selectedChannelIds =
+                  (d as StartChannelNodeData).channelIds ?? [];
+                const checked = selectedChannelIds.includes(channel.id);
+                return (
+                  <label
+                    key={channel.id}
+                    className="flex cursor-pointer items-center gap-3 p-3 hover:bg-muted/50"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() =>
+                        update({
+                          channelIds: checked
+                            ? selectedChannelIds.filter((id) => id !== channel.id)
+                            : [...selectedChannelIds, channel.id],
+                        })
+                      }
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-xs font-medium truncate">{channel.name}</span>
+                      <span className="block text-[11px] text-muted-foreground truncate">
+                        {channel.displayPhone || "Número não informado"}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+          {((d as StartChannelNodeData).channelIds?.length ?? 0) === 0 && (
+            <p className="text-[11px] font-medium text-amber-700">
+              Selecione pelo menos um canal.
+            </p>
+          )}
+        </div>
+      )}
 
       {node.type === "send_message" && (
         <>
@@ -1001,26 +1090,24 @@ function PropertiesPanel({
         />
       )}
 
-      {(node.type === "start" || node.type === "end") && (
+      {node.type === "end" && (
         <p className="text-xs text-muted-foreground">
           Este nó não possui propriedades configuráveis.
         </p>
       )}
 
 
-      {node.type !== "start" && (
-        <div className="pt-4 mt-2 border-t">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onDelete(node.id)}
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-            Excluir nó
-          </Button>
-        </div>
-      )}
+      <div className="pt-4 mt-2 border-t">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={() => onDelete(node.id)}
+        >
+          <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+          Excluir nó
+        </Button>
+      </div>
     </div>
   );
 }
@@ -2220,17 +2307,17 @@ function ConditionRuleRow({
                     <span className="text-xs text-muted-foreground">Selecionar canais</span>
                   ) : (
                     channels
-                      .filter((c) => selectedIds.includes(c.id))
+                      .filter((c) => selectedIds.includes(String(c.id)))
                       .map((c) => (
                         <span
                           key={c.id}
                           className="inline-flex items-center gap-0.5 text-[11px] px-2 py-0.5 rounded-full font-semibold bg-blue-500 text-white"
                         >
-                          {c.name || c.phoneNumber || c.id}
+                          {c.name || c.displayPhone || c.id}
                           <button
                             type="button"
                             className="ml-0.5 opacity-70 hover:opacity-100"
-                            onClick={(e) => { e.stopPropagation(); toggleChannel(c.id); }}
+                            onClick={(e) => { e.stopPropagation(); toggleChannel(String(c.id)); }}
                           >
                             ×
                           </button>
@@ -2245,20 +2332,20 @@ function ConditionRuleRow({
                     <p className="text-xs text-muted-foreground p-3">Nenhum canal disponível.</p>
                   ) : (
                     channels.map((c) => {
-                      const checked = selectedIds.includes(c.id);
+                      const checked = selectedIds.includes(String(c.id));
                       return (
                         <button
                           key={c.id}
                           type="button"
-                          onClick={() => toggleChannel(c.id)}
+                          onClick={() => toggleChannel(String(c.id))}
                           className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent text-left"
                         >
                           <Checkbox
                             checked={checked}
-                            onCheckedChange={() => toggleChannel(c.id)}
+                            onCheckedChange={() => toggleChannel(String(c.id))}
                             className="h-3.5 w-3.5 pointer-events-none shrink-0"
                           />
-                          <span className="text-xs truncate">{c.name || c.phoneNumber || c.id}</span>
+                          <span className="text-xs truncate">{c.name || c.displayPhone || c.id}</span>
                         </button>
                       );
                     })
@@ -2344,7 +2431,7 @@ function TriggerFlowEditor({
   const { data: targetFlow } = useWhatsappBotFlow(data.targetBotId ?? "");
 
   const targetNodes = (targetFlow?.nodes ?? []).filter(
-    (n) => n.type === "start" || (n.data as { label?: string })?.label,
+    (n) => isEntryNodeType(n.type) || (n.data as { label?: string })?.label,
   );
 
   const selectedBot = bots.find((b) => b.id === data.targetBotId);
@@ -3485,7 +3572,7 @@ function BotSimulator({
       let current = start;
       let guard = 0;
       while (current && guard++ < 100) {
-        if (current.type === "start") {
+        if (isEntryNodeType(current.type)) {
           current = nextNode(current.id);
         } else if (current.type === "send_message") {
           acc.push({ role: "bot", text: nodePreview(current) });
@@ -3541,7 +3628,9 @@ function BotSimulator({
     setInput("");
     setDone(false);
     setWaitingNodeId(null);
-    const startNode = nodes.find((n) => n.type === "start");
+    const startNode =
+      nodes.find((n) => n.type === "start_manual" || n.type === "start") ??
+      nodes.find((n) => n.type === "start_channel");
     if (!startNode) {
       setMessages([{ role: "system", text: "Nenhum nó de início encontrado." }]);
       setDone(true);
@@ -3663,13 +3752,25 @@ export default function BotEditor() {
 
   useEffect(() => {
     if (flow && !initialized) {
-      const initialNodes = flow.nodes.map((n) => ({
-        id: n.id,
-        type: n.type,
-        position: { x: n.positionX, y: n.positionY },
-        data: { ...(n.data as BotNodeData), label: n.label },
-        deletable: n.type !== "start", // o nó de início não pode ser removido
-      })) as FlowNode[];
+      const initialNodes = flow.nodes.map((n) => {
+        const normalizedType = n.type === "start" ? "start_manual" : n.type;
+        return {
+          id: n.id,
+          type: normalizedType,
+          position: { x: n.positionX, y: n.positionY },
+          data: {
+            ...(n.data as BotNodeData),
+            ...(normalizedType === "start_manual" &&
+            (n.data as { unlisted?: boolean }).unlisted === undefined
+              ? { unlisted: false }
+              : {}),
+            label: n.type === "start" && n.label === "Início"
+              ? "Iniciar manualmente"
+              : n.label,
+          },
+          deletable: true,
+        };
+      }) as FlowNode[];
 
       const initialEdges: FlowEdge[] = flow.edges.map((e) => ({
         id: e.id,
@@ -3702,9 +3803,25 @@ export default function BotEditor() {
     [nodes, selectedNodeId],
   );
 
+  const availablePalette = useMemo(
+    () =>
+      PALETTE.filter((item) => {
+        if (item.type === "start_manual") {
+          return !nodes.some((node) => node.type === "start_manual" || node.type === "start");
+        }
+        if (item.type === "start_channel") {
+          return !nodes.some((node) => node.type === "start_channel");
+        }
+        return true;
+      }),
+    [nodes],
+  );
+
   function addNode(type: string) {
     const id = `${type}-${nanoid(6)}`;
     const labelMap: Record<string, string> = {
+      start_manual: "Iniciar manualmente",
+      start_channel: "Iniciar por um canal",
       send_message: "Enviar Mensagem",
       menu: "Menu (opções)",
       condition: "Condição",
@@ -3723,6 +3840,12 @@ export default function BotEditor() {
     const defaultData: Partial<BotNodeData & { label: string }> = {
       label: labelMap[type] ?? type,
     };
+    if (type === "start_manual") {
+      (defaultData as Partial<StartManualNodeData>).unlisted = false;
+    }
+    if (type === "start_channel") {
+      (defaultData as Partial<StartChannelNodeData>).channelIds = [];
+    }
     if (type === "condition") {
       (defaultData as Partial<ConditionNodeData>).mode = "reply";
       (defaultData as Partial<ConditionNodeData>).branches = [];
@@ -3787,7 +3910,17 @@ export default function BotEditor() {
 
   function deleteNode(id: string) {
     const node = nodes.find((candidate) => candidate.id === id);
-    if (!node || node.type === "start") return;
+    if (!node) return;
+    if (
+      isEntryNodeType(node.type) &&
+      nodes.filter((candidate) => isEntryNodeType(candidate.type)).length <= 1
+    ) {
+      toast({
+        title: "O fluxo precisa manter pelo menos um início",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setNodes((nds) => nds.filter((n) => n.id !== id));
     setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
@@ -3796,7 +3929,7 @@ export default function BotEditor() {
 
   function duplicateNode(id: string) {
     const sourceNode = nodes.find((node) => node.id === id);
-    if (!sourceNode || sourceNode.type === "start") return;
+    if (!sourceNode || isEntryNodeType(sourceNode.type)) return;
 
     const duplicateId = `${sourceNode.type ?? "node"}-${nanoid(6)}`;
     const duplicatedNode: FlowNode = {
@@ -3830,11 +3963,20 @@ export default function BotEditor() {
   /** Valida o fluxo antes de salvar. Retorna lista de problemas (vazia = ok). */
   function validateFlow(): string[] {
     const problems: string[] = [];
-    const startNode = nodes.find((n) => n.type === "start");
-    if (!startNode) {
+    const entryNodes = nodes.filter((n) => isEntryNodeType(n.type));
+    if (entryNodes.length === 0) {
       problems.push("O fluxo precisa de um nó de início.");
-    } else if (!edges.some((e) => e.source === startNode.id)) {
-      problems.push("O nó de início não está conectado a nenhum nó.");
+    }
+    for (const entryNode of entryNodes) {
+      if (!edges.some((e) => e.source === entryNode.id)) {
+        problems.push(`O nó "${entryNode.data.label}" não está conectado a nenhum nó.`);
+      }
+      if (
+        entryNode.type === "start_channel" &&
+        ((entryNode.data as StartChannelNodeData).channelIds?.length ?? 0) === 0
+      ) {
+        problems.push("Selecione pelo menos um canal no início automático.");
+      }
     }
 
     const connectedIds = new Set<string>();
@@ -3843,7 +3985,7 @@ export default function BotEditor() {
       connectedIds.add(e.target);
     });
     const orphans = nodes.filter(
-      (n) => n.type !== "start" && !connectedIds.has(n.id),
+      (n) => !isEntryNodeType(n.type) && !connectedIds.has(n.id),
     );
     if (orphans.length > 0) {
       problems.push(
@@ -3942,8 +4084,11 @@ export default function BotEditor() {
     try {
       await saveFlowMutation.mutateAsync({ botId, nodes: dbNodes, edges: dbEdges });
       toast({ title: "Fluxo salvo com sucesso" });
-    } catch {
-      toast({ title: "Erro ao salvar fluxo", variant: "destructive" });
+    } catch (error) {
+      toast({
+        title: error instanceof Error ? error.message : "Erro ao salvar fluxo",
+        variant: "destructive",
+      });
     }
   }
 
@@ -4010,7 +4155,7 @@ export default function BotEditor() {
             <DialogTitle>Adicionar nó</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 py-1">
-            {PALETTE.map(({ type, label, icon: Icon, color }) => (
+            {availablePalette.map(({ type, label, icon: Icon, color }) => (
               <button
                 key={type}
                 onClick={() => { addNode(type); setShowMobilePalette(false); }}
@@ -4049,7 +4194,7 @@ export default function BotEditor() {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
             Nós
           </p>
-          {PALETTE.map(({ type, label, icon: Icon, color }) => (
+          {availablePalette.map(({ type, label, icon: Icon, color }) => (
             <button
               key={type}
               onClick={() => addNode(type)}

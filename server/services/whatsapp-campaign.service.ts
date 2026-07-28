@@ -161,7 +161,12 @@ export async function executeCampaign(
     const [bot] = await db
       .select()
       .from(whatsappBots)
-      .where(eq(whatsappBots.id, campaign.waBotId));
+      .where(
+        and(
+          eq(whatsappBots.id, campaign.waBotId),
+          isNull(whatsappBots.deletedAt),
+        ),
+      );
 
     if (!bot) throw new Error(`Bot ${campaign.waBotId} não encontrado`);
 

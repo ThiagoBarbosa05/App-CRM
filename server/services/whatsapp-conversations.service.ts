@@ -2706,6 +2706,14 @@ export async function backfillEchoedOutboundMessage(
   return true;
 }
 
+export interface SaveInboundMessageResult {
+  saved: boolean;
+  conversationId: string | null;
+  direction: "inbound" | "outbound" | null;
+  channelId: number | null;
+  startsConversation: boolean;
+}
+
 export async function saveInboundMessage(data: {
   phone: string;
   content: string | null;
@@ -2741,7 +2749,7 @@ export async function saveInboundMessage(data: {
     filename?: string;
     caption?: string;
   };
-}) {
+}): Promise<SaveInboundMessageResult> {
   const [existing] = await db
     .select({ id: whatsappMessages.id })
     .from(whatsappMessages)
@@ -2750,7 +2758,13 @@ export async function saveInboundMessage(data: {
 
   if (existing) {
     console.log(`[WA Webhook] Mensagem duplicada ignorada: ${data.waMessageId}`);
-    return;
+    return {
+      saved: false,
+      conversationId: null,
+      direction: null,
+      channelId: data.channelId ?? null,
+      startsConversation: false,
+    };
   }
 
   // pushName de um eco fromMe é o nome da PRÓPRIA conta conectada (o perfil do
@@ -2792,7 +2806,15 @@ export async function saveInboundMessage(data: {
   // nosso", em qualquer lado da conversa.
   if (data._fromMe) {
     const backfilled = await backfillEchoedOutboundMessage(conv.id, data);
-    if (backfilled) return;
+    if (backfilled) {
+      return {
+        saved: false,
+        conversationId: conv.id,
+        direction: "outbound",
+        channelId: data.channelId ?? conv.channelId ?? null,
+        startsConversation: false,
+      };
+    }
   }
 
   let savedMessage: { id: string };
@@ -2816,7 +2838,13 @@ export async function saveInboundMessage(data: {
     // Race condition: dois webhooks simultâneos com o mesmo waMessageId
     if ((err as { code?: string }).code === "23505") {
       console.log(`[WA Webhook] Mensagem duplicada ignorada (race): ${data.waMessageId}`);
-      return;
+      return {
+        saved: false,
+        conversationId: conv.id,
+        direction,
+        channelId: data.channelId ?? conv.channelId ?? null,
+        startsConversation: false,
+      };
     }
     throw err;
   }
@@ -2937,6 +2965,14 @@ export async function saveInboundMessage(data: {
   });
 
   publishSseEvent("new_whatsapp_inbound", { conversationId: conv.id, clientId: conv.clientId ?? null });
+
+  return {
+    saved: true,
+    conversationId: conv.id,
+    direction,
+    channelId: data.channelId ?? conv.channelId ?? null,
+    startsConversation: direction === "inbound" && (reopened || isBrandNew),
+  };
 }
 
 export async function getMediaById(id: string) {
