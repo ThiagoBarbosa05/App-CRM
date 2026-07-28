@@ -5,8 +5,9 @@
  * Idempotente. Uso:
  *   node scripts/add-whatsapp-conversation-perspective-states.mjs
  */
-import { neon } from "@neondatabase/serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
 import "dotenv/config";
+import ws from "ws";
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -14,25 +15,29 @@ if (!url) {
   process.exit(1);
 }
 
-const sql = neon(url);
+neonConfig.webSocketConstructor = ws;
+const pool = new Pool({ connectionString: url, max: 1 });
+const execute = async (text) => (await pool.query(text)).rows;
+const quoteIdentifier = (identifier) => `"${identifier.replaceAll('"', '""')}"`;
 
-await sql`
+try {
+await execute(`
   ALTER TABLE whatsapp_conversation_reads
   ADD COLUMN IF NOT EXISTS perspective_channel_id integer REFERENCES whatsapp_channels(id)
-`;
+`);
 
-await sql`
+await execute(`
   CREATE UNIQUE INDEX IF NOT EXISTS whatsapp_conversation_reads_user_conv_unique
     ON whatsapp_conversation_reads (user_id, conversation_id)
     WHERE perspective_channel_id IS NULL
-`;
-await sql`
+`);
+await execute(`
   CREATE UNIQUE INDEX IF NOT EXISTS whatsapp_conversation_reads_user_conv_side_unique
     ON whatsapp_conversation_reads (user_id, conversation_id, perspective_channel_id)
     WHERE perspective_channel_id IS NOT NULL
-`;
+`);
 
-const staleConstraints = await sql`
+const staleConstraints = await execute(`
   SELECT c.conname, pg_get_constraintdef(c.oid) AS def
   FROM pg_constraint c
   JOIN pg_class t ON t.oid = c.conrelid
@@ -40,29 +45,29 @@ const staleConstraints = await sql`
   WHERE n.nspname = 'public'
     AND t.relname = 'whatsapp_conversation_reads'
     AND c.contype = 'u'
-`;
+`);
 for (const constraint of staleConstraints) {
   const definition = constraint.def.replace(/\s+/g, " ").trim();
   if (definition !== "UNIQUE (user_id, conversation_id)") continue;
-  await sql.query(
-    `ALTER TABLE whatsapp_conversation_reads DROP CONSTRAINT "${constraint.conname}"`,
+  await execute(
+    `ALTER TABLE whatsapp_conversation_reads DROP CONSTRAINT ${quoteIdentifier(constraint.conname)}`,
   );
 }
 
-const staleIndexes = await sql`
+const staleIndexes = await execute(`
   SELECT indexname, indexdef
   FROM pg_indexes
   WHERE schemaname = 'public'
     AND tablename = 'whatsapp_conversation_reads'
     AND indexdef LIKE '%UNIQUE%'
     AND indexdef NOT LIKE '%WHERE%'
-`;
+`);
 for (const index of staleIndexes) {
   if (!/\(user_id, conversation_id\)\s*$/.test(index.indexdef)) continue;
-  await sql.query(`DROP INDEX IF EXISTS "${index.indexname}"`);
+  await execute(`DROP INDEX IF EXISTS ${quoteIdentifier(index.indexname)}`);
 }
 
-await sql`
+await execute(`
   CREATE TABLE IF NOT EXISTS whatsapp_conversation_perspective_states (
     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
     conversation_id varchar NOT NULL
@@ -76,13 +81,13 @@ await sql`
     CONSTRAINT whatsapp_conversation_perspective_states_status_check
       CHECK (status IN ('open', 'closed'))
   )
-`;
-await sql`
+`);
+await execute(`
   CREATE UNIQUE INDEX IF NOT EXISTS wa_conversation_perspective_states_conv_channel_unique
     ON whatsapp_conversation_perspective_states (conversation_id, channel_id)
-`;
+`);
 
-await sql`
+await execute(`
   INSERT INTO whatsapp_conversation_perspective_states (
     conversation_id,
     channel_id,
@@ -106,9 +111,9 @@ await sql`
     AND conversation.peer_channel_id IS NOT NULL
     AND side.channel_id IS NOT NULL
   ON CONFLICT (conversation_id, channel_id) DO NOTHING
-`;
+`);
 
-await sql`
+await execute(`
   INSERT INTO whatsapp_conversation_reads (
     user_id,
     conversation_id,
@@ -128,6 +133,9 @@ await sql`
     AND conversation.peer_channel_id IS NOT NULL
     AND side.channel_id IS NOT NULL
   ON CONFLICT DO NOTHING
-`;
+`);
 
 console.log("[migration] Estados e leituras por perspectiva garantidos.");
+} finally {
+  await pool.end();
+}
