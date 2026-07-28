@@ -12,15 +12,19 @@ import { useParams, useLocation } from "wouter";
 import {
   ReactFlow,
   Background,
+  BaseEdge,
   Controls,
+  EdgeLabelRenderer,
   MiniMap,
   NodeToolbar,
   Position,
   addEdge,
+  getBezierPath,
   useNodesState,
   useEdgesState,
   type Connection,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
@@ -164,6 +168,7 @@ type FlowEdge = Edge;
 interface NodeActionsContextValue {
   deleteNode: (id: string) => void;
   duplicateNode: (id: string) => void;
+  deleteEdge: (id: string) => void;
 }
 
 const NodeActionsContext = createContext<NodeActionsContextValue | null>(null);
@@ -234,6 +239,80 @@ function withNodeActions(NodeComponent: ComponentType<NodeProps>) {
   };
 }
 
+function ActionableEdge(props: EdgeProps) {
+  const actions = useContext(NodeActionsContext);
+  const [isHovered, setIsHovered] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [edgePath, labelX, labelY] = getBezierPath(props);
+
+  const showActions = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setIsHovered(true);
+  };
+
+  const scheduleHideActions = () => {
+    hideTimerRef.current = setTimeout(() => {
+      setIsHovered(false);
+      hideTimerRef.current = null;
+    }, 120);
+  };
+
+  useEffect(
+    () => () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    },
+    [],
+  );
+
+  return (
+    <>
+      <g onMouseEnter={showActions} onMouseLeave={scheduleHideActions}>
+        <BaseEdge
+          path={edgePath}
+          markerEnd={props.markerEnd}
+          style={props.style}
+          interactionWidth={24}
+        />
+      </g>
+      {actions && (isHovered || props.selected) ? (
+        <EdgeLabelRenderer>
+          <div
+            className="nodrag nopan absolute"
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: "all",
+            }}
+            onMouseEnter={showActions}
+            onMouseLeave={scheduleHideActions}
+          >
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-full border border-border/80 bg-background/95 text-muted-foreground shadow-md backdrop-blur-sm transition-colors hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+                  aria-label="Excluir conexão"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    actions.deleteEdge(props.id);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="px-2 py-1 text-[10px]">
+                Excluir conexão
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
+  );
+}
+
 const NODE_TYPES = {
   start: withNodeActions(StartNode),
   send_message: withNodeActions(SendMessageNode),
@@ -250,6 +329,10 @@ const NODE_TYPES = {
   edit_tags: withNodeActions(EditTagsNode),
   send_template: withNodeActions(SendTemplateNode),
   trigger_flow: withNodeActions(TriggerFlowNode),
+};
+
+const EDGE_TYPES = {
+  actionable: ActionableEdge,
 };
 
 // ─── Palette config ───────────────────────────────────────────────────────────
@@ -3527,6 +3610,7 @@ export default function BotEditor() {
 
       const initialEdges: FlowEdge[] = flow.edges.map((e) => ({
         id: e.id,
+        type: "actionable",
         source: e.sourceNodeId,
         target: e.targetNodeId,
         sourceHandle: e.sourceHandle ?? undefined,
@@ -3542,7 +3626,10 @@ export default function BotEditor() {
   const onConnect = useCallback(
     (params: Connection) =>
       setEdges((eds) =>
-        addEdge({ ...params, id: `edge-${nanoid(6)}` }, eds),
+        addEdge(
+          { ...params, id: `edge-${nanoid(6)}`, type: "actionable" },
+          eds,
+        ),
       ),
     [setEdges],
   );
@@ -3669,6 +3756,12 @@ export default function BotEditor() {
       duplicatedNode,
     ]);
     setSelectedNodeId(duplicateId);
+  }
+
+  function deleteEdge(id: string) {
+    setEdges((currentEdges) =>
+      currentEdges.filter((edge) => edge.id !== id),
+    );
   }
 
   /** Valida o fluxo antes de salvar. Retorna lista de problemas (vazia = ok). */
@@ -3912,7 +4005,9 @@ export default function BotEditor() {
               Carregando fluxo...
             </div>
           ) : (
-            <NodeActionsContext.Provider value={{ deleteNode, duplicateNode }}>
+            <NodeActionsContext.Provider
+              value={{ deleteNode, duplicateNode, deleteEdge }}
+            >
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -3920,6 +4015,7 @@ export default function BotEditor() {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 nodeTypes={NODE_TYPES}
+                edgeTypes={EDGE_TYPES}
                 onNodeClick={(_e, node) => {
                   setSelectedNodeId(node.id);
                   if (window.innerWidth < 640) setShowMobileProps(true);
