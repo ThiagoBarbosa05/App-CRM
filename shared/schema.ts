@@ -2412,6 +2412,11 @@ export const pdvUnits = pgTable("pdv_units", {
   // Consumidor Final da unidade — usado ao enviar pedido de venda ao Bling
   // quando a comanda fecha sem cliente vinculado. FK real (não é snapshot).
   defaultClientId: varchar("default_client_id").references(() => clients.id),
+  // Vendedor padrão da unidade — fallback do "vendedor" no pedido de venda do
+  // Bling quando o garçom que fechou a comanda não tem mapeamento de vendedor
+  // Bling para a conexão da unidade. Mesmo papel que defaultClientId cumpre
+  // para o contato.
+  defaultSellerId: varchar("default_seller_id").references(() => users.id),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

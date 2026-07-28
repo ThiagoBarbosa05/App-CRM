@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
+import { useEligibleSellers } from "@/hooks/use-eligible-sellers";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_KEY = ["/api/restaurant-pdv/settings"];
@@ -78,6 +79,7 @@ const unitFormSchema = z.object({
   address: z.string().optional(),
   footerMessage: z.string().optional(),
   blingConnectionId: z.string().optional(),
+  defaultSellerId: z.string().optional(),
   defaultServiceFeePercent: z
     .string()
     .regex(/^\d+([.,]\d{1,2})?$/, "Percentual inválido")
@@ -151,10 +153,14 @@ function UnitDialog({
       address: unit?.address ?? "",
       footerMessage: unit?.footerMessage ?? "",
       blingConnectionId: unit?.blingConnectionId ?? "",
+      defaultSellerId: unit?.defaultSellerId ?? "",
       defaultServiceFeePercent: unit?.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: unit?.waiterCommissionPercent ?? "0.00",
     },
   });
+
+  const blingConnectionId = form.watch("blingConnectionId");
+  const { data: eligibleSellers = [] } = useEligibleSellers(blingConnectionId || null);
 
   const mutation = useMutation({
     mutationFn: async (data: UnitFormValues) => {
@@ -165,6 +171,7 @@ function UnitDialog({
         address: data.address || null,
         footerMessage: data.footerMessage || null,
         blingConnectionId: data.blingConnectionId || null,
+        defaultSellerId: data.defaultSellerId || null,
         defaultServiceFeePercent: normalizePercent(data.defaultServiceFeePercent ?? "10.00"),
         waiterCommissionPercent: normalizePercent(data.waiterCommissionPercent ?? "0.00"),
       };
@@ -271,7 +278,10 @@ function UnitDialog({
                   <FormLabel>Catálogo Bling</FormLabel>
                   <Select
                     value={field.value || "__none__"}
-                    onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                    onValueChange={(v) => {
+                      field.onChange(v === "__none__" ? "" : v);
+                      form.setValue("defaultSellerId", "");
+                    }}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -289,6 +299,38 @@ function UnitDialog({
                   </Select>
                   <FormDescription>
                     Produtos importados do Bling para esta unidade
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="defaultSellerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Vendedor padrão</FormLabel>
+                  <Select
+                    value={field.value || "__none__"}
+                    onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                    disabled={!blingConnectionId}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sem vendedor padrão" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem vendedor padrão</SelectItem>
+                      {eligibleSellers.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Usado no pedido de venda do Bling quando o garçom não tem vendedor vinculado a esta conexão
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

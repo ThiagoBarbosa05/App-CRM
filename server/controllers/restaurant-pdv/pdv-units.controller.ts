@@ -14,6 +14,8 @@ const createUnitSchema = z.object({
   footerMessage: z.string().optional().nullable(),
   // null = desvincular o catálogo Bling da unidade.
   blingConnectionId: z.string().optional().nullable(),
+  // null = sem vendedor padrão.
+  defaultSellerId: z.string().optional().nullable(),
   defaultServiceFeePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   waiterCommissionPercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
 });
@@ -31,6 +33,26 @@ async function validateBlingConnection(
   if (!connection) return "Conta Bling não encontrada";
   if (connection.status !== "connected") {
     return "Conta Bling não está conectada";
+  }
+  return null;
+}
+
+/**
+ * O select do frontend já só oferece vendedores mapeados para a conexão
+ * escolhida, mas um POST/PUT direto na API poderia gravar uma combinação
+ * vendedor/conta inconsistente. Retorna a mensagem de erro ou null.
+ */
+async function validateDefaultSeller(
+  connectionId: string | null | undefined,
+  sellerId: string | null | undefined,
+): Promise<string | null> {
+  if (!sellerId) return null;
+  if (!connectionId) {
+    return "Selecione uma conta Bling antes de escolher o vendedor padrão";
+  }
+  const eligible = await pdvUnitsService.listEligibleSellers(connectionId);
+  if (!eligible.some((seller) => seller.id === sellerId)) {
+    return "Vendedor selecionado não está mapeado para a conta Bling desta unidade";
   }
   return null;
 }
@@ -55,6 +77,13 @@ export const createPdvUnitController = async (req: Request, res: Response) => {
     if (blingError) {
       return res.status(400).json({ message: blingError });
     }
+    const sellerError = await validateDefaultSeller(
+      parsed.data.blingConnectionId,
+      parsed.data.defaultSellerId,
+    );
+    if (sellerError) {
+      return res.status(400).json({ message: sellerError });
+    }
     const unit = await pdvUnitsService.createUnit({
       name: parsed.data.name,
       cnpj: parsed.data.cnpj ?? null,
@@ -62,6 +91,7 @@ export const createPdvUnitController = async (req: Request, res: Response) => {
       address: parsed.data.address ?? null,
       footerMessage: parsed.data.footerMessage ?? null,
       blingConnectionId: parsed.data.blingConnectionId ?? null,
+      defaultSellerId: parsed.data.defaultSellerId ?? null,
       defaultServiceFeePercent: parsed.data.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: parsed.data.waiterCommissionPercent ?? "0.00",
       isActive: true,
@@ -83,6 +113,17 @@ export const updatePdvUnitController = async (req: Request, res: Response) => {
     if (blingError) {
       return res.status(400).json({ message: blingError });
     }
+    // blingConnectionId pode não vir no PUT parcial — nesse caso o vendedor
+    // padrão precisa ser validado contra a conexão já salva na unidade.
+    let effectiveConnectionId = parsed.data.blingConnectionId;
+    if (effectiveConnectionId === undefined && parsed.data.defaultSellerId) {
+      const current = await pdvUnitsService.getUnit(req.params.id);
+      effectiveConnectionId = current?.blingConnectionId ?? null;
+    }
+    const sellerError = await validateDefaultSeller(effectiveConnectionId, parsed.data.defaultSellerId);
+    if (sellerError) {
+      return res.status(400).json({ message: sellerError });
+    }
     const unit = await pdvUnitsService.updateUnit(req.params.id, parsed.data);
     if (!unit) return res.status(404).json({ message: "Unidade não encontrada" });
     return res.json(unit);
@@ -99,6 +140,20 @@ export const deactivatePdvUnitController = async (req: Request, res: Response) =
   } catch (err) {
     console.error("Erro ao desativar unidade:", err);
     return res.status(500).json({ message: "Erro ao desativar unidade" });
+  }
+};
+
+export const listEligibleSellersController = async (req: Request, res: Response) => {
+  try {
+    const { connectionId } = req.query as { connectionId?: string };
+    if (!connectionId) {
+      return res.json([]);
+    }
+    const sellers = await pdvUnitsService.listEligibleSellers(connectionId);
+    return res.json(sellers);
+  } catch (err) {
+    console.error("Erro ao listar vendedores elegíveis:", err);
+    return res.status(500).json({ message: "Erro ao listar vendedores elegíveis" });
   }
 };
 

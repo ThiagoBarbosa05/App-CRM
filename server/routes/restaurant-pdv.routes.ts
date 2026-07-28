@@ -51,6 +51,7 @@ import {
   updatePdvUnitController,
   deactivatePdvUnitController,
   listPdvUnitUsersController,
+  listEligibleSellersController,
 } from "../controllers/restaurant-pdv/pdv-units.controller";
 import { adminUnitsOverviewController } from "../controllers/restaurant-pdv/admin-units-overview.controller";
 import { storage } from "../storage";
@@ -128,6 +129,7 @@ restaurantPdvRouter.get("/products/filters", requireGarcomOrGestor, async (req: 
 });
 
 restaurantPdvRouter.get("/units", requireGestor, listPdvUnitsController);
+restaurantPdvRouter.get("/units/eligible-sellers", requireGestor, listEligibleSellersController);
 restaurantPdvRouter.post("/units", requireGestor, createPdvUnitController);
 restaurantPdvRouter.put("/units/:id", requireGestor, updatePdvUnitController);
 restaurantPdvRouter.delete("/units/:id", requireGestor, deactivatePdvUnitController);

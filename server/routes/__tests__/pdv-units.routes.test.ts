@@ -4,13 +4,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRouteTestApp, createMockAuthMiddleware } from "../../test/create-route-test-app";
 import { restaurantPdvRouter } from "../restaurant-pdv.routes";
 
-const { createUnitMock, updateUnitMock, listUnitsWithCatalogMock, getConnectionMock } =
-  vi.hoisted(() => ({
-    createUnitMock: vi.fn(),
-    updateUnitMock: vi.fn(),
-    listUnitsWithCatalogMock: vi.fn(),
-    getConnectionMock: vi.fn(),
-  }));
+const {
+  createUnitMock,
+  updateUnitMock,
+  listUnitsWithCatalogMock,
+  getConnectionMock,
+  getUnitMock,
+  listEligibleSellersMock,
+} = vi.hoisted(() => ({
+  createUnitMock: vi.fn(),
+  updateUnitMock: vi.fn(),
+  listUnitsWithCatalogMock: vi.fn(),
+  getConnectionMock: vi.fn(),
+  getUnitMock: vi.fn(),
+  listEligibleSellersMock: vi.fn(),
+}));
 
 vi.mock("../../services/pdv-units.service", () => ({
   pdvUnitsService: {
@@ -18,8 +26,9 @@ vi.mock("../../services/pdv-units.service", () => ({
     updateUnit: updateUnitMock,
     listUnitsWithCatalog: listUnitsWithCatalogMock,
     listUnits: vi.fn(),
-    getUnit: vi.fn(),
+    getUnit: getUnitMock,
     deactivateUnit: vi.fn(),
+    listEligibleSellers: listEligibleSellersMock,
   },
 }));
 
@@ -36,12 +45,15 @@ function appAs(role: string) {
 }
 
 const CONNECTED = { id: "conn-1", status: "connected", name: "Bling Matriz" };
+const ELIGIBLE_SELLER = { id: "user-1", name: "Vendedor 1", email: "v1@example.com", blingVendedorId: "999", blingVendedorName: "Vendedor 1" };
 
 beforeEach(() => {
   createUnitMock.mockReset().mockResolvedValue({ id: "unit-1" });
   updateUnitMock.mockReset().mockResolvedValue({ id: "unit-1" });
   listUnitsWithCatalogMock.mockReset().mockResolvedValue([]);
   getConnectionMock.mockReset().mockResolvedValue(CONNECTED);
+  getUnitMock.mockReset().mockResolvedValue({ id: "unit-1", blingConnectionId: "conn-1" });
+  listEligibleSellersMock.mockReset().mockResolvedValue([ELIGIBLE_SELLER]);
 });
 
 describe("POST /restaurant-pdv/units", () => {
@@ -108,6 +120,38 @@ describe("POST /restaurant-pdv/units", () => {
     expect(response.status).toBe(403);
     expect(createUnitMock).not.toHaveBeenCalled();
   });
+
+  it("persiste o defaultSellerId quando o vendedor está mapeado para a conexão", async () => {
+    const response = await request(appAs("admin"))
+      .post("/restaurant-pdv/units")
+      .send({ name: "Matriz", blingConnectionId: "conn-1", defaultSellerId: "user-1" });
+
+    expect(response.status).toBe(201);
+    expect(listEligibleSellersMock).toHaveBeenCalledWith("conn-1");
+    expect(createUnitMock).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultSellerId: "user-1" }),
+    );
+  });
+
+  it("recusa defaultSellerId sem conexão Bling selecionada", async () => {
+    const response = await request(appAs("admin"))
+      .post("/restaurant-pdv/units")
+      .send({ name: "Matriz", defaultSellerId: "user-1" });
+
+    expect(response.status).toBe(400);
+    expect(createUnitMock).not.toHaveBeenCalled();
+  });
+
+  it("recusa defaultSellerId que não está mapeado para a conexão", async () => {
+    listEligibleSellersMock.mockResolvedValue([]);
+
+    const response = await request(appAs("admin"))
+      .post("/restaurant-pdv/units")
+      .send({ name: "Matriz", blingConnectionId: "conn-1", defaultSellerId: "user-fantasma" });
+
+    expect(response.status).toBe(400);
+    expect(createUnitMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("PUT /restaurant-pdv/units/:id", () => {
@@ -144,6 +188,62 @@ describe("PUT /restaurant-pdv/units/:id", () => {
 
     expect(response.status).toBe(400);
     expect(updateUnitMock).not.toHaveBeenCalled();
+  });
+
+  it("persiste o defaultSellerId ao editar junto com a conexão", async () => {
+    const response = await request(appAs("gerente"))
+      .put("/restaurant-pdv/units/unit-1")
+      .send({ blingConnectionId: "conn-1", defaultSellerId: "user-1" });
+
+    expect(response.status).toBe(200);
+    expect(listEligibleSellersMock).toHaveBeenCalledWith("conn-1");
+    expect(updateUnitMock).toHaveBeenCalledWith(
+      "unit-1",
+      expect.objectContaining({ defaultSellerId: "user-1" }),
+    );
+  });
+
+  it("valida o defaultSellerId contra a conexão já salva quando o PUT não envia blingConnectionId", async () => {
+    const response = await request(appAs("gerente"))
+      .put("/restaurant-pdv/units/unit-1")
+      .send({ defaultSellerId: "user-1" });
+
+    expect(response.status).toBe(200);
+    expect(getUnitMock).toHaveBeenCalledWith("unit-1");
+    expect(listEligibleSellersMock).toHaveBeenCalledWith("conn-1");
+    expect(updateUnitMock).toHaveBeenCalledWith(
+      "unit-1",
+      expect.objectContaining({ defaultSellerId: "user-1" }),
+    );
+  });
+});
+
+describe("GET /restaurant-pdv/units/eligible-sellers", () => {
+  it("devolve os vendedores mapeados para a conexão informada", async () => {
+    const response = await request(appAs("admin"))
+      .get("/restaurant-pdv/units/eligible-sellers")
+      .query({ connectionId: "conn-1" });
+
+    expect(response.status).toBe(200);
+    expect(listEligibleSellersMock).toHaveBeenCalledWith("conn-1");
+    expect(response.body).toEqual([ELIGIBLE_SELLER]);
+  });
+
+  it("devolve array vazio sem connectionId, sem consultar o serviço", async () => {
+    const response = await request(appAs("admin")).get("/restaurant-pdv/units/eligible-sellers");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+    expect(listEligibleSellersMock).not.toHaveBeenCalled();
+  });
+
+  it("nega acesso ao garçom", async () => {
+    const response = await request(appAs("garcom"))
+      .get("/restaurant-pdv/units/eligible-sellers")
+      .query({ connectionId: "conn-1" });
+
+    expect(response.status).toBe(403);
+    expect(listEligibleSellersMock).not.toHaveBeenCalled();
   });
 });
 

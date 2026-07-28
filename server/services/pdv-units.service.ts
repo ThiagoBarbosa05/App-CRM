@@ -1,7 +1,16 @@
 import { db } from "../db";
-import { pdvUnits, blingConnections, blingProductMappings } from "../../shared/schema";
+import { pdvUnits, blingConnections, blingProductMappings, blingSellerMappings, users } from "../../shared/schema";
 import { eq, sql } from "drizzle-orm";
 import type { PdvUnit, InsertPdvUnit } from "../../shared/schema";
+
+/** Usuário local elegível a ser o vendedor padrão da unidade para uma conexão Bling. */
+export type EligibleSeller = {
+  id: string;
+  name: string;
+  email: string;
+  blingVendedorId: string;
+  blingVendedorName: string | null;
+};
 
 /** Unidade + qual conta Bling ela usa e quantos produtos do CRM estão nesse catálogo. */
 export type PdvUnitWithCatalog = PdvUnit & {
@@ -78,5 +87,21 @@ export const pdvUnitsService = {
       .update(pdvUnits)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(pdvUnits.id, id));
+  },
+
+  /** Usuários já mapeados como vendedor Bling para a conexão informada. */
+  async listEligibleSellers(connectionId: string): Promise<EligibleSeller[]> {
+    return db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        blingVendedorId: blingSellerMappings.blingVendedorId,
+        blingVendedorName: blingSellerMappings.blingVendedorName,
+      })
+      .from(blingSellerMappings)
+      .innerJoin(users, eq(users.id, blingSellerMappings.userId))
+      .where(eq(blingSellerMappings.connectionId, connectionId))
+      .orderBy(users.name);
   },
 };

@@ -178,7 +178,31 @@ async function resolveSellerBlingId(
       ),
     )
     .limit(1);
-  return row?.blingVendedorId ?? null;
+  if (row) return row.blingVendedorId;
+
+  if (order.unitId) {
+    const [unit] = await tx
+      .select({ defaultSellerId: pdvUnits.defaultSellerId })
+      .from(pdvUnits)
+      .where(eq(pdvUnits.id, order.unitId))
+      .limit(1);
+
+    if (unit?.defaultSellerId) {
+      const [fallbackRow] = await tx
+        .select({ blingVendedorId: blingSellerMappings.blingVendedorId })
+        .from(blingSellerMappings)
+        .where(
+          and(
+            eq(blingSellerMappings.connectionId, connectionId),
+            eq(blingSellerMappings.userId, unit.defaultSellerId),
+          ),
+        )
+        .limit(1);
+      if (fallbackRow) return fallbackRow.blingVendedorId;
+    }
+  }
+
+  return null;
 }
 
 async function recordSyncResult(
