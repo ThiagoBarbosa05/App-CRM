@@ -34,6 +34,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+interface BlingConnection {
+  connectionId: string;
+  connectionName: string;
+  blingAccountName?: string | null;
+  blingProductId: string;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -47,6 +54,7 @@ interface Product {
   createdAt: string;
   clientCount: number;
   imageUrl?: string | null;
+  blingConnections?: BlingConnection[];
 }
 
 export default function Products() {

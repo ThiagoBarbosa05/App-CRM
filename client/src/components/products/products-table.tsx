@@ -43,6 +43,13 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 
+interface BlingConnection {
+  connectionId: string;
+  connectionName: string;
+  blingAccountName?: string | null;
+  blingProductId: string;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -57,6 +64,7 @@ interface Product {
   clientCount: number;
   imageUrl?: string | null;
   blingProductId?: string | null;
+  blingConnections?: BlingConnection[];
 }
 
 interface ProductsTableProps {
@@ -231,7 +239,16 @@ export function ProductsTable({
                             {product.type}
                           </Badge>
                         )}
-                        {product.blingProductId ? (
+                        {product.blingConnections && product.blingConnections.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {product.blingConnections.map((conn) => (
+                              <div key={conn.connectionId} className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 rounded-md px-1.5 py-0.5" title={conn.blingAccountName ?? conn.connectionName}>
+                                <CheckCircle2 className="h-2.5 w-2.5 text-blue-500 shrink-0" />
+                                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 max-w-[80px] truncate">{conn.connectionName}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : product.blingProductId ? (
                           <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 rounded-md px-1.5 py-0.5">
                             <CheckCircle2 className="h-2.5 w-2.5 text-blue-500" />
                             <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">Bling</span>
@@ -390,7 +407,7 @@ export function ProductsTable({
               <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden lg:table-cell">
                 Alcance
               </TableHead>
-              <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden xl:table-cell">
+              <TableHead className="py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hidden lg:table-cell">
                 Bling
               </TableHead>
               <TableHead className="text-right py-5 px-6 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
@@ -575,8 +592,22 @@ export function ProductsTable({
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-5 px-6 hidden xl:table-cell">
-                      {product.blingProductId ? (
+                    <TableCell className="py-5 px-6 hidden lg:table-cell">
+                      {product.blingConnections && product.blingConnections.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {product.blingConnections.map((conn) => (
+                            <div key={conn.connectionId} className="flex items-center gap-1.5" title={conn.blingAccountName ? `${conn.connectionName} — ${conn.blingAccountName}` : conn.connectionName}>
+                              <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold text-blue-600 dark:text-blue-400 truncate max-w-[140px]">{conn.connectionName}</span>
+                                {conn.blingAccountName && (
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[140px]">{conn.blingAccountName}</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : product.blingProductId ? (
                         <div className="flex items-center gap-1.5">
                           <CheckCircle2 className="h-4 w-4 text-blue-500 shrink-0" />
                           <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Sincronizado</span>
@@ -584,7 +615,7 @@ export function ProductsTable({
                       ) : (
                         <div className="flex items-center gap-1.5">
                           <XCircle className="h-4 w-4 text-slate-300 dark:text-slate-600 shrink-0" />
-                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500">Não sincronizado</span>
+                          <span className="text-xs font-bold text-slate-400 dark:text-slate-500">—</span>
                         </div>
                       )}
                     </TableCell>

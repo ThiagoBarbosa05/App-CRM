@@ -101,6 +101,8 @@ import {
   type CompanyProduct,
   blingOrders,
   blingOrderItems,
+  blingProductMappings,
+  blingConnections,
   serviceChannels,
   userServiceChannel,
   events,
@@ -1431,9 +1433,33 @@ export class DatabaseStorage implements IStorage {
         (buyerRows.rows as any[]).map((r) => [r.product_id, r.cnt]),
       );
 
+      // Fetch Bling connection info for this page's products
+      const blingRows = await this.db.execute(sql`
+        SELECT bpm.product_id, bpm.connection_id, bpm.bling_product_id,
+               bc.name AS connection_name, bc.bling_account_name
+        FROM bling_product_mappings bpm
+        INNER JOIN bling_connections bc ON bc.id = bpm.connection_id
+        WHERE bpm.product_id IN (${idList})
+        ORDER BY bc.name
+      `);
+
+      type BlingConn = { connectionId: string; connectionName: string; blingAccountName: string | null; blingProductId: string };
+      const blingMap = new Map<string, BlingConn[]>();
+      for (const r of blingRows.rows as any[]) {
+        const entry: BlingConn = {
+          connectionId: r.connection_id,
+          connectionName: r.connection_name,
+          blingAccountName: r.bling_account_name ?? null,
+          blingProductId: r.bling_product_id,
+        };
+        if (!blingMap.has(r.product_id)) blingMap.set(r.product_id, []);
+        blingMap.get(r.product_id)!.push(entry);
+      }
+
       const data = pageRows.map((p) => ({
         ...p,
         clientCount: countMap.get(p.id) ?? 0,
+        blingConnections: blingMap.get(p.id) ?? [],
       }));
 
       return { data, total: totalResult[0].count };
@@ -5391,7 +5417,25 @@ export class DatabaseStorage implements IStorage {
     `);
 
     const clientCount = (buyerRows.rows[0] as any)?.cnt ?? 0;
-    return { ...result, clientCount };
+
+    // Fetch Bling connections for this product
+    const blingRows = await db.execute(sql`
+      SELECT bpm.connection_id, bpm.bling_product_id,
+             bc.name AS connection_name, bc.bling_account_name
+      FROM bling_product_mappings bpm
+      INNER JOIN bling_connections bc ON bc.id = bpm.connection_id
+      WHERE bpm.product_id = ${productId}
+      ORDER BY bc.name
+    `);
+
+    const blingConnections = (blingRows.rows as any[]).map((r) => ({
+      connectionId: r.connection_id as string,
+      connectionName: r.connection_name as string,
+      blingAccountName: (r.bling_account_name as string | null) ?? null,
+      blingProductId: r.bling_product_id as string,
+    }));
+
+    return { ...result, clientCount, blingConnections };
   }
 
   async getProductAllBuyers(productId: string) {

@@ -85,6 +85,13 @@ interface BuyerClient {
   total_quantity: number;
 }
 
+interface BlingConnection {
+  connectionId: string;
+  connectionName: string;
+  blingAccountName?: string | null;
+  blingProductId: string;
+}
+
 interface ProductData {
   id: string;
   name: string;
@@ -98,6 +105,7 @@ interface ProductData {
   clientCount: number;
   imageUrl?: string | null;
   blingProductId?: string | null;
+  blingConnections?: BlingConnection[];
   aiProfile?: WineAIProfile | null;
   aiProfileGeneratedAt?: string | null;
 }
@@ -559,7 +567,19 @@ export default function ProductProfilePage() {
                       {product.category}
                     </Badge>
                   )}
-                  {product?.blingProductId ? (
+                  {product?.blingConnections && product.blingConnections.length > 0 ? (
+                    product.blingConnections.map((conn) => (
+                      <div key={conn.connectionId} className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-full px-2 py-0.5" title={conn.blingAccountName ? `${conn.connectionName} — ${conn.blingAccountName}` : conn.connectionName}>
+                        <CheckCircle2 className="h-3 w-3 text-blue-500 shrink-0" />
+                        <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                          {conn.connectionName}
+                          {conn.blingAccountName && (
+                            <span className="normal-case font-semibold text-blue-400 dark:text-blue-500"> · {conn.blingAccountName}</span>
+                          )}
+                        </span>
+                      </div>
+                    ))
+                  ) : product?.blingProductId ? (
                     <div className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-full px-2 py-0.5">
                       <CheckCircle2 className="h-3 w-3 text-blue-500" />
                       <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-wide">Sincronizado com Bling</span>
