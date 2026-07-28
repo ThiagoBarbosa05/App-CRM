@@ -14,11 +14,19 @@ vi.mock("../../lib/sse-hub", () => ({
   revokeStaleConversationAccess: async () => {},
 }));
 
-const { resolveConversationIdMock, isConversationAccessibleToUserMock, markConversationReadMock } = vi.hoisted(
+const {
+  resolveConversationIdMock,
+  isConversationAccessibleToUserMock,
+  markConversationReadMock,
+  closeConversationMock,
+  reopenConversationMock,
+} = vi.hoisted(
   () => ({
     resolveConversationIdMock: vi.fn(),
     isConversationAccessibleToUserMock: vi.fn(),
     markConversationReadMock: vi.fn(),
+    closeConversationMock: vi.fn(),
+    reopenConversationMock: vi.fn(),
   }),
 );
 
@@ -44,8 +52,8 @@ vi.mock("../../services/whatsapp-conversations.service", () => ({
   transferConversation: vi.fn(),
   transferConversationToUser: vi.fn(),
   transferConversationToSector: vi.fn(),
-  closeConversation: vi.fn(),
-  reopenConversation: vi.fn(),
+  closeConversation: closeConversationMock,
+  reopenConversation: reopenConversationMock,
   isClientAccessibleToUser: vi.fn(),
   setContactWhatsappTags: vi.fn(),
   listWhatsappTagsForFilter: vi.fn(),
@@ -155,5 +163,49 @@ describe("POST /conversations/:clientId/read", () => {
 
     expect(res.status).toBe(403);
     expect(markConversationReadMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("encerramento por perspectiva", () => {
+  beforeEach(() => {
+    resolveConversationIdMock.mockReset().mockResolvedValue("c1");
+    isConversationAccessibleToUserMock.mockReset().mockResolvedValue(true);
+    closeConversationMock.mockReset().mockResolvedValue({
+      id: "c1",
+      phone: "5522999999999",
+      peerChannelId: 12,
+    });
+    reopenConversationMock.mockReset().mockResolvedValue({
+      id: "c1",
+      phone: "5522999999999",
+      peerChannelId: 12,
+    });
+  });
+
+  it("encerra somente a perspectiva informada pelo admin", async () => {
+    const res = await request(makeApp("admin"))
+      .post("/api/whatsapp/conversations/c1/close")
+      .send({ asChannelId: 12 });
+
+    expect(res.status).toBe(200);
+    expect(closeConversationMock).toHaveBeenCalledWith("c1", "u1", "admin", 12);
+  });
+
+  it("reabre somente a perspectiva informada pelo admin", async () => {
+    const res = await request(makeApp("admin"))
+      .post("/api/whatsapp/conversations/c1/reopen")
+      .send({ asChannelId: 7 });
+
+    expect(res.status).toBe(200);
+    expect(reopenConversationMock).toHaveBeenCalledWith("c1", "u1", "admin", 7);
+  });
+
+  it("rejeita uma perspectiva malformada antes de chamar o serviço", async () => {
+    const res = await request(makeApp("admin"))
+      .post("/api/whatsapp/conversations/c1/close")
+      .send({ asChannelId: -1 });
+
+    expect(res.status).toBe(400);
+    expect(closeConversationMock).not.toHaveBeenCalled();
   });
 });

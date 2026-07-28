@@ -5147,6 +5147,28 @@ export const whatsappConversations = pgTable("whatsapp_conversations", {
     .where(sql`${table.phoneNormalized} IS NOT NULL AND ${table.phoneNormalized} <> ''`),
 }));
 
+export const whatsappConversationPerspectiveStates = pgTable(
+  "whatsapp_conversation_perspective_states",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversationId: varchar("conversation_id")
+      .notNull()
+      .references(() => whatsappConversations.id, { onDelete: "cascade" }),
+    channelId: integer("channel_id")
+      .notNull()
+      .references(() => whatsappChannels.id),
+    status: text("status", { enum: ["open", "closed"] }).notNull().default("open"),
+    closedAt: timestamp("closed_at"),
+    closedBy: varchar("closed_by").references(() => users.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    conversationChannelUnique: uniqueIndex("wa_conversation_perspective_states_conv_channel_unique")
+      .on(t.conversationId, t.channelId),
+  }),
+);
+
 export const whatsappMessages = pgTable("whatsapp_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   conversationId: varchar("conversation_id")

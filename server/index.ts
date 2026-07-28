@@ -37,10 +37,11 @@ import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
 import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";
 import { startReconcileBaileysStatusJob } from "./jobs/reconcile-baileys-status.job";
-import { initSessionManager, shutdownAllSessions } from "./services/baileys/session-manager";
-import { db } from "./db";
-import { users } from "@shared/schema";
-import bcrypt from "bcrypt";
+import {
+  initSessionManager,
+  shutdownAllSessions,
+} from "./services/baileys/session-manager";
+
 import { storage } from "./storage";
 import { getCachedPage, setCachedPage } from "./lib/landing-page-cache";
 import { seedCountries } from "./jobs/seed-countries";
@@ -50,6 +51,7 @@ import { migratePdvSettings } from "./jobs/migrate-pdv-settings";
 import { migrateOrderClient } from "./jobs/migrate-order-client";
 import { migrateQuotes } from "./jobs/migrate-quotes";
 import { redactPii } from "./lib/log-redaction";
+import { UsersService } from "./services/users.service";
 // import "./jobs/umbler-sync-scheduler";
 
 const app = express();
@@ -186,12 +188,24 @@ app.use((req, res, next) => {
     }
   });
   const server = await registerRoutes(app);
-  seedCountries().catch((err) => console.error("[Seed] seedCountries falhou:", err));
-  migrateWineryGoals().catch((err) => console.error("[Migrate] migrateWineryGoals falhou:", err));
-  migrateCategoryGoals().catch((err) => console.error("[Migrate] migrateCategoryGoals falhou:", err));
-  migratePdvSettings().catch((err) => console.error("[Migrate] migratePdvSettings falhou:", err));
-  migrateOrderClient().catch((err) => console.error("[Migrate] migrateOrderClient falhou:", err));
-  migrateQuotes().catch((err) => console.error("[Migrate] migrateQuotes falhou:", err));
+  seedCountries().catch((err) =>
+    console.error("[Seed] seedCountries falhou:", err),
+  );
+  migrateWineryGoals().catch((err) =>
+    console.error("[Migrate] migrateWineryGoals falhou:", err),
+  );
+  migrateCategoryGoals().catch((err) =>
+    console.error("[Migrate] migrateCategoryGoals falhou:", err),
+  );
+  migratePdvSettings().catch((err) =>
+    console.error("[Migrate] migratePdvSettings falhou:", err),
+  );
+  migrateOrderClient().catch((err) =>
+    console.error("[Migrate] migrateOrderClient falhou:", err),
+  );
+  migrateQuotes().catch((err) =>
+    console.error("[Migrate] migrateQuotes falhou:", err),
+  );
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();
@@ -241,7 +255,9 @@ app.use((req, res, next) => {
   const shutdown = (signal: string) => {
     log(`${signal} recebido, encerrando gracefully...`);
     shutdownAllSessions()
-      .catch((err) => console.error("[Baileys] Falha ao encerrar sessões no shutdown:", err))
+      .catch((err) =>
+        console.error("[Baileys] Falha ao encerrar sessões no shutdown:", err),
+      )
       .finally(() => process.exit(0));
   };
 

@@ -3108,7 +3108,13 @@ function ConversationMessages({
     mutationFn: async () => {
       const res = await fetch(
         `/api/whatsapp/conversations/${client.conversationId}/close`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            viewAsChannelId != null ? { asChannelId: viewAsChannelId } : {},
+          ),
+        },
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -3133,7 +3139,13 @@ function ConversationMessages({
     mutationFn: async () => {
       const res = await fetch(
         `/api/whatsapp/conversations/${client.conversationId}/reopen`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            viewAsChannelId != null ? { asChannelId: viewAsChannelId } : {},
+          ),
+        },
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -6381,6 +6393,7 @@ export default function WhatsAppConversationsPage() {
   const [channelPickerSearch, setChannelPickerSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const isAdminOrGerente = user?.role === "admin" || user?.role === "gerente";
 
@@ -6627,7 +6640,7 @@ export default function WhatsAppConversationsPage() {
   const markRead = useCallback(
     async (id: string, asChannelId?: number | null) => {
       try {
-        await fetch(`/api/whatsapp/conversations/${id}/read`, {
+        const res = await fetch(`/api/whatsapp/conversations/${id}/read`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           // asChannelId identifica o LADO do diálogo interno desdobrado — sem
@@ -6635,14 +6648,47 @@ export default function WhatsAppConversationsPage() {
           // sumiria junto (ver perspectiveChannelId em ChatClient).
           body: JSON.stringify(asChannelId != null ? { asChannelId } : {}),
         });
+        if (!res.ok) {
+          const errorBody = await res.json().catch(() => ({}));
+          throw new Error(
+            (errorBody as { message?: string }).message ??
+              "Não foi possível marcar a conversa como lida",
+          );
+        }
+        queryClient.setQueriesData<{
+          pages: ConversationsListPage[];
+          pageParams: unknown[];
+        }>({ queryKey: ["/api/whatsapp/conversations-list"] }, (previous) => {
+          if (!previous) return previous;
+          return {
+            ...previous,
+            pages: previous.pages.map((page) => ({
+              ...page,
+              items: page.items.map((item) =>
+                item.conversationId === id &&
+                (asChannelId == null ||
+                  item.perspectiveChannelId === asChannelId)
+                  ? { ...item, unreadCount: 0 }
+                  : item,
+              ),
+            })),
+          };
+        });
         queryClient.invalidateQueries({
           queryKey: ["/api/whatsapp/conversations-list"],
         });
-      } catch {
-        // silently ignore
+      } catch (error) {
+        console.error("[WhatsApp Conversations] Erro ao marcar conversa como lida:", error);
+        toast({
+          title:
+            error instanceof Error
+              ? error.message
+              : "Não foi possível marcar a conversa como lida",
+          variant: "destructive",
+        });
       }
     },
-    [queryClient],
+    [queryClient, toast],
   );
 
   // selectedId é a identidade do ITEM (pode ser composta: conversationId:lado).

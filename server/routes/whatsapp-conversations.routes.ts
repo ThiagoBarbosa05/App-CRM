@@ -945,6 +945,10 @@ router.post("/conversations/:conversationId/transfer-sector", async (req, res) =
   }
 });
 
+const perspectiveActionSchema = z.object({
+  asChannelId: z.number().int().positive().optional(),
+});
+
 router.post("/conversations/:conversationId/close", async (req, res) => {
   try {
     const user = (req as any).user;
@@ -956,18 +960,34 @@ router.post("/conversations/:conversationId/close", async (req, res) => {
     const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
     if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
 
-    const updated = await closeConversation(conversationId, user.userId);
+    const parsed = perspectiveActionSchema.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const updated = await closeConversation(
+      conversationId,
+      user.userId,
+      user.role,
+      parsed.data.asChannelId,
+    );
     if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
 
     // Sem isso, uma sessão de bot ainda ativa nesse telefone ficaria "Em
     // execução" para sempre no histórico de bots, mesmo com a conversa encerrada.
-    await terminateActiveSessionForConversationClose(updated.phone).catch((err) =>
-      console.error("[WA Conversations] Erro ao encerrar sessão de bot ao fechar conversa:", err),
-    );
+    if (updated.peerChannelId == null) {
+      await terminateActiveSessionForConversationClose(updated.phone).catch((err) =>
+        console.error("[WA Conversations] Erro ao encerrar sessão de bot ao fechar conversa:", err),
+      );
+    }
 
     res.json({ ok: true });
   } catch (err) {
     console.error("[WA Conversations] Erro ao encerrar conversa:", err);
+    if (err instanceof Error && err.message === "PERSPECTIVE_CHANNEL_REQUIRED") {
+      return res.status(400).json({ message: "Informe a perspectiva que deve ser encerrada" });
+    }
+    if (err instanceof Error && err.message === "PERSPECTIVE_CHANNEL_NOT_ACCESSIBLE") {
+      return res.status(403).json({ message: "Perspectiva não acessível ao usuário" });
+    }
     res.status(500).json({ message: "Erro ao encerrar conversa" });
   }
 });
@@ -983,12 +1003,26 @@ router.post("/conversations/:conversationId/reopen", async (req, res) => {
     const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
     if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
 
-    const updated = await reopenConversation(conversationId);
+    const parsed = perspectiveActionSchema.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const updated = await reopenConversation(
+      conversationId,
+      user.userId,
+      user.role,
+      parsed.data.asChannelId,
+    );
     if (!updated) return res.status(404).json({ message: "Conversa não encontrada" });
 
     res.json({ ok: true });
   } catch (err) {
     console.error("[WA Conversations] Erro ao reabrir conversa:", err);
+    if (err instanceof Error && err.message === "PERSPECTIVE_CHANNEL_REQUIRED") {
+      return res.status(400).json({ message: "Informe a perspectiva que deve ser reaberta" });
+    }
+    if (err instanceof Error && err.message === "PERSPECTIVE_CHANNEL_NOT_ACCESSIBLE") {
+      return res.status(403).json({ message: "Perspectiva não acessível ao usuário" });
+    }
     res.status(500).json({ message: "Erro ao reabrir conversa" });
   }
 });

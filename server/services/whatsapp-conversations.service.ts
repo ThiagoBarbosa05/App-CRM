@@ -6,6 +6,7 @@ import {
   whatsappMessages,
   whatsappMedia,
   whatsappConversationReads,
+  whatsappConversationPerspectiveStates,
   whatsappReactions,
   waSavedStickers,
   waQuickReplies,
@@ -287,6 +288,124 @@ export function resolvePerspectiveOverride(
     return asChannelId;
   }
   return null;
+}
+
+async function getConversationSides(conversationId: string) {
+  const [conversation] = await db
+    .select({
+      id: whatsappConversations.id,
+      phone: whatsappConversations.phone,
+      channelId: whatsappConversations.channelId,
+      peerChannelId: whatsappConversations.peerChannelId,
+    })
+    .from(whatsappConversations)
+    .where(eq(whatsappConversations.id, conversationId))
+    .limit(1);
+  return conversation ?? null;
+}
+
+async function resolveOperationalPerspective(
+  conversationId: string,
+  userId: string,
+  userRole: string,
+  asChannelId?: number,
+) {
+  const conversation = await getConversationSides(conversationId);
+  if (!conversation) return null;
+  if (conversation.peerChannelId == null || conversation.channelId == null) {
+    return { conversation, perspectiveChannelId: null };
+  }
+
+  const override = resolvePerspectiveOverride(userRole, conversation, asChannelId);
+  if (override != null) {
+    return { conversation, perspectiveChannelId: override };
+  }
+
+  if (userRole === "admin" || userRole === "gerente") {
+    throw new Error("PERSPECTIVE_CHANNEL_REQUIRED");
+  }
+
+  const userChannelIds = await listChannelIdsForUser(userId);
+  const isOwner = userChannelIds.includes(conversation.channelId);
+  const isPeer = userChannelIds.includes(conversation.peerChannelId);
+  if (isPeer && !isOwner) {
+    return { conversation, perspectiveChannelId: conversation.peerChannelId };
+  }
+  if (isOwner) {
+    return { conversation, perspectiveChannelId: conversation.channelId };
+  }
+  throw new Error("PERSPECTIVE_CHANNEL_NOT_ACCESSIBLE");
+}
+
+async function setPerspectiveStatus(
+  conversationId: string,
+  channelId: number,
+  status: "open" | "closed",
+  userId?: string,
+) {
+  const now = new Date();
+  const [state] = await db
+    .insert(whatsappConversationPerspectiveStates)
+    .values({
+      conversationId,
+      channelId,
+      status,
+      closedAt: status === "closed" ? now : null,
+      closedBy: status === "closed" ? (userId ?? null) : null,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: [
+        whatsappConversationPerspectiveStates.conversationId,
+        whatsappConversationPerspectiveStates.channelId,
+      ],
+      set: {
+        status,
+        closedAt: status === "closed" ? now : null,
+        closedBy: status === "closed" ? (userId ?? null) : null,
+        updatedAt: now,
+      },
+    })
+    .returning();
+  return state;
+}
+
+async function reopenActivePerspective(
+  conversationId: string,
+  channelId: number | null | undefined,
+) {
+  if (channelId == null) return false;
+  const conversation = await getConversationSides(conversationId);
+  if (
+    !conversation ||
+    conversation.peerChannelId == null ||
+    (channelId !== conversation.channelId && channelId !== conversation.peerChannelId)
+  ) {
+    return false;
+  }
+  const [reopened] = await db
+    .update(whatsappConversationPerspectiveStates)
+    .set({
+      status: "open",
+      closedAt: null,
+      closedBy: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(whatsappConversationPerspectiveStates.conversationId, conversationId),
+        eq(whatsappConversationPerspectiveStates.channelId, channelId),
+        eq(whatsappConversationPerspectiveStates.status, "closed"),
+      ),
+    )
+    .returning({ id: whatsappConversationPerspectiveStates.id });
+  if (!reopened) {
+    await db
+      .insert(whatsappConversationPerspectiveStates)
+      .values({ conversationId, channelId, status: "open" })
+      .onConflictDoNothing();
+  }
+  return Boolean(reopened);
 }
 
 /**
@@ -788,38 +907,91 @@ export async function transferConversationToSector(conversationId: string, secto
   return updated ?? null;
 }
 
-export async function closeConversation(conversationId: string, userId: string) {
+export async function closeConversation(
+  conversationId: string,
+  userId: string,
+  userRole: string,
+  asChannelId?: number,
+) {
   const [user] = await db
     .select({ name: users.name })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
 
-  const [updated] = await db
-    .update(whatsappConversations)
-    .set({ status: "closed", updatedAt: new Date() })
-    .where(eq(whatsappConversations.id, conversationId))
-    .returning();
+  const operational = await resolveOperationalPerspective(
+    conversationId,
+    userId,
+    userRole,
+    asChannelId,
+  );
+  if (!operational) return null;
+
+  if (operational.perspectiveChannelId == null) {
+    const [updated] = await db
+      .update(whatsappConversations)
+      .set({ status: "closed", updatedAt: new Date() })
+      .where(eq(whatsappConversations.id, conversationId))
+      .returning();
+    if (!updated) return null;
+  } else {
+    await setPerspectiveStatus(
+      conversationId,
+      operational.perspectiveChannelId,
+      "closed",
+      userId,
+    );
+  }
+
+  const perspectiveChannel =
+    operational.perspectiveChannelId != null
+      ? await getChannelIdentityById(operational.perspectiveChannelId).catch(() => null)
+      : null;
+  const perspectiveLabel = perspectiveChannel?.name
+    ? ` na perspectiva ${perspectiveChannel.name}`
+    : "";
 
   await db.insert(whatsappMessages).values({
     conversationId,
     direction: "outbound",
     type: "system",
-    content: `🔒 Atendimento encerrado por ${user?.name ?? "atendente"}`,
+    content: `🔒 Atendimento${perspectiveLabel} encerrado por ${user?.name ?? "atendente"}`,
     status: "sent",
     sentAt: new Date(),
+    rawPayload: {
+      kind: "conversation_closed",
+      perspectiveChannelId: operational.perspectiveChannelId,
+    },
   });
 
-  return updated ?? null;
+  return operational.conversation;
 }
 
-export async function reopenConversation(conversationId: string) {
-  const [updated] = await db
-    .update(whatsappConversations)
-    .set({ status: "open", updatedAt: new Date() })
-    .where(eq(whatsappConversations.id, conversationId))
-    .returning();
-  return updated ?? null;
+export async function reopenConversation(
+  conversationId: string,
+  userId: string,
+  userRole: string,
+  asChannelId?: number,
+) {
+  const operational = await resolveOperationalPerspective(
+    conversationId,
+    userId,
+    userRole,
+    asChannelId,
+  );
+  if (!operational) return null;
+
+  if (operational.perspectiveChannelId == null) {
+    const [updated] = await db
+      .update(whatsappConversations)
+      .set({ status: "open", updatedAt: new Date() })
+      .where(eq(whatsappConversations.id, conversationId))
+      .returning();
+    if (!updated) return null;
+  } else {
+    await setPerspectiveStatus(conversationId, operational.perspectiveChannelId, "open");
+  }
+  return operational.conversation;
 }
 
 export async function getConversationPhone(conversationId: string): Promise<string | null> {
@@ -1011,6 +1183,8 @@ export async function listClientsForChat(
       .where(
         and(
           unreadIncoming,
+          ne(whatsappMessages.type, "system"),
+          ne(whatsappMessages.type, "note"),
           sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${readsSub.lastReadAt}, '1970-01-01'::timestamp)`,
         ),
       )
@@ -1041,16 +1215,56 @@ export async function listClientsForChat(
 
   const limit = clampLimit(pagination.limit, { fallback: 20, max: 100 });
   const cursor = pagination.cursor ?? null;
+  const isSupervisor = userRole === "admin" || userRole === "gerente";
 
   const conditions: ReturnType<typeof eq>[] = [];
+  const ownerPerspectiveStatus = sql<"open" | "closed">`COALESCE(
+    (
+      SELECT perspective_state.status
+      FROM ${whatsappConversationPerspectiveStates} perspective_state
+      WHERE perspective_state.conversation_id = ${whatsappConversations.id}
+        AND perspective_state.channel_id = ${whatsappConversations.channelId}
+      LIMIT 1
+    ),
+    CASE WHEN ${whatsappConversations.status} = 'closed' THEN 'closed' ELSE 'open' END
+  )`;
+  const peerPerspectiveStatus = sql<"open" | "closed">`COALESCE(
+    (
+      SELECT perspective_state.status
+      FROM ${whatsappConversationPerspectiveStates} perspective_state
+      WHERE perspective_state.conversation_id = ${whatsappConversations.id}
+        AND perspective_state.channel_id = ${whatsappConversations.peerChannelId}
+      LIMIT 1
+    ),
+    CASE WHEN ${whatsappConversations.status} = 'closed' THEN 'closed' ELSE 'open' END
+  )`;
 
-  if (status === "closed") {
-    conditions.push(eq(whatsappConversations.status, "closed"));
-  } else if (status === "open") {
-    // "Abertas" inclui qualquer status que não seja "closed" (ex.: conversas
-    // em espera marcadas por um nó "set_waiting" do bot, que usam valores
-    // customizados como "waiting" em vez de "open").
-    conditions.push(ne(whatsappConversations.status, "closed") as ReturnType<typeof eq>);
+  if (status) {
+    const externalStatus =
+      status === "closed"
+        ? eq(whatsappConversations.status, "closed")
+        : ne(whatsappConversations.status, "closed");
+    const internalStatus = isSupervisor
+      ? or(
+          sql`${ownerPerspectiveStatus} = ${status}`,
+          sql`${peerPerspectiveStatus} = ${status}`,
+        )
+      : viewerChannelIds.length > 0
+        ? sql`(
+            CASE
+              WHEN ${inArray(whatsappConversations.peerChannelId, viewerChannelIds)}
+               AND NOT (${inArray(whatsappConversations.channelId, viewerChannelIds)})
+              THEN ${peerPerspectiveStatus}
+              ELSE ${ownerPerspectiveStatus}
+            END
+          ) = ${status}`
+        : sql`${ownerPerspectiveStatus} = ${status}`;
+    conditions.push(
+      or(
+        and(isNull(whatsappConversations.peerChannelId), externalStatus),
+        and(isNotNull(whatsappConversations.peerChannelId), internalStatus),
+      ) as unknown as ReturnType<typeof eq>,
+    );
   }
 
   // Conversa é unificada por cliente; o vendedor vê as conversas atribuídas a ele
@@ -1228,6 +1442,8 @@ export async function listClientsForChat(
       sectorName: whatsappSectors.name,
       sectorColor: whatsappSectors.color,
       status: whatsappConversations.status,
+      ownerPerspectiveStatus: ownerPerspectiveStatus.as("owner_perspective_status"),
+      peerPerspectiveStatus: peerPerspectiveStatus.as("peer_perspective_status"),
       responsavelId: clients.responsavelId,
       responsavelName: responsavelUsers.name,
       whatsappOptOut: clients.whatsappOptOut,
@@ -1317,7 +1533,6 @@ export async function listClientsForChat(
   // markConversationRead ao clicar naquela caixa (ver
   // whatsapp_conversation_reads em shared/schema.ts). Calculado só para os
   // diálogos internos da página e só quando o leitor é supervisor.
-  const isSupervisor = userRole === "admin" || userRole === "gerente";
   const internalIds = isSupervisor
     ? pageRows.filter((r) => r.peerChannelId != null && r.channelId != null).map((r) => r.conversationId)
     : [];
@@ -1359,6 +1574,8 @@ export async function listClientsForChat(
           and(
             inArray(whatsappMessages.conversationId, internalIds),
             eq(whatsappMessages.direction, "inbound"),
+            ne(whatsappMessages.type, "system"),
+            ne(whatsappMessages.type, "note"),
             sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${ownerReads.lastReadAt}, '1970-01-01'::timestamp)`,
           ),
         )
@@ -1382,6 +1599,8 @@ export async function listClientsForChat(
           and(
             inArray(whatsappMessages.conversationId, internalIds),
             eq(whatsappMessages.direction, "outbound"),
+            ne(whatsappMessages.type, "system"),
+            ne(whatsappMessages.type, "note"),
             sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt}) > COALESCE(${peerReads.lastReadAt}, '1970-01-01'::timestamp)`,
           ),
         )
@@ -1419,7 +1638,11 @@ export async function listClientsForChat(
       // frontend usa esse id como identidade do item e como asChannelId.
       if (isSupervisor && row.peerChannelId != null && row.channelId != null) {
         const un = perspectiveUnread.get(row.conversationId) ?? { owner: 0, peer: 0 };
-        const makeItem = (perspectiveChannelId: number, unreadCount: number) => {
+        const makeItem = (
+          perspectiveChannelId: number,
+          unreadCount: number,
+          perspectiveStatus: "open" | "closed",
+        ) => {
           const viewerIsPeer = viewerIsPeerSide(row, [perspectiveChannelId]);
           return {
             ...base,
@@ -1429,12 +1652,13 @@ export async function listClientsForChat(
               ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
               : row.lastMessageDirection,
             unreadCount,
+            status: perspectiveStatus,
           };
         };
         return [
-          makeItem(row.channelId, un.owner),
-          makeItem(row.peerChannelId, un.peer),
-        ];
+          makeItem(row.channelId, un.owner, row.ownerPerspectiveStatus),
+          makeItem(row.peerChannelId, un.peer, row.peerPerspectiveStatus),
+        ].filter((item) => !status || item.status === status);
       }
 
       // Demais casos: um item, perspectiva derivada do leitor logado (como hoje).
@@ -1442,6 +1666,12 @@ export async function listClientsForChat(
       return [
         {
           ...base,
+          status:
+            row.peerChannelId == null
+              ? row.status
+              : viewerIsPeer
+                ? row.peerPerspectiveStatus
+                : row.ownerPerspectiveStatus,
           contactName: internalPeerLabel(row, viewerChannelIds) ?? row.contactName,
           lastMessageDirection: row.lastMessageDirection
             ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
@@ -1738,6 +1968,7 @@ export async function sendConversationMessage(
       .update(whatsappMessages)
       .set({ status: "sent", waMessageId })
       .where(and(eq(whatsappMessages.id, savedMessage.id), isNull(whatsappMessages.statusReason)));
+    await reopenActivePerspective(conversationId, resolved.channelId);
 
     // Publica o evento SSE somente após o status "sent" estar gravado no banco,
     // evitando que o frontend refaça a query e veja status "failed" prematuramente
@@ -2011,6 +2242,7 @@ export async function sendConversationTemplate(
       .returning({ id: whatsappMessages.id, status: whatsappMessages.status });
 
     console.log(`[sendConversationTemplate] DB update result:`, JSON.stringify(updateResult));
+    await reopenActivePerspective(conversationId, resolved.channelId);
 
     if (conv.id) {
       publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
@@ -2202,6 +2434,7 @@ export async function sendConversationMedia(
     .update(whatsappConversations)
     .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(whatsappConversations.id, conversationId));
+  await reopenActivePerspective(conversationId, resolved.channelId);
 
   if (conv.id) {
     publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
@@ -2616,11 +2849,20 @@ export async function saveInboundMessage(data: {
   // para a mesma conversa fechada chegarem quase ao mesmo tempo, o Postgres
   // serializa as duas escritas na linha e só uma delas vê status = 'closed'
   // e recebe a linha de volta — evita logar "nova conversa" duas vezes.
-  const [reopened] = await db
-    .update(whatsappConversations)
-    .set({ status: "open" })
-    .where(and(eq(whatsappConversations.id, conv.id), eq(whatsappConversations.status, "closed")))
-    .returning({ id: whatsappConversations.id });
+  let reopened = false;
+  if (conv.peerChannelId != null) {
+    // O evento sempre pertence à instância local em data.channelId: quando
+    // fromMe=true ela é a remetente; caso contrário, é a destinatária.
+    // Portanto só essa caixa volta para "Abertas".
+    reopened = await reopenActivePerspective(conv.id, data.channelId);
+  } else {
+    const [reopenedConversation] = await db
+      .update(whatsappConversations)
+      .set({ status: "open" })
+      .where(and(eq(whatsappConversations.id, conv.id), eq(whatsappConversations.status, "closed")))
+      .returning({ id: whatsappConversations.id });
+    reopened = Boolean(reopenedConversation);
+  }
 
   // NÃO reescreve o channelId da conversa: ele é a identidade da conversa
   // (telefone + canal) e é imutável após a criação por findOrCreateConversation.
@@ -2628,13 +2870,14 @@ export async function saveInboundMessage(data: {
   // canal por findOrCreateConversation(phone, channelId) acima — reescrever aqui
   // sequestraria esta conversa para o canal errado (ex.: conversa da Búzios
   // virando conversa da Dionisio), fazendo o outbound sair pelo número errado.
+  const conversationUpdates: Partial<typeof whatsappConversations.$inferInsert> = {
+    lastMessageAt: new Date(),
+    updatedAt: new Date(),
+  };
+  if (conv.peerChannelId == null) conversationUpdates.status = "open";
   await db
     .update(whatsappConversations)
-    .set({
-      status: "open",
-      lastMessageAt: new Date(),
-      updatedAt: new Date(),
-    })
+    .set(conversationUpdates)
     .where(eq(whatsappConversations.id, conv.id));
 
   // Setor sai do canal DONO da conversa, não do canal que recebeu o evento —

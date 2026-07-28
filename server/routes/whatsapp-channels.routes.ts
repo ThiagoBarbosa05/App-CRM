@@ -336,26 +336,35 @@ router.post("/channels", requireAdminOrGerente, async (req: Request, res: Respon
     return;
   }
 
-  let resolvedToken = accessToken ?? "";
-  let resolvedWabaId = wabaId ?? "";
+  try {
+    let resolvedToken = accessToken ?? "";
+    let resolvedWabaId = wabaId ?? "";
 
-  if (!resolvedToken || !resolvedWabaId) {
-    const settings = await getWhatsappSettingsRaw();
-    if (!resolvedToken) resolvedToken = settings["wa_access_token"] ?? "";
-    if (!resolvedWabaId) resolvedWabaId = settings["wa_waba_id"] ?? "";
+    if (!resolvedToken || !resolvedWabaId) {
+      const settings = await getWhatsappSettingsRaw();
+      if (!resolvedToken) resolvedToken = settings["wa_access_token"] ?? "";
+      if (!resolvedWabaId) resolvedWabaId = settings["wa_waba_id"] ?? "";
+    }
+
+    const channel = await createChannel({
+      name,
+      phoneNumberId,
+      accessToken: resolvedToken,
+      wabaId: resolvedWabaId,
+      displayPhone,
+      userId,
+      isActive,
+      defaultSectorId,
+    });
+    res.status(201).json(channel);
+  } catch (e) {
+    if ((e as { code?: string })?.code === "23505") {
+      res.status(409).json({ error: "Já existe um canal cadastrado com esse phoneNumberId" });
+      return;
+    }
+    const message = e instanceof Error ? e.message : "Erro ao criar canal";
+    res.status(500).json({ message });
   }
-
-  const channel = await createChannel({
-    name,
-    phoneNumberId,
-    accessToken: resolvedToken,
-    wabaId: resolvedWabaId,
-    displayPhone,
-    userId,
-    isActive,
-    defaultSectorId,
-  });
-  res.status(201).json(channel);
 });
 
 router.patch("/channels/:id", requireAdminOrGerente, async (req: Request, res: Response) => {
