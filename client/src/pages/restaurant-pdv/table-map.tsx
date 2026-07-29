@@ -4,6 +4,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/page-header";
 import {
   Dialog,
@@ -50,6 +51,49 @@ function formatCurrency(value: string | null): string {
   return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function RecentSalesSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-xl border">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
+            <th className="px-3 py-2 text-left font-medium">Mesa</th>
+            <th className="px-3 py-2 text-left font-medium">Horário</th>
+            <th className="px-3 py-2 text-left font-medium hidden sm:table-cell">
+              Pagamento
+            </th>
+            <th className="px-3 py-2 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <tr
+              key={idx}
+              className={cn(
+                "border-b last:border-0",
+                idx % 2 === 0 ? "bg-background" : "bg-muted/20",
+              )}
+            >
+              <td className="px-3 py-2.5">
+                <Skeleton className="h-4 w-14" />
+              </td>
+              <td className="px-3 py-2.5">
+                <Skeleton className="h-4 w-10" />
+              </td>
+              <td className="px-3 py-2.5 hidden sm:table-cell">
+                <Skeleton className="h-4 w-20" />
+              </td>
+              <td className="px-3 py-2.5 text-right">
+                <Skeleton className="ml-auto h-4 w-16" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function RecentSalesSection({ cashSessionOpen }: { cashSessionOpen: boolean }) {
   const { data, isLoading } = useQuery<{ orders: SessionOrderRow[] }>({
     queryKey: ["/api/restaurant-pdv/cash-sessions/current/orders"],
@@ -71,7 +115,7 @@ function RecentSalesSection({ cashSessionOpen }: { cashSessionOpen: boolean }) {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando vendas...</p>
+        <RecentSalesSkeleton />
       ) : orders.length === 0 ? (
         <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
           <Receipt className="h-4 w-4 shrink-0" />
@@ -149,6 +193,23 @@ function elapsedLabel(openedAt: string | null) {
 
 interface TableMapGridProps {
   onOrderOpened: (orderId: string) => void;
+}
+
+function TableGridSkeleton() {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3 sm:gap-4">
+      {Array.from({ length: 8 }).map((_, idx) => (
+        <div key={idx} className="rounded-xl border-2 border-border p-4">
+          <Skeleton className="h-7 w-8" />
+          <Skeleton className="mt-2 h-3 w-10" />
+          <div className="mt-3 space-y-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-12" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
@@ -349,7 +410,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
       )}
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando mesas...</p>
+        <TableGridSkeleton />
       ) : tables.length === 0 ? null : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3 sm:gap-4">
           {tables.map((table) => {
