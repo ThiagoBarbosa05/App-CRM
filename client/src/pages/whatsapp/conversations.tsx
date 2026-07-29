@@ -3292,6 +3292,7 @@ function ConversationMessages({
   interface MessagesPage {
     messages: WaMessage[];
     nextCursor: string | null;
+    lastInboundAt: string | null;
   }
 
   // viewAsChannelId entra na key: trocar de perspectiva refaz o fetch.
@@ -3308,11 +3309,14 @@ function ConversationMessages({
     const res = await fetch(
       `/api/whatsapp/conversations/${conversationKey}?${params}`,
     );
-    if (!res.ok) return { messages: [], nextCursor: null };
+    if (!res.ok) {
+      return { messages: [], nextCursor: null, lastInboundAt: null };
+    }
     const data = await res.json();
     return {
       messages: data?.messages ?? (Array.isArray(data) ? data : []),
       nextCursor: data?.nextCursor ?? null,
+      lastInboundAt: data?.conversation?.lastInboundAt ?? null,
     };
   }
 
@@ -3934,8 +3938,13 @@ function ConversationMessages({
   // A janela abre na última mensagem RECEBIDA do contato; fora dela, a Meta só
   // aceita templates aprovados. O Evolution (não oficial) não tem essa restrição.
   const isCloudApi = activeChannel?.provider === "cloud_api";
+  const loadedInboundMessage = [...messages]
+    .reverse()
+    .find((message) => message.direction === "inbound");
   const lastInboundAt =
-    [...messages].reverse().find((m) => m.direction === "inbound")?.sentAt ??
+    messagesData?.pages[0]?.lastInboundAt ??
+    loadedInboundMessage?.sentAt ??
+    loadedInboundMessage?.createdAt ??
     null;
   const windowOpen = lastInboundAt
     ? Date.now() - new Date(lastInboundAt).getTime() < 24 * 60 * 60 * 1000

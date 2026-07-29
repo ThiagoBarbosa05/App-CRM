@@ -7,6 +7,7 @@ import {
   whatsappCampaignImpacts,
   whatsappCampaigns,
   whatsappCampaignMessages,
+  whatsappChannels,
 } from "@shared/schema";
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { sendTextMessage, sendTemplateMessage } from "../integrations/whatsapp";
@@ -31,6 +32,10 @@ import {
   MAX_DEDUPE_WINDOW_HOURS,
   reserveCampaignMessage,
 } from "../services/whatsapp-campaign-dedupe.service";
+import {
+  listChannelIdsForUser,
+  resolveChannelById,
+} from "../services/whatsapp-channels.service";
 
 const router = Router();
 
@@ -200,6 +205,61 @@ router.post("/campaigns", async (req, res) => {
     }
     if (!campaign.waTemplateId && !campaign.waBotId) {
       return res.status(400).json({ message: "Campanha não possui template ou bot configurado" });
+    }
+    if (Boolean(campaign.waTemplateId) === Boolean(campaign.waBotId)) {
+      return res.status(400).json({
+        message: "A campanha deve possuir exatamente um template ou bot",
+      });
+    }
+    if (campaign.waChannelId == null) {
+      return res.status(400).json({
+        message: "A campanha não possui um canal de envio selecionado",
+      });
+    }
+
+    const [channel] = await db
+      .select({
+        id: whatsappChannels.id,
+        connectionStatus: whatsappChannels.connectionStatus,
+      })
+      .from(whatsappChannels)
+      .where(
+        and(
+          eq(whatsappChannels.id, campaign.waChannelId),
+          eq(whatsappChannels.isActive, true),
+          isNull(whatsappChannels.deletedAt),
+        ),
+      )
+      .limit(1);
+    const resolvedChannel = channel
+      ? await resolveChannelById(channel.id)
+      : null;
+    if (
+      !resolvedChannel ||
+      (resolvedChannel.provider === "evolution" &&
+        channel?.connectionStatus !== "connected")
+    ) {
+      return res.status(400).json({
+        message: "O canal da campanha está desconectado ou sem configuração",
+      });
+    }
+    if (campaign.waTemplateId && resolvedChannel.provider !== "cloud_api") {
+      return res.status(400).json({
+        message: "Campanhas com template exigem um canal Cloud API",
+      });
+    }
+
+    const user = req.user;
+    if (!user?.userId) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+    if (user.role === "vendedor") {
+      const accessibleChannelIds = await listChannelIdsForUser(user.userId);
+      if (!accessibleChannelIds.includes(campaign.waChannelId)) {
+        return res.status(403).json({
+          message: "Você não possui acesso ao canal selecionado",
+        });
+      }
     }
 
     // 2. Buscar clientes e normalizar telefone (E.164). Contatos com telefone

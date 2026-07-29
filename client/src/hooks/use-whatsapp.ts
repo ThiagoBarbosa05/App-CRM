@@ -479,7 +479,7 @@ export function useCreateCampaignWithDispatch() {
       description?: string;
       waTemplateId?: string;
       waBotId?: string;
-      waChannelId?: number;
+      waChannelId: number;
       metaTemplateName?: string;
       metaTemplateLanguage?: string;
       metaTemplateCategory?: string;
@@ -498,7 +498,7 @@ export function useCreateCampaignWithDispatch() {
         waEnabled: true,
         waTemplateId: data.waTemplateId ?? null,
         waBotId: data.waBotId ?? null,
-        waChannelId: data.waChannelId ?? null,
+        waChannelId: data.waChannelId,
         metaTemplateName: data.metaTemplateName,
         metaTemplateLanguage: data.metaTemplateLanguage,
         metaTemplateCategory: data.metaTemplateCategory,
@@ -506,16 +506,31 @@ export function useCreateCampaignWithDispatch() {
         metaTemplateHeaderParams: data.metaTemplateHeaderParams,
         metaTemplateHeaderMedia: data.metaTemplateHeaderMedia,
       });
-      const campaign = await campaignRes.json();
+      const campaign = (await campaignRes.json()) as { id: string };
 
-      const dispatchRes = await apiRequest("POST", "/api/whatsapp/campaigns", {
-        campaignId: campaign.id,
-        clientIds: data.clientIds,
-        scheduledAt: data.scheduledAt,
-        dedupeWindowHours: data.dedupeWindowHours ?? 24,
-        postSendWhatsappTagId: data.postSendWhatsappTagId ?? null,
-      });
-      return dispatchRes.json();
+      try {
+        const dispatchRes = await apiRequest("POST", "/api/whatsapp/campaigns", {
+          campaignId: campaign.id,
+          clientIds: data.clientIds,
+          scheduledAt: data.scheduledAt,
+          dedupeWindowHours: data.dedupeWindowHours ?? 24,
+          postSendWhatsappTagId: data.postSendWhatsappTagId ?? null,
+        });
+        return dispatchRes.json();
+      } catch (error) {
+        // A criação ainda usa dois endpoints legados. Compensa a primeira
+        // gravação para que uma falha de validação/enfileiramento não deixe uma
+        // campanha incompleta visível.
+        try {
+          await apiRequest("DELETE", `/api/campaigns/${campaign.id}/incomplete`);
+        } catch (cleanupError) {
+          console.error(
+            "[WhatsApp campaign] Falha ao remover campanha incompleta:",
+            cleanupError,
+          );
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns"] });
@@ -843,9 +858,9 @@ export function useWhatsappChannels() {
 
 export function useAccessibleWhatsappChannels() {
   return useQuery<WhatsappChannelOption[]>({
-    queryKey: ["whatsapp", "channels", "mine"],
+    queryKey: ["whatsapp", "channels", "campaign"],
     queryFn: async () => {
-      const res = await fetch("/api/whatsapp/channels/mine");
+      const res = await fetch("/api/whatsapp/channels/campaign");
       if (!res.ok) throw new Error("Erro ao buscar canais disponíveis");
       return res.json();
     },

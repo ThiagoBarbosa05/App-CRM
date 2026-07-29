@@ -7,6 +7,7 @@ import { normalizePhoneE164 } from "@shared/phone";
 import { startBotSession, buildClientVariables, interpolate } from "./whatsapp-bot-engine.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
 import { getChannelByPhoneNumberId, resolveChannelById } from "./whatsapp-channels.service";
+import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { getPublicR2Url } from "../lib/r2";
 import {
   applyCampaignTag,
@@ -155,6 +156,36 @@ export async function executeCampaign(
   let failed = 0;
   let skipped = 0;
   let retried = 0;
+  let selectedCampaignChannel: ResolvedChannel | null = null;
+
+  if (campaign.waChannelId != null) {
+    const [activeChannel] = await db
+      .select({
+        id: whatsappChannels.id,
+        connectionStatus: whatsappChannels.connectionStatus,
+      })
+      .from(whatsappChannels)
+      .where(
+        and(
+          eq(whatsappChannels.id, campaign.waChannelId),
+          eq(whatsappChannels.isActive, true),
+          isNull(whatsappChannels.deletedAt),
+        ),
+      )
+      .limit(1);
+    selectedCampaignChannel = activeChannel
+      ? await resolveChannelById(activeChannel.id)
+      : null;
+    if (
+      !selectedCampaignChannel ||
+      (selectedCampaignChannel.provider === "evolution" &&
+        activeChannel?.connectionStatus !== "connected")
+    ) {
+      throw new Error(
+        "O canal de envio da campanha está inativo, desconectado, removido ou sem configuração",
+      );
+    }
+  }
 
   if (campaign.waBotId) {
     // ── Bot campaign: iniciar sessão de bot para cada contato ─────────────────
@@ -169,28 +200,6 @@ export async function executeCampaign(
       );
 
     if (!bot) throw new Error(`Bot ${campaign.waBotId} não encontrado`);
-
-    if (campaign.waChannelId != null) {
-      const [activeChannel] = await db
-        .select({ id: whatsappChannels.id })
-        .from(whatsappChannels)
-        .where(
-          and(
-            eq(whatsappChannels.id, campaign.waChannelId),
-            eq(whatsappChannels.isActive, true),
-            isNull(whatsappChannels.deletedAt),
-          ),
-        )
-        .limit(1);
-      const resolvedChannel = activeChannel
-        ? await resolveChannelById(activeChannel.id)
-        : null;
-      if (!resolvedChannel) {
-        throw new Error(
-          "O canal de envio da campanha está inativo, removido ou sem conexão configurada",
-        );
-      }
-    }
 
     for (const msg of pendingMessages) {
       if (!msg.phoneNumber) {
@@ -270,10 +279,24 @@ export async function executeCampaign(
       .where(eq(whatsappTemplates.id, campaign.waTemplateId!));
 
     if (!template) throw new Error(`Template ${campaign.waTemplateId} não encontrado`);
+    if (
+      campaign.waChannelId != null &&
+      selectedCampaignChannel?.provider !== "cloud_api"
+    ) {
+      throw new Error("Campanhas com template exigem um canal Cloud API conectado");
+    }
 
     // Resolvido uma vez por execução: o número de disparo é o mesmo para toda a
     // campanha de template.
-    const campaignChannelId = await resolveCampaignChannelId();
+    const campaignChannelId =
+      selectedCampaignChannel?.id ?? (await resolveCampaignChannelId());
+    const templateChannelOverride =
+      selectedCampaignChannel?.provider === "cloud_api"
+        ? {
+            phoneNumberId: selectedCampaignChannel.phoneNumberId,
+            accessToken: selectedCampaignChannel.accessToken,
+          }
+        : undefined;
 
     for (const msg of pendingMessages) {
       if (!msg.phoneNumber) {
@@ -304,6 +327,7 @@ export async function executeCampaign(
           template.name,
           template.languageCode,
           components,
+          templateChannelOverride,
         );
         const waMessageId = result?.messages?.[0]?.id ?? null;
         const sentAt = new Date();

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import {
   ArrowLeft,
@@ -233,8 +233,9 @@ function ClientTagBadge({ tag }: { tag: ClientTag }) {
 const STEPS = [
   { id: 1, label: "Informações", icon: Info },
   { id: 2, label: "Clientes", icon: Users },
-  { id: 3, label: "Template", icon: FileText },
-  { id: 4, label: "Confirmar", icon: Send },
+  { id: 3, label: "Conteúdo", icon: FileText },
+  { id: 4, label: "Canal", icon: RadioTower },
+  { id: 5, label: "Confirmar", icon: Send },
 ];
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -1002,12 +1003,8 @@ function TemplateConfigForm({
 function StepTemplateOrBot({
   selectedTemplate,
   selectedBotId,
-  selectedChannelId,
-  channels,
-  channelsLoading,
   onSelectTemplate,
   onSelectBot,
-  onSelectChannel,
   bodyParams,
   onBodyParamsChange,
   headerParams,
@@ -1017,12 +1014,8 @@ function StepTemplateOrBot({
 }: {
   selectedTemplate: MetaTemplate | null;
   selectedBotId: string;
-  selectedChannelId: number | null;
-  channels: WhatsappChannelOption[];
-  channelsLoading: boolean;
   onSelectTemplate: (t: MetaTemplate | null) => void;
   onSelectBot: (id: string) => void;
-  onSelectChannel: (id: number) => void;
   bodyParams: string[];
   onBodyParamsChange: (values: string[]) => void;
   headerParams: string[];
@@ -1227,85 +1220,108 @@ function StepTemplateOrBot({
             ))}
           </div>
         )}
-        {selectedBotId && (
-          <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
-            <div className="flex items-start gap-3 border-b border-border bg-muted/35 px-4 py-3.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                <RadioTower className="h-4 w-4" />
-              </div>
-              <div>
-                <Label className="text-sm font-semibold">Canal de envio</Label>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  Todas as mensagens desta campanha sairão por este número,
-                  mesmo que o contato tenha conversas em outros canais.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2 p-3">
-              {channelsLoading ? (
-                Array.from({ length: 2 }).map((_, index) => (
-                  <div
-                    key={index}
-                    className="h-14 animate-pulse rounded-lg bg-muted"
-                  />
-                ))
-              ) : channels.length === 0 ? (
-                <div className="px-2 py-5 text-center">
-                  <p className="text-sm font-medium">Nenhum canal ativo disponível</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Conecte ou ative um canal antes de criar a campanha.
-                  </p>
-                </div>
-              ) : (
-                channels.map((channel) => {
-                  const selected = selectedChannelId === channel.id;
-                  return (
-                    <button
-                      key={channel.id}
-                      type="button"
-                      onClick={() => onSelectChannel(channel.id)}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors",
-                        selected
-                          ? "border-emerald-500 bg-emerald-500/5"
-                          : "border-transparent hover:border-border hover:bg-muted/40",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border",
-                          selected
-                            ? "border-emerald-600 bg-emerald-600 text-white"
-                            : "border-muted-foreground/40",
-                        )}
-                      >
-                        {selected ? <Check className="h-3 w-3" /> : null}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">
-                          {channel.name}
-                        </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {channel.displayPhone ?? "Número não informado"} ·{" "}
-                          {channel.provider === "evolution"
-                            ? "Conectado por QR Code"
-                            : "Cloud API"}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
       </TabsContent>
     </Tabs>
   );
 }
 
-// ── Step 4: Confirmação ───────────────────────────────────────────────────────
+function StepChannel({
+  channels,
+  isLoading,
+  selectedChannelId,
+  contentType,
+  onSelect,
+}: {
+  channels: WhatsappChannelOption[];
+  isLoading: boolean;
+  selectedChannelId: number | null;
+  contentType: "template" | "bot";
+  onSelect: (id: number) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <RadioTower className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold">Escolha o número de saída</h3>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            Todas as mensagens e respostas desta campanha permanecerão vinculadas
+            a este canal.
+          </p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="h-20 animate-pulse rounded-xl bg-muted" />
+          ))}
+        </div>
+      ) : channels.length === 0 ? (
+        <div className="rounded-xl border-2 border-dashed border-border px-5 py-10 text-center">
+          <RadioTower className="mx-auto h-8 w-8 text-muted-foreground/50" />
+          <p className="mt-3 text-sm font-semibold">Nenhum canal disponível</p>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            {contentType === "template"
+              ? "Templates exigem um canal Cloud API ativo e configurado."
+              : "Conecte ou ative um canal antes de criar a campanha."}
+          </p>
+          <Button asChild variant="outline" className="mt-4">
+            <a href="/whatsapp/canais">Configurar canais</a>
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {channels.map((channel) => {
+            const selected = selectedChannelId === channel.id;
+            return (
+              <button
+                key={channel.id}
+                type="button"
+                onClick={() => onSelect(channel.id)}
+                aria-pressed={selected}
+                className={cn(
+                  "group flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all",
+                  selected
+                    ? "border-emerald-500 bg-emerald-500/5 shadow-sm"
+                    : "border-border hover:border-emerald-500/40 hover:bg-muted/30",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                    selected
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : "border-muted-foreground/40",
+                  )}
+                >
+                  {selected ? <Check className="h-3.5 w-3.5" /> : null}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">
+                    {channel.name}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {channel.displayPhone ?? "Número não informado"}
+                  </span>
+                  <span className="mt-1 block text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                    {channel.provider === "evolution"
+                      ? "QR Code · conectado"
+                      : "Cloud API · disponível"}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Step 5: Confirmação ───────────────────────────────────────────────────────
 
 function StepConfirm({
   title,
@@ -1567,6 +1583,23 @@ export default function WhatsAppCreateCampaign() {
   const selectedChannel = availableChannels.find(
     (channel) => channel.id === selectedChannelId,
   );
+  const contentType = selectedTemplate ? "template" : "bot";
+  const compatibleChannels = useMemo(
+    () =>
+      availableChannels.filter(
+        (channel) => contentType === "bot" || channel.provider === "cloud_api",
+      ),
+    [availableChannels, contentType],
+  );
+
+  useEffect(() => {
+    if (
+      selectedChannelId !== null &&
+      !compatibleChannels.some((channel) => channel.id === selectedChannelId)
+    ) {
+      setSelectedChannelId(null);
+    }
+  }, [compatibleChannels, selectedChannelId]);
 
   const handleSelectTemplate = (t: MetaTemplate | null) => {
     setSelectedTemplate(t);
@@ -1617,10 +1650,10 @@ export default function WhatsAppCreateCampaign() {
     if (step === 1) return title.trim().length > 0;
     if (step === 2) return selectedClientIds.length > 0;
     if (step === 3)
-      return (
-        (selectedTemplate !== null && templateVarsComplete) ||
-        (selectedBotId.length > 0 && selectedChannelId != null)
-      );
+      return selectedTemplate !== null
+        ? templateVarsComplete
+        : selectedBotId.length > 0;
+    if (step === 4) return selectedChannelId != null;
     return true;
   }, [
     step,
@@ -1638,6 +1671,15 @@ export default function WhatsAppCreateCampaign() {
   };
 
   const handleSubmit = useCallback(() => {
+    if (selectedChannelId == null) {
+      toast({
+        title: "Selecione um canal de envio",
+        description: "Volte ao passo Canal antes de criar a campanha.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const scheduledIso =
       scheduledAt && new Date(scheduledAt).getTime() > Date.now()
         ? new Date(scheduledAt).toISOString()
@@ -1663,7 +1705,7 @@ export default function WhatsAppCreateCampaign() {
             ? templateHeaderMedia
             : undefined,
         waBotId: selectedBotId || undefined,
-        waChannelId: selectedBotId ? (selectedChannelId ?? undefined) : undefined,
+        waChannelId: selectedChannelId,
         clientIds: selectedClientIds,
         scheduledAt: scheduledIso,
         dedupeWindowHours,
@@ -1769,12 +1811,8 @@ export default function WhatsAppCreateCampaign() {
                 <StepTemplateOrBot
                   selectedTemplate={selectedTemplate}
                   selectedBotId={selectedBotId}
-                  selectedChannelId={selectedChannelId}
-                  channels={availableChannels}
-                  channelsLoading={channelsLoading}
                   onSelectTemplate={handleSelectTemplate}
                   onSelectBot={handleSelectBot}
-                  onSelectChannel={setSelectedChannelId}
                   bodyParams={templateBodyParams}
                   onBodyParamsChange={setTemplateBodyParams}
                   headerParams={templateHeaderParams}
@@ -1784,6 +1822,15 @@ export default function WhatsAppCreateCampaign() {
                 />
               )}
               {step === 4 && (
+                <StepChannel
+                  channels={compatibleChannels}
+                  isLoading={channelsLoading}
+                  selectedChannelId={selectedChannelId}
+                  contentType={contentType}
+                  onSelect={setSelectedChannelId}
+                />
+              )}
+              {step === 5 && (
                 <StepConfirm
                   title={title}
                   description={description}
@@ -1830,7 +1877,7 @@ export default function WhatsAppCreateCampaign() {
               ))}
             </div>
 
-            {step < 4 ? (
+            {step < STEPS.length ? (
               <Button
                 onClick={() => setStep((s) => s + 1)}
                 disabled={!canNext}

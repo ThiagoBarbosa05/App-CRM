@@ -7,6 +7,7 @@ import {
   calls,
   clients,
   whatsappChannels,
+  whatsappCampaigns,
 } from "@shared/schema";
 import { eq, and, inArray, ne, sql, isNull } from "drizzle-orm";
 import twilio from "twilio";
@@ -17,6 +18,10 @@ import {
   toE164Brazil,
 } from "../lib/twilio-config";
 import { ensureLocalTemplateForMeta } from "../services/whatsapp-templates.service";
+import {
+  listChannelIdsForUser,
+  resolveChannelById,
+} from "../services/whatsapp-channels.service";
 
 const router = Router();
 
@@ -94,6 +99,14 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Nome e tipo são obrigatórios" });
     }
 
+    const hasTemplate = Boolean(waTemplateId || metaTemplateName);
+    const hasBot = Boolean(waBotId);
+    if (waEnabled && hasTemplate === hasBot) {
+      return res.status(400).json({
+        message: "Selecione exatamente um conteúdo: template ou bot",
+      });
+    }
+
     // Seleção de template da Meta → resolve/cria a linha local usada no disparo.
     let resolvedWaChannelId: number | null = null;
     if (waChannelId != null) {
@@ -101,7 +114,11 @@ router.post("/", async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Canal de envio inválido" });
       }
       const [channel] = await db
-        .select({ id: whatsappChannels.id })
+        .select({
+          id: whatsappChannels.id,
+          provider: whatsappChannels.provider,
+          connectionStatus: whatsappChannels.connectionStatus,
+        })
         .from(whatsappChannels)
         .where(
           and(
@@ -116,11 +133,38 @@ router.post("/", async (req: Request, res: Response) => {
           message: "O canal de envio selecionado não existe ou está inativo",
         });
       }
+
+      if (!userId) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      if (req.user?.role === "vendedor") {
+        const accessibleChannelIds = await listChannelIdsForUser(userId);
+        if (!accessibleChannelIds.includes(channel.id)) {
+          return res.status(403).json({
+            message: "Você não possui acesso ao canal de envio selecionado",
+          });
+        }
+      }
+      const resolvedChannel = await resolveChannelById(channel.id);
+      if (
+        !resolvedChannel ||
+        (channel.provider === "evolution" &&
+          channel.connectionStatus !== "connected")
+      ) {
+        return res.status(400).json({
+          message: "O canal de envio selecionado não está conectado ou configurado",
+        });
+      }
+      if (hasTemplate && resolvedChannel.provider !== "cloud_api") {
+        return res.status(400).json({
+          message: "Campanhas com template exigem um canal Cloud API",
+        });
+      }
       resolvedWaChannelId = channel.id;
     }
-    if (waBotId && resolvedWaChannelId == null) {
+    if (waEnabled && resolvedWaChannelId == null) {
       return res.status(400).json({
-        message: "Selecione o canal que será usado para enviar a campanha do bot",
+        message: "Selecione o canal que será usado para enviar a campanha",
       });
     }
 
@@ -254,6 +298,45 @@ router.put("/:id", async (req: Request, res: Response) => {
 });
 
 // ─── Excluir campanha ─────────────────────────────────────────────────────────
+
+router.delete("/:id/incomplete", async (req: Request, res: Response) => {
+  try {
+    const [campaign] = await db
+      .select({ id: campaigns.id, createdBy: campaigns.createdBy })
+      .from(campaigns)
+      .where(and(eq(campaigns.id, req.params.id), isNull(campaigns.deletedAt)))
+      .limit(1);
+    if (!campaign) {
+      return res.status(404).json({ message: "Campanha não encontrada" });
+    }
+    if (
+      req.user?.role === "vendedor" &&
+      campaign.createdBy !== req.user.userId
+    ) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+
+    const [dispatch] = await db
+      .select({ id: whatsappCampaigns.id })
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.id, campaign.id))
+      .limit(1);
+    if (dispatch) {
+      return res.status(409).json({
+        message: "A campanha já foi enfileirada e não pode ser removida como incompleta",
+      });
+    }
+
+    await db
+      .update(campaigns)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(eq(campaigns.id, campaign.id));
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("[DELETE /api/campaigns/:id/incomplete] Erro:", error);
+    return res.status(500).json({ message: "Erro ao remover campanha incompleta" });
+  }
+});
 
 router.delete("/:id", async (req: Request, res: Response) => {
   try {

@@ -221,7 +221,7 @@ export async function listActiveChannels(): Promise<{ id: number; name: string; 
   return db
     .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider })
     .from(whatsappChannels)
-    .where(eq(whatsappChannels.isActive, true))
+    .where(and(eq(whatsappChannels.isActive, true), isNull(whatsappChannels.deletedAt)))
     .orderBy(whatsappChannels.createdAt);
 }
 
@@ -238,7 +238,13 @@ export async function listAccessibleChannelsForUser(
   return db
     .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider, userId: whatsappChannels.userId })
     .from(whatsappChannels)
-    .where(and(inArray(whatsappChannels.id, ids), eq(whatsappChannels.isActive, true)))
+    .where(
+      and(
+        inArray(whatsappChannels.id, ids),
+        eq(whatsappChannels.isActive, true),
+        isNull(whatsappChannels.deletedAt),
+      ),
+    )
     .orderBy(whatsappChannels.createdAt);
 }
 

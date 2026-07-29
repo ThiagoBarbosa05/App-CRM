@@ -10,6 +10,7 @@ import {
   deleteChannel,
   updateConnectionStatus,
   canUserReadChannelQr,
+  resolveChannelById,
 } from "../services/whatsapp-channels.service";
 import {
   listWabaPhoneNumbers,
@@ -31,6 +32,42 @@ const router = Router();
 router.get("/channels", async (_req: Request, res: Response) => {
   const channels = await listChannels();
   res.json(channels);
+});
+
+// Canais que podem efetivamente originar uma campanha. Diferente de /mine,
+// esta lista exclui configurações incompletas e instâncias QR desconectadas.
+router.get("/channels/campaign", async (req: Request, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user?.userId) {
+      return res.status(401).json({ message: "Não autenticado" });
+    }
+
+    const visibleChannels =
+      user.role === "vendedor"
+        ? await listAccessibleChannelsForUser(user.userId)
+        : await listActiveChannels();
+    const resolvedChannels = await Promise.all(
+      visibleChannels.map(async (channel) => ({
+        channel,
+        resolved: await resolveChannelById(channel.id).catch(() => null),
+      })),
+    );
+
+    return res.json(
+      resolvedChannels
+        .filter(
+          ({ channel, resolved }) =>
+            resolved !== null &&
+            (channel.provider !== "evolution" ||
+              channel.connectionStatus === "connected"),
+        )
+        .map(({ channel }) => channel),
+    );
+  } catch (error) {
+    console.error("[GET /whatsapp/channels/campaign] Erro ao buscar canais:", error);
+    return res.status(500).json({ message: "Erro ao buscar canais disponíveis" });
+  }
 });
 
 // Deve ficar antes de /channels/:id para não ser capturado como id

@@ -1705,6 +1705,13 @@ export async function getConversation(
   const ownerChannels = alias(whatsappChannels, "owner_channels");
   const ownerChannelUsers = alias(users, "owner_channel_users");
   const peerChannelUsers = alias(users, "peer_channel_users");
+  const lastInboundAt = sql<Date | null>`(
+    SELECT MAX(COALESCE(inbound_message.sent_at, inbound_message.created_at))
+    FROM whatsapp_messages inbound_message
+    WHERE inbound_message.conversation_id = ${whatsappConversations.id}
+      AND inbound_message.direction = 'inbound'
+      AND inbound_message.type NOT IN ('system', 'note')
+  )`.mapWith(whatsappMessages.sentAt);
 
   const [convRow] = await db
     .select({
@@ -1713,6 +1720,7 @@ export async function getConversation(
       phone: whatsappConversations.phone,
       contactName: whatsappConversations.contactName,
       contactPhotoUrl: whatsappConversations.contactPhotoUrl,
+      lastInboundAt,
       channelId: whatsappConversations.channelId,
       channelName: ownerChannels.name,
       channelUserName: ownerChannelUsers.name,
