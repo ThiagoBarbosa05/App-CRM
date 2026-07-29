@@ -36,6 +36,7 @@ import {
   reopenConversation,
   isConversationAccessibleToUser,
   isClientAccessibleToUser,
+  resolveOutboundChannelForSender,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
@@ -709,7 +710,7 @@ router.delete("/quick-replies/:id", async (req, res) => {
 
 const triggerBotSchema = z.object({
   botId: z.string().min(1),
-  channelId: z.number().int().positive().optional(),
+  channelId: z.number().int().positive(),
 });
 
 router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
@@ -726,16 +727,30 @@ router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
     const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role);
     if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
 
-    const phone = await getConversationPhone(conversationId);
-    if (!phone) return res.status(404).json({ message: "Telefone da conversa não encontrado" });
+    const sender = await resolveOutboundChannelForSender(
+      conversationId,
+      user.userId,
+      parsed.data.channelId,
+    );
+    if (!sender || sender.channelId !== parsed.data.channelId) {
+      return res.status(400).json({
+        message: "O canal informado não corresponde ao canal da conversa atual",
+      });
+    }
 
     const result = await startBotSession(
       parsed.data.botId,
-      phone,
+      sender.targetPhone,
       undefined,
       undefined,
       parsed.data.channelId,
       user.userId,
+      {
+        source: "manual",
+        conversationId,
+        channelId: parsed.data.channelId,
+        triggeredByUserId: user.userId,
+      },
     );
 
     if (result.status === "no_start_node") {

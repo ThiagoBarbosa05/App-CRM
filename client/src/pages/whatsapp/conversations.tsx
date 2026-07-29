@@ -3205,9 +3205,9 @@ function ConversationMessages({
     .filter((b): b is WhatsappBot & { icon: keyof typeof BOT_SHORTCUT_ICONS } => !!b);
 
   const handleTriggerBot = async (botId: string) => {
-    if (!canSendMessages) {
+    if (!canSendMessages || sendAsChannelId == null) {
       toast({
-        title: "Selecione um canal conectado para disparar bots",
+        title: "A conversa atual não possui um canal conectado para disparar bots",
         variant: "destructive",
       });
       return;
@@ -3215,13 +3215,9 @@ function ConversationMessages({
     setTriggeringBotId(botId);
     setBotPickerOpen(false);
     try {
-      const body: { botId: string; channelId?: number } = { botId };
-      if (
-        (userRole === "admin" || userRole === "gerente") &&
-        selectedChannelId != null
-      ) {
-        body.channelId = selectedChannelId;
-      }
+      // O disparo manual sempre herda o canal efetivo da conversa atual. Em
+      // diálogos internos, sendAsChannelId representa a perspectiva aberta.
+      const body = { botId, channelId: sendAsChannelId };
       const res = await fetch(
         `/api/whatsapp/conversations/${conversationKey}/trigger-bot`,
         {

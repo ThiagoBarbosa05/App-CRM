@@ -33,6 +33,7 @@ import {
   type TransferAgentNodeData,
   type TransferSectorNodeData,
   type TriggerFlowNodeData,
+  type StartChannelNodeData,
   users,
 } from "@shared/schema";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
@@ -51,6 +52,28 @@ import { getAutomaticBotForChannel } from "./whatsapp-bot.service";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
 const SESSION_TIMEOUT_MINUTES = 30;
+
+export type StartBotContext =
+  | {
+      source: "manual";
+      conversationId: string;
+      channelId: number;
+      triggeredByUserId: string;
+    }
+  | {
+      source: "external";
+      channelId: number;
+      campaignId?: string;
+    };
+
+export function nodeAllowsExternalChannel(
+  node: { type: string; data: unknown },
+  channelId: number,
+): boolean {
+  if (node.type !== "start_channel") return false;
+  const channelIds = (node.data as StartChannelNodeData).channelIds ?? [];
+  return channelIds.includes(channelId);
+}
 
 /**
  * Verifica se o contato está dentro da janela de atendimento de 24h da Meta —
@@ -1036,7 +1059,22 @@ async function executeNode(
       const d = data as TriggerFlowNodeData;
       await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "handed_off_to_bot" });
       if (d.targetBotId) {
-        await startBotSession(d.targetBotId, phone, d.targetNodeId);
+        const sourceChannelId = await botSessionChannelId(sessionId);
+        if (!sourceChannelId) {
+          throw new Error("Não foi possível determinar o canal da sessão ao encaminhar para outro bot");
+        }
+        await startBotSession(
+          d.targetBotId,
+          phone,
+          d.targetNodeId,
+          undefined,
+          sourceChannelId,
+          undefined,
+          {
+            source: "external",
+            channelId: sourceChannelId,
+          },
+        );
       }
       break;
     }
@@ -1482,6 +1520,7 @@ export async function startBotSession(
   campaignId?: string,
   channelId?: number,
   triggeredByUserId?: string,
+  context?: StartBotContext,
 ): Promise<{
   status: "started" | "already_active" | "no_start_node" | "opted_out";
   lastMessageId: string | null;
@@ -1491,9 +1530,35 @@ export async function startBotSession(
 }> {
   let entryNode: WhatsappBotNode | null = null;
 
+  const effectiveChannelId = context?.channelId ?? channelId;
+  const effectiveCampaignId =
+    context?.source === "external" ? (context.campaignId ?? campaignId) : campaignId;
+  const effectiveTriggeredByUserId =
+    context?.source === "manual" ? context.triggeredByUserId : triggeredByUserId;
+
   if (startNodeId) {
     entryNode = await getNode(startNodeId);
     if (entryNode?.botId !== botId) entryNode = null;
+    if (
+      entryNode &&
+      context?.source === "external" &&
+      entryNode.type === "start_channel" &&
+      !nodeAllowsExternalChannel(entryNode, context.channelId)
+    ) {
+      entryNode = null;
+    }
+  } else if (context?.source === "external") {
+    const rows = await db
+      .select()
+      .from(whatsappBotNodes)
+      .where(
+        and(
+          eq(whatsappBotNodes.botId, botId),
+          eq(whatsappBotNodes.type, "start_channel"),
+        ),
+      );
+    entryNode =
+      rows.find((node) => nodeAllowsExternalChannel(node, context.channelId)) ?? null;
   } else {
     const [found] = await db
       .select()
@@ -1559,7 +1624,7 @@ export async function startBotSession(
         currentNodeId: entryNode.id,
         status: "active",
         sessionData: clientVars,
-        campaignId: campaignId ?? null,
+        campaignId: effectiveCampaignId ?? null,
       })
       .returning();
   } catch (err) {
@@ -1574,12 +1639,37 @@ export async function startBotSession(
   try {
     // Canal explícito do disparo (override do admin) escopa a busca da
     // conversa; sem ele, cai na conversa existente deste telefone.
-    const conversation = await findOrCreateConversation(phone, channelId ?? undefined);
-    const resolvedChannel = await resolveBotTriggerChannel(conversation.id, channelId, triggeredByUserId);
+    const conversation =
+      context?.source === "manual"
+        ? (
+            await db
+              .select()
+              .from(whatsappConversations)
+              .where(eq(whatsappConversations.id, context.conversationId))
+              .limit(1)
+          )[0]
+        : await findOrCreateConversation(phone, effectiveChannelId ?? undefined);
+    if (!conversation) throw new Error("CONVERSATION_NOT_FOUND");
+    // No disparo manual, a rota já validou a perspectiva da conversa. Resolver
+    // diretamente pelo snapshot evita que diálogos internos sejam reduzidos ao
+    // canal "dono" da linha canônica. Origens externas continuam usando a
+    // resolução isolada da conversa contato + canal.
+    const resolvedChannel =
+      context?.source === "manual"
+        ? await resolveChannelById(context.channelId).catch(() => null)
+        : await resolveBotTriggerChannel(
+            conversation.id,
+            effectiveChannelId,
+            effectiveTriggeredByUserId,
+          );
     sessionChannelId = resolvedChannel?.id ?? null;
+    if (effectiveChannelId != null && sessionChannelId !== effectiveChannelId) {
+      throw new Error("BOT_CHANNEL_MISMATCH");
+    }
     await updateSession(newSession.id, { channelId: sessionChannelId });
     await db.insert(whatsappMessages).values({
       conversationId: conversation.id,
+      channelId: sessionChannelId,
       direction: "outbound",
       type: "system",
       content: `🤖 Chatbot "${botName}" iniciado`,
@@ -1593,6 +1683,8 @@ export async function startBotSession(
     publishConversationEvent(conversation.id, "new_message", { clientId: conversation.clientId ?? null });
   } catch (err) {
     console.error("[WaBot] Erro ao registrar início do bot:", err);
+    await markSessionFailed(newSession.id, err);
+    throw err;
   }
 
   try {
@@ -1659,6 +1751,11 @@ export async function handleInboundBotMessage(params: {
         automaticBot.startNodeId,
         undefined,
         params.channelId,
+        undefined,
+        {
+          source: "external",
+          channelId: params.channelId,
+        },
       );
       // A mensagem que abriu/reabriu a conversa é o gatilho. Ela nunca deve ser
       // consumida como resposta do primeiro nó interativo criado nesta execução.

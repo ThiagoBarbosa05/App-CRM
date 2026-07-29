@@ -216,13 +216,22 @@ export async function executeCampaign(
         continue;
       }
       try {
+        if (!campaign.waChannelId) {
+          throw new Error("Campanha de bot sem canal de WhatsApp configurado");
+        }
         const { status, lastMessageId, channelId: botChannelId } =
           await startBotSession(
             campaign.waBotId,
             phoneE164,
             undefined,
             campaignId,
-            campaign.waChannelId ?? undefined,
+            campaign.waChannelId,
+            undefined,
+            {
+              source: "external",
+              channelId: campaign.waChannelId,
+              campaignId,
+            },
           );
 
         if (status === "opted_out") {
