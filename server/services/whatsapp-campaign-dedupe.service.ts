@@ -174,7 +174,46 @@ export async function findConflict(
         eq(whatsappCampaignImpacts.phoneNormalized, phoneNormalized),
         eq(whatsappCampaignImpacts.contentFingerprint, contentFingerprint),
         inArray(whatsappCampaignImpacts.status, ["reserved", "sent"]),
-        sql`abs(extract(epoch from (${whatsappCampaignImpacts.scheduledFor} - ${scheduledFor}))) < ${windowHours * 3600}`,
+        sql`(
+          (
+            ${whatsappCampaignImpacts.status} = 'sent'
+            AND ${scheduledFor} >= COALESCE(
+              ${whatsappCampaignImpacts.sentAt},
+              ${whatsappCampaignImpacts.scheduledFor}
+            )
+            AND EXTRACT(
+              EPOCH FROM (
+                ${scheduledFor} - COALESCE(
+                  ${whatsappCampaignImpacts.sentAt},
+                  ${whatsappCampaignImpacts.scheduledFor}
+                )
+              )
+            ) < ${windowHours * 3600}
+          )
+          OR
+          (
+            ${whatsappCampaignImpacts.status} = 'reserved'
+            AND (
+              (
+                ${whatsappCampaignImpacts.scheduledFor} > NOW()
+                AND ABS(
+                  EXTRACT(
+                    EPOCH FROM (
+                      ${whatsappCampaignImpacts.scheduledFor} - ${scheduledFor}
+                    )
+                  )
+                ) < ${windowHours * 3600}
+              )
+              OR
+              (
+                ${whatsappCampaignImpacts.scheduledFor} <= NOW()
+                AND EXTRACT(
+                  EPOCH FROM (GREATEST(${scheduledFor}, NOW()) - NOW())
+                ) < ${windowHours * 3600}
+              )
+            )
+          )
+        )`,
       ),
     )
     .limit(1);

@@ -203,7 +203,12 @@ export async function executeCampaign(
 
     for (const msg of pendingMessages) {
       if (!msg.phoneNumber) {
-        skipped++;
+        await db
+          .update(whatsappCampaignMessages)
+          .set({ status: "failed", errorMessage: "Telefone ausente", updatedAt: new Date() })
+          .where(eq(whatsappCampaignMessages.id, msg.id));
+        await releaseImpact(msg.id);
+        failed++;
         continue;
       }
       const phoneE164 = normalizePhoneE164(msg.phoneNumber);
@@ -212,6 +217,7 @@ export async function executeCampaign(
           .update(whatsappCampaignMessages)
           .set({ status: "failed", errorMessage: "Telefone inválido", updatedAt: new Date() })
           .where(eq(whatsappCampaignMessages.id, msg.id));
+        await releaseImpact(msg.id);
         failed++;
         continue;
       }
@@ -243,6 +249,7 @@ export async function executeCampaign(
               updatedAt: new Date(),
             })
             .where(eq(whatsappCampaignMessages.id, msg.id));
+          await releaseImpact(msg.id, true);
           skipped++;
           console.log(`[WaCampaign] Bot ⊘ ${msg.contactName} (${msg.phoneNumber}): opt-out`);
           if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
@@ -258,6 +265,7 @@ export async function executeCampaign(
             .update(whatsappCampaignMessages)
             .set({ status: "failed", errorMessage, updatedAt: new Date() })
             .where(eq(whatsappCampaignMessages.id, msg.id));
+          await releaseImpact(msg.id);
           failed++;
           console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${msg.phoneNumber}): ${errorMessage}`);
           if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
@@ -309,8 +317,13 @@ export async function executeCampaign(
 
     for (const msg of pendingMessages) {
       if (!msg.phoneNumber) {
+        await db
+          .update(whatsappCampaignMessages)
+          .set({ status: "failed", errorMessage: "Telefone ausente", updatedAt: new Date() })
+          .where(eq(whatsappCampaignMessages.id, msg.id));
+        await releaseImpact(msg.id);
         console.warn(`[WaCampaign] Mensagem ${msg.id} sem phoneNumber — pulando`);
-        skipped++;
+        failed++;
         continue;
       }
       const phoneE164 = normalizePhoneE164(msg.phoneNumber);
@@ -319,6 +332,7 @@ export async function executeCampaign(
           .update(whatsappCampaignMessages)
           .set({ status: "failed", errorMessage: "Telefone inválido", updatedAt: new Date() })
           .where(eq(whatsappCampaignMessages.id, msg.id));
+        await releaseImpact(msg.id);
         failed++;
         continue;
       }

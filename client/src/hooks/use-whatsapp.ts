@@ -529,6 +529,11 @@ export function useCreateCampaignWithDispatch() {
             cleanupError,
           );
         }
+        if (error instanceof Error && error.message.startsWith("409:")) {
+          throw new Error(
+            "Todos os contatos selecionados já receberam esta mensagem recentemente. Nenhuma mensagem foi enviada.",
+          );
+        }
         throw error;
       }
     },
