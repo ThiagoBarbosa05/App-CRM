@@ -368,19 +368,40 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
                   <span className="text-2xl font-bold leading-none">
                     {table.number}
                   </span>
-                  <span className="mt-0.5 text-xs font-medium opacity-70">
+                  <span
+                    className={cn(
+                      "mt-0.5 text-xs font-medium",
+                      isAguardando
+                        ? "text-blue-700 dark:text-blue-300"
+                        : "text-orange-700 dark:text-orange-300",
+                    )}
+                  >
                     Mesa
                   </span>
 
                   <div className="mt-3 space-y-1">
                     {table.peopleCount != null && (
-                      <div className="flex items-center gap-1 text-xs opacity-80">
+                      <div
+                        className={cn(
+                          "flex items-center gap-1 text-xs",
+                          isAguardando
+                            ? "text-blue-700 dark:text-blue-300"
+                            : "text-orange-700 dark:text-orange-300",
+                        )}
+                      >
                         <Users className="h-3 w-3" />
                         {table.peopleCount} pessoa(s)
                       </div>
                     )}
                     {table.openedAt && (
-                      <div className="flex items-center gap-1 text-xs opacity-70">
+                      <div
+                        className={cn(
+                          "flex items-center gap-1 text-xs",
+                          isAguardando
+                            ? "text-blue-700 dark:text-blue-300"
+                            : "text-orange-700 dark:text-orange-300",
+                        )}
+                      >
                         <Clock className="h-3 w-3" />
                         {elapsedLabel(table.openedAt)}
                       </div>
