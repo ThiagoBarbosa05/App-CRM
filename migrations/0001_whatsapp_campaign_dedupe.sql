@@ -16,12 +16,30 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM pg_constraint
-    WHERE conname = 'whatsapp_campaign_messages_status_check'
+    WHERE conname IN (
+      'whatsapp_campaign_messages_status_check',
+      'umbler_campaign_messages_status_check'
+    )
   ) THEN
     ALTER TABLE "whatsapp_campaign_messages"
-      DROP CONSTRAINT "whatsapp_campaign_messages_status_check";
+      DROP CONSTRAINT IF EXISTS "whatsapp_campaign_messages_status_check",
+      DROP CONSTRAINT IF EXISTS "umbler_campaign_messages_status_check";
   END IF;
 END $$;
+
+ALTER TABLE "whatsapp_campaign_messages"
+  ADD CONSTRAINT "whatsapp_campaign_messages_status_check"
+  CHECK (
+    "status" IN (
+      'scheduled',
+      'sent',
+      'delivered',
+      'read',
+      'failed',
+      'cancelled',
+      'suppressed'
+    )
+  );
 
 CREATE TABLE IF NOT EXISTS "whatsapp_campaign_impacts" (
   "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
