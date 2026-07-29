@@ -273,7 +273,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   });
 
   return (
-    <div className="w-full space-y-6 p-4">
+    <div className="w-full space-y-5 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-6">
       <PageHeader>
         <PageHeader.Info>
           <PageHeader.Icon
@@ -327,12 +327,20 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
             </p>
           </div>
           {isGestor && (
-            <Button size="sm" onClick={() => navigate("/pdv-restaurante/caixa")}>
+            <Button
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => navigate("/pdv-restaurante/caixa")}
+            >
               Abrir caixa
             </Button>
           )}
           {isGarcom && (
-            <Button size="sm" onClick={() => setOpenCashOpen(true)}>
+            <Button
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => setOpenCashOpen(true)}
+            >
               <Wallet className="mr-1.5 h-4 w-4" />
               Abrir caixa
             </Button>
@@ -343,7 +351,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Carregando mesas...</p>
       ) : tables.length === 0 ? null : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3 sm:gap-4">
           {tables.map((table) => {
             const isAguardando = table.status === "aguardando_pagamento";
             return (
