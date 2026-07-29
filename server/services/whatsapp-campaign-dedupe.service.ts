@@ -14,7 +14,10 @@ import {
   type WhatsappBotNode,
 } from "@shared/schema";
 import { db, type DbExecutor } from "../db";
-import { buildClientVariables } from "./whatsapp-bot-engine.service";
+import {
+  buildClientVariables,
+  selectCampaignEntryNode,
+} from "./whatsapp-bot-engine.service";
 
 export const DEFAULT_DEDUPE_WINDOW_HOURS = 24;
 export const MAX_DEDUPE_WINDOW_HOURS = 24 * 365;
@@ -91,14 +94,16 @@ function outboundNodePayload(node: WhatsappBotNode): unknown | null {
   return null;
 }
 
-async function resolveBotOpening(botId: string): Promise<unknown> {
+async function resolveBotOpening(
+  botId: string,
+): Promise<unknown> {
   const [nodes, edges] = await Promise.all([
     db.select().from(whatsappBotNodes).where(eq(whatsappBotNodes.botId, botId)),
     db.select().from(whatsappBotEdges).where(eq(whatsappBotEdges.botId, botId)),
   ]);
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const startNodes = nodes.filter((node) => node.type === "start");
-  const queue = startNodes.map((node) => node.id);
+  const entryNode = selectCampaignEntryNode(nodes, edges);
+  const queue = entryNode ? [entryNode.id] : [];
   const visited = new Set<string>();
   const openings: unknown[] = [];
 
@@ -124,7 +129,10 @@ async function resolveBotOpening(botId: string): Promise<unknown> {
 
 export async function buildCampaignContentSnapshot(campaign: Campaign): Promise<string> {
   if (campaign.waBotId) {
-    return JSON.stringify(canonicalize({ kind: "bot", opening: await resolveBotOpening(campaign.waBotId) }));
+    return JSON.stringify(canonicalize({
+      kind: "bot",
+      opening: await resolveBotOpening(campaign.waBotId),
+    }));
   }
   if (campaign.waTemplateId) {
     const [template] = await db

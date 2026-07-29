@@ -234,7 +234,7 @@ export async function executeCampaign(
             campaign.waChannelId,
             undefined,
             {
-              source: "external",
+              source: "campaign",
               channelId: campaign.waChannelId,
               campaignId,
             },

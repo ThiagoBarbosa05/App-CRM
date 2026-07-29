@@ -64,6 +64,11 @@ export type StartBotContext =
       source: "external";
       channelId: number;
       campaignId?: string;
+    }
+  | {
+      source: "campaign";
+      channelId: number;
+      campaignId: string;
     };
 
 export function nodeAllowsExternalChannel(
@@ -73,6 +78,27 @@ export function nodeAllowsExternalChannel(
   if (node.type !== "start_channel") return false;
   const channelIds = (node.data as StartChannelNodeData).channelIds ?? [];
   return channelIds.includes(channelId);
+}
+
+export function selectCampaignEntryNode(
+  nodes: WhatsappBotNode[],
+  edges: Array<{ targetNodeId: string }>,
+): WhatsappBotNode | null {
+  const explicitEntry =
+    nodes.find((node) => node.type === "start_manual" || node.type === "start") ??
+    nodes.find((node) => node.type === "start_channel");
+  if (explicitEntry) return explicitEntry;
+
+  const nodesWithIncomingEdge = new Set(edges.map((edge) => edge.targetNodeId));
+  const rootNodes = nodes
+    .filter((node) => !nodesWithIncomingEdge.has(node.id))
+    .sort(
+      (a, b) =>
+        a.positionX - b.positionX ||
+        a.positionY - b.positionY ||
+        a.id.localeCompare(b.id),
+    );
+  return rootNodes[0] ?? null;
 }
 
 /**
@@ -1532,7 +1558,9 @@ export async function startBotSession(
 
   const effectiveChannelId = context?.channelId ?? channelId;
   const effectiveCampaignId =
-    context?.source === "external" ? (context.campaignId ?? campaignId) : campaignId;
+    context?.source === "external" || context?.source === "campaign"
+      ? (context.campaignId ?? campaignId)
+      : campaignId;
   const effectiveTriggeredByUserId =
     context?.source === "manual" ? context.triggeredByUserId : triggeredByUserId;
 
@@ -1559,6 +1587,12 @@ export async function startBotSession(
       );
     entryNode =
       rows.find((node) => nodeAllowsExternalChannel(node, context.channelId)) ?? null;
+  } else if (context?.source === "campaign") {
+    const [nodes, edges] = await Promise.all([
+      db.select().from(whatsappBotNodes).where(eq(whatsappBotNodes.botId, botId)),
+      db.select().from(whatsappBotEdges).where(eq(whatsappBotEdges.botId, botId)),
+    ]);
+    entryNode = selectCampaignEntryNode(nodes, edges);
   } else {
     const [found] = await db
       .select()
