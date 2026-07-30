@@ -1958,7 +1958,10 @@ export async function sendConversationMessage(
         resolvedChannel.evolutionInstanceName,
         resolved.targetPhone,
         message,
-        { quotedMsgId: replyToWaMessageId ?? undefined },
+        {
+          quotedMsgId: replyToWaMessageId ?? undefined,
+          idempotencyKey: `message-${savedMessage.id}`,
+        },
       );
       waMessageId = evoResult?.key?.id ?? null;
     } else {
@@ -2360,6 +2363,21 @@ export async function sendConversationMedia(
 
   let waMessageId: string | null = null;
   let waMediaId: string | null = null;
+  const [savedMessage] = await db
+    .insert(whatsappMessages)
+    .values({
+      conversationId,
+      channelId: resolved.channelId,
+      direction: resolved.direction,
+      type: mediaType,
+      content: null,
+      caption: caption ?? null,
+      status: "failed",
+      sentByUserId: userId,
+      sentAt: new Date(),
+      replyToMessageId: replyToMessageId ?? null,
+    })
+    .returning({ id: whatsappMessages.id });
 
   if (resolvedChannel?.provider === "evolution") {
     const evoMediaType = mediaType === "sticker" ? "image" : mediaType;
@@ -2370,7 +2388,13 @@ export async function sendConversationMedia(
         resolvedChannel.evolutionInstanceName,
         resolved.targetPhone,
         evoMediaType,
-        { base64: `data:${effectiveMime};base64,${base64}`, caption, filename: effectiveName, mimetype: effectiveMime },
+        {
+          base64: `data:${effectiveMime};base64,${base64}`,
+          caption,
+          filename: effectiveName,
+          mimetype: effectiveMime,
+          idempotencyKey: `message-${savedMessage.id}`,
+        },
       );
       waMessageId = evoResult?.key?.id ?? null;
     } catch (err) {
@@ -2399,22 +2423,10 @@ export async function sendConversationMedia(
     }
   }
 
-  const [savedMessage] = await db
-    .insert(whatsappMessages)
-    .values({
-      conversationId,
-      channelId: resolved.channelId,
-      direction: resolved.direction,
-      type: mediaType,
-      content: null,
-      caption: caption ?? null,
-      status: "sent",
-      waMessageId,
-      sentByUserId: userId,
-      sentAt: new Date(),
-      replyToMessageId: replyToMessageId ?? null,
-    })
-    .returning({ id: whatsappMessages.id });
+  await db
+    .update(whatsappMessages)
+    .set({ status: "sent", waMessageId })
+    .where(eq(whatsappMessages.id, savedMessage.id));
 
   // Guardamos uma cópia própria no R2 no momento do envio: canais Evolution/Baileys
   // nunca retornam um handle de mídia reutilizável (o buffer seria perdido depois do
@@ -2613,7 +2625,12 @@ export async function retryFailedMessage(
       if (!msg.content) throw new Error("Conteúdo da mensagem ausente para reenvio");
       console.log(`[retryFailedMessage] reenvio texto content="${msg.content}"`);
       if (resolvedChannel.provider === "evolution") {
-        const evoResult = await evoSendText(resolvedChannel.evolutionInstanceName, resolved.targetPhone, msg.content);
+        const evoResult = await evoSendText(
+          resolvedChannel.evolutionInstanceName,
+          resolved.targetPhone,
+          msg.content,
+          { idempotencyKey: `message-${messageId}` },
+        );
         result = { messages: [{ id: evoResult?.key?.id ?? null }] };
       } else {
         result = await sendTextMessage(resolved.targetPhone, msg.content, cloudOverride);

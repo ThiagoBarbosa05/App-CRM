@@ -54,6 +54,7 @@ export async function listChannels() {
       createdAt: whatsappChannels.createdAt,
       provider: whatsappChannels.provider,
       evolutionInstanceName: whatsappChannels.evolutionInstanceName,
+      qrBackend: whatsappChannels.qrBackend,
       connectionStatus: whatsappChannels.connectionStatus,
       defaultSectorId: whatsappChannels.defaultSectorId,
     })
@@ -209,17 +210,17 @@ export async function getChannelByUserId(userId: string): Promise<ChannelOverrid
   return { phoneNumberId: row.phoneNumberId, accessToken: decryptToken(row.accessTokenEncrypted) };
 }
 
-export async function listChannelsByUserId(userId: string): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string }[]> {
+export async function listChannelsByUserId(userId: string) {
   return db
-    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider, evolutionInstanceName: whatsappChannels.evolutionInstanceName, qrBackend: whatsappChannels.qrBackend, userId: whatsappChannels.userId, isActive: whatsappChannels.isActive, defaultSectorId: whatsappChannels.defaultSectorId, createdAt: whatsappChannels.createdAt })
     .from(whatsappChannels)
     .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true)))
     .orderBy(whatsappChannels.createdAt);
 }
 
-export async function listActiveChannels(): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string }[]> {
+export async function listActiveChannels() {
   return db
-    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider, evolutionInstanceName: whatsappChannels.evolutionInstanceName, qrBackend: whatsappChannels.qrBackend, userId: whatsappChannels.userId, isActive: whatsappChannels.isActive, defaultSectorId: whatsappChannels.defaultSectorId, createdAt: whatsappChannels.createdAt })
     .from(whatsappChannels)
     .where(and(eq(whatsappChannels.isActive, true), isNull(whatsappChannels.deletedAt)))
     .orderBy(whatsappChannels.createdAt);
@@ -232,11 +233,11 @@ export async function listActiveChannels(): Promise<{ id: number; name: string; 
  */
 export async function listAccessibleChannelsForUser(
   userId: string,
-): Promise<{ id: number; name: string; displayPhone: string | null; connectionStatus: string | null; provider: string; userId: string | null }[]> {
+) {
   const ids = await listChannelIdsForUser(userId);
   if (ids.length === 0) return [];
   return db
-    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider, userId: whatsappChannels.userId })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, provider: whatsappChannels.provider, userId: whatsappChannels.userId, evolutionInstanceName: whatsappChannels.evolutionInstanceName, qrBackend: whatsappChannels.qrBackend, isActive: whatsappChannels.isActive, defaultSectorId: whatsappChannels.defaultSectorId, createdAt: whatsappChannels.createdAt })
     .from(whatsappChannels)
     .where(
       and(

@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import QRCode from "qrcode";
+import { fetchEvolutionQr } from "@/hooks/use-whatsapp";
 
 const EVENT_TYPE_LABEL: Record<string, string> = {
   connected: "Conectado",
@@ -54,7 +56,7 @@ function ConnectionHistory({ channelId }: { channelId: number }) {
 // Tempo máximo aguardando o QR (ou a conexão) antes de destravar a UI e deixar
 // o usuário tentar de novo. Deve ser maior que o timeout do backend (30s em
 // waitForQr) para dar margem a retries de lock entre réplicas do Autoscale.
-const CONNECT_TIMEOUT_MS = 35_000;
+const CONNECT_TIMEOUT_MS = 60_000;
 
 interface Props {
   channel: WhatsappChannel;
@@ -79,6 +81,7 @@ export const STATUS_COLOR: Record<string, string> = {
 
 export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
   const [qrBase64, setQrBase64] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>(channel.connectionStatus ?? "disconnected");
   const [disconnectReason, setDisconnectReason] = useState<string | null>(null);
   const connect = useEvolutionConnect();
@@ -134,6 +137,19 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
         clearConnectTimeout();
         setQrBase64(result.base64);
         setStatus("qr");
+      } else if (result.code) {
+        clearConnectTimeout();
+        setQrCode(result.code);
+        setStatus("qr");
+      } else if (
+        result.connectionStatus === "failed" ||
+        result.connectionStatus === "disconnected"
+      ) {
+        clearConnectTimeout();
+        setStatus("disconnected");
+        setDisconnectReason(
+          result.lastError ?? "O gateway não conseguiu iniciar a sessão.",
+        );
       }
       // Sem base64: mantém "connecting" até o timeout acima ou um evento SSE
       // (evolution_qr_updated / evolution_connection_update) resolver o estado.
@@ -142,6 +158,78 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       setStatus("disconnected");
     }
   }, [connect, channel.id, clearConnectTimeout, toast]);
+
+  // O webhook/SSE é o caminho rápido. O polling é uma contingência limitada à
+  // janela em que o diálogo está aguardando QR/conexão.
+  useEffect(() => {
+    if (
+      channel.qrBackend !== "gateway" ||
+      (status !== "connecting" && status !== "qr")
+    ) {
+      return;
+    }
+    const startedAt = Date.now();
+    let cancelled = false;
+    const poll = async () => {
+      if (cancelled || Date.now() - startedAt >= CONNECT_TIMEOUT_MS) return;
+      try {
+        const result = await fetchEvolutionQr(channel.id);
+        if (cancelled) return;
+        if (result.connectionStatus === "connected" || result.observedState === "connected") {
+          clearConnectTimeout();
+          setStatus("connected");
+          setQrBase64(null);
+          setQrCode(null);
+          queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
+          return;
+        }
+        if (result.base64 || result.code) {
+          setQrBase64(result.base64 ?? null);
+          setQrCode(result.code || null);
+          setStatus("qr");
+        } else if (
+          result.observedState === "failed" ||
+          result.connectionStatus === "failed" ||
+          result.errorCode === "SESSION_INVALID"
+        ) {
+          clearConnectTimeout();
+          setStatus("disconnected");
+          setDisconnectReason(
+            result.lastError ?? "O gateway não conseguiu abrir a sessão.",
+          );
+          toast({
+            title: "Gateway não conseguiu abrir a sessão",
+            description:
+              result.lastError ??
+              "A conexão não iniciou e nenhum QR foi gerado.",
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch {
+        // SSE pode continuar funcionando; a próxima rodada tenta novamente.
+      }
+      if (!cancelled) window.setTimeout(poll, 2_500);
+    };
+    const timer = window.setTimeout(poll, 2_500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [channel.id, channel.qrBackend, status, clearConnectTimeout, queryClient, toast]);
+
+  useEffect(() => {
+    if (!qrCode || qrBase64) return;
+    let cancelled = false;
+    QRCode.toDataURL(qrCode, { width: 300 })
+      .then((dataUrl) => {
+        if (!cancelled) setQrBase64(dataUrl);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [qrCode, qrBase64]);
 
   // NÃO reconectamos automaticamente ao montar. Gerar QR chama forceRestart no
   // backend (apaga credenciais Signal), então abrir o CRM em outro dispositivo
@@ -178,6 +266,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       if (data.instanceName !== channel.evolutionInstanceName) return;
       clearConnectTimeout();
       setQrBase64(data.base64);
+      setQrCode(data.code);
       setStatus("qr");
     });
 
@@ -193,6 +282,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       setDisconnectReason(data.connectionStatus === "disconnected" ? data.reasonLabel ?? null : null);
       if (data.connectionStatus === "connected") {
         setQrBase64(null);
+        setQrCode(null);
         queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
       }
       queryClient.invalidateQueries({
@@ -211,6 +301,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
     await logout.mutateAsync(channel.id);
     setStatus("disconnected");
     setQrBase64(null);
+    setQrCode(null);
     setDisconnectReason(null);
   }, [logout, channel.id, clearConnectTimeout]);
 

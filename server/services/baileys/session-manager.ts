@@ -82,10 +82,13 @@ async function getCmdListenClient(): Promise<PoolClient> {
   return cmdListenClientPromise;
 }
 
-// Garante que esta réplica está ouvindo comandos desde o boot.
-getCmdListenClient().catch((err) =>
-  console.error("[Baileys cmd] Falha ao iniciar LISTEN de comandos de instância:", err),
-);
+// Garante que esta réplica está ouvindo comandos desde o boot. Em testes, evita
+// abrir uma conexão real apenas por importar o módulo.
+if (process.env.NODE_ENV !== "test") {
+  getCmdListenClient().catch((err) =>
+    console.error("[Baileys cmd] Falha ao iniciar LISTEN de comandos de instância:", err),
+  );
+}
 
 async function publishCmd(payload: Record<string, unknown>): Promise<void> {
   const client = await getCmdListenClient();
@@ -526,12 +529,45 @@ export function waitForQr(
 
 export async function initSessionManager(): Promise<void> {
   const instances = await getInstancesWithCreds(pool);
-  console.log(`[Baileys] Rehidratando ${instances.length} sessão(ões)...`);
+  const embeddedInstances: string[] = [];
   for (const name of instances) {
+    const channel = await getChannelByEvolutionInstance(name).catch(() => null);
+    if (channel?.qrBackend !== "gateway") embeddedInstances.push(name);
+  }
+  console.log(`[Baileys] Rehidratando ${embeddedInstances.length} sessão(ões) embedded...`);
+  for (const name of embeddedInstances) {
     await createSocket(name).catch((err) =>
       console.error(`[Baileys] Erro ao rehidratar "${name}":`, err),
     );
   }
+}
+
+/** Encerra somente o socket local, preservando as credenciais para rollback. */
+export async function suspendEmbeddedInstance(instanceName: string): Promise<void> {
+  const session = sessions.get(instanceName);
+  if (session) {
+    try {
+      session.socket?.end(undefined);
+    } catch {
+      // O socket pode já estar encerrado.
+    }
+    sessions.delete(instanceName);
+    if (session.lockClient) {
+      await releaseInstanceLock(instanceName, session.lockClient).catch(() => {});
+    }
+  }
+  await publishCmd({ instanceName, action: "logout" });
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const probe = await tryAcquireInstanceLock(instanceName).catch(() => null);
+    if (probe) {
+      await releaseInstanceLock(instanceName, probe);
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(
+    "EMBEDDED_LOCK_TIMEOUT: a sessão embarcada não liberou o canal em 10 segundos",
+  );
 }
 
 export function startInstance(

@@ -20,14 +20,45 @@ import {
 } from "../integrations/whatsapp";
 import {
   connectInstance,
+  getInstanceStatus,
   logoutInstance,
   deleteInstance as deleteEvolutionInstance,
 } from "../integrations/evolution";
+import {
+  baileysGateway,
+  BaileysGatewayError,
+} from "../integrations/baileys-gateway";
+import { suspendEmbeddedInstance } from "../services/baileys/session-manager";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { listChannelConnectionEvents } from "../services/baileys/connection-events.service";
 import { isAdminOrGerente, requireAdminOrGerente } from "../middleware/validation";
 
 const router = Router();
+
+function sendGatewayError(res: Response, error: unknown): void {
+  if (!(error instanceof BaileysGatewayError)) {
+    const message = error instanceof Error ? error.message : "Erro no Baileys Gateway";
+    const lockTimeout = message.startsWith("EMBEDDED_LOCK_TIMEOUT");
+    res.status(lockTimeout ? 409 : 500).json({
+      message,
+      ...(lockTimeout ? { code: "embedded_lock_timeout" } : {}),
+    });
+    return;
+  }
+  const status =
+    error.code === "not_found"
+      ? 404
+      : error.code === "rate_limited"
+        ? 429
+        : error.code === "overloaded"
+          ? 503
+          : error.code === "unauthorized"
+            ? 502
+            : error.code === "channel_offline"
+              ? 409
+              : 502;
+  res.status(status).json({ message: error.message, code: error.code });
+}
 
 router.get("/channels", async (_req: Request, res: Response) => {
   const channels = await listChannels();
@@ -158,6 +189,29 @@ router.get("/channels/:id/status", requireAdminOrGerente, async (req: Request, r
         res.status(400).json({ message: "Canal Evolution sem instância configurada" });
         return;
       }
+      if (channel.qrBackend === "gateway") {
+        const instance = await baileysGateway.getInstance(channel.evolutionInstanceName);
+        const connectionStatus =
+          instance.observed_state === "lock_wait"
+            ? "connecting"
+            : instance.observed_state === "failed"
+              ? "disconnected"
+              : instance.observed_state;
+        if (connectionStatus !== channel.connectionStatus) {
+          await updateConnectionStatus(id, connectionStatus);
+        }
+        res.json({
+          provider: "evolution",
+          qrBackend: "gateway",
+          connectionStatus,
+          observedState: instance.observed_state,
+          instanceState: instance.observed_state === "connected" ? "open" : instance.observed_state,
+          desiredState: instance.desired_state,
+          connectedPhone: instance.connected_phone,
+          lastError: instance.last_error,
+        });
+        return;
+      }
       // Fonte de verdade = banco (mantido por handleConnectionUpdate e corrigido
       // pelo reconcile-baileys-status.job). getInstanceStatus só refletiria o
       // socket da réplica local, dando "close" numa réplica que não é a dona —
@@ -219,11 +273,12 @@ router.get("/channels/:id/connection-events", async (req: Request, res: Response
 
 router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, res: Response) => {
   try {
-    const { name, userId, displayPhone, defaultSectorId } = req.body as {
+    const { name, userId, displayPhone, defaultSectorId, qrBackend = "gateway" } = req.body as {
       name: string;
       userId?: string;
       displayPhone?: string;
       defaultSectorId?: string | null;
+      qrBackend?: "embedded" | "gateway";
     };
     if (!name) { res.status(400).json({ error: "name é obrigatório" }); return; }
 
@@ -238,12 +293,18 @@ router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, r
       name,
       provider: "evolution",
       evolutionInstanceName: instanceName,
+      qrBackend,
       connectionStatus: "disconnected",
       displayPhone,
       userId,
       isActive: true,
       defaultSectorId,
     });
+    if (qrBackend === "gateway") {
+      await baileysGateway.createInstance(instanceName).catch((error) => {
+        console.error(`[POST /channels/evolution] Falha ao criar instância "${instanceName}":`, error);
+      });
+    }
     res.status(201).json(channel);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao criar canal Evolution";
@@ -280,6 +341,9 @@ router.get("/channels/:id/evolution/connect", async (req: Request, res: Response
     // é o "reset" confiável do canal. A proteção contra reconexões incidentais
     // (abrir o CRM em outro dispositivo) fica por conta do frontend, que apenas
     // reflete o status e só chama este endpoint no clique do botão.
+    if (channel.qrBackend === "gateway") {
+      await suspendEmbeddedInstance(channel.evolutionInstanceName);
+    }
     const qrData = await connectInstance(channel.evolutionInstanceName);
     // Só grava no banco quando de fato houve reinício (QR novo) ou o backend
     // confirmou que o canal já estava conectado. Se nenhum dos dois ocorreu
@@ -294,8 +358,74 @@ router.get("/channels/:id/evolution/connect", async (req: Request, res: Response
     }
     res.json(qrData);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Erro ao gerar QR Code";
-    res.status(500).json({ message });
+    sendGatewayError(res, e);
+  }
+});
+
+router.get("/channels/:id/evolution/qr", async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) { res.sendStatus(400); return; }
+    const channel = await getChannelById(id);
+    if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
+    if (!(await canConnectChannel(req, channel))) {
+      res.status(403).json({ message: "Acesso negado" });
+      return;
+    }
+    if (channel.qrBackend !== "gateway") {
+      const status = await getInstanceStatus(channel.evolutionInstanceName);
+      res.json({ code: "", connectionStatus: status.state === "open" ? "connected" : undefined });
+      return;
+    }
+    try {
+      res.json(await baileysGateway.getQr(channel.evolutionInstanceName));
+    } catch (error) {
+      if (error instanceof BaileysGatewayError && error.code === "not_found") {
+        const instance = await baileysGateway.getInstance(channel.evolutionInstanceName);
+        res.json({
+          code: "",
+          connectionStatus: instance.observed_state === "connected" ? "connected" : undefined,
+          observedState: instance.observed_state,
+          desiredState: instance.desired_state,
+        });
+        return;
+      }
+      throw error;
+    }
+  } catch (error) {
+    sendGatewayError(res, error);
+  }
+});
+
+router.patch("/channels/:id/evolution/backend", requireAdminOrGerente, async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const { qrBackend } = req.body as { qrBackend?: "embedded" | "gateway" };
+    if (isNaN(id) || !["embedded", "gateway"].includes(qrBackend ?? "")) {
+      res.status(400).json({ message: "qrBackend inválido" });
+      return;
+    }
+    const channel = await getChannelById(id);
+    if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
+    if (channel.connectionStatus === "connected") {
+      res.status(409).json({
+        message: "Desconecte o canal antes de alterar o backend de conexão",
+      });
+      return;
+    }
+    if (qrBackend === "gateway") {
+      await suspendEmbeddedInstance(channel.evolutionInstanceName);
+      await baileysGateway.createInstance(channel.evolutionInstanceName);
+    } else {
+      await baileysGateway.logout(channel.evolutionInstanceName).catch(() => undefined);
+    }
+    const updated = await updateChannel(id, {
+      qrBackend,
+      connectionStatus: "disconnected",
+    });
+    res.json(updated);
+  } catch (error) {
+    sendGatewayError(res, error);
   }
 });
 

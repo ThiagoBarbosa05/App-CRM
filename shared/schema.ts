@@ -5033,6 +5033,8 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   userId: varchar("user_id").references(() => users.id),
   isActive: boolean("is_active").notNull().default(true),
   evolutionInstanceName: text("evolution_instance_name").unique(),
+  // Controla onde o socket dos canais QR roda durante a migração gradual.
+  qrBackend: text("qr_backend").notNull().default("embedded"),
   connectionStatus: text("connection_status").default("disconnected"),
   // Setor para o qual conversas novas recebidas neste canal são roteadas
   // automaticamente (findOrCreateConversation) — evita que um contato novo
@@ -5044,6 +5046,33 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
 
 export type WhatsappChannel = typeof whatsappChannels.$inferSelect;
 export type InsertWhatsappChannel = typeof whatsappChannels.$inferInsert;
+
+// Inbox durável dos eventos enviados pelo Baileys Gateway. O endpoint persiste
+// antes de responder 2xx e um worker processa/reprocessa os eventos.
+export const baileysGatewayWebhookInbox = pgTable(
+  "baileys_gateway_webhook_inbox",
+  {
+    eventId: varchar("event_id").primaryKey(),
+    eventName: text("event_name").notNull(),
+    instanceName: text("instance_name").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    lastError: text("last_error"),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+    processedAt: timestamp("processed_at"),
+  },
+  (t) => ({
+    pendingIdx: index("baileys_gateway_webhook_inbox_pending_idx").on(
+      t.status,
+      t.nextAttemptAt,
+    ),
+  }),
+);
+
+export type BaileysGatewayWebhookInbox =
+  typeof baileysGatewayWebhookInbox.$inferSelect;
 
 // Histórico de conexão/desconexão dos canais Baileys (QR Code), com o motivo
 // (DisconnectReason) traduzido, para o vendedor acompanhar a estabilidade do canal.

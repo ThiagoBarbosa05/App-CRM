@@ -1,53 +1,90 @@
-import { Router, Request, Response } from "express";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { Router, type Request, type Response } from "express";
+import { z } from "zod";
 import {
-  handleMessagesUpsert,
-  handleMessagesUpdate,
-  handleConnectionUpdate,
-  handleQrcodeUpdated,
-} from "../services/whatsapp-baileys-events.service";
+  enqueueGatewayWebhook,
+  type GatewayWebhookEnvelope,
+} from "../services/baileys-gateway-webhook-inbox.service";
 
 const router = Router();
-
-// DEPRECADO: o Baileys agora roda in-process e chama os handlers diretamente.
-// Esta rota permanece como wrapper fino apenas por compatibilidade (ex.: caso
-// algum provedor externo ainda poste eventos no formato Evolution).
-// POST /evolution/webhook — recebe todos os eventos de todas as instâncias
-router.post("/webhook", (req: Request, res: Response) => {
-  res.sendStatus(200);
-  handleEvent(req.body).catch((err) =>
-    console.error("[Evolution Webhook] Erro ao processar evento:", err),
-  );
+const envelopeSchema = z.object({
+  event: z.enum([
+    "messages.upsert",
+    "messages.update",
+    "connection.update",
+    "qrcode.updated",
+  ]),
+  instance: z.string().regex(/^[a-z0-9][a-z0-9-]{0,49}$/),
+  data: z.unknown(),
 });
 
-async function handleEvent(body: unknown) {
-  const payload = body as Record<string, unknown>;
-  const event = payload.event as string | undefined;
-  // A Evolution envia o nome da instância em `instance` (string) ou `instance.instanceName`
-  const instanceName =
-    typeof payload.instance === "string"
-      ? payload.instance
-      : (payload.instance as Record<string, string> | undefined)?.instanceName;
-
-  if (!event || !instanceName) return;
-
-  console.log(`[Evolution Webhook] event=${event} instance=${instanceName}`);
-
-  switch (event) {
-    case "messages.upsert":
-      await handleMessagesUpsert(instanceName, payload.data as unknown);
-      break;
-    case "messages.update":
-      await handleMessagesUpdate(payload.data as unknown);
-      break;
-    case "connection.update":
-      await handleConnectionUpdate(instanceName, payload.data as unknown);
-      break;
-    case "qrcode.updated":
-      await handleQrcodeUpdated(instanceName, payload.data as unknown);
-      break;
-    default:
-      break;
+export function verifyGatewayWebhookSignature(input: {
+  rawBody: Buffer;
+  eventId: string;
+  timestamp: string;
+  signature: string;
+  secret: string;
+  now?: number;
+}): boolean {
+  const { rawBody, eventId, timestamp, signature, secret, now = Date.now() } = input;
+  const timestampNumber = Number(timestamp);
+  if (!Number.isFinite(timestampNumber) || Math.abs(now - timestampNumber) > 300_000) {
+    return false;
   }
+  const expected = createHmac("sha256", secret)
+    .update(`${timestamp}.${eventId}.${rawBody.toString("utf8")}`)
+    .digest("hex");
+  const expectedBuffer = Buffer.from(expected);
+  const receivedBuffer = Buffer.from(signature);
+  return expectedBuffer.length === receivedBuffer.length &&
+    timingSafeEqual(expectedBuffer, receivedBuffer);
 }
+
+function hasValidSignature(req: Request): boolean {
+  const secret = process.env.WEBHOOK_SIGNING_SECRET;
+  const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+  const eventId = req.header("x-gateway-event-id");
+  const timestamp = req.header("x-gateway-timestamp");
+  const signature = req.header("x-gateway-signature");
+  if (!secret || !rawBody || !eventId || !timestamp || !signature) return false;
+  return verifyGatewayWebhookSignature({
+    rawBody,
+    eventId,
+    timestamp,
+    signature,
+    secret,
+  });
+}
+
+router.post("/webhook", async (req: Request, res: Response) => {
+  if (!process.env.WEBHOOK_SIGNING_SECRET) {
+    res.status(503).json({ message: "Webhook do gateway não configurado" });
+    return;
+  }
+  if (!hasValidSignature(req)) {
+    res.status(401).json({ message: "Assinatura inválida" });
+    return;
+  }
+  const parsed = envelopeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ message: "Evento inválido", issues: parsed.error.issues });
+    return;
+  }
+  const eventId = req.header("x-gateway-event-id");
+  if (!eventId) {
+    res.status(400).json({ message: "x-gateway-event-id ausente" });
+    return;
+  }
+  try {
+    const result = await enqueueGatewayWebhook(
+      eventId,
+      parsed.data as GatewayWebhookEnvelope,
+    );
+    res.status(result === "created" ? 202 : 200).json({ status: result });
+  } catch (error) {
+    console.error("[Baileys Gateway Webhook] Falha ao persistir:", error);
+    res.status(500).json({ message: "Falha ao persistir evento" });
+  }
+});
 
 export default router;

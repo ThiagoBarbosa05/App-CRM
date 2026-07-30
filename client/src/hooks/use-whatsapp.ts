@@ -150,6 +150,7 @@ export interface WhatsappChannel {
   userId: string | null;
   isActive: boolean;
   evolutionInstanceName: string | null;
+  qrBackend: "embedded" | "gateway";
   connectionStatus: string | null;
   defaultSectorId: string | null;
   createdAt: string;
@@ -995,6 +996,7 @@ export interface CreateEvolutionChannelPayload {
   userId?: string | null;
   displayPhone?: string;
   defaultSectorId?: string | null;
+  qrBackend?: "embedded" | "gateway";
 }
 
 export function useCreateEvolutionChannel() {
@@ -1019,12 +1021,45 @@ export function useEvolutionConnect() {
   return useMutation({
     mutationFn: async (channelId: number) => {
       const res = await apiRequest("GET", `/api/whatsapp/channels/${channelId}/evolution/connect`);
-      return res.json() as Promise<{ code: string; base64?: string; connectionStatus?: string }>;
+      return res.json() as Promise<EvolutionQrResult>;
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao gerar QR Code", description: error.message, variant: "destructive" });
     },
   });
+}
+
+export interface EvolutionQrResult {
+  code: string;
+  base64?: string;
+  connectionStatus?:
+    | "connecting"
+    | "qr"
+    | "connected"
+    | "disconnected"
+    | "lock_wait"
+    | "failed";
+  observedState?:
+    | "connecting"
+    | "qr"
+    | "connected"
+    | "disconnected"
+    | "lock_wait"
+    | "failed";
+  desiredState?: "running" | "stopped";
+  errorCode?: string;
+  lastError?: string;
+}
+
+export async function fetchEvolutionQr(channelId: number): Promise<EvolutionQrResult> {
+  const res = await fetch(`/api/whatsapp/channels/${channelId}/evolution/qr`, {
+    credentials: "include",
+  });
+  const body = await res.json().catch(() => ({})) as EvolutionQrResult & {
+    message?: string;
+  };
+  if (!res.ok) throw new Error(body.message ?? "Erro ao atualizar QR Code");
+  return body;
 }
 
 export function useEvolutionLogout() {
@@ -1039,6 +1074,37 @@ export function useEvolutionLogout() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao desconectar", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useSetEvolutionBackend() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({
+      channelId,
+      qrBackend,
+    }: {
+      channelId: number;
+      qrBackend: "embedded" | "gateway";
+    }) => {
+      const res = await apiRequest(
+        "PATCH",
+        `/api/whatsapp/channels/${channelId}/evolution/backend`,
+        { qrBackend },
+      );
+      return res.json() as Promise<WhatsappChannel>;
+    },
+    onSuccess: () => {
+      toast({ title: "Backend do canal atualizado" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao migrar canal",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 }

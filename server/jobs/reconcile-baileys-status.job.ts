@@ -32,6 +32,7 @@ export async function reconcileBaileysStatus(): Promise<void> {
     .where(
       and(
         eq(whatsappChannels.provider, "evolution"),
+        eq(whatsappChannels.qrBackend, "embedded"),
         isNotNull(whatsappChannels.evolutionInstanceName),
         isNull(whatsappChannels.deletedAt),
         inArray(whatsappChannels.connectionStatus, ["connected", "connecting"]),
