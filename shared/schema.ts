@@ -5034,7 +5034,7 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   isActive: boolean("is_active").notNull().default(true),
   evolutionInstanceName: text("evolution_instance_name").unique(),
   // Controla onde o socket dos canais QR roda durante a migração gradual.
-  qrBackend: text("qr_backend").notNull().default("embedded"),
+  qrBackend: text("qr_backend").$type<"gateway">().notNull().default("gateway"),
   connectionStatus: text("connection_status").default("disconnected"),
   // Setor para o qual conversas novas recebidas neste canal são roteadas
   // automaticamente (findOrCreateConversation) — evita que um contato novo

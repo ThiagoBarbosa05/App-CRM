@@ -36,12 +36,8 @@ import "./jobs/quote-expiry-alert-scheduler";
 import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
 import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";
-import { startReconcileBaileysStatusJob } from "./jobs/reconcile-baileys-status.job";
 import { startGatewayWebhookInboxWorker } from "./services/baileys-gateway-webhook-inbox.service";
-import {
-  initSessionManager,
-  shutdownAllSessions,
-} from "./services/baileys/session-manager";
+import { assertGatewayConfiguration } from "./integrations/baileys-gateway";
 
 import { storage } from "./storage";
 import { getCachedPage, setCachedPage } from "./lib/landing-page-cache";
@@ -130,6 +126,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  assertGatewayConfiguration();
   // Rota pública de landing pages de eventos — registrada ANTES do Vite
   // para que /lp/:slug não seja capturada pelo catch-all do SPA
   const r2Client = new S3Client({
@@ -210,14 +207,7 @@ app.use((req, res, next) => {
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();
-  startReconcileBaileysStatusJob();
   startGatewayWebhookInboxWorker();
-
-  // Reidrata as sessões do Baileys (canais via QR Code) que rodam in-process.
-  // Não derruba o boot em caso de falha.
-  initSessionManager().catch((err) =>
-    console.error("[Baileys] Falha ao inicializar o session manager:", err),
-  );
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -253,14 +243,10 @@ app.use((req, res, next) => {
     },
   );
 
-  // Graceful shutdown handlers
+  // O processo do CRM não possui sockets WhatsApp para encerrar.
   const shutdown = (signal: string) => {
-    log(`${signal} recebido, encerrando gracefully...`);
-    shutdownAllSessions()
-      .catch((err) =>
-        console.error("[Baileys] Falha ao encerrar sessões no shutdown:", err),
-      )
-      .finally(() => process.exit(0));
+    log(`${signal} recebido, encerrando CRM...`);
+    process.exit(0);
   };
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));

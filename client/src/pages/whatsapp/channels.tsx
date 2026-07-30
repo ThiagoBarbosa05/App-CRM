@@ -53,7 +53,6 @@ import {
   useRequestVerificationCode,
   useVerifyPhoneNumber,
   useCreateEvolutionChannel,
-  useSetEvolutionBackend,
   type WhatsappChannel,
   type MetaPhoneNumber,
   type CreateWhatsappChannelPayload,
@@ -822,7 +821,6 @@ function ChannelItem({
   onConnect?: () => void;
   readOnly?: boolean;
 }) {
-  const setEvolutionBackend = useSetEvolutionBackend();
   const [showStatus, setShowStatus] = useState(false);
   const [liveEvoStatus, setLiveEvoStatus] = useState<string>(ch.connectionStatus ?? "disconnected");
   const { data: metaStatus, isFetching, error: statusError } = useChannelStatus(showStatus ? ch.id : null);
@@ -878,7 +876,7 @@ function ChannelItem({
             )}
             {ch.provider === "evolution" && (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                {ch.qrBackend === "gateway" ? "Gateway dedicado" : "Baileys legado"}
+                Gateway dedicado
               </Badge>
             )}
           </div>
@@ -917,22 +915,6 @@ function ChannelItem({
                   <QrCode className="h-3 w-3" />
                   {evoStatus === "connected" ? "Ver conexão" : "Conectar via QR"}
                 </Button>
-                {ch.qrBackend === "embedded" && evoStatus === "disconnected" && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-6 text-xs px-2"
-                    disabled={setEvolutionBackend.isPending}
-                    onClick={() =>
-                      setEvolutionBackend.mutate({
-                        channelId: ch.id,
-                        qrBackend: "gateway",
-                      })
-                    }
-                  >
-                    Migrar para gateway
-                  </Button>
-                )}
               </div>
             )
           ) : (

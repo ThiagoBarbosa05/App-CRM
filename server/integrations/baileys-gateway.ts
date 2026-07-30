@@ -55,6 +55,32 @@ export class BaileysGatewayError extends Error {
   }
 }
 
+const REQUIRED_GATEWAY_ENV = [
+  "GATEWAY_URL",
+  "GATEWAY_API_KEY",
+  "WEBHOOK_SIGNING_SECRET",
+] as const;
+
+export function getGatewayConfigurationStatus(): {
+  configured: boolean;
+  missing: string[];
+} {
+  const missing = REQUIRED_GATEWAY_ENV.filter(
+    (name) => !process.env[name]?.trim(),
+  );
+  return { configured: missing.length === 0, missing: [...missing] };
+}
+
+export function assertGatewayConfiguration(): void {
+  const status = getGatewayConfigurationStatus();
+  if (!status.configured) {
+    throw new BaileysGatewayError(
+      `Configuração obrigatória do Baileys Gateway ausente: ${status.missing.join(", ")}`,
+      "not_configured",
+    );
+  }
+}
+
 function config(): { baseUrl: string; apiKey: string } {
   const baseUrl = process.env.GATEWAY_URL?.replace(/\/+$/, "");
   const apiKey = process.env.GATEWAY_API_KEY;

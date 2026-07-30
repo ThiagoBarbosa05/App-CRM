@@ -178,8 +178,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
   // janela em que o diálogo está aguardando QR/conexão.
   useEffect(() => {
     if (
-      channel.qrBackend !== "gateway" ||
-      (status !== "connecting" && status !== "qr")
+      status !== "connecting" && status !== "qr"
     ) {
       return;
     }
@@ -234,7 +233,6 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
     };
   }, [
     channel.id,
-    channel.qrBackend,
     status,
     clearConnectTimeout,
     queryClient,

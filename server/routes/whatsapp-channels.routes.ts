@@ -20,7 +20,6 @@ import {
 } from "../integrations/whatsapp";
 import {
   connectInstance,
-  getInstanceStatus,
   logoutInstance,
   deleteInstance as deleteEvolutionInstance,
 } from "../integrations/evolution";
@@ -28,7 +27,6 @@ import {
   baileysGateway,
   BaileysGatewayError,
 } from "../integrations/baileys-gateway";
-import { suspendEmbeddedInstance } from "../services/baileys/session-manager";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { listChannelConnectionEvents } from "../services/baileys/connection-events.service";
 import { isAdminOrGerente, requireAdminOrGerente } from "../middleware/validation";
@@ -38,11 +36,7 @@ const router = Router();
 function sendGatewayError(res: Response, error: unknown): void {
   if (!(error instanceof BaileysGatewayError)) {
     const message = error instanceof Error ? error.message : "Erro no Baileys Gateway";
-    const lockTimeout = message.startsWith("EMBEDDED_LOCK_TIMEOUT");
-    res.status(lockTimeout ? 409 : 500).json({
-      message,
-      ...(lockTimeout ? { code: "embedded_lock_timeout" } : {}),
-    });
+    res.status(500).json({ message });
     return;
   }
   const status =
@@ -189,37 +183,29 @@ router.get("/channels/:id/status", requireAdminOrGerente, async (req: Request, r
         res.status(400).json({ message: "Canal Evolution sem instância configurada" });
         return;
       }
-      if (channel.qrBackend === "gateway") {
-        const instance = await baileysGateway.getInstance(channel.evolutionInstanceName);
-        const connectionStatus =
-          instance.observed_state === "lock_wait"
-            ? "connecting"
-            : instance.observed_state === "failed"
-              ? "disconnected"
-              : instance.observed_state;
-        if (connectionStatus !== channel.connectionStatus) {
-          await updateConnectionStatus(id, connectionStatus);
-        }
-        res.json({
-          provider: "evolution",
-          qrBackend: "gateway",
-          connectionStatus,
-          observedState: instance.observed_state,
-          instanceState: instance.observed_state === "connected" ? "open" : instance.observed_state,
-          desiredState: instance.desired_state,
-          connectedPhone: instance.connected_phone,
-          lastError: instance.last_error,
-        });
+      if (channel.qrBackend !== "gateway") {
+        res.status(409).json({ message: "Canal QR não configurado para o gateway" });
         return;
       }
-      // Fonte de verdade = banco (mantido por handleConnectionUpdate e corrigido
-      // pelo reconcile-baileys-status.job). getInstanceStatus só refletiria o
-      // socket da réplica local, dando "close" numa réplica que não é a dona —
-      // errado no Autoscale multi-réplica.
+      const instance = await baileysGateway.getInstance(channel.evolutionInstanceName);
+      const connectionStatus =
+        instance.observed_state === "lock_wait"
+          ? "connecting"
+          : instance.observed_state === "failed"
+            ? "disconnected"
+            : instance.observed_state;
+      if (connectionStatus !== channel.connectionStatus) {
+        await updateConnectionStatus(id, connectionStatus);
+      }
       res.json({
         provider: "evolution",
-        connectionStatus: channel.connectionStatus,
-        instanceState: channel.connectionStatus === "connected" ? "open" : channel.connectionStatus,
+        qrBackend: "gateway",
+        connectionStatus,
+        observedState: instance.observed_state,
+        instanceState: instance.observed_state === "connected" ? "open" : instance.observed_state,
+        desiredState: instance.desired_state,
+        connectedPhone: instance.connected_phone,
+        lastError: instance.last_error,
       });
       return;
     }
@@ -273,12 +259,11 @@ router.get("/channels/:id/connection-events", async (req: Request, res: Response
 
 router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, res: Response) => {
   try {
-    const { name, userId, displayPhone, defaultSectorId, qrBackend = "gateway" } = req.body as {
+    const { name, userId, displayPhone, defaultSectorId } = req.body as {
       name: string;
       userId?: string;
       displayPhone?: string;
       defaultSectorId?: string | null;
-      qrBackend?: "embedded" | "gateway";
     };
     if (!name) { res.status(400).json({ error: "name é obrigatório" }); return; }
 
@@ -289,22 +274,20 @@ router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, r
       .replace(/^-|-$/g, "")
       .slice(0, 50);
 
+    // Falha fechada: não cria um canal no CRM quando o gateway obrigatório
+    // está indisponível ou sem configuração.
+    await baileysGateway.createInstance(instanceName);
     const channel = await createChannel({
       name,
       provider: "evolution",
       evolutionInstanceName: instanceName,
-      qrBackend,
+      qrBackend: "gateway",
       connectionStatus: "disconnected",
       displayPhone,
       userId,
       isActive: true,
       defaultSectorId,
     });
-    if (qrBackend === "gateway") {
-      await baileysGateway.createInstance(instanceName).catch((error) => {
-        console.error(`[POST /channels/evolution] Falha ao criar instância "${instanceName}":`, error);
-      });
-    }
     res.status(201).json(channel);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao criar canal Evolution";
@@ -341,9 +324,6 @@ router.get("/channels/:id/evolution/connect", async (req: Request, res: Response
     // é o "reset" confiável do canal. A proteção contra reconexões incidentais
     // (abrir o CRM em outro dispositivo) fica por conta do frontend, que apenas
     // reflete o status e só chama este endpoint no clique do botão.
-    if (channel.qrBackend === "gateway") {
-      await suspendEmbeddedInstance(channel.evolutionInstanceName);
-    }
     const qrData = await connectInstance(channel.evolutionInstanceName);
     // Só grava no banco quando de fato houve reinício (QR novo) ou o backend
     // confirmou que o canal já estava conectado. Se nenhum dos dois ocorreu
@@ -373,8 +353,7 @@ router.get("/channels/:id/evolution/qr", async (req: Request, res: Response) => 
       return;
     }
     if (channel.qrBackend !== "gateway") {
-      const status = await getInstanceStatus(channel.evolutionInstanceName);
-      res.json({ code: "", connectionStatus: status.state === "open" ? "connected" : undefined });
+      res.status(409).json({ message: "Canal QR não configurado para o gateway" });
       return;
     }
     try {
@@ -412,27 +391,16 @@ router.get("/channels/:id/evolution/qr", async (req: Request, res: Response) => 
 router.patch("/channels/:id/evolution/backend", requireAdminOrGerente, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-    const { qrBackend } = req.body as { qrBackend?: "embedded" | "gateway" };
-    if (isNaN(id) || !["embedded", "gateway"].includes(qrBackend ?? "")) {
-      res.status(400).json({ message: "qrBackend inválido" });
+    const { qrBackend } = req.body as { qrBackend?: string };
+    if (isNaN(id) || qrBackend !== "gateway") {
+      res.status(400).json({ message: 'Somente qrBackend "gateway" é permitido' });
       return;
     }
     const channel = await getChannelById(id);
     if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
-    if (channel.connectionStatus === "connected") {
-      res.status(409).json({
-        message: "Desconecte o canal antes de alterar o backend de conexão",
-      });
-      return;
-    }
-    if (qrBackend === "gateway") {
-      await suspendEmbeddedInstance(channel.evolutionInstanceName);
-      await baileysGateway.createInstance(channel.evolutionInstanceName);
-    } else {
-      await baileysGateway.logout(channel.evolutionInstanceName).catch(() => undefined);
-    }
+    await baileysGateway.createInstance(channel.evolutionInstanceName);
     const updated = await updateChannel(id, {
-      qrBackend,
+      qrBackend: "gateway",
       connectionStatus: "disconnected",
     });
     res.json(updated);
