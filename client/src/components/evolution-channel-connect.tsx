@@ -97,6 +97,19 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
     }
   }, []);
 
+  const updateChannelCache = useCallback(
+    (connectionStatus: string) => {
+      queryClient.setQueryData<WhatsappChannel[]>(
+        ["whatsapp", "channels"],
+        (channels) =>
+          channels?.map((item) =>
+            item.id === channel.id ? { ...item, connectionStatus } : item,
+          ),
+      );
+    },
+    [channel.id, queryClient],
+  );
+
   // Propaga o status ao vivo para o componente pai (barra de cor do canal)
   useEffect(() => {
     onStatusChange?.(status);
@@ -133,6 +146,8 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
         clearConnectTimeout();
         setQrBase64(null);
         setStatus("connected");
+        updateChannelCache("connected");
+        queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
       } else if (result.base64) {
         clearConnectTimeout();
         setQrBase64(result.base64);
@@ -157,7 +172,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       clearConnectTimeout();
       setStatus("disconnected");
     }
-  }, [connect, channel.id, clearConnectTimeout, toast]);
+  }, [connect, channel.id, clearConnectTimeout, queryClient, toast, updateChannelCache]);
 
   // O webhook/SSE é o caminho rápido. O polling é uma contingência limitada à
   // janela em que o diálogo está aguardando QR/conexão.
@@ -180,6 +195,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
           setStatus("connected");
           setQrBase64(null);
           setQrCode(null);
+          updateChannelCache("connected");
           queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
           return;
         }
@@ -216,7 +232,15 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [channel.id, channel.qrBackend, status, clearConnectTimeout, queryClient, toast]);
+  }, [
+    channel.id,
+    channel.qrBackend,
+    status,
+    clearConnectTimeout,
+    queryClient,
+    toast,
+    updateChannelCache,
+  ]);
 
   useEffect(() => {
     if (!qrCode || qrBase64) return;
@@ -279,6 +303,7 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       if (data.instanceName !== channel.evolutionInstanceName) return;
       clearConnectTimeout();
       setStatus(data.connectionStatus);
+      updateChannelCache(data.connectionStatus);
       setDisconnectReason(data.connectionStatus === "disconnected" ? data.reasonLabel ?? null : null);
       if (data.connectionStatus === "connected") {
         setQrBase64(null);
@@ -294,16 +319,23 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       unsubQr();
       unsubConn();
     };
-  }, [channel.evolutionInstanceName, channel.id, queryClient, clearConnectTimeout]);
+  }, [
+    channel.evolutionInstanceName,
+    channel.id,
+    queryClient,
+    clearConnectTimeout,
+    updateChannelCache,
+  ]);
 
   const handleLogout = useCallback(async () => {
     clearConnectTimeout();
     await logout.mutateAsync(channel.id);
     setStatus("disconnected");
+    updateChannelCache("disconnected");
     setQrBase64(null);
     setQrCode(null);
     setDisconnectReason(null);
-  }, [logout, channel.id, clearConnectTimeout]);
+  }, [logout, channel.id, clearConnectTimeout, updateChannelCache]);
 
   const isConnected = status === "connected";
   const isConnecting = status === "connecting" || status === "qr";

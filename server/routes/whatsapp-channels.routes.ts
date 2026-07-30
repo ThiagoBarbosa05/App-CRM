@@ -378,7 +378,19 @@ router.get("/channels/:id/evolution/qr", async (req: Request, res: Response) => 
       return;
     }
     try {
-      res.json(await baileysGateway.getQr(channel.evolutionInstanceName));
+      const qr = await baileysGateway.getQr(channel.evolutionInstanceName);
+      if (qr.connectionStatus === "connected") {
+        await updateConnectionStatus(id, "connected");
+      } else if (
+        qr.connectionStatus === "connecting" ||
+        qr.connectionStatus === "lock_wait" ||
+        qr.connectionStatus === "qr"
+      ) {
+        await updateConnectionStatus(id, "connecting");
+      } else if (qr.connectionStatus === "failed") {
+        await updateConnectionStatus(id, "disconnected");
+      }
+      res.json(qr);
     } catch (error) {
       if (error instanceof BaileysGatewayError && error.code === "not_found") {
         const instance = await baileysGateway.getInstance(channel.evolutionInstanceName);
