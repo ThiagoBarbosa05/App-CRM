@@ -87,7 +87,7 @@ export interface EvolutionMediaResult {
 export async function sendMedia(
   instanceName: string,
   to: string,
-  mediaType: "image" | "document" | "audio" | "video",
+  mediaType: "image" | "document" | "audio" | "video" | "sticker",
   opts: {
     url?: string;
     base64?: string;
@@ -96,6 +96,7 @@ export async function sendMedia(
     mimetype?: string;
     delay?: number;
     idempotencyKey?: string;
+    quotedMsgId?: string;
   },
 ): Promise<EvolutionMediaResult> {
   await requireGatewayChannel(instanceName);
@@ -109,8 +110,24 @@ export async function sendMedia(
       filename: opts.filename,
       caption: opts.caption,
       mimetype: opts.mimetype,
+      quotedMsgId: opts.quotedMsgId,
     },
     opts.idempotencyKey ?? `crm-${randomUUID()}`,
+  );
+}
+
+export async function sendReaction(
+  instanceName: string,
+  to: string,
+  messageId: string,
+  emoji: string,
+  idempotencyKey?: string,
+): Promise<EvolutionSendResult> {
+  await requireGatewayChannel(instanceName);
+  return baileysGateway.sendReaction(
+    instanceName,
+    { to, messageId, emoji },
+    idempotencyKey ?? `crm-${randomUUID()}`,
   );
 }
 

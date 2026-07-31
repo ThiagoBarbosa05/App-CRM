@@ -148,6 +148,7 @@ export async function sendMediaMessage(
   caption?: string,
   filename?: string,
   channel?: ChannelOverride,
+  replyToWaMessageId?: string,
 ) {
   const cfg = await getConfig(channel);
   const mediaKey = mediaType === "sticker" ? "sticker" : mediaType;
@@ -167,6 +168,7 @@ export async function sendMediaMessage(
       to: toMetaWhatsAppId(to),
       type: mediaType,
       [mediaKey]: mediaBody,
+      ...(replyToWaMessageId ? { context: { message_id: replyToWaMessageId } } : {}),
     }),
   });
   if (!response.ok) throw new Error(await response.text());

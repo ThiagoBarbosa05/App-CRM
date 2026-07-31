@@ -4,11 +4,12 @@ import {
   handleConnectionUpdate,
   handleMessagesUpdate,
   handleMessagesUpsert,
+  handleMessagesReaction,
   handleQrcodeUpdated,
 } from "./whatsapp-baileys-events.service";
 
 export interface GatewayWebhookEnvelope {
-  event: "messages.upsert" | "messages.update" | "connection.update" | "qrcode.updated";
+  event: "messages.upsert" | "messages.update" | "messages.reaction" | "connection.update" | "qrcode.updated";
   instance: string;
   data: unknown;
 }
@@ -37,6 +38,9 @@ async function dispatch(envelope: GatewayWebhookEnvelope): Promise<void> {
       return;
     case "messages.update":
       await handleMessagesUpdate(envelope.data);
+      return;
+    case "messages.reaction":
+      await handleMessagesReaction(envelope.instance, envelope.data);
       return;
     case "connection.update":
       await handleConnectionUpdate(envelope.instance, envelope.data);

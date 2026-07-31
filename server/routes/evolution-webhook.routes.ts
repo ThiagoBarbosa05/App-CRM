@@ -11,6 +11,7 @@ const envelopeSchema = z.object({
   event: z.enum([
     "messages.upsert",
     "messages.update",
+    "messages.reaction",
     "connection.update",
     "qrcode.updated",
   ]),

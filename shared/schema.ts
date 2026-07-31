@@ -5036,6 +5036,7 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   // Controla onde o socket dos canais QR roda durante a migração gradual.
   qrBackend: text("qr_backend").$type<"gateway">().notNull().default("gateway"),
   connectionStatus: text("connection_status").default("disconnected"),
+  deviceEchoEnabled: boolean("device_echo_enabled").notNull().default(false),
   // Setor para o qual conversas novas recebidas neste canal são roteadas
   // automaticamente (findOrCreateConversation) — evita que um contato novo
   // fique sem setor e, por isso, invisível a todo vendedor.
@@ -5274,6 +5275,15 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   status: text("status", { enum: ["sent", "delivered", "read", "failed"] }),
   statusReason: text("status_reason"),
   replyToMessageId: text("reply_to_message_id"),
+  origin: text("origin", {
+    enum: ["crm", "device", "contact", "bot", "campaign"],
+  }).notNull().default("contact"),
+  isForwarded: boolean("is_forwarded").notNull().default(false),
+  forwardedFromMessageId: varchar("forwarded_from_message_id"),
+  forwardedFromConversationId: varchar("forwarded_from_conversation_id").references(
+    () => whatsappConversations.id,
+  ),
+  providerMetadata: jsonb("provider_metadata"),
   rawPayload: jsonb("raw_payload"),
   sentByUserId: varchar("sent_by_user_id").references(() => users.id),
   campaignMessageId: varchar("campaign_message_id").references(

@@ -86,6 +86,18 @@ router.post("/webhook", (req: Request, res: Response) => {
               console.error("[WA Webhook] Erro ao processar mensagem:", err),
             );
           }
+          for (const message of value.message_echoes ?? []) {
+            handleIncomingMessage(message, value.metadata, undefined, true).catch((err) =>
+              console.error("[WA Webhook] Erro ao processar echo do dispositivo:", err),
+            );
+          }
+          break;
+        case "smb_message_echoes":
+          for (const message of value.messages ?? value.message_echoes ?? []) {
+            handleIncomingMessage(message, value.metadata, undefined, true).catch((err) =>
+              console.error("[WA Webhook] Erro ao processar echo Coexistence:", err),
+            );
+          }
           break;
 
         // ── Alta prioridade ─────────────────────────────────────────────────────
@@ -248,6 +260,7 @@ async function updateCampaignMessageStatus(
 
 type IncomingMessage = {
   from: string;
+  to?: string;
   type: string;
   id: string;
   timestamp?: string;
@@ -275,7 +288,13 @@ async function handleIncomingMessage(
     display_phone_number: string;
   },
   profileName?: string,
+  isDeviceEcho = false,
 ) {
+  const peerPhone = isDeviceEcho ? message.to : message.from;
+  if (!peerPhone) {
+    console.warn("[WA Webhook] Echo sem destinatário; evento ignorado");
+    return;
+  }
   // Respostas de botão de template (type "button"), botões interativos
   // (interactive.button_reply) e listas (interactive.list_reply) trazem o texto
   // clicado fora de message.text — normaliza para o campo content.
@@ -309,7 +328,7 @@ async function handleIncomingMessage(
   // canais da empresa: um canal diferente mandando mensagem de verdade para
   // este número (ex.: repasse entre setores) é uma conversa legítima e deve
   // seguir normalmente para saveInboundMessage.
-  if (isSameChannelPhone(channel?.displayPhone, message.from)) {
+  if (!isDeviceEcho && isSameChannelPhone(channel?.displayPhone, message.from)) {
     console.warn(
       `[WA Webhook] Mensagem de "${message.from}" ignorada por ser eco do próprio número do canal (phone_number_id "${metadata.phone_number_id}").`,
     );
@@ -318,16 +337,17 @@ async function handleIncomingMessage(
 
   if (message.type === "reaction" && message.reaction) {
     await saveInboundReaction({
-      phone: message.from,
+      phone: peerPhone,
       waMessageId: message.reaction.message_id,
       emoji: message.reaction.emoji,
       channelId: channel?.id ?? null,
+      direction: isDeviceEcho ? "outbound" : "inbound",
     }).catch((err) => console.error("[WA Webhook] Erro ao salvar reação:", err));
     return;
   }
 
   const inboundResult = await saveInboundMessage({
-    phone: message.from,
+    phone: peerPhone,
     content: text || null,
     type: effectiveType,
     waMessageId: message.id,
@@ -338,6 +358,7 @@ async function handleIncomingMessage(
     // A Cloud API só entrega mensagens recebidas — quem enviou é sempre o
     // contato do outro lado.
     senderPhone: message.from,
+    _fromMe: isDeviceEcho,
     pushName: profileName,
     replyToWaMessageId: message.context?.id,
     mediaData: mediaObj
@@ -354,7 +375,7 @@ async function handleIncomingMessage(
 
   // Opt-out/opt-in de marketing via palavra-chave — verificado antes de acionar
   // o bot para que a resposta encerre uma sessão ativa em vez de avançá-la.
-  if (text) {
+  if (!isDeviceEcho && text) {
     const match = matchOptKeyword(text);
     if (match === "opt_out") {
       await optOutClientByPhone(message.from, "keyword").catch((err) =>
@@ -384,7 +405,7 @@ async function handleIncomingMessage(
 
   // Aciona o bot tanto para texto comum quanto para respostas de botão/lista,
   // que devem avançar o fluxo como se fossem uma mensagem do contato.
-  if (inboundResult?.saved && message.type !== "reaction") {
+  if (!isDeviceEcho && inboundResult?.saved && message.type !== "reaction") {
     await handleInboundBotMessage({
       phone: message.from,
       messageText: text || null,

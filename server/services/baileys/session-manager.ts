@@ -18,6 +18,7 @@ import {
   handleQrcodeUpdated,
   handleMessagesUpsert,
   handleMessagesUpdate,
+  handleMessagesReaction,
 } from "../whatsapp-baileys-events.service.js";
 import { pool } from "../../db.js";
 import { uploadWhatsappMedia } from "../../lib/r2.js";
@@ -61,7 +62,7 @@ async function getCmdListenClient(): Promise<PoolClient> {
           const parsed = JSON.parse(msg.payload) as { instanceName?: string; action: string; [k: string]: unknown };
           if (parsed.action === "logout") {
             teardownLocalSession(parsed.instanceName!).catch(console.error);
-          } else if (parsed.action === "send_text" || parsed.action === "send_media") {
+          } else if (parsed.action === "send_text" || parsed.action === "send_media" || parsed.action === "send_reaction") {
             handleRemoteSendCommand(parsed as RemoteSendCommand).catch(console.error);
           } else if (parsed.action === "send_result") {
             handleSendResult(parsed as SendResultPayload);
@@ -170,20 +171,51 @@ function serializeMsgContent(msg: WAMessage): Record<string, unknown> {
   if (!m) return {};
   const out: Record<string, unknown> = {};
   if (m.conversation) out.conversation = m.conversation;
-  if (m.extendedTextMessage?.text) out.extendedTextMessage = { text: m.extendedTextMessage.text };
-  if (m.imageMessage) out.imageMessage = { caption: m.imageMessage.caption ?? null, mimetype: m.imageMessage.mimetype };
+  const serializeContext = (contextInfo: {
+    stanzaId?: string | null;
+    isForwarded?: boolean | null;
+    forwardingScore?: number | null;
+  } | null | undefined) => contextInfo
+    ? {
+        stanzaId: contextInfo.stanzaId ?? undefined,
+        isForwarded: contextInfo.isForwarded ?? false,
+        forwardingScore: contextInfo.forwardingScore ?? 0,
+      }
+    : undefined;
+  if (m.extendedTextMessage?.text) out.extendedTextMessage = {
+    text: m.extendedTextMessage.text,
+    contextInfo: serializeContext(m.extendedTextMessage.contextInfo),
+  };
+  if (m.imageMessage) out.imageMessage = {
+    caption: m.imageMessage.caption ?? null,
+    mimetype: m.imageMessage.mimetype,
+    contextInfo: serializeContext(m.imageMessage.contextInfo),
+  };
   if (m.audioMessage) {
     // Notas de voz (PTT) chegam como audioMessage com ptt=true no Baileys 7
-    if (m.audioMessage.ptt) out.pttMessage = { mimetype: m.audioMessage.mimetype, seconds: m.audioMessage.seconds };
-    else out.audioMessage = { mimetype: m.audioMessage.mimetype, seconds: m.audioMessage.seconds };
+    const audio = {
+      mimetype: m.audioMessage.mimetype,
+      seconds: m.audioMessage.seconds,
+      contextInfo: serializeContext(m.audioMessage.contextInfo),
+    };
+    if (m.audioMessage.ptt) out.pttMessage = audio;
+    else out.audioMessage = audio;
   }
-  if (m.videoMessage) out.videoMessage = { caption: m.videoMessage.caption ?? null, mimetype: m.videoMessage.mimetype };
+  if (m.videoMessage) out.videoMessage = {
+    caption: m.videoMessage.caption ?? null,
+    mimetype: m.videoMessage.mimetype,
+    contextInfo: serializeContext(m.videoMessage.contextInfo),
+  };
   if (m.documentMessage) out.documentMessage = {
     fileName: m.documentMessage.fileName,
     mimetype: m.documentMessage.mimetype,
     caption: m.documentMessage.caption ?? null,
+    contextInfo: serializeContext(m.documentMessage.contextInfo),
   };
-  if (m.stickerMessage) out.stickerMessage = { mimetype: m.stickerMessage.mimetype };
+  if (m.stickerMessage) out.stickerMessage = {
+    mimetype: m.stickerMessage.mimetype,
+    contextInfo: serializeContext(m.stickerMessage.contextInfo),
+  };
   if (m.reactionMessage) out.reactionMessage = { key: m.reactionMessage.key, text: m.reactionMessage.text };
   return out;
 }
@@ -490,6 +522,12 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
     }));
     await handleMessagesUpdate(mapped).catch(console.error);
   });
+
+  sock.ev.on("messages.reaction", async (events: unknown[]) => {
+    for (const event of events) {
+      await handleMessagesReaction(instanceName, event).catch(console.error);
+    }
+  });
 }
 
 /**
@@ -744,8 +782,8 @@ async function sendMediaLocal(
   s: SessionInfo,
   instanceName: string,
   to: string,
-  mediaType: "image" | "document" | "audio" | "video",
-  opts: { url?: string; base64?: string; filename?: string; caption?: string; mimetype?: string; delay?: number },
+  mediaType: "image" | "document" | "audio" | "video" | "sticker",
+  opts: { url?: string; base64?: string; filename?: string; caption?: string; mimetype?: string; delay?: number; quotedMsgId?: string },
 ): Promise<EvolutionSendResultLike> {
   const jid = normalizeToJid(to);
   const mime = opts.mimetype ?? "application/octet-stream";
@@ -764,7 +802,9 @@ async function sendMediaLocal(
   type SendContent = Parameters<WASocket["sendMessage"]>[1];
   let content: SendContent;
 
-  if (mediaType === "image") {
+  if (mediaType === "sticker") {
+    content = { sticker: media as Buffer };
+  } else if (mediaType === "image") {
     content = { image: media as Buffer, caption: opts.caption, mimetype: mime };
   } else if (mediaType === "video") {
     content = { video: media as Buffer, caption: opts.caption, mimetype: mime };
@@ -774,7 +814,7 @@ async function sendMediaLocal(
     content = { document: media as Buffer, fileName: opts.filename, mimetype: mime, caption: opts.caption };
   }
 
-  const result = await s.socket.sendMessage(jid, content);
+  const result = await s.socket.sendMessage(jid, content, buildQuoted(jid, opts.quotedMsgId));
   if (!result?.key) throw new Error("sendMessage não retornou key");
   return {
     key: {
@@ -802,8 +842,8 @@ export async function sendText(
 export async function sendMedia(
   instanceName: string,
   to: string,
-  mediaType: "image" | "document" | "audio" | "video",
-  opts: { url?: string; base64?: string; filename?: string; caption?: string; mimetype?: string; delay?: number },
+  mediaType: "image" | "document" | "audio" | "video" | "sticker",
+  opts: { url?: string; base64?: string; filename?: string; caption?: string; mimetype?: string; delay?: number; quotedMsgId?: string },
 ): Promise<EvolutionSendResultLike> {
   const s = sessions.get(instanceName);
   if (s?.socket) return sendMediaLocal(s, instanceName, to, mediaType, opts);
@@ -831,9 +871,10 @@ type SendForwardCommand =
       kind: "send_media";
       instanceName: string;
       to: string;
-      mediaType: "image" | "document" | "audio" | "video";
-      opts: { url?: string; filename?: string; caption?: string; mimetype?: string; delay?: number };
-    };
+      mediaType: "image" | "document" | "audio" | "video" | "sticker";
+      opts: { url?: string; filename?: string; caption?: string; mimetype?: string; delay?: number; quotedMsgId?: string };
+    }
+  | { kind: "send_reaction"; instanceName: string; to: string; messageId: string; emoji: string };
 
 type RemoteSendCommand = SendForwardCommand & { action: string; correlationId: string };
 
@@ -893,10 +934,11 @@ async function handleRemoteSendCommand(cmd: RemoteSendCommand): Promise<void> {
   if (!s?.socket) return;
 
   try {
-    const result =
-      cmd.kind === "send_text"
-        ? await sendTextLocal(s, cmd.instanceName, cmd.to, cmd.text, cmd.options)
-        : await sendMediaLocal(s, cmd.instanceName, cmd.to, cmd.mediaType, cmd.opts);
+    const result = cmd.kind === "send_text"
+      ? await sendTextLocal(s, cmd.instanceName, cmd.to, cmd.text, cmd.options)
+      : cmd.kind === "send_media"
+        ? await sendMediaLocal(s, cmd.instanceName, cmd.to, cmd.mediaType, cmd.opts)
+        : await sendReactionLocal(s, cmd.to, cmd.messageId, cmd.emoji);
     await publishCmd({ action: "send_result", correlationId: cmd.correlationId, ok: true, result });
   } catch (err) {
     await publishCmd({
@@ -906,6 +948,38 @@ async function handleRemoteSendCommand(cmd: RemoteSendCommand): Promise<void> {
       error: err instanceof Error ? err.message : String(err),
     }).catch(console.error);
   }
+}
+
+async function sendReactionLocal(
+  session: SessionInfo,
+  to: string,
+  messageId: string,
+  emoji: string,
+): Promise<EvolutionSendResultLike> {
+  const jid = normalizeToJid(to);
+  const result = await session.socket.sendMessage(jid, {
+    react: { text: emoji, key: { remoteJid: jid, fromMe: false, id: messageId } },
+  });
+  if (!result?.key) throw new Error("sendMessage não retornou key");
+  return {
+    key: {
+      remoteJid: result.key.remoteJid ?? jid,
+      fromMe: result.key.fromMe ?? true,
+      id: result.key.id ?? "",
+    },
+    status: "sent",
+  };
+}
+
+export async function sendReaction(
+  instanceName: string,
+  to: string,
+  messageId: string,
+  emoji: string,
+): Promise<EvolutionSendResultLike> {
+  const session = sessions.get(instanceName);
+  if (session?.socket) return sendReactionLocal(session, to, messageId, emoji);
+  return forwardSendCommand({ kind: "send_reaction", instanceName, to, messageId, emoji });
 }
 
 export async function getProfilePictureUrl(instanceName: string, to: string): Promise<string | null> {

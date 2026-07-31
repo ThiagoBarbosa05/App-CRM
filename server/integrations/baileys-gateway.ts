@@ -200,16 +200,29 @@ export const baileysGateway = {
     instanceName: string,
     body: {
       to: string;
-      type: "image" | "video" | "audio" | "document";
+      type: "image" | "video" | "audio" | "document" | "sticker";
       url?: string;
       base64?: string;
       caption?: string;
       filename?: string;
       mimetype?: string;
+      quotedMsgId?: string;
     },
     idempotencyKey: string,
   ): Promise<GatewaySendResult> {
     return gatewayRequest(`${instancePath(instanceName)}/messages/media`, {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(body),
+    });
+  },
+
+  sendReaction(
+    instanceName: string,
+    body: { to: string; messageId: string; emoji: string },
+    idempotencyKey: string,
+  ): Promise<GatewaySendResult> {
+    return gatewayRequest(`${instancePath(instanceName)}/messages/reaction`, {
       method: "POST",
       headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(body),

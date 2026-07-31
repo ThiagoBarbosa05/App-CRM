@@ -1,5 +1,5 @@
 import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, isSameChannelPhone, listQrReaderUserIdsForChannel } from "./whatsapp-channels.service";
-import { saveInboundMessage } from "./whatsapp-conversations.service";
+import { saveInboundMessage, saveInboundReaction } from "./whatsapp-conversations.service";
 import { publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
 import { sendText as evoSendText } from "../integrations/evolution";
@@ -61,9 +61,39 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   }
 
   const msgContent = msg.message ?? {};
+  const reaction = msgContent.reactionMessage as {
+    key?: { id?: string };
+    text?: string | null;
+  } | undefined;
+  if (reaction?.key?.id) {
+    await saveInboundReaction({
+      phone,
+      waMessageId: reaction.key.id,
+      emoji: reaction.text ?? "",
+      channelId: channel.id,
+      direction: fromMe ? "outbound" : "inbound",
+    });
+    return;
+  }
+
+  const contentNode = (
+    (msgContent.extendedTextMessage ??
+      msgContent.imageMessage ??
+      msgContent.audioMessage ??
+      msgContent.pttMessage ??
+      msgContent.videoMessage ??
+      msgContent.documentMessage ??
+      msgContent.stickerMessage) as Record<string, unknown> | undefined
+  );
+  const contextInfo = contentNode?.contextInfo as {
+    stanzaId?: string;
+    isForwarded?: boolean;
+    forwardingScore?: number;
+  } | undefined;
   const text =
     (msgContent.conversation as string | undefined) ??
     ((msgContent.extendedTextMessage as Record<string, unknown> | undefined)?.text as string | undefined) ??
+    (contentNode?.caption as string | undefined) ??
     null;
 
   // Tipo de mensagem
@@ -91,6 +121,13 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     timestamp,
     channelId: channel.id,
     rawPayload: msg as Record<string, unknown>,
+    replyToWaMessageId: contextInfo?.stanzaId,
+    isForwarded: contextInfo?.isForwarded === true || (contextInfo?.forwardingScore ?? 0) > 0,
+    providerMetadata: contextInfo
+      ? {
+          forwardingScore: contextInfo.forwardingScore ?? 0,
+        }
+      : undefined,
     _fromMe: fromMe,
     // Remetente real: no eco fromMe é o próprio número do canal. É o que
     // permite derivar a direção quando os dois lados da conversa são canais
@@ -159,6 +196,25 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
       startsConversation: inboundResult.startsConversation,
     });
   }
+}
+
+export async function handleMessagesReaction(instanceName: string, data: unknown) {
+  const event = data as {
+    key?: { remoteJid?: string; fromMe?: boolean };
+    reaction?: { key?: { id?: string }; text?: string | null };
+  };
+  const targetId = event.reaction?.key?.id;
+  const jid = event.key?.remoteJid;
+  if (!targetId || !jid || isIgnorableJid(jid)) return;
+  const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
+  if (!channel) return;
+  await saveInboundReaction({
+    phone: jidToPhone(jid),
+    waMessageId: targetId,
+    emoji: event.reaction?.text ?? "",
+    channelId: channel.id,
+    direction: event.key?.fromMe ? "outbound" : "inbound",
+  });
 }
 
 // ── messages.update ────────────────────────────────────────────────────────────

@@ -19,8 +19,8 @@ import {
 import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt, type SQL, type SQLWrapper } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
-import { sendText as evoSendText, sendMedia as evoSendMedia, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
-import { uploadWhatsappMedia, getPublicR2Url } from "../lib/r2";
+import { sendText as evoSendText, sendMedia as evoSendMedia, sendReaction as evoSendReaction, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
+import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
 import { getChannelById, resolveChannelForConversation, resolveChannelById, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
@@ -1783,6 +1783,11 @@ export async function getConversation(
       status: whatsappMessages.status,
       statusReason: whatsappMessages.statusReason,
       replyToMessageId: whatsappMessages.replyToMessageId,
+      origin: whatsappMessages.origin,
+      isForwarded: whatsappMessages.isForwarded,
+      forwardedFromMessageId: whatsappMessages.forwardedFromMessageId,
+      forwardedFromConversationId: whatsappMessages.forwardedFromConversationId,
+      providerMetadata: whatsappMessages.providerMetadata,
       sentByUserId: whatsappMessages.sentByUserId,
       campaignMessageId: whatsappMessages.campaignMessageId,
       sentAt: whatsappMessages.sentAt,
@@ -1938,6 +1943,7 @@ export async function sendConversationMessage(
       direction: resolved.direction,
       type: "text",
       content: message,
+      origin: "crm",
       status: "failed",
       sentByUserId: userId,
       sentAt: new Date(),
@@ -1987,7 +1993,7 @@ export async function sendConversationMessage(
       publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
     }
 
-    return { waMessageId };
+    return { waMessageId, messageId: savedMessage.id };
   } catch (err) {
     console.error(`[WA Conversations Service] Erro no envio:`, err);
     throw err;
@@ -2371,6 +2377,7 @@ export async function sendConversationMedia(
       direction: resolved.direction,
       type: mediaType,
       content: null,
+      origin: "crm",
       caption: caption ?? null,
       status: "failed",
       sentByUserId: userId,
@@ -2380,7 +2387,7 @@ export async function sendConversationMedia(
     .returning({ id: whatsappMessages.id });
 
   if (resolvedChannel?.provider === "evolution") {
-    const evoMediaType = mediaType === "sticker" ? "image" : mediaType;
+    const evoMediaType = mediaType;
     const base64 = effectiveBuffer.toString("base64");
     console.log(`[sendConversationMedia] Evolution sendMedia type=${evoMediaType}`);
     try {
@@ -2393,6 +2400,7 @@ export async function sendConversationMedia(
           caption,
           filename: effectiveName,
           mimetype: effectiveMime,
+          quotedMsgId: replyToWaMessageId ?? undefined,
           idempotencyKey: `message-${savedMessage.id}`,
         },
       );
@@ -2415,7 +2423,7 @@ export async function sendConversationMedia(
     }
     console.log(`[sendConversationMedia] waMediaId=${waMediaId} → sendMediaMessage type=${mediaType}`);
     try {
-      const result = await sendMediaMessage(resolved.targetPhone, waMediaId, mediaType, caption ?? undefined, undefined, cloudOverride ?? undefined);
+      const result = await sendMediaMessage(resolved.targetPhone, waMediaId, mediaType, caption ?? undefined, undefined, cloudOverride ?? undefined, replyToWaMessageId ?? undefined);
       waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
     } catch (err) {
       console.error(`[sendConversationMedia] sendMediaMessage falhou:`, err);
@@ -2461,6 +2469,114 @@ export async function sendConversationMedia(
   }
 
   return { id: savedMessage.id, status: "sent" };
+}
+
+export async function forwardConversationMessage(
+  sourceConversationId: string,
+  sourceMessageId: string,
+  targetConversationIds: string[],
+  userId: string,
+  userRole: string,
+): Promise<Array<{ conversationId: string; ok: boolean; message?: string }>> {
+  if (!(await isConversationAccessibleToUser(sourceConversationId, userId, userRole))) {
+    throw new Error("SOURCE_NOT_ACCESSIBLE");
+  }
+  const [source] = await db
+    .select({
+      id: whatsappMessages.id,
+      type: whatsappMessages.type,
+      content: whatsappMessages.content,
+      caption: whatsappMessages.caption,
+      storageKey: whatsappMedia.storageKey,
+      mimeType: whatsappMedia.mimeType,
+      filename: whatsappMedia.filename,
+    })
+    .from(whatsappMessages)
+    .leftJoin(whatsappMedia, eq(whatsappMessages.id, whatsappMedia.messageId))
+    .where(and(
+      eq(whatsappMessages.id, sourceMessageId),
+      eq(whatsappMessages.conversationId, sourceConversationId),
+    ))
+    .limit(1);
+  if (!source) throw new Error("MESSAGE_NOT_FOUND");
+
+  let file: { buffer: Buffer; originalname: string; mimetype: string; size: number } | undefined;
+  if (source.type !== "text") {
+    if (!source.storageKey || !source.mimeType) throw new Error("MEDIA_NOT_AVAILABLE");
+    const object = await getWhatsappMediaObject(source.storageKey);
+    const bytes = await object.Body?.transformToByteArray();
+    if (!bytes) throw new Error("MEDIA_NOT_AVAILABLE");
+    const buffer = Buffer.from(bytes);
+    file = {
+      buffer,
+      originalname: source.filename ?? `whatsapp-${source.id}`,
+      mimetype: source.mimeType,
+      size: buffer.length,
+    };
+  }
+
+  const results: Array<{ conversationId: string; ok: boolean; message?: string }> = [];
+  for (const targetConversationId of Array.from(new Set(targetConversationIds))) {
+    try {
+      if (!(await isConversationAccessibleToUser(targetConversationId, userId, userRole))) {
+        throw new Error("TARGET_NOT_ACCESSIBLE");
+      }
+      const sent = file
+        ? await sendConversationMedia(
+            targetConversationId, file, userId, userRole, undefined, source.caption ?? undefined,
+          )
+        : await sendConversationMessage(
+            targetConversationId, source.content ?? "", userId, userRole,
+          );
+      const forwardedId = sent && "messageId" in sent ? sent.messageId : sent?.id;
+      if (!forwardedId) throw new Error("SEND_FAILED");
+      await db.update(whatsappMessages).set({
+        isForwarded: true,
+        forwardedFromMessageId: source.id,
+        forwardedFromConversationId: sourceConversationId,
+      }).where(eq(whatsappMessages.id, forwardedId));
+      publishConversationEvent(targetConversationId, "new_message", {});
+      results.push({ conversationId: targetConversationId, ok: true });
+    } catch (error) {
+      results.push({
+        conversationId: targetConversationId,
+        ok: false,
+        message: error instanceof Error ? error.message : "SEND_FAILED",
+      });
+    }
+  }
+  return results;
+}
+
+export async function getConversationCapabilities(
+  conversationId: string,
+  userId: string,
+  userRole: string,
+): Promise<{
+  reply: boolean;
+  reaction: boolean;
+  sticker: boolean;
+  forward: boolean;
+  deviceEcho: boolean;
+  provider: "cloud_api" | "evolution";
+} | null> {
+  if (!(await isConversationAccessibleToUser(conversationId, userId, userRole))) return null;
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId);
+  if (!resolved) return null;
+  const provider = resolved.channel.provider === "evolution" ? "evolution" : "cloud_api";
+  const [channelConfig] = await db
+    .select({ deviceEchoEnabled: whatsappChannels.deviceEchoEnabled })
+    .from(whatsappChannels)
+    .where(eq(whatsappChannels.id, resolved.channelId))
+    .limit(1);
+  return {
+    reply: true,
+    reaction: true,
+    sticker: true,
+    forward: true,
+    deviceEcho: provider === "evolution" || channelConfig?.deviceEchoEnabled === true,
+    provider,
+  };
 }
 
 export async function retryFailedMessage(
@@ -2749,6 +2865,8 @@ export async function saveInboundMessage(data: {
   rawPayload?: unknown;
   channelId?: number | null;
   replyToWaMessageId?: string;
+  isForwarded?: boolean;
+  providerMetadata?: Record<string, unknown>;
   /** Permite sobrescrever a direção da mensagem (padrão: "inbound"). Usado pelo Evolution para fromMe:true. */
   direction?: "inbound" | "outbound";
   /** @internal usado pelo Evolution webhook para indicar mensagem enviada pelo celular do vendedor */
@@ -2852,11 +2970,14 @@ export async function saveInboundMessage(data: {
         direction,
         type: data.type,
         content: data.content,
+        origin: data._fromMe ? "device" : "contact",
         caption: data.caption ?? null,
         waMessageId: data.waMessageId,
         rawPayload: data.rawPayload ?? null,
         sentAt,
         replyToMessageId,
+        isForwarded: data.isForwarded ?? false,
+        providerMetadata: data.providerMetadata ?? null,
       })
       .returning({ id: whatsappMessages.id });
   } catch (err: unknown) {
@@ -3050,6 +3171,7 @@ export async function saveInboundReaction(data: {
   waMessageId: string;
   emoji: string;
   channelId?: number | null;
+  direction?: "inbound" | "outbound";
 }) {
   const [targetMsg] = await db
     .select({ id: whatsappMessages.id, conversationId: whatsappMessages.conversationId })
@@ -3068,7 +3190,7 @@ export async function saveInboundReaction(data: {
       .where(
         and(
           eq(whatsappReactions.messageId, targetMsg.id),
-          eq(whatsappReactions.direction, "inbound"),
+          eq(whatsappReactions.direction, data.direction ?? "inbound"),
         ),
       );
   } else {
@@ -3077,7 +3199,7 @@ export async function saveInboundReaction(data: {
       .values({
         messageId: targetMsg.id,
         emoji: data.emoji,
-        direction: "inbound",
+        direction: data.direction ?? "inbound",
         senderPhone: data.phone,
       })
       .onConflictDoUpdate({
@@ -3155,23 +3277,23 @@ export async function sendConversationReaction(
   }
   const resolvedChannel = resolved.channel;
 
-  // Reação só existe na API da Meta; o Evolution/Baileys não tem endpoint de
-  // reação nesta base. Antes deste guard o override caía em null e sendReaction
-  // saía pelo número GLOBAL com um waMessageId do Baileys que a Meta não
-  // conhece — erro opaco em vez de mensagem legível. Mesmo padrão do template.
-  if (resolvedChannel.provider !== "cloud_api") {
-    throw new Error(
-      "Reações só podem ser enviadas pelo canal oficial do WhatsApp (Cloud API).",
-    );
-  }
-
   // Destino é o do lado que está reagindo, não conv.phone: conv.phone é o
   // número do PEER (ver canonicalInternalPair), então reagir pelo lado peer
   // mandando para conv.phone seria mandar para o próprio número.
-  await sendReaction(resolved.targetPhone, targetMsg.waMessageId, emoji, {
-    phoneNumberId: resolvedChannel.phoneNumberId,
-    accessToken: resolvedChannel.accessToken,
-  });
+  if (resolvedChannel.provider === "evolution") {
+    await evoSendReaction(
+      resolvedChannel.evolutionInstanceName,
+      resolved.targetPhone,
+      targetMsg.waMessageId,
+      emoji,
+      `reaction-${messageId}-${resolved.direction}`,
+    );
+  } else {
+    await sendReaction(resolved.targetPhone, targetMsg.waMessageId, emoji, {
+      phoneNumberId: resolvedChannel.phoneNumberId,
+      accessToken: resolvedChannel.accessToken,
+    });
+  }
 
   // Direção relativa ao DONO, vinda da MESMA resolução que escolheu o canal —
   // as duas não podem divergir: a linha é unique(messageId, direction) e um

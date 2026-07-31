@@ -1,5 +1,9 @@
 # API do Baileys Gateway
 
+**Versão do contrato: 2.0.** O contrato 2.0 adiciona citação em mídia,
+figurinha nativa, envio de reação, preservação de `contextInfo` e o evento
+`messages.reaction`. Gateway e CRM devem ser publicados de forma coordenada.
+
 Documentação de integração para o App-CRM. Cobre autenticação, o fluxo de conexão de canais via QR code, envio de mensagens e o contrato dos webhooks.
 
 Base URL: valor de `GATEWAY_URL` (ex.: `https://seu-gateway.replit.app`).
@@ -292,6 +296,20 @@ Passe `mimetype` sempre que souber — sem ele o WhatsApp recebe `application/oc
 Resposta: mesmo formato do envio de texto.
 
 ### 5.4 Foto de perfil
+
+No contrato 2.0, `POST /messages/media` também aceita `type: "sticker"` e
+`quotedMsgId`. Para reações:
+
+```http
+POST /v1/instances/canal-piloto/messages/reaction
+Authorization: Bearer <API_KEY>
+Idempotency-Key: reaction-message-id-outbound
+Content-Type: application/json
+
+{"to":"5511999999999","messageId":"3EB0...","emoji":"👍"}
+```
+
+Um `emoji` vazio remove a reação do próprio canal.
 
 ```http
 GET /v1/instances/canal-piloto/profile-picture?phone=5511999999999

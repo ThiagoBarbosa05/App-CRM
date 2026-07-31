@@ -105,6 +105,8 @@ import {
   ChevronsRight,
   SlidersHorizontal,
   Calendar as CalendarIcon,
+  Forward,
+  Smartphone,
 } from "lucide-react";
 import {
   Popover,
@@ -288,6 +290,10 @@ interface WaMessage {
   replyToContent: string | null;
   replyToType: string | null;
   replyToDirection: "inbound" | "outbound" | null;
+  origin?: "crm" | "device" | "contact" | "bot" | "campaign";
+  isForwarded?: boolean;
+  forwardedFromMessageId?: string | null;
+  forwardedFromConversationId?: string | null;
   sentByUserId: string | null;
   campaignMessageId: string | null;
   sentAt: string | null;
@@ -2994,6 +3000,7 @@ function ConversationMessages({
   canDeleteQuickReplies,
   initialDraft,
   initialFile,
+  forwardTargets,
 }: {
   conversationKey: string;
   onBack: () => void;
@@ -3012,6 +3019,7 @@ function ConversationMessages({
   initialDraft?: string;
   /** Arquivo (ex.: PDF do orçamento) pré-carregado na área de anexo ao abrir a conversa. */
   initialFile?: File;
+  forwardTargets: ChatClient[];
 }) {
   const isAdminOrGerente = userRole === "admin" || userRole === "gerente";
   // O componente é remontado a cada troca de conversa (key=conversationId no
@@ -3059,6 +3067,26 @@ function ConversationMessages({
   const [spreadsheetPreviewLoading, setSpreadsheetPreviewLoading] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [reactingToId, setReactingToId] = useState<string | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<WaMessage | null>(null);
+  const [forwardTargetIds, setForwardTargetIds] = useState<Set<string>>(new Set());
+  const [isForwarding, setIsForwarding] = useState(false);
+  const { data: capabilities } = useQuery<{
+    reply: boolean;
+    reaction: boolean;
+    sticker: boolean;
+    forward: boolean;
+    deviceEcho: boolean;
+    provider: "cloud_api" | "evolution";
+  }>({
+    queryKey: ["/api/whatsapp/conversations", conversationKey, "capabilities"],
+    queryFn: async () => {
+      const response = await fetch(
+        `/api/whatsapp/conversations/${conversationKey}/capabilities`,
+      );
+      if (!response.ok) throw new Error("Falha ao consultar capacidades");
+      return response.json();
+    },
+  });
   const cursorPosRef = useRef<number>(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stickerInputRef = useRef<HTMLInputElement>(null);
@@ -3834,6 +3862,43 @@ function ConversationMessages({
     [conversationKey, queryClient, sendAsChannelId, toast, userRole],
   );
 
+  const confirmForward = useCallback(async () => {
+    if (!forwardingMessage || forwardTargetIds.size === 0) return;
+    setIsForwarding(true);
+    try {
+      const response = await fetch(
+        `/api/whatsapp/conversations/${conversationKey}/messages/${forwardingMessage.id}/forward`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targetConversationIds: Array.from(forwardTargetIds),
+          }),
+        },
+      );
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? "Falha ao encaminhar");
+      const failed = Number(payload.failed ?? 0);
+      toast({
+        title: failed > 0 ? "Encaminhamento parcial" : "Mensagem encaminhada",
+        description:
+          failed > 0
+            ? `${forwardTargetIds.size - failed} enviada(s), ${failed} falha(s).`
+            : `Enviada para ${forwardTargetIds.size} conversa(s).`,
+      });
+      setForwardingMessage(null);
+      setForwardTargetIds(new Set());
+    } catch (error) {
+      toast({
+        title: "Não foi possível encaminhar",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsForwarding(false);
+    }
+  }, [conversationKey, forwardTargetIds, forwardingMessage, toast]);
+
   const stopRecording = useCallback(() => {
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current);
@@ -4395,6 +4460,14 @@ function ConversationMessages({
                         · Desconectado
                       </span>
                     )}
+                    {connected && capabilities && !capabilities.deviceEcho && (
+                      <span
+                        className="text-slate-400"
+                        title="Ações feitas no aplicativo móvel só aparecem quando a Meta habilita Coexistence/echo para este número."
+                      >
+                        · ações do dispositivo condicionais à Meta
+                      </span>
+                    )}
                   </span>
                 );
               })()}
@@ -4660,6 +4733,7 @@ function ConversationMessages({
                         >
                           <button
                             onClick={() => setReplyingTo(msg)}
+                            disabled={capabilities?.reply === false}
                             className={cn(
                               "h-7 w-7 rounded-full flex items-center justify-center",
                               "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
@@ -4668,6 +4742,21 @@ function ConversationMessages({
                             title="Responder"
                           >
                             <Reply className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setForwardingMessage(msg);
+                              setForwardTargetIds(new Set());
+                            }}
+                            disabled={capabilities?.forward === false}
+                            className={cn(
+                              "h-7 w-7 rounded-full flex items-center justify-center",
+                              "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
+                              "text-slate-500 dark:text-slate-400 disabled:opacity-40",
+                            )}
+                            title="Encaminhar"
+                          >
+                            <Forward className="h-3.5 w-3.5" />
                           </button>
                           {msg.type === "sticker" && msg.media?.id && (
                             <button
@@ -4695,12 +4784,17 @@ function ConversationMessages({
                           >
                             <PopoverTrigger asChild>
                               <button
+                                disabled={capabilities?.reaction === false}
                                 className={cn(
                                   "h-7 w-7 rounded-full flex items-center justify-center",
                                   "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
                                   "text-slate-500 dark:text-slate-400",
                                 )}
-                                title="Reagir"
+                                title={
+                                  capabilities?.reaction === false
+                                    ? "Reações indisponíveis neste canal"
+                                    : "Reagir"
+                                }
                               >
                                 <Smile className="h-3.5 w-3.5" />
                               </button>
@@ -4752,6 +4846,27 @@ function ConversationMessages({
                                 : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-tl-[4px]",
                           )}
                         >
+                          {(msg.isForwarded || msg.origin === "device") && (
+                            <div
+                              className={cn(
+                                "flex items-center gap-2 text-[10px] opacity-70",
+                                isMedia ? "px-3.5 pt-2.5" : "mb-1.5",
+                              )}
+                            >
+                              {msg.isForwarded && (
+                                <span className="inline-flex items-center gap-1">
+                                  <Forward className="h-3 w-3" />
+                                  Encaminhada
+                                </span>
+                              )}
+                              {msg.origin === "device" && (
+                                <span className="inline-flex items-center gap-1">
+                                  <Smartphone className="h-3 w-3" />
+                                  Enviado pelo dispositivo
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {/* Citação da mensagem respondida */}
                           {msg.replyToContent !== null &&
                           msg.replyToContent !== undefined ? (
@@ -5618,6 +5733,82 @@ function ConversationMessages({
         userRole={userRole}
         onSuccess={onClientLinked}
       />
+
+      <Dialog
+        open={forwardingMessage !== null}
+        onOpenChange={(open) => {
+          if (!open && !isForwarding) {
+            setForwardingMessage(null);
+            setForwardTargetIds(new Set());
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Encaminhar mensagem</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-500">
+            Selecione uma ou mais conversas. Cada destinatário receberá uma nova
+            mensagem pelo canal associado à conversa.
+          </p>
+          <div className="max-h-72 overflow-y-auto rounded-xl border divide-y">
+            {forwardTargets
+              .filter((target) => target.conversationId !== conversationKey)
+              .map((target) => {
+                const targetId = target.conversationId;
+                const selected = forwardTargetIds.has(targetId);
+                return (
+                  <button
+                    key={clientKey(target)}
+                    type="button"
+                    onClick={() =>
+                      setForwardTargetIds((current) => {
+                        const next = new Set(current);
+                        if (next.has(targetId)) next.delete(targetId);
+                        else next.add(targetId);
+                        return next;
+                      })
+                    }
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    <span
+                      className={cn(
+                        "h-5 w-5 rounded-md border flex items-center justify-center",
+                        selected && "bg-primary border-primary text-primary-foreground",
+                      )}
+                    >
+                      {selected && <Check className="h-3.5 w-3.5" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium truncate">
+                        {target.clientName ?? target.contactName ?? target.phone}
+                      </span>
+                      <span className="block text-xs text-slate-400 truncate">
+                        {target.channelName ?? target.phone}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              disabled={isForwarding}
+              onClick={() => setForwardingMessage(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={isForwarding || forwardTargetIds.size === 0}
+              onClick={confirmForward}
+            >
+              {isForwarding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Encaminhar ({forwardTargetIds.size})
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ContactDetailsSheet
         client={client}
@@ -7736,6 +7927,7 @@ export default function WhatsAppConversationsPage() {
                 : undefined
             }
             initialFile={pendingQuoteFile ?? undefined}
+            forwardTargets={clientList}
             onClientLinked={handleClientLinked}
             availableWhatsappTags={availableWaTags}
             onWhatsappTagsChange={(clientId, tagIds) =>

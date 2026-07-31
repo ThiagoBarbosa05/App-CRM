@@ -37,6 +37,8 @@ import {
   isConversationAccessibleToUser,
   isClientAccessibleToUser,
   resolveOutboundChannelForSender,
+  forwardConversationMessage,
+  getConversationCapabilities,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
@@ -711,6 +713,50 @@ router.delete("/quick-replies/:id", async (req, res) => {
 const triggerBotSchema = z.object({
   botId: z.string().min(1),
   channelId: z.number().int().positive(),
+});
+
+const forwardMessageSchema = z.object({
+  targetConversationIds: z.array(z.string().min(1)).min(1).max(20),
+});
+
+router.post("/conversations/:clientId/messages/:messageId/forward", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const parsed = forwardMessageSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+    const results = await forwardConversationMessage(
+      conversationId,
+      req.params.messageId,
+      parsed.data.targetConversationIds,
+      user.userId,
+      user.role,
+    );
+    const failed = results.filter((result) => !result.ok).length;
+    res.status(failed === results.length ? 502 : 200).json({ results, failed });
+  } catch (error) {
+    console.error("[WA Conversations] Erro ao encaminhar mensagem:", error);
+    res.status(500).json({ message: "Erro ao encaminhar mensagem" });
+  }
+});
+
+router.get("/conversations/:clientId/capabilities", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+    const capabilities = await getConversationCapabilities(
+      conversationId, user.userId, user.role,
+    );
+    if (!capabilities) return res.status(404).json({ message: "Canal não encontrado" });
+    res.json(capabilities);
+  } catch (error) {
+    console.error("[WA Conversations] Erro ao consultar capacidades:", error);
+    res.status(500).json({ message: "Erro ao consultar capacidades" });
+  }
 });
 
 router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
