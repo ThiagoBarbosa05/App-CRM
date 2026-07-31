@@ -1,6 +1,6 @@
 import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, isSameChannelPhone, listQrReaderUserIdsForChannel } from "./whatsapp-channels.service";
 import { saveInboundMessage, saveInboundReaction } from "./whatsapp-conversations.service";
-import { publishSseEvent } from "../lib/sse-hub";
+import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
 import { sendText as evoSendText } from "../integrations/evolution";
 import {
@@ -259,15 +259,38 @@ export async function handleMessagesUpdate(data: unknown) {
 
     const { db } = await import("../db");
     const { whatsappMessages } = await import("../../shared/schema");
-    const { eq } = await import("drizzle-orm");
-    await db
+    const { and, eq, ne } = await import("drizzle-orm");
+    const eventAt = new Date();
+    const [updated] = await db
       .update(whatsappMessages)
       .set({
         status: mapped as "sent" | "delivered" | "read" | "failed",
+        ...(mapped === "delivered" ? { deliveredAt: eventAt } : {}),
+        ...(mapped === "read" ? { deliveredAt: eventAt, readAt: eventAt } : {}),
         ...(statusReason ? { statusReason } : {}),
       })
-      .where(eq(whatsappMessages.waMessageId, waMessageId))
-      .catch((err) => console.error("[Baileys Events] Erro ao atualizar status:", err));
+      .where(
+        mapped === "delivered"
+          ? and(
+              eq(whatsappMessages.waMessageId, waMessageId),
+              ne(whatsappMessages.status, "read"),
+            )
+          : eq(whatsappMessages.waMessageId, waMessageId),
+      )
+      .returning({
+        id: whatsappMessages.id,
+        conversationId: whatsappMessages.conversationId,
+      })
+      .catch((err): Array<{ id: string; conversationId: string }> => {
+        console.error("[Baileys Events] Erro ao atualizar status:", err);
+        return [];
+      });
+    if (updated) {
+      publishConversationEvent(updated.conversationId, "message_status", {
+        messageId: updated.id,
+        status: mapped,
+      });
+    }
   }
 }
 

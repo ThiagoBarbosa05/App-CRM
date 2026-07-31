@@ -18,9 +18,11 @@ vi.mock("../whatsapp-channels.service", () => ({
 }));
 vi.mock("../whatsapp-conversations.service", () => ({
   saveInboundMessage: async () => {},
+  saveInboundReaction: async () => {},
 }));
 vi.mock("../../lib/sse-hub", () => ({
   publishSseEvent: () => {},
+  publishConversationEvent: () => {},
 }));
 vi.mock("../baileys/jid", () => ({
   jidToPhone: (jid: string) => jid,
@@ -49,7 +51,11 @@ describe("handleMessagesUpdate — detecção de conta restrita (erro 463)", () 
   beforeEach(() => {
     updateMock.mockReset();
     setMock.mockReset();
-    setMock.mockReturnValue({ where: () => Promise.resolve() });
+    setMock.mockReturnValue({
+      where: () => ({
+        returning: () => Promise.resolve([]),
+      }),
+    });
     updateMock.mockReturnValue({ set: setMock });
   });
 
@@ -58,7 +64,9 @@ describe("handleMessagesUpdate — detecção de conta restrita (erro 463)", () 
       { key: { id: "wamid-1" }, update: { status: "error", messageStubParameters: ["463"] } },
     ]);
 
-    expect(setMock).toHaveBeenCalledWith({ status: "failed", statusReason: "account_restricted" });
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed", statusReason: "account_restricted" }),
+    );
   });
 
   it("reach-out timelock ['471', 'Your account has been restricted'] também grava account_restricted", async () => {
@@ -69,7 +77,9 @@ describe("handleMessagesUpdate — detecção de conta restrita (erro 463)", () 
       },
     ]);
 
-    expect(setMock).toHaveBeenCalledWith({ status: "failed", statusReason: "account_restricted" });
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "failed", statusReason: "account_restricted" }),
+    );
   });
 
   it("erro sem relação com 463 grava failed sem statusReason", async () => {
@@ -77,7 +87,7 @@ describe("handleMessagesUpdate — detecção de conta restrita (erro 463)", () 
       { key: { id: "wamid-3" }, update: { status: "error", messageStubParameters: ["479"] } },
     ]);
 
-    expect(setMock).toHaveBeenCalledWith({ status: "failed" });
+    expect(setMock).toHaveBeenCalledWith(expect.objectContaining({ status: "failed" }));
   });
 
   it("status de sucesso (delivery_ack) não passa pelo branch de motivo", async () => {
@@ -85,6 +95,22 @@ describe("handleMessagesUpdate — detecção de conta restrita (erro 463)", () 
       { key: { id: "wamid-4" }, update: { status: "delivery_ack" } },
     ]);
 
-    expect(setMock).toHaveBeenCalledWith({ status: "delivered" });
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "delivered", deliveredAt: expect.any(Date) }),
+    );
+  });
+
+  it("status read grava entrega e leitura", async () => {
+    await handleMessagesUpdate([
+      { key: { id: "wamid-5" }, update: { status: "read" } },
+    ]);
+
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "read",
+        deliveredAt: expect.any(Date),
+        readAt: expect.any(Date),
+      }),
+    );
   });
 });

@@ -18,6 +18,7 @@ import {
   updateTemplateQualityScore,
 } from "../services/whatsapp-templates.service";
 import { sendTextMessage } from "../integrations/whatsapp";
+import { publishConversationEvent } from "../lib/sse-hub";
 import {
   optOutClientByPhone,
   optInClientByPhone,
@@ -192,9 +193,11 @@ async function handleMessageStatus(status: {
     console.log(`[WA Webhook] Mensagem ${status.id} → ${status.status}`);
   }
 
-  const now = new Date();
+  const eventAt = status.timestamp
+    ? new Date(Number(status.timestamp) * 1000)
+    : new Date();
 
-  await updateCampaignMessageStatus(status, now).catch((err) =>
+  await updateCampaignMessageStatus(status, eventAt).catch((err) =>
     console.error("[WA Webhook] Erro ao atualizar status de campanha:", err),
   );
 
@@ -203,13 +206,36 @@ async function handleMessageStatus(status: {
       ? (status.errors[0].message || status.errors[0].title)?.slice(0, 500)
       : undefined;
 
+  const [current] = await db
+    .select({
+      id: whatsappMessages.id,
+      conversationId: whatsappMessages.conversationId,
+      status: whatsappMessages.status,
+    })
+    .from(whatsappMessages)
+    .where(eq(whatsappMessages.waMessageId, status.id))
+    .limit(1);
+  if (!current) return;
+  const currentRank = STATUS_RANK[current.status ?? ""] ?? 0;
+  const nextRank = STATUS_RANK[status.status] ?? 0;
+  if (status.status !== "failed" && nextRank < currentRank) return;
+
   await db
     .update(whatsappMessages)
-    .set({ status: status.status, ...(statusReason ? { statusReason } : {}) })
-    .where(eq(whatsappMessages.waMessageId, status.id))
+    .set({
+      status: status.status,
+      ...(status.status === "delivered" ? { deliveredAt: eventAt } : {}),
+      ...(status.status === "read" ? { deliveredAt: eventAt, readAt: eventAt } : {}),
+      ...(statusReason ? { statusReason } : {}),
+    })
+    .where(eq(whatsappMessages.id, current.id))
     .catch((err) =>
       console.error("[WA Webhook] Erro ao atualizar status de conversa:", err),
     );
+  publishConversationEvent(current.conversationId, "message_status", {
+    messageId: current.id,
+    status: status.status,
+  });
 }
 
 async function updateCampaignMessageStatus(

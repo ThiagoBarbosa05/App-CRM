@@ -1782,6 +1782,8 @@ export async function getConversation(
       caption: whatsappMessages.caption,
       status: whatsappMessages.status,
       statusReason: whatsappMessages.statusReason,
+      deliveredAt: whatsappMessages.deliveredAt,
+      readAt: whatsappMessages.readAt,
       replyToMessageId: whatsappMessages.replyToMessageId,
       origin: whatsappMessages.origin,
       isForwarded: whatsappMessages.isForwarded,

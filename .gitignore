@@ -10,6 +10,7 @@ bling-control-0f37ef3dad78.json
 *.sql
 !migrations/0006_baileys_gateway.sql
 !migrations/0007_whatsapp_unified_messages.sql
+!migrations/0008_whatsapp_message_receipts.sql
 !migrations/0007_gateway_only_qr_channels.sql
 !migrations/0001_whatsapp_campaign_dedupe.sql
 !migrations/0002_whatsapp_bot_start_nodes.sql

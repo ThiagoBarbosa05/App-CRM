@@ -286,6 +286,8 @@ interface WaMessage {
   caption: string | null;
   status: string | null;
   statusReason?: string | null;
+  deliveredAt?: string | null;
+  readAt?: string | null;
   replyToMessageId: string | null;
   replyToContent: string | null;
   replyToType: string | null;
@@ -3517,14 +3519,16 @@ function ConversationMessages({
     const es = new EventSource(
       `/api/whatsapp/conversations/${conversationKey}/stream`,
     );
-    es.addEventListener("new_message", () => {
+    const refreshConversation = () => {
       refreshFirstPage(queryClient, messagesQueryKey, () =>
         fetchMessagesPage(null),
       );
       queryClient.invalidateQueries({
         queryKey: ["/api/whatsapp/conversations-list"],
       });
-    });
+    };
+    es.addEventListener("new_message", refreshConversation);
+    es.addEventListener("message_status", refreshConversation);
     es.addEventListener("access_revoked", () => {
       es.close();
       toast({
@@ -4961,15 +4965,33 @@ function ConversationMessages({
                                   : {})}
                               />
                             ) : isOutbound ? (
-                              <CheckCheck
-                                className={cn(
-                                  "h-3 w-3",
-                                  msg.status === "delivered" ||
+                              msg.status === "sent" || !msg.status ? (
+                                <span title="Enviada ao WhatsApp" aria-label="Mensagem enviada">
+                                  <Check className="h-3 w-3 text-primary-foreground/60" />
+                                </span>
+                              ) : (
+                                <span
+                                  aria-label={
                                     msg.status === "read"
-                                    ? "text-blue-300"
-                                    : "text-primary-foreground/60",
-                                )}
-                              />
+                                      ? "Mensagem visualizada"
+                                      : "Mensagem entregue"
+                                  }
+                                  title={
+                                    msg.status === "read"
+                                      ? `Visualizada${msg.readAt ? ` em ${formatMessageDate(msg.readAt)}` : ""}`
+                                      : `Entregue${msg.deliveredAt ? ` em ${formatMessageDate(msg.deliveredAt)}` : ""}`
+                                  }
+                                >
+                                  <CheckCheck
+                                    className={cn(
+                                      "h-3 w-3",
+                                      msg.status === "read"
+                                        ? "text-sky-300"
+                                        : "text-primary-foreground/65",
+                                    )}
+                                  />
+                                </span>
+                              )
                             ) : null}
                           </div>
                         </div>
