@@ -128,15 +128,21 @@ export class ClientsRepository {
       // Exclusivo: cliente não pode ter nenhuma outra WhatsApp tag além das selecionadas
       if (filters.exclusiveWhatsappTags) {
         conditions.push(
-          sql`NOT EXISTS (
-            SELECT 1 FROM contact_tags ct
+          sql`(
+            SELECT COUNT(DISTINCT ct.whatsapp_tag_id)
+            FROM contact_tags ct
             WHERE ct.client_id = ${clients.id}
               AND ct.whatsapp_tag_id IS NOT NULL
-              AND NOT (ct.whatsapp_tag_id = ANY(ARRAY[${sql.join(
+          ) = ${filters.whatsappTagIds.length}`,
+          sql`(
+            SELECT COUNT(DISTINCT ct.whatsapp_tag_id)
+            FROM contact_tags ct
+            WHERE ct.client_id = ${clients.id}
+              AND ct.whatsapp_tag_id = ANY(ARRAY[${sql.join(
                 filters.whatsappTagIds.map((id) => sql`${id}`),
                 sql`, `,
-              )}]::text[]))
-          )`,
+              )}]::text[])
+          ) = ${filters.whatsappTagIds.length}`,
         );
       }
     }

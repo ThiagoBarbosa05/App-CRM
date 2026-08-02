@@ -21,6 +21,8 @@ import {
   Calendar,
   UserCircle2,
   Radio,
+  Tag,
+  PhoneOff,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -231,7 +233,21 @@ export default function WhatsAppCampaignDetails() {
   const sentCount = (stats?.sent ?? 0) + deliveredCount;
   const failedCount = stats?.failed ?? campaign.failedMessages;
   const cancelledCount = stats?.cancelled ?? 0;
-  const processed = sentCount + failedCount;
+  const suppressedCount = stats?.suppressed ?? 0;
+  const suppressionCounts = (campaign.messages ?? []).reduce(
+    (counts, message) => {
+      if (message.status !== "suppressed") return counts;
+      const reason = message.suppressionReason ?? "";
+      if (reason.includes("idêntica") || reason.includes("identica")) counts.duplicate++;
+      else if (reason.includes("Etiquetas alteradas")) counts.tagsChanged++;
+      else if (reason.toLowerCase().includes("opt-out")) counts.optedOut++;
+      else if (reason.toLowerCase().includes("telefone")) counts.invalidPhone++;
+      else counts.other++;
+      return counts;
+    },
+    { duplicate: 0, tagsChanged: 0, optedOut: 0, invalidPhone: 0, other: 0 },
+  );
+  const processed = sentCount + failedCount + cancelledCount + suppressedCount;
 
   const pct =
     campaign.totalContacts > 0
@@ -444,6 +460,18 @@ export default function WhatsAppCampaignDetails() {
           </StatBlock>
         )}
       </div>
+
+      {(stats?.suppressed ?? 0) > 0 && (
+        <StatBlock title="Contatos suprimidos">
+          <StatRow icon={AlertCircle} label="Mensagem repetida" value={suppressionCounts.duplicate} />
+          <StatRow icon={Tag} label="Etiquetas alteradas" value={suppressionCounts.tagsChanged} />
+          <StatRow icon={Ban} label="Opt-out" value={suppressionCounts.optedOut} />
+          <StatRow icon={PhoneOff} label="Telefone inválido" value={suppressionCounts.invalidPhone} />
+          {suppressionCounts.other > 0 ? (
+            <StatRow icon={AlertCircle} label="Outros motivos" value={suppressionCounts.other} />
+          ) : null}
+        </StatBlock>
+      )}
 
       {/* Progress bar */}
       <Card>

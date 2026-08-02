@@ -487,7 +487,15 @@ export function useCreateCampaignWithDispatch() {
       metaTemplateBodyParams?: string[];
       metaTemplateHeaderParams?: string[];
       metaTemplateHeaderMedia?: { storageKey: string; mediaType: "image" | "video" | "document" };
-      clientIds: string[];
+      audience:
+        | { mode: "explicit"; clientIds: string[] }
+        | {
+            mode: "filter";
+            search?: string;
+            whatsappTagIds: string[];
+            exclusiveWhatsappTags: boolean;
+            excludedClientIds: string[];
+          };
       scheduledAt?: string; // ISO; se no futuro, a campanha fica agendada
       dedupeWindowHours?: number;
       postSendWhatsappTagId?: string;
@@ -510,14 +518,29 @@ export function useCreateCampaignWithDispatch() {
       const campaign = (await campaignRes.json()) as { id: string };
 
       try {
+        const previewRes = await apiRequest("POST", "/api/whatsapp/campaigns/preview", {
+          campaignId: campaign.id,
+          audience: data.audience,
+          scheduledAt: data.scheduledAt,
+          dedupeWindowHours: data.dedupeWindowHours ?? 24,
+        });
+        const preview = (await previewRes.json()) as {
+          selected: number;
+          eligible: number;
+          optedOut: number;
+          invalidPhone: number;
+          duplicatePhone: number;
+          suppressedDuplicate: number;
+        };
         const dispatchRes = await apiRequest("POST", "/api/whatsapp/campaigns", {
           campaignId: campaign.id,
-          clientIds: data.clientIds,
+          audience: data.audience,
           scheduledAt: data.scheduledAt,
           dedupeWindowHours: data.dedupeWindowHours ?? 24,
           postSendWhatsappTagId: data.postSendWhatsappTagId ?? null,
         });
-        return dispatchRes.json();
+        const dispatch = await dispatchRes.json() as { campaignId: string };
+        return { ...dispatch, preview };
       } catch (error) {
         // A criação ainda usa dois endpoints legados. Compensa a primeira
         // gravação para que uma falha de validação/enfileiramento não deixe uma

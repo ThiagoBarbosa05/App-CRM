@@ -3892,6 +3892,15 @@ export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
     () => whatsappTags.id,
   ),
   contentFingerprintSnapshot: text("content_fingerprint_snapshot"),
+  // Snapshot auditavel da audiencia. Tambem permite revalidar campanhas agendadas.
+  audienceSelector: jsonb("audience_selector").$type<{
+    mode: "explicit" | "filter";
+    clientIds?: string[];
+    search?: string;
+    whatsappTagIds?: string[];
+    exclusiveWhatsappTags?: boolean;
+    excludedClientIds?: string[];
+  }>(),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

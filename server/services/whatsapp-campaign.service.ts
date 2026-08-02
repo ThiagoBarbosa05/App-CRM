@@ -14,6 +14,10 @@ import {
   markImpactSent,
   releaseImpact,
 } from "./whatsapp-campaign-dedupe.service";
+import {
+  validateCampaignRecipient,
+  type CampaignAudienceSelector,
+} from "./whatsapp-campaign-audience.service";
 
 const DEFAULT_DELAY_MS = 1000;
 const MAX_SEND_ATTEMPTS = 5;
@@ -94,6 +98,22 @@ async function completeSuccessfulImpact(
   }
 }
 
+async function suppressIfAudienceChanged(
+  msg: typeof whatsappCampaignMessages.$inferSelect,
+  selector: CampaignAudienceSelector | null,
+): Promise<boolean> {
+  if (!msg.contactId) return false;
+  const reason = await validateCampaignRecipient(msg.contactId, msg.phoneNormalized ?? msg.phoneNumber, selector);
+  if (!reason) return false;
+  await db.update(whatsappCampaignMessages).set({
+    status: "suppressed",
+    suppressionReason: reason,
+    updatedAt: new Date(),
+  }).where(eq(whatsappCampaignMessages.id, msg.id));
+  await releaseImpact(msg.id);
+  return true;
+}
+
 export async function executeCampaign(
   campaignId: string,
   opts?: { limit?: number },
@@ -109,7 +129,10 @@ export async function executeCampaign(
     .where(eq(campaigns.id, campaignId));
 
   const [campaignLog] = await db
-    .select({ postSendWhatsappTagId: whatsappCampaigns.postSendWhatsappTagId })
+    .select({
+      postSendWhatsappTagId: whatsappCampaigns.postSendWhatsappTagId,
+      audienceSelector: whatsappCampaigns.audienceSelector,
+    })
     .from(whatsappCampaigns)
     .where(eq(whatsappCampaigns.id, campaignId));
 
@@ -202,6 +225,10 @@ export async function executeCampaign(
     if (!bot) throw new Error(`Bot ${campaign.waBotId} não encontrado`);
 
     for (const msg of pendingMessages) {
+      if (await suppressIfAudienceChanged(msg, campaignLog?.audienceSelector as CampaignAudienceSelector | null)) {
+        skipped++;
+        continue;
+      }
       if (!msg.phoneNumber) {
         await db
           .update(whatsappCampaignMessages)
@@ -316,6 +343,10 @@ export async function executeCampaign(
         : undefined;
 
     for (const msg of pendingMessages) {
+      if (await suppressIfAudienceChanged(msg, campaignLog?.audienceSelector as CampaignAudienceSelector | null)) {
+        skipped++;
+        continue;
+      }
       if (!msg.phoneNumber) {
         await db
           .update(whatsappCampaignMessages)

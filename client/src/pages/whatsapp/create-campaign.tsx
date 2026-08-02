@@ -99,6 +99,14 @@ type Client = {
   tags?: ClientTag[];
   whatsappOptOut?: boolean | null;
 };
+type FilterAudience = {
+  mode: "filter";
+  search?: string;
+  whatsappTagIds: string[];
+  exclusiveWhatsappTags: boolean;
+  excludedClientIds: string[];
+  total: number;
+};
 
 type TemplateHeaderMediaValue = {
   storageKey: string;
@@ -352,9 +360,13 @@ function StepInfo({
 function StepClients({
   selectedIds,
   onChange,
+  filterAudience,
+  onFilterAudienceChange,
 }: {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  filterAudience: FilterAudience | null;
+  onFilterAudienceChange: (value: FilterAudience | null) => void;
 }) {
   const [search, setSearch] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -400,11 +412,13 @@ function StepClients({
     [clientsResponse],
   );
   const hasNextPage = clientsResponse?.hasNextPage ?? false;
+  const totalItems = clientsResponse?.totalItems ?? clients.length;
   const hasPhone = (c: Client) => Boolean(c.phone?.trim());
   const isOptedOut = (c: Client) => Boolean(c.whatsappOptOut);
   const isSelectable = (c: Client) => hasPhone(c) && !isOptedOut(c);
 
   const toggleTag = (id: string) => {
+    onFilterAudienceChange(null);
     setSelectedTagIds((prev) =>
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
     );
@@ -413,6 +427,16 @@ function StepClients({
 
   const toggleClient = (client: Client) => {
     if (!isSelectable(client)) return;
+    if (filterAudience) {
+      const excluded = filterAudience.excludedClientIds.includes(client.id);
+      onFilterAudienceChange({
+        ...filterAudience,
+        excludedClientIds: excluded
+          ? filterAudience.excludedClientIds.filter((id) => id !== client.id)
+          : [...filterAudience.excludedClientIds, client.id],
+      });
+      return;
+    }
     onChange(
       selectedIds.includes(client.id)
         ? selectedIds.filter((s) => s !== client.id)
@@ -426,6 +450,18 @@ function StepClients({
   );
 
   const togglePageAll = () => {
+    if (filterAudience) {
+      const pageIsSelected = selectableIds.every(
+        (id) => !filterAudience.excludedClientIds.includes(id),
+      );
+      onFilterAudienceChange({
+        ...filterAudience,
+        excludedClientIds: pageIsSelected
+          ? Array.from(new Set([...filterAudience.excludedClientIds, ...selectableIds]))
+          : filterAudience.excludedClientIds.filter((id) => !selectableIds.includes(id)),
+      });
+      return;
+    }
     const allSelected =
       selectableIds.length > 0 &&
       selectableIds.every((id) => selectedIds.includes(id));
@@ -442,7 +478,14 @@ function StepClients({
 
   const allOnPageSelected =
     selectableIds.length > 0 &&
-    selectableIds.every((id) => selectedIds.includes(id));
+    selectableIds.every((id) =>
+      filterAudience
+        ? !filterAudience.excludedClientIds.includes(id)
+        : selectedIds.includes(id),
+    );
+  const selectedCount = filterAudience
+    ? Math.max(0, filterAudience.total - filterAudience.excludedClientIds.length)
+    : selectedIds.length;
 
   return (
     <div className="space-y-3">
@@ -452,6 +495,7 @@ function StepClients({
         <Input
           value={search}
           onChange={(e) => {
+            onFilterAudienceChange(null);
             setSearch(e.target.value);
             setCurrentPage(1);
           }}
@@ -577,6 +621,7 @@ function StepClients({
           <Checkbox
             checked={exclusiveTags}
             onCheckedChange={(v) => {
+              onFilterAudienceChange(null);
               setExclusiveTags(!!v);
               setCurrentPage(1);
             }}
@@ -587,20 +632,46 @@ function StepClients({
         </label>
       )}
 
+      {totalItems > 0 && (
+        <Button
+          type="button"
+          variant={filterAudience ? "default" : "outline"}
+          className="w-full justify-between"
+          onClick={() => {
+            if (filterAudience) {
+              onFilterAudienceChange(null);
+              return;
+            }
+            onChange([]);
+            onFilterAudienceChange({
+              mode: "filter",
+              search: search.trim() || undefined,
+              whatsappTagIds: selectedTagIds,
+              exclusiveWhatsappTags: exclusiveTags,
+              excludedClientIds: [],
+              total: totalItems,
+            });
+          }}
+        >
+          <span>{filterAudience ? "Todos os resultados selecionados" : `Selecionar todos os ${totalItems} resultados`}</span>
+          <Check className="h-4 w-4" />
+        </Button>
+      )}
+
       {/* Selected count bar */}
-      {selectedIds.length > 0 && (
+      {selectedCount > 0 && (
         <div className="flex items-center gap-2 px-3 py-2.5 bg-primary/8 border border-primary/20 rounded-xl">
           <div className="h-6 w-6 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
             <Users className="h-3.5 w-3.5 text-primary" />
           </div>
           <span className="text-sm font-semibold text-primary flex-1">
-            {selectedIds.length} cliente{selectedIds.length !== 1 ? "s" : ""}{" "}
-            selecionado{selectedIds.length !== 1 ? "s" : ""}
+            {selectedCount} cliente{selectedCount !== 1 ? "s" : ""}{" "}
+            selecionado{selectedCount !== 1 ? "s" : ""}
           </span>
           <button
             type="button"
             className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            onClick={() => onChange([])}
+            onClick={() => { onChange([]); onFilterAudienceChange(null); }}
           >
             <X className="h-3 w-3" /> Limpar
           </button>
@@ -647,7 +718,9 @@ function StepClients({
               clients.map((client) => {
                 const selectable = isSelectable(client);
                 const optedOut = isOptedOut(client);
-                const selected = selectedIds.includes(client.id);
+                const selected = filterAudience
+                  ? !filterAudience.excludedClientIds.includes(client.id)
+                  : selectedIds.includes(client.id);
                 return (
                   <TableRow
                     key={client.id}
@@ -1558,6 +1631,7 @@ export default function WhatsAppCreateCampaign() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [filterAudience, setFilterAudience] = useState<FilterAudience | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<MetaTemplate | null>(
     null,
   );
@@ -1648,7 +1722,10 @@ export default function WhatsAppCreateCampaign() {
 
   const canNext = useMemo(() => {
     if (step === 1) return title.trim().length > 0;
-    if (step === 2) return selectedClientIds.length > 0;
+    if (step === 2)
+      return filterAudience
+        ? filterAudience.total > filterAudience.excludedClientIds.length
+        : selectedClientIds.length > 0;
     if (step === 3)
       return selectedTemplate !== null
         ? templateVarsComplete
@@ -1659,6 +1736,7 @@ export default function WhatsAppCreateCampaign() {
     step,
     title,
     selectedClientIds,
+    filterAudience,
     selectedTemplate,
     selectedBotId,
     selectedChannelId,
@@ -1706,7 +1784,15 @@ export default function WhatsAppCreateCampaign() {
             : undefined,
         waBotId: selectedBotId || undefined,
         waChannelId: selectedChannelId,
-        clientIds: selectedClientIds,
+        audience: filterAudience
+          ? {
+              mode: "filter",
+              search: filterAudience.search,
+              whatsappTagIds: filterAudience.whatsappTagIds,
+              exclusiveWhatsappTags: filterAudience.exclusiveWhatsappTags,
+              excludedClientIds: filterAudience.excludedClientIds,
+            }
+          : { mode: "explicit", clientIds: selectedClientIds },
         scheduledAt: scheduledIso,
         dedupeWindowHours,
         postSendWhatsappTagId: postSendTagId || undefined,
@@ -1717,9 +1803,11 @@ export default function WhatsAppCreateCampaign() {
             title: scheduledIso
               ? "Campanha agendada!"
               : "Campanha enfileirada!",
-            description: scheduledIso
-              ? "Será disparada automaticamente no horário escolhido."
-              : "O disparo será processado em segundo plano.",
+            description: data.preview.suppressedDuplicate > 0
+              ? `${data.preview.eligible} elegíveis; ${data.preview.suppressedDuplicate} mensagens repetidas foram protegidas.`
+              : scheduledIso
+                ? "Será disparada automaticamente no horário escolhido."
+                : "O disparo será processado em segundo plano.",
           });
           navigate(`/whatsapp/campanhas/${data.campaignId}`);
         },
@@ -1736,6 +1824,7 @@ export default function WhatsAppCreateCampaign() {
     selectedBotId,
     selectedChannelId,
     selectedClientIds,
+    filterAudience,
     scheduledAt,
     dedupeWindowHours,
     postSendTagId,
@@ -1805,6 +1894,8 @@ export default function WhatsAppCreateCampaign() {
                 <StepClients
                   selectedIds={selectedClientIds}
                   onChange={setSelectedClientIds}
+                  filterAudience={filterAudience}
+                  onFilterAudienceChange={setFilterAudience}
                 />
               )}
               {step === 3 && (
@@ -1834,7 +1925,9 @@ export default function WhatsAppCreateCampaign() {
                 <StepConfirm
                   title={title}
                   description={description}
-                  clientCount={selectedClientIds.length}
+                  clientCount={filterAudience
+                    ? Math.max(0, filterAudience.total - filterAudience.excludedClientIds.length)
+                    : selectedClientIds.length}
                   templateName={selectedTemplate?.name}
                   botId={selectedBotId}
                   channelName={selectedChannel?.name}

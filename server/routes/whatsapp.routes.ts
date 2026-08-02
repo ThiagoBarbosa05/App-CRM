@@ -28,7 +28,6 @@ import {
   DEFAULT_DEDUPE_WINDOW_HOURS,
   fingerprintForClient,
   findConflict,
-  loadCampaignClients,
   MAX_DEDUPE_WINDOW_HOURS,
   reserveCampaignMessage,
 } from "../services/whatsapp-campaign-dedupe.service";
@@ -36,8 +35,23 @@ import {
   listChannelIdsForUser,
   resolveChannelById,
 } from "../services/whatsapp-channels.service";
+import {
+  resolveCampaignAudience,
+  type CampaignAudienceSelector,
+} from "../services/whatsapp-campaign-audience.service";
 
 const router = Router();
+
+const audienceSelectorSchema = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("explicit"), clientIds: z.array(z.string().uuid()).min(1) }),
+  z.object({
+    mode: z.literal("filter"),
+    search: z.string().trim().max(200).optional(),
+    whatsappTagIds: z.array(z.string().uuid()).default([]),
+    exclusiveWhatsappTags: z.boolean().default(false),
+    excludedClientIds: z.array(z.string().uuid()).default([]),
+  }),
+]);
 
 // ── Enviar mensagem de texto ──────────────────────────────────────────────────
 
@@ -93,7 +107,7 @@ router.post("/template-messages", async (req, res) => {
 router.post("/campaigns/preview", async (req, res) => {
   const parsed = z.object({
     campaignId: z.string().uuid(),
-    clientIds: z.array(z.string()).min(1),
+    audience: audienceSelectorSchema,
     scheduledAt: z.string().datetime().optional(),
     dedupeWindowHours: z.number().int().min(1).max(MAX_DEDUPE_WINDOW_HOURS)
       .default(DEFAULT_DEDUPE_WINDOW_HOURS),
@@ -104,7 +118,7 @@ router.post("/campaigns/preview", async (req, res) => {
   try {
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, parsed.data.campaignId));
     if (!campaign) return res.status(404).json({ message: "Campanha não encontrada" });
-    const rows = await loadCampaignClients(parsed.data.clientIds);
+    const rows = await resolveCampaignAudience(parsed.data.audience as CampaignAudienceSelector);
     const snapshot = await buildCampaignContentSnapshot(campaign);
     const scheduledFor = parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : new Date();
     const seenPhones = new Set<string>();
@@ -148,7 +162,7 @@ router.post("/campaigns/preview", async (req, res) => {
       }
     }
     return res.json({
-      selected: parsed.data.clientIds.length,
+      selected: rows.length,
       eligible: seenPhones.size - suppressedDuplicate,
       optedOut,
       invalidPhone,
@@ -165,7 +179,7 @@ router.post("/campaigns/preview", async (req, res) => {
 router.post("/campaigns", async (req, res) => {
   const schema = z.object({
     campaignId: z.string().uuid(),
-    clientIds: z.array(z.string()).min(1),
+    audience: audienceSelectorSchema,
     scheduledAt: z.string().datetime().optional(),
     dedupeWindowHours: z.number().int().min(1).max(MAX_DEDUPE_WINDOW_HOURS)
       .default(DEFAULT_DEDUPE_WINDOW_HOURS),
@@ -179,7 +193,7 @@ router.post("/campaigns", async (req, res) => {
 
   const {
     campaignId,
-    clientIds,
+    audience,
     scheduledAt,
     dedupeWindowHours,
     postSendWhatsappTagId,
@@ -267,29 +281,45 @@ router.post("/campaigns", async (req, res) => {
     //    já apareceu antes na lista (mesmo número real, cadastros duplicados
     //    em formatos diferentes) também são descartados, mantendo só o primeiro,
     //    para não disparar duas vezes para a mesma pessoa.
-    const clientRows = await db
-      .select({ id: clients.id, name: clients.name, phone: clients.phone, whatsappOptOut: clients.whatsappOptOut })
-      .from(clients)
-      .where(inArray(clients.id, clientIds));
+    const clientRows = await resolveCampaignAudience(audience as CampaignAudienceSelector);
 
     const seenPhones = new Set<string>();
     const validClients: { id: string; name: string; phone: string; phoneE164: string }[] = [];
     let skippedInvalidPhone = 0;
     let skippedDuplicatePhone = 0;
     let skippedOptedOut = 0;
+    const preSuppressed: Array<{
+      id: string;
+      campaignId: string;
+      contactId: string;
+      contactName: string;
+      phoneNumber: string;
+      status: "suppressed";
+      scheduledAt: Date;
+      suppressionReason: string;
+    }> = [];
 
     for (const c of clientRows) {
       if (c.whatsappOptOut) {
         skippedOptedOut++;
+        preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
+          phoneNumber: c.phone ?? "sem telefone", status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
+          suppressionReason: "Opt-out de campanhas do WhatsApp" });
         continue;
       }
       const phoneE164 = c.phone?.trim() ? normalizePhoneE164(c.phone) : null;
       if (!phoneE164) {
         skippedInvalidPhone++;
+        preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
+          phoneNumber: c.phone ?? "sem telefone", status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
+          suppressionReason: "Telefone inválido" });
         continue;
       }
       if (seenPhones.has(phoneE164)) {
         skippedDuplicatePhone++;
+        preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
+          phoneNumber: phoneE164, status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
+          suppressionReason: "Telefone duplicado na audiência" });
         continue;
       }
       seenPhones.add(phoneE164);
@@ -323,6 +353,7 @@ router.post("/campaigns", async (req, res) => {
         exclusiveTagFilter: false,
         tagIds: [],
         organizationId: "",
+        audienceSelector: audience,
       })
       .onConflictDoUpdate({
         target: whatsappCampaigns.id,
@@ -331,9 +362,14 @@ router.post("/campaigns", async (req, res) => {
           totalContacts: validClients.length,
           scheduledMessages: validClients.length,
           startDate: scheduledDate ?? new Date(),
+          audienceSelector: audience,
           updatedAt: new Date(),
         },
       });
+
+    if (preSuppressed.length > 0) {
+      await db.insert(whatsappCampaignMessages).values(preSuppressed).onConflictDoNothing();
+    }
 
     // 4. Excluir contatos que já têm mensagem não-terminal/enviada nesta campanha
     //    (reenvio do mesmo formulário, duplo clique, retry de rede no frontend
@@ -423,7 +459,7 @@ router.post("/campaigns", async (req, res) => {
     await db
       .update(whatsappCampaigns)
       .set({
-        totalContacts: queued + suppressedDuplicate,
+        totalContacts: queued + suppressedDuplicate + preSuppressed.length,
         scheduledMessages: queued,
         status: queued === 0 ? "completed" : isScheduled ? "created" : "in_progress",
         completedAt: queued === 0 ? new Date() : null,
