@@ -47,8 +47,12 @@ const userFormSchema = insertUserSchema
   .extend({
     password: z
       .string()
-      .min(6, "Senha deve ter pelo menos 6 caracteres")
-      .optional(),
+      .optional()
+      .or(z.literal(""))
+      .refine(
+        (val) => !val || val.length >= 6,
+        "Senha deve ter pelo menos 6 caracteres",
+      ),
     confirmPassword: z.string().optional(),
   })
   .refine(
