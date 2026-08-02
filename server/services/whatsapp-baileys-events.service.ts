@@ -245,11 +245,18 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
 
 export async function handleMessagesReaction(instanceName: string, data: unknown) {
   const event = data as {
-    key?: { remoteJid?: string; fromMe?: boolean };
-    reaction?: { key?: { id?: string }; text?: string | null };
+    key?: { remoteJid?: string; fromMe?: boolean; id?: string };
+    reaction?: {
+      key?: { remoteJid?: string; fromMe?: boolean; id?: string };
+      text?: string | null;
+    };
   };
-  const targetId = event.reaction?.key?.id;
-  const jid = event.key?.remoteJid;
+  // No evento `messages.reaction` do Baileys, `event.key` é a mensagem que
+  // recebeu a reação. `event.reaction.key` é a mensagem-protocolo da própria
+  // reação e informa quem reagiu. Usar o segundo id procura uma mensagem que
+  // não existe no CRM e fazia a reação sumir silenciosamente.
+  const targetId = event.key?.id;
+  const jid = event.key?.remoteJid ?? event.reaction?.key?.remoteJid;
   if (!targetId || !jid || isIgnorableJid(jid)) return;
   const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
   if (!channel) return;
@@ -258,7 +265,7 @@ export async function handleMessagesReaction(instanceName: string, data: unknown
     waMessageId: targetId,
     emoji: event.reaction?.text ?? "",
     channelId: channel.id,
-    direction: event.key?.fromMe ? "outbound" : "inbound",
+    direction: event.reaction?.key?.fromMe ? "outbound" : "inbound",
   });
 }
 

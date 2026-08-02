@@ -3,22 +3,25 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // handleMessagesUpdate é a única função exercida aqui. Os módulos abaixo são
 // puramente side-effect (DB real, integrações externas, engine de bot) e
 // irrelevantes para a lógica pura de "mapear status do Baileys + detectar 463".
-const { updateMock, setMock } = vi.hoisted(() => ({
+const { updateMock, setMock, saveInboundMessageMock, saveInboundReactionMock, getChannelMock } = vi.hoisted(() => ({
   updateMock: vi.fn(),
   setMock: vi.fn(),
+  saveInboundMessageMock: vi.fn(),
+  saveInboundReactionMock: vi.fn(),
+  getChannelMock: vi.fn(),
 }));
 
 vi.mock("../../db", () => ({ db: { update: updateMock } }));
 vi.mock("../whatsapp-channels.service", () => ({
-  getChannelByEvolutionInstance: async () => null,
+  getChannelByEvolutionInstance: getChannelMock,
   updateConnectionStatus: async () => {},
   updateChannel: async () => {},
   isSameChannelPhone: () => false,
   listQrReaderUserIdsForChannel: async () => [],
 }));
 vi.mock("../whatsapp-conversations.service", () => ({
-  saveInboundMessage: async () => {},
-  saveInboundReaction: async () => {},
+  saveInboundMessage: saveInboundMessageMock,
+  saveInboundReaction: saveInboundReactionMock,
 }));
 vi.mock("../../lib/sse-hub", () => ({
   publishSseEvent: () => {},
@@ -47,8 +50,77 @@ vi.mock("../baileys/connection-events.service", () => ({
 
 import {
   extractQuotedMessageSnapshot,
+  handleMessagesReaction,
+  handleMessagesUpsert,
   handleMessagesUpdate,
 } from "../whatsapp-baileys-events.service";
+
+describe("eventos de interação do dispositivo", () => {
+  beforeEach(() => {
+    saveInboundMessageMock.mockReset();
+    saveInboundReactionMock.mockReset();
+    getChannelMock.mockReset();
+    getChannelMock.mockResolvedValue({
+      id: 7,
+      name: "Canal QR",
+      displayPhone: "5521999999999",
+    });
+    saveInboundMessageMock.mockResolvedValue({ saved: true, channelId: 7 });
+  });
+
+  it("usa a key externa como mensagem alvo da reação", async () => {
+    await handleMessagesReaction("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: false,
+        id: "mensagem-original",
+      },
+      reaction: {
+        key: {
+          remoteJid: "5521888888888@s.whatsapp.net",
+          fromMe: true,
+          id: "evento-reacao",
+        },
+        text: "👍",
+      },
+    });
+
+    expect(saveInboundReactionMock).toHaveBeenCalledWith(expect.objectContaining({
+      waMessageId: "mensagem-original",
+      emoji: "👍",
+      direction: "outbound",
+    }));
+  });
+
+  it("preserva a referência e o snapshot de uma resposta enviada pelo dispositivo", async () => {
+    await handleMessagesUpsert("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: true,
+        id: "resposta-1",
+      },
+      message: {
+        extendedTextMessage: {
+          text: "Teste",
+          contextInfo: {
+            stanzaId: "mensagem-original",
+            participant: "5521888888888@s.whatsapp.net",
+            quotedMessage: { conversation: "1" },
+          },
+        },
+      },
+      messageTimestamp: 1_700_000_000,
+    });
+
+    expect(saveInboundMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      replyToWaMessageId: "mensagem-original",
+      replyToContentSnapshot: "1",
+      replyToTypeSnapshot: "text",
+      content: "Teste",
+      _fromMe: true,
+    }));
+  });
+});
 
 describe("extractQuotedMessageSnapshot", () => {
   it("preserva o texto de uma mensagem citada", () => {
