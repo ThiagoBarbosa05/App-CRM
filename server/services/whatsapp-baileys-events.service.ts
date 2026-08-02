@@ -315,7 +315,13 @@ export async function handleMessagesUpdate(data: unknown) {
         ...(statusReason ? { statusReason } : {}),
       })
       .where(
-        mapped === "delivered"
+        mapped === "sent"
+          ? and(
+              eq(whatsappMessages.waMessageId, waMessageId),
+              ne(whatsappMessages.status, "delivered"),
+              ne(whatsappMessages.status, "read"),
+            )
+          : mapped === "delivered"
           ? and(
               eq(whatsappMessages.waMessageId, waMessageId),
               ne(whatsappMessages.status, "read"),

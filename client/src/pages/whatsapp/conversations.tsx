@@ -4597,6 +4597,11 @@ function ConversationMessages({
                 {msgs.map((msg, msgIndex) => {
                   const isOutbound = msg.direction === "outbound";
                   const isFailed = isOutbound && msg.status === "failed";
+                  const receiptState = msg.status === "read"
+                    ? "read"
+                    : msg.status === "delivered"
+                      ? "delivered"
+                      : "sent";
                   const isRetrying = retryingIds.has(msg.id);
                   // Erro 463 do Baileys (conta restrita pelo WhatsApp): reenviar conta
                   // como novo "reach-out" e piora a restrição — nunca oferecer retry.
@@ -4965,19 +4970,19 @@ function ConversationMessages({
                                   : {})}
                               />
                             ) : isOutbound ? (
-                              msg.status === "sent" || !msg.status ? (
+                              receiptState === "sent" ? (
                                 <span title="Enviada ao WhatsApp" aria-label="Mensagem enviada">
                                   <Check className="h-3 w-3 text-primary-foreground/60" />
                                 </span>
                               ) : (
                                 <span
                                   aria-label={
-                                    msg.status === "read"
+                                    receiptState === "read"
                                       ? "Mensagem visualizada"
                                       : "Mensagem entregue"
                                   }
                                   title={
-                                    msg.status === "read"
+                                    receiptState === "read"
                                       ? `Visualizada${msg.readAt ? ` em ${formatMessageDate(msg.readAt)}` : ""}`
                                       : `Entregue${msg.deliveredAt ? ` em ${formatMessageDate(msg.deliveredAt)}` : ""}`
                                   }
@@ -4985,8 +4990,8 @@ function ConversationMessages({
                                   <CheckCheck
                                     className={cn(
                                       "h-3 w-3",
-                                      msg.status === "read"
-                                        ? "text-sky-300"
+                                      receiptState === "read"
+                                        ? "text-[#53bdeb]"
                                         : "text-primary-foreground/65",
                                     )}
                                   />
