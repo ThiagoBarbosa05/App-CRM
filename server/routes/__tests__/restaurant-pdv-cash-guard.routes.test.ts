@@ -13,18 +13,27 @@ vi.mock("../../services/restaurant-pdv.service", () => ({
   restaurantPdvService: { openOrder: openOrderMock, closeOrder: closeOrderMock },
 }));
 
-const app = createRouteTestApp({
-  router: restaurantPdvRouter,
-  basePath: "/restaurant-pdv",
-  middlewares: [createMockAuthMiddleware({ role: "garcom", userId: "waiter-1" })],
-});
+const appAs = (role: string, userId: string) =>
+  createRouteTestApp({
+    router: restaurantPdvRouter,
+    basePath: "/restaurant-pdv",
+    middlewares: [createMockAuthMiddleware({ role, userId })],
+  });
 
 const noCashSession = () =>
   Object.assign(new Error("Nenhum caixa aberto — peça a um gerente para abrir o caixa"), {
     code: "NO_CASH_SESSION",
   });
 
-describe("bloqueio por caixa fechado", () => {
+// Garçom e vendedor são os dois papéis que hoje operam o PDV — na prática só
+// existem usuários "vendedor" (nenhum "garcom" cadastrado), então o mesmo
+// bloqueio precisa valer para os dois.
+describe.each([
+  ["garcom", "waiter-1"],
+  ["vendedor", "seller-1"],
+])("bloqueio por caixa fechado (role: %s)", (role, userId) => {
+  const app = appAs(role, userId);
+
   beforeEach(() => {
     openOrderMock.mockReset();
     closeOrderMock.mockReset();

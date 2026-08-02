@@ -438,7 +438,11 @@ export default function RestaurantComandaPage() {
     0,
   );
 
-  const isGarcom = user?.role === "garcom";
+  // Espelha o requireOperadorOrGestor do backend para quem NÃO é gestor —
+  // garçom ou vendedor. Antes checava só "garcom", que nunca existe na
+  // prática (os operadores reais do PDV são "vendedor"). Nome do prop
+  // (`isGarcom`) mantido em order-summary-card.tsx para não propagar o rename.
+  const isGarcom = user?.role === "garcom" || user?.role === "vendedor";
   // Divisor de fase: o backend congela a comanda a partir daqui.
   const isPaymentPhase = !!order?.paymentRequestedAt;
 

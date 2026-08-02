@@ -8,11 +8,14 @@ import { ArrowLeft, LayoutDashboard, LogOut, UtensilsCrossed } from "lucide-reac
 export function PdvHeader() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
-  const isGarcom = user?.role === "garcom";
+  // Tela full-screen (sem chrome de CRM) para garçom OU vendedor — os dois
+  // papéis que hoje operam o PDV diretamente. Antes só cobria "garcom", que
+  // nunca existe na prática (os operadores reais são "vendedor").
+  const isOperador = user?.role === "garcom" || user?.role === "vendedor";
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-3 sm:px-4">
-      {!isGarcom && (
+      {!isOperador && (
         <>
           <Button
             variant="ghost"
@@ -43,11 +46,11 @@ export function PdvHeader() {
         <span className="text-sm font-semibold">PDV Restaurante</span>
       </div>
       {user?.name && (
-        <span className={`text-xs text-muted-foreground ${isGarcom ? "" : "ml-auto"}`}>
-          {isGarcom ? "" : "Garçom: "}{user.name}
+        <span className={`text-xs text-muted-foreground ${isOperador ? "" : "ml-auto"}`}>
+          {isOperador ? "" : "Operador: "}{user.name}
         </span>
       )}
-      {isGarcom && (
+      {isOperador && (
         <Button
           variant="ghost"
           size="sm"

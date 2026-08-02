@@ -1,17 +1,30 @@
 import { Request, Response } from "express";
 import { restaurantReportsService } from "../../services/restaurant-reports.service";
+import { saoPauloRange } from "../../../shared/sao-paulo-date";
+import { reportRangeSchema, resolveReportRange } from "./report-range.schema";
 
 export const getSalesReportController = async (req: Request, res: Response) => {
   try {
-    const toParam = (req.query.to as string) || new Date().toISOString().slice(0, 10);
-    const fromParam =
-      (req.query.from as string) ||
-      new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // Sem unidade o relatório somaria as vendas de todas as unidades. O
+    // middleware já resolve isso nesta rota; a guarda é o que dá `string` ao
+    // serviço sem `!`.
+    if (!req.pdvUnitId) {
+      return res.status(400).json({ message: "Selecione uma unidade PDV para continuar." });
+    }
 
-    const from = new Date(`${fromParam}T00:00:00-03:00`);
-    const to = new Date(`${toParam}T23:59:59.999-03:00`);
+    const parsed = reportRangeSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0].message });
+    }
 
-    const report = await restaurantReportsService.getSalesReport({ from, to });
+    const { fromIso, toIso } = resolveReportRange(parsed.data);
+    const { from, to } = saoPauloRange(fromIso, toIso);
+
+    const report = await restaurantReportsService.getSalesReport({
+      from,
+      to,
+      unitId: req.pdvUnitId,
+    });
     return res.json(report);
   } catch (error) {
     console.error("Erro ao buscar relatório de vendas:", error);

@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatCurrency } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
+import { extractApiMessage } from "@/lib/api-error";
+import { getPdvCurrentUnitId } from "@/lib/pdv-unit";
+import { daysAgoInSaoPaulo, todayInSaoPaulo } from "@shared/sao-paulo-date";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +29,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import { BarChart3, Printer } from "lucide-react";
+import { AlertCircle, BarChart3, Printer } from "lucide-react";
 import { PrintArea, printArea } from "@/components/restaurant-pdv/print-area";
 import { PageHeader } from "@/components/page-header";
 import { CashSessionReport } from "@/components/restaurant-pdv/cash-session-report";
@@ -74,56 +79,121 @@ interface CancellationsReport {
   }[];
   topReasons: { reason: string; count: number }[];
   items: CancelledItem[];
+  /** Quantas linhas o período tem antes do recorte de exibição. */
+  totalItemRows: number;
+  truncated: boolean;
 }
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+/**
+ * Carregando / erro / conteúdo.
+ *
+ * Existe porque a página inteira renderizava `?? 0` em cima de `data`
+ * indefinido: um 400 ou 403 ficava pixel-idêntico a "não houve venda". Foi
+ * assim que a página passou meses zerada sem ninguém ver o erro.
+ *
+ * O botão de tentar de novo não é enfeite: o queryClient roda com
+ * `retry: false` e `staleTime: Infinity`, então sem ele o único jeito de sair
+ * do estado de erro é recarregar a página.
+ */
+function ReportCardState({
+  isLoading,
+  isError,
+  error,
+  onRetry,
+  children,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  onRetry: () => void;
+  children: ReactNode;
+}) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3 py-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+        <AlertCircle className="h-5 w-5 shrink-0 text-destructive" />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-destructive">Não foi possível carregar</p>
+          <p className="text-sm text-muted-foreground">{extractApiMessage(error)}</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={onRetry}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }
 
-function daysAgoIso(days: number) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+async function fetchReport<T>(url: string): Promise<T> {
+  // `apiRequest` e não `fetch` cru: é ele que injeta o header X-PDV-Unit-Id
+  // (sem o qual estas rotas devolvem 400) e que trata 401 deslogando.
+  const res = await apiRequest("GET", url);
+  return (await res.json()) as T;
 }
 
 export default function RestaurantReports() {
   const [, navigate] = useLocation();
-  const [from, setFrom] = useState(daysAgoIso(6));
-  const [to, setTo] = useState(todayIso());
-  const [cashDate, setCashDate] = useState(todayIso());
+  // Datas no fuso de São Paulo: com `toISOString()` o filtro abria em
+  // "amanhã" entre 21h e meia-noite — justamente o pico do restaurante.
+  const [from, setFrom] = useState(() => daysAgoInSaoPaulo(6));
+  const [to, setTo] = useState(() => todayInSaoPaulo());
+  const [cashDate, setCashDate] = useState(() => todayInSaoPaulo());
 
-  const { data: report } = useQuery<SalesReport>({
-    queryKey: ["/api/restaurant-pdv/reports/sales", { from, to }],
-    queryFn: async () => {
-      const res = await fetch(
+  // A unidade entra na chave para que o cache não vaze de uma unidade para
+  // outra. Hoje o seletor recarrega a página inteira e mascara isso.
+  const unitId = getPdvCurrentUnitId();
+
+  const {
+    data: report,
+    isLoading: isReportLoading,
+    isError: isReportError,
+    error: reportError,
+    refetch: refetchReport,
+  } = useQuery<SalesReport>({
+    queryKey: ["/api/restaurant-pdv/reports/sales", { from, to, unitId }],
+    queryFn: () =>
+      fetchReport<SalesReport>(
         `/api/restaurant-pdv/reports/sales?from=${from}&to=${to}`,
-        { credentials: "include" },
-      );
-      if (!res.ok) throw new Error("Erro ao buscar relatório");
-      return res.json();
-    },
+      ),
   });
 
-  const { data: cancellations } = useQuery<CancellationsReport>({
-    queryKey: ["/api/restaurant-pdv/reports/cancellations", { from, to }],
-    queryFn: async () => {
-      const res = await fetch(
+  const {
+    data: cancellations,
+    isLoading: isCancellationsLoading,
+    isError: isCancellationsError,
+    error: cancellationsError,
+    refetch: refetchCancellations,
+  } = useQuery<CancellationsReport>({
+    queryKey: ["/api/restaurant-pdv/reports/cancellations", { from, to, unitId }],
+    queryFn: () =>
+      fetchReport<CancellationsReport>(
         `/api/restaurant-pdv/reports/cancellations?from=${from}&to=${to}`,
-        { credentials: "include" },
-      );
-      if (!res.ok) throw new Error("Erro ao buscar cancelamentos");
-      return res.json();
-    },
+      ),
   });
 
-  const { data: dailySummary } = useQuery<DailySummary>({
-    queryKey: ["/api/restaurant-pdv/reports/daily-summary", { date: cashDate }],
-    queryFn: async () => {
-      const res = await fetch(
+  const {
+    data: dailySummary,
+    isLoading: isDailyLoading,
+    isError: isDailyError,
+    error: dailyError,
+    refetch: refetchDaily,
+  } = useQuery<DailySummary>({
+    queryKey: ["/api/restaurant-pdv/reports/daily-summary", { date: cashDate, unitId }],
+    queryFn: () =>
+      fetchReport<DailySummary>(
         `/api/restaurant-pdv/reports/daily-summary?date=${cashDate}`,
-        { credentials: "include" },
-      );
-      if (!res.ok) throw new Error("Erro ao buscar fechamento de caixa");
-      return res.json();
-    },
+      ),
   });
 
   return (
@@ -167,6 +237,12 @@ export default function RestaurantReports() {
           <CardTitle>Relatórios de Vendas</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          <ReportCardState
+            isLoading={isReportLoading}
+            isError={isReportError}
+            error={reportError}
+            onRetry={() => void refetchReport()}
+          >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card>
               <CardContent className="pt-6">
@@ -279,6 +355,7 @@ export default function RestaurantReports() {
               </TableBody>
             </Table>
           </div>
+          </ReportCardState>
         </CardContent>
       </Card>
 
@@ -301,6 +378,12 @@ export default function RestaurantReports() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          <ReportCardState
+            isLoading={isCancellationsLoading}
+            isError={isCancellationsError}
+            error={cancellationsError}
+            onRetry={() => void refetchCancellations()}
+          >
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="space-y-3">
               <p className="text-xs uppercase text-muted-foreground">Por quem cancelou</p>
@@ -332,12 +415,20 @@ export default function RestaurantReports() {
 
           <div>
             <p className="mb-2 text-xs uppercase text-muted-foreground">Detalhamento</p>
+            {cancellations?.truncated && (
+              <p className="mb-2 text-xs text-muted-foreground">
+                Mostrando os {cancellations.items.length} mais recentes de{" "}
+                {cancellations.totalItemRows} itens. Os totais acima consideram o
+                período inteiro.
+              </p>
+            )}
             <CancelledItemsTable
               items={cancellations?.items ?? []}
               showDate
               emptyMessage="Nenhum item cancelado no período"
             />
           </div>
+          </ReportCardState>
         </CardContent>
       </Card>
 
@@ -383,6 +474,12 @@ export default function RestaurantReports() {
             />
           </div>
 
+          <ReportCardState
+            isLoading={isDailyLoading}
+            isError={isDailyError}
+            error={dailyError}
+            onRetry={() => void refetchDaily()}
+          >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card>
               <CardContent className="pt-6">
@@ -451,6 +548,7 @@ export default function RestaurantReports() {
               </Table>
             </div>
           </div>
+          </ReportCardState>
         </CardContent>
       </Card>
 

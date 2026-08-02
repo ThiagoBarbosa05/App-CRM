@@ -75,10 +75,22 @@ async function fetchCancelledInWindow(from: Date, to: Date) {
        *
        * É o valor dos itens (sem taxa de serviço): a taxa nunca foi cobrada
        * numa comanda que não fechou.
+       *
+       * Os dois ramos do FILTER existem por causa de uma mudança de
+       * comportamento: `forceCancelOrder` passou a marcar os itens como
+       * `cancelado` (para que a comanda cancelada inteira apareça no relatório
+       * de cancelamentos). Só o ramo `= 'ativo'` zeraria o valor de toda
+       * comanda cancelada a partir daí; só o ramo do timestamp zeraria o
+       * histórico anterior, cujos itens seguem `ativo`. A igualdade de
+       * timestamp é exata, não heurística: item e comanda recebem o MESMO
+       * `Date` na mesma transação, com a linha da comanda travada.
        */
       subtotal: sql<string>`COALESCE(SUM(
         ${restaurantOrderItems.unitPrice} * ${restaurantOrderItems.quantity}
-      ) FILTER (WHERE ${restaurantOrderItems.status} = 'ativo'), 0)`,
+      ) FILTER (
+        WHERE ${restaurantOrderItems.status} = 'ativo'
+           OR ${restaurantOrderItems.cancelledAt} = ${restaurantOrders.closedAt}
+      ), 0)`,
     })
     .from(restaurantOrders)
     .leftJoin(
@@ -97,18 +109,17 @@ async function fetchCancelledInWindow(from: Date, to: Date) {
 }
 
 export const restaurantCashSessionService = {
-  /** Sessão aberta de um usuário específico, opcionalmente filtrada por unidade. */
-  async getCurrentSession(userId: string, unitId?: string): Promise<RestaurantCashSession | null> {
-    const conditions = [
-      eq(restaurantCashSessions.status, "aberto"),
-      eq(restaurantCashSessions.openedBy, userId),
-      unitId ? eq(restaurantCashSessions.unitId, unitId) : undefined,
-    ].filter((c): c is NonNullable<typeof c> => c !== undefined);
-
+  /** Sessão aberta da unidade — recurso compartilhado entre operadores. */
+  async getCurrentSession(unitId: string): Promise<RestaurantCashSession | null> {
     const [session] = await db
       .select()
       .from(restaurantCashSessions)
-      .where(and(...conditions))
+      .where(
+        and(
+          eq(restaurantCashSessions.status, "aberto"),
+          eq(restaurantCashSessions.unitId, unitId),
+        ),
+      )
       .limit(1);
     return session ?? null;
   },
@@ -116,7 +127,7 @@ export const restaurantCashSessionService = {
   async openSession(
     openingFloat: string,
     actorId: string,
-    unitId?: string,
+    unitId: string,
   ): Promise<RestaurantCashSession> {
     if (toCents(openingFloat) < 0) {
       throw Object.assign(new Error("O fundo de troco não pode ser negativo"), {
@@ -124,10 +135,10 @@ export const restaurantCashSessionService = {
       });
     }
 
-    const current = await this.getCurrentSession(actorId, unitId);
+    const current = await this.getCurrentSession(unitId);
     if (current) {
       throw Object.assign(
-        new Error("Você já tem um caixa aberto — feche-o antes de abrir outro"),
+        new Error("Já existe um caixa aberto para esta unidade — feche-o antes de abrir outro"),
         { code: "SESSION_ALREADY_OPEN" },
       );
     }
@@ -139,18 +150,17 @@ export const restaurantCashSessionService = {
           openedBy: actorId,
           openingFloat: fromCents(toCents(openingFloat)),
           status: "aberto",
-          unitId: unitId ?? null,
+          unitId,
         })
         .returning();
       return created;
     } catch (error: any) {
       // A checagem acima roda fora de transação; quem garante é o índice único
-      // parcial (opened_by, unit_id) WHERE status='aberto'. Se caiu aqui, o
-      // caixa concorrente é desta mesma unidade — a checagem já teria pego um
-      // de outra unidade, já que ela filtra por unidade também.
+      // parcial (unit_id) WHERE status='aberto'. Se caiu aqui, alguém abriu um
+      // caixa concorrente para esta mesma unidade entre a checagem e o insert.
       if (error?.code === "23505") {
         throw Object.assign(
-          new Error("Você já tem um caixa aberto nesta unidade — feche-o antes de abrir outro"),
+          new Error("Já existe um caixa aberto para esta unidade — feche-o antes de abrir outro"),
           { code: "SESSION_ALREADY_OPEN" },
         );
       }
@@ -158,11 +168,11 @@ export const restaurantCashSessionService = {
     }
   },
 
-  async assertSessionOpen(userId: string, unitId?: string): Promise<RestaurantCashSession> {
-    const session = await this.getCurrentSession(userId, unitId);
+  async assertSessionOpen(unitId: string): Promise<RestaurantCashSession> {
+    const session = await this.getCurrentSession(unitId);
     if (!session) {
       throw Object.assign(
-        new Error("Nenhum caixa aberto para este usuário — abra o caixa para operar"),
+        new Error("Nenhum caixa aberto para esta unidade — peça a um gestor para abrir o caixa"),
         { code: "NO_CASH_SESSION" },
       );
     }
@@ -172,9 +182,9 @@ export const restaurantCashSessionService = {
   async addMovement(
     data: { type: "sangria" | "suprimento"; amount: string; reason: string },
     actorId: string,
-    unitId?: string,
+    unitId: string,
   ): Promise<RestaurantCashMovement> {
-    const session = await this.assertSessionOpen(actorId, unitId);
+    const session = await this.assertSessionOpen(unitId);
 
     const amountCents = toCents(data.amount);
     if (amountCents <= 0) {
@@ -326,6 +336,9 @@ export const restaurantCashSessionService = {
       cancelledItems: await restaurantReportsService.listCancelledItems({
         from: session.openedAt,
         to: session.closedAt ?? new Date(),
+        // Sessão legada sem unidade continua vendo tudo — é o comportamento
+        // que já existia, e não há como recortar o que não foi carimbado.
+        unitId: session.unitId,
       }),
       openedByName: actorNames[session.openedBy] ?? null,
       closedByName: session.closedBy ? (actorNames[session.closedBy] ?? null) : null,
@@ -396,18 +409,15 @@ export const restaurantCashSessionService = {
     }
 
     // Fechar o caixa com mesa aberta é o aviso que hoje não existe: a comanda
-    // ficaria sem sessão e a receita cairia fora de qualquer conferência.
-    // Verifica apenas comandas do próprio operador — outros caixas abertos
-    // simultaneamente têm seus próprios garçons e não impedem este fechamento.
-    // Filtra pela unidade da sessão: sem isso, uma mesa aberta pelo mesmo
-    // operador em OUTRA unidade impedia o fechamento deste caixa.
+    // ficaria sem sessão e a receita cairia fora de qualquer conferência. O
+    // caixa é compartilhado pela unidade, então a checagem cobre comandas
+    // abertas por QUALQUER operador da unidade, não só quem abriu o caixa.
     const openOrders = await db
       .select({ id: restaurantOrders.id, tableNumber: restaurantOrders.tableNumber })
       .from(restaurantOrders)
       .where(
         and(
           eq(restaurantOrders.status, "aberta"),
-          eq(restaurantOrders.waiterId, session.openedBy),
           ...(session.unitId ? [eq(restaurantOrders.unitId, session.unitId)] : []),
         ),
       );
@@ -416,7 +426,7 @@ export const restaurantCashSessionService = {
       const tables = openOrders.map((o) => o.tableNumber).join(", ");
       throw Object.assign(
         new Error(
-          `Existem ${openOrders.length} comanda(s) abertas suas (mesa ${tables}). Feche todas antes de fechar o caixa.`,
+          `Existem ${openOrders.length} comanda(s) abertas (mesa ${tables}). Feche todas antes de fechar o caixa.`,
         ),
         { code: "OPEN_ORDERS" },
       );

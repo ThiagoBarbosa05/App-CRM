@@ -5,8 +5,11 @@ export const listCurrentSessionOrdersController = async (req: Request, res: Resp
   try {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ message: "Usuário não autenticado" });
+    if (!req.pdvUnitId) {
+      return res.status(400).json({ message: "Selecione uma unidade PDV para continuar." });
+    }
 
-    const session = await restaurantCashSessionService.getCurrentSession(userId, req.pdvUnitId);
+    const session = await restaurantCashSessionService.getCurrentSession(req.pdvUnitId);
     if (!session) {
       return res.json({ orders: [] });
     }

@@ -17,6 +17,9 @@ export const openCashSessionController = async (req: Request, res: Response) => 
     if (!actorId) {
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
+    if (!req.pdvUnitId) {
+      return res.status(400).json({ message: "Selecione uma unidade PDV para continuar." });
+    }
 
     const session = await restaurantCashSessionService.openSession(
       parsed.data.openingFloat,

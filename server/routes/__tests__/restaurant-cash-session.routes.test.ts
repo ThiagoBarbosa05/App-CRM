@@ -59,15 +59,45 @@ describe("rotas de caixa", () => {
       expect(response.body).toEqual({ session: null });
     });
 
-    // Abrir o caixa é operação de turno; fechar é conferência de dinheiro e
-    // responde por divergência. Por isso a assimetria abaixo é intencional.
-    it("garçom pode abrir caixa", async () => {
+    // Na prática não existe usuário "garcom" cadastrado — quem opera o PDV é
+    // "vendedor". O guard de rota e a resolução de unidade precisam tratá-lo
+    // como o mesmo tipo de operador.
+    it("vendedor pode consultar o caixa atual", async () => {
+      const response = await request(appAs("vendedor")).get(
+        "/restaurant-pdv/cash-sessions/current",
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ session: null });
+    });
+
+    // Gerenciar o caixa (abrir, movimentar, fechar) é exclusivo do gestor —
+    // o operador (garçom/vendedor) só consulta e opera mesas.
+    it("garçom não pode abrir caixa", async () => {
       const response = await request(appAs("garcom", "waiter-1"))
         .post("/restaurant-pdv/cash-sessions")
         .send({ openingFloat: "200.00" });
 
-      expect(response.status).toBe(201);
-      expect(openSessionMock).toHaveBeenCalledWith("200.00", "waiter-1", "test-unit-id");
+      expect(response.status).toBe(403);
+      expect(openSessionMock).not.toHaveBeenCalled();
+    });
+
+    it("vendedor não pode abrir caixa", async () => {
+      const response = await request(appAs("vendedor", "seller-1"))
+        .post("/restaurant-pdv/cash-sessions")
+        .send({ openingFloat: "200.00" });
+
+      expect(response.status).toBe(403);
+      expect(openSessionMock).not.toHaveBeenCalled();
+    });
+
+    it("vendedor não pode fechar caixa", async () => {
+      const response = await request(appAs("vendedor"))
+        .post("/restaurant-pdv/cash-sessions/s1/close")
+        .send({ countedCash: "500.00" });
+
+      expect(response.status).toBe(403);
+      expect(closeSessionMock).not.toHaveBeenCalled();
     });
 
     it("garçom não pode fechar caixa", async () => {

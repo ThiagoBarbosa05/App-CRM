@@ -27,13 +27,16 @@ export const openOrderController = async (req: Request, res: Response) => {
     if (!waiterId) {
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
+    if (!req.pdvUnitId) {
+      return res.status(400).json({ message: "Selecione uma unidade PDV para continuar." });
+    }
 
     const order = await restaurantPdvService.openOrder({
       tableId: tableId ?? null,
       tableNumber: tableNumber,
       peopleCount,
       waiterId,
-      unitId: req.pdvUnitId ?? null,
+      unitId: req.pdvUnitId,
       clientId: clientId ?? null,
       clientName: clientName ?? null,
     });

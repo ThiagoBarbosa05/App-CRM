@@ -1,24 +1,31 @@
 import { Request, Response } from "express";
 import { restaurantReportsService } from "../../services/restaurant-reports.service";
-import { summarizeCancellations } from "../../../shared/restaurant-cancellations";
+import { saoPauloRange } from "../../../shared/sao-paulo-date";
+import { reportRangeSchema, resolveReportRange } from "./report-range.schema";
 
 export const getCancellationsReportController = async (req: Request, res: Response) => {
   try {
-    const toParam = (req.query.to as string) || new Date().toISOString().slice(0, 10);
-    const fromParam =
-      (req.query.from as string) ||
-      new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    if (!req.pdvUnitId) {
+      return res.status(400).json({ message: "Selecione uma unidade PDV para continuar." });
+    }
 
-    // Mesma convenção do relatório de vendas: o dia é o dia de São Paulo.
-    const from = new Date(`${fromParam}T00:00:00-03:00`);
-    const to = new Date(`${toParam}T23:59:59.999-03:00`);
+    const parsed = reportRangeSchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ message: parsed.error.errors[0].message });
+    }
 
-    const items = await restaurantReportsService.listCancelledItems({ from, to });
+    const { fromIso, toIso } = resolveReportRange(parsed.data);
+    const { from, to } = saoPauloRange(fromIso, toIso);
 
-    return res.json({
-      ...summarizeCancellations(items),
-      items,
+    // A agregação mora no serviço: quando ela era feita aqui, rodava sobre a
+    // lista que a query já tinha truncado em 200 e o total saía menor que o
+    // real, sem aviso.
+    const report = await restaurantReportsService.getCancellationsReport({
+      from,
+      to,
+      unitId: req.pdvUnitId,
     });
+    return res.json(report);
   } catch (error) {
     console.error("Erro ao buscar relatório de cancelamentos:", error);
     return res.status(500).json({ message: "Erro ao buscar relatório de cancelamentos" });

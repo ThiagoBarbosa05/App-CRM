@@ -1,13 +1,19 @@
 import type { RequestHandler } from "express";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
-import { pdvUnits, users } from "../../shared/schema";
+import { blingSellerMappings, pdvUnits, users } from "../../shared/schema";
+import { resolveSellerUnitId } from "./resolve-seller-unit";
 
 /**
  * Resolve a unidade PDV da requisição em `req.pdvUnitId`.
  *
  * Garçom: a unidade vem do vínculo dele no banco — não do cliente, senão
  * bastaria trocar um header para operar o caixa de outro restaurante.
+ * Vendedor: idem, mas o vínculo é indireto — via `bling_seller_mappings`
+ * (conexão Bling do vendedor) até a `pdv_units.bling_connection_id` da mesma
+ * conta. `users.pdv_unit_id` não é usado para vendedor porque nunca é
+ * preenchido para esse papel; quem existe de fato hoje são vendedores
+ * mapeados ao Bling, não garçons cadastrados.
  * Admin/gerente: vem do header `X-PDV-Unit-Id`, porque eles trocam de unidade
  * pela interface.
  *
@@ -45,6 +51,34 @@ export const resolvePdvUnit: RequestHandler = async (req, res, next) => {
         });
       }
       candidate = user.pdvUnitId;
+    } else if (req.user?.role === "vendedor") {
+      const rows = await db
+        .select({ unitId: pdvUnits.id })
+        .from(blingSellerMappings)
+        .innerJoin(
+          pdvUnits,
+          and(
+            eq(pdvUnits.blingConnectionId, blingSellerMappings.connectionId),
+            eq(pdvUnits.isActive, true),
+          ),
+        )
+        .where(eq(blingSellerMappings.userId, userId));
+
+      const resolution = resolveSellerUnitId(rows.map((r) => r.unitId));
+
+      if (resolution.type === "none") {
+        return res.status(400).json({
+          message: "Vendedor não vinculado a nenhuma conta Bling. Fale com o administrador.",
+          code: "NO_SELLER_MAPPING",
+        });
+      }
+      if (resolution.type === "ambiguous") {
+        return res.status(400).json({
+          message: "Vendedor vinculado a mais de uma unidade — contate o administrador.",
+          code: "AMBIGUOUS_SELLER_UNIT",
+        });
+      }
+      candidate = resolution.unitId;
     } else {
       candidate = req.headers["x-pdv-unit-id"] as string | undefined;
       if (!candidate) {

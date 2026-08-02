@@ -34,7 +34,14 @@ export const createMockAuthMiddleware = (
     // (`resolvePdvUnit`). Injetar aqui é o que mantém o project `unit` sem
     // banco: o middleware real tem curto-circuito quando `req.pdvUnitId` já
     // veio resolvido, então ele continua montado e testável.
-    if (overrides.pdvUnitId !== null) {
+    //
+    // O `delete` é necessário, não redundante: `createRouteTestApp` monta um
+    // mock padrão antes dos middlewares customizados, então ele já injetou
+    // "test-unit-id". Só deixar de atribuir não desligava nada, e o `null`
+    // documentado aqui nunca chegava a exercitar o 400 do middleware real.
+    if (overrides.pdvUnitId === null) {
+      delete req.pdvUnitId;
+    } else {
       req.pdvUnitId = overrides.pdvUnitId ?? "test-unit-id";
     }
     next();

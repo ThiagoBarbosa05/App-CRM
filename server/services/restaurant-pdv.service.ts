@@ -249,13 +249,13 @@ export const restaurantPdvService = {
     tableNumber?: number;
     peopleCount: number;
     waiterId: string;
-    unitId?: string | null;
+    unitId: string;
     clientId?: string | null;
     clientName?: string | null;
   }): Promise<RestaurantOrder> {
     // Nada acontece sem caixa aberto: a comanda que nasce fora de uma sessão
     // fecharia sem entrar em nenhuma conferência.
-    await restaurantCashSessionService.assertSessionOpen(data.waiterId, data.unitId ?? undefined);
+    await restaurantCashSessionService.assertSessionOpen(data.unitId);
 
     let resolvedTableNumber: number;
 
@@ -779,11 +779,15 @@ export const restaurantPdvService = {
         ).finalPaymentMethod;
       }
 
-      // Carimba a sessão de caixa do operador que está recebendo o dinheiro.
-      const cashSession = await restaurantCashSessionService.assertSessionOpen(
-        actorId,
-        unitId ?? undefined,
-      );
+      // Carimba a sessão de caixa da unidade — o caixa é compartilhado entre
+      // operadores, não pessoal de quem está fechando a comanda.
+      if (!unitId) {
+        throw Object.assign(
+          new Error("Selecione uma unidade PDV para continuar."),
+          { code: "NO_CASH_SESSION" },
+        );
+      }
+      const cashSession = await restaurantCashSessionService.assertSessionOpen(unitId);
 
       if (allPayments.length === 0 && paymentMethod) {
         await tx.insert(restaurantOrderPayments).values({
@@ -1142,9 +1146,14 @@ export const restaurantPdvService = {
         );
       }
 
+      // O MESMO instante na comanda e nos itens: é essa igualdade que a
+      // conferência de caixa usa para separar "item removido durante o
+      // serviço" de "item que caiu junto com a comanda".
+      const cancelledAt = new Date();
+
       const [cancelled] = await tx
         .update(restaurantOrders)
-        .set({ status: "cancelada", closedAt: new Date(), updatedAt: new Date() })
+        .set({ status: "cancelada", closedAt: cancelledAt, updatedAt: cancelledAt })
         .where(
           and(
             eq(restaurantOrders.id, orderId),
@@ -1158,6 +1167,26 @@ export const restaurantPdvService = {
           code: "ORDER_CLOSED",
         });
       }
+
+      // Marcar os itens é o que faz a comanda cancelada inteira aparecer no
+      // relatório de cancelamentos: ele conta itens com status `cancelado`, e
+      // antes só a comanda mudava de status — o vetor "cancela a comanda
+      // toda" ficava invisível justamente na tela feita para detectá-lo.
+      await tx
+        .update(restaurantOrderItems)
+        .set({
+          status: "cancelado",
+          cancelReason: "Comanda cancelada",
+          cancelledBy: actorId,
+          cancelledAt,
+          updatedAt: cancelledAt,
+        })
+        .where(
+          and(
+            eq(restaurantOrderItems.orderId, orderId),
+            eq(restaurantOrderItems.status, "ativo"),
+          ),
+        );
 
       await restaurantOrderAuditService.logOrderAudit(orderId, "mesa_excluida", actorId, {
         metadata: { tableNumber: order.tableNumber, cancelledBy: actorId },

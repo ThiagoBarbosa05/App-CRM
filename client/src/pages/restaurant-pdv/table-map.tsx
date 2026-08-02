@@ -14,10 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, Clock, LayoutGrid, Lock, LogOut, Plus, Receipt, Trash2, Users, Wallet } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { parseBRL } from "@/lib/utils";
+import { CheckCircle2, Clock, LayoutGrid, Lock, LogOut, Plus, Receipt, Trash2, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -218,12 +215,9 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   // Espelha o requireGestor do backend. Havia um terceiro valor,
   // "administrador", que não existe no enum de roles — condição morta.
   const isGestor = user?.role === "admin" || user?.role === "gerente";
-  const isGarcom = user?.role === "garcom";
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [closeSessionOpen, setCloseSessionOpen] = useState(false);
-  const [openCashOpen, setOpenCashOpen] = useState(false);
-  const [openingFloat, setOpeningFloat] = useState("");
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmDeleteNumber, setConfirmDeleteNumber] = useState<number | null>(null);
@@ -249,26 +243,6 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
   // Falha na consulta não é "caixa fechado": afirmar isso bloqueia "Nova Mesa"
   // com o caixa aberto, e o operador fica sem entender por quê.
   const cashStatusUnknown = isCashError;
-
-  const openCashMutation = useMutation({
-    mutationFn: async () => {
-      const parsed = openingFloat.trim() === "" ? 0 : parseBRL(openingFloat);
-      if (parsed === null || parsed < 0) throw new Error("Valor inválido");
-      await apiRequest("POST", "/api/restaurant-pdv/cash-sessions", {
-        openingFloat: (parsed ?? 0).toFixed(2),
-      });
-    },
-    onSuccess: () => {
-      toast({ title: "Caixa aberto", description: "O PDV está liberado para operar." });
-      setOpenCashOpen(false);
-      setOpeningFloat("");
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/cash-sessions/current"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/tables/map"] });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Erro ao abrir o caixa", description: err.message, variant: "destructive" });
-    },
-  });
 
   const closeCashMutation = useMutation({
     mutationFn: async (data: {
@@ -352,7 +326,7 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
           </PageHeader.Text>
         </PageHeader.Info>
         <PageHeader.Actions>
-          {isGarcom && cashSessionOpen && (
+          {isGestor && cashSessionOpen && (
             <Button
               size="sm"
               variant="outline"
@@ -387,22 +361,14 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
                 : "Abra o caixa para liberar a abertura de mesas."}
             </p>
           </div>
+          {/* Gerenciar o caixa é exclusivo do gestor — o operador só consulta
+              (ver banner acima) e opera mesas dentro do caixa já aberto. */}
           {isGestor && (
             <Button
               size="sm"
               className="w-full sm:w-auto"
               onClick={() => navigate("/pdv-restaurante/caixa")}
             >
-              Abrir caixa
-            </Button>
-          )}
-          {isGarcom && (
-            <Button
-              size="sm"
-              className="w-full sm:w-auto"
-              onClick={() => setOpenCashOpen(true)}
-            >
-              <Wallet className="mr-1.5 h-4 w-4" />
               Abrir caixa
             </Button>
           )}
@@ -519,39 +485,6 @@ export function TableMapGrid({ onOrderOpened }: TableMapGridProps) {
         isPending={closeCashMutation.isPending}
         onConfirm={(data) => closeCashMutation.mutate(data)}
       />
-
-      {/* Diálogo — abrir caixa (garçom) */}
-      <Dialog open={openCashOpen} onOpenChange={(o) => { setOpenCashOpen(o); if (!o) setOpeningFloat(""); }}>
-        <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader>
-            <DialogTitle>Abrir caixa</DialogTitle>
-            <DialogDescription>
-              Informe o fundo de troco inicial (deixe em branco para abrir sem troco).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="opening-float">Fundo de troco</Label>
-            <Input
-              id="opening-float"
-              inputMode="decimal"
-              placeholder="0,00"
-              value={openingFloat}
-              onChange={(e) => setOpeningFloat(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenCashOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              disabled={openCashMutation.isPending}
-              onClick={() => openCashMutation.mutate()}
-            >
-              {openCashMutation.isPending ? "Abrindo..." : "Abrir caixa"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Dialog — confirmar exclusão */}
       <Dialog

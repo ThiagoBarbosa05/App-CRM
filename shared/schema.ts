@@ -2472,15 +2472,19 @@ export const restaurantMenuItems = pgTable("restaurant_menu_items", {
  * abertura: a receita pertence ao caixa que recebeu o dinheiro, e não ao que
  * estava aberto quando a mesa sentou (mesa aberta 23h e fechada 1h).
  *
- * Um caixa aberto por operador POR UNIDADE — garantido pelo índice parcial
- * `restaurant_cash_sessions_one_open_per_user_unit`, declarado abaixo e criado
- * por `scripts/create-restaurant-pdv-constraints.mjs`.
+ * Um caixa é um recurso COMPARTILHADO da unidade (conta Bling), não pessoal
+ * de quem o abriu — qualquer operador vinculado àquela unidade opera o
+ * mesmo caixa. Garantido pelo índice parcial
+ * `restaurant_cash_sessions_one_open_per_unit`, declarado abaixo e criado
+ * por `scripts/fix-restaurant-cash-session-unit-index.mjs`.
  *
- * A forma do índice decide o multi-unidade: versões anteriores desta regra eram
- * globais por `status` (um caixa no sistema inteiro) ou por `opened_by` apenas
- * (gestor sem caixa em duas unidades) — ambas divergiam de
- * `getCurrentSession(userId, unitId)`. Confirme a definição real com
- * `node scripts/diagnose-restaurant-pdv-constraints.mjs` antes de confiar.
+ * A forma do índice decide o multi-unidade: versões anteriores desta regra
+ * eram globais por `status` (um caixa no sistema inteiro), por `opened_by`
+ * apenas (gestor sem caixa em duas unidades), ou por `(opened_by, unit_id)`
+ * (um caixa por operador por unidade — abandonado porque impedia um vendedor
+ * de operar o caixa aberto por outro operador da mesma unidade). Confirme a
+ * definição real com `node scripts/diagnose-restaurant-pdv-constraints.mjs`
+ * antes de confiar.
  */
 export const restaurantCashSessions = pgTable(
   "restaurant_cash_sessions",
@@ -2519,12 +2523,12 @@ export const restaurantCashSessions = pgTable(
   },
   (table) => ({
     statusIdx: index("restaurant_cash_sessions_status_idx").on(table.status),
-    // Um caixa aberto por operador POR UNIDADE — a mesma chave que
-    // `getCurrentSession(userId, unitId)` usa. Criado por
-    // scripts/create-restaurant-pdv-constraints.mjs, que também remove as
-    // versões anteriores da regra (global por status, e por opened_by apenas).
-    oneOpenPerUserUnit: uniqueIndex("restaurant_cash_sessions_one_open_per_user_unit")
-      .on(table.openedBy, sql`COALESCE(unit_id, '-')`)
+    // Um caixa aberto por UNIDADE (recurso compartilhado entre operadores) —
+    // a mesma chave que `getCurrentSession(unitId)` usa. Criado por
+    // scripts/fix-restaurant-cash-session-unit-index.mjs, que também remove
+    // a versão anterior da regra (por opened_by + unit_id).
+    oneOpenPerUnit: uniqueIndex("restaurant_cash_sessions_one_open_per_unit")
+      .on(sql`COALESCE(unit_id, '-')`)
       .where(sql`status = 'aberto'`),
     openingFloatValid: check(
       "restaurant_cash_sessions_opening_float_valid",

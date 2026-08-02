@@ -42,6 +42,35 @@ export interface CancellationsSummary {
   topReasons: { reason: string; count: number }[];
 }
 
+export interface CancellationsReport<TItem> extends CancellationsSummary {
+  /** Recorte para exibição — os mais recentes primeiro. */
+  items: TItem[];
+  /** Quantas linhas o período tem de verdade, antes do recorte. */
+  totalItemRows: number;
+  truncated: boolean;
+}
+
+/**
+ * Agrega sobre o período INTEIRO e trunca só a lista de detalhe.
+ *
+ * A ordem importa e é o motivo desta função existir: antes o controller
+ * chamava `summarizeCancellations` sobre um array que a query já tinha
+ * cortado em 200, então `total`, `itemCount` e o ranking por operador saíam
+ * calculados só sobre os 200 cancelamentos mais recentes. Numa tela feita
+ * para detectar desvio, o número subestimava em silêncio.
+ */
+export function buildCancellationsReport<TItem extends CancelledItemInput>(
+  items: TItem[],
+  detailLimit: number,
+): CancellationsReport<TItem> {
+  return {
+    ...summarizeCancellations(items),
+    items: items.slice(0, detailLimit),
+    totalItemRows: items.length,
+    truncated: items.length > detailLimit,
+  };
+}
+
 export function summarizeCancellations(
   items: CancelledItemInput[],
 ): CancellationsSummary {

@@ -59,9 +59,9 @@ import { resolvePdvUnit } from "../middleware/resolve-pdv-unit";
 
 export const restaurantPdvRouter = Router();
 
-function requireGarcomOrGestor(req: Request, res: Response, next: NextFunction) {
+function requireOperadorOrGestor(req: Request, res: Response, next: NextFunction) {
   const role = req.user?.role;
-  if (!["garcom", "admin", "gerente"].includes(role ?? "")) {
+  if (!["garcom", "vendedor", "admin", "gerente"].includes(role ?? "")) {
     return res.status(403).json({ message: "Acesso restrito" });
   }
   return next();
@@ -78,7 +78,7 @@ function requireGestor(req: Request, res: Response, next: NextFunction) {
 // ── Rotas sem contexto de unidade (antes do middleware resolvePdvUnit) ────────
 
 // Busca de produtos Bling — acessível ao garçom sem contexto de unidade
-restaurantPdvRouter.get("/products", requireGarcomOrGestor, async (req: Request, res: Response) => {
+restaurantPdvRouter.get("/products", requireOperadorOrGestor, async (req: Request, res: Response) => {
   try {
     const { name, connectionId, category, country } = req.query;
     const pageSize = parseInt(req.query.pageSize as string) || 50;
@@ -102,7 +102,7 @@ restaurantPdvRouter.get("/products", requireGarcomOrGestor, async (req: Request,
 });
 
 /** Lista categorias e países distintos dos produtos mapeados para esta conexão Bling. */
-restaurantPdvRouter.get("/products/filters", requireGarcomOrGestor, async (req: Request, res: Response) => {
+restaurantPdvRouter.get("/products/filters", requireOperadorOrGestor, async (req: Request, res: Response) => {
   try {
     const { connectionId } = req.query;
     if (!connectionId) return res.json({ categories: [], countries: [] });
@@ -164,7 +164,7 @@ restaurantPdvRouter.delete("/admin/orders/:id", requireGestor, async (req: Reque
 restaurantPdvRouter.use(resolvePdvUnit);
 
 // ── Mesas ────────────────────────────────────────────────────────────────────
-restaurantPdvRouter.get("/tables/map", requireGarcomOrGestor, listTablesMapController);
+restaurantPdvRouter.get("/tables/map", requireOperadorOrGestor, listTablesMapController);
 restaurantPdvRouter.get("/tables", requireGestor, listTablesController);
 restaurantPdvRouter.post("/tables", requireGestor, createTableController);
 restaurantPdvRouter.put("/tables/:id", requireGestor, updateTableController);
@@ -172,33 +172,34 @@ restaurantPdvRouter.delete("/tables/:id", requireGestor, deactivateTableControll
 
 // ── Comandas ─────────────────────────────────────────────────────────────────
 restaurantPdvRouter.get("/orders", requireGestor, listOrdersController);
-restaurantPdvRouter.post("/orders", requireGarcomOrGestor, openOrderController);
-restaurantPdvRouter.get("/orders/:id", requireGarcomOrGestor, getOrderController);
-restaurantPdvRouter.post("/orders/:id/items", requireGarcomOrGestor, addOrderItemController);
-restaurantPdvRouter.put("/orders/:id/items/:itemId", requireGarcomOrGestor, updateOrderItemController);
-restaurantPdvRouter.delete("/orders/:id/items/:itemId", requireGarcomOrGestor, cancelOrderItemController);
-restaurantPdvRouter.post("/orders/:id/close", requireGarcomOrGestor, closeOrderController);
-restaurantPdvRouter.post("/orders/:id/request-payment", requireGarcomOrGestor, requestPaymentController);
-restaurantPdvRouter.post("/orders/:id/cancel-payment-request", requireGarcomOrGestor, cancelPaymentRequestController);
+restaurantPdvRouter.post("/orders", requireOperadorOrGestor, openOrderController);
+restaurantPdvRouter.get("/orders/:id", requireOperadorOrGestor, getOrderController);
+restaurantPdvRouter.post("/orders/:id/items", requireOperadorOrGestor, addOrderItemController);
+restaurantPdvRouter.put("/orders/:id/items/:itemId", requireOperadorOrGestor, updateOrderItemController);
+restaurantPdvRouter.delete("/orders/:id/items/:itemId", requireOperadorOrGestor, cancelOrderItemController);
+restaurantPdvRouter.post("/orders/:id/close", requireOperadorOrGestor, closeOrderController);
+restaurantPdvRouter.post("/orders/:id/request-payment", requireOperadorOrGestor, requestPaymentController);
+restaurantPdvRouter.post("/orders/:id/cancel-payment-request", requireOperadorOrGestor, cancelPaymentRequestController);
 restaurantPdvRouter.post("/orders/:id/discount", requireGestor, applyDiscountController);
 restaurantPdvRouter.delete("/orders/:id/discount", requireGestor, removeDiscountController);
 restaurantPdvRouter.get("/orders/:id/audit-log", requireGestor, listOrderAuditLogController);
-restaurantPdvRouter.get("/orders/:id/payments", requireGarcomOrGestor, listOrderPaymentsController);
-restaurantPdvRouter.post("/orders/:id/payments", requireGarcomOrGestor, addOrderPaymentController);
-restaurantPdvRouter.delete("/orders/:id/payments/:paymentId", requireGarcomOrGestor, removeOrderPaymentController);
-restaurantPdvRouter.post("/orders/:id/transfer-items", requireGarcomOrGestor, transferOrderItemsController);
-restaurantPdvRouter.post("/orders/:id/merge-into/:targetId", requireGarcomOrGestor, mergeOrdersController);
+restaurantPdvRouter.get("/orders/:id/payments", requireOperadorOrGestor, listOrderPaymentsController);
+restaurantPdvRouter.post("/orders/:id/payments", requireOperadorOrGestor, addOrderPaymentController);
+restaurantPdvRouter.delete("/orders/:id/payments/:paymentId", requireOperadorOrGestor, removeOrderPaymentController);
+restaurantPdvRouter.post("/orders/:id/transfer-items", requireOperadorOrGestor, transferOrderItemsController);
+restaurantPdvRouter.post("/orders/:id/merge-into/:targetId", requireOperadorOrGestor, mergeOrdersController);
 restaurantPdvRouter.delete("/orders/:id", requireGestor, forceCancelOrderController);
 
 // ── Caixa ─────────────────────────────────────────────────────────────────────
-restaurantPdvRouter.get("/cash-sessions/current", requireGarcomOrGestor, getCurrentCashSessionController);
-restaurantPdvRouter.get("/cash-sessions/current/orders", requireGarcomOrGestor, listCurrentSessionOrdersController);
+restaurantPdvRouter.get("/cash-sessions/current", requireOperadorOrGestor, getCurrentCashSessionController);
+restaurantPdvRouter.get("/cash-sessions/current/orders", requireOperadorOrGestor, listCurrentSessionOrdersController);
 restaurantPdvRouter.get("/cash-sessions", requireGestor, listCashSessionsController);
-restaurantPdvRouter.post("/cash-sessions", requireGarcomOrGestor, openCashSessionController);
+// Gerenciar o caixa (abrir, lançar movimento, fechar) é exclusivo do gestor.
+// O operador (garçom/vendedor) só consulta o caixa atual (linhas acima) para
+// saber se pode abrir mesa — nunca abre, movimenta ou fecha o caixa ele mesmo.
+restaurantPdvRouter.post("/cash-sessions", requireGestor, openCashSessionController);
 restaurantPdvRouter.post("/cash-sessions/movements", requireGestor, addCashMovementController);
 restaurantPdvRouter.get("/cash-sessions/:id", requireGestor, getCashSessionController);
-// Abrir o caixa é operação de turno (garçom pode); fechar é conferência de
-// dinheiro e responde por divergência, então fica com o gestor.
 restaurantPdvRouter.post("/cash-sessions/:id/close", requireGestor, closeCashSessionController);
 
 // ── Relatórios ────────────────────────────────────────────────────────────────
@@ -207,11 +208,11 @@ restaurantPdvRouter.get("/reports/sales", requireGestor, getSalesReportControlle
 restaurantPdvRouter.get("/reports/cancellations", requireGestor, getCancellationsReportController);
 
 // ── Configurações ─────────────────────────────────────────────────────────────
-restaurantPdvRouter.get("/settings", requireGarcomOrGestor, getPdvSettingsController);
+restaurantPdvRouter.get("/settings", requireOperadorOrGestor, getPdvSettingsController);
 restaurantPdvRouter.put("/settings", requireGestor, updatePdvSettingsController);
 
 // ── Clientes ──────────────────────────────────────────────────────────────────
-restaurantPdvRouter.get("/clients/search", requireGarcomOrGestor, searchClientsController);
-restaurantPdvRouter.post("/clients", requireGarcomOrGestor, quickCreateClientController);
-restaurantPdvRouter.patch("/orders/:id/client", requireGarcomOrGestor, updateOrderClientController);
-restaurantPdvRouter.patch("/orders/:id/people-count", requireGarcomOrGestor, updateOrderPeopleCountController);
+restaurantPdvRouter.get("/clients/search", requireOperadorOrGestor, searchClientsController);
+restaurantPdvRouter.post("/clients", requireOperadorOrGestor, quickCreateClientController);
+restaurantPdvRouter.patch("/orders/:id/client", requireOperadorOrGestor, updateOrderClientController);
+restaurantPdvRouter.patch("/orders/:id/people-count", requireOperadorOrGestor, updateOrderPeopleCountController);
