@@ -45,7 +45,44 @@ vi.mock("../baileys/connection-events.service", () => ({
   logChannelConnectionEvent: async () => {},
 }));
 
-import { handleMessagesUpdate } from "../whatsapp-baileys-events.service";
+import {
+  extractQuotedMessageSnapshot,
+  handleMessagesUpdate,
+} from "../whatsapp-baileys-events.service";
+
+describe("extractQuotedMessageSnapshot", () => {
+  it("preserva o texto de uma mensagem citada", () => {
+    expect(extractQuotedMessageSnapshot({ conversation: "1" })).toEqual({
+      content: "1",
+      type: "text",
+    });
+    expect(extractQuotedMessageSnapshot({
+      extendedTextMessage: { text: "Mensagem original" },
+    })).toEqual({ content: "Mensagem original", type: "text" });
+  });
+
+  it.each([
+    ["imageMessage", "image", "Foto do produto"],
+    ["videoMessage", "video", "Demonstração"],
+    ["audioMessage", "audio", ""],
+    ["documentMessage", "document", "pedido.pdf"],
+    ["stickerMessage", "sticker", ""],
+  ])("cria snapshot de %s", (messageKey, expectedType, expectedContent) => {
+    const media = messageKey === "documentMessage"
+      ? { fileName: expectedContent }
+      : expectedContent ? { caption: expectedContent } : {};
+
+    expect(extractQuotedMessageSnapshot({ [messageKey]: media })).toEqual({
+      content: expectedContent,
+      type: expectedType,
+    });
+  });
+
+  it("ignora payload sem conteúdo citado reconhecido", () => {
+    expect(extractQuotedMessageSnapshot(undefined)).toBeNull();
+    expect(extractQuotedMessageSnapshot({ protocolMessage: {} })).toBeNull();
+  });
+});
 
 describe("handleMessagesUpdate — detecção de conta restrita (erro 463)", () => {
   beforeEach(() => {

@@ -13,6 +13,37 @@ import {
 import { handleInboundBotMessage, persistBotMessage } from "./whatsapp-bot-engine.service";
 import { logChannelConnectionEvent } from "./baileys/connection-events.service";
 
+export function extractQuotedMessageSnapshot(message: Record<string, unknown> | undefined): {
+  content: string | null;
+  type: string;
+} | null {
+  if (!message) return null;
+  if (typeof message.conversation === "string") return { content: message.conversation, type: "text" };
+
+  const extended = message.extendedTextMessage as Record<string, unknown> | undefined;
+  if (extended) return { content: typeof extended.text === "string" ? extended.text : null, type: "text" };
+
+  const mediaTypes = [
+    ["imageMessage", "image"],
+    ["audioMessage", "audio"],
+    ["pttMessage", "audio"],
+    ["videoMessage", "video"],
+    ["documentMessage", "document"],
+    ["stickerMessage", "sticker"],
+  ] as const;
+  for (const [key, type] of mediaTypes) {
+    const media = message[key] as Record<string, unknown> | undefined;
+    if (!media) continue;
+    const content = typeof media.caption === "string"
+      ? media.caption
+      : type === "document" && typeof media.fileName === "string"
+        ? media.fileName
+        : "";
+    return { content, type };
+  }
+  return null;
+}
+
 // Eventos do Baileys são processados in-process (sem webhook HTTP). Os nomes de
 // evento SSE e o shape dos payloads são preservados para não quebrar o frontend.
 
@@ -87,9 +118,20 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   );
   const contextInfo = contentNode?.contextInfo as {
     stanzaId?: string;
+    participant?: string;
+    quotedMessage?: Record<string, unknown>;
     isForwarded?: boolean;
     forwardingScore?: number;
   } | undefined;
+  const quotedSnapshot = extractQuotedMessageSnapshot(contextInfo?.quotedMessage);
+  const quotedParticipantPhone = contextInfo?.participant
+    ? jidToPhone(contextInfo.participant)
+    : null;
+  const quotedDirection: "inbound" | "outbound" | undefined = quotedSnapshot
+    ? quotedParticipantPhone
+      ? isSameChannelPhone(channel.displayPhone, quotedParticipantPhone) ? "outbound" : "inbound"
+      : fromMe ? "inbound" : "outbound"
+    : undefined;
   const text =
     (msgContent.conversation as string | undefined) ??
     ((msgContent.extendedTextMessage as Record<string, unknown> | undefined)?.text as string | undefined) ??
@@ -122,6 +164,9 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     channelId: channel.id,
     rawPayload: msg as Record<string, unknown>,
     replyToWaMessageId: contextInfo?.stanzaId,
+    replyToContentSnapshot: quotedSnapshot?.content,
+    replyToTypeSnapshot: quotedSnapshot?.type,
+    replyToDirectionSnapshot: quotedDirection,
     isForwarded: contextInfo?.isForwarded === true || (contextInfo?.forwardingScore ?? 0) > 0,
     providerMetadata: contextInfo
       ? {

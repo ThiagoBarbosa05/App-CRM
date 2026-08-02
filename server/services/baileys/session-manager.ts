@@ -171,13 +171,41 @@ function serializeMsgContent(msg: WAMessage): Record<string, unknown> {
   if (!m) return {};
   const out: Record<string, unknown> = {};
   if (m.conversation) out.conversation = m.conversation;
+  const serializeQuotedMessage = (quotedMessage: {
+    conversation?: string | null;
+    extendedTextMessage?: { text?: string | null } | null;
+    imageMessage?: { caption?: string | null } | null;
+    audioMessage?: { ptt?: boolean | null } | null;
+    videoMessage?: { caption?: string | null } | null;
+    documentMessage?: { caption?: string | null; fileName?: string | null } | null;
+    stickerMessage?: object | null;
+  } | null | undefined): Record<string, unknown> | undefined => {
+    if (!quotedMessage) return undefined;
+    if (quotedMessage.conversation) return { conversation: quotedMessage.conversation };
+    if (quotedMessage.extendedTextMessage) return { extendedTextMessage: { text: quotedMessage.extendedTextMessage.text ?? null } };
+    if (quotedMessage.imageMessage) return { imageMessage: { caption: quotedMessage.imageMessage.caption ?? null } };
+    if (quotedMessage.audioMessage) return { audioMessage: { ptt: quotedMessage.audioMessage.ptt === true } };
+    if (quotedMessage.videoMessage) return { videoMessage: { caption: quotedMessage.videoMessage.caption ?? null } };
+    if (quotedMessage.documentMessage) {
+      return { documentMessage: {
+        caption: quotedMessage.documentMessage.caption ?? null,
+        fileName: quotedMessage.documentMessage.fileName ?? null,
+      } };
+    }
+    if (quotedMessage.stickerMessage) return { stickerMessage: {} };
+    return undefined;
+  };
   const serializeContext = (contextInfo: {
     stanzaId?: string | null;
+    participant?: string | null;
+    quotedMessage?: Parameters<typeof serializeQuotedMessage>[0];
     isForwarded?: boolean | null;
     forwardingScore?: number | null;
   } | null | undefined) => contextInfo
-    ? {
+      ? {
         stanzaId: contextInfo.stanzaId ?? undefined,
+        participant: contextInfo.participant ?? undefined,
+        quotedMessage: serializeQuotedMessage(contextInfo.quotedMessage),
         isForwarded: contextInfo.isForwarded ?? false,
         forwardingScore: contextInfo.forwardingScore ?? 0,
       }

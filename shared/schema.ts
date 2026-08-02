@@ -5277,6 +5277,11 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   deliveredAt: timestamp("delivered_at"),
   readAt: timestamp("read_at"),
   replyToMessageId: text("reply_to_message_id"),
+  replyToContentSnapshot: text("reply_to_content_snapshot"),
+  replyToTypeSnapshot: text("reply_to_type_snapshot"),
+  replyToDirectionSnapshot: text("reply_to_direction_snapshot", {
+    enum: ["inbound", "outbound"],
+  }),
   origin: text("origin", {
     enum: ["crm", "device", "contact", "bot", "campaign"],
   }).notNull().default("contact"),

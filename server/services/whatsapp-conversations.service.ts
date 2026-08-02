@@ -1785,6 +1785,9 @@ export async function getConversation(
       deliveredAt: whatsappMessages.deliveredAt,
       readAt: whatsappMessages.readAt,
       replyToMessageId: whatsappMessages.replyToMessageId,
+      replyToContentSnapshot: whatsappMessages.replyToContentSnapshot,
+      replyToTypeSnapshot: whatsappMessages.replyToTypeSnapshot,
+      replyToDirectionSnapshot: whatsappMessages.replyToDirectionSnapshot,
       origin: whatsappMessages.origin,
       isForwarded: whatsappMessages.isForwarded,
       forwardedFromMessageId: whatsappMessages.forwardedFromMessageId,
@@ -1857,17 +1860,28 @@ export async function getConversation(
     reactionsByMessage.set(r.messageId, list);
   }
 
-  const messages = pageRows.map((m) => ({
-    ...m,
-    direction: directionForViewer(m.direction as "inbound" | "outbound", viewerIsPeer),
-    replyToDirection: m.replyToDirection
-      ? directionForViewer(m.replyToDirection as "inbound" | "outbound", viewerIsPeer)
-      : m.replyToDirection,
-    reactions: (reactionsByMessage.get(m.id) ?? []).map((r) => ({
-      ...r,
-      direction: directionForViewer(r.direction, viewerIsPeer),
-    })),
-  }));
+  const messages = pageRows.map((m) => {
+    const {
+      replyToContentSnapshot,
+      replyToTypeSnapshot,
+      replyToDirectionSnapshot,
+      ...message
+    } = m;
+    const replyDirection = m.replyToDirection ?? replyToDirectionSnapshot;
+    return {
+      ...message,
+      replyToContent: m.replyToContent ?? replyToContentSnapshot,
+      replyToType: m.replyToType ?? replyToTypeSnapshot,
+      direction: directionForViewer(m.direction as "inbound" | "outbound", viewerIsPeer),
+      replyToDirection: replyDirection
+        ? directionForViewer(replyDirection as "inbound" | "outbound", viewerIsPeer)
+        : null,
+      reactions: (reactionsByMessage.get(m.id) ?? []).map((r) => ({
+        ...r,
+        direction: directionForViewer(r.direction, viewerIsPeer),
+      })),
+    };
+  });
 
   return { conversation: conv, messages, nextCursor };
 }
@@ -2867,6 +2881,9 @@ export async function saveInboundMessage(data: {
   rawPayload?: unknown;
   channelId?: number | null;
   replyToWaMessageId?: string;
+  replyToContentSnapshot?: string | null;
+  replyToTypeSnapshot?: string;
+  replyToDirectionSnapshot?: "inbound" | "outbound";
   isForwarded?: boolean;
   providerMetadata?: Record<string, unknown>;
   /** Permite sobrescrever a direção da mensagem (padrão: "inbound"). Usado pelo Evolution para fromMe:true. */
@@ -2978,6 +2995,9 @@ export async function saveInboundMessage(data: {
         rawPayload: data.rawPayload ?? null,
         sentAt,
         replyToMessageId,
+        replyToContentSnapshot: data.replyToContentSnapshot ?? null,
+        replyToTypeSnapshot: data.replyToTypeSnapshot ?? null,
+        replyToDirectionSnapshot: data.replyToDirectionSnapshot ?? null,
         isForwarded: data.isForwarded ?? false,
         providerMetadata: data.providerMetadata ?? null,
       })
