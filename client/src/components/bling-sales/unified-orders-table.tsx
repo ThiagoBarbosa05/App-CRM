@@ -28,9 +28,24 @@ import {
   Link2,
   Link2Off,
   Package,
+  Search,
+  UserCheck,
+  Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { OrderDetailsDialog } from "@/components/bling-sales/order-details-dialog";
 import { ConnectOrderDetailsDialog, type ConnectOrderDialogData } from "@/components/connect-sales/connect-order-details-dialog";
 import { motion, AnimatePresence } from "framer-motion";
@@ -92,7 +107,7 @@ function SourceBadge({ source }: { source: "bling" | "connect" }) {
   );
 }
 
-function AppLinkBadge({ order }: { order: UnifiedOrder }) {
+function AppLinkBadge({ order, onLink }: { order: UnifiedOrder; onLink?: () => void }) {
   if (order.appClientId) {
     return (
       <div className="inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
@@ -108,9 +123,14 @@ function AppLinkBadge({ order }: { order: UnifiedOrder }) {
     );
   }
   return (
-    <div className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-400 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
+    <button
+      type="button"
+      onClick={onLink}
+      title="Clique para vincular a um cliente"
+      className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-colors cursor-pointer"
+    >
       <Link2Off className="h-3 w-3" /> Sem vínculo
-    </div>
+    </button>
   );
 }
 
@@ -124,10 +144,60 @@ export function UnifiedOrdersTable({
   totalValueNonCancelled = 0,
 }: UnifiedOrdersTableProps) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
   const [selectedBlingOrderId, setSelectedBlingOrderId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedConnectOrder, setSelectedConnectOrder] = useState<ConnectOrderDialogData | null>(null);
   const [isConnectDetailsOpen, setIsConnectDetailsOpen] = useState(false);
+
+  // ── Link-client dialog ─────────────────────────────────────────────────────
+  const [linkingOrder, setLinkingOrder] = useState<UnifiedOrder | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = useCallback((val: string) => {
+    setClientSearch(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(val), 300);
+  }, []);
+
+  const { data: clientResults, isFetching: isSearching } = useQuery({
+    queryKey: ["/api/clients", "link-search", debouncedSearch],
+    queryFn: async () => {
+      const param = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : "";
+      const res = await apiRequest("GET", `/api/clients?pageSize=20${param}`);
+      const body = await res.json() as { data: Array<{ id: string; name: string; phone?: string | null }> };
+      return body.data ?? [];
+    },
+    enabled: !!linkingOrder,
+    staleTime: 10_000,
+  });
+
+  const linkMutation = useMutation({
+    mutationFn: async ({ order, clientId }: { order: UnifiedOrder; clientId: string }) => {
+      const res = await apiRequest(
+        "PATCH",
+        `/api/unified-orders/${order.source}/${order.id}/link-client`,
+        { clientId },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(body.message ?? "Erro ao vincular cliente");
+      }
+      return res.json() as Promise<{ ok: boolean; clientName: string }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Cliente vinculado com sucesso", description: data.clientName });
+      queryClient.invalidateQueries({ queryKey: ["/api/unified-orders"] });
+      setLinkingOrder(null);
+      setClientSearch("");
+      setDebouncedSearch("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao vincular", description: err.message, variant: "destructive" });
+    },
+  });
 
   const handleViewConnectDetails = (order: UnifiedOrder) => {
     setSelectedConnectOrder({
@@ -280,7 +350,7 @@ export function UnifiedOrdersTable({
                           )
                         : "—"}
                     </span>
-                    <AppLinkBadge order={order} />
+                    <AppLinkBadge order={order} onLink={() => setLinkingOrder(order)} />
                   </div>
 
                   {/* Row 4: Actions */}
@@ -469,7 +539,7 @@ export function UnifiedOrdersTable({
 
                       {/* App link */}
                       <TableCell>
-                        <AppLinkBadge order={order} />
+                        <AppLinkBadge order={order} onLink={() => setLinkingOrder(order)} />
                       </TableCell>
 
                       {/* Total value */}
@@ -612,6 +682,81 @@ export function UnifiedOrdersTable({
           if (!open) setSelectedConnectOrder(null);
         }}
       />
+
+      {/* ── Dialog: Vincular cliente ──────────────────────────────────────── */}
+      <Dialog
+        open={!!linkingOrder}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLinkingOrder(null);
+            setClientSearch("");
+            setDebouncedSearch("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-blue-500" />
+              Vincular cliente ao pedido
+            </DialogTitle>
+            <DialogDescription>
+              {linkingOrder?.contactName
+                ? `Pedido de "${linkingOrder.contactName}" — busque e selecione o cliente no CRM`
+                : "Busque e selecione o cliente no CRM"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-1">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Input
+                autoFocus
+                placeholder="Buscar por nome ou telefone..."
+                value={clientSearch}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-9 rounded-xl"
+              />
+              {isSearching && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 animate-spin" />
+              )}
+            </div>
+
+            {/* Results list */}
+            <div className="max-h-72 overflow-y-auto space-y-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+              {(clientResults ?? []).length === 0 && !isSearching ? (
+                <p className="text-sm text-slate-400 text-center py-8">
+                  {debouncedSearch ? "Nenhum cliente encontrado" : "Digite para buscar clientes"}
+                </p>
+              ) : (
+                (clientResults ?? []).map((client) => (
+                  <button
+                    key={client.id}
+                    type="button"
+                    disabled={linkMutation.isPending}
+                    onClick={() => linkingOrder && linkMutation.mutate({ order: linkingOrder, clientId: client.id })}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-colors text-left disabled:opacity-50"
+                  >
+                    <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{client.name}</p>
+                      {client.phone && (
+                        <p className="text-xs text-slate-400 truncate">{client.phone}</p>
+                      )}
+                    </div>
+                    {linkMutation.isPending && (
+                      <Loader2 className="h-4 w-4 text-blue-500 animate-spin shrink-0" />
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
