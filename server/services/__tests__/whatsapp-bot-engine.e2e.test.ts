@@ -276,11 +276,6 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
         connectionStatus: "connected",
       })
       .returning();
-    const fakeBody = (async function* () {
-      yield Buffer.from("fake-image-bytes");
-    })();
-    r2Send.mockResolvedValueOnce({ Body: fakeBody } as never);
-
     const start = await addNode(bot.id, { type: "start_manual" });
     const send = await addNode(bot.id, {
       type: "send_message",
@@ -304,11 +299,14 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
       phone,
       "image",
       expect.objectContaining({
+        url: "https://cdn.test/bot-attachments/planeta.jpg",
         caption: expect.stringContaining("Olá"),
         filename: "planeta.jpg",
         mimetype: "image/jpeg",
       }),
     );
+    expect(evolutionSendMedia.mock.calls[0]?.[3]).not.toHaveProperty("base64");
+    expect(r2Send).not.toHaveBeenCalled();
     expect(uploadMedia).not.toHaveBeenCalled();
     expect(sendMediaMessage).not.toHaveBeenCalled();
   });

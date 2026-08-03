@@ -208,12 +208,12 @@ async function resolveCloudOnlyChannel(phone: string, featureLabel: string, sess
 
 /**
  * Envia mídia (imagem/documento) pelo canal atualmente resolvido da conversa.
- * Cloud API: upload prévio (uploadMedia) + sendMediaMessage. Evolution: mídia
- * inline em base64 via sendMedia (sem upload prévio).
+ * Cloud API: lê o objeto e faz upload para a Meta. Evolution: envia somente a
+ * URL pública do objeto no R2, evitando transportar o arquivo em Base64/JSON.
  */
 async function sendBotMedia(
   phone: string,
-  buffer: Buffer,
+  storageKey: string,
   filename: string,
   mimeType: string,
   mediaType: "image" | "document",
@@ -223,9 +223,8 @@ async function sendBotMedia(
   const expectedChannelId = await botSessionChannelId(sessionId);
   const resolvedChannel = await resolveBotSendChannel(phone, sessionId);
   if (resolvedChannel?.provider === "evolution") {
-    const base64 = buffer.toString("base64");
     const evoResult = await evoSendMedia(resolvedChannel.evolutionInstanceName, phone, mediaType, {
-      base64: `data:${mimeType};base64,${base64}`,
+      url: getPublicR2Url(storageKey),
       caption,
       filename,
       mimetype: mimeType,
@@ -252,6 +251,7 @@ async function sendBotMedia(
   const cloudOverride = resolvedChannel?.provider === "cloud_api"
     ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
     : undefined;
+  const buffer = await readR2Buffer(storageKey);
   const waMediaId = await uploadMedia(buffer, filename, mimeType, cloudOverride);
   const result = await sendMediaMessage(phone, waMediaId, mediaType, caption, filename, cloudOverride);
   const waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
@@ -820,12 +820,11 @@ async function executeNode(
       } else {
         const text = d.text ? interpolate(d.text, variables) : undefined;
         if (d.attachment?.storageKey) {
-          const buffer = await readR2Buffer(d.attachment.storageKey);
           const mimeType = d.attachment.mimeType ?? (d.attachment.type === "image" ? "image/jpeg" : "application/octet-stream");
           const filename = d.attachment.name ?? d.attachment.storageKey.split("/").pop() ?? "file";
           const { waMessageId: waId, waMediaId: mediaId } = await sendBotMedia(
             phone,
-            buffer,
+            d.attachment.storageKey,
             filename,
             mimeType,
             d.attachment.type,

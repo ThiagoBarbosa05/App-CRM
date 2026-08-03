@@ -2385,6 +2385,7 @@ export async function sendConversationMedia(
 
   let waMessageId: string | null = null;
   let waMediaId: string | null = null;
+  let storageKey: string | null = null;
   const [savedMessage] = await db
     .insert(whatsappMessages)
     .values({
@@ -2404,15 +2405,15 @@ export async function sendConversationMedia(
 
   if (resolvedChannel?.provider === "evolution") {
     const evoMediaType = mediaType;
-    const base64 = effectiveBuffer.toString("base64");
     console.log(`[sendConversationMedia] Evolution sendMedia type=${evoMediaType}`);
     try {
+      storageKey = await uploadWhatsappMedia(effectiveBuffer, effectiveMime);
       const evoResult = await evoSendMedia(
         resolvedChannel.evolutionInstanceName,
         resolved.targetPhone,
         evoMediaType,
         {
-          base64: `data:${effectiveMime};base64,${base64}`,
+          url: getPublicR2Url(storageKey),
           caption,
           filename: effectiveName,
           mimetype: effectiveMime,
@@ -2452,15 +2453,14 @@ export async function sendConversationMedia(
     .set({ status: "sent", waMessageId })
     .where(eq(whatsappMessages.id, savedMessage.id));
 
-  // Guardamos uma cópia própria no R2 no momento do envio: canais Evolution/Baileys
-  // nunca retornam um handle de mídia reutilizável (o buffer seria perdido depois do
-  // envio), e o handle da Meta expira — sem isso a mídia enviada dependeria só de
-  // terceiros e ficaria quebrada permanentemente assim que o handle/URL expirasse.
-  let storageKey: string | null = null;
-  try {
-    storageKey = await uploadWhatsappMedia(effectiveBuffer, effectiveMime);
-  } catch (err) {
-    console.error(`[sendConversationMedia] falha ao cachear mídia no R2:`, err);
+  // No QR/Baileys o upload ocorre antes do envio, pois o gateway baixa a mídia
+  // diretamente do R2. Na Cloud API a cópia posterior continua não bloqueante.
+  if (!storageKey) {
+    try {
+      storageKey = await uploadWhatsappMedia(effectiveBuffer, effectiveMime);
+    } catch (err) {
+      console.error(`[sendConversationMedia] falha ao cachear mídia no R2:`, err);
+    }
   }
 
   await db
