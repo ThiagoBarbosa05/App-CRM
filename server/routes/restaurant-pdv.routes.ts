@@ -52,8 +52,10 @@ import {
   deactivatePdvUnitController,
   listPdvUnitUsersController,
   listEligibleSellersController,
+  listEligibleClientsController,
 } from "../controllers/restaurant-pdv/pdv-units.controller";
 import { adminUnitsOverviewController } from "../controllers/restaurant-pdv/admin-units-overview.controller";
+import { retryBlingSyncController } from "../controllers/restaurant-pdv/retry-bling-sync.controller";
 import { storage } from "../storage";
 import { resolvePdvUnit } from "../middleware/resolve-pdv-unit";
 
@@ -130,6 +132,7 @@ restaurantPdvRouter.get("/products/filters", requireOperadorOrGestor, async (req
 
 restaurantPdvRouter.get("/units", requireGestor, listPdvUnitsController);
 restaurantPdvRouter.get("/units/eligible-sellers", requireGestor, listEligibleSellersController);
+restaurantPdvRouter.get("/units/eligible-clients", requireGestor, listEligibleClientsController);
 restaurantPdvRouter.post("/units", requireGestor, createPdvUnitController);
 restaurantPdvRouter.put("/units/:id", requireGestor, updatePdvUnitController);
 restaurantPdvRouter.delete("/units/:id", requireGestor, deactivatePdvUnitController);
@@ -159,6 +162,16 @@ restaurantPdvRouter.delete("/admin/orders/:id", requireGestor, async (req: Reque
     return res.status(500).json({ message: "Erro ao cancelar comanda" });
   }
 });
+
+// Reenvio/reconferência do pedido de venda no Bling. Fica aqui em cima, sem
+// contexto de unidade, porque a tela de pendências é cross-unidade e o `:id`
+// já delimita o alvo — abaixo do middleware, um gestor sem unidade
+// selecionada levaria 400. Mesmo motivo do cancelamento admin acima.
+restaurantPdvRouter.post(
+  "/admin/orders/:id/retry-bling-sync",
+  requireGestor,
+  retryBlingSyncController,
+);
 
 // ── Middleware: resolve unidade PDV para todas as rotas abaixo ───────────────
 restaurantPdvRouter.use(resolvePdvUnit);

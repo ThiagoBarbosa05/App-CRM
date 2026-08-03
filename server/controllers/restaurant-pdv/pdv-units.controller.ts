@@ -16,6 +16,10 @@ const createUnitSchema = z.object({
   blingConnectionId: z.string().optional().nullable(),
   // null = sem vendedor padrão.
   defaultSellerId: z.string().optional().nullable(),
+  // Consumidor Final: contato usado no pedido de venda quando a comanda fecha
+  // sem cliente vinculado. Sem ele, TODO pedido da unidade é bloqueado antes
+  // de chegar ao Bling.
+  defaultClientId: z.string().optional().nullable(),
   defaultServiceFeePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   waiterCommissionPercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
 });
@@ -57,6 +61,26 @@ async function validateDefaultSeller(
   return null;
 }
 
+/**
+ * Mesmo princípio do vendedor padrão: um contato que não existe na conta Bling
+ * da unidade só trocaria a mensagem de bloqueio por outra, mais obscura, na
+ * hora de emitir o pedido.
+ */
+async function validateDefaultClient(
+  connectionId: string | null | undefined,
+  clientId: string | null | undefined,
+): Promise<string | null> {
+  if (!clientId) return null;
+  if (!connectionId) {
+    return "Selecione uma conta Bling antes de escolher o Consumidor Final";
+  }
+  const mapped = await pdvUnitsService.isClientMappedToConnection(connectionId, clientId);
+  if (!mapped) {
+    return "Cliente selecionado não está mapeado para a conta Bling desta unidade";
+  }
+  return null;
+}
+
 export const listPdvUnitsController = async (_req: Request, res: Response) => {
   try {
     const units = await pdvUnitsService.listUnitsWithCatalog();
@@ -84,6 +108,13 @@ export const createPdvUnitController = async (req: Request, res: Response) => {
     if (sellerError) {
       return res.status(400).json({ message: sellerError });
     }
+    const clientError = await validateDefaultClient(
+      parsed.data.blingConnectionId,
+      parsed.data.defaultClientId,
+    );
+    if (clientError) {
+      return res.status(400).json({ message: clientError });
+    }
     const unit = await pdvUnitsService.createUnit({
       name: parsed.data.name,
       cnpj: parsed.data.cnpj ?? null,
@@ -92,6 +123,7 @@ export const createPdvUnitController = async (req: Request, res: Response) => {
       footerMessage: parsed.data.footerMessage ?? null,
       blingConnectionId: parsed.data.blingConnectionId ?? null,
       defaultSellerId: parsed.data.defaultSellerId ?? null,
+      defaultClientId: parsed.data.defaultClientId ?? null,
       defaultServiceFeePercent: parsed.data.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: parsed.data.waiterCommissionPercent ?? "0.00",
       isActive: true,
@@ -116,13 +148,23 @@ export const updatePdvUnitController = async (req: Request, res: Response) => {
     // blingConnectionId pode não vir no PUT parcial — nesse caso o vendedor
     // padrão precisa ser validado contra a conexão já salva na unidade.
     let effectiveConnectionId = parsed.data.blingConnectionId;
-    if (effectiveConnectionId === undefined && parsed.data.defaultSellerId) {
+    if (
+      effectiveConnectionId === undefined &&
+      (parsed.data.defaultSellerId || parsed.data.defaultClientId)
+    ) {
       const current = await pdvUnitsService.getUnit(req.params.id);
       effectiveConnectionId = current?.blingConnectionId ?? null;
     }
     const sellerError = await validateDefaultSeller(effectiveConnectionId, parsed.data.defaultSellerId);
     if (sellerError) {
       return res.status(400).json({ message: sellerError });
+    }
+    const clientError = await validateDefaultClient(
+      effectiveConnectionId,
+      parsed.data.defaultClientId,
+    );
+    if (clientError) {
+      return res.status(400).json({ message: clientError });
     }
     const unit = await pdvUnitsService.updateUnit(req.params.id, parsed.data);
     if (!unit) return res.status(404).json({ message: "Unidade não encontrada" });
@@ -154,6 +196,22 @@ export const listEligibleSellersController = async (req: Request, res: Response)
   } catch (err) {
     console.error("Erro ao listar vendedores elegíveis:", err);
     return res.status(500).json({ message: "Erro ao listar vendedores elegíveis" });
+  }
+};
+
+export const listEligibleClientsController = async (req: Request, res: Response) => {
+  try {
+    const { connectionId, q } = req.query as { connectionId?: string; q?: string };
+    if (!connectionId) {
+      return res.json([]);
+    }
+    // Limite fixo: a base tem milhares de contatos mapeados, então a lista é
+    // sempre um recorte de busca, nunca o catálogo inteiro.
+    const clients = await pdvUnitsService.listEligibleClients(connectionId, q, 20);
+    return res.json(clients);
+  } catch (err) {
+    console.error("Erro ao listar clientes elegíveis:", err);
+    return res.status(500).json({ message: "Erro ao listar clientes elegíveis" });
   }
 };
 

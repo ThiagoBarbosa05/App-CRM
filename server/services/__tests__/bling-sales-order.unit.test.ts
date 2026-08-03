@@ -43,9 +43,13 @@ function makeOrder(overrides: Partial<RestaurantOrder> = {}): RestaurantOrder {
     updatedAt: new Date("2026-07-26T21:30:00Z"),
     blingSyncStatus: "pendente",
     blingSalesOrderId: null,
+    blingSalesOrderNumber: null,
     blingSyncError: null,
     blingSyncAttempts: 0,
     blingSyncAttemptedAt: null,
+    blingCheckStatus: null,
+    blingCheckDetail: null,
+    blingCheckedAt: null,
     ...overrides,
   };
 }
@@ -97,6 +101,121 @@ describe("resolveBlingSalesOrderPayload", () => {
       { dataVencimento: "2026-07-26", valor: 110 },
     ]);
     expect(result.payload.data).toBe("2026-07-26");
+  });
+
+  /**
+   * A regressão central: antes o payload levava só os itens (R$ 100) e uma
+   * parcela de R$ 110. O Bling gravava o pedido valendo 100 com uma parcela de
+   * 110 — divergente por construção em toda comanda com taxa de serviço.
+   */
+  it("envia a taxa de serviço em outrasDespesas, fechando com o total da comanda", () => {
+    const result = resolveBlingSalesOrderPayload(baseInput());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.outrasDespesas).toBe(10);
+
+    const itensTotal = result.payload.itens.reduce(
+      (sum, i) => sum + i.valor * i.quantidade,
+      0,
+    );
+    expect(itensTotal + (result.payload.outrasDespesas ?? 0)).toBe(110);
+    expect(result.payload.parcelas[0].valor).toBe(110);
+  });
+
+  it("omite outrasDespesas quando não há taxa", () => {
+    for (const serviceFeeAmount of [null, "0.00"]) {
+      const result = resolveBlingSalesOrderPayload(
+        baseInput({
+          order: makeOrder({ serviceFeeAmount, serviceFeePercent: "0.00", total: "100.00" }),
+        }),
+      );
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error("esperava ok:true");
+      expect(result.payload.outrasDespesas).toBeUndefined();
+      expect(result.payload.parcelas[0].valor).toBe(100);
+    }
+  });
+
+  it("envia o desconto em valor", () => {
+    // 100 − 20 = 80 de base, taxa de 10% sobre isso = 8 → total 88
+    const result = resolveBlingSalesOrderPayload(
+      baseInput({
+        order: makeOrder({
+          discountAmount: "20.00",
+          serviceFeeAmount: "8.00",
+          total: "88.00",
+        }),
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.desconto).toEqual({ valor: 20, unidade: "REAL" });
+    expect(result.payload.outrasDespesas).toBe(8);
+    expect(result.payload.parcelas[0].valor).toBe(88);
+  });
+
+  /**
+   * `closeOrder` não grava `discountAmount`, só o percentual. Ler apenas a
+   * coluna de valor faria o desconto sumir do pedido justamente nas comandas
+   * em que o gestor aplicou percentual.
+   */
+  it("deriva o desconto do percentual quando o valor não foi gravado", () => {
+    const result = resolveBlingSalesOrderPayload(
+      baseInput({
+        order: makeOrder({
+          discountAmount: null,
+          discountPercent: "20.00",
+          serviceFeeAmount: "8.00",
+          total: "88.00",
+        }),
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.desconto).toEqual({ valor: 20, unidade: "REAL" });
+  });
+
+  it("omite desconto quando não há", () => {
+    const result = resolveBlingSalesOrderPayload(baseInput());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.desconto).toBeUndefined();
+  });
+
+  it("bloqueia quando os totais da comanda não fecham entre si", () => {
+    const result = resolveBlingSalesOrderPayload(
+      baseInput({ order: makeOrder({ total: "999.00" }) }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("esperava ok:false");
+    expect(result.reason).toContain("Totais internos inconsistentes");
+  });
+
+  it("não deixa resíduo de ponto flutuante em valores quebrados", () => {
+    // 3 × 33,33 = 99,99; taxa de 10% = 10,00 (arredondado) → 109,99
+    const result = resolveBlingSalesOrderPayload(
+      baseInput({
+        order: makeOrder({
+          subtotal: "99.99",
+          serviceFeeAmount: "10.00",
+          total: "109.99",
+        }),
+        items: [makeItem({ unitPrice: "33.33", quantity: 3 })],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.itens[0].valor).toBe(33.33);
+    expect(result.payload.outrasDespesas).toBe(10);
+    expect(result.payload.parcelas[0].valor).toBe(109.99);
+    expect(JSON.stringify(result.payload)).not.toContain("0000000");
   });
 
   it("bloqueia quando um item avulso não tem productId", () => {

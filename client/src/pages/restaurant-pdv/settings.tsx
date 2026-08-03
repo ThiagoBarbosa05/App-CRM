@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
 import { useEligibleSellers } from "@/hooks/use-eligible-sellers";
+import { useEligibleClients } from "@/hooks/use-eligible-clients";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_KEY = ["/api/restaurant-pdv/settings"];
@@ -80,6 +81,7 @@ const unitFormSchema = z.object({
   footerMessage: z.string().optional(),
   blingConnectionId: z.string().optional(),
   defaultSellerId: z.string().optional(),
+  defaultClientId: z.string().optional(),
   defaultServiceFeePercent: z
     .string()
     .regex(/^\d+([.,]\d{1,2})?$/, "Percentual inválido")
@@ -129,6 +131,24 @@ function CatalogBadge({ unit }: { unit: PdvUnitWithCatalog }) {
   );
 }
 
+/**
+ * Unidade com catálogo Bling mas sem Consumidor Final não emite NENHUM pedido
+ * de venda: toda comanda fechada é bloqueada com "nenhum contato Bling
+ * resolvido". O aviso mora aqui porque é onde se resolve — e antes disso o
+ * problema só aparecia no banco.
+ */
+function ConsumidorFinalBadge({ unit }: { unit: PdvUnitWithCatalog }) {
+  if (!unit.blingConnectionId || unit.defaultClientId) return null;
+  return (
+    <Badge
+      variant="outline"
+      className="border-amber-500/50 text-xs font-normal text-amber-700 dark:text-amber-500"
+    >
+      Sem Consumidor Final · pedidos não vão ao Bling
+    </Badge>
+  );
+}
+
 function UnitDialog({
   unit,
   open,
@@ -154,6 +174,7 @@ function UnitDialog({
       footerMessage: unit?.footerMessage ?? "",
       blingConnectionId: unit?.blingConnectionId ?? "",
       defaultSellerId: unit?.defaultSellerId ?? "",
+      defaultClientId: unit?.defaultClientId ?? "",
       defaultServiceFeePercent: unit?.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: unit?.waiterCommissionPercent ?? "0.00",
     },
@@ -161,6 +182,11 @@ function UnitDialog({
 
   const blingConnectionId = form.watch("blingConnectionId");
   const { data: eligibleSellers = [] } = useEligibleSellers(blingConnectionId || null);
+  const [clientSearch, setClientSearch] = useState("");
+  const { data: eligibleClients = [] } = useEligibleClients(
+    blingConnectionId || null,
+    clientSearch,
+  );
 
   const mutation = useMutation({
     mutationFn: async (data: UnitFormValues) => {
@@ -172,6 +198,7 @@ function UnitDialog({
         footerMessage: data.footerMessage || null,
         blingConnectionId: data.blingConnectionId || null,
         defaultSellerId: data.defaultSellerId || null,
+        defaultClientId: data.defaultClientId || null,
         defaultServiceFeePercent: normalizePercent(data.defaultServiceFeePercent ?? "10.00"),
         waiterCommissionPercent: normalizePercent(data.waiterCommissionPercent ?? "0.00"),
       };
@@ -331,6 +358,47 @@ function UnitDialog({
                   </Select>
                   <FormDescription>
                     Usado no pedido de venda do Bling quando o garçom não tem vendedor vinculado a esta conexão
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="defaultClientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Consumidor Final</FormLabel>
+                  <Input
+                    placeholder="Buscar cliente pelo nome..."
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    disabled={!blingConnectionId}
+                    className="mb-2"
+                  />
+                  <Select
+                    value={field.value || "__none__"}
+                    onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                    disabled={!blingConnectionId}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sem Consumidor Final" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem Consumidor Final</SelectItem>
+                      {eligibleClients.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Contato usado no pedido de venda quando a comanda fecha sem cliente
+                    vinculado. <strong>Sem ele, nenhum pedido desta unidade chega ao
+                    Bling.</strong>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -496,6 +564,7 @@ export default function PdvSettingsPage() {
                 )}
                 <div className="mt-1">
                   <CatalogBadge unit={unit} />
+                  <ConsumidorFinalBadge unit={unit} />
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0 ml-2">

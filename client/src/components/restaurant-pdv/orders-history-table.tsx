@@ -14,6 +14,7 @@ import {
 import type { RestaurantOrder } from "@shared/schema";
 import { OrderAuditLog } from "@/components/restaurant-pdv/order-audit-log";
 import { OrderReceiptPrint } from "@/components/restaurant-pdv/order-receipt-print";
+import { OrderBlingSyncCell } from "@/components/restaurant-pdv/order-bling-sync-cell";
 
 interface RestaurantOrderWithPaymentsCount extends RestaurantOrder {
   paymentsCount: number;
@@ -56,6 +57,7 @@ export function OrdersHistoryTable({ orders, onContinueOrder }: OrdersHistoryTab
               <TableHead>Status</TableHead>
               <TableHead>Pagamento</TableHead>
               <TableHead>Total</TableHead>
+              <TableHead>Bling</TableHead>
               <TableHead>Aberta em</TableHead>
               <TableHead />
               <TableHead />
@@ -84,6 +86,9 @@ export function OrdersHistoryTable({ orders, onContinueOrder }: OrdersHistoryTab
                 </TableCell>
                 <TableCell>{order.total ? formatCurrency(order.total) : "—"}</TableCell>
                 <TableCell>
+                  <OrderBlingSyncCell order={order} />
+                </TableCell>
+                <TableCell>
                   {new Date(order.openedAt).toLocaleString("pt-BR", {
                     timeZone: "America/Sao_Paulo",
                   })}
@@ -105,7 +110,7 @@ export function OrdersHistoryTable({ orders, onContinueOrder }: OrdersHistoryTab
             ))}
             {orders.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground">
+                <TableCell colSpan={11} className="text-center text-muted-foreground">
                   Nenhuma comanda encontrada
                 </TableCell>
               </TableRow>

@@ -2637,9 +2637,27 @@ export const restaurantOrders = pgTable(
       enum: ["pendente", "enviado", "bloqueado", "erro"],
     }),
     blingSalesOrderId: text("bling_sales_order_id"),
+    // Número humano do pedido (o que aparece na tela do Bling). Diferente do
+    // `id` acima, e só conhecido na leitura de conferência — é o que o gestor
+    // usa para achar o pedido lá.
+    blingSalesOrderNumber: text("bling_sales_order_number"),
     blingSyncError: text("bling_sync_error"),
     blingSyncAttempts: integer("bling_sync_attempts").notNull().default(0),
     blingSyncAttemptedAt: timestamp("bling_sync_attempted_at"),
+    /**
+     * Conferência do pedido já criado — eixo SEPARADO de `blingSyncStatus`.
+     *
+     * Divergência não pode virar `erro`: o pedido existe no Bling, e o cron
+     * re-POSTaria criando um segundo pedido. Por isso `blingSyncStatus`
+     * permanece `enviado` e a discrepância vive aqui. NULL = ainda não
+     * conferido.
+     */
+    blingCheckStatus: text("bling_check_status", {
+      enum: ["ok", "divergente", "erro_conferencia"],
+    }),
+    /** Divergência encontrada e/ou alertas devolvidos pelo Bling, em texto. */
+    blingCheckDetail: text("bling_check_detail"),
+    blingCheckedAt: timestamp("bling_checked_at"),
     notes: text("notes"),
     unitId: varchar("unit_id").references(() => pdvUnits.id),
     openedAt: timestamp("opened_at").defaultNow().notNull(),
@@ -2808,7 +2826,12 @@ export const restaurantOrderBlingSyncLog = pgTable(
       .notNull(),
     unitId: varchar("unit_id").references(() => pdvUnits.id),
     attemptedAt: timestamp("attempted_at").defaultNow().notNull(),
-    result: text("result", { enum: ["enviado", "bloqueado", "erro"] }).notNull(),
+    // `conferido`/`divergente` são o resultado da leitura de volta do pedido,
+    // não de um envio. O CHECK equivalente no banco é recriado por
+    // scripts/add-restaurant-order-bling-check-columns.mjs.
+    result: text("result", {
+      enum: ["enviado", "bloqueado", "erro", "conferido", "divergente"],
+    }).notNull(),
     reason: text("reason"),
     blingSalesOrderId: text("bling_sales_order_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

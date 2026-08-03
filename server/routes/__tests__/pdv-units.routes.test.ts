@@ -11,6 +11,8 @@ const {
   getConnectionMock,
   getUnitMock,
   listEligibleSellersMock,
+  isClientMappedMock,
+  listEligibleClientsMock,
 } = vi.hoisted(() => ({
   createUnitMock: vi.fn(),
   updateUnitMock: vi.fn(),
@@ -18,6 +20,8 @@ const {
   getConnectionMock: vi.fn(),
   getUnitMock: vi.fn(),
   listEligibleSellersMock: vi.fn(),
+  isClientMappedMock: vi.fn(),
+  listEligibleClientsMock: vi.fn(),
 }));
 
 vi.mock("../../services/pdv-units.service", () => ({
@@ -29,6 +33,8 @@ vi.mock("../../services/pdv-units.service", () => ({
     getUnit: getUnitMock,
     deactivateUnit: vi.fn(),
     listEligibleSellers: listEligibleSellersMock,
+    listEligibleClients: listEligibleClientsMock,
+    isClientMappedToConnection: isClientMappedMock,
   },
 }));
 
@@ -148,6 +154,45 @@ describe("POST /restaurant-pdv/units", () => {
     const response = await request(appAs("admin"))
       .post("/restaurant-pdv/units")
       .send({ name: "Matriz", blingConnectionId: "conn-1", defaultSellerId: "user-fantasma" });
+
+    expect(response.status).toBe(400);
+    expect(createUnitMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * O Consumidor Final é o que destrava o pedido de venda: sem ele toda comanda
+   * fechada é bloqueada. Um contato que não existe na conta Bling da unidade só
+   * trocaria a mensagem de bloqueio por outra, mais obscura.
+   */
+  it("persiste o defaultClientId quando o cliente está mapeado para a conexão", async () => {
+    isClientMappedMock.mockResolvedValue(true);
+
+    const response = await request(appAs("admin"))
+      .post("/restaurant-pdv/units")
+      .send({ name: "Matriz", blingConnectionId: "conn-1", defaultClientId: "client-1" });
+
+    expect(response.status).toBe(201);
+    expect(createUnitMock).toHaveBeenCalledWith(
+      expect.objectContaining({ defaultClientId: "client-1" }),
+    );
+  });
+
+  it("recusa defaultClientId que não está mapeado para a conexão", async () => {
+    isClientMappedMock.mockResolvedValue(false);
+
+    const response = await request(appAs("admin"))
+      .post("/restaurant-pdv/units")
+      .send({ name: "Matriz", blingConnectionId: "conn-1", defaultClientId: "client-fantasma" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("não está mapeado");
+    expect(createUnitMock).not.toHaveBeenCalled();
+  });
+
+  it("recusa defaultClientId sem conexão Bling selecionada", async () => {
+    const response = await request(appAs("admin"))
+      .post("/restaurant-pdv/units")
+      .send({ name: "Matriz", defaultClientId: "client-1" });
 
     expect(response.status).toBe(400);
     expect(createUnitMock).not.toHaveBeenCalled();

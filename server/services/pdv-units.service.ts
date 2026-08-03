@@ -1,6 +1,14 @@
 import { db } from "../db";
-import { pdvUnits, blingConnections, blingProductMappings, blingSellerMappings, users } from "../../shared/schema";
-import { eq, sql } from "drizzle-orm";
+import {
+  pdvUnits,
+  blingConnections,
+  blingContactMappings,
+  blingProductMappings,
+  blingSellerMappings,
+  clients,
+  users,
+} from "../../shared/schema";
+import { and, eq, ilike, sql } from "drizzle-orm";
 import type { PdvUnit, InsertPdvUnit } from "../../shared/schema";
 
 /** Usuário local elegível a ser o vendedor padrão da unidade para uma conexão Bling. */
@@ -10,6 +18,13 @@ export type EligibleSeller = {
   email: string;
   blingVendedorId: string;
   blingVendedorName: string | null;
+};
+
+/** Cliente elegível a ser o "Consumidor Final" da unidade numa conexão Bling. */
+export type EligibleClient = {
+  id: string;
+  name: string;
+  blingContactId: string;
 };
 
 /** Unidade + qual conta Bling ela usa e quantos produtos do CRM estão nesse catálogo. */
@@ -103,5 +118,55 @@ export const pdvUnitsService = {
       .innerJoin(users, eq(users.id, blingSellerMappings.userId))
       .where(eq(blingSellerMappings.connectionId, connectionId))
       .orderBy(users.name);
+  },
+
+  /**
+   * Clientes já mapeados como contato Bling para a conexão informada —
+   * candidatos a "Consumidor Final" da unidade.
+   *
+   * Busca server-side com limite, e não a lista inteira: são milhares de
+   * contatos mapeados, e um dropdown com tudo seria inutilizável.
+   */
+  async listEligibleClients(
+    connectionId: string,
+    search?: string,
+    limit = 20,
+  ): Promise<EligibleClient[]> {
+    const term = search?.trim();
+
+    return db
+      .select({
+        id: clients.id,
+        name: clients.name,
+        blingContactId: blingContactMappings.blingContactId,
+      })
+      .from(blingContactMappings)
+      .innerJoin(clients, eq(clients.id, blingContactMappings.clientId))
+      .where(
+        and(
+          eq(blingContactMappings.connectionId, connectionId),
+          ...(term ? [ilike(clients.name, `%${term}%`)] : []),
+        ),
+      )
+      .orderBy(clients.name)
+      .limit(limit);
+  },
+
+  /** `true` se o cliente tem contato Bling naquela conexão. */
+  async isClientMappedToConnection(
+    connectionId: string,
+    clientId: string,
+  ): Promise<boolean> {
+    const [row] = await db
+      .select({ id: blingContactMappings.id })
+      .from(blingContactMappings)
+      .where(
+        and(
+          eq(blingContactMappings.connectionId, connectionId),
+          eq(blingContactMappings.clientId, clientId),
+        ),
+      )
+      .limit(1);
+    return !!row;
   },
 };

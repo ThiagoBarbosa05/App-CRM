@@ -1,10 +1,11 @@
 import cron from "node-cron";
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
 import { db } from "../db";
 import { restaurantOrders } from "../../shared/schema";
-import { sendOrderToBling } from "../services/bling-sales-order.service";
-
-const MAX_SYNC_ATTEMPTS = 5;
+import {
+  MAX_SYNC_ATTEMPTS,
+  sendOrderToBling,
+} from "../services/bling-sales-order.service";
 
 async function retryPendingBlingSyncs(): Promise<void> {
   try {
@@ -14,7 +15,13 @@ async function retryPendingBlingSyncs(): Promise<void> {
       .where(
         and(
           eq(restaurantOrders.status, "fechada"),
-          inArray(restaurantOrders.blingSyncStatus, ["pendente", "erro"]),
+          // NULL entra junto: `closeOrder` agora carimba 'pendente', mas
+          // qualquer caminho futuro que feche sem carimbar deixaria a comanda
+          // fora da fila em silêncio — foi exatamente esse o bug.
+          or(
+            inArray(restaurantOrders.blingSyncStatus, ["pendente", "erro"]),
+            isNull(restaurantOrders.blingSyncStatus),
+          ),
           lt(restaurantOrders.blingSyncAttempts, MAX_SYNC_ATTEMPTS),
         ),
       );

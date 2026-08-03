@@ -819,6 +819,13 @@ export const restaurantPdvService = {
           total: fromCents(totalCents),
           closedAt: new Date(),
           updatedAt: new Date(),
+          // Carimbar aqui, dentro da transação, é o que garante que a comanda
+          // entre na fila do cron. Sem isto o status ficava NULL, e como o
+          // cron filtra por ('pendente','erro'), qualquer comanda cuja
+          // tentativa imediata não chegasse a gravar nada (restart no meio do
+          // fire-and-forget, lock pulado, transação abortada) sumia do retry
+          // para sempre — fechada e nunca enviada, sem sinal em lugar nenhum.
+          blingSyncStatus: "pendente",
         })
         // Guard redundante com o `FOR UPDATE` de propósito: se algum caminho
         // futuro fechar sem travar a linha, o UPDATE ainda não sobrescreve uma
