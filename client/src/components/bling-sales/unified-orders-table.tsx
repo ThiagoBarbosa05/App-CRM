@@ -115,13 +115,6 @@ function AppLinkBadge({ order, onLink }: { order: UnifiedOrder; onLink?: () => v
       </div>
     );
   }
-  // Connect orders are always type F; bling orders check contactType
-  const isPF = order.source === "connect" || order.contactType === "F";
-  if (!isPF) {
-    return (
-      <span className="text-[10px] text-slate-300 dark:text-slate-600">—</span>
-    );
-  }
   return (
     <button
       type="button"
