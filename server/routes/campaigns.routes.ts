@@ -22,6 +22,10 @@ import {
   listChannelIdsForUser,
   resolveChannelById,
 } from "../services/whatsapp-channels.service";
+import {
+  analyzeBotCompatibility,
+  BotCompatibilityLookupError,
+} from "../services/whatsapp-bot-compatibility.service";
 
 const router = Router();
 
@@ -160,6 +164,15 @@ router.post("/", async (req: Request, res: Response) => {
           message: "Campanhas com template exigem um canal Cloud API",
         });
       }
+      if (waBotId) {
+        const compatibility = await analyzeBotCompatibility(waBotId, channel.id);
+        if (!compatibility.compatible) {
+          return res.status(400).json({
+            message: "O bot não é compatível com o canal selecionado",
+            compatibility,
+          });
+        }
+      }
       resolvedWaChannelId = channel.id;
     }
     if (waEnabled && resolvedWaChannelId == null) {
@@ -212,6 +225,9 @@ router.post("/", async (req: Request, res: Response) => {
 
     res.status(201).json(campaign);
   } catch (e) {
+    if (e instanceof BotCompatibilityLookupError) {
+      return res.status(e.statusCode).json({ message: e.message });
+    }
     console.error("[POST /api/campaigns] Erro ao criar campanha:", e);
     res.status(500).json({ message: "Erro ao criar campanha" });
   }

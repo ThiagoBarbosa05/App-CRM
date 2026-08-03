@@ -82,6 +82,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -148,6 +150,7 @@ import type {
   ConditionNodeData,
   ConditionBranch,
   ConditionRule,
+  QuestionNodeData,
   MenuNodeData,
   MenuOption,
   ActionNodeData,
@@ -511,10 +514,12 @@ const ACTION_TYPE_OPTIONS: { value: ActionNodeData["actionType"]; label: string 
 
 function PropertiesPanel({
   node,
+  flowNodes,
   onChange,
   onDelete,
 }: {
   node: FlowNode | null;
+  flowNodes: FlowNode[];
   onChange: (id: string, data: Partial<BotNodeData & { label: string }>) => void;
   onDelete: (id: string) => void;
 }) {
@@ -530,8 +535,29 @@ function PropertiesPanel({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const headerMediaInputRef = useRef<HTMLInputElement>(null);
+  const messageTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingHeader, setIsUploadingHeader] = useState(false);
+  const capturedVariables = useMemo(() => {
+    const variables = new Set<string>();
+
+    for (const flowNode of flowNodes) {
+      if (flowNode.type === "question") {
+        const variable = (flowNode.data as QuestionNodeData).captureVariable?.trim();
+        if (variable) variables.add(variable);
+      }
+
+      if (flowNode.type === "menu") {
+        const variable = (flowNode.data as MenuNodeData).captureVariable?.trim();
+        if (variable) {
+          variables.add(variable);
+          variables.add(`${variable}_index`);
+        }
+      }
+    }
+
+    return Array.from(variables).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [flowNodes]);
 
   if (!node) {
     return (
@@ -545,6 +571,21 @@ function PropertiesPanel({
 
   function update(patch: Partial<BotNodeData & { label: string }>) {
     onChange(node!.id, patch);
+  }
+
+  function insertMessageVariable(token: string) {
+    const textarea = messageTextareaRef.current;
+    const currentText = (d as SendMessageNodeData).text ?? "";
+    const selectionStart = textarea?.selectionStart ?? currentText.length;
+    const selectionEnd = textarea?.selectionEnd ?? selectionStart;
+    const nextText = `${currentText.slice(0, selectionStart)}${token}${currentText.slice(selectionEnd)}`;
+    const nextCursor = selectionStart + token.length;
+
+    update({ text: nextText });
+    window.requestAnimationFrame(() => {
+      messageTextareaRef.current?.focus();
+      messageTextareaRef.current?.setSelectionRange(nextCursor, nextCursor);
+    });
   }
 
   return (
@@ -649,7 +690,7 @@ function PropertiesPanel({
           </div>
           {(d as SendMessageNodeData).messageType === "text" && (
             <p className="text-[11px] text-muted-foreground">
-              Use <code className="font-mono">{"{{variavel}}"}</code> para inserir valores capturados em nós de Pergunta.
+              Insira dados do contato ou respostas capturadas usando o seletor abaixo.
             </p>
           )}
           {(d as SendMessageNodeData).messageType === "template" ? (
@@ -861,13 +902,65 @@ function PropertiesPanel({
           ) : (
             <div className="space-y-3">
               <div className="space-y-1">
-                <Label className="text-xs">Mensagem</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">Mensagem</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1.5 px-2 text-xs text-primary"
+                      >
+                        <User className="h-3.5 w-3.5" />
+                        Inserir campo
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="max-h-72 w-64 overflow-y-auto">
+                      <DropdownMenuLabel className="text-xs">Dados do contato</DropdownMenuLabel>
+                      {CLIENT_VARIABLES.map((variable) => (
+                        <DropdownMenuItem
+                          key={variable.value}
+                          onSelect={() => insertMessageVariable(variable.value)}
+                          className="flex items-center justify-between gap-3"
+                        >
+                          <span className="text-xs">{variable.label}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            {variable.value}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                      {capturedVariables.length > 0 && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel className="text-xs">Respostas do fluxo</DropdownMenuLabel>
+                          {capturedVariables.map((variable) => (
+                            <DropdownMenuItem
+                              key={variable}
+                              onSelect={() => insertMessageVariable(`{{${variable}}}`)}
+                              className="flex items-center justify-between gap-3"
+                            >
+                              <span className="truncate text-xs">{variable}</span>
+                              <span className="font-mono text-[10px] text-muted-foreground">
+                                {`{{${variable}}}`}
+                              </span>
+                            </DropdownMenuItem>
+                          ))}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
                 <Textarea
+                  ref={messageTextareaRef}
                   value={(d as SendMessageNodeData).text ?? ""}
                   onChange={(e) => update({ text: e.target.value })}
-                  placeholder="Digite a mensagem..."
+                  placeholder="Ex: Olá {{nome}}, tudo bem?"
                   rows={4}
                 />
+                <p className="text-[10px] text-muted-foreground">
+                  O campo será preenchido com os dados de cada contato no momento do envio.
+                </p>
               </div>
 
               {/* Attachment section */}
@@ -2553,10 +2646,21 @@ const CLIENT_VARIABLES = [
   { label: "Nome", value: "{{nome}}" },
   { label: "Email", value: "{{email}}" },
   { label: "Telefone", value: "{{telefone}}" },
+  { label: "Telefone fixo", value: "{{telefone_fixo}}" },
   { label: "CPF", value: "{{cpf}}" },
+  { label: "Instagram", value: "{{instagram}}" },
+  { label: "CEP", value: "{{cep}}" },
+  { label: "Endereço", value: "{{endereco}}" },
+  { label: "Número", value: "{{numero}}" },
+  { label: "Complemento", value: "{{complemento}}" },
+  { label: "Bairro", value: "{{bairro}}" },
   { label: "Cidade", value: "{{cidade}}" },
   { label: "Estado", value: "{{estado}}" },
   { label: "Aniversário", value: "{{aniversario}}" },
+  { label: "Categoria", value: "{{categoria}}" },
+  { label: "Origem", value: "{{origem}}" },
+  { label: "Nome fantasia", value: "{{nome_fantasia}}" },
+  { label: "Inscrição estadual", value: "{{inscricao_estadual}}" },
 ];
 
 function countTemplateVars(text: string | null | undefined): number {
@@ -4181,6 +4285,7 @@ export default function BotEditor() {
             <PropertiesPanel
               key={selectedNode?.id ?? "none"}
               node={selectedNode}
+              flowNodes={nodes}
               onChange={updateNodeData}
               onDelete={(id) => { deleteNode(id); setShowMobileProps(false); }}
             />
@@ -4259,6 +4364,7 @@ export default function BotEditor() {
           <PropertiesPanel
             key={selectedNode?.id ?? "none"}
             node={selectedNode}
+            flowNodes={nodes}
             onChange={updateNodeData}
             onDelete={deleteNode}
           />

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildClientVariables,
   interpolate,
   isValidCpf,
   pickDistributeHandle,
@@ -9,7 +10,7 @@ import {
   resolveTransferSector,
   validateAnswer,
 } from "../whatsapp-bot-engine.service";
-import type { DistributeFlowOutput, MenuNodeData, TransferAgentNodeData, TransferSectorNodeData, WhatsappBotNode } from "@shared/schema";
+import type { Client, DistributeFlowOutput, MenuNodeData, TransferAgentNodeData, TransferSectorNodeData, WhatsappBotNode } from "@shared/schema";
 
 /**
  * Testes UNITÁRIOS da lógica pura de decisão do engine do bot.
@@ -33,6 +34,61 @@ describe("interpolate", () => {
 
   it("não altera texto sem placeholders", () => {
     expect(interpolate("texto simples", { x: "y" })).toBe("texto simples");
+  });
+});
+
+describe("buildClientVariables", () => {
+  it("expõe os campos selecionáveis do contato usando os tokens do editor", () => {
+    const client = {
+      name: "Ana Souza",
+      email: "ana@example.com",
+      fixedPhone: "5433334444",
+      cpf: "52998224725",
+      instagram: "@ana",
+      birthday: "1990-05-10",
+      cep: "95000000",
+      address: "Rua Central",
+      number: "120",
+      complement: "Sala 2",
+      neighborhood: "Centro",
+      city: "Caxias do Sul",
+      state: "RS",
+      categoria: "Cliente",
+      origem: "Indicação",
+      nomeFantasia: "Ana Vinhos",
+      inscricaoEstadual: "123456789",
+    } as Client;
+
+    expect(buildClientVariables(client, "5554999999999")).toMatchObject({
+      nome: "Ana Souza",
+      email: "ana@example.com",
+      telefone: "5554999999999",
+      telefone_fixo: "5433334444",
+      cpf: "52998224725",
+      instagram: "@ana",
+      aniversario: "1990-05-10",
+      cep: "95000000",
+      endereco: "Rua Central",
+      numero: "120",
+      complemento: "Sala 2",
+      bairro: "Centro",
+      cidade: "Caxias do Sul",
+      estado: "RS",
+      categoria: "Cliente",
+      origem: "Indicação",
+      nome_fantasia: "Ana Vinhos",
+      inscricao_estadual: "123456789",
+    });
+  });
+
+  it("mantém {{variavel}} compatível com o nome em bots antigos", () => {
+    const variables = buildClientVariables({ name: "Ana" } as Client, "5554999999999");
+    expect(interpolate("Olá {{variavel}}!", variables)).toBe("Olá Ana!");
+  });
+
+  it("não envia o token literal quando um campo do contato está vazio", () => {
+    const variables = buildClientVariables(null, "5554999999999");
+    expect(interpolate("Olá {{nome}}! E-mail: {{email}}", variables)).toBe("Olá ! E-mail: ");
   });
 });
 

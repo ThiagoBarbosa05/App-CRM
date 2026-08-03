@@ -14,6 +14,11 @@ import {
 } from "../services/whatsapp-bot.service";
 import { r2 } from "../lib/r2";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  analyzeBotCompatibility,
+  BotCompatibilityLookupError,
+} from "../services/whatsapp-bot-compatibility.service";
+import { listChannelIdsForUser } from "../services/whatsapp-channels.service";
 
 const BUCKET = process.env.CLOUDFLARE_BUCKET_NAME || "crm-test";
 
@@ -181,6 +186,33 @@ router.delete("/bots/:id", async (req, res) => {
   } catch (error) {
     console.error("[WhatsApp Bots] Erro ao remover bot:", error);
     res.status(500).json({ message: "Erro ao excluir bot" });
+  }
+});
+
+router.get("/bots/:id/compatibility", async (req, res) => {
+  const parsedChannelId = z.coerce.number().int().positive().safeParse(req.query.channelId);
+  if (!parsedChannelId.success) {
+    return res.status(400).json({ message: "channelId inválido" });
+  }
+
+  try {
+    const user = (req as { user?: { userId: string; role?: string } }).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+    if (user.role === "vendedor") {
+      const channelIds = await listChannelIdsForUser(user.userId);
+      if (!channelIds.includes(parsedChannelId.data)) {
+        return res.status(403).json({ message: "Você não possui acesso ao canal selecionado" });
+      }
+    }
+
+    const result = await analyzeBotCompatibility(req.params.id, parsedChannelId.data);
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof BotCompatibilityLookupError) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    console.error("[WhatsApp Bots] Erro ao analisar compatibilidade:", error);
+    return res.status(500).json({ message: "Erro ao analisar compatibilidade do bot" });
   }
 });
 

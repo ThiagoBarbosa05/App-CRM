@@ -469,7 +469,11 @@ export const useCancelCampaign = () => useCampaignControl("cancel", "Campanha ca
 
 // Fonte única do hook de bots (envia o header x-user-id). Reexportado aqui por
 // conveniência para quem já importa de "use-whatsapp".
-export { useWhatsappBots } from "./use-whatsapp-bots";
+export {
+  useWhatsappBots,
+  useWhatsappBotCompatibility,
+  type BotCompatibilityResult,
+} from "./use-whatsapp-bots";
 
 // Creates a campaign (POST /api/campaigns) then dispatches (POST /api/whatsapp/campaigns)
 export function useCreateCampaignWithDispatch() {

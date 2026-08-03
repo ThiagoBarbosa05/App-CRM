@@ -1,15 +1,36 @@
 import cron from "node-cron";
 import { resumeWaitingSessions } from "../services/whatsapp-bot-engine.service";
+import { pool } from "../db";
 
-// Roda a cada minuto e retoma sessões pausadas por um nó de espera (Aguardar)
-// cujo resumeAt já chegou.
+const RESUME_BOT_SESSIONS_LOCK_KEY = 727_100_002;
+
+export async function runResumeBotSessionsTick(): Promise<number> {
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query(
+      "SELECT pg_try_advisory_lock($1) AS locked",
+      [RESUME_BOT_SESSIONS_LOCK_KEY],
+    );
+    if (!rows[0]?.locked) return 0;
+    try {
+      return await resumeWaitingSessions();
+    } finally {
+      await client.query("SELECT pg_advisory_unlock($1)", [RESUME_BOT_SESSIONS_LOCK_KEY]);
+    }
+  } finally {
+    client.release();
+  }
+}
+
+// Verifica a cada cinco segundos as sessões pausadas por um nó Aguardar. A trava
+// compartilhada impede retomada duplicada quando há mais de uma instância.
 export function startResumeBotSessionsJob() {
   let running = false;
-  cron.schedule("*/1 * * * *", async () => {
+  cron.schedule("*/5 * * * * *", async () => {
     if (running) return;
     running = true;
     try {
-      const count = await resumeWaitingSessions();
+      const count = await runResumeBotSessionsTick();
       if (count > 0) {
         console.log(`[ResumeBotSessions] ${count} sessão(ões) retomada(s)`);
       }

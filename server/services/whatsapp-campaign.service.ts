@@ -22,6 +22,11 @@ import {
 const DEFAULT_DELAY_MS = 1000;
 const MAX_SEND_ATTEMPTS = 5;
 
+function maskPhoneForLog(phone: string): string {
+  const digits = phone.replace(/\D+/g, "");
+  return digits.length <= 4 ? "****" : `${digits.slice(0, 2)}*****${digits.slice(-2)}`;
+}
+
 async function getDelayMs(): Promise<number> {
   try {
     const raw = await getWhatsappSettingsRaw();
@@ -278,7 +283,7 @@ export async function executeCampaign(
             .where(eq(whatsappCampaignMessages.id, msg.id));
           await releaseImpact(msg.id, true);
           skipped++;
-          console.log(`[WaCampaign] Bot ⊘ ${msg.contactName} (${msg.phoneNumber}): opt-out`);
+          console.log(`[WaCampaign] Bot ⊘ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): opt-out`);
           if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
           continue;
         }
@@ -294,7 +299,7 @@ export async function executeCampaign(
             .where(eq(whatsappCampaignMessages.id, msg.id));
           await releaseImpact(msg.id);
           failed++;
-          console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${msg.phoneNumber}): ${errorMessage}`);
+          console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): ${errorMessage}`);
           if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
           continue;
         }
@@ -307,11 +312,11 @@ export async function executeCampaign(
         await completeSuccessfulImpact(msg, campaignLog?.postSendWhatsappTagId ?? null, sentAt);
         await persistCampaignMessageToConversation(phoneE164, lastMessageId, "Disparo via bot", msg.id, botChannelId);
         sent++;
-        console.log(`[WaCampaign] Bot ✓ ${msg.contactName} (${msg.phoneNumber})`);
+        console.log(`[WaCampaign] Bot ✓ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)})`);
       } catch (err) {
         const outcome = await handleSendFailure(msg, err);
         if (outcome === "retried") retried++; else failed++;
-        console.error(`[WaCampaign] Bot ✗ (${outcome}) ${msg.contactName} (${msg.phoneNumber}):`, err instanceof Error ? err.message : err);
+        console.error(`[WaCampaign] Bot ✗ (${outcome}) ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}):`, err instanceof Error ? err.message : err);
       }
       if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     }
@@ -397,11 +402,11 @@ export async function executeCampaign(
         await completeSuccessfulImpact(msg, campaignLog?.postSendWhatsappTagId ?? null, sentAt);
         await persistCampaignMessageToConversation(phoneE164, waMessageId, `Template: ${template.name}`, msg.id, campaignChannelId);
         sent++;
-        console.log(`[WaCampaign] ✓ ${msg.contactName} (${msg.phoneNumber})`);
+        console.log(`[WaCampaign] ✓ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)})`);
       } catch (err) {
         const outcome = await handleSendFailure(msg, err);
         if (outcome === "retried") retried++; else failed++;
-        console.error(`[WaCampaign] ✗ (${outcome}) ${msg.contactName} (${msg.phoneNumber}):`, err instanceof Error ? err.message : err);
+        console.error(`[WaCampaign] ✗ (${outcome}) ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}):`, err instanceof Error ? err.message : err);
       }
       if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     }

@@ -29,6 +29,22 @@ export interface BotWithFlow {
   edges: WhatsappBotEdge[];
 }
 
+export interface BotCompatibilityIssue {
+  nodeId: string;
+  code:
+    | "AMBIGUOUS_BRANCH"
+    | "CLOUD_ONLY_NODE"
+    | "CLOUD_WINDOW_REQUIRED"
+    | "NO_CAMPAIGN_ENTRY";
+  message: string;
+}
+
+export interface BotCompatibilityResult {
+  compatible: boolean;
+  provider: "cloud_api" | "evolution";
+  issues: BotCompatibilityIssue[];
+}
+
 async function throwBotApiError(res: Response, fallback: string): Promise<never> {
   const body = await res.json().catch(() => ({})) as { message?: string };
   throw new Error(body.message ?? fallback);
@@ -46,6 +62,25 @@ export function useWhatsappBots() {
       if (!res.ok) throw new Error("Erro ao buscar bots");
       return res.json();
     },
+  });
+}
+
+export function useWhatsappBotCompatibility(
+  botId: string,
+  channelId: number | null,
+) {
+  return useQuery<BotCompatibilityResult>({
+    queryKey: ["whatsapp", "bots", botId, "compatibility", channelId],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/whatsapp/bots/${botId}/compatibility?channelId=${channelId}`,
+        { headers: { "x-user-id": localStorage.getItem("userId") ?? "" } },
+      );
+      if (!res.ok) await throwBotApiError(res, "Erro ao verificar compatibilidade do bot");
+      return res.json() as Promise<BotCompatibilityResult>;
+    },
+    enabled: botId.length > 0 && channelId !== null,
+    staleTime: 30_000,
   });
 }
 

@@ -62,12 +62,14 @@ import { AttachFileDialog } from "@/components/media-library/attach-file-dialog"
 import { useQuery } from "@tanstack/react-query";
 import {
   useWhatsappBots,
+  useWhatsappBotCompatibility,
   useAccessibleWhatsappChannels,
   useWhatsappMetaTemplates,
   useCreateCampaignWithDispatch,
   type MetaTemplate,
   type WhatsappBot,
   type WhatsappChannelOption,
+  type BotCompatibilityResult,
 } from "@/hooks/use-whatsapp";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -1303,12 +1305,18 @@ function StepChannel({
   isLoading,
   selectedChannelId,
   contentType,
+  compatibility,
+  compatibilityLoading,
+  compatibilityError,
   onSelect,
 }: {
   channels: WhatsappChannelOption[];
   isLoading: boolean;
   selectedChannelId: number | null;
   contentType: "template" | "bot";
+  compatibility?: BotCompatibilityResult;
+  compatibilityLoading: boolean;
+  compatibilityError?: string;
   onSelect: (id: number) => void;
 }) {
   return (
@@ -1390,6 +1398,42 @@ function StepChannel({
           })}
         </div>
       )}
+
+      {contentType === "bot" && selectedChannelId !== null && compatibilityLoading ? (
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Verificando se o fluxo pode ser enviado por este canal...
+        </div>
+      ) : null}
+
+      {contentType === "bot" && compatibility && !compatibility.compatible ? (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Este bot precisa de ajustes para o canal escolhido</p>
+              <ul className="mt-2 space-y-1.5 text-sm leading-relaxed">
+                {compatibility.issues.map((issue) => (
+                  <li key={`${issue.nodeId}:${issue.code}`} className="flex gap-2">
+                    <span aria-hidden="true">•</span>
+                    <span>{issue.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {contentType === "bot" && compatibilityError ? (
+        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-destructive">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold">Não foi possível validar este canal</p>
+            <p className="mt-1 text-sm leading-relaxed">{compatibilityError}</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1658,6 +1702,14 @@ export default function WhatsAppCreateCampaign() {
     (channel) => channel.id === selectedChannelId,
   );
   const contentType = selectedTemplate ? "template" : "bot";
+  const {
+    data: botCompatibility,
+    isFetching: compatibilityLoading,
+    error: botCompatibilityError,
+  } = useWhatsappBotCompatibility(
+    contentType === "bot" ? selectedBotId : "",
+    contentType === "bot" ? selectedChannelId : null,
+  );
   const compatibleChannels = useMemo(
     () =>
       availableChannels.filter(
@@ -1730,7 +1782,11 @@ export default function WhatsAppCreateCampaign() {
       return selectedTemplate !== null
         ? templateVarsComplete
         : selectedBotId.length > 0;
-    if (step === 4) return selectedChannelId != null;
+    if (step === 4) {
+      if (selectedChannelId == null) return false;
+      if (contentType === "template") return true;
+      return !compatibilityLoading && botCompatibility?.compatible === true;
+    }
     return true;
   }, [
     step,
@@ -1740,6 +1796,9 @@ export default function WhatsAppCreateCampaign() {
     selectedTemplate,
     selectedBotId,
     selectedChannelId,
+    contentType,
+    compatibilityLoading,
+    botCompatibility,
     templateVarsComplete,
   ]);
 
@@ -1753,6 +1812,14 @@ export default function WhatsAppCreateCampaign() {
       toast({
         title: "Selecione um canal de envio",
         description: "Volte ao passo Canal antes de criar a campanha.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (contentType === "bot" && botCompatibility?.compatible !== true) {
+      toast({
+        title: "Bot incompatível com o canal",
+        description: "Revise os avisos exibidos no passo Canal antes de criar a campanha.",
         variant: "destructive",
       });
       return;
@@ -1823,6 +1890,8 @@ export default function WhatsAppCreateCampaign() {
     templateHeaderMedia,
     selectedBotId,
     selectedChannelId,
+    contentType,
+    botCompatibility,
     selectedClientIds,
     filterAudience,
     scheduledAt,
@@ -1918,6 +1987,13 @@ export default function WhatsAppCreateCampaign() {
                   isLoading={channelsLoading}
                   selectedChannelId={selectedChannelId}
                   contentType={contentType}
+                  compatibility={botCompatibility}
+                  compatibilityLoading={compatibilityLoading}
+                  compatibilityError={
+                    botCompatibilityError instanceof Error
+                      ? botCompatibilityError.message
+                      : undefined
+                  }
                   onSelect={setSelectedChannelId}
                 />
               )}

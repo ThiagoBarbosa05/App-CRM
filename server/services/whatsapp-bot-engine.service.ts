@@ -106,7 +106,10 @@ export function selectCampaignEntryNode(
  * ou seja, se houve uma mensagem RECEBIDA dele nas últimas 24h. Fora dessa
  * janela a Meta só aceita templates aprovados, não texto livre.
  */
-async function isWithinCustomerWindow(phone: string): Promise<boolean> {
+async function isWithinCustomerWindow(
+  phone: string,
+  channelId?: number,
+): Promise<boolean> {
   const digits = phone.replace(/\D+/g, "");
   const withoutCountry = digits.startsWith("55") ? digits.slice(2) : digits;
 
@@ -122,6 +125,9 @@ async function isWithinCustomerWindow(phone: string): Promise<boolean> {
     .where(
       and(
         eq(whatsappMessages.direction, "inbound"),
+        channelId == null
+          ? undefined
+          : eq(whatsappConversations.channelId, channelId),
         or(
           sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${digits}`,
           sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${withoutCountry}`,
@@ -214,6 +220,7 @@ async function sendBotMedia(
   caption?: string,
   sessionId?: string,
 ): Promise<{ waMessageId: string | null; waMediaId: string | null }> {
+  const expectedChannelId = await botSessionChannelId(sessionId);
   const resolvedChannel = await resolveBotSendChannel(phone, sessionId);
   if (resolvedChannel?.provider === "evolution") {
     const base64 = buffer.toString("base64");
@@ -224,6 +231,23 @@ async function sendBotMedia(
       mimetype: mimeType,
     });
     return { waMessageId: evoResult?.key?.id ?? null, waMediaId: null };
+  }
+  if (resolvedChannel?.provider === "cloud_api") {
+    const windowOpen = await isWithinCustomerWindow(phone, resolvedChannel.id);
+    if (!windowOpen) {
+      throw new Error(
+        "Janela de 24h fechada: a Cloud API da Meta não permite enviar mídia livre para este contato sem template.",
+      );
+    }
+  } else if (expectedChannelId != null) {
+    throw new Error("Não foi possível resolver o canal da sessão do bot para enviar mídia");
+  } else {
+    const windowOpen = await isWithinCustomerWindow(phone);
+    if (!windowOpen) {
+      throw new Error(
+        "Janela de 24h fechada: a Cloud API da Meta não permite enviar mídia livre para este contato sem template.",
+      );
+    }
   }
   const cloudOverride = resolvedChannel?.provider === "cloud_api"
     ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
@@ -240,17 +264,29 @@ async function sendBotMedia(
  * precisa ser feito por template aprovado.
  */
 async function sendFreeText(phone: string, text: string, sessionId?: string): Promise<string | null> {
-  const windowOpen = await isWithinCustomerWindow(phone);
-  if (!windowOpen) {
-    throw new Error(
-      "Janela de 24h fechada: a Meta não permite enviar texto livre para este contato. " +
-        "Configure o primeiro nó do fluxo como um template aprovado.",
-    );
-  }
+  const expectedChannelId = await botSessionChannelId(sessionId);
   const resolvedChannel = await resolveBotSendChannel(phone, sessionId);
   if (resolvedChannel?.provider === "evolution") {
     const evoResult = await evoSendText(resolvedChannel.evolutionInstanceName, phone, text);
     return evoResult?.key?.id ?? null;
+  }
+  if (resolvedChannel?.provider === "cloud_api") {
+    const windowOpen = await isWithinCustomerWindow(phone, resolvedChannel.id);
+    if (!windowOpen) {
+      throw new Error(
+        "Janela de 24h fechada: a Cloud API da Meta não permite enviar texto livre para este contato. " +
+          "Configure a abertura do bot com um template aprovado.",
+      );
+    }
+  } else if (expectedChannelId != null) {
+    throw new Error("Não foi possível resolver o canal da sessão do bot para enviar texto");
+  } else {
+    const windowOpen = await isWithinCustomerWindow(phone);
+    if (!windowOpen) {
+      throw new Error(
+        "Janela de 24h fechada: a Cloud API da Meta não permite enviar texto livre para este contato.",
+      );
+    }
   }
   const cloudOverride = resolvedChannel?.provider === "cloud_api"
     ? { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken }
@@ -535,9 +571,34 @@ export function interpolate(text: string, variables: Record<string, string>): st
 
 /** Monta o mapa de variáveis de personalização a partir dos dados de um cliente. */
 export function buildClientVariables(client: Client | null, phone: string): Record<string, string> {
-  const vars: Record<string, string> = { telefone: phone };
+  const vars: Record<string, string> = {
+    nome: "",
+    variavel: "",
+    email: "",
+    telefone: phone,
+    telefone_fixo: "",
+    cpf: "",
+    instagram: "",
+    aniversario: "",
+    cep: "",
+    endereco: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    cidade: "",
+    estado: "",
+    categoria: "",
+    origem: "",
+    nome_fantasia: "",
+    inscricao_estadual: "",
+  };
   if (!client) return vars;
-  if (client.name) vars.nome = client.name;
+  if (client.name) {
+    vars.nome = client.name;
+    // Compatibilidade com bots antigos que usavam o placeholder genérico sugerido pelo editor.
+    // Uma resposta capturada com esse nome continua podendo substituir o valor durante a sessão.
+    vars.variavel = client.name;
+  }
   if (client.email) vars.email = client.email;
   if (client.cpf) vars.cpf = client.cpf;
   if (client.birthday) vars.aniversario = client.birthday;
@@ -546,6 +607,14 @@ export function buildClientVariables(client: Client | null, phone: string): Reco
   if (client.fixedPhone) vars.telefone_fixo = client.fixedPhone;
   if (client.address) vars.endereco = client.address;
   if (client.neighborhood) vars.bairro = client.neighborhood;
+  if (client.instagram) vars.instagram = client.instagram;
+  if (client.cep) vars.cep = client.cep;
+  if (client.number) vars.numero = client.number;
+  if (client.complement) vars.complemento = client.complement;
+  if (client.categoria) vars.categoria = client.categoria;
+  if (client.origem) vars.origem = client.origem;
+  if (client.nomeFantasia) vars.nome_fantasia = client.nomeFantasia;
+  if (client.inscricaoEstadual) vars.inscricao_estadual = client.inscricaoEstadual;
   return vars;
 }
 
@@ -634,6 +703,19 @@ async function readR2Buffer(storageKey: string): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+class BotNodeExecutionError extends Error {
+  constructor(
+    public readonly nodeId: string,
+    public readonly nodeType: string,
+    cause: unknown,
+  ) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    super(`Falha no nó "${nodeId}" (${nodeType}): ${detail}`);
+    this.name = "BotNodeExecutionError";
+    (this as Error & { cause?: unknown }).cause = cause;
+  }
+}
+
 async function executeNode(
   node: WhatsappBotNode,
   phone: string,
@@ -647,7 +729,8 @@ async function executeNode(
   // e o webhook de status da Meta consiga corrigir o status depois.
   let lastMessageId: string | null = null;
 
-  switch (node.type) {
+  try {
+    switch (node.type) {
     case "start":
     case "start_manual":
     case "start_channel": {
@@ -737,12 +820,6 @@ async function executeNode(
       } else {
         const text = d.text ? interpolate(d.text, variables) : undefined;
         if (d.attachment?.storageKey) {
-          const windowOpen = await isWithinCustomerWindow(phone);
-          if (!windowOpen) {
-            throw new Error(
-              "Janela de 24h fechada: a Meta não permite enviar mídia para este contato sem template.",
-            );
-          }
           const buffer = await readR2Buffer(d.attachment.storageKey);
           const mimeType = d.attachment.mimeType ?? (d.attachment.type === "image" ? "image/jpeg" : "application/octet-stream");
           const filename = d.attachment.name ?? d.attachment.storageKey.split("/").pop() ?? "file";
@@ -822,12 +899,6 @@ async function executeNode(
       const d = data as MenuNodeData;
       const options = (d.options ?? []).filter((o) => o.label?.trim());
       if (options.length > 0) {
-        const windowOpen = await isWithinCustomerWindow(phone);
-        if (!windowOpen) {
-          throw new Error(
-            "Janela de 24h fechada: a Meta não permite enviar menus interativos para este contato sem template.",
-          );
-        }
         const body = interpolate(d.bodyText || "", variables) || "Escolha uma opção:";
         const useButtons =
           d.renderAs === "buttons" || (d.renderAs !== "list" && options.length <= 3);
@@ -836,6 +907,13 @@ async function executeNode(
           footerText: d.footerText ? interpolate(d.footerText, variables) : undefined,
         };
         const cloudOverride = await resolveCloudOnlyChannel(phone, "menus interativos (botões/lista)", sessionId);
+        const channelId = await botSessionChannelId(sessionId);
+        const windowOpen = await isWithinCustomerWindow(phone, channelId ?? undefined);
+        if (!windowOpen) {
+          throw new Error(
+            "Janela de 24h fechada: a Cloud API da Meta não permite enviar menus interativos sem uma mensagem recebida do contato.",
+          );
+        }
         let waId: string | null = null;
         if (useButtons) {
           const result = await sendButtonsMessage(
@@ -1306,9 +1384,22 @@ async function executeNode(
       await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "unsupported_node" });
       break;
     }
-  }
+    }
 
-  return lastMessageId;
+    return lastMessageId;
+  } catch (error) {
+    if (error instanceof BotNodeExecutionError) throw error;
+    const channelId = await botSessionChannelId(sessionId).catch(() => null);
+    console.error("[BotEngine] Falha ao executar nó", {
+      botId,
+      sessionId,
+      channelId,
+      nodeId: node.id,
+      nodeType: node.type,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new BotNodeExecutionError(node.id, node.type, error);
+  }
 }
 
 export async function resolveConditionHandle(

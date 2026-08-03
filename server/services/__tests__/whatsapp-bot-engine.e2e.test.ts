@@ -56,6 +56,7 @@ import {
   handleTemplateDeliveryFailure,
   processTemplateTimeouts,
   expireInactiveSessions,
+  resumeWaitingSessions,
   startBotSession,
 } from "../whatsapp-bot-engine.service";
 import {
@@ -91,6 +92,7 @@ const sendTemplateMessage = vi.mocked(wa.sendTemplateMessage);
 const sendMediaMessage = vi.mocked(wa.sendMediaMessage);
 const uploadMedia = vi.mocked(wa.uploadMedia);
 const evolutionSendText = vi.mocked(evolution.sendText);
+const evolutionSendMedia = vi.mocked(evolution.sendMedia);
 const r2Send = vi.mocked(r2lib.r2.send);
 
 /** Telefones distintos por teste evitam colisão na janela de 24h / sessão. */
@@ -221,6 +223,138 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
       phone,
       "Mensagem da campanha",
     );
+  });
+
+  it("envia texto a frio por canal QR sem exigir template da Meta", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const [channel] = await db
+      .insert(whatsappChannels)
+      .values({
+        name: "Canal QR",
+        provider: "evolution",
+        evolutionInstanceName: `qr-text-${phone}`,
+        connectionStatus: "connected",
+      })
+      .returning();
+
+    const start = await addNode(bot.id, { type: "start_manual" });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Mensagem a frio via QR" },
+    });
+    await addEdge(bot.id, start.id, send.id);
+
+    const result = await startBotSession(
+      bot.id,
+      phone,
+      undefined,
+      undefined,
+      channel.id,
+    );
+
+    expect(result.status).toBe("started");
+    expect(evolutionSendText).toHaveBeenCalledWith(
+      channel.evolutionInstanceName,
+      phone,
+      "Mensagem a frio via QR",
+    );
+    expect(sendTextMessage).not.toHaveBeenCalled();
+  });
+
+  it("envia imagem com legenda a frio por canal QR sem exigir template", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const [channel] = await db
+      .insert(whatsappChannels)
+      .values({
+        name: "Canal QR mídia",
+        provider: "evolution",
+        evolutionInstanceName: `qr-media-${phone}`,
+        connectionStatus: "connected",
+      })
+      .returning();
+    const fakeBody = (async function* () {
+      yield Buffer.from("fake-image-bytes");
+    })();
+    r2Send.mockResolvedValueOnce({ Body: fakeBody } as never);
+
+    const start = await addNode(bot.id, { type: "start_manual" });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: {
+        messageType: "text",
+        text: "Olá {{nome}}",
+        attachment: {
+          storageKey: "bot-attachments/planeta.jpg",
+          type: "image",
+          name: "planeta.jpg",
+          mimeType: "image/jpeg",
+        },
+      },
+    });
+    await addEdge(bot.id, start.id, send.id);
+
+    await startBotSession(bot.id, phone, undefined, undefined, channel.id);
+
+    expect(evolutionSendMedia).toHaveBeenCalledWith(
+      channel.evolutionInstanceName,
+      phone,
+      "image",
+      expect.objectContaining({
+        caption: expect.stringContaining("Olá"),
+        filename: "planeta.jpg",
+        mimetype: "image/jpeg",
+      }),
+    );
+    expect(uploadMedia).not.toHaveBeenCalled();
+    expect(sendMediaMessage).not.toHaveBeenCalled();
+  });
+
+  it("mantém o canal QR da sessão ao retomar depois de Aguardar", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const [channel] = await db
+      .insert(whatsappChannels)
+      .values({
+        name: "Canal QR espera",
+        provider: "evolution",
+        evolutionInstanceName: `qr-wait-${phone}`,
+        connectionStatus: "connected",
+      })
+      .returning();
+
+    const start = await addNode(bot.id, { type: "start_manual" });
+    const wait = await addNode(bot.id, {
+      type: "wait",
+      data: { mode: "interval", seconds: 10 },
+    });
+    const send = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Mensagem após espera" },
+    });
+    await addEdge(bot.id, start.id, wait.id);
+    await addEdge(bot.id, wait.id, send.id);
+
+    await startBotSession(bot.id, phone, undefined, undefined, channel.id);
+    const session = await getSession(phone);
+    expect(session?.channelId).toBe(channel.id);
+    await db
+      .update(whatsappBotSessions)
+      .set({ resumeAt: new Date(Date.now() - 1_000) })
+      .where(eq(whatsappBotSessions.id, session!.id));
+
+    await resumeWaitingSessions();
+
+    expect(evolutionSendText).toHaveBeenCalledWith(
+      channel.evolutionInstanceName,
+      phone,
+      "Mensagem após espera",
+    );
+    expect((await getSession(phone))?.channelId).toBe(channel.id);
   });
 
   it("inicia o bot automático pelo canal e não reutiliza a mensagem gatilho", async () => {

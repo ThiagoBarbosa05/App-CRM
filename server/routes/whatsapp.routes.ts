@@ -39,6 +39,10 @@ import {
   resolveCampaignAudience,
   type CampaignAudienceSelector,
 } from "../services/whatsapp-campaign-audience.service";
+import {
+  analyzeBotCompatibility,
+  BotCompatibilityLookupError,
+} from "../services/whatsapp-bot-compatibility.service";
 
 const router = Router();
 
@@ -261,6 +265,18 @@ router.post("/campaigns", async (req, res) => {
       return res.status(400).json({
         message: "Campanhas com template exigem um canal Cloud API",
       });
+    }
+    if (campaign.waBotId) {
+      const compatibility = await analyzeBotCompatibility(
+        campaign.waBotId,
+        campaign.waChannelId,
+      );
+      if (!compatibility.compatible) {
+        return res.status(400).json({
+          message: "O bot não é compatível com o canal selecionado",
+          compatibility,
+        });
+      }
     }
 
     const user = req.user;
@@ -488,6 +504,9 @@ router.post("/campaigns", async (req, res) => {
     }
     return res.status(202).json(responseBody);
   } catch (e) {
+    if (e instanceof BotCompatibilityLookupError) {
+      return res.status(e.statusCode).json({ message: e.message });
+    }
     const message = e instanceof Error ? e.message : "Erro ao enfileirar campanha";
     console.error("[WA campaigns] erro:", e);
     res.status(500).json({ message });
