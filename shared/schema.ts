@@ -3375,6 +3375,10 @@ export const blingOrders = pgTable(
     index("bling_orders_deleted_idx").on(table.deletedAt),
     // Performance indices for filters and aggregations
     index("bling_orders_seller_idx").on(table.sellerId),
+    index("bling_orders_connection_seller_idx").on(
+      table.connectionId,
+      table.sellerId,
+    ),
     index("bling_orders_store_idx").on(table.storeId),
     index("bling_orders_situation_idx").on(table.situationId),
     index("bling_orders_payment_method_idx").on(table.paymentMethodId),

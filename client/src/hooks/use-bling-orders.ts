@@ -88,6 +88,7 @@ interface OrderFilters {
   contactName?: string;
   contactType?: string;
   sellerId?: string;
+  sellerUserId?: string;
   storeId?: string;
   situationId?: string;
   startDate?: string;
@@ -593,9 +594,10 @@ export function useCohortClients(
   endDate: string,
   cohortMonth: string | null,
   monthOffset: number | null,
+  userId?: string,
 ) {
   return useQuery({
-    queryKey: ["bling-cohort-clients", startDate, endDate, cohortMonth, monthOffset],
+    queryKey: ["bling-cohort-clients", startDate, endDate, cohortMonth, monthOffset, userId],
     queryFn: async () => {
       const params = new URLSearchParams({
         startDate,
@@ -603,6 +605,7 @@ export function useCohortClients(
         cohortMonth: cohortMonth!,
         monthOffset: String(monthOffset),
       });
+      if (userId) params.set("userId", userId);
       const response = await fetch(
         `/api/bling-orders/statistics/cohort/clients?${params.toString()}`,
       );

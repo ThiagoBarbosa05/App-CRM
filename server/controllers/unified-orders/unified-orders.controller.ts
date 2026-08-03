@@ -33,6 +33,7 @@ const baseQuerySchema = z.object({
     .string()
     .regex(dateRegex, "Data final deve estar no formato YYYY-MM-DD"),
   source: z.enum(["bling", "connect", "all"]).optional().default("all"),
+  userId: z.string().optional(),
   prevStartDate: z
     .string()
     .regex(dateRegex, "Data inicial anterior deve estar no formato YYYY-MM-DD")
@@ -81,15 +82,13 @@ export class UnifiedOrdersController {
         if (!blingVendedorId) excludeBling = true;
       }
 
-      const effectiveSource = excludeBling
-        ? "connect"
-        : query.source;
+      const effectiveSource = query.source;
 
       const { data, total, totalValueNonCancelled } = await unifiedOrdersService.listOrders({
         startDate: query.startDate,
         endDate: query.endDate,
         contactName: query.contactName,
-        sellerId: query.sellerId,
+        sellerId: query.userId ?? query.sellerId,
         blingVendedorId,
         connectUserId,
         source: effectiveSource,
@@ -132,6 +131,7 @@ export class UnifiedOrdersController {
         query.startDate,
         query.endDate,
         query.source,
+        query.userId,
       );
       return res.json({ success: true, data });
     } catch (error) {
@@ -163,6 +163,7 @@ export class UnifiedOrdersController {
         query.source,
         query.prevStartDate,
         query.prevEndDate,
+        query.userId,
       );
       return res.json({ success: true, data });
     } catch (error) {
@@ -193,6 +194,7 @@ export class UnifiedOrdersController {
         query.endDate,
         query.groupBy,
         query.source,
+        query.userId,
       );
       return res.json({ success: true, data });
     } catch (error) {
@@ -230,14 +232,13 @@ export class UnifiedOrdersController {
         if (!blingVendedorId) excludeBling = true;
       }
 
-      const effectiveSource = excludeBling ? "connect" : query.source;
+      const effectiveSource = query.source;
 
       const data = await unifiedOrdersService.getSellerTotalsWithGoals({
         startDate: query.startDate,
         endDate: query.endDate,
         contactName: query.contactName,
-        blingVendedorId: query.sellerId ?? blingVendedorId,
-        connectUserId: query.sellerId ?? connectUserId,
+        sellerId: query.userId ?? query.sellerId,
         source: effectiveSource,
       });
 

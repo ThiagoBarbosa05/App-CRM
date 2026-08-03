@@ -9,9 +9,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FilterX, Search, SlidersHorizontal, Briefcase, Store } from "lucide-react";
-import { useAvailableSellers } from "@/hooks/use-bling-orders";
 import { type OrderSource } from "@/hooks/use-unified-orders";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
+
+interface SellerUserOption {
+  id: string;
+  name: string;
+  isActive: string;
+}
 
 interface OrdersFiltersProps {
   contactName?: string;
@@ -47,7 +53,15 @@ export function OrdersFilters({
   onMaxValueChange,
   isLoading,
 }: OrdersFiltersProps) {
-  const { data: sellers, isLoading: isSellersLoading } = useAvailableSellers();
+  const { data: sellers = [], isLoading: isSellersLoading } = useQuery<
+    SellerUserOption[]
+  >({
+    queryKey: ["/api/users"],
+    select: (users) =>
+      users
+        .filter((user) => user.isActive === "true")
+        .sort((left, right) => left.name.localeCompare(right.name)),
+  });
 
   const handleClearFilters = () => {
     onContactNameChange("");
@@ -124,10 +138,9 @@ export function OrdersFilters({
               icon={<Briefcase className="h-4 w-4 text-emerald-500" />}
               value={sellerId}
               onValueChange={onSellerIdChange}
-              options={sellers?.map((s) => ({
-                value: s.sellerId,
-                label: s.sellerName,
-                count: s.orderCount,
+              options={sellers.map((seller) => ({
+                value: seller.id,
+                label: seller.name,
               }))}
               placeholder="Todos os Vendedores"
               isLoading={isSellersLoading || isLoading}

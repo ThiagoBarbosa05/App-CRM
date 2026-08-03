@@ -122,6 +122,7 @@ export function useUnifiedSalesStatistics(
   startDate: string,
   endDate: string,
   source: OrderSource = "all",
+  userId?: string,
 ) {
   return useQuery<UnifiedSalesStatistics>({
     queryKey: [
@@ -129,10 +130,11 @@ export function useUnifiedSalesStatistics(
       startDate,
       endDate,
       source,
+      userId,
     ],
     queryFn: async () => {
       const res = await fetch(
-        `/api/unified-orders/statistics/sales?startDate=${startDate}&endDate=${endDate}&source=${source}`,
+        `/api/unified-orders/statistics/sales?${buildQs({ startDate, endDate, source, userId })}`,
       );
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -148,6 +150,7 @@ export function useUnifiedSalesComparison(
   source: OrderSource = "all",
   prevStartDate?: string,
   prevEndDate?: string,
+  userId?: string,
 ) {
   return useQuery<UnifiedSalesComparison>({
     queryKey: [
@@ -157,11 +160,13 @@ export function useUnifiedSalesComparison(
       source,
       prevStartDate,
       prevEndDate,
+      userId,
     ],
     queryFn: async () => {
       const params = new URLSearchParams({ startDate, endDate, source });
       if (prevStartDate) params.set("prevStartDate", prevStartDate);
       if (prevEndDate) params.set("prevEndDate", prevEndDate);
+      if (userId) params.set("userId", userId);
       const res = await fetch(
         `/api/unified-orders/statistics/sales-comparison?${params}`,
       );
@@ -179,6 +184,7 @@ export function useUnifiedSalesEvolution(
   endDate: string,
   groupBy: "day" | "week" | "month",
   source: OrderSource = "all",
+  userId?: string,
 ) {
   return useQuery<UnifiedSalesEvolutionPoint[]>({
     queryKey: [
@@ -187,10 +193,11 @@ export function useUnifiedSalesEvolution(
       endDate,
       groupBy,
       source,
+      userId,
     ],
     queryFn: async () => {
       const res = await fetch(
-        `/api/unified-orders/statistics/sales-evolution?startDate=${startDate}&endDate=${endDate}&groupBy=${groupBy}&source=${source}`,
+        `/api/unified-orders/statistics/sales-evolution?${buildQs({ startDate, endDate, groupBy, source, userId })}`,
       );
       const json = await res.json();
       if (!json.success) throw new Error(json.error);

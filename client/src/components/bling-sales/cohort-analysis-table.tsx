@@ -29,6 +29,7 @@ interface CohortAnalysisTableProps {
   isFetching?: boolean;
   startDate: string;
   endDate: string;
+  userId?: string;
 }
 
 interface SelectedCell {
@@ -72,12 +73,14 @@ function CohortClientsDialog({
   selected,
   startDate,
   endDate,
+  userId,
 }: {
   open: boolean;
   onClose: () => void;
   selected: SelectedCell | null;
   startDate: string;
   endDate: string;
+  userId?: string;
 }) {
   const [, navigate] = useLocation();
   const { data: clients, isLoading, isError } = useCohortClients(
@@ -85,6 +88,7 @@ function CohortClientsDialog({
     endDate,
     selected?.cohortMonth ?? null,
     selected?.monthOffset ?? null,
+    userId,
   );
 
   const retainedClients = clients?.filter((c) => c.retained) ?? [];
@@ -208,6 +212,7 @@ export function CohortAnalysisTable({
   isFetching = false,
   startDate,
   endDate,
+  userId,
 }: CohortAnalysisTableProps) {
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -485,6 +490,7 @@ export function CohortAnalysisTable({
         selected={selectedCell}
         startDate={startDate}
         endDate={endDate}
+        userId={userId}
       />
     </>
   );

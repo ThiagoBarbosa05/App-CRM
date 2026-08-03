@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "db:push": "drizzle-kit push",
+    "db:apply-bling-multi-account": "node scripts/apply-bling-multi-account-index.mjs",
     "baileys:sessions:reset": "tsx scripts/reset-baileys-sessions.ts",
     "sync:umbler": "tsx server/jobs/umbler-sync.worker.ts"
   },

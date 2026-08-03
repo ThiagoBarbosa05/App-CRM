@@ -67,30 +67,11 @@ interface SalesGoalsGridProps {
   topSellersData?: TopSeller[];
 }
 
-function normalizeName(name: string) {
-  return name
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
 function findSellerData(
-  userName: string,
+  userId: string,
   topSellers: TopSeller[],
 ): TopSeller | null {
-  const normUser = normalizeName(userName);
-  return (
-    topSellers.find((s) => {
-      if (!s.sellerName) return false;
-      const normSeller = normalizeName(s.sellerName);
-      return (
-        normUser === normSeller ||
-        normUser.startsWith(normSeller) ||
-        normSeller.startsWith(normUser)
-      );
-    }) ?? null
-  );
+  return topSellers.find((seller) => seller.sellerId === userId) ?? null;
 }
 
 export function SalesGoalsGrid({
@@ -131,8 +112,8 @@ export function SalesGoalsGrid({
   };
 
   const sortedGoals = [...goals].sort((a, b) => {
-    const sellerA = findSellerData(a.userName, topSellersData);
-    const sellerB = findSellerData(b.userName, topSellersData);
+    const sellerA = findSellerData(a.userId, topSellersData);
+    const sellerB = findSellerData(b.userId, topSellersData);
     const pctA = calculatePercentage(getRealSales(a, sellerA), Number(a.salesGoal));
     const pctB = calculatePercentage(getRealSales(b, sellerB), Number(b.salesGoal));
     return pctB - pctA;
@@ -153,7 +134,7 @@ export function SalesGoalsGrid({
           onEdit={onEdit}
           onDelete={onDelete}
           isAdmin={isAdmin}
-          sellerData={findSellerData(goal.userName, topSellersData)}
+          sellerData={findSellerData(goal.userId, topSellersData)}
         />
       ))}
     </div>

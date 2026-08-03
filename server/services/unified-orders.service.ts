@@ -128,15 +128,10 @@ export const unifiedOrdersService = {
       endDate,
       contactName,
       sellerId,
-      blingVendedorId,
-      connectUserId,
       source = "all",
       limit = 20,
       offset = 0,
     } = filters;
-
-    const effectiveBlingId = sellerId ?? blingVendedorId;
-    const effectiveConnectId = sellerId ?? connectUserId;
 
     const contactLike = contactName ? `%${contactName}%` : null;
 
@@ -150,8 +145,12 @@ export const unifiedOrdersService = {
         bo.sale_date                         AS sale_date,
         bo.total_value::text                 AS total_value,
         bo.contact_name                      AS contact_name,
-        bo.seller_name                       AS seller_name,
-        bo.seller_id                         AS seller_id,
+        COALESCE(mapped_user.name, legacy_user.name, bo.seller_name) AS seller_name,
+        COALESCE(
+          bsm.user_id,
+          legacy_user.id,
+          'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || COALESCE(bo.seller_id, 'unknown')
+        )                                    AS seller_id,
         bo.app_client_id                     AS app_client_id,
         bo.situation_value                   AS situation_value,
         bo.contact_type                      AS contact_type,
@@ -160,11 +159,22 @@ export const unifiedOrdersService = {
         NULL::text                           AS contact_phone,
         NULL::text                           AS contact_cellphone
       FROM bling_orders bo
+      LEFT JOIN bling_seller_mappings bsm
+        ON bo.connection_id = bsm.connection_id
+       AND bo.seller_id = bsm.bling_vendedor_id
+      LEFT JOIN users mapped_user ON mapped_user.id = bsm.user_id
+      LEFT JOIN LATERAL (
+        SELECT id, name
+        FROM users
+        WHERE bo.connection_id IS NULL
+          AND bling_vendedor_id = bo.seller_id
+        LIMIT 1
+      ) legacy_user ON true
       WHERE bo.deleted_at IS NULL
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         ${contactLike !== null ? sql`AND bo.contact_name ILIKE ${contactLike}` : sql``}
-        ${effectiveBlingId ? sql`AND bo.seller_id = ${effectiveBlingId}` : sql``}
+        ${sellerId ? sql`AND (bsm.user_id = ${sellerId} OR legacy_user.id = ${sellerId})` : sql``}
     `;
 
     // ── Connect fragment (sale_date is timestamp) ─────────────────────────
@@ -194,7 +204,7 @@ export const unifiedOrdersService = {
       WHERE co.sale_date >= ${connectStart}::timestamp
         AND co.sale_date <= ${connectEnd}::timestamp
         ${contactLike !== null ? sql`AND co.contact_name ILIKE ${contactLike}` : sql``}
-        ${effectiveConnectId ? sql`AND co.seller_id = ${effectiveConnectId}` : sql``}
+        ${sellerId ? sql`AND co.seller_id = ${sellerId}` : sql``}
     `;
 
     const unionFrag =
@@ -299,6 +309,7 @@ export const unifiedOrdersService = {
     startDate: string,
     endDate: string,
     source: Source = "all",
+    sellerId?: string,
   ): Promise<UnifiedSalesStatistics> {
     const connectStart = `${startDate}T00:00:00`;
     const connectEnd = `${endDate}T23:59:59`;
@@ -312,8 +323,18 @@ export const unifiedOrdersService = {
           WHERE boi.order_id = bo.id
         ), 0) AS items_qty
       FROM bling_orders bo
+      LEFT JOIN bling_seller_mappings bsm
+        ON bo.connection_id = bsm.connection_id
+       AND bo.seller_id = bsm.bling_vendedor_id
+      LEFT JOIN LATERAL (
+        SELECT id FROM users
+        WHERE bo.connection_id IS NULL
+          AND bling_vendedor_id = bo.seller_id
+        LIMIT 1
+      ) legacy_user ON true
       WHERE bo.deleted_at IS NULL AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate} AND bo.sale_date <= ${endDate}
+        ${sellerId ? sql`AND (bsm.user_id = ${sellerId} OR legacy_user.id = ${sellerId})` : sql``}
     `;
 
     const connectFrag = sql`
@@ -326,6 +347,7 @@ export const unifiedOrdersService = {
         ), 0) AS items_qty
       FROM connect_orders co
       WHERE co.sale_date >= ${connectStart}::timestamp AND co.sale_date <= ${connectEnd}::timestamp
+        ${sellerId ? sql`AND co.seller_id = ${sellerId}` : sql``}
     `;
 
     const unionFrag =
@@ -366,14 +388,15 @@ export const unifiedOrdersService = {
     source: Source = "all",
     prevStartDate?: string,
     prevEndDate?: string,
+    sellerId?: string,
   ): Promise<UnifiedSalesComparison> {
     const { prevStart: defaultPrevStart, prevEnd: defaultPrevEnd } = getPreviousPeriod(startDate, endDate);
     const prevStart = prevStartDate ?? defaultPrevStart;
     const prevEnd = prevEndDate ?? defaultPrevEnd;
 
     const [current, previous] = await Promise.all([
-      unifiedOrdersService.getSalesStatistics(startDate, endDate, source),
-      unifiedOrdersService.getSalesStatistics(prevStart, prevEnd, source),
+      unifiedOrdersService.getSalesStatistics(startDate, endDate, source, sellerId),
+      unifiedOrdersService.getSalesStatistics(prevStart, prevEnd, source, sellerId),
     ]);
 
     return {
@@ -396,24 +419,46 @@ export const unifiedOrdersService = {
     endDate: string,
     groupBy: "day" | "week" | "month" = "day",
     source: Source = "all",
+    sellerId?: string,
   ): Promise<UnifiedSalesEvolutionPoint[]> {
     const connectStart = `${startDate}T00:00:00`;
     const connectEnd = `${endDate}T23:59:59`;
+    const blingSellerFilter = sellerId
+      ? sql`AND (
+          EXISTS (
+            SELECT 1 FROM bling_seller_mappings bsm
+            WHERE bsm.connection_id = bling_orders.connection_id
+              AND bsm.bling_vendedor_id = bling_orders.seller_id
+              AND bsm.user_id = ${sellerId}
+          )
+          OR (
+            bling_orders.connection_id IS NULL
+            AND EXISTS (
+              SELECT 1 FROM users legacy_user
+              WHERE legacy_user.bling_vendedor_id = bling_orders.seller_id
+                AND legacy_user.id = ${sellerId}
+            )
+          )
+        )`
+      : sql``;
+    const connectSellerFilter = sellerId
+      ? sql`AND seller_id = ${sellerId}`
+      : sql``;
 
     // DATE_TRUNC needs a literal — build per-case
     const blingFrag =
       groupBy === "month"
-        ? sql`SELECT DATE_TRUNC('month', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate}`
+        ? sql`SELECT DATE_TRUNC('month', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate} ${blingSellerFilter}`
         : groupBy === "week"
-          ? sql`SELECT DATE_TRUNC('week', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate}`
-          : sql`SELECT DATE_TRUNC('day', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate}`;
+          ? sql`SELECT DATE_TRUNC('week', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate} ${blingSellerFilter}`
+          : sql`SELECT DATE_TRUNC('day', sale_date::timestamp) AS period, total_value::numeric AS v FROM bling_orders WHERE deleted_at IS NULL AND situation_id = '9' AND sale_date >= ${startDate} AND sale_date <= ${endDate} ${blingSellerFilter}`;
 
     const connectFrag =
       groupBy === "month"
-        ? sql`SELECT DATE_TRUNC('month', sale_date) AS period, total_value::numeric AS v FROM connect_orders WHERE sale_date >= ${connectStart}::timestamp AND sale_date <= ${connectEnd}::timestamp`
+        ? sql`SELECT DATE_TRUNC('month', sale_date) AS period, total_value::numeric AS v FROM connect_orders WHERE sale_date >= ${connectStart}::timestamp AND sale_date <= ${connectEnd}::timestamp ${connectSellerFilter}`
         : groupBy === "week"
-          ? sql`SELECT DATE_TRUNC('week', sale_date) AS period, total_value::numeric AS v FROM connect_orders WHERE sale_date >= ${connectStart}::timestamp AND sale_date <= ${connectEnd}::timestamp`
-          : sql`SELECT DATE_TRUNC('day', sale_date) AS period, total_value::numeric AS v FROM connect_orders WHERE sale_date >= ${connectStart}::timestamp AND sale_date <= ${connectEnd}::timestamp`;
+          ? sql`SELECT DATE_TRUNC('week', sale_date) AS period, total_value::numeric AS v FROM connect_orders WHERE sale_date >= ${connectStart}::timestamp AND sale_date <= ${connectEnd}::timestamp ${connectSellerFilter}`
+          : sql`SELECT DATE_TRUNC('day', sale_date) AS period, total_value::numeric AS v FROM connect_orders WHERE sale_date >= ${connectStart}::timestamp AND sale_date <= ${connectEnd}::timestamp ${connectSellerFilter}`;
 
     const unionFrag =
       source === "bling"
@@ -453,16 +498,14 @@ export const unifiedOrdersService = {
     startDate: string;
     endDate: string;
     contactName?: string;
-    blingVendedorId?: string;
-    connectUserId?: string;
+    sellerId?: string;
     source?: Source;
   }): Promise<SellerTotalWithGoal[]> {
     const {
       startDate,
       endDate,
       contactName,
-      blingVendedorId,
-      connectUserId,
+      sellerId,
       source = "all",
     } = filters;
 
@@ -472,20 +515,31 @@ export const unifiedOrdersService = {
 
     const blingFrag = sql`
       SELECT
-        COALESCE(u.id, bo.seller_id)     AS seller_id,
-        COALESCE(u.name, bo.seller_name) AS seller_name,
+        COALESCE(
+          bsm.user_id,
+          legacy_user.id,
+          'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.seller_id
+        )                                AS seller_id,
+        COALESCE(mapped_user.name, legacy_user.name, bo.seller_name) AS seller_name,
         bo.total_value::numeric          AS net_value
       FROM bling_orders bo
+      LEFT JOIN bling_seller_mappings bsm
+        ON bo.connection_id = bsm.connection_id
+       AND bo.seller_id = bsm.bling_vendedor_id
+      LEFT JOIN users mapped_user ON mapped_user.id = bsm.user_id
       LEFT JOIN LATERAL (
-        SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
-      ) u ON true
+        SELECT id, name FROM users
+        WHERE bo.connection_id IS NULL
+          AND bling_vendedor_id = bo.seller_id
+        LIMIT 1
+      ) legacy_user ON true
       WHERE bo.deleted_at IS NULL
         AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.seller_id IS NOT NULL
         ${contactLike !== null ? sql`AND bo.contact_name ILIKE ${contactLike}` : sql``}
-        ${blingVendedorId ? sql`AND bo.seller_id = ${blingVendedorId}` : sql``}
+        ${sellerId ? sql`AND (bsm.user_id = ${sellerId} OR legacy_user.id = ${sellerId})` : sql``}
     `;
 
     const connectFrag = sql`
@@ -499,7 +553,7 @@ export const unifiedOrdersService = {
         AND co.sale_date <= ${connectEnd}::timestamp
         AND co.seller_id IS NOT NULL
         ${contactLike !== null ? sql`AND co.contact_name ILIKE ${contactLike}` : sql``}
-        ${connectUserId ? sql`AND co.seller_id = ${connectUserId}` : sql``}
+        ${sellerId ? sql`AND co.seller_id = ${sellerId}` : sql``}
     `;
 
     const unionFrag =
@@ -576,19 +630,33 @@ export const unifiedOrdersService = {
 
     const blingFrag = sql`
       SELECT
-        COALESCE(u.id, bo.seller_id)       AS seller_id,
-        COALESCE(u.name, bo.seller_name)   AS seller_name,
+        COALESCE(
+          bsm.user_id,
+          legacy_user.id,
+          'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.seller_id
+        )                                  AS seller_id,
+        COALESCE(mapped_user.name, legacy_user.name, bo.seller_name) AS seller_name,
         bo.total_value::numeric            AS v,
         COALESCE((
           SELECT SUM(boi.quantity)
           FROM bling_order_items boi
           WHERE boi.order_id = bo.id
         ), 0)                              AS items_qty,
-        CONCAT('b:', bo.contact_id)        AS client_key
+        COALESCE(
+          'app:' || bo.app_client_id::text,
+          'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.contact_id
+        )                                  AS client_key
       FROM bling_orders bo
+      LEFT JOIN bling_seller_mappings bsm
+        ON bo.connection_id = bsm.connection_id
+       AND bo.seller_id = bsm.bling_vendedor_id
+      LEFT JOIN users mapped_user ON mapped_user.id = bsm.user_id
       LEFT JOIN LATERAL (
-        SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
-      ) u ON true
+        SELECT id, name FROM users
+        WHERE bo.connection_id IS NULL
+          AND bling_vendedor_id = bo.seller_id
+        LIMIT 1
+      ) legacy_user ON true
       WHERE bo.deleted_at IS NULL
         AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate}

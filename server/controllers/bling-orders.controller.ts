@@ -99,6 +99,7 @@ const listOrdersQuerySchema = z
     contactName: z.string().optional(),
     contactType: z.enum(["F", "J", "E"]).optional(),
     sellerId: z.string().optional(),
+    sellerUserId: z.string().optional(),
     storeId: z.string().optional(),
     situationId: z.string().optional(),
     minValue: z.coerce.number().min(0).optional(),
@@ -179,6 +180,7 @@ export class BlingOrdersController {
         contactName: query.contactName,
         contactType: query.contactType,
         sellerId: query.sellerId,
+        sellerUserId: query.sellerUserId,
         storeId: query.storeId,
         situationId: query.situationId,
         minValue: query.minValue?.toString(),
@@ -695,6 +697,7 @@ export class BlingOrdersController {
         contactName: query.contactName,
         contactType: query.contactType,
         sellerId: query.sellerId,
+        sellerUserId: query.sellerUserId,
         storeId: query.storeId,
         situationId: query.situationId,
         minValue: query.minValue?.toString(),
@@ -1172,7 +1175,7 @@ export class BlingOrdersController {
       const cohortData = await blingOrdersRepository.getCohortAnalysis(
         query.startDate,
         query.endDate,
-        blingVendedorId,
+        query.userId,
       );
 
       await cache.set(cacheKey, cohortData, cacheTTL.statistics);
@@ -1250,6 +1253,7 @@ export class BlingOrdersController {
         endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         cohortMonth: z.string().regex(/^\d{4}-\d{2}$/),
         monthOffset: z.coerce.number().int().min(0),
+        userId: z.string().optional(),
       });
 
       const query = schema.parse(req.query);
@@ -1259,6 +1263,7 @@ export class BlingOrdersController {
         query.endDate,
         query.cohortMonth,
         query.monthOffset,
+        query.userId,
       );
 
       return res.json({ success: true, data: clients });

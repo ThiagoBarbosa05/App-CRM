@@ -23,6 +23,7 @@ export interface OrderFilters {
   contactName?: string;
   contactType?: string;
   sellerId?: string;
+  sellerUserId?: string;
   storeId?: string;
   startDate?: string;
   endDate?: string;
@@ -117,6 +118,25 @@ export class BlingOrdersRepository {
       conditions.push(eq(blingOrders.sellerId, filters.sellerId));
     }
 
+    if (filters.sellerUserId) {
+      conditions.push(sql`(
+        EXISTS (
+          SELECT 1 FROM bling_seller_mappings bsm
+          WHERE bsm.connection_id = ${blingOrders.connectionId}
+            AND bsm.bling_vendedor_id = ${blingOrders.sellerId}
+            AND bsm.user_id = ${filters.sellerUserId}
+        )
+        OR (
+          ${blingOrders.connectionId} IS NULL
+          AND EXISTS (
+            SELECT 1 FROM users legacy_user
+            WHERE legacy_user.bling_vendedor_id = ${blingOrders.sellerId}
+              AND legacy_user.id = ${filters.sellerUserId}
+          )
+        )
+      )`);
+    }
+
     if (filters.storeId) {
       conditions.push(eq(blingOrders.storeId, filters.storeId));
     }
@@ -190,6 +210,25 @@ export class BlingOrdersRepository {
 
     if (filters.sellerId) {
       conditions.push(eq(blingOrders.sellerId, filters.sellerId));
+    }
+
+    if (filters.sellerUserId) {
+      conditions.push(sql`(
+        EXISTS (
+          SELECT 1 FROM bling_seller_mappings bsm
+          WHERE bsm.connection_id = ${blingOrders.connectionId}
+            AND bsm.bling_vendedor_id = ${blingOrders.sellerId}
+            AND bsm.user_id = ${filters.sellerUserId}
+        )
+        OR (
+          ${blingOrders.connectionId} IS NULL
+          AND EXISTS (
+            SELECT 1 FROM users legacy_user
+            WHERE legacy_user.bling_vendedor_id = ${blingOrders.sellerId}
+              AND legacy_user.id = ${filters.sellerUserId}
+          )
+        )
+      )`);
     }
 
     if (filters.storeId) {
@@ -582,26 +621,38 @@ export class BlingOrdersRepository {
   /**
    * Retorna dados de análise de cohort (retenção de clientes por mês de primeira compra)
    */
-  async getCohortAnalysis(startDate: string, endDate: string, blingVendedorId?: string) {
+  async getCohortAnalysis(startDate: string, endDate: string, userId?: string) {
     const result = await db.execute(sql`
       WITH customer_orders AS (
         SELECT
-          ${blingOrders.contactId},
-          ${blingOrders.saleDate},
-          to_char(${blingOrders.saleDate}::timestamp, 'YYYY-MM') AS order_month
-        FROM ${blingOrders}
-        WHERE ${blingOrders.deletedAt} IS NULL
-          AND ${blingOrders.contactId} IS NOT NULL
-          AND ${blingOrders.saleDate} >= ${startDate}
-          AND ${blingOrders.saleDate} <= ${endDate}
-          ${blingVendedorId ? sql`AND ${blingOrders.sellerId} = ${blingVendedorId}` : sql``}
+          COALESCE(
+            'app:' || bo.app_client_id::text,
+            'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.contact_id
+          ) AS contact_key,
+          bo.sale_date,
+          to_char(bo.sale_date::timestamp, 'YYYY-MM') AS order_month
+        FROM bling_orders bo
+        LEFT JOIN bling_seller_mappings bsm
+          ON bo.connection_id = bsm.connection_id
+         AND bo.seller_id = bsm.bling_vendedor_id
+        LEFT JOIN LATERAL (
+          SELECT id FROM users
+          WHERE bo.connection_id IS NULL
+            AND bling_vendedor_id = bo.seller_id
+          LIMIT 1
+        ) legacy_user ON true
+        WHERE bo.deleted_at IS NULL
+          AND bo.contact_id IS NOT NULL
+          AND bo.sale_date >= ${startDate}
+          AND bo.sale_date <= ${endDate}
+          ${userId ? sql`AND (bsm.user_id = ${userId} OR legacy_user.id = ${userId})` : sql``}
       ),
       first_purchase AS (
         SELECT
-          contact_id,
+          contact_key,
           MIN(order_month) AS cohort_month
         FROM customer_orders
-        GROUP BY contact_id
+        GROUP BY contact_key
       ),
       cohort_data AS (
         SELECT
@@ -611,13 +662,13 @@ export class BlingOrdersRepository {
             (EXTRACT(YEAR FROM to_date(co.order_month, 'YYYY-MM')) - EXTRACT(YEAR FROM to_date(fp.cohort_month, 'YYYY-MM'))) * 12
             + EXTRACT(MONTH FROM to_date(co.order_month, 'YYYY-MM')) - EXTRACT(MONTH FROM to_date(fp.cohort_month, 'YYYY-MM'))
           )::int AS month_offset,
-          COUNT(DISTINCT co.contact_id) AS customer_count
+          COUNT(DISTINCT co.contact_key) AS customer_count
         FROM customer_orders co
-        JOIN first_purchase fp ON co.contact_id = fp.contact_id
+        JOIN first_purchase fp ON co.contact_key = fp.contact_key
         GROUP BY fp.cohort_month, co.order_month
       ),
       cohort_sizes AS (
-        SELECT cohort_month, COUNT(DISTINCT contact_id) AS cohort_size
+        SELECT cohort_month, COUNT(DISTINCT contact_key) AS cohort_size
         FROM first_purchase
         GROUP BY cohort_month
       )
@@ -715,24 +766,49 @@ export class BlingOrdersRepository {
     endDate: string,
     cohortMonth: string,
     monthOffset: number,
+    userId?: string,
   ) {
     const result = await db.execute(sql`
-      WITH first_purchase AS (
+      WITH scoped_orders AS (
         SELECT
-          contact_id,
+          COALESCE(
+            'app:' || bo.app_client_id::text,
+            'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.contact_id
+          ) AS contact_key,
+          bo.contact_id,
+          bo.contact_name,
+          bo.app_client_id,
+          bo.sale_date
+        FROM bling_orders bo
+        LEFT JOIN bling_seller_mappings bsm
+          ON bo.connection_id = bsm.connection_id
+         AND bo.seller_id = bsm.bling_vendedor_id
+        LEFT JOIN LATERAL (
+          SELECT id FROM users
+          WHERE bo.connection_id IS NULL
+            AND bling_vendedor_id = bo.seller_id
+          LIMIT 1
+        ) legacy_user ON true
+        WHERE bo.deleted_at IS NULL
+          AND bo.contact_id IS NOT NULL
+          AND bo.sale_date >= ${startDate}
+          AND bo.sale_date <= ${endDate}
+          ${userId ? sql`AND (bsm.user_id = ${userId} OR legacy_user.id = ${userId})` : sql``}
+      ),
+      first_purchase AS (
+        SELECT
+          contact_key,
+          MAX(contact_id) AS contact_id,
           MAX(contact_name) AS contact_name,
           MAX(app_client_id) AS app_client_id,
           MIN(to_char(sale_date::timestamp, 'YYYY-MM')) AS cohort_month
-        FROM ${blingOrders}
-        WHERE deleted_at IS NULL
-          AND contact_id IS NOT NULL
-          AND sale_date >= ${startDate}
-          AND sale_date <= ${endDate}
-        GROUP BY contact_id
+        FROM scoped_orders
+        GROUP BY contact_key
       ),
       target_month AS (
         SELECT
           fp.contact_id,
+          fp.contact_key,
           fp.contact_name,
           fp.app_client_id
         FROM first_purchase fp
@@ -740,15 +816,12 @@ export class BlingOrdersRepository {
       ),
       returning_clients AS (
         SELECT DISTINCT
+          bo.contact_key,
           bo.contact_id,
           bo.contact_name
-        FROM ${blingOrders} bo
-        JOIN first_purchase fp ON bo.contact_id = fp.contact_id
-        WHERE bo.deleted_at IS NULL
-          AND bo.contact_id IS NOT NULL
-          AND bo.sale_date >= ${startDate}
-          AND bo.sale_date <= ${endDate}
-          AND fp.cohort_month = ${cohortMonth}
+        FROM scoped_orders bo
+        JOIN first_purchase fp ON bo.contact_key = fp.contact_key
+        WHERE fp.cohort_month = ${cohortMonth}
           AND (
             (EXTRACT(YEAR FROM bo.sale_date::timestamp) - EXTRACT(YEAR FROM to_date(fp.cohort_month, 'YYYY-MM'))) * 12
             + EXTRACT(MONTH FROM bo.sale_date::timestamp) - EXTRACT(MONTH FROM to_date(fp.cohort_month, 'YYYY-MM'))
@@ -758,9 +831,9 @@ export class BlingOrdersRepository {
         tm.contact_id,
         tm.contact_name,
         tm.app_client_id,
-        CASE WHEN rc.contact_id IS NOT NULL THEN true ELSE false END AS retained
+        CASE WHEN rc.contact_key IS NOT NULL THEN true ELSE false END AS retained
       FROM target_month tm
-      LEFT JOIN returning_clients rc ON tm.contact_id = rc.contact_id
+      LEFT JOIN returning_clients rc ON tm.contact_key = rc.contact_key
       ORDER BY retained DESC, tm.contact_name
     `);
 

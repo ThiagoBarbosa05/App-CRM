@@ -44,7 +44,6 @@ import {
   EmptyState,
   pct,
   getGoalMetricTone,
-  namesMatch,
 } from "./shared";
 
 // ─── Bloco de Progresso da Meta ───────────────────────────────────────────────
@@ -71,9 +70,7 @@ function GoalProgressBlock({ userId, source = "all" }: { userId: string; source?
 
   const realSalesData = useMemo(() => {
     if (!goal || !topSellers.length) return null;
-    return (
-      topSellers.find((s) => namesMatch(s.sellerName, goal.userName)) ?? null
-    );
+    return topSellers.find((seller) => seller.sellerId === goal.userId) ?? null;
   }, [goal, topSellers]);
 
   if (!goal) {
@@ -547,7 +544,14 @@ export function IndividualSellerView({
   // Mesmo período no ano anterior — deve ser chamado antes dos early returns para não violar Rules of Hooks
   const lastYearStart = startDate ? startDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
   const lastYearEnd = endDate ? endDate.replace(/^(\d{4})/, (_, y) => String(parseInt(y) - 1)) : "";
-  const { data: lastYearComparison } = useUnifiedSalesComparison(lastYearStart, lastYearEnd, source);
+  const { data: lastYearComparison } = useUnifiedSalesComparison(
+    lastYearStart,
+    lastYearEnd,
+    source,
+    undefined,
+    undefined,
+    sellerId,
+  );
 
   if (isLoading) {
     return (

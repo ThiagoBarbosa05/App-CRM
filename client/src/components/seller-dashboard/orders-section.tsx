@@ -214,7 +214,7 @@ export function OrdersSection({
         endDate,
         contactType: "F",
         contactName: debouncedContact || undefined,
-        sellerId,
+        sellerUserId: lockedUserId ?? sellerId,
         minValue,
         maxValue,
       },

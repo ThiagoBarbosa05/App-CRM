@@ -45,7 +45,6 @@ import {
   SectionCard,
   EmptyState,
   pct,
-  namesMatch,
 } from "./shared";
 
 // ─── Progresso de metas de todos os vendedores (admin) ───────────────────────
@@ -80,8 +79,7 @@ function AllSellersGoalProgress({
     return goals
       .map((goal) => {
         const realData =
-          topSellers.find((s) => namesMatch(s.sellerName, goal.userName)) ??
-          null;
+          topSellers.find((seller) => seller.sellerId === goal.userId) ?? null;
 
         // Dados manuais (vendas fora do Bling, somam ao Bling)
         const allResults = goal.weeklyResults ?? [];

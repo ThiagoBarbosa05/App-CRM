@@ -88,6 +88,7 @@ function CohortAnalysisContent({
       isFetching={isFetching}
       startDate={startDate}
       endDate={endDate}
+      userId={userId}
     />
   );
 }

@@ -238,7 +238,6 @@ async function resolveScopedClientIds(
 
 export async function getSellerDashboard(
   userId: string,
-  blingVendedorId: string | null,
   startDate?: string,
   endDate?: string,
   scope?: ClientAnalyticsScope,
@@ -291,53 +290,30 @@ export async function getSellerDashboard(
     portfolioStats,
     winePriceTier,
   ] = await Promise.all([
-    (blingVendedorId
-      ? fetchTopClientsByTotal(
-          userId,
-          blingVendedorId,
-          currentStart,
-          currentEnd,
-          scopedClientIds,
-        )
-      : fetchTopClientsByTotalForSeller(
-          userId,
-          currentStart,
-          currentEnd,
-          scopedClientIds,
-        )).catch((e) => {
+    fetchTopClientsByTotal(
+      userId,
+      currentStart,
+      currentEnd,
+      scopedClientIds,
+    ).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByTotal:", e);
       return [] as TopClientRow[];
     }),
-    (blingVendedorId
-      ? fetchTopClientsByAvgTicket(
-          userId,
-          blingVendedorId,
-          currentStart,
-          currentEnd,
-          scopedClientIds,
-        )
-      : fetchTopClientsByAvgTicketForSeller(
-          userId,
-          currentStart,
-          currentEnd,
-          scopedClientIds,
-        )).catch((e) => {
+    fetchTopClientsByAvgTicket(
+      userId,
+      currentStart,
+      currentEnd,
+      scopedClientIds,
+    ).catch((e) => {
       console.error("[seller-dashboard] fetchTopClientsByAvgTicket:", e);
       return [] as TopClientRow[];
     }),
-    (blingVendedorId
-      ? fetchTopItemValue(
-          blingVendedorId,
-          currentStart,
-          currentEnd,
-          scopedClientIds,
-        )
-      : fetchTopItemValueForSeller(
-          userId,
-          currentStart,
-          currentEnd,
-          scopedClientIds,
-        )).catch((e) => {
+    fetchTopItemValue(
+      userId,
+      currentStart,
+      currentEnd,
+      scopedClientIds,
+    ).catch((e) => {
       console.error("[seller-dashboard] fetchTopItemValue:", e);
       return [] as TopItemValueRow[];
     }),
@@ -349,23 +325,23 @@ export async function getSellerDashboard(
       console.error("[seller-dashboard] fetchNewClientsThisMonth:", e);
       return [] as NewClientRow[];
     }),
-    fetchMonthlySummary(blingVendedorId, userId, currentStart, currentEnd).catch(
+    fetchMonthlySummary(userId, currentStart, currentEnd).catch(
       (e) => {
         console.error("[seller-dashboard] fetchMonthlySummary:", e);
         return EMPTY_SUMMARY;
       },
     ),
-    fetchMonthlySummary(blingVendedorId, userId, prevStart, prevEnd).catch((e) => {
+    fetchMonthlySummary(userId, prevStart, prevEnd).catch((e) => {
       console.error("[seller-dashboard] fetchPrevMonthSummary:", e);
       return EMPTY_SUMMARY;
     }),
-    fetchSalesEvolution(blingVendedorId, userId, currentStart, currentEnd).catch(
+    fetchSalesEvolution(userId, currentStart, currentEnd).catch(
       (e) => {
         console.error("[seller-dashboard] fetchSalesEvolution:", e);
         return [] as SalesEvolutionPoint[];
       },
     ),
-    fetchTopProducts(blingVendedorId, currentStart, currentEnd).catch((e) => {
+    fetchTopProducts(userId, currentStart, currentEnd).catch((e) => {
       console.error("[seller-dashboard] fetchTopProducts:", e);
       return [] as TopProductRow[];
     }),
@@ -373,9 +349,8 @@ export async function getSellerDashboard(
       console.error("[seller-dashboard] fetchClientPortfolioStats:", e);
       return EMPTY_PORTFOLIO;
     }),
-    blingVendedorId
-      ? fetchSingleSellerWinePriceTier(
-          blingVendedorId,
+    fetchSingleSellerWinePriceTier(
+          userId,
           currentStart,
           currentEnd,
           winePriceTierThresholds.lowThreshold,
@@ -386,8 +361,7 @@ export async function getSellerDashboard(
             e,
           );
           return null;
-        })
-      : Promise.resolve(null),
+        }),
   ]);
 
   return {
@@ -410,14 +384,12 @@ export async function getSellerDashboard(
 
 async function fetchTopClientsByTotal(
   userId: string,
-  blingVendedorId: string | null,
   startDate: string,
   endDate: string,
   clientIds?: string[] | null,
 ): Promise<TopClientRow[]> {
   return buildBlingAggQuery(
     userId,
-    blingVendedorId,
     "total_value",
     startDate,
     endDate,
@@ -429,14 +401,12 @@ async function fetchTopClientsByTotal(
 
 async function fetchTopClientsByAvgTicket(
   userId: string,
-  blingVendedorId: string | null,
   startDate: string,
   endDate: string,
   clientIds?: string[] | null,
 ): Promise<TopClientRow[]> {
   return buildBlingAggQuery(
     userId,
-    blingVendedorId,
     "avg_ticket",
     startDate,
     endDate,
@@ -447,14 +417,12 @@ async function fetchTopClientsByAvgTicket(
 // ─── Query base de agregação Bling only ──────────────────────────────────────
 
 async function buildBlingAggQuery(
-  _userId: string,
-  blingVendedorId: string | null,
+  userId: string,
   sort: "total_value" | "avg_ticket",
   startDate: string,
   endDate: string,
   clientIds?: string[] | null,
 ): Promise<TopClientRow[]> {
-  if (!blingVendedorId) return [];
   if (clientIds && clientIds.length === 0) return [];
 
   type Row = {
@@ -478,8 +446,17 @@ async function buildBlingAggQuery(
       SUM(bo.total_value::numeric)::text                AS total_value,
       AVG(bo.total_value::numeric)::text                AS avg_ticket
     FROM bling_orders bo
+    LEFT JOIN bling_seller_mappings bsm
+      ON bo.connection_id = bsm.connection_id
+     AND bo.seller_id = bsm.bling_vendedor_id
+    LEFT JOIN LATERAL (
+      SELECT id FROM users
+      WHERE bo.connection_id IS NULL
+        AND bling_vendedor_id = bo.seller_id
+      LIMIT 1
+    ) legacy_user ON true
     LEFT JOIN clients c ON c.id = bo.app_client_id
-    WHERE bo.seller_id = ${blingVendedorId}
+    WHERE (bsm.user_id = ${userId} OR legacy_user.id = ${userId})
       AND bo.deleted_at IS NULL
       AND bo.situation_id = '9'
       AND bo.app_client_id IS NOT NULL
@@ -503,12 +480,11 @@ async function buildBlingAggQuery(
 // ─── Top Clientes por valor médio de item ────────────────────────────────────
 
 async function fetchTopItemValue(
-  blingVendedorId: string | null,
+  userId: string,
   startDate: string,
   endDate: string,
   clientIds?: string[] | null,
 ): Promise<TopItemValueRow[]> {
-  if (!blingVendedorId) return [];
   if (clientIds && clientIds.length === 0) return [];
 
   const result = await db.execute<{
@@ -524,8 +500,17 @@ async function fetchTopItemValue(
       COUNT(boi.id)::int                            AS item_count
     FROM bling_orders bo
     JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN bling_seller_mappings bsm
+      ON bo.connection_id = bsm.connection_id
+     AND bo.seller_id = bsm.bling_vendedor_id
+    LEFT JOIN LATERAL (
+      SELECT id FROM users
+      WHERE bo.connection_id IS NULL
+        AND bling_vendedor_id = bo.seller_id
+      LIMIT 1
+    ) legacy_user ON true
     LEFT JOIN clients c ON c.id = bo.app_client_id
-    WHERE bo.seller_id = ${blingVendedorId}
+    WHERE (bsm.user_id = ${userId} OR legacy_user.id = ${userId})
       AND bo.deleted_at IS NULL
       AND bo.situation_id = '9'
       AND bo.app_client_id IS NOT NULL
@@ -772,7 +757,6 @@ async function fetchNewClientsThisMonth(
 // ─── Resumo mensal (Bling only) ───────────────────────────────────────────────
 
 async function fetchMonthlySummary(
-  blingVendedorId: string | null,
   userId: string,
   startDate: string,
   endDate: string,
@@ -782,8 +766,7 @@ async function fetchMonthlySummary(
   const year = refDate.getFullYear();
 
   const [blingResult, connectResult, manualResult] = await Promise.all([
-    blingVendedorId
-      ? db.execute<{
+    db.execute<{
           total_orders: unknown;
           total_value: string | null;
           unique_clients: unknown;
@@ -800,13 +783,21 @@ async function fetchMonthlySummary(
             )::text                                                                 AS avg_item_value
           FROM bling_orders bo
           LEFT JOIN bling_order_items boi ON boi.order_id = bo.id
-          WHERE bo.seller_id = ${blingVendedorId}
+          LEFT JOIN bling_seller_mappings bsm
+            ON bo.connection_id = bsm.connection_id
+           AND bo.seller_id = bsm.bling_vendedor_id
+          LEFT JOIN LATERAL (
+            SELECT id FROM users
+            WHERE bo.connection_id IS NULL
+              AND bling_vendedor_id = bo.seller_id
+            LIMIT 1
+          ) legacy_user ON true
+          WHERE (bsm.user_id = ${userId} OR legacy_user.id = ${userId})
             AND bo.deleted_at IS NULL
             AND bo.situation_id = '9'
             AND bo.sale_date >= ${startDate}
             AND bo.sale_date <= ${endDate}
-        `)
-      : Promise.resolve({ rows: [] as any[] }),
+        `),
     db.execute<{
       total_orders: unknown;
       total_value: string | null;
@@ -877,7 +868,6 @@ async function fetchMonthlySummary(
 // ─── Evolução de vendas diária (Bling only) ───────────────────────────────────
 
 async function fetchSalesEvolution(
-  blingVendedorId: string | null,
   userId: string,
   startDate: string,
   endDate: string,
@@ -892,22 +882,29 @@ async function fetchSalesEvolution(
       SUM(total_orders)::int                         AS total_orders,
       COALESCE(SUM(total_value), 0)::text            AS total_value
     FROM (
-      ${blingVendedorId
-        ? sql`
+      ${sql`
           SELECT
-            sale_date::text                              AS date,
-            COUNT(*)                                     AS total_orders,
-            COALESCE(SUM(total_value::numeric), 0)       AS total_value
-          FROM bling_orders
-          WHERE seller_id = ${blingVendedorId}
-            AND deleted_at IS NULL
-            AND situation_id = '9'
-            AND sale_date >= ${startDate}
-            AND sale_date <= ${endDate}
-          GROUP BY sale_date
+            bo.sale_date::text                              AS date,
+            COUNT(*)                                        AS total_orders,
+            COALESCE(SUM(bo.total_value::numeric), 0)       AS total_value
+          FROM bling_orders bo
+          LEFT JOIN bling_seller_mappings bsm
+            ON bo.connection_id = bsm.connection_id
+           AND bo.seller_id = bsm.bling_vendedor_id
+          LEFT JOIN LATERAL (
+            SELECT id FROM users
+            WHERE bo.connection_id IS NULL
+              AND bling_vendedor_id = bo.seller_id
+            LIMIT 1
+          ) legacy_user ON true
+          WHERE (bsm.user_id = ${userId} OR legacy_user.id = ${userId})
+            AND bo.deleted_at IS NULL
+            AND bo.situation_id = '9'
+            AND bo.sale_date >= ${startDate}
+            AND bo.sale_date <= ${endDate}
+          GROUP BY bo.sale_date
           UNION ALL
-        `
-        : sql``}
+        `}
       SELECT
         sale_date::date::text                          AS date,
         COUNT(*)                                       AS total_orders,
@@ -1577,20 +1574,29 @@ async function fetchSellerRanking(
       (SUM(total_value) / NULLIF(SUM(total_orders), 0))::text        AS avg_ticket
     FROM (
       SELECT
-        COALESCE(u.id, bo.seller_id)                AS seller_id,
-        COALESCE(u.name, bo.seller_name)             AS seller_name,
+        COALESCE(bsm.user_id, legacy_user.id, 'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.seller_id) AS seller_id,
+        COALESCE(mapped_user.name, legacy_user.name, bo.seller_name) AS seller_name,
         COUNT(*)                                     AS total_orders,
         SUM(bo.total_value::numeric)                 AS total_value
       FROM bling_orders bo
+      LEFT JOIN bling_seller_mappings bsm
+        ON bo.connection_id = bsm.connection_id
+       AND bo.seller_id = bsm.bling_vendedor_id
+      LEFT JOIN users mapped_user ON mapped_user.id = bsm.user_id
       LEFT JOIN LATERAL (
-        SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
-      ) u ON true
+        SELECT id, name FROM users
+        WHERE bo.connection_id IS NULL
+          AND bling_vendedor_id = bo.seller_id
+        LIMIT 1
+      ) legacy_user ON true
       WHERE bo.deleted_at IS NULL
         AND bo.situation_id = '9'
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.seller_id IS NOT NULL
-      GROUP BY COALESCE(u.id, bo.seller_id), COALESCE(u.name, bo.seller_name)
+      GROUP BY
+        COALESCE(bsm.user_id, legacy_user.id, 'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.seller_id),
+        COALESCE(mapped_user.name, legacy_user.name, bo.seller_name)
       UNION ALL
       SELECT
         co.seller_id,
@@ -1618,7 +1624,7 @@ async function fetchSellerRanking(
 }
 
 async function fetchSingleSellerWinePriceTier(
-  blingVendedorId: string,
+  userId: string,
   startDate: string,
   endDate: string,
   lowThreshold: number,
@@ -1636,8 +1642,8 @@ async function fetchSingleSellerWinePriceTier(
     total_value: string | null;
   }>(sql`
     SELECT
-      bo.seller_id                                                                                                                                                       AS seller_id,
-      MAX(COALESCE(u.name, bo.seller_name))                                                                                                                             AS seller_name,
+      COALESCE(bsm.user_id, legacy_user.id)                                                                                                                             AS seller_id,
+      MAX(COALESCE(mapped_user.name, legacy_user.name, bo.seller_name))                                                                                                 AS seller_name,
       COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text                                AS economico_value,
       COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text                                                     AS economico_qty,
       COALESCE(SUM(CASE WHEN boi.value::numeric > ${lowThreshold} AND boi.value::numeric <= ${midThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text AS intermediario_value,
@@ -1647,15 +1653,22 @@ async function fetchSingleSellerWinePriceTier(
       COALESCE(SUM(boi.value::numeric * boi.quantity::numeric), 0)::text                                                                                               AS total_value
     FROM bling_orders bo
     JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN bling_seller_mappings bsm
+      ON bo.connection_id = bsm.connection_id
+     AND bo.seller_id = bsm.bling_vendedor_id
+    LEFT JOIN users mapped_user ON mapped_user.id = bsm.user_id
     LEFT JOIN LATERAL (
-      SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
-    ) u ON true
+      SELECT id, name FROM users
+      WHERE bo.connection_id IS NULL
+        AND bling_vendedor_id = bo.seller_id
+      LIMIT 1
+    ) legacy_user ON true
     WHERE bo.deleted_at IS NULL
       AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
-      AND bo.seller_id = ${blingVendedorId}
-    GROUP BY bo.seller_id
+      AND (bsm.user_id = ${userId} OR legacy_user.id = ${userId})
+    GROUP BY COALESCE(bsm.user_id, legacy_user.id)
   `);
 
   const r = result.rows[0];
@@ -1706,8 +1719,8 @@ async function fetchSellerWinePriceTierStats(
     total_value: string | null;
   }>(sql`
     SELECT
-      COALESCE(u.id, bo.seller_id)                                                                                AS seller_id,
-      MAX(COALESCE(u.name, bo.seller_name))                                                                       AS seller_name,
+      COALESCE(bsm.user_id, legacy_user.id, 'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.seller_id) AS seller_id,
+      MAX(COALESCE(mapped_user.name, legacy_user.name, bo.seller_name))                                            AS seller_name,
       COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text  AS economico_value,
       COALESCE(SUM(CASE WHEN boi.value::numeric <= ${lowThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text                       AS economico_qty,
       COALESCE(SUM(CASE WHEN boi.value::numeric > ${lowThreshold} AND boi.value::numeric <= ${midThreshold} THEN boi.value::numeric * boi.quantity::numeric ELSE 0 END), 0)::text  AS intermediario_value,
@@ -1717,15 +1730,22 @@ async function fetchSellerWinePriceTierStats(
       COALESCE(SUM(boi.value::numeric * boi.quantity::numeric), 0)::text                                          AS total_value
     FROM bling_orders bo
     JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN bling_seller_mappings bsm
+      ON bo.connection_id = bsm.connection_id
+     AND bo.seller_id = bsm.bling_vendedor_id
+    LEFT JOIN users mapped_user ON mapped_user.id = bsm.user_id
     LEFT JOIN LATERAL (
-      SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
-    ) u ON true
+      SELECT id, name FROM users
+      WHERE bo.connection_id IS NULL
+        AND bling_vendedor_id = bo.seller_id
+      LIMIT 1
+    ) legacy_user ON true
     WHERE bo.deleted_at IS NULL
       AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
       AND bo.seller_id IS NOT NULL
-    GROUP BY COALESCE(u.id, bo.seller_id)
+    GROUP BY COALESCE(bsm.user_id, legacy_user.id, 'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.seller_id)
     ORDER BY SUM(boi.value::numeric * boi.quantity::numeric) DESC
   `);
 
@@ -1790,14 +1810,20 @@ export async function getSellerTierCounts(
       COALESCE(SUM(CASE WHEN boi.value::numeric > ${midThreshold} THEN boi.quantity::numeric ELSE 0 END), 0)::text AS premium_qty
     FROM bling_orders bo
     JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN bling_seller_mappings bsm
+      ON bo.connection_id = bsm.connection_id
+     AND bo.seller_id = bsm.bling_vendedor_id
     LEFT JOIN LATERAL (
-      SELECT id FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
-    ) u ON true
+      SELECT id FROM users
+      WHERE bo.connection_id IS NULL
+        AND bling_vendedor_id = bo.seller_id
+      LIMIT 1
+    ) legacy_user ON true
     WHERE bo.deleted_at IS NULL
       AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
-      AND COALESCE(u.id, bo.seller_id) = ${userId}
+      AND (bsm.user_id = ${userId} OR legacy_user.id = ${userId})
   `);
 
   const row = result.rows[0];
@@ -1840,15 +1866,21 @@ export async function getWinePriceTierItems(
       (boi.value::numeric * boi.quantity::numeric)::text     AS total_value
     FROM bling_orders bo
     JOIN bling_order_items boi ON boi.order_id = bo.id
+    LEFT JOIN bling_seller_mappings bsm
+      ON bo.connection_id = bsm.connection_id
+     AND bo.seller_id = bsm.bling_vendedor_id
     LEFT JOIN LATERAL (
-      SELECT id, name FROM users WHERE bling_vendedor_id = bo.seller_id LIMIT 1
-    ) u ON true
+      SELECT id FROM users
+      WHERE bo.connection_id IS NULL
+        AND bling_vendedor_id = bo.seller_id
+      LIMIT 1
+    ) legacy_user ON true
     LEFT JOIN clients c ON c.id = bo.app_client_id
     WHERE bo.deleted_at IS NULL
       AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
       AND bo.sale_date <= ${endDate}
-      AND COALESCE(u.id, bo.seller_id) = ${sellerId}
+      AND (bsm.user_id = ${sellerId} OR legacy_user.id = ${sellerId})
       AND ${tierCondition}
     ORDER BY bo.sale_date DESC, total_value DESC
   `);
@@ -1866,12 +1898,10 @@ export async function getWinePriceTierItems(
 // ─── Top produtos do mês (Bling only) ────────────────────────────────────────
 
 async function fetchTopProducts(
-  blingVendedorId: string | null,
+  userId: string,
   startDate: string,
   endDate: string,
 ): Promise<TopProductRow[]> {
-  if (!blingVendedorId) return [];
-
   const result = await db.execute<{
     product_code: string | null;
     description: string | null;
@@ -1887,7 +1917,16 @@ async function fetchTopProducts(
       COUNT(DISTINCT bo.id)::int                             AS order_count
     FROM bling_orders bo
     JOIN bling_order_items boi ON boi.order_id = bo.id
-    WHERE bo.seller_id = ${blingVendedorId}
+    LEFT JOIN bling_seller_mappings bsm
+      ON bo.connection_id = bsm.connection_id
+     AND bo.seller_id = bsm.bling_vendedor_id
+    LEFT JOIN LATERAL (
+      SELECT id FROM users
+      WHERE bo.connection_id IS NULL
+        AND bling_vendedor_id = bo.seller_id
+      LIMIT 1
+    ) legacy_user ON true
+    WHERE (bsm.user_id = ${userId} OR legacy_user.id = ${userId})
       AND bo.deleted_at IS NULL
       AND bo.situation_id = '9'
       AND bo.sale_date >= ${startDate}
