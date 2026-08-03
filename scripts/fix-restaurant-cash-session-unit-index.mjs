@@ -30,12 +30,18 @@ const sql = neon(url);
 
 console.log("\nDiagnóstico — caixas abertos simultâneos na mesma unidade\n");
 
-const conflicts = await sql`
-  SELECT COALESCE(unit_id::text, '-') AS unit_id, COUNT(*) AS n
-  FROM restaurant_cash_sessions
-  WHERE status = 'aberto'
-  GROUP BY COALESCE(unit_id::text, '-')
-  HAVING COUNT(*) > 1
+// Alguns endpoints compatíveis com a API HTTP do Neon devolvem `fields: null`
+// para SELECTs sem linhas. O driver espera um array e falha em `fields.map()`.
+// A agregação garante uma linha mesmo quando não existem conflitos.
+const [{ conflicts }] = await sql`
+  SELECT COALESCE(json_agg(conflict ORDER BY conflict.unit_id), '[]'::json) AS conflicts
+  FROM (
+    SELECT COALESCE(unit_id::text, '-') AS unit_id, COUNT(*) AS n
+    FROM restaurant_cash_sessions
+    WHERE status = 'aberto'
+    GROUP BY COALESCE(unit_id::text, '-')
+    HAVING COUNT(*) > 1
+  ) AS conflict
 `;
 
 if (conflicts.length > 0) {
@@ -67,14 +73,17 @@ console.log("Índice único — um caixa aberto por UNIDADE\n");
 // nome mudou entre elas sem sincronizar o Drizzle — mesmo padrão usado em
 // scripts/create-restaurant-pdv-constraints.mjs. Remove qualquer índice único
 // parcial "aberto" que não seja o canônico que estamos criando agora.
-const staleSessionIndexes = await sql`
-  SELECT indexname, indexdef
-  FROM pg_indexes
-  WHERE schemaname = 'public'
-    AND tablename = 'restaurant_cash_sessions'
-    AND indexdef LIKE '%UNIQUE%'
-    AND indexdef LIKE '%aberto%'
-    AND indexname <> 'restaurant_cash_sessions_one_open_per_unit'
+const [{ indexes: staleSessionIndexes }] = await sql`
+  SELECT COALESCE(json_agg(candidate ORDER BY candidate.indexname), '[]'::json) AS indexes
+  FROM (
+    SELECT indexname, indexdef
+    FROM pg_indexes
+    WHERE schemaname = 'public'
+      AND tablename = 'restaurant_cash_sessions'
+      AND indexdef LIKE '%UNIQUE%'
+      AND indexdef LIKE '%aberto%'
+      AND indexname <> 'restaurant_cash_sessions_one_open_per_unit'
+  ) AS candidate
 `;
 
 for (const idx of staleSessionIndexes) {
