@@ -1320,6 +1320,10 @@ interface BlingCreateContatoResponse {
 export interface GetBlingContatosParams {
   telefone?: string;
   numeroDocumento?: string;
+  /** Busca textual livre do Bling (nome, código, documento). */
+  pesquisa?: string;
+  /** Padrão do Bling é 100; usar menos quando é para alimentar um combobox. */
+  limite?: number;
 }
 
 function normalizeBlingContatoPhoneQuery(phone: string): string {
@@ -1515,6 +1519,14 @@ export async function getBlingContatos(
     queryParams.numeroDocumento = normalizeBlingContatoDocumentQuery(
       params.numeroDocumento,
     );
+  }
+
+  if (params.pesquisa?.trim()) {
+    queryParams.pesquisa = params.pesquisa.trim();
+  }
+
+  if (params.limite) {
+    queryParams.limite = String(params.limite);
   }
 
   let response = await fetchBlingApi(token, "/contatos", queryParams);

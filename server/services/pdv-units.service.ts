@@ -2,14 +2,15 @@ import { db } from "../db";
 import {
   pdvUnits,
   blingConnections,
-  blingContactMappings,
   blingProductMappings,
   blingSellerMappings,
-  clients,
   users,
 } from "../../shared/schema";
-import { and, eq, ilike, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PdvUnit, InsertPdvUnit } from "../../shared/schema";
+import { getBlingContatos } from "../integrations/bling";
+import { blingConnectionsService } from "./bling-connections.service";
+import { decryptToken } from "../lib/token-crypto";
 
 /** Usuário local elegível a ser o vendedor padrão da unidade para uma conexão Bling. */
 export type EligibleSeller = {
@@ -20,11 +21,12 @@ export type EligibleSeller = {
   blingVendedorName: string | null;
 };
 
-/** Cliente elegível a ser o "Consumidor Final" da unidade numa conexão Bling. */
-export type EligibleClient = {
+/** Contato do Bling candidato a "Consumidor Final" da unidade. */
+export type BlingContactOption = {
+  /** `bling_contact_id` — id do contato na conta Bling, como texto. */
   id: string;
-  name: string;
-  blingContactId: string;
+  nome: string;
+  numeroDocumento: string | null;
 };
 
 /** Unidade + qual conta Bling ela usa e quantos produtos do CRM estão nesse catálogo. */
@@ -121,52 +123,50 @@ export const pdvUnitsService = {
   },
 
   /**
-   * Clientes já mapeados como contato Bling para a conexão informada —
-   * candidatos a "Consumidor Final" da unidade.
+   * Busca contatos direto na conta Bling da conexão — candidatos a
+   * "Consumidor Final" da unidade.
    *
-   * Busca server-side com limite, e não a lista inteira: são milhares de
-   * contatos mapeados, e um dropdown com tudo seria inutilizável.
+   * Vai à API em vez de procurar em `bling_contact_mappings` porque o
+   * Consumidor Final normalmente NÃO é um cliente do CRM: é um contato
+   * genérico que existe só no Bling e nunca foi importado. Procurar no espelho
+   * local simplesmente não o encontraria.
    */
-  async listEligibleClients(
+  async searchBlingContacts(
     connectionId: string,
-    search?: string,
+    search: string,
     limit = 20,
-  ): Promise<EligibleClient[]> {
-    const term = search?.trim();
+  ): Promise<BlingContactOption[]> {
+    const term = search.trim();
+    if (!term) return [];
 
-    return db
-      .select({
-        id: clients.id,
-        name: clients.name,
-        blingContactId: blingContactMappings.blingContactId,
-      })
-      .from(blingContactMappings)
-      .innerJoin(clients, eq(clients.id, blingContactMappings.clientId))
-      .where(
-        and(
-          eq(blingContactMappings.connectionId, connectionId),
-          ...(term ? [ilike(clients.name, `%${term}%`)] : []),
-        ),
-      )
-      .orderBy(clients.name)
-      .limit(limit);
-  },
+    const connection = await blingConnectionsService.getById(connectionId);
+    if (!connection?.accessTokenEncrypted) {
+      throw Object.assign(new Error("Conta Bling sem token de acesso"), {
+        code: "NO_BLING_TOKEN",
+      });
+    }
 
-  /** `true` se o cliente tem contato Bling naquela conexão. */
-  async isClientMappedToConnection(
-    connectionId: string,
-    clientId: string,
-  ): Promise<boolean> {
-    const [row] = await db
-      .select({ id: blingContactMappings.id })
-      .from(blingContactMappings)
-      .where(
-        and(
-          eq(blingContactMappings.connectionId, connectionId),
-          eq(blingContactMappings.clientId, clientId),
-        ),
-      )
-      .limit(1);
-    return !!row;
+    let accessToken = decryptToken(connection.accessTokenEncrypted);
+    const onTokenRefresh = async (): Promise<string> => {
+      await blingConnectionsService.refreshConnection(connectionId);
+      const refreshed = await blingConnectionsService.getById(connectionId);
+      if (!refreshed?.accessTokenEncrypted) {
+        throw new Error("Não foi possível renovar o token do Bling");
+      }
+      accessToken = decryptToken(refreshed.accessTokenEncrypted);
+      return accessToken;
+    };
+
+    const contatos = await getBlingContatos(
+      accessToken,
+      { pesquisa: term, limite: limit },
+      onTokenRefresh,
+    );
+
+    return contatos.map((c) => ({
+      id: String(c.id),
+      nome: c.nome ?? "(sem nome)",
+      numeroDocumento: c.numeroDocumento,
+    }));
   },
 };

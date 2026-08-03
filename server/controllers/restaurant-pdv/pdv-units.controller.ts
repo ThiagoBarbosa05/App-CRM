@@ -16,10 +16,12 @@ const createUnitSchema = z.object({
   blingConnectionId: z.string().optional().nullable(),
   // null = sem vendedor padrão.
   defaultSellerId: z.string().optional().nullable(),
-  // Consumidor Final: contato usado no pedido de venda quando a comanda fecha
-  // sem cliente vinculado. Sem ele, TODO pedido da unidade é bloqueado antes
-  // de chegar ao Bling.
-  defaultClientId: z.string().optional().nullable(),
+  // Consumidor Final: contato do Bling usado no pedido de venda quando a
+  // comanda fecha sem cliente vinculado. Sem ele, TODO pedido da unidade é
+  // bloqueado antes de chegar ao Bling. É o id do contato NA CONTA BLING —
+  // vem da busca em /contatos?pesquisa=, não da base local de clientes.
+  defaultBlingContactId: z.string().optional().nullable(),
+  defaultBlingContactName: z.string().optional().nullable(),
   defaultServiceFeePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   waiterCommissionPercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
 });
@@ -62,21 +64,16 @@ async function validateDefaultSeller(
 }
 
 /**
- * Mesmo princípio do vendedor padrão: um contato que não existe na conta Bling
- * da unidade só trocaria a mensagem de bloqueio por outra, mais obscura, na
- * hora de emitir o pedido.
+ * O contato vem da busca na própria conta Bling da unidade, então não há o que
+ * revalidar contra o banco — só faz sentido ter contato se houver conexão.
  */
-async function validateDefaultClient(
+function validateDefaultBlingContact(
   connectionId: string | null | undefined,
-  clientId: string | null | undefined,
-): Promise<string | null> {
-  if (!clientId) return null;
+  blingContactId: string | null | undefined,
+): string | null {
+  if (!blingContactId) return null;
   if (!connectionId) {
     return "Selecione uma conta Bling antes de escolher o Consumidor Final";
-  }
-  const mapped = await pdvUnitsService.isClientMappedToConnection(connectionId, clientId);
-  if (!mapped) {
-    return "Cliente selecionado não está mapeado para a conta Bling desta unidade";
   }
   return null;
 }
@@ -108,12 +105,12 @@ export const createPdvUnitController = async (req: Request, res: Response) => {
     if (sellerError) {
       return res.status(400).json({ message: sellerError });
     }
-    const clientError = await validateDefaultClient(
+    const contactError = validateDefaultBlingContact(
       parsed.data.blingConnectionId,
-      parsed.data.defaultClientId,
+      parsed.data.defaultBlingContactId,
     );
-    if (clientError) {
-      return res.status(400).json({ message: clientError });
+    if (contactError) {
+      return res.status(400).json({ message: contactError });
     }
     const unit = await pdvUnitsService.createUnit({
       name: parsed.data.name,
@@ -123,7 +120,8 @@ export const createPdvUnitController = async (req: Request, res: Response) => {
       footerMessage: parsed.data.footerMessage ?? null,
       blingConnectionId: parsed.data.blingConnectionId ?? null,
       defaultSellerId: parsed.data.defaultSellerId ?? null,
-      defaultClientId: parsed.data.defaultClientId ?? null,
+      defaultBlingContactId: parsed.data.defaultBlingContactId ?? null,
+      defaultBlingContactName: parsed.data.defaultBlingContactName ?? null,
       defaultServiceFeePercent: parsed.data.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: parsed.data.waiterCommissionPercent ?? "0.00",
       isActive: true,
@@ -150,7 +148,7 @@ export const updatePdvUnitController = async (req: Request, res: Response) => {
     let effectiveConnectionId = parsed.data.blingConnectionId;
     if (
       effectiveConnectionId === undefined &&
-      (parsed.data.defaultSellerId || parsed.data.defaultClientId)
+      (parsed.data.defaultSellerId || parsed.data.defaultBlingContactId)
     ) {
       const current = await pdvUnitsService.getUnit(req.params.id);
       effectiveConnectionId = current?.blingConnectionId ?? null;
@@ -159,12 +157,12 @@ export const updatePdvUnitController = async (req: Request, res: Response) => {
     if (sellerError) {
       return res.status(400).json({ message: sellerError });
     }
-    const clientError = await validateDefaultClient(
+    const contactError = validateDefaultBlingContact(
       effectiveConnectionId,
-      parsed.data.defaultClientId,
+      parsed.data.defaultBlingContactId,
     );
-    if (clientError) {
-      return res.status(400).json({ message: clientError });
+    if (contactError) {
+      return res.status(400).json({ message: contactError });
     }
     const unit = await pdvUnitsService.updateUnit(req.params.id, parsed.data);
     if (!unit) return res.status(404).json({ message: "Unidade não encontrada" });
@@ -199,19 +197,35 @@ export const listEligibleSellersController = async (req: Request, res: Response)
   }
 };
 
-export const listEligibleClientsController = async (req: Request, res: Response) => {
+/**
+ * Busca contatos na conta Bling da conexão (`GET /contatos?pesquisa=`).
+ *
+ * Vai à API e não ao espelho local porque o Consumidor Final costuma ser um
+ * contato genérico que só existe no Bling e nunca foi importado para o CRM.
+ */
+export const searchBlingContactsController = async (req: Request, res: Response) => {
   try {
-    const { connectionId, q } = req.query as { connectionId?: string; q?: string };
-    if (!connectionId) {
+    const { connectionId, pesquisa } = req.query as {
+      connectionId?: string;
+      pesquisa?: string;
+    };
+    if (!connectionId || !pesquisa?.trim()) {
       return res.json([]);
     }
-    // Limite fixo: a base tem milhares de contatos mapeados, então a lista é
-    // sempre um recorte de busca, nunca o catálogo inteiro.
-    const clients = await pdvUnitsService.listEligibleClients(connectionId, q, 20);
-    return res.json(clients);
-  } catch (err) {
-    console.error("Erro ao listar clientes elegíveis:", err);
-    return res.status(500).json({ message: "Erro ao listar clientes elegíveis" });
+    const contatos = await pdvUnitsService.searchBlingContacts(
+      connectionId,
+      pesquisa,
+      20,
+    );
+    return res.json(contatos);
+  } catch (err: any) {
+    if (err?.code === "NO_BLING_TOKEN") {
+      return res.status(409).json({ message: err.message });
+    }
+    console.error("Erro ao buscar contatos no Bling:", err);
+    return res.status(502).json({
+      message: "Não foi possível buscar contatos no Bling. Verifique a conexão.",
+    });
   }
 };
 

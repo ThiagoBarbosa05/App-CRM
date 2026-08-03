@@ -11,8 +11,7 @@ const {
   getConnectionMock,
   getUnitMock,
   listEligibleSellersMock,
-  isClientMappedMock,
-  listEligibleClientsMock,
+  searchBlingContactsMock,
 } = vi.hoisted(() => ({
   createUnitMock: vi.fn(),
   updateUnitMock: vi.fn(),
@@ -20,8 +19,7 @@ const {
   getConnectionMock: vi.fn(),
   getUnitMock: vi.fn(),
   listEligibleSellersMock: vi.fn(),
-  isClientMappedMock: vi.fn(),
-  listEligibleClientsMock: vi.fn(),
+  searchBlingContactsMock: vi.fn(),
 }));
 
 vi.mock("../../services/pdv-units.service", () => ({
@@ -33,8 +31,7 @@ vi.mock("../../services/pdv-units.service", () => ({
     getUnit: getUnitMock,
     deactivateUnit: vi.fn(),
     listEligibleSellers: listEligibleSellersMock,
-    listEligibleClients: listEligibleClientsMock,
-    isClientMappedToConnection: isClientMappedMock,
+    searchBlingContacts: searchBlingContactsMock,
   },
 }));
 
@@ -161,41 +158,80 @@ describe("POST /restaurant-pdv/units", () => {
 
   /**
    * O Consumidor Final é o que destrava o pedido de venda: sem ele toda comanda
-   * fechada é bloqueada. Um contato que não existe na conta Bling da unidade só
-   * trocaria a mensagem de bloqueio por outra, mais obscura.
+   * fechada é bloqueada. O contato vem da busca na própria conta Bling, então o
+   * que se guarda é o id de lá — não um cliente do CRM.
    */
-  it("persiste o defaultClientId quando o cliente está mapeado para a conexão", async () => {
-    isClientMappedMock.mockResolvedValue(true);
-
-    const response = await request(appAs("admin"))
-      .post("/restaurant-pdv/units")
-      .send({ name: "Matriz", blingConnectionId: "conn-1", defaultClientId: "client-1" });
+  it("persiste o contato Bling escolhido como Consumidor Final", async () => {
+    const response = await request(appAs("admin")).post("/restaurant-pdv/units").send({
+      name: "Matriz",
+      blingConnectionId: "conn-1",
+      defaultBlingContactId: "77123",
+      defaultBlingContactName: "Consumidor Final",
+    });
 
     expect(response.status).toBe(201);
     expect(createUnitMock).toHaveBeenCalledWith(
-      expect.objectContaining({ defaultClientId: "client-1" }),
+      expect.objectContaining({
+        defaultBlingContactId: "77123",
+        defaultBlingContactName: "Consumidor Final",
+      }),
     );
   });
 
-  it("recusa defaultClientId que não está mapeado para a conexão", async () => {
-    isClientMappedMock.mockResolvedValue(false);
-
+  it("recusa Consumidor Final sem conexão Bling selecionada", async () => {
     const response = await request(appAs("admin"))
       .post("/restaurant-pdv/units")
-      .send({ name: "Matriz", blingConnectionId: "conn-1", defaultClientId: "client-fantasma" });
+      .send({ name: "Matriz", defaultBlingContactId: "77123" });
 
     expect(response.status).toBe(400);
-    expect(response.body.message).toContain("não está mapeado");
     expect(createUnitMock).not.toHaveBeenCalled();
   });
+});
 
-  it("recusa defaultClientId sem conexão Bling selecionada", async () => {
-    const response = await request(appAs("admin"))
-      .post("/restaurant-pdv/units")
-      .send({ name: "Matriz", defaultClientId: "client-1" });
+describe("GET /restaurant-pdv/units/bling-contacts", () => {
+  beforeEach(() => {
+    searchBlingContactsMock.mockReset().mockResolvedValue([
+      { id: "77123", nome: "Consumidor Final", numeroDocumento: null },
+    ]);
+  });
 
-    expect(response.status).toBe(400);
-    expect(createUnitMock).not.toHaveBeenCalled();
+  it("repassa a pesquisa para a busca na conta Bling", async () => {
+    const response = await request(appAs("admin")).get(
+      "/restaurant-pdv/units/bling-contacts?connectionId=conn-1&pesquisa=consumidor",
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveLength(1);
+    expect(searchBlingContactsMock).toHaveBeenCalledWith("conn-1", "consumidor", 20);
+  });
+
+  it("não chama a API do Bling sem termo de pesquisa", async () => {
+    const response = await request(appAs("admin")).get(
+      "/restaurant-pdv/units/bling-contacts?connectionId=conn-1",
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+    expect(searchBlingContactsMock).not.toHaveBeenCalled();
+  });
+
+  it("falha do Bling vira 502, não 500 genérico", async () => {
+    searchBlingContactsMock.mockRejectedValue(new Error("timeout"));
+
+    const response = await request(appAs("admin")).get(
+      "/restaurant-pdv/units/bling-contacts?connectionId=conn-1&pesquisa=abc",
+    );
+
+    expect(response.status).toBe(502);
+  });
+
+  it("garçom não pode buscar contatos", async () => {
+    const response = await request(appAs("garcom")).get(
+      "/restaurant-pdv/units/bling-contacts?connectionId=conn-1&pesquisa=abc",
+    );
+
+    expect(response.status).toBe(403);
+    expect(searchBlingContactsMock).not.toHaveBeenCalled();
   });
 });
 

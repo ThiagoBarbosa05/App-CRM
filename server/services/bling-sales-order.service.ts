@@ -81,7 +81,8 @@ export function resolveBlingSalesOrderPayload(
     return {
       ok: false,
       reason:
-        "Nenhum contato Bling resolvido — vincule um cliente à comanda ou configure o Consumidor Final da unidade",
+        "Nenhum contato Bling resolvido — vincule um cliente à comanda ou configure o " +
+        "Consumidor Final da unidade em PDV → Configurações → Unidades",
     };
   }
 
@@ -217,11 +218,20 @@ async function resolveContactBlingId(
 
   if (order.unitId) {
     const [unit] = await tx
-      .select({ defaultClientId: pdvUnits.defaultClientId })
+      .select({
+        defaultBlingContactId: pdvUnits.defaultBlingContactId,
+        defaultClientId: pdvUnits.defaultClientId,
+      })
       .from(pdvUnits)
       .where(eq(pdvUnits.id, order.unitId))
       .limit(1);
 
+    // Contato escolhido direto na busca do Bling: já é o id de lá, sem
+    // espelho local a consultar.
+    if (unit?.defaultBlingContactId) return unit.defaultBlingContactId;
+
+    // Legado: unidade configurada quando o Consumidor Final ainda era um
+    // cliente do CRM.
     if (unit?.defaultClientId) {
       const [row] = await tx
         .select({ blingContactId: blingContactMappings.blingContactId })

@@ -46,7 +46,8 @@ import {
 } from "@/components/ui/select";
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
 import { useEligibleSellers } from "@/hooks/use-eligible-sellers";
-import { useEligibleClients } from "@/hooks/use-eligible-clients";
+import { useBlingContacts } from "@/hooks/use-bling-contacts";
+import { extractApiMessage } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
 
 const SETTINGS_KEY = ["/api/restaurant-pdv/settings"];
@@ -81,7 +82,8 @@ const unitFormSchema = z.object({
   footerMessage: z.string().optional(),
   blingConnectionId: z.string().optional(),
   defaultSellerId: z.string().optional(),
-  defaultClientId: z.string().optional(),
+  defaultBlingContactId: z.string().optional(),
+  defaultBlingContactName: z.string().optional(),
   defaultServiceFeePercent: z
     .string()
     .regex(/^\d+([.,]\d{1,2})?$/, "Percentual inválido")
@@ -138,7 +140,9 @@ function CatalogBadge({ unit }: { unit: PdvUnitWithCatalog }) {
  * problema só aparecia no banco.
  */
 function ConsumidorFinalBadge({ unit }: { unit: PdvUnitWithCatalog }) {
-  if (!unit.blingConnectionId || unit.defaultClientId) return null;
+  if (!unit.blingConnectionId || unit.defaultBlingContactId || unit.defaultClientId) {
+    return null;
+  }
   return (
     <Badge
       variant="outline"
@@ -174,7 +178,8 @@ function UnitDialog({
       footerMessage: unit?.footerMessage ?? "",
       blingConnectionId: unit?.blingConnectionId ?? "",
       defaultSellerId: unit?.defaultSellerId ?? "",
-      defaultClientId: unit?.defaultClientId ?? "",
+      defaultBlingContactId: unit?.defaultBlingContactId ?? "",
+      defaultBlingContactName: unit?.defaultBlingContactName ?? "",
       defaultServiceFeePercent: unit?.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: unit?.waiterCommissionPercent ?? "0.00",
     },
@@ -182,11 +187,12 @@ function UnitDialog({
 
   const blingConnectionId = form.watch("blingConnectionId");
   const { data: eligibleSellers = [] } = useEligibleSellers(blingConnectionId || null);
-  const [clientSearch, setClientSearch] = useState("");
-  const { data: eligibleClients = [] } = useEligibleClients(
-    blingConnectionId || null,
-    clientSearch,
-  );
+  const [contactSearch, setContactSearch] = useState("");
+  const {
+    data: blingContacts = [],
+    isFetching: isSearchingContacts,
+    error: contactsError,
+  } = useBlingContacts(blingConnectionId || null, contactSearch);
 
   const mutation = useMutation({
     mutationFn: async (data: UnitFormValues) => {
@@ -198,7 +204,8 @@ function UnitDialog({
         footerMessage: data.footerMessage || null,
         blingConnectionId: data.blingConnectionId || null,
         defaultSellerId: data.defaultSellerId || null,
-        defaultClientId: data.defaultClientId || null,
+        defaultBlingContactId: data.defaultBlingContactId || null,
+        defaultBlingContactName: data.defaultBlingContactName || null,
         defaultServiceFeePercent: normalizePercent(data.defaultServiceFeePercent ?? "10.00"),
         waiterCommissionPercent: normalizePercent(data.waiterCommissionPercent ?? "0.00"),
       };
@@ -220,12 +227,19 @@ function UnitDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader>
+      {/* O formulário passa da altura da tela em telas menores — sem o
+          overflow, os últimos campos e os botões ficavam inacessíveis. */}
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-w-[680px]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{isEditing ? "Editar Unidade" : "Nova Unidade PDV"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit((d) => mutation.mutate(d))}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            {/* Só os campos rolam; o rodapé com Salvar/Cancelar fica fixo. */}
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-1 pb-2">
             <FormField
               control={form.control}
               name="name"
@@ -365,40 +379,78 @@ function UnitDialog({
             />
             <FormField
               control={form.control}
-              name="defaultClientId"
+              name="defaultBlingContactId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Consumidor Final</FormLabel>
                   <Input
-                    placeholder="Buscar cliente pelo nome..."
-                    value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
+                    placeholder="Buscar contato no Bling pelo nome..."
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
                     disabled={!blingConnectionId}
-                    className="mb-2"
                   />
-                  <Select
-                    value={field.value || "__none__"}
-                    onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                    disabled={!blingConnectionId}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Sem Consumidor Final" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="__none__">Sem Consumidor Final</SelectItem>
-                      {eligibleClients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
+                  {field.value && (
+                    <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2">
+                      <span className="truncate text-sm">
+                        {form.watch("defaultBlingContactName") || `Contato ${field.value}`}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          field.onChange("");
+                          form.setValue("defaultBlingContactName", "");
+                        }}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  )}
+                  {contactSearch.trim().length >= 2 && (
+                    <div className="max-h-40 overflow-y-auto rounded-md border">
+                      {isSearchingContacts && (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">
+                          Buscando no Bling...
+                        </p>
+                      )}
+                      {contactsError && (
+                        <p className="px-3 py-2 text-sm text-destructive">
+                          {extractApiMessage(contactsError)}
+                        </p>
+                      )}
+                      {!isSearchingContacts &&
+                        !contactsError &&
+                        blingContacts.length === 0 && (
+                          <p className="px-3 py-2 text-sm text-muted-foreground">
+                            Nenhum contato encontrado no Bling
+                          </p>
+                        )}
+                      {blingContacts.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                          onClick={() => {
+                            field.onChange(c.id);
+                            form.setValue("defaultBlingContactName", c.nome);
+                            setContactSearch("");
+                          }}
+                        >
+                          {c.nome}
+                          {c.numeroDocumento && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {c.numeroDocumento}
+                            </span>
+                          )}
+                        </button>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
                   <FormDescription>
-                    Contato usado no pedido de venda quando a comanda fecha sem cliente
-                    vinculado. <strong>Sem ele, nenhum pedido desta unidade chega ao
-                    Bling.</strong>
+                    Contato do Bling usado no pedido de venda quando a comanda fecha sem
+                    cliente vinculado. <strong>Sem ele, nenhum pedido desta unidade chega
+                    ao Bling.</strong>
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -432,7 +484,8 @@ function UnitDialog({
                 )}
               />
             </div>
-            <DialogFooter>
+            </div>
+            <DialogFooter className="shrink-0 border-t pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancelar
               </Button>

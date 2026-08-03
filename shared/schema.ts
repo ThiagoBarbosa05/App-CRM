@@ -2411,7 +2411,17 @@ export const pdvUnits = pgTable("pdv_units", {
   blingConnectionId: varchar("bling_connection_id"),
   // Consumidor Final da unidade — usado ao enviar pedido de venda ao Bling
   // quando a comanda fecha sem cliente vinculado. FK real (não é snapshot).
+  //
+  // Legado: exige que o contato já tenha cliente local espelhado em
+  // `bling_contact_mappings`. Continua funcionando como fallback, mas o
+  // caminho atual é `defaultBlingContactId` — o Consumidor Final é um contato
+  // do Bling, não um cliente do CRM, e criar um cliente fantasma só para
+  // apontar para ele sujava a base.
   defaultClientId: varchar("default_client_id").references(() => clients.id),
+  /** Contato do Bling escolhido direto na busca da API, sem espelho local. */
+  defaultBlingContactId: text("default_bling_contact_id"),
+  /** Nome no momento da escolha — para a tela não precisar consultar a API. */
+  defaultBlingContactName: text("default_bling_contact_name"),
   // Vendedor padrão da unidade — fallback do "vendedor" no pedido de venda do
   // Bling quando o garçom que fechou a comanda não tem mapeamento de vendedor
   // Bling para a conexão da unidade. Mesmo papel que defaultClientId cumpre
