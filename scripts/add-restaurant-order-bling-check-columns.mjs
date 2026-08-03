@@ -51,15 +51,21 @@ if (porStatus.length === 0) {
   }
 }
 
-const semConsumidorFinal = await sql`
-  SELECT name FROM pdv_units
+// Alguns endpoints compatíveis com a API HTTP do Neon devolvem `fields: null`
+// para SELECTs sem linhas. O driver espera um array e falha em `fields.map()`.
+// A agregação garante uma linha mesmo quando nenhuma unidade corresponde.
+const [{ names: semConsumidorFinal }] = await sql`
+  SELECT COALESCE(
+    json_agg(name ORDER BY name),
+    '[]'::json
+  ) AS names
+  FROM pdv_units
   WHERE is_active AND bling_connection_id IS NOT NULL AND default_client_id IS NULL
-  ORDER BY name
 `;
 if (semConsumidorFinal.length > 0) {
   console.log("\n  ! Unidades SEM Consumidor Final configurado — todo pedido");
   console.log("    dessas unidades será bloqueado antes de chegar ao Bling:");
-  for (const u of semConsumidorFinal) console.log(`      - ${u.name}`);
+  for (const name of semConsumidorFinal) console.log(`      - ${name}`);
   console.log("    Configure em PDV → Configurações → Unidades.");
 }
 
@@ -100,15 +106,18 @@ console.log("\nResgate das comandas perdidas pelo bug do 'pendente'\n");
 // `bloqueado` fica de fora de propósito: o motivo do bloqueio (configuração)
 // não se resolve sozinho, então retentar só queimaria tentativas. Para essas,
 // o caminho é o botão "Reenviar" na tela, que zera o contador.
-const resgatadas = await sql`
-  UPDATE restaurant_orders
-  SET bling_sync_status = 'pendente'
-  WHERE status = 'fechada' AND bling_sync_status IS NULL
-  RETURNING id
+const [{ count: resgatadas }] = await sql`
+  WITH updated AS (
+    UPDATE restaurant_orders
+    SET bling_sync_status = 'pendente'
+    WHERE status = 'fechada' AND bling_sync_status IS NULL
+    RETURNING id
+  )
+  SELECT COUNT(*)::integer AS count FROM updated
 `;
 console.log(
-  resgatadas.length > 0
-    ? `  + ${resgatadas.length} comanda(s) devolvida(s) à fila do cron`
+  resgatadas > 0
+    ? `  + ${resgatadas} comanda(s) devolvida(s) à fila do cron`
     : "  = nenhuma comanda órfã encontrada",
 );
 
