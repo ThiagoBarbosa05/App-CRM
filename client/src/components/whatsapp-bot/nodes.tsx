@@ -531,6 +531,7 @@ export function SendTemplateNode({ data, selected }: NodeProps) {
 
   type HandleEntry = { id: string; label: string };
   const extraHandles: HandleEntry[] = [
+    d.repliedHandle ? { id: "replied", label: "Respondeu" } : null,
     d.invalidResponseHandle ? { id: "invalid_response", label: "Resposta inválida" } : null,
     d.noResponseHandle ? { id: "no_response", label: "Sem resposta" } : null,
     d.notDeliveredHandle ? { id: "not_delivered", label: "Não entregue" } : null,

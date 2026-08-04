@@ -163,6 +163,26 @@ export function addSseClient(userId: string, res: Response): () => void {
   };
 }
 
+/**
+ * Presença "online" de um usuário = há pelo menos uma conexão SSE aberta dele.
+ * Limitação: o registro de conexões é local a ESTA réplica (o NOTIFY entre
+ * réplicas propaga eventos, não conexões) — em deploy multi-réplica isto é uma
+ * aproximação. Usado pelos operadores is_online/agent_online do bot.
+ */
+export function isUserOnline(userId: string): boolean {
+  for (const c of clients) {
+    if (c.userId === userId) return true;
+  }
+  return false;
+}
+
+/** Snapshot dos userIds com conexão SSE aberta nesta réplica (ver isUserOnline). */
+export function getOnlineUserIds(): Set<string> {
+  const ids = new Set<string>();
+  for (const c of clients) ids.add(c.userId);
+  return ids;
+}
+
 // Entrega apenas aos clientes SSE conectados a ESTA réplica — usado tanto pela
 // publicação local quanto pelos eventos recebidos via NOTIFY de outras réplicas.
 function deliverLocal(event: string, data: unknown, userId?: string): void {

@@ -3,16 +3,31 @@ import { z } from "zod";
 import { restaurantPdvService } from "../../services/restaurant-pdv.service";
 import { positiveMoneyString } from "./money.schema";
 
+const paymentMethodEnum = z.enum([
+  "pix",
+  "cartao_credito",
+  "cartao_debito",
+  "dinheiro",
+  "outros",
+]);
+
+const blingPaymentMethodFields = {
+  blingPaymentMethodId: z.string().regex(/^\d+$/).optional(),
+  blingPaymentMethodDescription: z.string().max(120).optional(),
+};
+
 const closeOrderSchema = z.object({
-  paymentMethod: z.enum(["pix", "cartao_credito", "cartao_debito", "dinheiro"]).optional(),
+  paymentMethod: paymentMethodEnum.optional(),
+  ...blingPaymentMethodFields,
   // Divisão de conta: os pagamentos vêm junto para serem gravados na mesma
   // transação do fechamento.
   payments: z
     .array(
       z.object({
-        method: z.enum(["pix", "cartao_credito", "cartao_debito", "dinheiro"]),
+        method: paymentMethodEnum,
         amount: positiveMoneyString,
         payerLabel: z.string().optional(),
+        ...blingPaymentMethodFields,
       }),
     )
     .optional(),
@@ -40,6 +55,12 @@ export const closeOrderController = async (req: Request, res: Response) => {
       actorId,
       parsed.data.payments,
       req.pdvUnitId,
+      parsed.data.blingPaymentMethodId
+        ? {
+            id: parsed.data.blingPaymentMethodId,
+            description: parsed.data.blingPaymentMethodDescription ?? null,
+          }
+        : null,
     );
     return res.json(closed);
   } catch (error: any) {

@@ -5,6 +5,7 @@ import type { RestaurantOrder, RestaurantOrderItem } from "../../shared/schema";
 import {
   restaurantOrders,
   restaurantOrderItems,
+  restaurantOrderPayments,
   restaurantOrderBlingSyncLog,
   blingProductMappings,
   blingContactMappings,
@@ -13,6 +14,7 @@ import {
 } from "../../shared/schema";
 import type {
   BlingPedidoVendaItemPayload,
+  BlingPedidoVendaParcelaPayload,
   BlingPedidoVendaPayload,
 } from "../integrations/bling";
 import { blingConnectionsService } from "./bling-connections.service";
@@ -45,6 +47,12 @@ export interface ResolveBlingSalesOrderInput {
   blingProductIdByProductId: Map<string, string>;
   contactBlingId: string | null;
   sellerBlingId: string | null;
+  /**
+   * Pagamentos da comanda, na ordem de criação. Cada um vira uma parcela;
+   * quando presente, `blingPaymentMethodId` vai em `parcelas[].formaPagamento`.
+   * Vazio → parcela única sem forma (comportamento legado).
+   */
+  payments?: { amount: string; blingPaymentMethodId?: string | null }[];
 }
 
 export type ResolveBlingSalesOrderResult =
@@ -66,6 +74,30 @@ function createMockBlingPedidoVenda(
   return { id: mockId, alertas: [] };
 }
 
+function buildParcelas(
+  payments: { amount: string; blingPaymentMethodId?: string | null }[],
+  totalCents: number,
+  closedDate: string,
+): BlingPedidoVendaParcelaPayload[] {
+  if (payments.length === 0) {
+    return [{ dataVencimento: closedDate, valor: toReais(totalCents) }];
+  }
+
+  let remainingCents = totalCents;
+  return payments.map((payment, index) => {
+    const isLast = index === payments.length - 1;
+    const cents = isLast ? remainingCents : toCents(payment.amount);
+    remainingCents -= cents;
+    return {
+      dataVencimento: closedDate,
+      valor: toReais(cents),
+      ...(payment.blingPaymentMethodId
+        ? { formaPagamento: { id: Number(payment.blingPaymentMethodId) } }
+        : {}),
+    };
+  });
+}
+
 /**
  * Monta o payload de POST /pedidos/vendas a partir dos dados já carregados da
  * comanda. Nunca lança — qualquer vínculo faltando (item sem produto Bling,
@@ -75,7 +107,14 @@ function createMockBlingPedidoVenda(
 export function resolveBlingSalesOrderPayload(
   input: ResolveBlingSalesOrderInput,
 ): ResolveBlingSalesOrderResult {
-  const { order, items, blingProductIdByProductId, contactBlingId, sellerBlingId } = input;
+  const {
+    order,
+    items,
+    blingProductIdByProductId,
+    contactBlingId,
+    sellerBlingId,
+    payments = [],
+  } = input;
 
   if (!contactBlingId) {
     return {
@@ -158,6 +197,20 @@ export function resolveBlingSalesOrderPayload(
     };
   }
 
+  // Uma parcela por pagamento, com a forma de pagamento do Bling quando o
+  // fechamento a registrou. A última parcela absorve a diferença de centavos
+  // (a validação do fechamento tolera 1 centavo), mantendo soma = total —
+  // invariante conferida depois por `compareBlingSalesOrderTotals`.
+  let parcelas: BlingPedidoVendaParcelaPayload[];
+  try {
+    parcelas = buildParcelas(payments, totalCents, closedDate);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `Pagamento da comanda com valor inválido: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
   const payload: BlingPedidoVendaPayload = {
     data: closedDate,
     dataSaida: closedDate,
@@ -173,7 +226,7 @@ export function resolveBlingSalesOrderPayload(
     ...(discountCents > 0
       ? { desconto: { valor: toReais(discountCents), unidade: "REAL" as const } }
       : {}),
-    parcelas: [{ dataVencimento: closedDate, valor: toReais(totalCents) }],
+    parcelas,
     ...(sellerBlingId ? { vendedor: { id: Number(sellerBlingId) } } : {}),
   };
 
@@ -440,12 +493,22 @@ async function attemptSendOrderToBling(orderId: string): Promise<SendAttemptResu
         resolveSellerBlingId(tx, order, connectionId),
       ]);
 
+      const payments = await tx
+        .select({
+          amount: restaurantOrderPayments.amount,
+          blingPaymentMethodId: restaurantOrderPayments.blingPaymentMethodId,
+        })
+        .from(restaurantOrderPayments)
+        .where(eq(restaurantOrderPayments.orderId, orderId))
+        .orderBy(restaurantOrderPayments.createdAt);
+
       const resolved = resolveBlingSalesOrderPayload({
         order,
         items,
         blingProductIdByProductId,
         contactBlingId,
         sellerBlingId,
+        payments,
       });
 
       if (!resolved.ok) {

@@ -26,18 +26,14 @@ import {
   splitByGroupsCents,
   initialSplitPeople,
 } from "@/lib/split-bill";
-
-const PAYMENT_METHODS: { value: string; label: string }[] = [
-  { value: "pix", label: "Pix" },
-  { value: "cartao_credito", label: "Cartão de Crédito" },
-  { value: "cartao_debito", label: "Cartão de Débito" },
-  { value: "dinheiro", label: "Dinheiro" },
-];
+import type { PaymentOption } from "@/hooks/use-bling-payment-methods";
 
 interface SplitPayment {
   method: string;
   amount: string;
   payerLabel: string;
+  blingPaymentMethodId?: string;
+  blingPaymentMethodDescription?: string;
 }
 
 interface SplitBillDialogProps {
@@ -50,6 +46,8 @@ interface SplitBillDialogProps {
   total: number;
   /** Quantas pessoas a comanda registrou na abertura da mesa. */
   peopleCount: number;
+  /** Formas de pagamento (Bling quando a unidade tem conta; senão as locais). */
+  paymentOptions: PaymentOption[];
   isPending?: boolean;
   onConfirm: (payments: SplitPayment[]) => void;
 }
@@ -63,9 +61,14 @@ export function SplitBillDialog({
   serviceFee,
   total,
   peopleCount,
+  paymentOptions,
   isPending = false,
   onConfirm,
 }: SplitBillDialogProps) {
+  // Nas linhas, `method` guarda o `value` da opção; a tradução para o método
+  // local + forma Bling acontece só no confirm.
+  const resolveOption = (value: string) =>
+    paymentOptions.find((o) => o.value === value);
   const [numPeople, setNumPeople] = useState(() => initialSplitPeople(peopleCount));
   const [peopleRows, setPeopleRows] = useState<SplitPayment[]>([]);
   const [itemGroups, setItemGroups] = useState<{ label: string; method: string }[]>([
@@ -146,25 +149,36 @@ export function SplitBillDialog({
   });
   const itemsValid = allItemsAssigned && itemGroups.every((g) => g.method);
 
+  const toSplitPayment = (
+    optionValue: string,
+    amount: string,
+    payerLabel: string,
+  ): SplitPayment => {
+    const option = resolveOption(optionValue);
+    return {
+      method: option?.method ?? optionValue,
+      amount,
+      payerLabel,
+      blingPaymentMethodId: option?.blingId,
+      blingPaymentMethodDescription: option?.blingId ? option.label : undefined,
+    };
+  };
+
   const handleConfirmPeople = () => {
     onConfirm(
-      peopleRows.map((r, i) => ({
-        method: r.method,
+      peopleRows.map((r, i) =>
         // Normaliza para o formato que a API aceita (ponto decimal, 2 casas) —
         // antes o texto digitado ia cru para o backend.
-        amount: (peopleAmounts[i] ?? 0).toFixed(2),
-        payerLabel: r.payerLabel,
-      })),
+        toSplitPayment(r.method, (peopleAmounts[i] ?? 0).toFixed(2), r.payerLabel),
+      ),
     );
   };
 
   const handleConfirmItems = () => {
     onConfirm(
-      itemGroups.map((g, i) => ({
-        method: g.method,
-        amount: itemGroupTotals[i].toFixed(2),
-        payerLabel: g.label,
-      })),
+      itemGroups.map((g, i) =>
+        toSplitPayment(g.method, itemGroupTotals[i].toFixed(2), g.label),
+      ),
     );
   };
 
@@ -243,7 +257,7 @@ export function SplitBillDialog({
                       <SelectValue placeholder="Forma de pagamento" />
                     </SelectTrigger>
                     <SelectContent>
-                      {PAYMENT_METHODS.map((m) => (
+                      {paymentOptions.map((m) => (
                         <SelectItem key={m.value} value={m.value}>
                           {m.label}
                         </SelectItem>
@@ -302,7 +316,7 @@ export function SplitBillDialog({
                       <SelectValue placeholder="Forma de pagamento" />
                     </SelectTrigger>
                     <SelectContent>
-                      {PAYMENT_METHODS.map((m) => (
+                      {paymentOptions.map((m) => (
                         <SelectItem key={m.value} value={m.value}>
                           {m.label}
                         </SelectItem>

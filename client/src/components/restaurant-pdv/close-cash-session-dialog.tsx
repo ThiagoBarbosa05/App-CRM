@@ -19,6 +19,7 @@ const PAYMENT_METHODS = [
   { value: "pix", label: "Pix" },
   { value: "cartao_credito", label: "Cartão de Crédito" },
   { value: "cartao_debito", label: "Cartão de Débito" },
+  { value: "outros", label: "Outros" },
 ] as const;
 
 type MethodValue = (typeof PAYMENT_METHODS)[number]["value"];
@@ -66,12 +67,19 @@ export function CloseCashSessionDialog({
     pix: "",
     cartao_credito: "",
     cartao_debito: "",
+    outros: "",
   });
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (!open) {
-      setCounted({ dinheiro: "", pix: "", cartao_credito: "", cartao_debito: "" });
+      setCounted({
+        dinheiro: "",
+        pix: "",
+        cartao_credito: "",
+        cartao_debito: "",
+        outros: "",
+      });
       setNotes("");
     }
   }, [open]);

@@ -5,12 +5,14 @@ vi.mock("../../ai-helpers", () => ({
 }));
 
 import {
+  conditionRulesNeedReply,
   evaluateConditionRule,
   evaluateConditionRules,
   matchesConditionBranch,
   pickAttributeBranch,
   resolveAttributeHandle,
   resolveConditionHandle,
+  resolveTemplateReplyHandle,
 } from "../whatsapp-bot-engine.service";
 import { classifyMessageIntent } from "../../ai-helpers";
 import type {
@@ -124,12 +126,12 @@ describe("resolveConditionHandle — modo reply", () => {
     expect(await resolveConditionHandle(node, "não sei")).toBe("h-default");
   });
 
-  it("defaultHandle ausente → retorna a string literal 'default'", async () => {
+  it("defaultHandle ausente → cai no handle 'no_match' (o que o editor renderiza)", async () => {
     const node = conditionNode({
       branches: [branch("h-sim", ["sim"])],
       defaultHandle: undefined as unknown as string,
     });
-    expect(await resolveConditionHandle(node, "não sei")).toBe("default");
+    expect(await resolveConditionHandle(node, "não sei")).toBe("no_match");
   });
 
   it("branches vazio → retorna defaultHandle", async () => {
@@ -277,13 +279,13 @@ describe("resolveConditionHandle — grupo data.rules (editor atual do bot)", ()
     expect(await resolveConditionHandle(node, "outra coisa")).toBe("no_match");
   });
 
-  it("defaultHandle ausente e regra não bate → retorna a string literal 'default'", async () => {
+  it("defaultHandle ausente e regra não bate → cai no handle 'no_match'", async () => {
     const node = conditionNode({
       branches: [],
       defaultHandle: undefined as unknown as string,
       rules: [{ field: "message_contains", operator: "contains", values: ["teste"] }],
     });
-    expect(await resolveConditionHandle(node, "outra coisa")).toBe("default");
+    expect(await resolveConditionHandle(node, "outra coisa")).toBe("no_match");
   });
 
   it("rules presente tem prioridade sobre branches/useAI (modelo legado é ignorado)", async () => {
@@ -460,43 +462,261 @@ describe("matchesConditionBranch — modo attribute, campos não-tag", () => {
     );
   });
 
-  // Operadores declarados em ConditionRuleOperator (shared/schema.ts) que ainda
-  // não têm avaliação implementada em matchesConditionBranch. Documentam o gap
-  // atual: mesmo em cenários onde o operador "deveria" bater, ele retorna false.
-  // Se algum destes for implementado no futuro, este teste deve ser atualizado
-  // (não é comportamento desejado a manter para sempre).
-  it.each<[string, ConditionRule]>([
-    ["not_equals", { field: "name", operator: "not_equals", value: "Bruno" }],
-    ["not_contains", { field: "name", operator: "not_contains", value: "xyz" }],
-    ["starts_with", { field: "name", operator: "starts_with", value: "An" }],
-    ["ends_with", { field: "name", operator: "ends_with", value: "na" }],
-    ["exists", { field: "name", operator: "exists" }],
-    [
-      "matches_regex",
-      { field: "name", operator: "matches_regex", value: "^Ana$" },
-    ],
-    ["is_true", { field: "contact_active", operator: "is_true" }],
-    ["is_false", { field: "contact_active", operator: "is_false" }],
-    ["has_all", { field: "contact_field", operator: "has_all" }],
-    ["has_none", { field: "contact_field", operator: "has_none" }],
-    ["has_any", { field: "contact_field", operator: "has_any" }],
-    ["has_exactly", { field: "contact_field", operator: "has_exactly" }],
-    [
-      "not_has_exactly",
-      { field: "contact_field", operator: "not_has_exactly" },
-    ],
-    ["is_one_of", { field: "agent", operator: "is_one_of" }],
-    ["is_none_of", { field: "agent", operator: "is_none_of" }],
-    ["no_agent", { field: "agent", operator: "no_agent" }],
-    ["is_online", { field: "agent_online", operator: "is_online" }],
-    ["not_online", { field: "agent_online", operator: "not_online" }],
-    ["is_attending", { field: "channel", operator: "is_attending" }],
-    ["not_attending", { field: "channel", operator: "not_attending" }],
-  ])("%s: gap conhecido — sempre retorna false hoje", (_label, rule) => {
+  // Operadores de texto sobre coluna legada (rule.field = ContactFieldKey
+  // direto, sem wrapper contact_field/subField) — agora todos implementados.
+  it.each<[string, ConditionRule, boolean]>([
+    ["not_equals", { field: "name", operator: "not_equals", value: "Bruno" }, true],
+    ["not_contains", { field: "name", operator: "not_contains", value: "xyz" }, true],
+    ["starts_with", { field: "name", operator: "starts_with", value: "An" }, true],
+    ["ends_with", { field: "name", operator: "ends_with", value: "na" }, true],
+    ["exists", { field: "name", operator: "exists" }, true],
+    ["matches_regex", { field: "name", operator: "matches_regex", value: "^Ana$" }, true],
+    ["matches_regex inválida", { field: "name", operator: "matches_regex", value: "([" }, false],
+  ])("%s sobre coluna legada", (_label, rule, expected) => {
     const b = branch("h", [], rule);
     expect(
       matchesConditionBranch(b, client({ name: "Ana", cpf: "1" }), new Set()),
+    ).toBe(expected);
+  });
+});
+
+describe("evaluateConditionRule — etiquetas (values múltiplos, editor atual)", () => {
+  const ctxWith = (...tags: string[]) => ({ tagIds: new Set<string | null>(tags) });
+  const rule = (operator: ConditionRule["operator"], values: string[]): ConditionRule => ({
+    field: "tag",
+    operator,
+    values,
+  });
+
+  it("has_all: todas as selecionadas presentes (pode haver outras)", () => {
+    expect(evaluateConditionRule(rule("has_all", ["t1", "t2"]), ctxWith("t1", "t2", "t3"))).toBe(true);
+    expect(evaluateConditionRule(rule("has_all", ["t1", "t2"]), ctxWith("t1"))).toBe(false);
+  });
+
+  it("has_any: pelo menos uma presente", () => {
+    expect(evaluateConditionRule(rule("has_any", ["t1", "t9"]), ctxWith("t1"))).toBe(true);
+    expect(evaluateConditionRule(rule("has_any", ["t8", "t9"]), ctxWith("t1"))).toBe(false);
+  });
+
+  it("has_none: nenhuma presente", () => {
+    expect(evaluateConditionRule(rule("has_none", ["t8", "t9"]), ctxWith("t1"))).toBe(true);
+    expect(evaluateConditionRule(rule("has_none", ["t1", "t9"]), ctxWith("t1"))).toBe(false);
+  });
+
+  it("has_exactly / not_has_exactly: igualdade de conjuntos com as etiquetas do contato", () => {
+    expect(evaluateConditionRule(rule("has_exactly", ["t1", "t2"]), ctxWith("t2", "t1"))).toBe(true);
+    expect(evaluateConditionRule(rule("has_exactly", ["t1"]), ctxWith("t1", "t2"))).toBe(false);
+    expect(evaluateConditionRule(rule("not_has_exactly", ["t1"]), ctxWith("t1", "t2"))).toBe(true);
+    expect(evaluateConditionRule(rule("not_has_exactly", ["t1", "t2"]), ctxWith("t2", "t1"))).toBe(false);
+  });
+
+  it("seleção vazia: has_all/has_any/has_exactly nunca batem; has_none sempre bate", () => {
+    expect(evaluateConditionRule(rule("has_all", []), ctxWith("t1"))).toBe(false);
+    expect(evaluateConditionRule(rule("has_any", []), ctxWith("t1"))).toBe(false);
+    expect(evaluateConditionRule(rule("has_exactly", []), ctxWith("t1"))).toBe(false);
+    expect(evaluateConditionRule(rule("has_none", []), ctxWith("t1"))).toBe(true);
+  });
+
+  it("retrocompat: has/not_has com value singular seguem funcionando", () => {
+    expect(
+      evaluateConditionRule({ field: "tag", operator: "has", value: "t1" }, ctxWith("t1")),
+    ).toBe(true);
+    expect(
+      evaluateConditionRule({ field: "tag", operator: "not_has", value: "t1" }, ctxWith("t2")),
+    ).toBe(true);
+  });
+});
+
+describe("evaluateConditionRule — contact_field com subField (editor atual)", () => {
+  const c = client({ name: "Ana Souza", email: "ana@gmail.com", city: null } as Partial<Client>);
+  const rule = (
+    operator: ConditionRule["operator"],
+    subField: string,
+    value?: string,
+  ): ConditionRule => ({ field: "contact_field", operator, subField, value });
+
+  it("lê a coluna indicada em subField, não rule.field", () => {
+    expect(evaluateConditionRule(rule("equals", "name", "ana souza"), { client: c, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule(rule("contains", "email", "GMAIL"), { client: c, tagIds: new Set() })).toBe(true);
+  });
+
+  it("starts_with/ends_with/not_contains/not_equals", () => {
+    expect(evaluateConditionRule(rule("starts_with", "name", "ana"), { client: c, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule(rule("ends_with", "name", "souza"), { client: c, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule(rule("not_contains", "name", "xyz"), { client: c, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule(rule("not_equals", "name", "bruno"), { client: c, tagIds: new Set() })).toBe(true);
+  });
+
+  it("exists/is_empty tratam null como vazio", () => {
+    expect(evaluateConditionRule(rule("exists", "city"), { client: c, tagIds: new Set() })).toBe(false);
+    expect(evaluateConditionRule(rule("is_empty", "city"), { client: c, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule(rule("exists", "name"), { client: c, tagIds: new Set() })).toBe(true);
+  });
+
+  it("matches_regex (case-insensitive); regex inválida → false", () => {
+    expect(evaluateConditionRule(rule("matches_regex", "name", "^ANA"), { client: c, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule(rule("matches_regex", "name", "(["), { client: c, tagIds: new Set() })).toBe(false);
+  });
+
+  it("subField ausente → nunca bate (nem mesmo is_empty)", () => {
+    expect(
+      evaluateConditionRule({ field: "contact_field", operator: "is_empty" }, { client: c, tagIds: new Set() }),
     ).toBe(false);
+  });
+
+  it("sem client no ctx → is_empty bate (campo vazio), equals com valor não bate", () => {
+    expect(evaluateConditionRule(rule("is_empty", "name"), { tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule(rule("equals", "name", "ana"), { tagIds: new Set() })).toBe(false);
+  });
+});
+
+describe("evaluateConditionRule — campos booleanos e presença", () => {
+  it("contact_active: client sem opt-out é ativo", () => {
+    const active = client();
+    const opted = client({ whatsappOptOut: true } as Partial<Client>);
+    expect(evaluateConditionRule({ field: "contact_active", operator: "is_true" }, { client: active, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule({ field: "contact_active", operator: "is_true" }, { client: opted, tagIds: new Set() })).toBe(false);
+    expect(evaluateConditionRule({ field: "contact_active", operator: "is_false" }, { tagIds: new Set() })).toBe(true);
+  });
+
+  it("contact_is_group / first_conversation vêm do ctx", () => {
+    expect(evaluateConditionRule({ field: "contact_is_group", operator: "is_true" }, { isGroup: true, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule({ field: "contact_is_group", operator: "is_false" }, { tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule({ field: "first_conversation", operator: "is_true" }, { isFirstConversation: true, tagIds: new Set() })).toBe(true);
+    expect(evaluateConditionRule({ field: "first_conversation", operator: "is_false" }, { isFirstConversation: true, tagIds: new Set() })).toBe(false);
+  });
+
+  const convWithAgent = {
+    id: "c1",
+    assignedAgentId: "agent-1",
+    channelId: 7,
+    sectorId: "sec-1",
+    phone: "5521999999999",
+  };
+
+  it("agent_online: presença do atendente atribuído via agentOnlineIds", () => {
+    expect(
+      evaluateConditionRule(
+        { field: "agent_online", operator: "is_true" },
+        { conversation: convWithAgent, agentOnlineIds: new Set(["agent-1"]), tagIds: new Set() },
+      ),
+    ).toBe(true);
+    expect(
+      evaluateConditionRule(
+        { field: "agent_online", operator: "is_true" },
+        { conversation: convWithAgent, agentOnlineIds: new Set(), tagIds: new Set() },
+      ),
+    ).toBe(false);
+    // Sem atendente atribuído: is_true=false, is_false=true.
+    expect(
+      evaluateConditionRule(
+        { field: "agent_online", operator: "is_false" },
+        { conversation: { ...convWithAgent, assignedAgentId: null }, tagIds: new Set() },
+      ),
+    ).toBe(true);
+  });
+
+  it("agent: is_one_of/is_none_of/no_agent/is_online/not_online", () => {
+    const ctx = { conversation: convWithAgent, agentOnlineIds: new Set(["agent-1"]), tagIds: new Set<string | null>() };
+    expect(evaluateConditionRule({ field: "agent", operator: "is_one_of", values: ["agent-1", "x"] }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "agent", operator: "is_none_of", values: ["agent-1"] }, ctx)).toBe(false);
+    expect(evaluateConditionRule({ field: "agent", operator: "no_agent" }, ctx)).toBe(false);
+    expect(evaluateConditionRule({ field: "agent", operator: "is_online" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "agent", operator: "not_online" }, ctx)).toBe(false);
+    const noAgentCtx = { conversation: { ...convWithAgent, assignedAgentId: null }, tagIds: new Set<string | null>() };
+    expect(evaluateConditionRule({ field: "agent", operator: "no_agent" }, noAgentCtx)).toBe(true);
+    expect(evaluateConditionRule({ field: "agent", operator: "is_none_of", values: ["agent-1"] }, noAgentCtx)).toBe(true);
+    expect(evaluateConditionRule({ field: "agent", operator: "not_online" }, noAgentCtx)).toBe(true);
+  });
+
+  it("channel: is_one_of compara o id como string; is_attending usa channelHasAttendant", () => {
+    const ctx = { conversation: convWithAgent, channelHasAttendant: true, tagIds: new Set<string | null>() };
+    expect(evaluateConditionRule({ field: "channel", operator: "is_one_of", values: ["7", "9"] }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "channel", operator: "is_none_of", values: ["7"] }, ctx)).toBe(false);
+    expect(evaluateConditionRule({ field: "channel", operator: "is_attending" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "channel", operator: "not_attending" }, ctx)).toBe(false);
+    expect(evaluateConditionRule({ field: "channel", operator: "is_one_of", values: ["7"] }, { tagIds: new Set() })).toBe(false);
+    expect(evaluateConditionRule({ field: "channel", operator: "is_none_of", values: ["7"] }, { tagIds: new Set() })).toBe(true);
+  });
+
+  it("sector: equals/not_equals; sem value nunca bate", () => {
+    const ctx = { conversation: convWithAgent, tagIds: new Set<string | null>() };
+    expect(evaluateConditionRule({ field: "sector", operator: "equals", value: "sec-1" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "sector", operator: "not_equals", value: "sec-2" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "sector", operator: "equals" }, ctx)).toBe(false);
+  });
+});
+
+describe("evaluateConditionRule — value (variáveis de sessão) e parallel_bot", () => {
+  it("value lê sessionVariables[subField] com operadores de texto", () => {
+    const ctx = { sessionVariables: { opcao: "Suporte Técnico" }, tagIds: new Set<string | null>() };
+    expect(evaluateConditionRule({ field: "value", operator: "contains", subField: "opcao", value: "suporte" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "value", operator: "equals", subField: "opcao", value: "suporte técnico" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "value", operator: "exists", subField: "opcao" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "value", operator: "is_empty", subField: "inexistente" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "value", operator: "matches_regex", subField: "opcao", value: "^suporte" }, ctx)).toBe(true);
+  });
+
+  it("parallel_bot: sem filtro basta existir outra sessão; com filtro exige o botId", () => {
+    const ctx = { parallelBotIds: new Set(["bot-2"]), tagIds: new Set<string | null>() };
+    expect(evaluateConditionRule({ field: "parallel_bot", operator: "equals" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "parallel_bot", operator: "equals", value: "bot-2" }, ctx)).toBe(true);
+    expect(evaluateConditionRule({ field: "parallel_bot", operator: "equals", value: "bot-9" }, ctx)).toBe(false);
+    expect(evaluateConditionRule({ field: "parallel_bot", operator: "equals" }, { tagIds: new Set() })).toBe(false);
+  });
+});
+
+describe("conditionRulesNeedReply — quando o nó de condição pausa", () => {
+  it("regras só de atributo → não pausa", () => {
+    expect(
+      conditionRulesNeedReply({
+        branches: [],
+        defaultHandle: "no_match",
+        rules: [{ field: "tag", operator: "has_all", values: ["t1"] }],
+      }),
+    ).toBe(false);
+  });
+
+  it("alguma regra 'Mensagem contém' → pausa", () => {
+    expect(
+      conditionRulesNeedReply({
+        branches: [],
+        defaultHandle: "no_match",
+        rules: [
+          { field: "tag", operator: "has_all", values: ["t1"] },
+          { field: "message_contains", operator: "contains", values: ["sim"] },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("modelo legado (branches, sem rules) → pausa; modo attribute → nunca pausa", () => {
+    expect(
+      conditionRulesNeedReply({ branches: [branch("h", ["sim"])], defaultHandle: "no_match" }),
+    ).toBe(true);
+    expect(
+      conditionRulesNeedReply({
+        branches: [branch("h", ["sim"])],
+        defaultHandle: "no_match",
+        mode: "attribute",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("resolveTemplateReplyHandle — roteamento de resposta ao template", () => {
+  it("botão casado vence sempre", () => {
+    expect(
+      resolveTemplateReplyHandle({ repliedHandle: true, invalidResponseHandle: true }, "btn-0"),
+    ).toBe("btn-0");
+  });
+
+  it("sem botão: 'replied' tem prioridade sobre 'invalid_response'", () => {
+    expect(
+      resolveTemplateReplyHandle({ repliedHandle: true, invalidResponseHandle: true }, null),
+    ).toBe("replied");
+    expect(resolveTemplateReplyHandle({ invalidResponseHandle: true }, null)).toBe("invalid_response");
+    expect(resolveTemplateReplyHandle({}, null)).toBeNull();
   });
 });
 
@@ -537,12 +757,12 @@ describe("resolveAttributeHandle — atalhos sem banco", () => {
     expect(await resolveAttributeHandle(node, null)).toBe("h-default");
   });
 
-  it("clientId null e defaultHandle ausente → retorna a string literal 'default'", async () => {
+  it("clientId null e defaultHandle ausente → cai no handle 'no_match'", async () => {
     const node = conditionNode({
       branches: [],
       defaultHandle: undefined as unknown as string,
       mode: "attribute",
     });
-    expect(await resolveAttributeHandle(node, null)).toBe("default");
+    expect(await resolveAttributeHandle(node, null)).toBe("no_match");
   });
 });

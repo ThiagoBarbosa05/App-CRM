@@ -37,6 +37,8 @@ vi.mock("../../integrations/evolution", () => ({
 vi.mock("../../lib/sse-hub", () => ({
   publishConversationEvent: vi.fn(),
   publishSseEvent: vi.fn(),
+  isUserOnline: vi.fn(() => false),
+  getOnlineUserIds: vi.fn(() => new Set<string>()),
 }));
 
 vi.mock("../../lib/r2", () => ({
@@ -1569,5 +1571,262 @@ describeBotE2E("WhatsApp bot engine (e2e, banco real)", () => {
       status: "no_start_node",
     });
     await expect(deleteBot(bot.id)).resolves.toBe(false);
+  });
+
+  // ── Correções da auditoria dos nós (ago/2026) ────────────────────────────────
+
+  it("condição só de atributo (etiqueta WhatsApp) avalia na hora, sem pausar", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const client = await createClient();
+    await openCustomerWindow(phone, client.id);
+    const waTag = await createWhatsappTag("VIP");
+    await attachWhatsappTag(client.id, waTag.id);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const condition = await addNode(bot.id, {
+      type: "condition",
+      data: {
+        branches: [],
+        defaultHandle: "no_match",
+        rules: [{ field: "tag", operator: "has_all", values: [waTag.id] }],
+      },
+    });
+    const yes = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Ramo com etiqueta" },
+    });
+    const no = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Ramo sem etiqueta" },
+    });
+    const end = await addNode(bot.id, { type: "end" });
+    await addEdge(bot.id, start.id, condition.id);
+    await addEdge(bot.id, condition.id, yes.id, "match");
+    await addEdge(bot.id, condition.id, no.id, "no_match");
+    await addEdge(bot.id, yes.id, end.id);
+    await addEdge(bot.id, no.id, end.id);
+
+    await startBotSession(bot.id, phone);
+
+    // Não pausou: o fluxo ramificou e concluiu na mesma execução, pelo ramo
+    // "match" — a regra compara contra contactTags.whatsappTagId.
+    const session = await getSession(phone);
+    expect(session?.status).toBe("completed");
+    expect(sentTexts()).toContain("Ramo com etiqueta");
+    expect(sentTexts()).not.toContain("Ramo sem etiqueta");
+  });
+
+  it("condição só de atributo sem a etiqueta cai no ramo no_match imediatamente", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const client = await createClient();
+    await openCustomerWindow(phone, client.id);
+    const waTag = await createWhatsappTag("VIP");
+
+    const start = await addNode(bot.id, { type: "start" });
+    const condition = await addNode(bot.id, {
+      type: "condition",
+      data: {
+        branches: [],
+        defaultHandle: "no_match",
+        rules: [{ field: "tag", operator: "has_all", values: [waTag.id] }],
+      },
+    });
+    const no = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Ramo sem etiqueta" },
+    });
+    await addEdge(bot.id, start.id, condition.id);
+    await addEdge(bot.id, condition.id, no.id, "no_match");
+
+    await startBotSession(bot.id, phone);
+
+    expect(sentTexts()).toContain("Ramo sem etiqueta");
+  });
+
+  it("condição com 'Mensagem contém' pausa e resolve na próxima mensagem (regressão)", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const condition = await addNode(bot.id, {
+      type: "condition",
+      data: {
+        branches: [],
+        defaultHandle: "no_match",
+        rules: [{ field: "message_contains", operator: "contains", values: ["sim"] }],
+      },
+    });
+    const yes = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Confirmado!" },
+    });
+    await addEdge(bot.id, start.id, condition.id);
+    await addEdge(bot.id, condition.id, yes.id, "match");
+
+    await startBotSession(bot.id, phone);
+
+    const paused = await getSession(phone);
+    expect(paused?.status).toBe("active");
+    expect(paused?.currentNodeId).toBe(condition.id);
+
+    await handleIncomingMessage(phone, "Sim, pode ser");
+
+    expect(sentTexts()).toContain("Confirmado!");
+    expect((await getSession(phone))?.status).toBe("completed");
+  });
+
+  it("handleInboundBotMessage: sessão já ativa → a mensagem avança a sessão em vez de ser descartada", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+    const [channel] = await db
+      .insert(whatsappChannels)
+      .values({ name: "Canal automático", provider: "cloud_api" })
+      .returning();
+
+    // Bot com entrada automática pelo canal E um nó de condição que pausa.
+    const start = await addNode(bot.id, {
+      type: "start_channel",
+      data: { channelIds: [channel.id] },
+    });
+    const condition = await addNode(bot.id, {
+      type: "condition",
+      data: {
+        branches: [],
+        defaultHandle: "no_match",
+        rules: [{ field: "message_contains", operator: "contains", values: ["sim"] }],
+      },
+    });
+    const yes = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Recebi seu sim" },
+    });
+    await addEdge(bot.id, start.id, condition.id);
+    await addEdge(bot.id, condition.id, yes.id, "match");
+
+    // 1ª mensagem abre a conversa e dispara o bot (gatilho não consumido).
+    await handleInboundBotMessage({
+      phone,
+      messageText: "olá",
+      channelId: channel.id,
+      startsConversation: true,
+    });
+    expect((await getSession(phone))?.currentNodeId).toBe(condition.id);
+
+    // 2ª mensagem chega com startsConversation=true (ex.: conversa reaberta):
+    // startBotSession devolve already_active e a mensagem DEVE avançar a sessão.
+    await handleInboundBotMessage({
+      phone,
+      messageText: "sim, quero",
+      channelId: channel.id,
+      startsConversation: true,
+    });
+
+    expect(sentTexts()).toContain("Recebi seu sim");
+    expect((await getSession(phone))?.status).toBe("completed");
+  });
+
+  it("send_template: texto livre roteia para a saída 'Respondeu' quando ligada", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const tmpl = await addNode(bot.id, {
+      type: "send_template",
+      data: {
+        metaTemplateName: "promo",
+        metaTemplateLanguage: "pt_BR",
+        buttonHandles: [{ handle: "btn-0", label: "Quero" }],
+        repliedHandle: true,
+        invalidResponseHandle: true,
+      },
+    });
+    const replied = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Obrigado pela resposta!" },
+    });
+    const invalid = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Não entendi." },
+    });
+    await addEdge(bot.id, start.id, tmpl.id);
+    await addEdge(bot.id, tmpl.id, replied.id, "replied");
+    await addEdge(bot.id, tmpl.id, invalid.id, "invalid_response");
+
+    await startBotSession(bot.id, phone);
+    expect((await getSession(phone))?.currentNodeId).toBe(tmpl.id);
+
+    // Texto livre que não casa com botão: prioridade da saída "Respondeu".
+    await handleIncomingMessage(phone, "tenho uma dúvida");
+
+    expect(sentTexts()).toContain("Obrigado pela resposta!");
+    expect(sentTexts()).not.toContain("Não entendi.");
+  });
+
+  it("transfer_agent com 'só se tiver permissão': agente fora do setor cai no fluxo de falha", async () => {
+    const user = await createUser();
+    const agent = await createUser({ role: "vendedor" });
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    const sector = await createSector();
+    const { conversationId } = await openCustomerWindow(phone);
+    await db
+      .update(whatsappConversations)
+      .set({ sectorId: sector.id })
+      .where(eq(whatsappConversations.id, conversationId));
+
+    const start = await addNode(bot.id, { type: "start" });
+    const transfer = await addNode(bot.id, {
+      type: "transfer_agent",
+      data: {
+        rule: "specific",
+        agentId: agent.id,
+        onlyIfCurrentHasPermission: true,
+        activateFlowIfFailed: true,
+      },
+    });
+    const fallback = await addNode(bot.id, {
+      type: "send_message",
+      data: { messageType: "text", text: "Sem atendente disponível" },
+    });
+    await addEdge(bot.id, start.id, transfer.id);
+    await addEdge(bot.id, transfer.id, fallback.id);
+
+    await startBotSession(bot.id, phone);
+
+    // Agente não é membro do setor da conversa → transferência bloqueada,
+    // fluxo de falha executado; conversa segue sem atendente atribuído.
+    expect(sentTexts()).toContain("Sem atendente disponível");
+    const [conv] = await db
+      .select()
+      .from(whatsappConversations)
+      .where(eq(whatsappConversations.id, conversationId));
+    expect(conv.assignedAgentId).toBeNull();
+  });
+
+  it("menu sem opções e flow_form sem flowId falham a sessão explicitamente", async () => {
+    const user = await createUser();
+    const bot = await createBot(user.id);
+    const phone = nextPhone();
+    await openCustomerWindow(phone);
+
+    const start = await addNode(bot.id, { type: "start" });
+    const menu = await addNode(bot.id, {
+      type: "menu",
+      data: { bodyText: "Escolha:", options: [] },
+    });
+    await addEdge(bot.id, start.id, menu.id);
+
+    await expect(startBotSession(bot.id, phone)).rejects.toThrow("sem opções");
+    expect((await getSession(phone))?.status).toBe("failed");
   });
 });

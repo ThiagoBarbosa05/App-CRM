@@ -35,12 +35,15 @@ import {
   type TriggerFlowNodeData,
   type StartChannelNodeData,
   users,
+  whatsappChannels,
 } from "@shared/schema";
-import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
+import { publishConversationEvent, publishSseEvent, getOnlineUserIds } from "../lib/sse-hub";
+import { isGroupJid } from "./baileys/jid";
 import { sendTextMessage, sendTemplateMessage, sendFlowMessage, sendMediaByUrl, uploadMedia, sendMediaMessage, sendButtonsMessage, sendListMessage } from "../integrations/whatsapp";
 import type { ChannelOverride } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia } from "../integrations/evolution";
 import { toMetaWhatsAppId } from "@shared/phone";
+import { canonicalPhone, phoneVariants } from "../lib/phone";
 import { getActiveChannelIdByUserId, resolveChannelByUserId, resolveChannelById, resolveChannelForConversation } from "./whatsapp-channels.service";
 import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { r2, getPublicR2Url } from "../lib/r2";
@@ -810,6 +813,8 @@ async function executeNode(
                 sessionId,
               });
               lastMessageId = waId;
+            } else {
+              throw new Error(`Template interno ${d.templateId} não encontrado`);
             }
           }
         } catch (err) {
@@ -879,16 +884,39 @@ async function executeNode(
         const conversation = await findBotConversation(phone, sessionId);
         const handle = await resolveAttributeHandle(node, conversation.clientId);
         console.log(`[WaBot][Condition] modo attribute: clientId=${conversation.clientId} handle=${handle}`);
-        const next = await getNextNode(botId, node.id, handle);
+        const next = await getNextConditionNode(botId, node, handle);
         console.log(`[WaBot][Condition] modo attribute: próximo nó=${next?.id ?? "(nenhum — encerrando)"}`);
         if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
         else await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
         break;
       }
-      // Modo "reply" (padrão): pausa e aguarda a resposta do contato; a
-      // ramificação é resolvida em handleIncomingMessage quando a próxima
-      // mensagem chega. Sem isso, a condição cairia no primeiro edge e o fluxo
-      // seria reiniciado a cada resposta (reenviando o template).
+      // Regras só de atributo (sem "Mensagem contém") não dependem de uma
+      // resposta do contato: avaliar imediatamente e seguir. Numa campanha,
+      // uma condição por etiqueta não pode travar o fluxo esperando mensagem.
+      // (Isto não reintroduz a regressão de reinício de fluxo: nada aqui
+      // consome a mensagem do contato — só atributos já conhecidos.)
+      if (!conditionRulesNeedReply(c)) {
+        const ruleCtx = await loadConditionRuleContext({
+          phone,
+          sessionId,
+          rules: c.rules ?? [],
+        });
+        // As variáveis correntes da execução são mais frescas que o
+        // sessionData persistido (podem incluir capturas ainda não gravadas).
+        ruleCtx.sessionVariables = variables;
+        const matched = evaluateConditionRules(c.rules ?? [], ruleCtx);
+        const handle = matched ? "match" : conditionDefaultHandle(c);
+        console.log(`[WaBot][Condition] avaliação imediata (sem regra de mensagem): handle=${handle}`);
+        const next = await getNextConditionNode(botId, node, handle);
+        if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+        else await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
+        break;
+      }
+      // Há regra de mensagem (ou modelo legado branches/useAI): pausa e aguarda
+      // a resposta do contato; a ramificação é resolvida em
+      // handleIncomingMessage quando a próxima mensagem chega. Sem isso, a
+      // condição cairia no primeiro edge e o fluxo seria reiniciado a cada
+      // resposta (reenviando o template).
       console.log(`[WaBot][Condition] modo reply: pausando no nó ${node.id}, aguardando resposta do contato`);
       await updateSession(sessionId, { currentNodeId: node.id, sessionData: variables });
       break;
@@ -897,6 +925,11 @@ async function executeNode(
     case "menu": {
       const d = data as MenuNodeData;
       const options = (d.options ?? []).filter((o) => o.label?.trim());
+      if (options.length === 0) {
+        // Pausar sem ter enviado nada deixaria a sessão presa aguardando uma
+        // escolha que o contato nunca viu — falhar explicitamente.
+        throw new Error("Nó de menu sem opções configuradas — adicione opções no editor do bot.");
+      }
       if (options.length > 0) {
         const body = interpolate(d.bodyText || "", variables) || "Escolha uma opção:";
         const useButtons =
@@ -944,6 +977,13 @@ async function executeNode(
 
     case "flow_form": {
       const d = data as FlowFormNodeData;
+      if (!d.flowId) {
+        // Sem Flow selecionado o nó não tem como pausar nem coletar dados —
+        // falhar explicitamente em vez de deixar a sessão em estado inconsistente.
+        throw new Error(
+          "Nó de formulário sem WhatsApp Flow selecionado — configure o formulário no editor do bot.",
+        );
+      }
       if (d.flowId) {
         const cloudOverride = await resolveCloudOnlyChannel(phone, "formulários (WhatsApp Flow)", sessionId);
         const result = await sendFlowMessage(phone, d.flowId, d.ctaText || "Abrir formulário", {
@@ -1183,7 +1223,6 @@ async function executeNode(
     }
 
     case "transfer_agent": {
-      // NOTA: d.onlyIfCurrentHasPermission é no-op — não há modelo de permissão no schema (limitação conhecida).
       const d = data as TransferAgentNodeData;
       const conversation = await findBotConversation(phone, sessionId);
 
@@ -1212,12 +1251,20 @@ async function executeNode(
         .where(or(eq(users.role, "vendedor"), eq(users.role, "gerente")));
       const attendantIds = attendantRows.map((r) => r.id);
 
-      const agentId = resolveTransferAgent(d, {
+      let agentId = resolveTransferAgent(d, {
         currentConversationAgentId: conversation.assignedAgentId ?? null,
         clientPreviousAgentId,
         attendantIds,
         rng: Math.random,
       });
+
+      // Toggle de permissão: só transfere se o agente ALVO for membro do setor
+      // atual da conversa (paridade com transfer_sector). Conversa sem setor
+      // não bloqueia — não há o que checar.
+      if (agentId && d.onlyIfCurrentHasPermission && conversation.sectorId) {
+        const memberSectorIds = await listSectorIdsForUser(agentId);
+        if (!memberSectorIds.includes(conversation.sectorId)) agentId = null;
+      }
 
       if (agentId) {
         // Vincula a conversa ao canal do atendente (se houver), para que as
@@ -1401,10 +1448,69 @@ async function executeNode(
   }
 }
 
+/**
+ * Handle padrão do nó de Condição. O editor atual sempre grava "no_match";
+ * nós muito antigos podem não ter defaultHandle — cair em "no_match" (o handle
+ * que o editor renderiza) em vez do legado "default". Arestas antigas ligadas
+ * ao handle "default" são cobertas pelo fallback de getNextConditionNode.
+ */
+export function conditionDefaultHandle(data: ConditionNodeData): string {
+  return data.defaultHandle ?? "no_match";
+}
+
+/**
+ * Próximo nó a partir de um nó de Condição, com fallback para arestas legadas:
+ * se o handle resolvido não tem aresta e não é "match", tenta o handle antigo
+ * "default" antes de desistir.
+ */
+async function getNextConditionNode(
+  botId: string,
+  node: WhatsappBotNode,
+  handle: string,
+): Promise<WhatsappBotNode | null> {
+  let next = await getNextNode(botId, node.id, handle);
+  if (!next && handle !== "match" && handle !== "default") {
+    next = await getNextNode(botId, node.id, "default");
+  }
+  return next;
+}
+
+/**
+ * O nó de Condição precisa pausar aguardando uma mensagem do contato?
+ * Só quando alguma regra depende do texto recebido ("Mensagem contém") ou no
+ * modelo legado (branches por keyword / classificação por IA). Regras apenas
+ * de atributo (etiqueta, campo, canal, atendente…) avaliam na hora.
+ */
+export function conditionRulesNeedReply(data: ConditionNodeData): boolean {
+  if (data.mode === "attribute") return false;
+  if (data.rules && data.rules.length > 0) {
+    return data.rules.some((r) => r.field === "message_contains");
+  }
+  // Modelo legado (branches/useAI): sempre depende da mensagem do contato.
+  return true;
+}
+
+/**
+ * Handle de roteamento da resposta a um nó "Enviar template": botão casado →
+ * handle do botão; senão, com a saída "Respondeu" ligada, texto livre é
+ * resposta válida (prioridade sobre "Resposta inválida"); senão, "Resposta
+ * inválida" se ligada; senão null (mensagem ignorada).
+ */
+export function resolveTemplateReplyHandle(
+  data: SendTemplateNodeData,
+  matchedButtonHandle: string | null | undefined,
+): string | null {
+  return (
+    matchedButtonHandle ??
+    (data.repliedHandle ? "replied" : null) ??
+    (data.invalidResponseHandle ? "invalid_response" : null)
+  );
+}
+
 export async function resolveConditionHandle(
   node: WhatsappBotNode,
   messageText: string,
-  ctx?: { client?: Client; tagIds?: Set<string | null> },
+  ctx?: Partial<ConditionRuleContext>,
 ): Promise<string> {
   const data = node.data as ConditionNodeData;
   const text = messageText.toLowerCase().trim();
@@ -1417,11 +1523,11 @@ export async function resolveConditionHandle(
       `[WaBot][Condition] resolveConditionHandle: avaliando data.rules=${JSON.stringify(data.rules)} messageText=${JSON.stringify(messageText)} temClient=${!!ctx?.client} tagIds=${JSON.stringify(Array.from(ctx?.tagIds ?? []))}`,
     );
     const matched = evaluateConditionRules(data.rules, {
+      ...ctx,
       messageText,
-      client: ctx?.client,
       tagIds: ctx?.tagIds ?? new Set(),
     });
-    const handle = matched ? "match" : (data.defaultHandle ?? "default");
+    const handle = matched ? "match" : conditionDefaultHandle(data);
     console.log(`[WaBot][Condition] resolveConditionHandle: matched=${matched} handle=${handle}`);
     return handle;
   }
@@ -1442,69 +1548,255 @@ export async function resolveConditionHandle(
       }
     }
   }
-  return data.defaultHandle ?? "default";
+  return conditionDefaultHandle(data);
 }
 
 export type ConditionRuleContext = {
   messageText?: string;
   client?: Client;
+  /**
+   * Etiquetas do WhatsApp do contato (`contactTags.whatsappTagId`) — o único
+   * espaço de IDs que o editor de bot oferece nas regras de etiqueta.
+   */
   tagIds: Set<string | null>;
+  conversation?: {
+    id: string;
+    assignedAgentId: string | null;
+    channelId: number | null;
+    sectorId: string | null;
+    phone: string;
+  };
+  /** Variáveis da sessão do bot (sessionData) — campo "value". */
+  sessionVariables?: Record<string, string>;
+  /** O contato tem apenas a conversa atual? — campo "first_conversation". */
+  isFirstConversation?: boolean;
+  /** Conversa é de grupo (JID @g.us)? — campo "contact_is_group". */
+  isGroup?: boolean;
+  /** Snapshot de presença SSE (ver isUserOnline no sse-hub) — campos "agent"/"agent_online". */
+  agentOnlineIds?: Set<string>;
+  /** botIds de outras sessões ativas deste telefone — campo "parallel_bot". */
+  parallelBotIds?: Set<string>;
+  /** Canal da conversa vinculado a um atendente (whatsapp_channels.user_id)? */
+  channelHasAttendant?: boolean;
 };
 
+function ruleSelectedValues(rule: ConditionRule): string[] {
+  if (rule.values?.length) return rule.values.filter(Boolean);
+  return rule.value ? [rule.value] : [];
+}
+
+const REGEX_PATTERN_MAX = 512;
+const REGEX_INPUT_MAX = 10_000;
+
 /**
- * Avalia uma única `ConditionRule` contra o contexto disponível (mensagem
- * recebida e/ou contato carregado). Usada tanto pelo grupo de condições estilo
- * Umbler (`data.rules`, avaliação AND) quanto pelos ramos legados
- * (`branches[].rule`, modo "attribute").
+ * Operadores de comparação de texto compartilhados pelos campos
+ * "contact_field", "value" e pelo caminho legado (coluna de `clients` direto em
+ * rule.field). Comparações são case-insensitive; regex usa o valor bruto com
+ * flag "i", com limites de tamanho como proteção básica contra padrões caros.
+ */
+function evalStringOperator(
+  operator: ConditionRule["operator"],
+  rawFieldValue: string,
+  rawTarget: string,
+): boolean {
+  const fieldVal = rawFieldValue.toLowerCase().trim();
+  const target = rawTarget.toLowerCase().trim();
+  switch (operator) {
+    case "equals":
+      return fieldVal === target;
+    case "not_equals":
+      return fieldVal !== target;
+    case "contains":
+      return target !== "" && fieldVal.includes(target);
+    case "not_contains":
+      return target === "" || !fieldVal.includes(target);
+    case "starts_with":
+      return target !== "" && fieldVal.startsWith(target);
+    case "ends_with":
+      return target !== "" && fieldVal.endsWith(target);
+    case "exists":
+      return fieldVal !== "";
+    case "is_empty":
+      return fieldVal === "";
+    case "matches_regex": {
+      if (!rawTarget || rawTarget.length > REGEX_PATTERN_MAX) return false;
+      try {
+        const re = new RegExp(rawTarget, "i");
+        return re.test(rawFieldValue.slice(0, REGEX_INPUT_MAX));
+      } catch {
+        console.warn(`[WaBot][Condition] Regex inválida em regra de condição: ${rawTarget}`);
+        return false;
+      }
+    }
+    default:
+      return false;
+  }
+}
+
+function evalBooleanOperator(
+  operator: ConditionRule["operator"],
+  actual: boolean,
+): boolean {
+  if (operator === "is_true") return actual;
+  if (operator === "is_false") return !actual;
+  return false;
+}
+
+function setEquals(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const v of a) if (!b.has(v)) return false;
+  return true;
+}
+
+/**
+ * Avalia uma única `ConditionRule` contra o contexto disponível. Usada tanto
+ * pelo grupo de condições estilo Umbler (`data.rules`, avaliação AND) quanto
+ * pelos ramos legados (`branches[].rule`, modo "attribute").
  *
- * Cobre apenas os operadores de fato implementados hoje: `contains` (campo
- * "message_contains", contra a mensagem recebida), `has`/`not_has` (campo
- * "tag") e `is_empty`/`equals`/`contains` (demais campos, contra `clients`).
- * Os demais operadores de `ConditionRuleOperator` existem no schema/UI mas
- * ainda não têm avaliação aqui — caem no `default: false`.
+ * Cobre todos os campos e operadores que o editor atual oferece
+ * (ConditionRuleRow em bot-editor.tsx). Dados que o campo exige e não estão no
+ * ctx (ex.: regra de atendente sem `conversation`) avaliam como false — quem
+ * monta o contexto completo é `loadConditionRuleContext`.
  */
 export function evaluateConditionRule(
   rule: ConditionRule,
   ctx: ConditionRuleContext,
 ): boolean {
-  let result: boolean;
-  if (rule.field === "message_contains") {
-    const text = (ctx.messageText ?? "").toLowerCase().trim();
-    const keywords: string[] = rule.values?.length ? rule.values : rule.value ? [rule.value] : [];
-    result = keywords.some((kw) => text.includes(kw.toLowerCase().trim()));
-    console.log(
-      `[WaBot][Condition] evaluateConditionRule: field=message_contains keywords=${JSON.stringify(keywords)} text=${JSON.stringify(text)} → ${result}`,
-    );
-    return result;
-  }
-  if (rule.field === "tag") {
-    const has = rule.value ? ctx.tagIds.has(rule.value) : false;
-    result = rule.operator === "not_has" ? !has : has;
-    console.log(
-      `[WaBot][Condition] evaluateConditionRule: field=tag operator=${rule.operator} value=${rule.value} tagIds=${JSON.stringify(Array.from(ctx.tagIds))} → ${result}`,
-    );
-    return result;
-  }
-  const raw = (ctx.client?.[rule.field as keyof Client] ?? "") as unknown;
-  const fieldVal = (raw == null ? "" : String(raw)).toLowerCase().trim();
-  const target = (rule.value ?? "").toLowerCase().trim();
-  switch (rule.operator) {
-    case "is_empty":
-      result = fieldVal === "";
-      break;
-    case "equals":
-      result = fieldVal === target;
-      break;
-    case "contains":
-      result = target !== "" && fieldVal.includes(target);
-      break;
-    default:
-      result = false;
-  }
+  const result = evaluateConditionRuleInner(rule, ctx);
   console.log(
-    `[WaBot][Condition] evaluateConditionRule: field=${rule.field} operator=${rule.operator} fieldVal=${JSON.stringify(fieldVal)} target=${JSON.stringify(target)} → ${result}`,
+    `[WaBot][Condition] evaluateConditionRule: field=${rule.field} operator=${rule.operator} value=${JSON.stringify(rule.values ?? rule.value)} subField=${rule.subField ?? "-"} → ${result}`,
   );
   return result;
+}
+
+function evaluateConditionRuleInner(
+  rule: ConditionRule,
+  ctx: ConditionRuleContext,
+): boolean {
+  switch (rule.field) {
+    case "message_contains": {
+      const text = (ctx.messageText ?? "").toLowerCase().trim();
+      const keywords = ruleSelectedValues(rule);
+      return keywords.some((kw) => text.includes(kw.toLowerCase().trim()));
+    }
+
+    case "tag": {
+      const contactTagIds = new Set(
+        Array.from(ctx.tagIds).filter((t): t is string => t != null),
+      );
+      const selected = ruleSelectedValues(rule);
+      switch (rule.operator) {
+        case "has":
+        case "has_any":
+          return selected.some((t) => contactTagIds.has(t));
+        case "not_has":
+        case "has_none":
+          return !selected.some((t) => contactTagIds.has(t));
+        case "has_all":
+          return selected.length > 0 && selected.every((t) => contactTagIds.has(t));
+        case "has_exactly":
+          return selected.length > 0 && setEquals(contactTagIds, new Set(selected));
+        case "not_has_exactly":
+          return !(selected.length > 0 && setEquals(contactTagIds, new Set(selected)));
+        default:
+          return false;
+      }
+    }
+
+    // "Ativo" = contato cadastrado (client vinculado) que não fez opt-out de
+    // mensagens — `clients` não tem coluna própria de ativo/inativo.
+    case "contact_active":
+      return evalBooleanOperator(rule.operator, !!ctx.client && !ctx.client.whatsappOptOut);
+
+    case "contact_is_group":
+      return evalBooleanOperator(rule.operator, ctx.isGroup === true);
+
+    case "first_conversation":
+      return evalBooleanOperator(rule.operator, ctx.isFirstConversation === true);
+
+    case "agent_online": {
+      const agentId = ctx.conversation?.assignedAgentId ?? null;
+      const online = agentId != null && (ctx.agentOnlineIds?.has(agentId) ?? false);
+      return evalBooleanOperator(rule.operator, online);
+    }
+
+    case "sector": {
+      if (!rule.value) return false;
+      const sectorId = ctx.conversation?.sectorId ?? null;
+      if (rule.operator === "equals") return sectorId === rule.value;
+      if (rule.operator === "not_equals") return sectorId !== rule.value;
+      return false;
+    }
+
+    case "channel": {
+      const channelId =
+        ctx.conversation?.channelId != null ? String(ctx.conversation.channelId) : null;
+      const selected = ruleSelectedValues(rule);
+      switch (rule.operator) {
+        case "is_one_of":
+          return channelId != null && selected.includes(channelId);
+        case "is_none_of":
+          return !(channelId != null && selected.includes(channelId));
+        // "Atendendo" = canal da conversa vinculado a um atendente.
+        case "is_attending":
+          return ctx.channelHasAttendant === true;
+        case "not_attending":
+          return ctx.channelHasAttendant !== true;
+        default:
+          return false;
+      }
+    }
+
+    case "agent": {
+      const agentId = ctx.conversation?.assignedAgentId ?? null;
+      const selected = ruleSelectedValues(rule);
+      const online = agentId != null && (ctx.agentOnlineIds?.has(agentId) ?? false);
+      switch (rule.operator) {
+        case "is_one_of":
+          return agentId != null && selected.includes(agentId);
+        case "is_none_of":
+          return !(agentId != null && selected.includes(agentId));
+        case "no_agent":
+          return agentId == null;
+        // Sem atendente atribuído: is_online=false, not_online=true.
+        case "is_online":
+          return online;
+        case "not_online":
+          return !online;
+        default:
+          return false;
+      }
+    }
+
+    case "value": {
+      const v = ctx.sessionVariables?.[rule.subField ?? ""] ?? "";
+      return evalStringOperator(rule.operator, v, rule.value ?? "");
+    }
+
+    case "parallel_bot": {
+      // Com o índice único de 1 sessão ativa por telefone, uma sessão
+      // "paralela" só existirá se/quando o encadeamento paralelo
+      // (TriggerFlowNodeData.executeParallel) criar sessões simultâneas — hoje
+      // isto avalia quase sempre false, mas a semântica fica correta para o
+      // futuro. O operador é ignorado (a UI só define o filtro opcional por
+      // bot específico em rule.value).
+      const parallel = ctx.parallelBotIds ?? new Set<string>();
+      return rule.value ? parallel.has(rule.value) : parallel.size > 0;
+    }
+
+    case "contact_field": {
+      if (!rule.subField) return false;
+      const raw = (ctx.client?.[rule.subField as keyof Client] ?? "") as unknown;
+      return evalStringOperator(rule.operator, raw == null ? "" : String(raw), rule.value ?? "");
+    }
+
+    default: {
+      // Retrocompat: regras antigas gravavam a coluna de `clients` direto em
+      // rule.field (ContactFieldKey), sem o wrapper contact_field/subField.
+      const raw = (ctx.client?.[rule.field as keyof Client] ?? "") as unknown;
+      return evalStringOperator(rule.operator, raw == null ? "" : String(raw), rule.value ?? "");
+    }
+  }
 }
 
 /** AND entre todas as regras do grupo (modelo estilo Umbler, `data.rules`). Grupo vazio nunca casa. */
@@ -1556,20 +1848,138 @@ export async function resolveAttributeHandle(
   clientId: string | null,
 ): Promise<string> {
   const data = node.data as ConditionNodeData;
-  if (!clientId) return data.defaultHandle ?? "default";
+  if (!clientId) return conditionDefaultHandle(data);
 
   const [client] = await db.select().from(clients).where(eq(clients.id, clientId)).limit(1);
+  // Etiquetas do WhatsApp (whatsappTagId) — o espaço de IDs do editor de bot.
   const tagRows = await db
-    .select({ tagId: contactTags.tagId })
+    .select({ whatsappTagId: contactTags.whatsappTagId })
     .from(contactTags)
     .where(eq(contactTags.clientId, clientId));
-  const tagIds = new Set(tagRows.map((t) => t.tagId));
+  const tagIds = new Set<string | null>(
+    tagRows.map((t) => t.whatsappTagId).filter((t): t is string => t != null),
+  );
 
   if (data.rules && data.rules.length > 0) {
-    return evaluateConditionRules(data.rules, { client, tagIds }) ? "match" : (data.defaultHandle ?? "default");
+    return evaluateConditionRules(data.rules, { client, tagIds }) ? "match" : conditionDefaultHandle(data);
   }
 
-  return pickAttributeBranch(data.branches ?? [], client, tagIds) ?? data.defaultHandle ?? "default";
+  return pickAttributeBranch(data.branches ?? [], client, tagIds) ?? conditionDefaultHandle(data);
+}
+
+/**
+ * Monta o `ConditionRuleContext` completo para avaliar `data.rules` de um nó
+ * de Condição: conversa, contato e etiquetas do WhatsApp sempre; dados extras
+ * (presença de atendentes, contagem de conversas, sessões paralelas, vínculo
+ * do canal) apenas quando alguma regra usa o campo correspondente.
+ */
+export async function loadConditionRuleContext(params: {
+  phone: string;
+  sessionId?: string;
+  session?: WhatsappBotSession | null;
+  rules: ConditionRule[];
+  messageText?: string;
+}): Promise<ConditionRuleContext> {
+  const fields = new Set(params.rules.map((r) => r.field));
+
+  let session = params.session ?? null;
+  if (!session && params.sessionId) {
+    const [row] = await db
+      .select()
+      .from(whatsappBotSessions)
+      .where(eq(whatsappBotSessions.id, params.sessionId))
+      .limit(1);
+    session = row ?? null;
+  }
+
+  const conversationRow = await findBotConversation(params.phone, params.sessionId);
+  const conversation = {
+    id: conversationRow.id,
+    assignedAgentId: conversationRow.assignedAgentId ?? null,
+    channelId: conversationRow.channelId ?? null,
+    sectorId: conversationRow.sectorId ?? null,
+    phone: conversationRow.phone,
+  };
+
+  let client: Client | undefined;
+  let tagIds = new Set<string | null>();
+  if (conversationRow.clientId) {
+    const [c] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, conversationRow.clientId))
+      .limit(1);
+    client = c ?? undefined;
+    // Etiquetas do WhatsApp (whatsappTagId) — o espaço de IDs do editor de bot.
+    const tagRows = await db
+      .select({ whatsappTagId: contactTags.whatsappTagId })
+      .from(contactTags)
+      .where(eq(contactTags.clientId, conversationRow.clientId));
+    tagIds = new Set(tagRows.map((t) => t.whatsappTagId).filter((t): t is string => t != null));
+  }
+
+  const ctx: ConditionRuleContext = {
+    messageText: params.messageText,
+    client,
+    tagIds,
+    conversation,
+    sessionVariables: session?.sessionData ?? undefined,
+    isGroup: isGroupJid(conversation.phone),
+  };
+
+  if (fields.has("first_conversation")) {
+    const rows = conversationRow.clientId
+      ? await db
+          .select({ id: whatsappConversations.id })
+          .from(whatsappConversations)
+          .where(eq(whatsappConversations.clientId, conversationRow.clientId))
+          .limit(2)
+      : await db
+          .select({ id: whatsappConversations.id })
+          .from(whatsappConversations)
+          .where(eq(whatsappConversations.phone, conversation.phone))
+          .limit(2);
+    ctx.isFirstConversation = rows.length <= 1;
+  }
+
+  if (fields.has("agent") || fields.has("agent_online")) {
+    ctx.agentOnlineIds = getOnlineUserIds();
+  }
+
+  if (fields.has("parallel_bot")) {
+    const activeSessions = await db
+      .select({ id: whatsappBotSessions.id, botId: whatsappBotSessions.botId })
+      .from(whatsappBotSessions)
+      .where(
+        and(
+          eq(whatsappBotSessions.phoneNumber, toMetaWhatsAppId(params.phone)),
+          eq(whatsappBotSessions.status, "active"),
+        ),
+      );
+    const currentSessionId = session?.id ?? params.sessionId;
+    ctx.parallelBotIds = new Set(
+      activeSessions.filter((s) => s.id !== currentSessionId).map((s) => s.botId),
+    );
+  }
+
+  const needsChannelAttendant = params.rules.some(
+    (r) => r.field === "channel" && (r.operator === "is_attending" || r.operator === "not_attending"),
+  );
+  if (needsChannelAttendant) {
+    if (conversation.channelId != null) {
+      const [chan] = await db
+        .select({ userId: whatsappChannels.userId })
+        .from(whatsappChannels)
+        .where(eq(whatsappChannels.id, conversation.channelId))
+        .limit(1);
+      // "Atendendo" = canal da conversa vinculado a um atendente (user_id).
+      ctx.channelHasAttendant = chan?.userId != null;
+    } else {
+      ctx.channelHasAttendant = false;
+    }
+  }
+
+  return ctx;
 }
 
 /**
@@ -1627,6 +2037,33 @@ async function resolveBotTriggerChannel(
     .where(eq(whatsappConversations.id, conversationId));
 
   return attendantChannel;
+}
+
+/**
+ * clientId da conversa mais recente deste telefone, tolerante a variações de
+ * formato (com/sem DDI 55, com/sem 9º dígito, pontuação) — a comparação exata
+ * por `phone` deixava as variáveis do cliente vazias quando a conversa foi
+ * gravada em outro formato.
+ */
+async function findConversationClientIdByPhone(
+  phone: string,
+): Promise<{ clientId: string | null } | undefined> {
+  const variants = phoneVariants(phone);
+  const canonical = canonicalPhone(phone);
+  if (variants.length === 0 && !canonical) return undefined;
+  const [row] = await db
+    .select({ clientId: whatsappConversations.clientId })
+    .from(whatsappConversations)
+    .where(
+      or(
+        canonical ? eq(whatsappConversations.phoneNormalized, canonical) : undefined,
+        variants.length > 0 ? inArray(whatsappConversations.phone, variants) : undefined,
+        sql`regexp_replace(${whatsappConversations.phone}, '[^0-9]', '', 'g') = ${canonical || phone.replace(/\D/g, "")}`,
+      ),
+    )
+    .orderBy(desc(whatsappConversations.lastMessageAt))
+    .limit(1);
+  return row;
 }
 
 export async function startBotSession(
@@ -1716,11 +2153,7 @@ export async function startBotSession(
   const botName = bot.name;
 
   // Injeta campos do cliente como variáveis iniciais da sessão
-  const [convRow] = await db
-    .select({ clientId: whatsappConversations.clientId })
-    .from(whatsappConversations)
-    .where(eq(whatsappConversations.phone, phone))
-    .limit(1);
+  const convRow = await findConversationClientIdByPhone(phone);
   let clientRow: Client | null = null;
   if (convRow?.clientId) {
     const [client] = await db.select().from(clients).where(eq(clients.id, convRow.clientId)).limit(1);
@@ -1869,7 +2302,7 @@ export async function handleInboundBotMessage(params: {
   if (params.startsConversation && params.channelId != null) {
     const automaticBot = await getAutomaticBotForChannel(params.channelId);
     if (automaticBot) {
-      await startBotSession(
+      const result = await startBotSession(
         automaticBot.botId,
         params.phone,
         automaticBot.startNodeId,
@@ -1883,7 +2316,10 @@ export async function handleInboundBotMessage(params: {
       );
       // A mensagem que abriu/reabriu a conversa é o gatilho. Ela nunca deve ser
       // consumida como resposta do primeiro nó interativo criado nesta execução.
-      return;
+      if (result.status === "started") return;
+      // Sessão já ativa (ex.: bot de campanha aguardando resposta a um template
+      // que reabriu a conversa), opt-out ou bot sem nó de entrada: a mensagem
+      // NÃO é gatilho de nada novo — deve avançar a sessão existente abaixo.
     }
   }
 
@@ -1956,7 +2392,7 @@ export async function handleIncomingMessage(
         const byLabel = (text: string) => buttonHandles.find((b) => b.label.toLowerCase().trim() === text.toLowerCase().trim());
         const matchedButton = (replyId ? byHandle(replyId) : undefined) ?? byLabel(messageText);
 
-        const handle = matchedButton?.handle ?? (d.invalidResponseHandle ? "invalid_response" : null);
+        const handle = resolveTemplateReplyHandle(d, matchedButton?.handle);
 
         if (handle) {
           await updateSession(session.id, {
@@ -1978,29 +2414,21 @@ export async function handleIncomingMessage(
         console.log(
           `[WaBot][Condition] handleIncomingMessage: nó=${currentNode.id} messageText=${JSON.stringify(messageText)} rules=${JSON.stringify(condData.rules)} branches=${JSON.stringify(condData.branches)}`,
         );
-        let ruleCtx: { client?: Client; tagIds?: Set<string | null> } | undefined;
+        let ruleCtx: Partial<ConditionRuleContext> | undefined;
         if (condData.rules?.length) {
-          const conversation = await findBotConversation(phone, session.id);
-          console.log(`[WaBot][Condition] handleIncomingMessage: conversation.clientId=${conversation.clientId}`);
-          if (conversation.clientId) {
-            const [ruleClient] = await db
-              .select()
-              .from(clients)
-              .where(eq(clients.id, conversation.clientId))
-              .limit(1);
-            const tagRows = await db
-              .select({ tagId: contactTags.tagId })
-              .from(contactTags)
-              .where(eq(contactTags.clientId, conversation.clientId));
-            ruleCtx = { client: ruleClient, tagIds: new Set(tagRows.map((t) => t.tagId)) };
-            console.log(
-              `[WaBot][Condition] handleIncomingMessage: client carregado=${!!ruleClient} tagIds=${JSON.stringify(Array.from(ruleCtx.tagIds!))}`,
-            );
-          }
+          ruleCtx = await loadConditionRuleContext({
+            phone,
+            sessionId: session.id,
+            session,
+            rules: condData.rules,
+            messageText,
+          });
+          // As variáveis em memória são mais frescas que o sessionData persistido.
+          ruleCtx.sessionVariables = variables;
         }
         const handle = await resolveConditionHandle(currentNode, messageText, ruleCtx);
         console.log(`[WaBot][Condition] handleIncomingMessage: handle resolvido=${handle}`);
-        const next = await getNextNode(session.botId, currentNode.id, handle);
+        const next = await getNextConditionNode(session.botId, currentNode, handle);
         console.log(`[WaBot][Condition] handleIncomingMessage: próximo nó=${next?.id ?? "(nenhum — encerrando)"} tipo=${next?.type ?? "-"}`);
         if (next) {
           await executeNode(next, phone, session.id, session.botId, variables);

@@ -264,3 +264,83 @@ describe("resolveBlingSalesOrderPayload", () => {
     expect(result.payload.vendedor).toBeUndefined();
   });
 });
+
+describe("resolveBlingSalesOrderPayload — parcelas por pagamento", () => {
+  it("sem pagamentos, mantém a parcela única sem formaPagamento", () => {
+    const result = resolveBlingSalesOrderPayload(baseInput({ payments: [] }));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.parcelas).toEqual([
+      { dataVencimento: "2026-07-26", valor: 110 },
+    ]);
+  });
+
+  it("gera uma parcela por pagamento com formaPagamento e soma = total", () => {
+    const result = resolveBlingSalesOrderPayload(
+      baseInput({
+        payments: [
+          { amount: "60.00", blingPaymentMethodId: "111" },
+          { amount: "50.00", blingPaymentMethodId: "222" },
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.parcelas).toEqual([
+      { dataVencimento: "2026-07-26", valor: 60, formaPagamento: { id: 111 } },
+      { dataVencimento: "2026-07-26", valor: 50, formaPagamento: { id: 222 } },
+    ]);
+  });
+
+  it("a última parcela absorve a diferença de 1 centavo tolerada no fechamento", () => {
+    // 55,00 + 55,01 = 110,01 (1 centavo acima do total 110,00, aceito pela
+    // validação do fechamento) → última parcela vira 55,00 para fechar em 110.
+    const result = resolveBlingSalesOrderPayload(
+      baseInput({
+        payments: [
+          { amount: "55.00", blingPaymentMethodId: "111" },
+          { amount: "55.01", blingPaymentMethodId: "222" },
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    const soma = result.payload.parcelas.reduce((s, p) => s + p.valor, 0);
+    expect(soma).toBe(110);
+    expect(result.payload.parcelas[1].valor).toBe(55);
+  });
+
+  it("pagamento sem forma Bling vira parcela sem formaPagamento", () => {
+    const result = resolveBlingSalesOrderPayload(
+      baseInput({
+        payments: [
+          { amount: "60.00", blingPaymentMethodId: "111" },
+          { amount: "50.00", blingPaymentMethodId: null },
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.parcelas[0].formaPagamento).toEqual({ id: 111 });
+    expect(result.payload.parcelas[1].formaPagamento).toBeUndefined();
+  });
+
+  it("bloqueia (sem lançar) quando um pagamento tem valor inválido", () => {
+    const result = resolveBlingSalesOrderPayload(
+      baseInput({
+        payments: [
+          { amount: "abc", blingPaymentMethodId: "111" },
+          { amount: "50.00", blingPaymentMethodId: "222" },
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("esperava ok:false");
+    expect(result.reason).toContain("valor inválido");
+  });
+});

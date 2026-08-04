@@ -39,6 +39,7 @@ const PAYMENT_LABEL: Record<string, string> = {
   cartao_debito: "Cartão Débito",
   pix: "Pix",
   outro: "Outro",
+  outros: "Outros",
 };
 
 function formatCurrency(value: string | null): string {

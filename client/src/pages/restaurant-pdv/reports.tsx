@@ -45,6 +45,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cartao_credito: "Cartão de Crédito",
   cartao_debito: "Cartão de Débito",
   dinheiro: "Dinheiro",
+  outros: "Outros",
 };
 
 interface SalesReport {

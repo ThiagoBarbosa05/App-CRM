@@ -31,13 +31,16 @@ import {
 } from "lucide-react";
 import type { RestaurantOrder, RestaurantOrderItem } from "@shared/schema";
 import { formatPercent } from "@shared/restaurant-order-totals";
+import type { PaymentOption } from "@/hooks/use-bling-payment-methods";
+import type { RestaurantPaymentMethod } from "@shared/bling-payment-method-map";
 
-const PAYMENT_METHODS: { value: string; label: string; icon: typeof QrCode }[] = [
-  { value: "pix", label: "Pix", icon: QrCode },
-  { value: "cartao_credito", label: "Crédito", icon: CreditCard },
-  { value: "cartao_debito", label: "Débito", icon: CreditCard },
-  { value: "dinheiro", label: "Dinheiro", icon: Banknote },
-];
+const METHOD_ICONS: Record<RestaurantPaymentMethod, typeof QrCode> = {
+  pix: QrCode,
+  cartao_credito: CreditCard,
+  cartao_debito: CreditCard,
+  dinheiro: Banknote,
+  outros: Receipt,
+};
 
 interface OrderSummaryCardProps {
   order: RestaurantOrder;
@@ -50,8 +53,9 @@ interface OrderSummaryCardProps {
   hasDiscount: boolean;
   isGarcom: boolean;
   isPaymentPhase: boolean;
-  paymentMethod: string;
-  onPaymentMethodChange: (value: string) => void;
+  paymentOptions: PaymentOption[];
+  selectedPayment: PaymentOption | null;
+  onSelectPayment: (option: PaymentOption) => void;
   onUpdateItemQuantity: (itemId: string, quantity: number) => void;
   onUpdateItemPrice: (itemId: string, unitPrice: string) => void;
   updateItemPending: boolean;
@@ -77,8 +81,9 @@ export function OrderSummaryCard({
   hasDiscount,
   isGarcom,
   isPaymentPhase,
-  paymentMethod,
-  onPaymentMethodChange,
+  paymentOptions,
+  selectedPayment,
+  onSelectPayment,
   onUpdateItemQuantity,
   onUpdateItemPrice,
   updateItemPending,
@@ -287,23 +292,26 @@ export function OrderSummaryCard({
         {isPaymentPhase ? (
           <div className="space-y-3 border-t px-4 pb-4 pt-3">
             <Label className="text-xs uppercase text-muted-foreground">Forma de pagamento</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {PAYMENT_METHODS.map((method) => (
-                <button
-                  key={method.value}
-                  type="button"
-                  onClick={() => onPaymentMethodChange(method.value)}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border-2 p-2.5 text-sm font-medium transition-colors",
-                    paymentMethod === method.value
-                      ? "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400"
-                      : "border-border text-muted-foreground hover:border-orange-300 hover:text-foreground",
-                  )}
-                >
-                  <method.icon className="h-4 w-4 shrink-0" />
-                  {method.label}
-                </button>
-              ))}
+            <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto">
+              {paymentOptions.map((option) => {
+                const Icon = METHOD_ICONS[option.method];
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => onSelectPayment(option)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border-2 p-2.5 text-sm font-medium transition-colors",
+                      selectedPayment?.value === option.value
+                        ? "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400"
+                        : "border-border text-muted-foreground hover:border-orange-300 hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{option.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex gap-2 pt-1">
@@ -321,7 +329,7 @@ export function OrderSummaryCard({
                 <AlertDialogTrigger asChild>
                   <Button
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                    disabled={items.length === 0 || !paymentMethod}
+                    disabled={items.length === 0 || !selectedPayment}
                   >
                     Fechar Comanda
                   </Button>
@@ -331,8 +339,7 @@ export function OrderSummaryCard({
                     <AlertDialogTitle>Fechar comanda da Mesa {order.tableNumber}?</AlertDialogTitle>
                     <AlertDialogDescription>
                       Total de {formatCurrency(total)} · pagamento em{" "}
-                      {PAYMENT_METHODS.find((m) => m.value === paymentMethod)?.label}. Esta ação
-                      não pode ser desfeita.
+                      {selectedPayment?.label}. Esta ação não pode ser desfeita.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

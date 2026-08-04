@@ -1547,6 +1547,60 @@ export async function getBlingContatos(
   return body.data ?? [];
 }
 
+export interface BlingFormaPagamento {
+  id: number;
+  descricao: string;
+  tipoPagamento: number;
+  situacao: number;
+  fixa: boolean;
+  padrao: number;
+  finalidade: number;
+  juros?: number;
+  multa?: number;
+}
+
+export interface GetBlingFormasPagamentoParams {
+  pagina?: number;
+  limite?: number;
+  descricao?: string;
+  situacao?: number;
+}
+
+export async function getBlingFormasPagamento(
+  accessToken: string,
+  params: GetBlingFormasPagamentoParams = {},
+  onTokenRefresh?: () => Promise<string>,
+): Promise<BlingFormaPagamento[]> {
+  let token = accessToken;
+
+  const queryParams: Record<string, string> = {
+    pagina: String(params.pagina ?? 1),
+    limite: String(params.limite ?? 100),
+    situacao: String(params.situacao ?? 1),
+  };
+
+  if (params.descricao?.trim()) {
+    queryParams.descricao = params.descricao.trim();
+  }
+
+  let response = await fetchBlingApi(token, "/formas-pagamentos", queryParams);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, "/formas-pagamentos", queryParams);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Falha ao listar formas de pagamento do Bling: ${errorText || response.statusText}`,
+    );
+  }
+
+  const body = (await response.json()) as { data: BlingFormaPagamento[] };
+  return body.data ?? [];
+}
+
 export async function createBlingContato(
   accessToken: string,
   payload: BlingContatoPayload,

@@ -27,6 +27,7 @@ import {
   getCancellationsReportController,
   forceCancelOrderController,
   updateOrderPeopleCountController,
+  listBlingPaymentMethodsController,
 } from "../controllers/restaurant-pdv";
 import {
   openCashSessionController,
@@ -178,6 +179,11 @@ restaurantPdvRouter.use(resolvePdvUnit);
 
 // ── Mesas ────────────────────────────────────────────────────────────────────
 restaurantPdvRouter.get("/tables/map", requireOperadorOrGestor, listTablesMapController);
+restaurantPdvRouter.get(
+  "/bling-payment-methods",
+  requireOperadorOrGestor,
+  listBlingPaymentMethodsController,
+);
 restaurantPdvRouter.get("/tables", requireGestor, listTablesController);
 restaurantPdvRouter.post("/tables", requireGestor, createTableController);
 restaurantPdvRouter.put("/tables/:id", requireGestor, updateTableController);

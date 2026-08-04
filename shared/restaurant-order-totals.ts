@@ -141,7 +141,7 @@ export function calculateOrderTotals({
 export const PAYMENTS_TOLERANCE_CENTS = 1;
 
 export interface OrderPaymentInput {
-  method: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
+  method: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro" | "outros";
   amount: string | number;
 }
 

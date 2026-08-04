@@ -2616,7 +2616,7 @@ export const restaurantOrders = pgTable(
       .default("aberta"),
     paymentRequestedAt: timestamp("payment_requested_at"),
     paymentMethod: text("payment_method", {
-      enum: ["pix", "cartao_credito", "cartao_debito", "dinheiro"],
+      enum: ["pix", "cartao_credito", "cartao_debito", "dinheiro", "outros"],
     }),
     subtotal: decimal("subtotal", { precision: 10, scale: 2 }),
     serviceFeePercent: decimal("service_fee_percent", {
@@ -2767,10 +2767,12 @@ export const restaurantOrderPayments = pgTable(
       .references(() => restaurantOrders.id)
       .notNull(),
     method: text("method", {
-      enum: ["pix", "cartao_credito", "cartao_debito", "dinheiro"],
+      enum: ["pix", "cartao_credito", "cartao_debito", "dinheiro", "outros"],
     }).notNull(),
     amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
     payerLabel: text("payer_label"),
+    blingPaymentMethodId: text("bling_payment_method_id"),
+    blingPaymentMethodDescription: text("bling_payment_method_description"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => ({
@@ -4540,6 +4542,8 @@ export type SendTemplateNodeData = {
   headerMediaType?: "image" | "video" | "document"; // tipo do header detectado do template
   templateParams?: string[];
   buttonHandles?: SendTemplateButtonHandle[];
+  /** Saída "Respondeu": qualquer resposta de texto que não case com um botão avança por ela. */
+  repliedHandle?: boolean;
   invalidResponseHandle?: boolean;
   noResponseHandle?: boolean;
   notDeliveredHandle?: boolean;

@@ -708,14 +708,24 @@ export const restaurantPdvService = {
 
   async closeOrder(
     orderId: string,
-    paymentMethod: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro" | undefined,
+    paymentMethod:
+      | "pix"
+      | "cartao_credito"
+      | "cartao_debito"
+      | "dinheiro"
+      | "outros"
+      | undefined,
     actorId: string,
     payments?: {
-      method: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
+      method: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro" | "outros";
       amount: string;
       payerLabel?: string | null;
+      blingPaymentMethodId?: string | null;
+      blingPaymentMethodDescription?: string | null;
     }[],
     unitId?: string | null,
+    // Forma Bling do fechamento simples (sem split) — grava no pagamento único.
+    blingPaymentMethod?: { id: string; description?: string | null } | null,
   ): Promise<RestaurantOrder> {
     // Ler, decidir e escrever tudo dentro da transação, com a linha da comanda
     // travada. Antes `assertOrderOpen` lia FORA da transação e o UPDATE filtrava
@@ -794,6 +804,8 @@ export const restaurantPdvService = {
           orderId,
           method: paymentMethod,
           amount: fromCents(totalCents),
+          blingPaymentMethodId: blingPaymentMethod?.id ?? null,
+          blingPaymentMethodDescription: blingPaymentMethod?.description ?? null,
         });
       }
 
@@ -805,6 +817,9 @@ export const restaurantPdvService = {
           // cliente e já passou pela validação de formato no controller.
           amount: fromCents(toCents(payment.amount)),
           payerLabel: payment.payerLabel ?? null,
+          blingPaymentMethodId: payment.blingPaymentMethodId ?? null,
+          blingPaymentMethodDescription:
+            payment.blingPaymentMethodDescription ?? null,
         });
       }
 
