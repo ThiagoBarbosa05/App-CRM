@@ -63,6 +63,7 @@ const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
 const WhatsAppConversations = lazy(() => import("@/pages/whatsapp/conversations"));
 const WhatsAppMetaMonitor = lazy(() => import("@/pages/whatsapp/meta-monitor"));
 const RestaurantReports = lazy(() => import("@/pages/restaurant-pdv/reports"));
+const RestaurantOrdersHistory = lazy(() => import("@/pages/restaurant-pdv/orders-history"));
 const RestaurantCashSession = lazy(() => import("@/pages/restaurant-pdv/cash-session"));
 const PdvSettings = lazy(() => import("@/pages/restaurant-pdv/settings"));
 
@@ -124,6 +125,7 @@ function RestaurantPdvSection() {
         <Switch>
           <Route path="/pdv-restaurante/caixa" component={RestaurantCashSession} />
           <Route path="/pdv-restaurante/relatorios" component={RestaurantReports} />
+          <Route path="/pdv-restaurante/historico" component={RestaurantOrdersHistory} />
           <Route path="/pdv-restaurante/configuracoes" component={PdvSettings} />
           <Route path="/pdv-restaurante/admin" component={AdminPanel} />
         </Switch>

@@ -16,9 +16,11 @@ export const restaurantOrderPaymentsService = {
   async addPayment(
     orderId: string,
     data: {
-      method: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro";
+      method: "pix" | "cartao_credito" | "cartao_debito" | "dinheiro" | "outros";
       amount: string;
       payerLabel?: string | null;
+      blingPaymentMethodId?: string | null;
+      blingPaymentMethodDescription?: string | null;
     },
   ): Promise<RestaurantOrderPayment> {
     // `amount` vinha do cliente e era gravado cru. A coluna é `numeric`, que no
@@ -40,6 +42,8 @@ export const restaurantOrderPaymentsService = {
         method: data.method,
         amount: fromCents(amountCents),
         payerLabel: data.payerLabel ?? null,
+        blingPaymentMethodId: data.blingPaymentMethodId ?? null,
+        blingPaymentMethodDescription: data.blingPaymentMethodDescription ?? null,
       })
       .returning();
     return created;

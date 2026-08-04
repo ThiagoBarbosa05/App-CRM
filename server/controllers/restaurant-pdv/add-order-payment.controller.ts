@@ -5,9 +5,11 @@ import { restaurantOrderPaymentsService } from "../../services/restaurant-order-
 import { positiveMoneyString } from "./money.schema";
 
 const addPaymentSchema = z.object({
-  method: z.enum(["pix", "cartao_credito", "cartao_debito", "dinheiro"]),
+  method: z.enum(["pix", "cartao_credito", "cartao_debito", "dinheiro", "outros"]),
   amount: positiveMoneyString,
   payerLabel: z.string().optional(),
+  blingPaymentMethodId: z.string().regex(/^\d+$/).optional(),
+  blingPaymentMethodDescription: z.string().max(120).optional(),
 });
 
 export const addOrderPaymentController = async (req: Request, res: Response) => {

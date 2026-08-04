@@ -8,7 +8,8 @@ import {
 } from "../../shared/schema";
 import { eq, sql } from "drizzle-orm";
 import type { PdvUnit, InsertPdvUnit } from "../../shared/schema";
-import { getBlingContatos } from "../integrations/bling";
+import { getBlingContatos, getBlingFormasPagamento } from "../integrations/bling";
+import type { BlingFormaPagamento } from "../integrations/bling";
 import { blingConnectionsService } from "./bling-connections.service";
 import { decryptToken } from "../lib/token-crypto";
 
@@ -168,5 +169,62 @@ export const pdvUnitsService = {
       nome: c.nome ?? "(sem nome)",
       numeroDocumento: c.numeroDocumento,
     }));
+  },
+
+  /**
+   * Formas de pagamento ATIVAS da conta Bling vinculada à unidade — usadas na
+   * tela de fechamento de comanda para o pedido de venda sair com
+   * `parcelas[].formaPagamento`. Quando o admin restringiu as formas da
+   * unidade (`enabledBlingPaymentMethodIds`), só as liberadas voltam.
+   */
+  async listBlingPaymentMethods(unitId: string): Promise<BlingFormaPagamento[]> {
+    const unit = await this.getUnit(unitId);
+    if (!unit?.blingConnectionId) {
+      throw Object.assign(new Error("Unidade sem conta Bling vinculada"), {
+        code: "NO_BLING_CONNECTION",
+      });
+    }
+
+    const formas = await this.listBlingPaymentMethodsByConnection(
+      unit.blingConnectionId,
+    );
+
+    const enabledIds = unit.enabledBlingPaymentMethodIds;
+    if (!enabledIds || enabledIds.length === 0) return formas;
+
+    const enabled = new Set(enabledIds);
+    return formas.filter((f) => enabled.has(String(f.id)));
+  },
+
+  /**
+   * Todas as formas ativas da conta — usada nas configurações da unidade para
+   * o admin escolher quais liberar no fechamento.
+   */
+  async listBlingPaymentMethodsByConnection(
+    connectionId: string,
+  ): Promise<BlingFormaPagamento[]> {
+    const connection = await blingConnectionsService.getById(connectionId);
+    if (!connection?.accessTokenEncrypted) {
+      throw Object.assign(new Error("Conta Bling sem token de acesso"), {
+        code: "NO_BLING_TOKEN",
+      });
+    }
+
+    let accessToken = decryptToken(connection.accessTokenEncrypted);
+    const onTokenRefresh = async (): Promise<string> => {
+      await blingConnectionsService.refreshConnection(connectionId);
+      const refreshed = await blingConnectionsService.getById(connectionId);
+      if (!refreshed?.accessTokenEncrypted) {
+        throw new Error("Não foi possível renovar o token do Bling");
+      }
+      accessToken = decryptToken(refreshed.accessTokenEncrypted);
+      return accessToken;
+    };
+
+    return getBlingFormasPagamento(
+      accessToken,
+      { situacao: 1, limite: 100 },
+      onTokenRefresh,
+    );
   },
 };

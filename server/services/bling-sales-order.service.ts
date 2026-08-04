@@ -5,6 +5,7 @@ import type { RestaurantOrder, RestaurantOrderItem } from "../../shared/schema";
 import {
   restaurantOrders,
   restaurantOrderItems,
+  restaurantOrderPayments,
   restaurantOrderBlingSyncLog,
   blingProductMappings,
   blingContactMappings,
@@ -13,6 +14,7 @@ import {
 } from "../../shared/schema";
 import type {
   BlingPedidoVendaItemPayload,
+  BlingPedidoVendaParcelaPayload,
   BlingPedidoVendaPayload,
 } from "../integrations/bling";
 import { blingConnectionsService } from "./bling-connections.service";
@@ -45,25 +47,40 @@ export interface ResolveBlingSalesOrderInput {
   blingProductIdByProductId: Map<string, string>;
   contactBlingId: string | null;
   sellerBlingId: string | null;
+  /**
+   * Pagamentos da comanda, na ordem de criação. Cada um vira uma parcela;
+   * quando presente, `blingPaymentMethodId` vai em `parcelas[].formaPagamento`.
+   * Vazio → parcela única sem forma (comportamento legado).
+   */
+  payments?: { amount: string; blingPaymentMethodId?: string | null }[];
 }
 
 export type ResolveBlingSalesOrderResult =
   | { ok: true; payload: BlingPedidoVendaPayload }
   | { ok: false; reason: string };
 
-/**
- * Simula a criação do pedido de venda no Bling, sem chamar a API real. Usado
- * enquanto o PDV Restaurante está em fase de testes, para não gerar pedidos
- * de venda de teste na conta Bling real (ver `BLING_PEDIDO_VENDA_MOCK`).
- */
-function createMockBlingPedidoVenda(
-  orderId: string,
-): { id: number; alertas: string[] } {
-  const mockId = -Date.now();
-  console.log(
-    `[Bling Sync] MOCK ativo — pedido de venda simulado (id=${mockId}) para orderId ${orderId}`,
-  );
-  return { id: mockId, alertas: [] };
+function buildParcelas(
+  payments: { amount: string; blingPaymentMethodId?: string | null }[],
+  totalCents: number,
+  closedDate: string,
+): BlingPedidoVendaParcelaPayload[] {
+  if (payments.length === 0) {
+    return [{ dataVencimento: closedDate, valor: toReais(totalCents) }];
+  }
+
+  let remainingCents = totalCents;
+  return payments.map((payment, index) => {
+    const isLast = index === payments.length - 1;
+    const cents = isLast ? remainingCents : toCents(payment.amount);
+    remainingCents -= cents;
+    return {
+      dataVencimento: closedDate,
+      valor: toReais(cents),
+      ...(payment.blingPaymentMethodId
+        ? { formaPagamento: { id: Number(payment.blingPaymentMethodId) } }
+        : {}),
+    };
+  });
 }
 
 /**
@@ -75,7 +92,14 @@ function createMockBlingPedidoVenda(
 export function resolveBlingSalesOrderPayload(
   input: ResolveBlingSalesOrderInput,
 ): ResolveBlingSalesOrderResult {
-  const { order, items, blingProductIdByProductId, contactBlingId, sellerBlingId } = input;
+  const {
+    order,
+    items,
+    blingProductIdByProductId,
+    contactBlingId,
+    sellerBlingId,
+    payments = [],
+  } = input;
 
   if (!contactBlingId) {
     return {
@@ -158,6 +182,20 @@ export function resolveBlingSalesOrderPayload(
     };
   }
 
+  // Uma parcela por pagamento, com a forma de pagamento do Bling quando o
+  // fechamento a registrou. A última parcela absorve a diferença de centavos
+  // (a validação do fechamento tolera 1 centavo), mantendo soma = total —
+  // invariante conferida depois por `compareBlingSalesOrderTotals`.
+  let parcelas: BlingPedidoVendaParcelaPayload[];
+  try {
+    parcelas = buildParcelas(payments, totalCents, closedDate);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `Pagamento da comanda com valor inválido: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
   const payload: BlingPedidoVendaPayload = {
     data: closedDate,
     dataSaida: closedDate,
@@ -173,7 +211,7 @@ export function resolveBlingSalesOrderPayload(
     ...(discountCents > 0
       ? { desconto: { valor: toReais(discountCents), unidade: "REAL" as const } }
       : {}),
-    parcelas: [{ dataVencimento: closedDate, valor: toReais(totalCents) }],
+    parcelas,
     ...(sellerBlingId ? { vendedor: { id: Number(sellerBlingId) } } : {}),
   };
 
@@ -440,12 +478,22 @@ async function attemptSendOrderToBling(orderId: string): Promise<SendAttemptResu
         resolveSellerBlingId(tx, order, connectionId),
       ]);
 
+      const payments = await tx
+        .select({
+          amount: restaurantOrderPayments.amount,
+          blingPaymentMethodId: restaurantOrderPayments.blingPaymentMethodId,
+        })
+        .from(restaurantOrderPayments)
+        .where(eq(restaurantOrderPayments.orderId, orderId))
+        .orderBy(restaurantOrderPayments.createdAt);
+
       const resolved = resolveBlingSalesOrderPayload({
         order,
         items,
         blingProductIdByProductId,
         contactBlingId,
         sellerBlingId,
+        payments,
       });
 
       if (!resolved.ok) {
@@ -454,35 +502,27 @@ async function attemptSendOrderToBling(orderId: string): Promise<SendAttemptResu
       }
 
       try {
-        const isBlingMock = process.env.BLING_PEDIDO_VENDA_MOCK === "true";
-
-        let blingSalesOrderId: number;
-        let alertas: string[] = [];
-        if (isBlingMock) {
-          ({ id: blingSalesOrderId } = createMockBlingPedidoVenda(order.id));
-        } else {
-          const connection = await blingConnectionsService.getById(connectionId);
-          if (!connection?.accessTokenEncrypted) {
-            throw new Error("Conexão Bling sem token de acesso");
-          }
-
-          let accessToken = decryptToken(connection.accessTokenEncrypted);
-          const onTokenRefresh = async (): Promise<string> => {
-            await blingConnectionsService.refreshConnection(connectionId);
-            const refreshed = await blingConnectionsService.getById(connectionId);
-            if (!refreshed?.accessTokenEncrypted) {
-              throw new Error("Não foi possível renovar o token do Bling");
-            }
-            accessToken = decryptToken(refreshed.accessTokenEncrypted);
-            return accessToken;
-          };
-
-          ({ id: blingSalesOrderId, alertas = [] } = await createBlingPedidoVenda(
-            accessToken,
-            resolved.payload,
-            onTokenRefresh,
-          ));
+        const connection = await blingConnectionsService.getById(connectionId);
+        if (!connection?.accessTokenEncrypted) {
+          throw new Error("Conexão Bling sem token de acesso");
         }
+
+        let accessToken = decryptToken(connection.accessTokenEncrypted);
+        const onTokenRefresh = async (): Promise<string> => {
+          await blingConnectionsService.refreshConnection(connectionId);
+          const refreshed = await blingConnectionsService.getById(connectionId);
+          if (!refreshed?.accessTokenEncrypted) {
+            throw new Error("Não foi possível renovar o token do Bling");
+          }
+          accessToken = decryptToken(refreshed.accessTokenEncrypted);
+          return accessToken;
+        };
+
+        const { id: blingSalesOrderId, alertas = [] } = await createBlingPedidoVenda(
+          accessToken,
+          resolved.payload,
+          onTokenRefresh,
+        );
         const blingSalesOrderIdStr = String(blingSalesOrderId);
         // Os alertas eram descartados. São eles que trazem avisos do tipo
         // "parcela divergente do total" — o primeiro sinal de que o pedido
@@ -620,17 +660,6 @@ export async function verifyBlingSalesOrder(params: {
       .limit(1);
 
     if (!order || !order.total) return;
-
-    // Em modo mock o id é negativo e inventado — o GET daria 404 e marcaria
-    // divergência falsa em toda comanda de teste.
-    if (process.env.BLING_PEDIDO_VENDA_MOCK === "true") {
-      await recordCheckResult(order, {
-        status: null,
-        detail: "Conferência não aplicável — pedido simulado (BLING_PEDIDO_VENDA_MOCK)",
-        blingOrderNumber: null,
-      });
-      return;
-    }
 
     const connection = await blingConnectionsService.getById(connectionId);
     if (!connection?.accessTokenEncrypted) {

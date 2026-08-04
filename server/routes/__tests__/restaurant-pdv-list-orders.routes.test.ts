@@ -67,6 +67,26 @@ describe("GET /restaurant-pdv/orders", () => {
     );
   });
 
+  it("repassa dateField=closed para recortar por data de fechamento", async () => {
+    const response = await request(appAs("gerente")).get(
+      "/restaurant-pdv/orders?status=fechada&dateField=closed",
+    );
+
+    expect(response.status).toBe(200);
+    expect(listOrdersMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "fechada", dateField: "closed" }),
+    );
+  });
+
+  it("recusa dateField fora do enum", async () => {
+    const response = await request(appAs("gerente")).get(
+      "/restaurant-pdv/orders?dateField=updated",
+    );
+
+    expect(response.status).toBe(400);
+    expect(listOrdersMock).not.toHaveBeenCalled();
+  });
+
   it("nega acesso ao garçom", async () => {
     const response = await request(appAs("garcom")).get("/restaurant-pdv/orders");
 

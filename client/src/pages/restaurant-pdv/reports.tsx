@@ -33,6 +33,7 @@ import { AlertCircle, BarChart3, Printer } from "lucide-react";
 import { PrintArea, printArea } from "@/components/restaurant-pdv/print-area";
 import { PageHeader } from "@/components/page-header";
 import { CashSessionReport } from "@/components/restaurant-pdv/cash-session-report";
+import { ClosedOrdersSection } from "@/components/restaurant-pdv/closed-orders-section";
 import {
   CancelledItemsTable,
   CancellationsByUser,
@@ -45,6 +46,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cartao_credito: "Cartão de Crédito",
   cartao_debito: "Cartão de Débito",
   dinheiro: "Dinheiro",
+  outros: "Outros",
 };
 
 interface SalesReport {
@@ -56,6 +58,50 @@ interface SalesReport {
   dailySeries: { date: string; orderCount: number; revenue: number }[];
   byPaymentMethod: { method: string; total: number }[];
   byWaiter: { waiterId: string; waiterName: string; total: number; orderCount: number }[];
+  comparison: {
+    totalRevenue: number;
+    orderCount: number;
+    averageTicket: number;
+    revenueChangePct: number | null;
+    orderCountChangePct: number | null;
+    averageTicketChangePct: number | null;
+  };
+  serviceFeeTotal: number;
+  discounts: {
+    total: number;
+    orderCount: number;
+    byReason: { reason: string; total: number; count: number }[];
+  };
+  averageTicketPerPerson: number | null;
+  averageStayMinutes: number | null;
+  byTable: { tableNumber: number; orderCount: number; revenue: number }[];
+  byWeekday: { weekday: number; orderCount: number; revenue: number }[];
+  ticketDistribution: { bucket: string; orderCount: number }[];
+}
+
+const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+/** Variação vs período anterior de mesma duração; some quando não há base. */
+function DeltaBadge({ pct }: { pct: number | null | undefined }) {
+  if (pct === null || pct === undefined) return null;
+  const up = pct >= 0;
+  return (
+    <p
+      className={
+        up
+          ? "text-xs font-medium text-emerald-600 dark:text-emerald-400"
+          : "text-xs font-medium text-red-600 dark:text-red-400"
+      }
+    >
+      {up ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% vs período anterior
+    </p>
+  );
+}
+
+function formatMinutes(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}min` : `${m}min`;
 }
 
 interface DailySummary {
@@ -250,6 +296,7 @@ export default function RestaurantReports() {
                 <p className="text-2xl font-bold">
                   {formatCurrency(report?.totalRevenue ?? 0)}
                 </p>
+                <DeltaBadge pct={report?.comparison?.revenueChangePct} />
               </CardContent>
             </Card>
             <Card>
@@ -258,12 +305,56 @@ export default function RestaurantReports() {
                 <p className="text-2xl font-bold">
                   {formatCurrency(report?.averageTicket ?? 0)}
                 </p>
+                <DeltaBadge pct={report?.comparison?.averageTicketChangePct} />
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <p className="text-xs uppercase text-muted-foreground">Nº de Comandas</p>
                 <p className="text-2xl font-bold">{report?.orderCount ?? 0}</p>
+                <DeltaBadge pct={report?.comparison?.orderCountChangePct} />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-xs uppercase text-muted-foreground">Taxa de Serviço</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(report?.serviceFeeTotal ?? 0)}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-xs uppercase text-muted-foreground">Descontos Concedidos</p>
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                  {formatCurrency(report?.discounts?.total ?? 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {report?.discounts?.orderCount ?? 0} comanda(s)
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-xs uppercase text-muted-foreground">Ticket por Pessoa</p>
+                <p className="text-2xl font-bold">
+                  {report?.averageTicketPerPerson != null
+                    ? formatCurrency(report.averageTicketPerPerson)
+                    : "—"}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-xs uppercase text-muted-foreground">Permanência Média</p>
+                <p className="text-2xl font-bold">
+                  {report?.averageStayMinutes != null
+                    ? formatMinutes(report.averageStayMinutes)
+                    : "—"}
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -325,7 +416,84 @@ export default function RestaurantReports() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+
+            <div>
+              <h3 className="mb-2 text-sm font-medium">Vendas por mesa (top 10)</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={report?.byTable ?? []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="tableNumber"
+                    fontSize={12}
+                    tickFormatter={(t) => `Mesa ${t}`}
+                  />
+                  <YAxis fontSize={12} />
+                  <Tooltip
+                    formatter={(v: number) => formatCurrency(v)}
+                    labelFormatter={(t) => `Mesa ${t}`}
+                  />
+                  <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-sm font-medium">Vendas por dia da semana</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={(report?.byWeekday ?? []).map((d) => ({
+                    ...d,
+                    label: WEEKDAY_LABELS[d.weekday] ?? String(d.weekday),
+                  }))}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" fontSize={12} />
+                  <YAxis fontSize={12} />
+                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  <Bar dataKey="revenue" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div>
+              <h3 className="mb-2 text-sm font-medium">
+                Comandas por faixa de valor (R$)
+              </h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={report?.ticketDistribution ?? []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="bucket" fontSize={12} />
+                  <YAxis fontSize={12} allowDecimals={false} />
+                  <Tooltip formatter={(v: number) => `${v} comanda(s)`} />
+                  <Bar dataKey="orderCount" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
+
+          {(report?.discounts?.byReason ?? []).length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-medium">Descontos por motivo</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Motivo</TableHead>
+                    <TableHead>Comandas</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report?.discounts.byReason.map((r) => (
+                    <TableRow key={r.reason}>
+                      <TableCell>{r.reason}</TableCell>
+                      <TableCell>{r.count}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(r.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
           <div>
             <h3 className="mb-2 text-sm font-medium">Itens mais vendidos</h3>
@@ -356,6 +524,20 @@ export default function RestaurantReports() {
             </Table>
           </div>
           </ReportCardState>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="space-y-1">
+            <CardTitle>Comandas Fechadas do Período</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Clique numa comanda para ver itens, pagamentos, taxas e descontos.
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ClosedOrdersSection from={from} to={to} />
         </CardContent>
       </Card>
 

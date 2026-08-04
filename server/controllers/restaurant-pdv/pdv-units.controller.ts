@@ -24,6 +24,12 @@ const createUnitSchema = z.object({
   defaultBlingContactName: z.string().optional().nullable(),
   defaultServiceFeePercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
   waiterCommissionPercent: z.string().regex(/^\d+(\.\d{1,2})?$/).optional(),
+  // Formas de pagamento Bling liberadas no fechamento. null ou lista vazia =
+  // todas as formas ativas da conta.
+  enabledBlingPaymentMethodIds: z
+    .array(z.string().regex(/^\d+$/))
+    .optional()
+    .nullable(),
 });
 
 /**
@@ -124,6 +130,7 @@ export const createPdvUnitController = async (req: Request, res: Response) => {
       defaultBlingContactName: parsed.data.defaultBlingContactName ?? null,
       defaultServiceFeePercent: parsed.data.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: parsed.data.waiterCommissionPercent ?? "0.00",
+      enabledBlingPaymentMethodIds: parsed.data.enabledBlingPaymentMethodIds ?? null,
       isActive: true,
     });
     return res.status(201).json(unit);
@@ -225,6 +232,34 @@ export const searchBlingContactsController = async (req: Request, res: Response)
     console.error("Erro ao buscar contatos no Bling:", err);
     return res.status(502).json({
       message: "Não foi possível buscar contatos no Bling. Verifique a conexão.",
+    });
+  }
+};
+
+/**
+ * Todas as formas de pagamento ativas da conta Bling informada — usada nas
+ * configurações da unidade para o admin escolher quais liberar no fechamento.
+ */
+export const listConnectionPaymentMethodsController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { connectionId } = req.query as { connectionId?: string };
+    if (!connectionId) {
+      return res.json([]);
+    }
+    const formas =
+      await pdvUnitsService.listBlingPaymentMethodsByConnection(connectionId);
+    return res.json(formas);
+  } catch (err: any) {
+    if (err?.code === "NO_BLING_TOKEN") {
+      return res.status(409).json({ message: err.message });
+    }
+    console.error("Erro ao listar formas de pagamento no Bling:", err);
+    return res.status(502).json({
+      message:
+        "Não foi possível listar as formas de pagamento no Bling. Verifique a conexão.",
     });
   }
 };

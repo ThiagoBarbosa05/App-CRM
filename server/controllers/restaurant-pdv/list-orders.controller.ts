@@ -6,6 +6,7 @@ import { restaurantPdvService } from "../../services/restaurant-pdv.service";
 // virava `eq(status, 'lixo')` e devolvia lista vazia com 200 — indistinguível
 // de "não há comandas". Validar aqui transforma isso em 400.
 const statusSchema = z.enum(["aberta", "fechada", "cancelada", "mesclada"]);
+const dateFieldSchema = z.enum(["opened", "closed"]);
 
 export const listOrdersController = async (req: Request, res: Response) => {
   try {
@@ -18,10 +19,19 @@ export const listOrdersController = async (req: Request, res: Response) => {
       status = parsed.data;
     }
 
+    let dateField: z.infer<typeof dateFieldSchema> | undefined;
+    if (req.query.dateField !== undefined) {
+      const parsed = dateFieldSchema.safeParse(req.query.dateField);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "dateField inválido" });
+      }
+      dateField = parsed.data;
+    }
+
     const from = req.query.from ? new Date(String(req.query.from)) : undefined;
     const to = req.query.to ? new Date(String(req.query.to)) : undefined;
 
-    const orders = await restaurantPdvService.listOrders({ status, from, to, unitId: req.pdvUnitId });
+    const orders = await restaurantPdvService.listOrders({ status, from, to, dateField, unitId: req.pdvUnitId });
     return res.json(orders);
   } catch (error) {
     console.error("Erro ao buscar histórico de comandas:", error);

@@ -48,6 +48,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cartao_credito: "Cartão de Crédito",
   cartao_debito: "Cartão de Débito",
   dinheiro: "Dinheiro",
+  outros: "Outros",
 };
 
 interface CashMovement {
@@ -680,6 +681,7 @@ const PAYMENT_METHOD_LABELS_PRINT: Record<string, string> = {
   cartao_credito: "Cartao Credito",
   cartao_debito: "Cartao Debito",
   dinheiro: "Dinheiro",
+  outros: "Outros",
 };
 
 function CloseSessionPrintArea({ snapshot }: { snapshot: PrintSnapshot }) {

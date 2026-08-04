@@ -29,3 +29,4 @@ export { getSalesReportController } from "./get-sales-report.controller";
 export { getCancellationsReportController } from "./get-cancellations-report.controller";
 export { forceCancelOrderController } from "./force-cancel-order.controller";
 export { updateOrderPeopleCountController } from "./update-order-people-count.controller";
+export { listBlingPaymentMethodsController } from "./payment-methods.controller";

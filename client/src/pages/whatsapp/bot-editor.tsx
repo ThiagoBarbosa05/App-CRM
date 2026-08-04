@@ -3023,6 +3023,7 @@ function SendTemplateEditor({
       <div className="space-y-2">
         <p className="text-xs font-medium">Ativar fluxo se:</p>
         {[
+          { key: "repliedHandle" as const, label: "Respondeu (texto livre)" },
           { key: "invalidResponseHandle" as const, label: "Resposta inválida" },
           { key: "noResponseHandle" as const, label: "Contato não responder" },
           { key: "notDeliveredHandle" as const, label: "Mensagem não for entregue" },

@@ -53,6 +53,10 @@ import { MergeTablesDialog } from "@/components/restaurant-pdv/merge-tables-dial
 import { OrderReceiptPrint, printBillNow } from "@/components/restaurant-pdv/order-receipt-print";
 import { OrderItemSelector } from "@/components/restaurant-pdv/order-item-selector";
 import { OrderSummaryCard } from "@/components/restaurant-pdv/order-summary-card";
+import {
+  useBlingPaymentMethods,
+  type PaymentOption,
+} from "@/hooks/use-bling-payment-methods";
 import { LinkClientDialog } from "@/components/restaurant-pdv/link-client-dialog";
 
 export interface CartItem {
@@ -80,7 +84,7 @@ export default function RestaurantComandaPage() {
   const [, navigate] = useLocation();
   const { orderId } = useParams<{ orderId: string }>();
 
-  const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [selectedPayment, setSelectedPayment] = useState<PaymentOption | null>(null);
   const [itemToCancel, setItemToCancel] = useState<RestaurantOrderItem | null>(null);
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
@@ -117,6 +121,12 @@ export default function RestaurantComandaPage() {
   const { data: pdvSettings } = useQuery<RestaurantPdvSettings>({
     queryKey: ["/api/restaurant-pdv/settings"],
   });
+
+  // Formas de pagamento da conta Bling da unidade — só interessam na fase de
+  // pagamento; sem Bling o hook devolve o conjunto local fixo.
+  const { options: paymentOptions } = useBlingPaymentMethods(
+    !!order?.paymentRequestedAt,
+  );
 
   const invalidateOrder = () => {
     queryClient.invalidateQueries({
@@ -252,14 +262,18 @@ export default function RestaurantComandaPage() {
   const closeOrderMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", `/api/restaurant-pdv/orders/${orderId}/close`, {
-        paymentMethod,
+        paymentMethod: selectedPayment?.method,
+        blingPaymentMethodId: selectedPayment?.blingId,
+        blingPaymentMethodDescription: selectedPayment?.blingId
+          ? selectedPayment.label
+          : undefined,
       });
     },
     onSuccess: () => {
       toast({ title: "Comanda fechada", description: "Venda registrada com sucesso!" });
       invalidateAfterClose();
       navigate("/pdv-restaurante");
-      setPaymentMethod("");
+      setSelectedPayment(null);
     },
     onError: (err: Error) => {
       toast({ title: "Erro ao fechar comanda", description: err.message, variant: "destructive" });
@@ -268,7 +282,13 @@ export default function RestaurantComandaPage() {
 
   const splitCloseMutation = useMutation({
     mutationFn: async (
-      payments: { method: string; amount: string; payerLabel: string }[],
+      payments: {
+        method: string;
+        amount: string;
+        payerLabel: string;
+        blingPaymentMethodId?: string;
+        blingPaymentMethodDescription?: string;
+      }[],
     ) => {
       // Uma requisição só: o backend grava os pagamentos e fecha na mesma
       // transação. Em duas etapas, um erro no fechamento deixava pagamentos
@@ -282,7 +302,7 @@ export default function RestaurantComandaPage() {
       invalidateAfterClose();
       setSplitDialogOpen(false);
       navigate("/pdv-restaurante");
-      setPaymentMethod("");
+      setSelectedPayment(null);
     },
     onError: (err: Error) => {
       toast({ title: "Erro ao dividir conta", description: err.message, variant: "destructive" });
@@ -650,8 +670,9 @@ export default function RestaurantComandaPage() {
                   hasDiscount={hasDiscount}
                   isGarcom={isGarcom}
                   isPaymentPhase={isPaymentPhase}
-                  paymentMethod={paymentMethod}
-                  onPaymentMethodChange={setPaymentMethod}
+                  paymentOptions={paymentOptions}
+                  selectedPayment={selectedPayment}
+                  onSelectPayment={setSelectedPayment}
                   onUpdateItemQuantity={(itemId, quantity) =>
                     updateItemMutation.mutate({ itemId, data: { quantity } })
                   }
@@ -725,6 +746,7 @@ export default function RestaurantComandaPage() {
         serviceFee={serviceFee}
         total={total}
         peopleCount={order?.peopleCount ?? 0}
+        paymentOptions={paymentOptions}
         isPending={splitCloseMutation.isPending}
         onConfirm={(payments) => splitCloseMutation.mutate(payments)}
       />

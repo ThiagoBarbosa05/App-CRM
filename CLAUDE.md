@@ -123,11 +123,6 @@ New features follow this pattern:
 
 **External integrations:** Umbler (WhatsApp/messaging), Bling (e-commerce orders), OpenAI (AI assistant), AWS S3 + Google Cloud Storage (file uploads via Uppy).
 
-> **PDV Restaurante — mock do pedido no Bling:** com `BLING_PEDIDO_VENDA_MOCK=true`
-> no `.env`, o fechamento de comanda simula a criação do pedido de venda no Bling
-> (`server/services/bling-sales-order.service.ts`) em vez de chamar a API real —
-> útil enquanto o módulo de PDV está em testes, para não criar pedidos de venda
-> reais no Bling.
 
 ## TypeScript Rules
 
