@@ -20,7 +20,7 @@ import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, sendReaction as evoSendReaction, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
-import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject } from "../lib/r2";
+import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject, deleteR2Object } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
 import { getChannelById, resolveChannelForConversation, resolveChannelById, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
@@ -2424,6 +2424,19 @@ export async function sendConversationMedia(
       waMessageId = evoResult?.key?.id ?? null;
     } catch (err) {
       console.error(`[sendConversationMedia] Evolution sendMedia falhou:`, err);
+      // O objeto sobe antes do envio (o gateway lê a mídia do R2). Se o envio
+      // falha, nenhuma linha de whatsapp_media vai referenciá-lo — sem esta
+      // limpeza o bucket acumula um órfão por tentativa frustrada.
+      const orphanKey = storageKey;
+      if (orphanKey) {
+        storageKey = null;
+        await deleteR2Object(orphanKey).catch((cleanupErr) =>
+          console.error(
+            `[sendConversationMedia] falha ao remover mídia órfã ${orphanKey}:`,
+            cleanupErr,
+          ),
+        );
+      }
       throw err;
     }
   } else {

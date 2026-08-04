@@ -277,12 +277,13 @@ Content-Type: application/json
 | Campo      | Obrigatório | Regras                                                 |
 | ---------- | ----------- | ------------------------------------------------------ |
 | `to`       | sim         | igual ao texto                                         |
-| `type`     | sim         | `image` \| `video` \| `audio` \| `document`            |
-| `url`      | exclusivo   | URL pública que o gateway vai baixar                   |
+| `type`     | sim         | `image` \| `video` \| `audio` \| `document` \| `sticker` |
+| `url`      | exclusivo   | URL do objeto que o gateway vai ler (ver abaixo)       |
 | `base64`   | exclusivo   | conteúdo inline, com ou sem prefixo `data:...;base64,` |
-| `caption`  | não         | até 4096 caracteres. Ignorado quando `type=audio`      |
+| `caption`  | não         | até 4096 caracteres. Ignorado em `type=audio` e `type=sticker` |
 | `filename` | não         | até 255 caracteres. Usado apenas em `type=document`    |
-| `mimetype` | não         | até 128 caracteres. Default `application/octet-stream` |
+| `mimetype` | não         | até 128 caracteres. Default `application/octet-stream`. Ignorado em `type=sticker` |
+| `quotedMsgId` | não      | `key.id` da mensagem que está sendo respondida         |
 
 `url` e `base64` são **mutuamente exclusivos e obrigatórios**: exatamente um dos dois. Informar os dois ou nenhum → `400` com a mensagem `"Informe exatamente um entre url e base64"`.
 
@@ -290,15 +291,21 @@ Content-Type: application/json
 
 - corpo da requisição: `BODY_LIMIT` (default `12mb`) — excedeu, o Express rejeita;
 - conteúdo decodificado do base64: `MAX_BASE64_BYTES` (default 8 MiB) → `413 {"message":"Base64 excede o limite"}`.
+- arquivo obtido por `url`: `MAX_OUTBOUND_MEDIA_BYTES` (default 16 MiB), com timeout `OUTBOUND_MEDIA_TIMEOUT_MS` (default 20 s).
+
+**Como o gateway lê a `url`.** Se ela estiver dentro de `R2_PUBLIC_URL`, o gateway
+deriva a chave do objeto e busca o conteúdo pela **API S3 do R2**, com as próprias
+credenciais — não há GET anônimo, então nada passa pelo edge da Cloudflare e o
+bucket não precisa ser publicamente legível. Use `getPublicR2Url(storageKey)`
+(`server/lib/r2.ts`) normalmente: a URL continua sendo o identificador do objeto.
+Chave inexistente no bucket → `404`; falha de leitura → `502`; timeout → `504`.
+URLs fora de `R2_PUBLIC_URL` continuam sendo baixadas por HTTPS, sem redirects.
 
 Passe `mimetype` sempre que souber — sem ele o WhatsApp recebe `application/octet-stream` e pode não renderizar a mídia inline. Áudio é enviado como arquivo de áudio comum, não como PTT (mensagem de voz).
 
 Resposta: mesmo formato do envio de texto.
 
-### 5.4 Foto de perfil
-
-No contrato 2.0, `POST /messages/media` também aceita `type: "sticker"` e
-`quotedMsgId`. Para reações:
+### 5.4 Reação
 
 ```http
 POST /v1/instances/canal-piloto/messages/reaction
@@ -309,7 +316,16 @@ Content-Type: application/json
 {"to":"5511999999999","messageId":"3EB0...","emoji":"👍"}
 ```
 
-Um `emoji` vazio remove a reação do próprio canal.
+| Campo       | Obrigatório | Regras                                          |
+| ----------- | ----------- | ----------------------------------------------- |
+| `to`        | sim         | igual ao texto                                  |
+| `messageId` | sim         | `key.id` da mensagem que está sendo reagida     |
+| `emoji`     | sim         | até 16 caracteres                               |
+
+Um `emoji` vazio remove a reação do próprio canal. A `key.id` devolvida é a da
+reação, não a da mensagem alvo.
+
+### 5.5 Foto de perfil
 
 ```http
 GET /v1/instances/canal-piloto/profile-picture?phone=5511999999999
@@ -458,6 +474,26 @@ Mensagem recebida (ou enviada por outro dispositivo do mesmo número).
 
 `message` contém apenas o tipo presente, entre: `conversation`, `extendedTextMessage`, `imageMessage`, `audioMessage`, `pttMessage`, `videoMessage`, `documentMessage`, `stickerMessage`, `reactionMessage`. Mensagens sem nenhum tipo reconhecido não geram evento.
 
+Todo nó de conteúdo — exceto `conversation` e `reactionMessage` — carrega um
+`contextInfo`, consumido por `whatsapp-baileys-events.service.ts` para preencher
+`replyToWaMessageId`, os snapshots da citação e `isForwarded`:
+
+```json
+"contextInfo": {
+  "stanzaId": "3EB0CITADA",
+  "participant": "5511999999999@s.whatsapp.net",
+  "quotedMessage": { "conversation": "mensagem original" },
+  "isForwarded": false,
+  "forwardingScore": 0
+}
+```
+
+`quotedMessage` é só um **resumo** da mensagem citada, com um único tipo entre
+`conversation`, `extendedTextMessage` (`text`), `imageMessage`/`videoMessage`
+(`caption`), `audioMessage` (`ptt`), `documentMessage` (`caption`, `fileName`) e
+`stickerMessage` (objeto vazio) — nunca binário. Sem `contextInfo` no WhatsApp, o
+campo é omitido.
+
 `_baileysMedia` só aparece quando há mídia. O binário **já foi baixado e enviado ao Cloudflare R2** pelo gateway; `storageKey` é a chave do objeto no bucket. Monte a URL pública concatenando com `R2_PUBLIC_URL`, ou gere uma URL assinada — o CRM não precisa (e não deve) baixar do WhatsApp.
 
 Não são entregues: `status@broadcast`, listas de transmissão (`@broadcast`) e newsletters (`@newsletter`) — filtrados na origem.
@@ -493,11 +529,13 @@ Atualizações de status. **`data` é um array**, não um objeto:
 | ------ | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `400`  | Validação de schema falhou                     | `{"message":"Requisição inválida","issues":[...]}` — `issues` é o array do Zod, com `path` e `message` por campo |
 | `401`  | Bearer ausente ou incorreto                    | `{"message":"Não autorizado"}`                                                                                   |
-| `404`  | Instância inexistente                          | Sem corpo em `GET /v1/instances/:name` e `GET .../qr`; `{"message":"Instância não encontrada"}` nas demais       |
+| `404`  | Instância inexistente; ou `url` de mídia cuja chave não existe no bucket | Sem corpo em `GET /v1/instances/:name` e `GET .../qr`; `{"message":"Instância não encontrada"}` nas demais; `{"message":"Mídia não encontrada no armazenamento"}` no envio de mídia |
 | `409`  | Conflito de `Idempotency-Key`                  | `{"message":"..."}` (ver 5.1)                                                                                    |
-| `413`  | Base64 acima de `MAX_BASE64_BYTES`             | `{"message":"Base64 excede o limite"}`                                                                           |
+| `413`  | Base64 ou arquivo remoto acima do limite       | `{"message":"...excede o limite..."}`                                                                            |
 | `429`  | Rate limit                                     | `{"message":"Muitas requisições"}`                                                                               |
+| `502`  | Falha ao obter a mídia da `url`                | `{"message":"Não foi possível ler a mídia do armazenamento (<erro>)"}` no R2; `{"message":"Não foi possível baixar a mídia (HTTP <status>)"}` por HTTPS |
 | `503`  | RSS acima do limite seguro, em `POST /connect` | `{"message":"Memória acima do limite seguro"}`                                                                   |
+| `504`  | Timeout ao obter a mídia da `url`              | `{"message":"Tempo esgotado ao baixar a mídia"}`                                                                 |
 | `500`  | Demais falhas                                  | `{"message":"<mensagem do erro>"}`                                                                               |
 
 ### Armadilha: instância desconectada retorna 500
