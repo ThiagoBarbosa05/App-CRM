@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import {
   mapBlingTipoPagamentoToLocalMethod,
   type RestaurantPaymentMethod,
@@ -25,10 +26,32 @@ export const LOCAL_PAYMENT_OPTIONS: PaymentOption[] = [
   { value: "dinheiro", label: "Dinheiro", method: "dinheiro" },
 ];
 
-interface BlingFormaPagamento {
+export interface BlingFormaPagamento {
   id: number;
   descricao: string;
   tipoPagamento: number;
+}
+
+/**
+ * TODAS as formas ativas da conta Bling informada — usada nas configurações da
+ * unidade para o admin escolher quais liberar no fechamento (rota de gestor,
+ * por `connectionId`; o fechamento usa a rota por unidade, já filtrada).
+ */
+export function useConnectionPaymentMethods(connectionId: string | null) {
+  return useQuery<BlingFormaPagamento[], Error>({
+    queryKey: ["/api/restaurant-pdv/units/bling-payment-methods", connectionId],
+    queryFn: async () => {
+      const params = new URLSearchParams({ connectionId: connectionId ?? "" });
+      const res = await apiRequest(
+        "GET",
+        `/api/restaurant-pdv/units/bling-payment-methods?${params.toString()}`,
+      );
+      return res.json() as Promise<BlingFormaPagamento[]>;
+    },
+    enabled: !!connectionId,
+    staleTime: 60_000,
+    retry: false,
+  });
 }
 
 /**

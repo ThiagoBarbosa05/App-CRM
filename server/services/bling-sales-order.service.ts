@@ -59,21 +59,6 @@ export type ResolveBlingSalesOrderResult =
   | { ok: true; payload: BlingPedidoVendaPayload }
   | { ok: false; reason: string };
 
-/**
- * Simula a criação do pedido de venda no Bling, sem chamar a API real. Usado
- * enquanto o PDV Restaurante está em fase de testes, para não gerar pedidos
- * de venda de teste na conta Bling real (ver `BLING_PEDIDO_VENDA_MOCK`).
- */
-function createMockBlingPedidoVenda(
-  orderId: string,
-): { id: number; alertas: string[] } {
-  const mockId = -Date.now();
-  console.log(
-    `[Bling Sync] MOCK ativo — pedido de venda simulado (id=${mockId}) para orderId ${orderId}`,
-  );
-  return { id: mockId, alertas: [] };
-}
-
 function buildParcelas(
   payments: { amount: string; blingPaymentMethodId?: string | null }[],
   totalCents: number,
@@ -517,35 +502,27 @@ async function attemptSendOrderToBling(orderId: string): Promise<SendAttemptResu
       }
 
       try {
-        const isBlingMock = process.env.BLING_PEDIDO_VENDA_MOCK === "true";
-
-        let blingSalesOrderId: number;
-        let alertas: string[] = [];
-        if (isBlingMock) {
-          ({ id: blingSalesOrderId } = createMockBlingPedidoVenda(order.id));
-        } else {
-          const connection = await blingConnectionsService.getById(connectionId);
-          if (!connection?.accessTokenEncrypted) {
-            throw new Error("Conexão Bling sem token de acesso");
-          }
-
-          let accessToken = decryptToken(connection.accessTokenEncrypted);
-          const onTokenRefresh = async (): Promise<string> => {
-            await blingConnectionsService.refreshConnection(connectionId);
-            const refreshed = await blingConnectionsService.getById(connectionId);
-            if (!refreshed?.accessTokenEncrypted) {
-              throw new Error("Não foi possível renovar o token do Bling");
-            }
-            accessToken = decryptToken(refreshed.accessTokenEncrypted);
-            return accessToken;
-          };
-
-          ({ id: blingSalesOrderId, alertas = [] } = await createBlingPedidoVenda(
-            accessToken,
-            resolved.payload,
-            onTokenRefresh,
-          ));
+        const connection = await blingConnectionsService.getById(connectionId);
+        if (!connection?.accessTokenEncrypted) {
+          throw new Error("Conexão Bling sem token de acesso");
         }
+
+        let accessToken = decryptToken(connection.accessTokenEncrypted);
+        const onTokenRefresh = async (): Promise<string> => {
+          await blingConnectionsService.refreshConnection(connectionId);
+          const refreshed = await blingConnectionsService.getById(connectionId);
+          if (!refreshed?.accessTokenEncrypted) {
+            throw new Error("Não foi possível renovar o token do Bling");
+          }
+          accessToken = decryptToken(refreshed.accessTokenEncrypted);
+          return accessToken;
+        };
+
+        const { id: blingSalesOrderId, alertas = [] } = await createBlingPedidoVenda(
+          accessToken,
+          resolved.payload,
+          onTokenRefresh,
+        );
         const blingSalesOrderIdStr = String(blingSalesOrderId);
         // Os alertas eram descartados. São eles que trazem avisos do tipo
         // "parcela divergente do total" — o primeiro sinal de que o pedido
@@ -683,17 +660,6 @@ export async function verifyBlingSalesOrder(params: {
       .limit(1);
 
     if (!order || !order.total) return;
-
-    // Em modo mock o id é negativo e inventado — o GET daria 404 e marcaria
-    // divergência falsa em toda comanda de teste.
-    if (process.env.BLING_PEDIDO_VENDA_MOCK === "true") {
-      await recordCheckResult(order, {
-        status: null,
-        detail: "Conferência não aplicável — pedido simulado (BLING_PEDIDO_VENDA_MOCK)",
-        blingOrderNumber: null,
-      });
-      return;
-    }
 
     const connection = await blingConnectionsService.getById(connectionId);
     if (!connection?.accessTokenEncrypted) {

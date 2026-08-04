@@ -54,6 +54,7 @@ import {
   listPdvUnitUsersController,
   listEligibleSellersController,
   searchBlingContactsController,
+  listConnectionPaymentMethodsController,
 } from "../controllers/restaurant-pdv/pdv-units.controller";
 import { adminUnitsOverviewController } from "../controllers/restaurant-pdv/admin-units-overview.controller";
 import { retryBlingSyncController } from "../controllers/restaurant-pdv/retry-bling-sync.controller";
@@ -134,6 +135,11 @@ restaurantPdvRouter.get("/products/filters", requireOperadorOrGestor, async (req
 restaurantPdvRouter.get("/units", requireGestor, listPdvUnitsController);
 restaurantPdvRouter.get("/units/eligible-sellers", requireGestor, listEligibleSellersController);
 restaurantPdvRouter.get("/units/bling-contacts", requireGestor, searchBlingContactsController);
+restaurantPdvRouter.get(
+  "/units/bling-payment-methods",
+  requireGestor,
+  listConnectionPaymentMethodsController,
+);
 restaurantPdvRouter.post("/units", requireGestor, createPdvUnitController);
 restaurantPdvRouter.put("/units/:id", requireGestor, updatePdvUnitController);
 restaurantPdvRouter.delete("/units/:id", requireGestor, deactivatePdvUnitController);

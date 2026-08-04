@@ -2427,6 +2427,12 @@ export const pdvUnits = pgTable("pdv_units", {
   // Bling para a conexão da unidade. Mesmo papel que defaultClientId cumpre
   // para o contato.
   defaultSellerId: varchar("default_seller_id").references(() => users.id),
+  /**
+   * Ids das formas de pagamento do Bling liberadas no fechamento de comanda
+   * desta unidade. `null` = todas as formas ativas da conta (comportamento
+   * padrão); lista vazia equivale a null.
+   */
+  enabledBlingPaymentMethodIds: jsonb("enabled_bling_payment_method_ids").$type<string[]>(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

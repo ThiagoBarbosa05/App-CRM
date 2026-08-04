@@ -4,12 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRouteTestApp, createMockAuthMiddleware } from "../../test/create-route-test-app";
 import { restaurantPdvRouter } from "../restaurant-pdv.routes";
 
-const { listBlingPaymentMethodsMock } = vi.hoisted(() => ({
+const { listBlingPaymentMethodsMock, listByConnectionMock } = vi.hoisted(() => ({
   listBlingPaymentMethodsMock: vi.fn(),
+  listByConnectionMock: vi.fn(),
 }));
 
 vi.mock("../../services/pdv-units.service", () => ({
-  pdvUnitsService: { listBlingPaymentMethods: listBlingPaymentMethodsMock },
+  pdvUnitsService: {
+    listBlingPaymentMethods: listBlingPaymentMethodsMock,
+    listBlingPaymentMethodsByConnection: listByConnectionMock,
+  },
 }));
 
 const app = createRouteTestApp({
@@ -69,5 +73,40 @@ describe("GET /restaurant-pdv/bling-payment-methods", () => {
     const response = await request(app).get("/restaurant-pdv/bling-payment-methods");
 
     expect(response.status).toBe(502);
+  });
+});
+
+describe("GET /restaurant-pdv/units/bling-payment-methods (config, por conexão)", () => {
+  const gestorApp = createRouteTestApp({
+    router: restaurantPdvRouter,
+    basePath: "/restaurant-pdv",
+    middlewares: [createMockAuthMiddleware({ role: "admin", userId: "admin-1" })],
+  });
+
+  beforeEach(() => {
+    listByConnectionMock.mockReset();
+  });
+
+  it("lista todas as formas ativas da conexão informada", async () => {
+    const formas = [{ id: 111, descricao: "Pix", tipoPagamento: 17, situacao: 1 }];
+    listByConnectionMock.mockResolvedValue(formas);
+
+    const response = await request(gestorApp).get(
+      "/restaurant-pdv/units/bling-payment-methods?connectionId=conn-1",
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(formas);
+    expect(listByConnectionMock).toHaveBeenCalledWith("conn-1");
+  });
+
+  it("sem connectionId responde lista vazia sem ir ao Bling", async () => {
+    const response = await request(gestorApp).get(
+      "/restaurant-pdv/units/bling-payment-methods",
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+    expect(listByConnectionMock).not.toHaveBeenCalled();
   });
 });

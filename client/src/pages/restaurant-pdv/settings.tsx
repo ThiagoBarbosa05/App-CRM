@@ -47,6 +47,8 @@ import {
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
 import { useEligibleSellers } from "@/hooks/use-eligible-sellers";
 import { useBlingContacts } from "@/hooks/use-bling-contacts";
+import { useConnectionPaymentMethods } from "@/hooks/use-bling-payment-methods";
+import { Checkbox } from "@/components/ui/checkbox";
 import { extractApiMessage } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
 
@@ -94,6 +96,8 @@ const unitFormSchema = z.object({
     .regex(/^\d+([.,]\d{1,2})?$/, "Percentual inválido")
     .optional()
     .default("0.00"),
+  // Ids das formas Bling liberadas no fechamento; vazio = todas.
+  enabledBlingPaymentMethodIds: z.array(z.string()).default([]),
 });
 type UnitFormValues = z.infer<typeof unitFormSchema>;
 
@@ -182,6 +186,7 @@ function UnitDialog({
       defaultBlingContactName: unit?.defaultBlingContactName ?? "",
       defaultServiceFeePercent: unit?.defaultServiceFeePercent ?? "10.00",
       waiterCommissionPercent: unit?.waiterCommissionPercent ?? "0.00",
+      enabledBlingPaymentMethodIds: unit?.enabledBlingPaymentMethodIds ?? [],
     },
   });
 
@@ -193,6 +198,11 @@ function UnitDialog({
     isFetching: isSearchingContacts,
     error: contactsError,
   } = useBlingContacts(blingConnectionId || null, contactSearch);
+  const {
+    data: paymentMethods = [],
+    isLoading: isLoadingPaymentMethods,
+    error: paymentMethodsError,
+  } = useConnectionPaymentMethods(blingConnectionId || null);
 
   const mutation = useMutation({
     mutationFn: async (data: UnitFormValues) => {
@@ -208,6 +218,11 @@ function UnitDialog({
         defaultBlingContactName: data.defaultBlingContactName || null,
         defaultServiceFeePercent: normalizePercent(data.defaultServiceFeePercent ?? "10.00"),
         waiterCommissionPercent: normalizePercent(data.waiterCommissionPercent ?? "0.00"),
+        // Vazio = todas as formas — gravar null para não congelar uma lista.
+        enabledBlingPaymentMethodIds:
+          data.enabledBlingPaymentMethodIds.length > 0
+            ? data.enabledBlingPaymentMethodIds
+            : null,
       };
       if (isEditing) {
         await apiRequest("PUT", `/api/restaurant-pdv/units/${unit.id}`, payload);
@@ -322,6 +337,8 @@ function UnitDialog({
                     onValueChange={(v) => {
                       field.onChange(v === "__none__" ? "" : v);
                       form.setValue("defaultSellerId", "");
+                      // Ids de forma de pagamento pertencem à conta anterior.
+                      form.setValue("enabledBlingPaymentMethodIds", []);
                     }}
                   >
                     <FormControl>
@@ -451,6 +468,62 @@ function UnitDialog({
                     Contato do Bling usado no pedido de venda quando a comanda fecha sem
                     cliente vinculado. <strong>Sem ele, nenhum pedido desta unidade chega
                     ao Bling.</strong>
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="enabledBlingPaymentMethodIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Formas de pagamento no fechamento</FormLabel>
+                  {!blingConnectionId ? (
+                    <p className="text-sm text-muted-foreground">
+                      Vincule um catálogo Bling para escolher as formas de pagamento.
+                    </p>
+                  ) : isLoadingPaymentMethods ? (
+                    <p className="text-sm text-muted-foreground">
+                      Carregando formas de pagamento do Bling...
+                    </p>
+                  ) : paymentMethodsError ? (
+                    <p className="text-sm text-destructive">
+                      {extractApiMessage(paymentMethodsError)}
+                    </p>
+                  ) : paymentMethods.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Nenhuma forma de pagamento ativa na conta Bling.
+                    </p>
+                  ) : (
+                    <div className="max-h-44 space-y-1 overflow-y-auto rounded-md border p-2">
+                      {paymentMethods.map((m) => {
+                        const id = String(m.id);
+                        const checked = field.value.includes(id);
+                        return (
+                          <label
+                            key={id}
+                            className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-accent"
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) =>
+                                field.onChange(
+                                  v
+                                    ? [...field.value, id]
+                                    : field.value.filter((x) => x !== id),
+                                )
+                              }
+                            />
+                            {m.descricao}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <FormDescription>
+                    Só as formas marcadas aparecem no fechamento de comanda desta
+                    unidade. Nenhuma marcada = todas as formas ativas da conta.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

@@ -174,7 +174,8 @@ export const pdvUnitsService = {
   /**
    * Formas de pagamento ATIVAS da conta Bling vinculada à unidade — usadas na
    * tela de fechamento de comanda para o pedido de venda sair com
-   * `parcelas[].formaPagamento`.
+   * `parcelas[].formaPagamento`. Quando o admin restringiu as formas da
+   * unidade (`enabledBlingPaymentMethodIds`), só as liberadas voltam.
    */
   async listBlingPaymentMethods(unitId: string): Promise<BlingFormaPagamento[]> {
     const unit = await this.getUnit(unitId);
@@ -184,7 +185,24 @@ export const pdvUnitsService = {
       });
     }
 
-    const connectionId = unit.blingConnectionId;
+    const formas = await this.listBlingPaymentMethodsByConnection(
+      unit.blingConnectionId,
+    );
+
+    const enabledIds = unit.enabledBlingPaymentMethodIds;
+    if (!enabledIds || enabledIds.length === 0) return formas;
+
+    const enabled = new Set(enabledIds);
+    return formas.filter((f) => enabled.has(String(f.id)));
+  },
+
+  /**
+   * Todas as formas ativas da conta — usada nas configurações da unidade para
+   * o admin escolher quais liberar no fechamento.
+   */
+  async listBlingPaymentMethodsByConnection(
+    connectionId: string,
+  ): Promise<BlingFormaPagamento[]> {
     const connection = await blingConnectionsService.getById(connectionId);
     if (!connection?.accessTokenEncrypted) {
       throw Object.assign(new Error("Conta Bling sem token de acesso"), {
