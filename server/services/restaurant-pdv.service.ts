@@ -397,12 +397,21 @@ export const restaurantPdvService = {
     from?: Date;
     to?: Date;
     unitId?: string;
+    /**
+     * Coluna usada no recorte de datas. Relatórios agregam por `closedAt`;
+     * sem esta opção a lista de comandas fechadas do período nunca bateria
+     * com os cards do relatório. Default `opened` preserva o comportamento
+     * do histórico.
+     */
+    dateField?: "opened" | "closed";
   }): Promise<(RestaurantOrder & { paymentsCount: number; waiterName: string | null })[]> {
+    const dateColumn =
+      filters.dateField === "closed" ? restaurantOrders.closedAt : restaurantOrders.openedAt;
     const conditions = [
       filters.status ? eq(restaurantOrders.status, filters.status) : undefined,
       filters.waiterId ? eq(restaurantOrders.waiterId, filters.waiterId) : undefined,
-      filters.from ? gte(restaurantOrders.openedAt, filters.from) : undefined,
-      filters.to ? lte(restaurantOrders.openedAt, filters.to) : undefined,
+      filters.from ? gte(dateColumn, filters.from) : undefined,
+      filters.to ? lte(dateColumn, filters.to) : undefined,
       filters.unitId ? eq(restaurantOrders.unitId, filters.unitId) : undefined,
     ].filter((c): c is NonNullable<typeof c> => c !== undefined);
 

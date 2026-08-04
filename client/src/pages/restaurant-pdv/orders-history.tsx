@@ -14,6 +14,7 @@ import {
   type OrdersHistoryFiltersValue,
 } from "@/components/restaurant-pdv/orders-history-filters";
 import { OrdersHistoryTable } from "@/components/restaurant-pdv/orders-history-table";
+import { OrderDetailSheet } from "@/components/restaurant-pdv/order-detail-sheet";
 
 interface RestaurantOrderWithPaymentsCount extends RestaurantOrder {
   paymentsCount: number;
@@ -23,6 +24,7 @@ interface RestaurantOrderWithPaymentsCount extends RestaurantOrder {
 export default function RestaurantOrdersHistory() {
   const [, setLocation] = useLocation();
   const [filters, setFilters] = useState<OrdersHistoryFiltersValue>(EMPTY_FILTERS);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const unitId = getPdvCurrentUnitId();
 
@@ -107,6 +109,12 @@ export default function RestaurantOrdersHistory() {
       <OrdersHistoryTable
         orders={orders}
         onContinueOrder={(orderId) => setLocation(`/pdv-restaurante/comanda/${orderId}`)}
+        onViewOrder={setSelectedOrderId}
+      />
+
+      <OrderDetailSheet
+        orderId={selectedOrderId}
+        onClose={() => setSelectedOrderId(null)}
       />
 
       <Button onClick={() => setLocation("/pdv-restaurante")}>

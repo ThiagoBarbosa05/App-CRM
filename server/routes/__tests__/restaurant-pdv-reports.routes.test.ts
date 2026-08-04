@@ -147,6 +147,35 @@ describe("rotas de relatório do PDV", () => {
     });
   });
 
+  it("repassa o shape ampliado do relatório de vendas sem filtrar campos", async () => {
+    const report = {
+      totalRevenue: 100,
+      orderCount: 2,
+      averageTicket: 50,
+      serviceFeeTotal: 10,
+      discounts: { total: 5, orderCount: 1, byReason: [] },
+      averageTicketPerPerson: 25,
+      averageStayMinutes: 42,
+      byTable: [{ tableNumber: 3, orderCount: 2, revenue: 100 }],
+      byWeekday: [{ weekday: 6, orderCount: 2, revenue: 100 }],
+      ticketDistribution: [{ bucket: "0-50", orderCount: 2 }],
+      comparison: {
+        totalRevenue: 80,
+        orderCount: 2,
+        averageTicket: 40,
+        revenueChangePct: 25,
+        orderCountChangePct: 0,
+        averageTicketChangePct: 25,
+      },
+    };
+    getSalesReportMock.mockResolvedValue(report);
+
+    const response = await request(appAs("gerente")).get("/restaurant-pdv/reports/sales");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(report);
+  });
+
   /**
    * Regressão do bug de fuso: às 21h de São Paulo o UTC já virou o dia
    * seguinte. O default precisa ser o dia de SP, senão a tela abre em

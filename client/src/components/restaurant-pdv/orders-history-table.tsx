@@ -39,9 +39,11 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
 interface OrdersHistoryTableProps {
   orders: RestaurantOrderWithPaymentsCount[];
   onContinueOrder: (orderId: string) => void;
+  /** Quando presente, comandas fechadas ganham um botão de detalhe. */
+  onViewOrder?: (orderId: string) => void;
 }
 
-export function OrdersHistoryTable({ orders, onContinueOrder }: OrdersHistoryTableProps) {
+export function OrdersHistoryTable({ orders, onContinueOrder, onViewOrder }: OrdersHistoryTableProps) {
   return (
     <Card>
       <CardHeader>
@@ -99,7 +101,14 @@ export function OrdersHistoryTable({ orders, onContinueOrder }: OrdersHistoryTab
                 </TableCell>
                 <TableCell>
                   {order.status === "fechada" ? (
-                    <OrderReceiptPrint orderId={order.id} label="Imprimir" />
+                    <div className="flex items-center gap-2">
+                      {onViewOrder && (
+                        <Button size="sm" variant="outline" onClick={() => onViewOrder(order.id)}>
+                          Detalhes
+                        </Button>
+                      )}
+                      <OrderReceiptPrint orderId={order.id} label="Imprimir" />
+                    </div>
                   ) : order.status === "aberta" ? (
                     <Button size="sm" variant="outline" onClick={() => onContinueOrder(order.id)}>
                       <ArrowUpRight className="mr-1.5 h-3.5 w-3.5" />

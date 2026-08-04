@@ -7,9 +7,14 @@ import {
 } from "../../shared/schema";
 import { eq, and, gte, lte, inArray, isNotNull, desc } from "drizzle-orm";
 import type { RestaurantOrder } from "../../shared/schema";
-import { eachDayOfInterval, format as formatDate, parseISO } from "date-fns";
 import { saoPauloDayRange } from "../../shared/sao-paulo-date";
-import { fromCents, toCents } from "../../shared/restaurant-order-totals";
+import { fromCents } from "../../shared/restaurant-order-totals";
+import {
+  buildSalesAggregates,
+  moneyToCents,
+  percentChange,
+  type SalesAggregates,
+} from "../../shared/restaurant-sales-aggregates";
 import {
   buildCancellationsReport,
   type CancellationsReport,
@@ -38,37 +43,19 @@ export interface DailySummary {
   byWaiter: { waiterId: string; waiterName: string; total: number; orderCount: number }[];
 }
 
-export interface SalesReport {
+export interface SalesReport extends SalesAggregates {
+  byPaymentMethod: { method: string; total: number }[];
+  byWaiter: { waiterId: string; waiterName: string; total: number; orderCount: number }[];
+  comparison: SalesComparison;
+}
+
+export interface SalesComparison {
   totalRevenue: number;
   orderCount: number;
   averageTicket: number;
-  topItems: { name: string; quantity: number; revenue: number }[];
-  byHour: { hour: number; orderCount: number; revenue: number }[];
-  dailySeries: { date: string; orderCount: number; revenue: number }[];
-  byPaymentMethod: { method: string; total: number }[];
-  byWaiter: { waiterId: string; waiterName: string; total: number; orderCount: number }[];
-}
-
-// America/Sao_Paulo é UTC-3 fixo (sem horário de verão desde 2019)
-const SP_OFFSET_HOURS = 3;
-
-/** Dia civil de São Paulo de um instante, `YYYY-MM-DD`. */
-function saoPauloDateKey(instant: Date): string {
-  return new Date(instant.getTime() - SP_OFFSET_HOURS * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-}
-
-/**
- * Centavos de uma coluna monetária que pode ser nula.
- *
- * `toCents` recusa null/vazio de propósito — para o fechamento de comanda,
- * valor ausente é erro, não zero. Mas `restaurant_orders.total` só é gravado
- * no fechamento, então relatório é justamente onde a coluna nula aparece; sem
- * esta guarda, uma linha legada derrubaria o relatório inteiro em 500.
- */
-function moneyToCents(value: string | null | undefined): number {
-  return value ? toCents(value) : 0;
+  revenueChangePct: number | null;
+  orderCountChangePct: number | null;
+  averageTicketChangePct: number | null;
 }
 
 /**
@@ -196,78 +183,35 @@ export const restaurantReportsService = {
             )
         : [];
 
-    const totalCents = orders.reduce((sum, o) => sum + moneyToCents(o.total), 0);
-    const orderCount = orders.length;
+    const aggregates = buildSalesAggregates(orders, items, range);
 
-    const itemMap = new Map<string, { name: string; quantity: number; cents: number }>();
-    for (const it of items) {
-      const existing = itemMap.get(it.name) ?? { name: it.name, quantity: 0, cents: 0 };
-      existing.quantity += it.quantity;
-      existing.cents += moneyToCents(it.unitPrice) * it.quantity;
-      itemMap.set(it.name, existing);
-    }
-    const topItems = Array.from(itemMap.values())
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10)
-      .map(({ cents, ...rest }) => ({ ...rest, revenue: Number(fromCents(cents)) }));
-
-    const hourMap = new Map<number, { orderCount: number; cents: number }>();
-    const dayMap = new Map<string, { orderCount: number; cents: number }>();
-    for (const o of orders) {
-      if (!o.closedAt) continue;
-      const closedAt = new Date(o.closedAt);
-      const spHour = new Date(
-        closedAt.getTime() - SP_OFFSET_HOURS * 60 * 60 * 1000,
-      ).getUTCHours();
-      const dateKey = saoPauloDateKey(closedAt);
-      const cents = moneyToCents(o.total);
-
-      const hourEntry = hourMap.get(spHour) ?? { orderCount: 0, cents: 0 };
-      hourEntry.orderCount += 1;
-      hourEntry.cents += cents;
-      hourMap.set(spHour, hourEntry);
-
-      const dayEntry = dayMap.get(dateKey) ?? { orderCount: 0, cents: 0 };
-      dayEntry.orderCount += 1;
-      dayEntry.cents += cents;
-      dayMap.set(dateKey, dayEntry);
-    }
-
-    // Dia sem venda precisa aparecer zerado: omitir a chave fazia a linha do
-    // gráfico ligar 02/08 direto em 04/08, escondendo a queda de 03/08.
-    // A chave vem do mesmo `saoPauloDateKey` do laço acima — gerar de outro
-    // jeito produziria dias duplicados no eixo.
-    const dailySeries = eachDayOfInterval({
-      start: parseISO(saoPauloDateKey(range.from)),
-      end: parseISO(saoPauloDateKey(range.to)),
-    }).map((day) => {
-      const dateKey = formatDate(day, "yyyy-MM-dd");
-      const entry = dayMap.get(dateKey);
-      return {
-        date: dateKey,
-        orderCount: entry?.orderCount ?? 0,
-        revenue: Number(fromCents(entry?.cents ?? 0)),
-      };
-    });
+    // Janela anterior de mesma duração, imediatamente antes de `from`. Só
+    // total/contagem — sem itens nem pagamentos, para não dobrar o custo.
+    const durationMs = range.to.getTime() - range.from.getTime();
+    const prevOrders = await fetchClosedOrders(
+      new Date(range.from.getTime() - durationMs - 1),
+      new Date(range.from.getTime() - 1),
+      range.unitId,
+    );
+    const prevTotalCents = prevOrders.reduce((sum, o) => sum + moneyToCents(o.total), 0);
+    const prevCount = prevOrders.length;
+    const prevAverageCents = prevCount > 0 ? Math.round(prevTotalCents / prevCount) : 0;
+    const currentTotalCents = orders.reduce((sum, o) => sum + moneyToCents(o.total), 0);
+    const currentAverageCents =
+      orders.length > 0 ? Math.round(currentTotalCents / orders.length) : 0;
 
     return {
-      totalRevenue: Number(fromCents(totalCents)),
-      orderCount,
-      averageTicket:
-        orderCount > 0 ? Number(fromCents(Math.round(totalCents / orderCount))) : 0,
-      topItems,
-      // `byHour` fica só com as horas observadas de propósito: preencher 0-23
-      // daria 18 barras vazias num restaurante que abre às 18h.
-      byHour: Array.from(hourMap.entries())
-        .map(([hour, entry]) => ({
-          hour,
-          orderCount: entry.orderCount,
-          revenue: Number(fromCents(entry.cents)),
-        }))
-        .sort((a, b) => a.hour - b.hour),
-      dailySeries,
+      ...aggregates,
       byPaymentMethod: await getPaymentMethodBreakdown(orderIds),
       byWaiter: await getWaiterBreakdown(orders),
+      comparison: {
+        totalRevenue: Number(fromCents(prevTotalCents)),
+        orderCount: prevCount,
+        averageTicket: Number(fromCents(prevAverageCents)),
+        revenueChangePct: percentChange(currentTotalCents, prevTotalCents),
+        orderCountChangePct: percentChange(orders.length, prevCount),
+        averageTicketChangePct: percentChange(currentAverageCents, prevAverageCents),
+      },
     };
   },
 

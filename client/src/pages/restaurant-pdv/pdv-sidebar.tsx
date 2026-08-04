@@ -3,6 +3,7 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+  History,
   LayoutGrid,
   LayoutDashboard,
   Settings,
@@ -20,6 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 const TABS = [
   { href: "/pdv-restaurante/caixa", label: "Caixa", icon: Wallet, adminOnly: false },
   { href: "/pdv-restaurante/relatorios", label: "Relatórios", icon: BarChart3, adminOnly: false },
+  { href: "/pdv-restaurante/historico", label: "Histórico", icon: History, adminOnly: false },
   { href: "/pdv-restaurante/configuracoes", label: "Configurações", icon: Settings, adminOnly: false },
   { href: "/pdv-restaurante/admin", label: "Painel Admin", icon: LayoutDashboard, adminOnly: true },
 ];
