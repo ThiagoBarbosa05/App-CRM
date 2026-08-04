@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import {
   useInternalConversations,
   useInternalMessages,
@@ -67,6 +69,7 @@ export function InternalChatPanel({ onExit, initialConversationId, onInitialCons
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   useInternalChatNotifications();
 
@@ -109,10 +112,7 @@ export function InternalChatPanel({ onExit, initialConversationId, onInitialCons
     await sendMessage.mutateAsync({ content });
   }
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file || !selectedId || isPending) return;
+  async function uploadAndSend(file: File) {
     setUploading(true);
     try {
       const formData = new FormData();
@@ -128,6 +128,32 @@ export function InternalChatPanel({ onExit, initialConversationId, onInitialCons
       });
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !selectedId || isPending) return;
+    await uploadAndSend(file);
+  }
+
+  // Ctrl+V de um screenshot envia direto, como se o arquivo tivesse sido
+  // escolhido pelo clipe. Colar texto continua funcionando normalmente.
+  async function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    if (uploading || !selectedId || isPending) return;
+    const image = extractPastedImage(e.clipboardData);
+    if (!image) return;
+    e.preventDefault();
+    try {
+      await uploadAndSend(await normalizePastedImage(image));
+    } catch (err) {
+      console.error("[internal-chat] falha ao colar imagem:", err);
+      toast({
+        title: "Não foi possível colar a imagem",
+        description: "Anexe o arquivo pelo botão de clipe.",
+        variant: "destructive",
+      });
     }
   }
 
@@ -373,6 +399,7 @@ export function InternalChatPanel({ onExit, initialConversationId, onInitialCons
                     handleSend();
                   }
                 }}
+                onPaste={handlePaste}
                 placeholder={uploading ? "Enviando anexo..." : "Digite uma mensagem"}
                 disabled={uploading}
                 className="flex-1"

@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
 import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
@@ -3722,20 +3723,47 @@ function ConversationMessages({
     ],
   );
 
+  const attachFile = useCallback((file: File) => {
+    const kind: "image" | "video" | "document" = file.type.startsWith("image/")
+      ? "image"
+      : file.type.startsWith("video/")
+        ? "video"
+        : "document";
+    setPendingMedia({ file, url: URL.createObjectURL(file), kind });
+    setPendingMediaCaption("");
+  }, []);
+
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
       e.target.value = "";
-      const kind: "image" | "video" | "document" = file.type.startsWith("image/")
-        ? "image"
-        : file.type.startsWith("video/")
-          ? "video"
-          : "document";
-      setPendingMedia({ file, url: URL.createObjectURL(file), kind });
-      setPendingMediaCaption("");
+      attachFile(file);
     },
-    [],
+    [attachFile],
+  );
+
+  // Ctrl+V de um screenshot vira anexo pendente, com o mesmo preview e legenda
+  // do botão de clipe. Só intercepta o paste quando há imagem — colar texto
+  // continua funcionando normalmente.
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (isUploading || pendingMedia) return;
+      const image = extractPastedImage(e.clipboardData);
+      if (!image) return;
+      e.preventDefault();
+      try {
+        attachFile(await normalizePastedImage(image));
+      } catch (err) {
+        console.error("[conversations] falha ao colar imagem:", err);
+        toast({
+          title: "Não foi possível colar a imagem",
+          description: "Anexe o arquivo pelo botão de clipe.",
+          variant: "destructive",
+        });
+      }
+    },
+    [attachFile, isUploading, pendingMedia, toast],
   );
 
   const handleStickerChange = useCallback(
@@ -5323,6 +5351,7 @@ function ConversationMessages({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder={
                   composerMode === "note"
                     ? "Digite uma nota que só os atendentes podem ver…"
