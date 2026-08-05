@@ -398,11 +398,8 @@ export async function executeCampaign(
           continue;
         }
 
-        if (status === "already_active" || status === "no_start_node") {
-          const errorMessage =
-            status === "already_active"
-              ? "Sessão de bot já ativa para este contato — nenhuma mensagem enviada"
-              : "Bot não possui nó inicial configurado";
+        if (status === "no_start_node") {
+          const errorMessage = "Bot não possui nó inicial configurado";
           await db
             .update(whatsappCampaignMessages)
             .set({ status: "failed", errorMessage, updatedAt: new Date() })
@@ -410,6 +407,40 @@ export async function executeCampaign(
           await releaseImpact(msg.id);
           failed++;
           console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): ${errorMessage}`);
+          if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
+          continue;
+        }
+
+        if (status === "already_active") {
+          // Condição transitória: o contato já tem uma sessão de bot ativa no
+          // momento do disparo (corrida comum quando o bot está no meio de
+          // uma conversa). Reagenda com o mesmo backoff de handleSendFailure
+          // em vez de falhar de imediato — a sessão ativa tende a terminar em
+          // minutos. O impact continua reservado enquanto houver tentativas.
+          const nextAttempts = (msg.attempts ?? 0) + 1;
+          if (nextAttempts < MAX_SEND_ATTEMPTS) {
+            await db
+              .update(whatsappCampaignMessages)
+              .set({
+                status: "scheduled",
+                attempts: nextAttempts,
+                nextAttemptAt: new Date(Date.now() + computeBackoffMs(nextAttempts)),
+                errorMessage: `Contato com sessão de bot ativa — nova tentativa agendada (${nextAttempts}/${MAX_SEND_ATTEMPTS})`,
+                updatedAt: new Date(),
+              })
+              .where(eq(whatsappCampaignMessages.id, msg.id));
+            retried++;
+            console.error(`[WaCampaign] Bot ↻ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): sessão de bot já ativa — reagendado (${nextAttempts}/${MAX_SEND_ATTEMPTS})`);
+          } else {
+            const errorMessage = `Sessão de bot permaneceu ativa após ${MAX_SEND_ATTEMPTS} tentativas — desistindo`;
+            await db
+              .update(whatsappCampaignMessages)
+              .set({ status: "failed", attempts: nextAttempts, errorMessage, updatedAt: new Date() })
+              .where(eq(whatsappCampaignMessages.id, msg.id));
+            await releaseImpact(msg.id);
+            failed++;
+            console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): ${errorMessage}`);
+          }
           if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
           continue;
         }
