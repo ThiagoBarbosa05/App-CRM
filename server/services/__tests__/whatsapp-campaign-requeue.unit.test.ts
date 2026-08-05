@@ -112,6 +112,7 @@ function makeTx(opts: {
     impactWhereMock,
     campaignSetMock,
     campaignUpdateWhereMock,
+    selectMock,
     selectWhereMock,
   };
 }
@@ -231,8 +232,8 @@ describe("requeueFailedMessages", () => {
     );
   });
 
-  it("zero mensagens failed: { requeued: 0 }, sem UPDATE de impacts nem tentativa de mudar status da campanha", async () => {
-    const { tx, impactSetMock, campaignSetMock, updateCalls } = makeTx({
+  it("zero mensagens failed: { requeued: 0 }, sem UPDATE de impacts, sem SELECT de status e sem tentativa de mudar status da campanha", async () => {
+    const { tx, impactSetMock, campaignSetMock, updateCalls, selectMock } = makeTx({
       messageReturningRows: [],
       campaignStatus: "cancelled", // mesmo campanha bloqueada, não deveria importar aqui
     });
@@ -244,6 +245,27 @@ describe("requeueFailedMessages", () => {
     expect(impactSetMock).not.toHaveBeenCalled();
     expect(campaignSetMock).not.toHaveBeenCalled();
     expect(updateCalls).toEqual([whatsappCampaignMessages]);
+    // Early return acontece antes do SELECT de status — zero failed não deve
+    // nem consultar whatsapp_campaigns.
+    expect(selectMock).not.toHaveBeenCalled();
+  });
+
+  it("campanha não encontrada (SELECT retorna vazio): lança CampaignRequeueBlockedError e não atualiza status da campanha", async () => {
+    const { tx, campaignSetMock, updateCalls } = makeTx({
+      messageReturningRows: [{ id: "msg-1" }],
+      campaignStatus: null,
+    });
+    transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
+
+    await expect(requeueFailedMessages("camp-inexistente")).rejects.toThrow(
+      CampaignRequeueBlockedError,
+    );
+    await expect(requeueFailedMessages("camp-inexistente")).rejects.toThrow(
+      "Campanha camp-inexistente não encontrada.",
+    );
+
+    expect(campaignSetMock).not.toHaveBeenCalled();
+    expect(updateCalls).not.toContain(whatsappCampaigns);
   });
 
   it("in_progress e failed também estão na lista de status permitidos para revigorar a campanha", async () => {

@@ -127,6 +127,19 @@ describe("POST /campaigns/:id/retry-failed", () => {
     expect(res.body).toEqual({ message: "Campanha no estado atual (paused) não pode ser reprocessada." });
   });
 
+  it("409 quando a campanha não é encontrada", async () => {
+    requeueFailedMessagesMock.mockRejectedValue(
+      new CampaignRequeueBlockedError("Campanha camp-1 não encontrada.", "not_found"),
+    );
+
+    const res = await request(makeApp())
+      .post("/api/whatsapp/campaigns/camp-1/retry-failed")
+      .send();
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ message: "Campanha camp-1 não encontrada." });
+  });
+
   it("500 para erros inesperados que não são CampaignRequeueBlockedError", async () => {
     requeueFailedMessagesMock.mockRejectedValue(new Error("boom"));
 

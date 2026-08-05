@@ -183,28 +183,39 @@ export async function requeueFailedMessages(
         );
     }
 
+    if (requeuedIds.length === 0) {
+      return { requeued: 0 };
+    }
+
     const [campaign] = await tx
       .select({ status: whatsappCampaigns.status })
       .from(whatsappCampaigns)
       .where(eq(whatsappCampaigns.id, campaignId));
 
-    if (requeuedIds.length > 0 && campaign) {
-      if (!REQUEUE_ALLOWED_STATUSES.includes(campaign.status as typeof REQUEUE_ALLOWED_STATUSES[number])) {
-        // Lançar aqui reverte (ROLLBACK) os UPDATEs de mensagens/impacts já
-        // feitos nesta mesma transação — nada é persistido quando bloqueado.
-        throw new CampaignRequeueBlockedError(
-          campaign.status === "cancelled"
-            ? "Campanha cancelada não pode ser reprocessada."
-            : `Campanha no estado atual (${campaign.status}) não pode ser reprocessada.`,
-          campaign.status,
-        );
-      }
-
-      await tx
-        .update(whatsappCampaigns)
-        .set({ status: "in_progress", completedAt: null, updatedAt: new Date() })
-        .where(eq(whatsappCampaigns.id, campaignId));
+    if (!campaign) {
+      // Lançar aqui reverte (ROLLBACK) os UPDATEs de mensagens/impacts já
+      // feitos nesta mesma transação — nada é persistido quando bloqueado.
+      throw new CampaignRequeueBlockedError(
+        `Campanha ${campaignId} não encontrada.`,
+        "not_found",
+      );
     }
+
+    if (!REQUEUE_ALLOWED_STATUSES.includes(campaign.status as typeof REQUEUE_ALLOWED_STATUSES[number])) {
+      // Lançar aqui reverte (ROLLBACK) os UPDATEs de mensagens/impacts já
+      // feitos nesta mesma transação — nada é persistido quando bloqueado.
+      throw new CampaignRequeueBlockedError(
+        campaign.status === "cancelled"
+          ? "Campanha cancelada não pode ser reprocessada."
+          : `Campanha no estado atual (${campaign.status}) não pode ser reprocessada.`,
+        campaign.status,
+      );
+    }
+
+    await tx
+      .update(whatsappCampaigns)
+      .set({ status: "in_progress", completedAt: null, updatedAt: new Date() })
+      .where(eq(whatsappCampaigns.id, campaignId));
 
     return { requeued: requeuedIds.length };
   });
