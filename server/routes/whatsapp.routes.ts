@@ -9,7 +9,7 @@ import {
   whatsappCampaignMessages,
   whatsappChannels,
 } from "@shared/schema";
-import { eq, and, inArray, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull, count } from "drizzle-orm";
 import { sendTextMessage, sendTemplateMessage } from "../integrations/whatsapp";
 import {
   listCampaigns,
@@ -353,7 +353,33 @@ router.post("/campaigns", async (req, res) => {
       });
     }
 
-    // 3. Garantir entrada em whatsappCampaigns (satisfaz FK de whatsappCampaignMessages)
+    // 3. Idempotência: bloquear reenfileiramento por cima de uma campanha que
+    //    já está em andamento/pausada (evita duplicar disparos e sobrescrever
+    //    totalContacts/scheduledMessages/audienceSelector no meio do processo)
+    //    ou que já terminou (o caminho correto pra isso é retry-failed).
+    const [existingWaCampaign] = await db
+      .select({ status: whatsappCampaigns.status })
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.id, campaignId));
+
+    if (existingWaCampaign) {
+      if (existingWaCampaign.status === "in_progress" || existingWaCampaign.status === "paused") {
+        return res.status(409).json({
+          message: "Campanha já está em andamento ou pausada — use pause/resume/cancel em vez de reenfileirar.",
+        });
+      }
+      if (
+        existingWaCampaign.status === "completed" ||
+        existingWaCampaign.status === "failed" ||
+        existingWaCampaign.status === "cancelled"
+      ) {
+        return res.status(409).json({
+          message: `Campanha já foi finalizada (status: ${existingWaCampaign.status}). Use POST /campaigns/:id/retry-failed para reprocessar falhas.`,
+        });
+      }
+    }
+
+    // Garantir entrada em whatsappCampaigns (satisfaz FK de whatsappCampaignMessages)
     await db
       .insert(whatsappCampaigns)
       .values({
@@ -483,13 +509,32 @@ router.post("/campaigns", async (req, res) => {
     }
     */
 
+    // Recount agrupado direto na tabela real: os contadores locais (queued,
+    // suppressedDuplicate, preSuppressed.length) refletem só o que esta
+    // submissão processou, ignorando mensagens de submissões anteriores
+    // (ex: alreadyQueuedIds, excluídas do loop mas não contadas em nada acima).
+    const statusCounts = await db
+      .select({ status: whatsappCampaignMessages.status, count: count() })
+      .from(whatsappCampaignMessages)
+      .where(eq(whatsappCampaignMessages.campaignId, campaignId))
+      .groupBy(whatsappCampaignMessages.status);
+
+    const countByStatus = Object.fromEntries(statusCounts.map((r) => [r.status, Number(r.count)]));
+    const totalContacts = statusCounts.reduce((sum, r) => sum + Number(r.count), 0);
+    const scheduledMessages = countByStatus["scheduled"] ?? 0;
+    const sentMessages =
+      (countByStatus["sent"] ?? 0) + (countByStatus["delivered"] ?? 0) + (countByStatus["read"] ?? 0);
+    const failedMessages = countByStatus["failed"] ?? 0;
+
     await db
       .update(whatsappCampaigns)
       .set({
-        totalContacts: queued + suppressedDuplicate + preSuppressed.length,
-        scheduledMessages: queued,
-        status: queued === 0 ? "completed" : isScheduled ? "created" : "in_progress",
-        completedAt: queued === 0 ? new Date() : null,
+        totalContacts,
+        scheduledMessages,
+        sentMessages,
+        failedMessages,
+        status: scheduledMessages === 0 ? "completed" : isScheduled ? "created" : "in_progress",
+        completedAt: scheduledMessages === 0 ? new Date() : null,
         updatedAt: new Date(),
       })
       .where(eq(whatsappCampaigns.id, campaignId));
