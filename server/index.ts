@@ -33,6 +33,7 @@ import "./jobs/copiloto-scan-scheduler";
 import "./jobs/cashback-automation-scheduler";
 import "./jobs/reengagement-automation-scheduler";
 import "./jobs/quote-expiry-alert-scheduler";
+import { startReconcileBaileysStatusJob } from "./jobs/reconcile-baileys-status.job";
 import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
 import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";
@@ -207,6 +208,7 @@ app.use((req, res, next) => {
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();
+  startReconcileBaileysStatusJob();
   startGatewayWebhookInboxWorker();
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
