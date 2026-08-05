@@ -12,6 +12,19 @@ export interface GatewayWebhookEnvelope {
   event: "messages.upsert" | "messages.update" | "messages.reaction" | "connection.update" | "qrcode.updated";
   instance: string;
   data: unknown;
+  /**
+   * Instante em que o evento aconteceu no gateway (ISO). Diferente de
+   * `x-gateway-timestamp`, que é o instante da ENTREGA e muda a cada retry.
+   * Opcional: gateways anteriores à v2.1 não enviam o campo.
+   */
+  occurredAt?: string;
+}
+
+/** Converte o `occurredAt` do envelope em Date, ignorando valores inválidos. */
+function parseOccurredAt(value: string | undefined): Date | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
 
 export async function enqueueGatewayWebhook(
@@ -43,10 +56,18 @@ async function dispatch(envelope: GatewayWebhookEnvelope): Promise<void> {
       await handleMessagesReaction(envelope.instance, envelope.data);
       return;
     case "connection.update":
-      await handleConnectionUpdate(envelope.instance, envelope.data);
+      await handleConnectionUpdate(
+        envelope.instance,
+        envelope.data,
+        parseOccurredAt(envelope.occurredAt),
+      );
       return;
     case "qrcode.updated":
-      await handleQrcodeUpdated(envelope.instance, envelope.data);
+      await handleQrcodeUpdated(
+        envelope.instance,
+        envelope.data,
+        parseOccurredAt(envelope.occurredAt),
+      );
   }
 }
 

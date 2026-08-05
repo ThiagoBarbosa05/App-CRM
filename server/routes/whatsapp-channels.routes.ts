@@ -8,10 +8,10 @@ import {
   createChannel,
   updateChannel,
   deleteChannel,
-  updateConnectionStatus,
   canUserReadChannelQr,
   resolveChannelById,
 } from "../services/whatsapp-channels.service";
+import { applyChannelConnectionStatus } from "../services/baileys/connection-status.service";
 import {
   listWabaPhoneNumbers,
   getPhoneNumberDetails,
@@ -171,7 +171,11 @@ router.get("/channels/:id", requireAdminOrGerente, async (req: Request, res: Res
   res.json(channel);
 });
 
-router.get("/channels/:id/status", requireAdminOrGerente, async (req: Request, res: Response) => {
+// Consulta o status AO VIVO no gateway. O ramo Cloud API devolve dados da Meta
+// e segue restrito a admin/gerente; o ramo QR é self-service (o vendedor
+// precisa poder verificar o próprio canal), com o mesmo critério de
+// canConnectChannel usado por connect/qr/logout.
+router.get("/channels/:id/status", async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) { res.sendStatus(400); return; }
@@ -179,6 +183,10 @@ router.get("/channels/:id/status", requireAdminOrGerente, async (req: Request, r
     if (!channel) { res.sendStatus(404); return; }
 
     if (channel.provider === "evolution") {
+      if (!(await canConnectChannel(req, channel))) {
+        res.status(403).json({ message: "Acesso restrito ao dono do canal, administradores ou atendentes autorizados" });
+        return;
+      }
       if (!channel.evolutionInstanceName) {
         res.status(400).json({ message: "Canal Evolution sem instância configurada" });
         return;
@@ -188,25 +196,39 @@ router.get("/channels/:id/status", requireAdminOrGerente, async (req: Request, r
         return;
       }
       const instance = await baileysGateway.getInstance(channel.evolutionInstanceName);
-      const connectionStatus =
-        instance.observed_state === "lock_wait"
+      const connectionStatus = instance.observed_state_stale
+        ? "disconnected"
+        : instance.observed_state === "lock_wait"
           ? "connecting"
           : instance.observed_state === "failed"
             ? "disconnected"
             : instance.observed_state;
       if (connectionStatus !== channel.connectionStatus) {
-        await updateConnectionStatus(id, connectionStatus);
+        await applyChannelConnectionStatus(id, connectionStatus, {
+          source: "route",
+          occurredAt: new Date(),
+          reasonLabel: instance.observed_state_stale
+            ? "Gateway parou de responder pela sessão"
+            : instance.last_error ?? undefined,
+        });
       }
       res.json({
         provider: "evolution",
         qrBackend: "gateway",
         connectionStatus,
         observedState: instance.observed_state,
+        observedStale: instance.observed_state_stale ?? false,
+        observedAt: instance.observed_at ?? instance.updated_at,
         instanceState: instance.observed_state === "connected" ? "open" : instance.observed_state,
         desiredState: instance.desired_state,
         connectedPhone: instance.connected_phone,
         lastError: instance.last_error,
       });
+      return;
+    }
+
+    if (!isAdminOrGerente(req)) {
+      res.status(403).json({ message: "Acesso restrito a administradores e gerentes" });
       return;
     }
 
@@ -232,11 +254,12 @@ router.get("/channels/:id/connection-events", async (req: Request, res: Response
     const channel = await getChannelById(id);
     if (!channel) { res.sendStatus(404); return; }
 
-    const user = (req as any).user;
-    const isOwner = channel.userId && channel.userId === user?.userId;
-    const isAdmin = user?.role === "admin" || user?.role === "gerente";
-    if (!isOwner && !isAdmin) {
-      res.status(403).json({ message: "Acesso restrito ao dono do canal ou administradores" });
+    // Mesmo critério de canConnectChannel: quem pode abrir o diálogo de QR
+    // precisa enxergar o histórico dentro dele. Antes, um atendente com
+    // permissão de leitura de QR abria o diálogo e recebia 403 aqui — o bloco
+    // de histórico simplesmente sumia, sem explicação.
+    if (!(await canConnectChannel(req, channel))) {
+      res.status(403).json({ message: "Acesso restrito ao dono do canal, administradores ou atendentes autorizados" });
       return;
     }
 
@@ -332,9 +355,13 @@ router.get("/channels/:id/evolution/connect", async (req: Request, res: Response
     // para "connecting" mesmo com o socket real seguindo vivo e recebendo
     // mensagens, deixando o canal preso em "desconectado" na UI.
     if (qrData.connectionStatus === "connected") {
-      await updateConnectionStatus(id, "connected");
+      await applyChannelConnectionStatus(id, "connected", { source: "route", occurredAt: new Date() });
     } else if (qrData.base64) {
-      await updateConnectionStatus(id, "connecting");
+      await applyChannelConnectionStatus(id, "connecting", {
+        source: "route",
+        occurredAt: new Date(),
+        logEvent: false,
+      });
     }
     res.json(qrData);
   } catch (e) {
@@ -359,15 +386,25 @@ router.get("/channels/:id/evolution/qr", async (req: Request, res: Response) => 
     try {
       const qr = await baileysGateway.getQr(channel.evolutionInstanceName);
       if (qr.connectionStatus === "connected") {
-        await updateConnectionStatus(id, "connected");
+        await applyChannelConnectionStatus(id, "connected", { source: "route", occurredAt: new Date() });
       } else if (
         qr.connectionStatus === "connecting" ||
         qr.connectionStatus === "lock_wait" ||
         qr.connectionStatus === "qr"
       ) {
-        await updateConnectionStatus(id, "connecting");
+        // Este polling roda a cada 2,5s enquanto o diálogo espera o QR —
+        // logEvent:false para não gerar uma linha de histórico por rodada.
+        await applyChannelConnectionStatus(id, "connecting", {
+          source: "route",
+          occurredAt: new Date(),
+          logEvent: false,
+        });
       } else if (qr.connectionStatus === "failed") {
-        await updateConnectionStatus(id, "disconnected");
+        await applyChannelConnectionStatus(id, "disconnected", {
+          source: "route",
+          occurredAt: new Date(),
+          reasonLabel: qr.lastError ?? "O gateway não conseguiu abrir a sessão",
+        });
       }
       res.json(qr);
     } catch (error) {
@@ -421,7 +458,11 @@ router.post("/channels/:id/evolution/logout", async (req: Request, res: Response
     }
 
     await logoutInstance(channel.evolutionInstanceName);
-    await updateConnectionStatus(id, "disconnected");
+    await applyChannelConnectionStatus(id, "disconnected", {
+      source: "route",
+      occurredAt: new Date(),
+      reasonLabel: "Desconectado manualmente pelo CRM",
+    });
     res.json({ success: true });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Erro ao desconectar canal";

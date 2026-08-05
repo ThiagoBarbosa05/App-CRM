@@ -1210,7 +1210,14 @@ export default function WhatsAppChannelsPage() {
   const [editingChannel, setEditingChannel] = useState<WhatsappChannel | null>(null);
   const [deletingChannelId, setDeletingChannelId] = useState<number | null>(null);
   const [verifyingChannelId, setVerifyingChannelId] = useState<number | null>(null);
-  const [connectingChannel, setConnectingChannel] = useState<WhatsappChannel | null>(null);
+  // Guarda o id, não a linha: armazenar o objeto congelava o
+  // `connectionStatus` no valor do clique, e o diálogo continuava exibindo o
+  // status antigo mesmo depois de o SSE atualizar a lista.
+  const [connectingChannelId, setConnectingChannelId] = useState<number | null>(null);
+  const connectingChannel =
+    connectingChannelId === null
+      ? null
+      : channels.find((ch) => ch.id === connectingChannelId) ?? null;
 
   const handleSaveChannel = (data: CreateWhatsappChannelPayload) => {
     if (editingChannel) {
@@ -1400,7 +1407,7 @@ export default function WhatsAppChannelsPage() {
                     onEdit={() => { setEditingChannel(ch); setChannelDialogOpen(true); }}
                     onDelete={() => setDeletingChannelId(ch.id)}
                     onVerify={() => setVerifyingChannelId(ch.id)}
-                    onConnect={() => setConnectingChannel(ch)}
+                    onConnect={() => setConnectingChannelId(ch.id)}
                   />
                 ))}
               </div>
@@ -1450,7 +1457,7 @@ export default function WhatsAppChannelsPage() {
 
       <EvolutionConnectDialog
         channel={connectingChannel}
-        onOpenChange={(v) => { if (!v) setConnectingChannel(null); }}
+        onOpenChange={(v) => { if (!v) setConnectingChannelId(null); }}
       />
 
       <AlertDialog

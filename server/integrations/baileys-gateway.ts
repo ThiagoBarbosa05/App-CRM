@@ -17,6 +17,15 @@ export interface GatewayInstance {
   last_error: string | null;
   created_at: string;
   updated_at: string;
+  /**
+   * `true` quando o gateway não tem a sessão viva em memória E a linha do banco
+   * não é reafirmada por heartbeat há mais de 90s — ou seja, o processo dono
+   * morreu (deploy, OOM) e `observed_state` é lixo. Ausente em gateways
+   * anteriores à v2.1, quando é tratado como `false`.
+   */
+  observed_state_stale?: boolean;
+  /** Instante da última reafirmação do estado pelo processo dono (ISO). */
+  observed_at?: string;
 }
 
 export interface GatewayQr {

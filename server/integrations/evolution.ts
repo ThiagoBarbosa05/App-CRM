@@ -2,10 +2,8 @@
 // canais QR são atendidos exclusivamente pelo Baileys Gateway dedicado.
 
 import { randomUUID } from "node:crypto";
-import {
-  getChannelByEvolutionInstance,
-  updateConnectionStatus,
-} from "../services/whatsapp-channels.service";
+import { getChannelByEvolutionInstance } from "../services/whatsapp-channels.service";
+import { applyChannelConnectionStatus } from "../services/baileys/connection-status.service";
 import { BaileysGatewayError, baileysGateway } from "./baileys-gateway";
 
 export { normalizeToJid, jidToPhone, isGroupJid } from "../services/baileys/jid";
@@ -42,9 +40,17 @@ async function assertGatewayConnected(instanceName: string): Promise<void> {
 
   try {
     const instance = await baileysGateway.getInstance(instanceName);
-    if (instance.observed_state === "connected") return;
+    if (instance.observed_state === "connected" && !instance.observed_state_stale) return;
 
-    await updateConnectionStatus(channel.id, "disconnected");
+    // O status na tela precisa acompanhar a descoberta — antes o banco era
+    // corrigido em silêncio e o usuário continuava vendo "Conectado".
+    await applyChannelConnectionStatus(channel.id, "disconnected", {
+      source: "send",
+      occurredAt: new Date(),
+      reasonLabel: instance.observed_state_stale
+        ? "Gateway parou de responder pela sessão"
+        : "Gateway reportou a sessão offline ao enviar",
+    });
     throw new BaileysGatewayError(
       `Canal QR "${instanceName}" está ${instance.observed_state}`,
       "channel_offline",
@@ -113,7 +119,13 @@ export async function sendText(
   } catch (error) {
     if (error instanceof BaileysGatewayError && error.code === "channel_offline") {
       const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
-      if (channel) await updateConnectionStatus(channel.id, "disconnected");
+      if (channel) {
+        await applyChannelConnectionStatus(channel.id, "disconnected", {
+          source: "send",
+          occurredAt: new Date(),
+          reasonLabel: "Gateway recusou o envio: sessão offline",
+        });
+      }
     }
     throw error;
   }

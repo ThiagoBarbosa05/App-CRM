@@ -25,10 +25,10 @@ vi.mock("../whatsapp-campaign-status.service", () => ({
 }));
 vi.mock("../whatsapp-channels.service", () => ({
   getChannelByEvolutionInstance: getChannelMock,
-  updateConnectionStatus: async () => {},
   updateChannel: async () => {},
   isSameChannelPhone: () => false,
   listQrReaderUserIdsForChannel: async () => [],
+  invalidateChannelDirectory: () => {},
 }));
 vi.mock("../whatsapp-conversations.service", () => ({
   saveInboundMessage: saveInboundMessageMock,
@@ -57,6 +57,10 @@ vi.mock("../whatsapp-bot-engine.service", () => ({
 }));
 vi.mock("../baileys/connection-events.service", () => ({
   logChannelConnectionEvent: async () => {},
+}));
+vi.mock("../baileys/connection-status.service", () => ({
+  applyChannelConnectionStatus: async () => ({ applied: true, status: "connected", reason: "changed" }),
+  getSseTargetUserIds: async () => [],
 }));
 
 import {

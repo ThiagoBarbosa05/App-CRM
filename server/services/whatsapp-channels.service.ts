@@ -94,7 +94,7 @@ const CHANNEL_DIRECTORY_TTL_MS = 30_000;
 let channelDirectoryCache: { at: number; rows: ChannelIdentity[] } | null = null;
 
 /** Invalida o cache de `getChannelByPhone` — chamado sempre que um canal muda. */
-function invalidateChannelDirectory() {
+export function invalidateChannelDirectory() {
   channelDirectoryCache = null;
 }
 

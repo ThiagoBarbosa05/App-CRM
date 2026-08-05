@@ -13,19 +13,22 @@ vi.mock("../../lib/sse-hub", () => ({
 
 const {
   getChannelByIdMock,
-  updateConnectionStatusMock,
+  applyChannelConnectionStatusMock,
   canUserReadChannelQrMock,
   connectInstanceMock,
 } = vi.hoisted(() => ({
   getChannelByIdMock: vi.fn(),
-  updateConnectionStatusMock: vi.fn(),
+  applyChannelConnectionStatusMock: vi.fn(),
   canUserReadChannelQrMock: vi.fn(),
   connectInstanceMock: vi.fn(),
 }));
 
+vi.mock("../../services/baileys/connection-status.service", () => ({
+  applyChannelConnectionStatus: applyChannelConnectionStatusMock,
+}));
+
 vi.mock("../../services/whatsapp-channels.service", () => ({
   getChannelById: getChannelByIdMock,
-  updateConnectionStatus: updateConnectionStatusMock,
   canUserReadChannelQr: canUserReadChannelQrMock,
   // Demais exports usados pelo módulo de rotas — não exercidos por estes testes.
   listChannels: vi.fn(),
@@ -77,7 +80,7 @@ function makeApp(role = "vendedor", userId = "u1") {
 describe("GET /channels/:id/evolution/connect", () => {
   beforeEach(() => {
     getChannelByIdMock.mockReset();
-    updateConnectionStatusMock.mockReset();
+    applyChannelConnectionStatusMock.mockReset();
     canUserReadChannelQrMock.mockReset();
     connectInstanceMock.mockReset();
   });
@@ -97,7 +100,11 @@ describe("GET /channels/:id/evolution/connect", () => {
     expect(res.status).toBe(200);
     expect(res.body.code).toBe("QR123");
     expect(connectInstanceMock).toHaveBeenCalledWith("meu-whats");
-    expect(updateConnectionStatusMock).toHaveBeenCalledWith(5, "connecting");
+    expect(applyChannelConnectionStatusMock).toHaveBeenCalledWith(
+      5,
+      "connecting",
+      expect.objectContaining({ source: "route", logEvent: false }),
+    );
   });
 
   it("nega acesso a quem não é dono, admin nem leitor de QR", async () => {

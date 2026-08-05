@@ -7,6 +7,7 @@ import {
   useEvolutionConnect,
   useEvolutionLogout,
   useChannelConnectionEvents,
+  useEvolutionChannelStatus,
   type WhatsappChannel,
 } from "@/hooks/use-whatsapp";
 import { useQueryClient } from "@tanstack/react-query";
@@ -260,10 +261,9 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
   // clique explícito em "Conectar via QR" (handleConnect no onClick do botão).
 
   // Mantém o status em sincronia com o banco quando a prop muda (refetch da
-  // lista) — cobre o caso do reconcile-baileys-status.job, que corrige o status
-  // sem emitir SSE. Mas NÃO atropela um fluxo de conexão em andamento
-  // (connecting/qr) iniciado pelo usuário com um valor defasado do refetch:
-  // só aceita a prop se ela já confirma "connected" ou se não há fluxo ativo.
+  // lista). Mas NÃO atropela um fluxo de conexão em andamento (connecting/qr)
+  // iniciado pelo usuário com um valor defasado do refetch: só aceita a prop se
+  // ela já confirma "connected" ou se não há fluxo ativo.
   useEffect(() => {
     const incoming = channel.connectionStatus ?? "disconnected";
     setStatus((current) => {
@@ -273,6 +273,32 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       return incoming;
     });
   }, [channel.connectionStatus]);
+
+  // O status vindo do banco é um CACHE — quando o processo do gateway morre, ele
+  // pode ficar dizendo "Conectado" com a sessão morta. Enquanto este diálogo
+  // está aberto, consulta o gateway ao vivo (e revalida a cada 15s), para que
+  // abrir a tela já mostre a verdade em vez do último valor otimista.
+  const { data: liveStatus } = useEvolutionChannelStatus(channel.id);
+
+  useEffect(() => {
+    if (!liveStatus) return;
+    setStatus((current) => {
+      if (
+        (current === "connecting" || current === "qr") &&
+        liveStatus.connectionStatus !== "connected"
+      ) {
+        return current;
+      }
+      return liveStatus.connectionStatus;
+    });
+    if (liveStatus.connectionStatus === "disconnected") {
+      setDisconnectReason(
+        liveStatus.observedStale
+          ? "O gateway parou de responder por esta sessão."
+          : liveStatus.lastError ?? null,
+      );
+    }
+  }, [liveStatus]);
 
   // Escuta eventos SSE de QR e conexão para este canal. Usa o stream SSE
   // COMPARTILHADO (uma única conexão para todo o app) — renderizamos um

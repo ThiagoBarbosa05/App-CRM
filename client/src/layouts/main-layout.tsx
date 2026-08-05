@@ -6,10 +6,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { BlingStatusBanner } from "@/components/bling-status-banner";
 import { WhatsAppFloatingButton } from "@/components/whatsapp-floating-button";
 import { useAuth } from "@/hooks/useAuth";
+import { useChannelStatusStream } from "@/hooks/use-channel-status-stream";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useAuth();
+
+  // Status de conexão dos canais QR em tempo real, em qualquer tela. Fica aqui
+  // (e não na página de canais) porque a caixa de entrada e a tela de
+  // atendentes também exibem esse status — e o botão flutuante do WhatsApp,
+  // que hospeda o outro assinante SSE, só é renderizado para alguns usuários.
+  useChannelStatusStream();
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sidebar-collapsed") === "true",
   );

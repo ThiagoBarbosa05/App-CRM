@@ -1,10 +1,12 @@
 import cron from "node-cron";
-import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { whatsappChannels } from "@shared/schema";
 import { baileysGateway } from "../integrations/baileys-gateway";
-import { updateConnectionStatus } from "../services/whatsapp-channels.service";
-import { logChannelConnectionEvent } from "../services/baileys/connection-events.service";
+import {
+  applyChannelConnectionStatus,
+  type ChannelConnectionStatus,
+} from "../services/baileys/connection-status.service";
 
 export function startReconcileBaileysStatusJob(): void {
   cron.schedule("*/1 * * * *", async () => {
@@ -14,6 +16,18 @@ export function startReconcileBaileysStatusJob(): void {
       console.error("[ReconcileBaileysStatus] Erro:", error);
     }
   });
+}
+
+/**
+ * Traduz o `observed_state` do gateway para o vocabulário do CRM.
+ * `lock_wait` = a sessão está presa noutra réplica e o gateway vai retentar;
+ * `failed` = o gateway desistiu (ex.: SESSION_INVALID após logout no celular).
+ */
+function normalizeObservedState(observedState: string): ChannelConnectionStatus {
+  if (observedState === "connected") return "connected";
+  if (observedState === "connecting" || observedState === "lock_wait") return "connecting";
+  if (observedState === "qr") return "qr";
+  return "disconnected";
 }
 
 /** Sincroniza o cache do CRM com o observed_state autoritativo do gateway. */
@@ -31,28 +45,31 @@ export async function reconcileBaileysStatus(): Promise<void> {
         eq(whatsappChannels.qrBackend, "gateway"),
         isNotNull(whatsappChannels.evolutionInstanceName),
         isNull(whatsappChannels.deletedAt),
-        inArray(whatsappChannels.connectionStatus, ["connected", "connecting", "disconnected"]),
       ),
     );
 
   for (const row of rows) {
     if (!row.evolutionInstanceName) continue;
     try {
-      const observedState = (await baileysGateway.getInstance(row.evolutionInstanceName)).observed_state;
-      const normalizedState = observedState === "connected" || observedState === "connecting"
-        ? observedState
-        : "disconnected";
+      const instance = await baileysGateway.getInstance(row.evolutionInstanceName);
+      // `observed_state_stale`: o processo dono da sessão parou de bater
+      // heartbeat (deploy, OOM, kill). A linha do gateway pode continuar
+      // dizendo "connected" para sempre — não é confiável.
+      const normalizedState = instance.observed_state_stale
+        ? "disconnected"
+        : normalizeObservedState(instance.observed_state);
       if (normalizedState === row.connectionStatus) continue;
 
-      await updateConnectionStatus(row.id, normalizedState);
-      if (normalizedState === "disconnected") {
-        await logChannelConnectionEvent(
-          row.id,
-          "disconnected",
-          undefined,
-          "Gateway confirmou que a sessão está desconectada",
-        ).catch((error) => console.error("[ReconcileBaileysStatus] Falha ao registrar evento:", error));
-      }
+      await applyChannelConnectionStatus(row.id, normalizedState, {
+        source: "reconcile",
+        occurredAt: new Date(),
+        reasonLabel:
+          normalizedState === "disconnected"
+            ? instance.observed_state_stale
+              ? "Gateway parou de responder pela sessão"
+              : "Gateway confirmou que a sessão está desconectada"
+            : undefined,
+      });
     } catch (error) {
       // Falha de rede/gateway não prova que o WhatsApp caiu.
       console.error(`[ReconcileBaileysStatus] Falha ao consultar gateway de "${row.evolutionInstanceName}":`, error);

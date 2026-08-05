@@ -886,6 +886,15 @@ export function useWhatsappChannels() {
       if (!res.ok) throw new Error("Erro ao buscar canais");
       return res.json();
     },
+    // Os defaults globais (queryClient.ts) são staleTime: Infinity +
+    // refetchInterval: false — a lista de canais nunca revalidava e o badge de
+    // conexão ficava congelado no último valor até um reload. O SSE
+    // (useChannelStatusStream) é o caminho rápido; isto é a rede de segurança
+    // para aba dormindo, proxy que corta o stream e payload grande demais para
+    // o NOTIFY entre réplicas.
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
 }
 
@@ -979,6 +988,43 @@ export function useChannelStatus(id: number | null) {
     },
     enabled: id !== null,
     staleTime: 60_000,
+    retry: false,
+  });
+}
+
+export interface EvolutionChannelLiveStatus {
+  provider: "evolution";
+  qrBackend: "gateway";
+  connectionStatus: string;
+  observedState: string;
+  observedStale: boolean;
+  observedAt: string | null;
+  desiredState: string;
+  connectedPhone: string | null;
+  lastError: string | null;
+}
+
+/**
+ * Status AO VIVO de um canal QR, consultado direto no gateway. O
+ * `connectionStatus` guardado no banco é só um cache — quando o processo do
+ * gateway morre, ele pode ficar dizendo "connected" indefinidamente. Use este
+ * hook onde a verdade importa (diálogo de conexão), não na listagem.
+ */
+export function useEvolutionChannelStatus(id: number | null) {
+  return useQuery<EvolutionChannelLiveStatus>({
+    queryKey: ["whatsapp", "channels", id, "live-status"],
+    queryFn: async () => {
+      const res = await fetch(`/api/whatsapp/channels/${id}/status`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { message?: string };
+        throw new Error(body.message ?? "Erro ao buscar status do canal");
+      }
+      return res.json();
+    },
+    enabled: id !== null,
+    staleTime: 0,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
 }

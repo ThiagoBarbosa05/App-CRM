@@ -1,4 +1,4 @@
-import { getChannelByEvolutionInstance, updateConnectionStatus, updateChannel, isSameChannelPhone, listQrReaderUserIdsForChannel } from "./whatsapp-channels.service";
+import { getChannelByEvolutionInstance, updateChannel, isSameChannelPhone } from "./whatsapp-channels.service";
 import { saveInboundMessage, saveInboundReaction } from "./whatsapp-conversations.service";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
@@ -11,7 +11,11 @@ import {
   OPT_IN_CONFIRMATION_TEXT,
 } from "./whatsapp-opt-out.service";
 import { handleInboundBotMessage, persistBotMessage } from "./whatsapp-bot-engine.service";
-import { logChannelConnectionEvent } from "./baileys/connection-events.service";
+import {
+  applyChannelConnectionStatus,
+  getSseTargetUserIds,
+  type ChannelConnectionStatus,
+} from "./baileys/connection-status.service";
 import { applyCampaignDeliveryStatus } from "./whatsapp-campaign-status.service";
 
 export function extractQuotedMessageSnapshot(message: Record<string, unknown> | undefined): {
@@ -367,20 +371,11 @@ export async function handleMessagesUpdate(data: unknown) {
 
 // ── connection.update ──────────────────────────────────────────────────────────
 
-// Quem deve receber os eventos SSE de QR/status de um canal: o dono e qualquer
-// usuário com permissão explícita de leitura de QR (admins/gerentes podem
-// conectar canais que não são seus — ver canUserReadChannelQr). Sem isso, o
-// evento "conectado" só chega ao dono, e quem está de fato com o diálogo de QR
-// aberto (um admin, por ex.) nunca recebe a atualização — a tela só resolve
-// depois de um reload manual, que refaz o fetch do canal.
-async function getSseTargetUserIds(channel: { id: number; userId: string | null }): Promise<string[]> {
-  const readerIds = await listQrReaderUserIdsForChannel(channel.id).catch(() => []);
-  const ids = new Set(readerIds);
-  if (channel.userId) ids.add(channel.userId);
-  return Array.from(ids);
-}
-
-export async function handleConnectionUpdate(instanceName: string, data: unknown) {
+export async function handleConnectionUpdate(
+  instanceName: string,
+  data: unknown,
+  occurredAt?: Date,
+) {
   const update = data as {
     state?: string;
     phone?: string;
@@ -390,50 +385,49 @@ export async function handleConnectionUpdate(instanceName: string, data: unknown
   };
   const state = update.state ?? "disconnected";
 
-  const stateMap: Record<string, string> = {
+  const stateMap: Record<string, ChannelConnectionStatus> = {
     open: "connected",
     connecting: "connecting",
     close: "disconnected",
     closed: "disconnected",
+    // O gateway marca `failed` (ex.: SESSION_INVALID após loggedOut) e
+    // `lock_wait` (sessão presa em outra réplica); nenhum dos dois é um estado
+    // exibível — para o CRM, o canal está fora do ar ou tentando subir.
+    failed: "disconnected",
+    lock_wait: "connecting",
+    qr: "qr",
   };
-  const connectionStatus = stateMap[state] ?? state;
+  const connectionStatus = stateMap[state] ?? "disconnected";
 
   const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
   if (!channel) return;
 
-  await updateConnectionStatus(channel.id, connectionStatus);
+  // Persiste status + histórico + SSE num único ponto (ver
+  // baileys/connection-status.service). `logEvent: false` é usado pelo gateway
+  // para o restart automático pós-pareamento (515) e para ruído operacional
+  // (deploy, lock) — muda o status sem sujar o histórico do vendedor.
+  await applyChannelConnectionStatus(channel.id, connectionStatus, {
+    source: "webhook",
+    occurredAt,
+    reasonCode: update.reasonCode,
+    reasonLabel: update.reasonLabel,
+    logEvent: update.logEvent,
+  });
 
   // Ao conectar via QR, salva o número real do WhatsApp no displayPhone (somente
   // se ainda não estiver preenchido — preserva valor definido manualmente).
   if (connectionStatus === "connected" && update.phone && !channel.displayPhone) {
     await updateChannel(channel.id, { displayPhone: `+${update.phone}` }).catch(() => {});
   }
-
-  // Histórico de conexão/desconexão (visível ao vendedor). `logEvent: false` é
-  // usado para o restart automático pós-pareamento (515) — não é uma queda real.
-  if (update.logEvent !== false) {
-    await logChannelConnectionEvent(
-      channel.id,
-      connectionStatus as "connected" | "disconnected" | "connecting",
-      update.reasonCode,
-      update.reasonLabel,
-    ).catch((err) => console.error("[Baileys] Falha ao registrar evento de conexão:", err));
-  }
-
-  // Notifica o dono do canal e qualquer usuário com permissão de leitura de QR
-  const targetUserIds = await getSseTargetUserIds(channel);
-  for (const userId of targetUserIds) {
-    publishSseEvent(
-      "evolution_connection_update",
-      { instanceName, connectionStatus, reasonLabel: update.reasonLabel },
-      userId,
-    );
-  }
 }
 
 // ── qrcode.updated ─────────────────────────────────────────────────────────────
 
-export async function handleQrcodeUpdated(instanceName: string, data: unknown) {
+export async function handleQrcodeUpdated(
+  instanceName: string,
+  data: unknown,
+  occurredAt?: Date,
+) {
   const qrData = data as { qrcode?: { base64?: string; code?: string } };
   const base64 = qrData.qrcode?.base64 ?? null;
   const code = qrData.qrcode?.code ?? null;
@@ -441,7 +435,13 @@ export async function handleQrcodeUpdated(instanceName: string, data: unknown) {
   const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
   if (!channel) return;
 
-  await updateConnectionStatus(channel.id, "qr");
+  // O QR expira e é regerado a cada ~20s: registrar cada um no histórico o
+  // encheria de ruído. O status muda (e vai por SSE); o histórico, não.
+  await applyChannelConnectionStatus(channel.id, "qr", {
+    source: "webhook",
+    occurredAt,
+    logEvent: false,
+  });
 
   // Empurra QR para a tela de quem pode conectar este canal via SSE
   const targetUserIds = await getSseTargetUserIds(channel);

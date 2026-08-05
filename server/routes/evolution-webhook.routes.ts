@@ -17,6 +17,10 @@ const envelopeSchema = z.object({
   ]),
   instance: z.string().regex(/^[a-z0-9][a-z0-9-]{0,49}$/),
   data: z.unknown(),
+  // Instante do evento no gateway. Zod remove chaves desconhecidas, então
+  // precisa estar declarado aqui para chegar ao inbox — é a guarda de ordem
+  // contra reentregas fora de sequência. Opcional: gateways antigos não enviam.
+  occurredAt: z.string().datetime().optional(),
 });
 
 export function verifyGatewayWebhookSignature(input: {

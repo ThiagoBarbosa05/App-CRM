@@ -5108,6 +5108,10 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   // Controla onde o socket dos canais QR roda durante a migração gradual.
   qrBackend: text("qr_backend").$type<"gateway">().notNull().default("gateway"),
   connectionStatus: text("connection_status").default("disconnected"),
+  // Instante do evento que produziu o connectionStatus atual. Serve de guarda de
+  // ordem: os webhooks do gateway chegam fora de ordem, e sem isso um "close"
+  // reentregue depois de um "open" inverte o status do canal.
+  connectionStatusAt: timestamp("connection_status_at"),
   deviceEchoEnabled: boolean("device_echo_enabled").notNull().default(false),
   // Setor para o qual conversas novas recebidas neste canal são roteadas
   // automaticamente (findOrCreateConversation) — evita que um contato novo
