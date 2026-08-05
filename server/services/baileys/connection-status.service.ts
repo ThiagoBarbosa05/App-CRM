@@ -72,6 +72,34 @@ export function decideStatusTransition(
 }
 
 /**
+ * Sources que representam uma OBSERVAÇÃO ATIVA do gateway — o CRM perguntou e
+ * o gateway respondeu. `webhook` fica de fora: é notificação push, não prova
+ * que o gateway continua respondendo agora.
+ */
+const OBSERVED_SOURCES: ReadonlySet<StatusSource> = new Set<StatusSource>([
+  "reconcile",
+  "send",
+  "route",
+]);
+
+/**
+ * Carimba "o gateway confirmou este canal agora", independentemente de o status
+ * ter mudado. Separado de applyChannelConnectionStatus porque o caso mais comum
+ * — canal conectado que continua conectado — não passa pela escrita de status
+ * (ver decideStatusTransition), e é justamente esse caso que precisa provar que
+ * a verificação aconteceu.
+ */
+export async function touchChannelConnectionCheckedAt(
+  channelId: number,
+  checkedAt: Date = new Date(),
+): Promise<void> {
+  await db
+    .update(whatsappChannels)
+    .set({ connectionCheckedAt: checkedAt })
+    .where(eq(whatsappChannels.id, channelId));
+}
+
+/**
  * Quem deve receber os eventos SSE de QR/status de um canal: o dono e qualquer
  * usuário com permissão explícita de leitura de QR (admins/gerentes podem
  * conectar canais que não são seus — ver canUserReadChannelQr). Sem isso, o
@@ -121,18 +149,28 @@ export async function applyChannelConnectionStatus(
     { status, occurredAt: options.occurredAt },
   );
 
+  const observed = OBSERVED_SOURCES.has(options.source);
+
   if (!decision.write) {
+    // Status inalterado ainda é informação: o gateway respondeu. Sem isto, um
+    // canal que fica meses "connected" nunca teria a verificação renovada.
+    if (observed) await touchChannelConnectionCheckedAt(channelId);
     return { applied: false, status: channel.connectionStatus as ChannelConnectionStatus, reason: decision.reason };
   }
 
   const occurredAt = options.occurredAt ?? new Date();
+  const checkedAt = observed ? new Date() : null;
 
   // A guarda se repete no WHERE: entre o SELECT acima e este UPDATE, outra
   // réplica pode ter aplicado um evento mais novo. Sem isso, o worker do inbox
   // (que roda em paralelo) reintroduziria a inversão que a guarda evita.
   const updated = await db
     .update(whatsappChannels)
-    .set({ connectionStatus: status, connectionStatusAt: occurredAt })
+    .set({
+      connectionStatus: status,
+      connectionStatusAt: occurredAt,
+      ...(checkedAt ? { connectionCheckedAt: checkedAt } : {}),
+    })
     .where(
       and(
         eq(whatsappChannels.id, channelId),
@@ -176,6 +214,7 @@ export async function applyChannelConnectionStatus(
         connectionStatus: status,
         reasonLabel: options.reasonLabel ?? null,
         occurredAt: occurredAt.toISOString(),
+        checkedAt: checkedAt?.toISOString() ?? null,
         source: options.source,
       },
       userId,

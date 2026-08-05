@@ -152,6 +152,12 @@ export interface WhatsappChannel {
   evolutionInstanceName: string | null;
   qrBackend: "gateway";
   connectionStatus: string | null;
+  /**
+   * Última vez que o gateway CONFIRMOU este status. Nulo ou antigo significa
+   * que "Conectado" é só um cache não revalidado — ver o indicador de
+   * verificação na lista de canais.
+   */
+  connectionCheckedAt: string | null;
   defaultSectorId: string | null;
   createdAt: string;
 }

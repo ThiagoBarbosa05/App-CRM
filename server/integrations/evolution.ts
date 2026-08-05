@@ -61,7 +61,12 @@ async function assertGatewayConnected(instanceName: string): Promise<void> {
       // O canal pode continuar existindo no CRM depois de a instância ser
       // removida/recriada no gateway. Nesse caso, o status salvo não é mais
       // confiável e a sessão precisa ser pareada novamente.
-      await updateConnectionStatus(channel.id, "disconnected");
+      await applyChannelConnectionStatus(channel.id, "disconnected", {
+        source: "send",
+        occurredAt: new Date(),
+        reasonCode: "INSTANCE_NOT_FOUND",
+        reasonLabel: "Instância do canal não existe no Baileys Gateway; reconecte via QR Code",
+      });
       throw new BaileysGatewayError(
         `Instância do canal QR "${instanceName}" não existe no gateway. Reconecte via QR Code.`,
         "channel_offline",

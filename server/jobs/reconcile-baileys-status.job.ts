@@ -5,6 +5,7 @@ import { whatsappChannels } from "@shared/schema";
 import { BaileysGatewayError, baileysGateway } from "../integrations/baileys-gateway";
 import {
   applyChannelConnectionStatus,
+  touchChannelConnectionCheckedAt,
   type ChannelConnectionStatus,
 } from "../services/baileys/connection-status.service";
 
@@ -30,6 +31,36 @@ function normalizeObservedState(observedState: string): ChannelConnectionStatus 
   return "disconnected";
 }
 
+/**
+ * Quantas rodadas seguidas o gateway pode falhar antes de o canal ser marcado
+ * offline. O cron roda a cada minuto, então são ~3 minutos de tolerância: o
+ * bastante para um deploy ou um hiccup de rede, pouco o bastante para a tela
+ * não mentir por muito tempo.
+ */
+const UNREACHABLE_THRESHOLD = 3;
+
+/**
+ * Falhas que significam "não consegui falar com o gateway". `unauthorized`,
+ * `not_configured` e `rate_limited` ficam de fora de propósito: são problemas
+ * de configuração/cota do CRM, não evidência sobre a sessão do WhatsApp, e
+ * degradar por causa deles encheria o histórico de conexão do vendedor.
+ */
+function isGatewayUnreachable(error: unknown): boolean {
+  if (!(error instanceof BaileysGatewayError)) return true;
+  return (
+    error.code === "unavailable" ||
+    error.code === "overloaded" ||
+    error.code === "unexpected"
+  );
+}
+
+/**
+ * Falhas consecutivas por canal. Em memória de propósito: se o processo do CRM
+ * reinicia, o pior caso são mais três minutos até degradar — não vale uma
+ * coluna no banco.
+ */
+const consecutiveFailures = new Map<number, number>();
+
 /** Sincroniza o cache do CRM com o observed_state autoritativo do gateway. */
 export async function reconcileBaileysStatus(): Promise<void> {
   const rows = await db
@@ -48,41 +79,101 @@ export async function reconcileBaileysStatus(): Promise<void> {
       ),
     );
 
+  const liveChannelIds = new Set(rows.map((row) => row.id));
+  for (const channelId of Array.from(consecutiveFailures.keys())) {
+    if (!liveChannelIds.has(channelId)) consecutiveFailures.delete(channelId);
+  }
+
   for (const row of rows) {
     if (!row.evolutionInstanceName) continue;
+    // Guarda por linha: um canal problemático não pode abortar a reconciliação
+    // dos demais. Era exatamente esse o efeito do ReferenceError que vivia no
+    // catch abaixo — bastava UM canal em 404 para o job inteiro morrer e todos
+    // os outros congelarem no último status conhecido.
     try {
-      const instance = await baileysGateway.getInstance(row.evolutionInstanceName);
-      // `observed_state_stale`: o processo dono da sessão parou de bater
-      // heartbeat (deploy, OOM, kill). A linha do gateway pode continuar
-      // dizendo "connected" para sempre — não é confiável.
-      const normalizedState = instance.observed_state_stale
-        ? "disconnected"
-        : normalizeObservedState(instance.observed_state);
-      if (normalizedState === row.connectionStatus) continue;
+      await reconcileChannel(row);
+    } catch (error) {
+      console.error(`[ReconcileBaileysStatus] Falha ao reconciliar canal ${row.id}:`, error);
+    }
+  }
+}
 
-      await applyChannelConnectionStatus(row.id, normalizedState, {
+interface ReconcileRow {
+  id: number;
+  evolutionInstanceName: string | null;
+  connectionStatus: string | null;
+}
+
+async function reconcileChannel(row: ReconcileRow): Promise<void> {
+  if (!row.evolutionInstanceName) return;
+  try {
+    const instance = await baileysGateway.getInstance(row.evolutionInstanceName);
+    consecutiveFailures.delete(row.id);
+
+    // `observed_state_stale`: o processo dono da sessão parou de bater
+    // heartbeat (deploy, OOM, kill). A linha do gateway pode continuar
+    // dizendo "connected" para sempre — não é confiável.
+    const normalizedState = instance.observed_state_stale
+      ? "disconnected"
+      : normalizeObservedState(instance.observed_state);
+
+    // O gateway respondeu: o status passou a ser verificado AGORA, mesmo que
+    // não tenha mudado. É o que diferencia "conectado e confirmado" de
+    // "conectado segundo um cache antigo" (ver connection-status.service).
+    await touchChannelConnectionCheckedAt(row.id);
+
+    if (normalizedState === row.connectionStatus) return;
+
+    await applyChannelConnectionStatus(row.id, normalizedState, {
+      source: "reconcile",
+      occurredAt: new Date(),
+      reasonLabel:
+        normalizedState === "disconnected"
+          ? instance.observed_state_stale
+            ? "Gateway parou de responder pela sessão"
+            : "Gateway confirmou que a sessão está desconectada"
+          : undefined,
+    });
+  } catch (error) {
+    if (error instanceof BaileysGatewayError && error.code === "not_found") {
+      // O gateway respondeu — só não conhece esta instância. Não conta como
+      // indisponibilidade, e a sessão precisa ser pareada de novo.
+      consecutiveFailures.delete(row.id);
+      await applyChannelConnectionStatus(row.id, "disconnected", {
         source: "reconcile",
         occurredAt: new Date(),
-        reasonLabel:
-          normalizedState === "disconnected"
-            ? instance.observed_state_stale
-              ? "Gateway parou de responder pela sessão"
-              : "Gateway confirmou que a sessão está desconectada"
-            : undefined,
+        reasonCode: "INSTANCE_NOT_FOUND",
+        reasonLabel: "Instância do canal não existe no Baileys Gateway; reconecte via QR Code",
       });
-    } catch (error) {
-      if (error instanceof BaileysGatewayError && error.code === "not_found") {
-        await updateConnectionStatus(row.id, "disconnected");
-        await logChannelConnectionEvent(
-          row.id,
-          "disconnected",
-          "INSTANCE_NOT_FOUND",
-          "Instância do canal não existe no Baileys Gateway; reconecte via QR Code",
-        ).catch((eventError) => console.error("[ReconcileBaileysStatus] Falha ao registrar evento:", eventError));
-        continue;
-      }
-      // Falha de rede/gateway não prova que o WhatsApp caiu.
-      console.error(`[ReconcileBaileysStatus] Falha ao consultar gateway de "${row.evolutionInstanceName}":`, error);
+      return;
     }
+
+    if (!isGatewayUnreachable(error)) {
+      console.error(
+        `[ReconcileBaileysStatus] Erro ao consultar gateway de "${row.evolutionInstanceName}":`,
+        error,
+      );
+      return;
+    }
+
+    // Gateway inalcançável não prova que o WhatsApp caiu — mas manter
+    // "Conectado" na tela indefinidamente mente para o vendedor, já que com o
+    // gateway fora nenhuma mensagem sai. Tolera alguns minutos e então degrada.
+    const failures = (consecutiveFailures.get(row.id) ?? 0) + 1;
+    consecutiveFailures.set(row.id, failures);
+    if (failures < UNREACHABLE_THRESHOLD) {
+      console.error(
+        `[ReconcileBaileysStatus] Gateway indisponível para "${row.evolutionInstanceName}" (${failures}/${UNREACHABLE_THRESHOLD}):`,
+        error,
+      );
+      return;
+    }
+
+    await applyChannelConnectionStatus(row.id, "disconnected", {
+      source: "reconcile",
+      occurredAt: new Date(),
+      reasonCode: "GATEWAY_UNREACHABLE",
+      reasonLabel: "Gateway indisponível",
+    });
   }
 }

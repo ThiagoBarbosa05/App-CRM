@@ -9,6 +9,8 @@ interface ConnectionUpdateEvent {
   connectionStatus: string;
   reasonLabel?: string | null;
   occurredAt?: string;
+  /** Presente quando a mudança veio de uma consulta ativa ao gateway. */
+  checkedAt?: string | null;
   source?: string;
 }
 
@@ -17,6 +19,7 @@ interface ChannelLike {
   id?: number;
   evolutionInstanceName?: string | null;
   connectionStatus?: string | null;
+  connectionCheckedAt?: string | null;
 }
 
 function matches(row: ChannelLike, event: ConnectionUpdateEvent): boolean {
@@ -62,7 +65,15 @@ export function useChannelStatusStream(): void {
         queryClient.setQueriesData<ChannelLike[]>({ queryKey: key, exact: true }, (rows) =>
           Array.isArray(rows)
             ? rows.map((row) =>
-                matches(row, event) ? { ...row, connectionStatus: event.connectionStatus } : row,
+                matches(row, event)
+                  ? {
+                      ...row,
+                      connectionStatus: event.connectionStatus,
+                      // Só sobrescreve quando o evento nasceu de uma consulta
+                      // ao gateway; um webhook não prova que ele responde agora.
+                      ...(event.checkedAt ? { connectionCheckedAt: event.checkedAt } : {}),
+                    }
+                  : row,
               )
             : rows,
         );

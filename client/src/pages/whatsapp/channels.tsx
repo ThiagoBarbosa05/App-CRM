@@ -63,6 +63,8 @@ import {
   STATUS_COLOR,
 } from "@/components/evolution-channel-connect";
 import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import type { WhatsappSector } from "@shared/schema";
@@ -802,6 +804,41 @@ function EvolutionConnectDialog({
   );
 }
 
+/**
+ * O job de reconciliação bate no gateway a cada minuto. Se a última
+ * confirmação é mais velha que isto, o status na tela virou palpite — pode ser
+ * o gateway fora do ar, o CRM sem o job rodando, ou o canal nunca verificado.
+ */
+const STATUS_VERIFICATION_STALE_MS = 5 * 60 * 1000;
+
+function describeStatusVerification(checkedAt: string | null): {
+  label: string;
+  stale: boolean;
+  tooltip: string;
+} {
+  if (!checkedAt) {
+    return {
+      label: "não verificado",
+      stale: true,
+      tooltip:
+        "O gateway ainda não confirmou o estado deste canal. O status exibido é o último conhecido e pode estar desatualizado.",
+    };
+  }
+  const parsed = new Date(checkedAt);
+  if (Number.isNaN(parsed.getTime())) {
+    return { label: "não verificado", stale: true, tooltip: "Data de verificação inválida." };
+  }
+  const stale = Date.now() - parsed.getTime() > STATUS_VERIFICATION_STALE_MS;
+  const distance = formatDistanceToNow(parsed, { locale: ptBR, addSuffix: false });
+  return {
+    label: `verificado há ${distance}`,
+    stale,
+    tooltip: stale
+      ? "O gateway não confirma este canal há mais de 5 minutos — o status exibido pode estar desatualizado."
+      : `Última confirmação do gateway: ${parsed.toLocaleString("pt-BR")}`,
+  };
+}
+
 // ── Item de canal com status Meta ─────────────────────────────────────────────
 
 function ChannelItem({
@@ -835,6 +872,7 @@ function ChannelItem({
   // Evolution), usamos o último status salvo no banco (sem conexão ao vivo
   // por linha) e só conectamos ao vivo dentro do EvolutionConnectDialog.
   const evoStatus = readOnly ? liveEvoStatus : (ch.connectionStatus ?? "disconnected");
+  const verification = describeStatusVerification(ch.connectionCheckedAt);
 
   const stripColor = (() => {
     if (!ch.isActive) return "bg-slate-300 dark:bg-slate-600";
@@ -915,6 +953,27 @@ function ChannelItem({
                   <QrCode className="h-3 w-3" />
                   {evoStatus === "connected" ? "Ver conexão" : "Conectar via QR"}
                 </Button>
+                {/* Sem isto, "Conectado" é indistinguível de um cache que o
+                    gateway não revalida há dias — exatamente o modo de falha
+                    que fazia canais offline aparecerem como conectados. */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className={cn(
+                          "text-[10px] cursor-default",
+                          verification.stale
+                            ? "text-amber-600 dark:text-amber-400 font-medium"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {verification.stale && "⚠ "}
+                        {verification.label}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{verification.tooltip}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             )
           ) : (
