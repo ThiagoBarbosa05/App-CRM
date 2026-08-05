@@ -2653,6 +2653,16 @@ export const restaurantOrders = pgTable(
       enum: ["pendente", "enviado", "bloqueado", "erro"],
     }),
     blingSalesOrderId: text("bling_sales_order_id"),
+    /** Contato efetivamente escolhido para o pedido; fica estável nos retries. */
+    blingContactIdUsed: text("bling_contact_id_used"),
+    blingContactResolution: text("bling_contact_resolution", {
+      enum: ["cliente_crm", "consumidor_final"],
+    }),
+    blingContactFallbackAuthorizedBy: varchar("bling_contact_fallback_authorized_by").references(
+      () => users.id,
+    ),
+    blingContactFallbackAuthorizedAt: timestamp("bling_contact_fallback_authorized_at"),
+    blingContactFallbackReason: text("bling_contact_fallback_reason"),
     // Número humano do pedido (o que aparece na tela do Bling). Diferente do
     // `id` acima, e só conhecido na leitura de conferência — é o que o gestor
     // usa para achar o pedido lá.
@@ -2812,6 +2822,7 @@ export const restaurantOrderAuditLog = pgTable(
         "comanda_fechada",
         "mesa_excluida",
         "cliente_vinculado",
+        "bling_consumidor_final_autorizado",
         "pessoas_alteradas",
         "caixa_aberto",
         "caixa_fechado",
@@ -3848,6 +3859,7 @@ export const blingContactMappings = pgTable(
   },
   (t) => [
     uniqueIndex("bling_contact_mappings_conn_contact_uidx").on(t.connectionId, t.blingContactId),
+    uniqueIndex("bling_contact_mappings_conn_client_uidx").on(t.connectionId, t.clientId),
     index("bling_contact_mappings_client_idx").on(t.clientId),
     index("bling_contact_mappings_connection_idx").on(t.connectionId),
   ],

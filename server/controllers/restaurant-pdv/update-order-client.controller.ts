@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { restaurantPdvService } from "../../services/restaurant-pdv.service";
+import {
+  BlingSyncError,
+  ensureBlingContactForClient,
+} from "../../services/bling-clients-export.service";
 
 const schema = z.object({
   clientId: z.string().nullable(),
@@ -26,7 +30,45 @@ export const updateOrderClientController = async (req: Request, res: Response) =
       actorId,
       req.pdvUnitId,
     );
-    return res.json(updated);
+    if (!updated.clientId || !updated.blingConnectionId) {
+      return res.json({
+        ...updated,
+        clientBlingSync: { status: "not_applicable" as const },
+      });
+    }
+
+    // O cliente local já foi vinculado. A tentativa no Bling acontece depois
+    // do commit e nunca desfaz a associação da comanda se a API estiver fora.
+    try {
+      const contact = await ensureBlingContactForClient(
+        updated.clientId,
+        updated.blingConnectionId,
+      );
+      return res.json({
+        ...updated,
+        clientBlingSync: {
+          status: "synced" as const,
+          blingContactId: contact.blingContactId,
+          resolution: contact.resolution,
+        },
+      });
+    } catch (error) {
+      console.error(
+        `[PDV] Cliente ${updated.clientId} vinculado, mas não sincronizado com o Bling:`,
+        error instanceof Error ? error.message : error,
+      );
+      const definitive = error instanceof BlingSyncError && error.httpStatus === 422;
+      return res.json({
+        ...updated,
+        clientBlingSync: {
+          status: definitive ? ("error" as const) : ("pending" as const),
+          message:
+            error instanceof BlingSyncError
+              ? error.userMessage
+              : "A sincronização será tentada novamente no fechamento.",
+        },
+      });
+    }
   } catch (error: any) {
     if (error?.code === "NOT_FOUND" || error?.code === "FORBIDDEN") {
       return res.status(404).json({ message: error.message });

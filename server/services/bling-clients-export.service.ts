@@ -631,6 +631,198 @@ export class BlingSyncError extends Error {
   }
 }
 
+export interface EnsureBlingContactResult {
+  blingContactId: string;
+  resolution: "mapping" | "document" | "phone" | "created";
+}
+
+/**
+ * Garante que um cliente do CRM tenha contato na conta Bling informada.
+ *
+ * Diferente da exportação completa, esta operação é adequada ao PDV:
+ * um mapeamento existente é reutilizado sem PUT e a ausência de vendedor
+ * não impede a criação do contato. CPF/CNPJ é a chave preferencial;
+ * telefone só é aceito quando identifica exatamente um contato.
+ */
+export async function ensureBlingContactForClient(
+  clientId: string,
+  connectionId: string,
+): Promise<EnsureBlingContactResult> {
+  const [connection] = await db
+    .select()
+    .from(blingConnections)
+    .where(
+      and(
+        eq(blingConnections.id, connectionId),
+        eq(blingConnections.status, "connected"),
+      ),
+    )
+    .limit(1);
+
+  if (!connection?.accessTokenEncrypted) {
+    throw new BlingSyncError(
+      "A conta Bling selecionada não está conectada. Reconecte-a nas Configurações.",
+      409,
+    );
+  }
+
+  const [client] = await db
+    .select({
+      id: clients.id,
+      name: clients.name,
+      phone: clients.phone,
+      fixedPhone: clients.fixedPhone,
+      cpf: clients.cpf,
+      documentType: clients.documentType,
+      email: clients.email,
+      birthday: clients.birthday,
+      cep: clients.cep,
+      address: clients.address,
+      number: clients.number,
+      neighborhood: clients.neighborhood,
+      state: clients.state,
+      blingContactId: blingContactMappings.blingContactId,
+      blingVendedorId: blingSellerMappings.blingVendedorId,
+      blingVendedorName: blingSellerMappings.blingVendedorName,
+    })
+    .from(clients)
+    .leftJoin(users, eq(clients.responsavelId, users.id))
+    .leftJoin(
+      blingContactMappings,
+      and(
+        eq(blingContactMappings.clientId, clients.id),
+        eq(blingContactMappings.connectionId, connectionId),
+      ),
+    )
+    .leftJoin(
+      blingSellerMappings,
+      and(
+        eq(blingSellerMappings.userId, users.id),
+        eq(blingSellerMappings.connectionId, connectionId),
+      ),
+    )
+    .where(eq(clients.id, clientId))
+    .limit(1);
+
+  if (!client) {
+    throw new BlingSyncError("Cliente não encontrado.", 404);
+  }
+  if (client.blingContactId) {
+    return { blingContactId: client.blingContactId, resolution: "mapping" };
+  }
+
+  const { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
+
+  try {
+    const document = sanitizeDocument(client.cpf);
+    if (document) {
+      const matches = await getBlingContatos(
+        accessToken,
+        { numeroDocumento: document },
+        onTokenRefresh,
+      );
+      if (matches.length > 1) {
+        throw new BlingSyncError(
+          "Há mais de um contato no Bling com o documento deste cliente. Revise os cadastros antes de reenviar.",
+          422,
+        );
+      }
+      if (matches[0]) {
+        const blingContactId = String(matches[0].id);
+        const mappedId = await saveContactMapping(connectionId, client.id, blingContactId);
+        return { blingContactId: mappedId, resolution: "document" };
+      }
+    } else if (client.phone) {
+      const matches = await getBlingContatos(
+        accessToken,
+        { telefone: client.phone },
+        onTokenRefresh,
+      );
+      if (matches.length > 1) {
+        throw new BlingSyncError(
+          "O telefone deste cliente corresponde a mais de um contato no Bling. Informe um CPF/CNPJ para continuar.",
+          422,
+        );
+      }
+      if (matches[0]) {
+        const blingContactId = String(matches[0].id);
+        const mappedId = await saveContactMapping(connectionId, client.id, blingContactId);
+        return { blingContactId: mappedId, resolution: "phone" };
+      }
+    }
+
+    const isCnpj = client.documentType === "cnpj";
+    const { id } = await createBlingContato(
+      accessToken,
+      {
+        nome: client.name,
+        tipo: isCnpj ? "J" : "F",
+        situacao: "A",
+        numeroDocumento: document,
+        telefone: sanitizePhone(client.fixedPhone),
+        celular: sanitizePhone(client.phone),
+        email: client.email ?? undefined,
+        vendedor: client.blingVendedorId
+          ? { id: Number(client.blingVendedorId) }
+          : undefined,
+        endereco: {
+          geral: {
+            endereco: client.address ?? undefined,
+            numero: client.number ?? undefined,
+            bairro: client.neighborhood ?? undefined,
+            uf: client.state ?? undefined,
+            cep: client.cep ?? undefined,
+          },
+        },
+        dadosAdicionais: client.birthday
+          ? { dataNascimento: client.birthday }
+          : undefined,
+      },
+      onTokenRefresh,
+    );
+    const blingContactId = String(id);
+    const mappedId = await saveContactMapping(connectionId, client.id, blingContactId);
+    return { blingContactId: mappedId, resolution: "created" };
+  } catch (error) {
+    throw toBlingSyncError(error);
+  }
+}
+
+async function saveContactMapping(
+  connectionId: string,
+  clientId: string,
+  blingContactId: string,
+): Promise<string> {
+  await db
+    .insert(blingContactMappings)
+    .values({ connectionId, clientId, blingContactId })
+    .onConflictDoNothing();
+
+  const [mapping] = await db
+    .select({ blingContactId: blingContactMappings.blingContactId })
+    .from(blingContactMappings)
+    .where(
+      and(
+        eq(blingContactMappings.connectionId, connectionId),
+        eq(blingContactMappings.clientId, clientId),
+      ),
+    )
+    .limit(1);
+  if (!mapping) {
+    throw new BlingSyncError(
+      "Este contato do Bling já está vinculado a outro cliente do CRM. Revise os cadastros antes de reenviar.",
+      422,
+    );
+  }
+
+  // Compatibilidade com consumidores legados de clients.blingContactId.
+  await db
+    .update(clients)
+    .set({ blingContactId: mapping.blingContactId })
+    .where(eq(clients.id, clientId));
+  return mapping.blingContactId;
+}
+
 /**
  * Traduz uma falha da API do Bling em `BlingSyncError` com mensagem segura.
  * Nunca expõe token, IDs internos ou stack — apenas mensagens curadas (e, no

@@ -58,6 +58,7 @@ import {
 } from "../controllers/restaurant-pdv/pdv-units.controller";
 import { adminUnitsOverviewController } from "../controllers/restaurant-pdv/admin-units-overview.controller";
 import { retryBlingSyncController } from "../controllers/restaurant-pdv/retry-bling-sync.controller";
+import { authorizeDefaultBlingContactController } from "../controllers/restaurant-pdv/authorize-default-bling-contact.controller";
 import { storage } from "../storage";
 import { resolvePdvUnit } from "../middleware/resolve-pdv-unit";
 
@@ -178,6 +179,11 @@ restaurantPdvRouter.post(
   "/admin/orders/:id/retry-bling-sync",
   requireGestor,
   retryBlingSyncController,
+);
+restaurantPdvRouter.post(
+  "/admin/orders/:id/use-default-bling-contact",
+  requireGestor,
+  authorizeDefaultBlingContactController,
 );
 
 // ── Middleware: resolve unidade PDV para todas as rotas abaixo ───────────────

@@ -14,6 +14,7 @@ import { extractApiMessage } from "@/lib/api-error";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ReasonPromptDialog } from "@/components/restaurant-pdv/reason-prompt-dialog";
 import {
   Sheet,
   SheetContent,
@@ -27,6 +28,7 @@ type BlingFields = Pick<
   RestaurantOrder,
   | "id"
   | "status"
+  | "clientId"
   | "blingSyncStatus"
   | "blingSalesOrderId"
   | "blingSalesOrderNumber"
@@ -36,6 +38,7 @@ type BlingFields = Pick<
   | "blingCheckStatus"
   | "blingCheckDetail"
   | "blingCheckedAt"
+  | "blingContactResolution"
 >;
 
 const MAX_SYNC_ATTEMPTS = 5;
@@ -123,6 +126,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 export function OrderBlingSyncCell({ order }: { order: BlingFields }) {
   const [open, setOpen] = useState(false);
+  const [fallbackOpen, setFallbackOpen] = useState(false);
 
   // Só comanda fechada gera pedido de venda; nas demais a coluna é ruído.
   const isRelevant = order.status === "fechada";
@@ -155,6 +159,33 @@ export function OrderBlingSyncCell({ order }: { order: BlingFields }) {
     },
   });
 
+  const useDefaultContact = useMutation({
+    mutationFn: async (reason: string) => {
+      const res = await apiRequest(
+        "POST",
+        `/api/restaurant-pdv/admin/orders/${order.id}/use-default-bling-contact`,
+        { reason },
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Pedido reenviado como Consumidor Final",
+        description: "O cliente original continua registrado na comanda e na auditoria.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/orders"] });
+      setFallbackOpen(false);
+      setOpen(false);
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Não foi possível usar o Consumidor Final",
+        description: extractApiMessage(err),
+        variant: "destructive",
+      });
+    },
+  });
+
   if (!isRelevant) {
     return <span className="text-muted-foreground">—</span>;
   }
@@ -162,6 +193,11 @@ export function OrderBlingSyncCell({ order }: { order: BlingFields }) {
   const badge = resolveBadge(order);
   const Icon = badge.icon;
   const isSent = order.blingSyncStatus === "enviado";
+  const canUseDefaultContact =
+    !!order.clientId &&
+    !order.blingSalesOrderId &&
+    order.blingContactResolution !== "consumidor_final" &&
+    (order.blingSyncStatus === "erro" || order.blingSyncStatus === "bloqueado");
 
   return (
     <>
@@ -248,9 +284,29 @@ export function OrderBlingSyncCell({ order }: { order: BlingFields }) {
                 sem criar um segundo pedido.
               </p>
             )}
+            {canUseDefaultContact && (
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={useDefaultContact.isPending}
+                onClick={() => setFallbackOpen(true)}
+              >
+                Enviar como Consumidor Final
+              </Button>
+            )}
           </div>
         </SheetContent>
       </Sheet>
+
+      <ReasonPromptDialog
+        open={fallbackOpen}
+        onOpenChange={setFallbackOpen}
+        title="Enviar como Consumidor Final?"
+        description="A venda aparecerá no Bling como Consumidor Final. O cliente vinculado continuará preservado na comanda e esta decisão será auditada."
+        confirmLabel="Autorizar e reenviar"
+        isPending={useDefaultContact.isPending}
+        onConfirm={(reason) => useDefaultContact.mutate(reason)}
+      />
     </>
   );
 }

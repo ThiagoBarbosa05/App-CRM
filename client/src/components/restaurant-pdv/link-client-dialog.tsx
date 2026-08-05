@@ -32,6 +32,13 @@ interface LinkClientDialogProps {
   onLinked: () => void;
 }
 
+interface LinkClientResponse {
+  clientBlingSync?: {
+    status: "synced" | "pending" | "error" | "not_applicable";
+    message?: string;
+  };
+}
+
 export function LinkClientDialog({
   open,
   onOpenChange,
@@ -119,11 +126,27 @@ export function LinkClientDialog({
         const body = await res.json();
         throw new Error(body.message || "Erro ao vincular");
       }
-      return res.json();
+      return res.json() as Promise<LinkClientResponse>;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/orders", orderId] });
-      toast({ title: selectedClient ? "Cliente vinculado" : "Cliente removido" });
+      const sync = data.clientBlingSync;
+      if (selectedClient && sync?.status === "synced") {
+        toast({ title: "Cliente vinculado e sincronizado com o Bling" });
+      } else if (selectedClient && sync?.status === "pending") {
+        toast({
+          title: "Cliente vinculado",
+          description: sync.message ?? "A sincronização com o Bling será tentada no fechamento.",
+        });
+      } else if (selectedClient && sync?.status === "error") {
+        toast({
+          title: "Cliente vinculado, mas o Bling exige atenção",
+          description: sync.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: selectedClient ? "Cliente vinculado" : "Cliente removido" });
+      }
       onLinked();
       handleClose();
     },

@@ -23,6 +23,11 @@ import { createBlingPedidoVenda, getBlingPedidoVenda } from "../integrations/bli
 import type { DbExecutor } from "../db";
 import { fromCents, toCents } from "../../shared/restaurant-order-totals";
 import { compareBlingSalesOrderTotals } from "../../shared/bling-sales-order-check";
+import { restaurantOrderAuditService } from "./restaurant-order-audit.service";
+import {
+  BlingSyncError,
+  ensureBlingContactForClient,
+} from "./bling-clients-export.service";
 
 /**
  * Centavos de uma coluna monetária que pode ser nula.
@@ -240,6 +245,8 @@ async function resolveContactBlingId(
   order: RestaurantOrder,
   connectionId: string,
 ): Promise<string | null> {
+  if (order.blingContactIdUsed) return order.blingContactIdUsed;
+
   if (order.clientId) {
     const [row] = await tx
       .select({ blingContactId: blingContactMappings.blingContactId })
@@ -252,6 +259,10 @@ async function resolveContactBlingId(
       )
       .limit(1);
     if (row) return row.blingContactId;
+
+    // Cliente vinculado nunca pode cair silenciosamente no Consumidor Final.
+    // O fallback só fica liberado depois da autorização administrativa.
+    if (order.blingContactResolution !== "consumidor_final") return null;
   }
 
   if (order.unitId) {
@@ -768,6 +779,51 @@ async function recordCheckResult(
  * continuam chamando só isto.
  */
 export async function sendOrderToBling(orderId: string): Promise<void> {
+  const [orderBeforeSend] = await db
+    .select()
+    .from(restaurantOrders)
+    .where(eq(restaurantOrders.id, orderId))
+    .limit(1);
+
+  // Resolver/criar o contato fora da transação que trava a comanda. Assim,
+  // latência ou rate limit do Bling não prolongam o lock do pedido local.
+  if (
+    orderBeforeSend?.status === "fechada" &&
+    orderBeforeSend.clientId &&
+    orderBeforeSend.blingConnectionId &&
+    orderBeforeSend.blingContactResolution !== "consumidor_final"
+  ) {
+    try {
+      const contact = await ensureBlingContactForClient(
+        orderBeforeSend.clientId,
+        orderBeforeSend.blingConnectionId,
+      );
+      await db
+        .update(restaurantOrders)
+        .set({
+          blingContactIdUsed: contact.blingContactId,
+          blingContactResolution: "cliente_crm",
+          updatedAt: new Date(),
+        })
+        .where(eq(restaurantOrders.id, orderId));
+    } catch (error) {
+      const message =
+        error instanceof BlingSyncError
+          ? error.userMessage
+          : "Não foi possível sincronizar o cliente com o Bling";
+      const attempts = orderBeforeSend.blingSyncAttempts + 1;
+      const definitive = error instanceof BlingSyncError && error.httpStatus === 422;
+      await recordSyncResult(db, orderBeforeSend, {
+        result: definitive ? "bloqueado" : "erro",
+        reason: message,
+        attempts,
+        finalStatus:
+          definitive || attempts >= MAX_SYNC_ATTEMPTS ? "bloqueado" : "erro",
+      });
+      return;
+    }
+  }
+
   const attempt = await attemptSendOrderToBling(orderId);
   if (attempt.kind !== "sent") return;
 
@@ -777,6 +833,78 @@ export async function sendOrderToBling(orderId: string): Promise<void> {
     blingSalesOrderId: attempt.blingSalesOrderId,
     alertas: attempt.alertas,
   });
+}
+
+export async function authorizeDefaultBlingContact(
+  orderId: string,
+  actorId: string,
+  reason: string,
+): Promise<RestaurantOrder> {
+  const updated = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select()
+      .from(restaurantOrders)
+      .where(eq(restaurantOrders.id, orderId))
+      .for("update");
+
+    if (!order) throw Object.assign(new Error("Comanda não encontrada"), { code: "NOT_FOUND" });
+    if (order.status !== "fechada") {
+      throw Object.assign(new Error("Somente comandas fechadas podem ser reenviadas"), {
+        code: "ORDER_NOT_CLOSED",
+      });
+    }
+    if (order.blingSalesOrderId) {
+      throw Object.assign(new Error("O pedido já existe no Bling"), {
+        code: "BLING_ORDER_EXISTS",
+      });
+    }
+    if (!order.clientId) {
+      throw Object.assign(new Error("A comanda não possui cliente vinculado"), {
+        code: "NO_CLIENT",
+      });
+    }
+    if (!order.unitId) {
+      throw Object.assign(new Error("Comanda sem unidade PDV"), { code: "NO_UNIT" });
+    }
+
+    const [unit] = await tx
+      .select({ defaultBlingContactId: pdvUnits.defaultBlingContactId })
+      .from(pdvUnits)
+      .where(eq(pdvUnits.id, order.unitId))
+      .limit(1);
+    if (!unit?.defaultBlingContactId) {
+      throw Object.assign(new Error("A unidade não possui Consumidor Final configurado"), {
+        code: "NO_DEFAULT_CONTACT",
+      });
+    }
+
+    const [saved] = await tx
+      .update(restaurantOrders)
+      .set({
+        blingContactIdUsed: unit.defaultBlingContactId,
+        blingContactResolution: "consumidor_final",
+        blingContactFallbackAuthorizedBy: actorId,
+        blingContactFallbackAuthorizedAt: new Date(),
+        blingContactFallbackReason: reason,
+        blingSyncStatus: "pendente",
+        blingSyncError: null,
+        blingSyncAttempts: 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(restaurantOrders.id, orderId))
+      .returning();
+
+    await restaurantOrderAuditService.logOrderAudit(
+      orderId,
+      "bling_consumidor_final_autorizado",
+      actorId,
+      { reason, metadata: { clientId: order.clientId }, tx },
+    );
+    return saved;
+  });
+
+  await sendOrderToBling(orderId);
+  return reloadOrder(updated.id);
 }
 
 export interface RetryBlingSyncResult {

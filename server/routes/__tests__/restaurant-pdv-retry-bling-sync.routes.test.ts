@@ -4,10 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRouteTestApp, createMockAuthMiddleware } from "../../test/create-route-test-app";
 import { restaurantPdvRouter } from "../restaurant-pdv.routes";
 
-const { retryMock } = vi.hoisted(() => ({ retryMock: vi.fn() }));
+const { retryMock, authorizeDefaultMock } = vi.hoisted(() => ({
+  retryMock: vi.fn(),
+  authorizeDefaultMock: vi.fn(),
+}));
 
 vi.mock("../../services/bling-sales-order.service", () => ({
   retryBlingSalesOrderSync: retryMock,
+  authorizeDefaultBlingContact: authorizeDefaultMock,
   // O router importa o scheduler? Não — mas o service é importado por outros
   // módulos do router, então o mock precisa cobrir a superfície usada.
   sendOrderToBling: vi.fn(),
@@ -100,5 +104,61 @@ describe("POST /admin/orders/:id/retry-bling-sync", () => {
 
     expect(response.status).toBe(500);
     expect(response.body.message).not.toContain("10.0.0.5");
+  });
+});
+
+describe("POST /admin/orders/:id/use-default-bling-contact", () => {
+  const fallbackPath = "/restaurant-pdv/admin/orders/order-1/use-default-bling-contact";
+
+  beforeEach(() => {
+    authorizeDefaultMock.mockReset().mockResolvedValue({
+      id: "order-1",
+      blingContactResolution: "consumidor_final",
+    });
+  });
+
+  it("registra motivo e ator do fallback", async () => {
+    const response = await request(appAs("gerente"))
+      .post(fallbackPath)
+      .send({ reason: "Cliente sem documento válido" });
+
+    expect(response.status).toBe(200);
+    expect(authorizeDefaultMock).toHaveBeenCalledWith(
+      "order-1",
+      "gestor-1",
+      "Cliente sem documento válido",
+    );
+  });
+
+  it("recusa operador sem perfil de gestor", async () => {
+    const response = await request(appAs("garcom"))
+      .post(fallbackPath)
+      .send({ reason: "Cliente sem documento válido" });
+
+    expect(response.status).toBe(403);
+    expect(authorizeDefaultMock).not.toHaveBeenCalled();
+  });
+
+  it("exige motivo auditável", async () => {
+    const response = await request(appAs("admin"))
+      .post(fallbackPath)
+      .send({ reason: "" });
+
+    expect(response.status).toBe(400);
+    expect(authorizeDefaultMock).not.toHaveBeenCalled();
+  });
+
+  it("impede fallback quando o pedido já existe", async () => {
+    authorizeDefaultMock.mockRejectedValue(
+      Object.assign(new Error("O pedido já existe no Bling"), {
+        code: "BLING_ORDER_EXISTS",
+      }),
+    );
+
+    const response = await request(appAs("admin"))
+      .post(fallbackPath)
+      .send({ reason: "Cliente recusado pelo Bling" });
+
+    expect(response.status).toBe(409);
   });
 });
