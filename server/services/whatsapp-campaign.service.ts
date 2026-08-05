@@ -1,8 +1,9 @@
 import { db } from "server/db";
 import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappChannels, whatsappMessages, clients } from "@shared/schema";
 import { eq, and, or, isNull, lte } from "drizzle-orm";
-import { sendTemplateMessage, WhatsAppApiError } from "../integrations/whatsapp";
+import { sendTemplateMessage } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
+import { classifySendError, computeBackoffMs } from "./whatsapp-campaign-retry";
 import { normalizePhoneE164 } from "@shared/phone";
 import { startBotSession, buildClientVariables, interpolate } from "./whatsapp-bot-engine.service";
 import { findOrCreateConversation } from "./whatsapp-conversations.service";
@@ -37,35 +38,29 @@ async function getDelayMs(): Promise<number> {
   }
 }
 
-// Backoff exponencial (5s, 10s, 20s, 40s, 80s...), com teto de 5 minutos.
-function computeBackoffMs(attempts: number): number {
-  const backoffSeconds = Math.min(5 * Math.pow(2, attempts), 300);
-  return backoffSeconds * 1000;
-}
-
 /**
- * Trata erro de envio: se for rate-limit (429) da Meta e ainda houver
- * tentativas disponíveis, reagenda a mensagem (volta para "scheduled" com
- * nextAttemptAt no futuro) em vez de marcar como falha definitiva — em
- * campanhas de 1000-2000 contatos, rate-limit é praticamente garantido de
- * acontecer em algum ponto do envio sequencial.
+ * Trata erro de envio: se for retryable (rate-limit, server error, ou erro de
+ * rede) e ainda houver tentativas disponíveis, reagenda a mensagem (volta para
+ * "scheduled" com nextAttemptAt no futuro) em vez de marcar como falha
+ * definitiva — em campanhas de 1000-2000 contatos, erros transitórios são
+ * praticamente garantidos de acontecer em algum ponto do envio sequencial.
  */
 async function handleSendFailure(
   msg: typeof whatsappCampaignMessages.$inferSelect,
   err: unknown,
 ): Promise<"retried" | "failed"> {
   const errorMessage = err instanceof Error ? err.message : String(err);
-  const isRateLimited = err instanceof WhatsAppApiError && err.status === 429;
+  const isRetryable = classifySendError(err) === "retryable";
   const nextAttempts = (msg.attempts ?? 0) + 1;
 
-  if (isRateLimited && nextAttempts < MAX_SEND_ATTEMPTS) {
+  if (isRetryable && nextAttempts < MAX_SEND_ATTEMPTS) {
     await db
       .update(whatsappCampaignMessages)
       .set({
         status: "scheduled",
         attempts: nextAttempts,
         nextAttemptAt: new Date(Date.now() + computeBackoffMs(nextAttempts)),
-        errorMessage: `Rate limit da Meta — nova tentativa agendada (${nextAttempts}/${MAX_SEND_ATTEMPTS}): ${errorMessage}`,
+        errorMessage: `Erro transitório — nova tentativa agendada (${nextAttempts}/${MAX_SEND_ATTEMPTS}): ${errorMessage}`,
         updatedAt: new Date(),
       })
       .where(eq(whatsappCampaignMessages.id, msg.id));
