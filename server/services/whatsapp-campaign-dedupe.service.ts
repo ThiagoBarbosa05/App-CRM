@@ -14,6 +14,7 @@ import {
   type WhatsappBotNode,
 } from "@shared/schema";
 import { db, type DbExecutor } from "../db";
+import { CAMPAIGN_SUPPRESSION_REASONS } from "@shared/whatsapp-campaign-reasons";
 import {
   buildClientVariables,
   selectCampaignEntryNode,
@@ -259,7 +260,7 @@ export async function reserveCampaignMessage(input: {
         contentFingerprint: input.contentFingerprint,
         status: conflict ? "suppressed" : "scheduled",
         scheduledAt: input.scheduledFor,
-        suppressionReason: conflict ? "Mensagem idêntica dentro da janela de proteção" : null,
+        suppressionReason: conflict ? CAMPAIGN_SUPPRESSION_REASONS.duplicateContent : null,
         conflictingCampaignMessageId: conflict?.campaignMessageId ?? null,
         tagApplicationStatus: input.postSendTagRequested ? "pending" : "not_requested",
       })

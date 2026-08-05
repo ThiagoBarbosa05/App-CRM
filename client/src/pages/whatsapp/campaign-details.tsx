@@ -24,6 +24,7 @@ import {
   Tag,
   PhoneOff,
 } from "lucide-react";
+import { classifySuppressionReason } from "@shared/whatsapp-campaign-reasons";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -237,11 +238,11 @@ export default function WhatsAppCampaignDetails() {
   const suppressionCounts = (campaign.messages ?? []).reduce(
     (counts, message) => {
       if (message.status !== "suppressed") return counts;
-      const reason = message.suppressionReason ?? "";
-      if (reason.includes("idêntica") || reason.includes("identica")) counts.duplicate++;
-      else if (reason.includes("Etiquetas alteradas")) counts.tagsChanged++;
-      else if (reason.toLowerCase().includes("opt-out")) counts.optedOut++;
-      else if (reason.toLowerCase().includes("telefone")) counts.invalidPhone++;
+      const category = classifySuppressionReason(message.suppressionReason);
+      if (category === "duplicate_content") counts.duplicate++;
+      else if (category === "tags_changed") counts.tagsChanged++;
+      else if (category === "opted_out") counts.optedOut++;
+      else if (category === "invalid_phone") counts.invalidPhone++;
       else counts.other++;
       return counts;
     },

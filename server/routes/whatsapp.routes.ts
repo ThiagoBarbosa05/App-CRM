@@ -18,6 +18,7 @@ import {
   getCampaignBotStats,
 } from "../controllers/campaigns/campaign-logger";
 import { normalizePhoneE164 } from "@shared/phone";
+import { CAMPAIGN_SUPPRESSION_REASONS } from "@shared/whatsapp-campaign-reasons";
 import {
   listBotDispatchHistory,
   parseBotSessionHistoryQuery,
@@ -322,7 +323,7 @@ router.post("/campaigns", async (req, res) => {
         skippedOptedOut++;
         preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
           phoneNumber: c.phone ?? "sem telefone", status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
-          suppressionReason: "Opt-out de campanhas do WhatsApp" });
+          suppressionReason: CAMPAIGN_SUPPRESSION_REASONS.optedOut });
         continue;
       }
       const phoneE164 = c.phone?.trim() ? normalizePhoneE164(c.phone) : null;
@@ -330,14 +331,14 @@ router.post("/campaigns", async (req, res) => {
         skippedInvalidPhone++;
         preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
           phoneNumber: c.phone ?? "sem telefone", status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
-          suppressionReason: "Telefone inválido" });
+          suppressionReason: CAMPAIGN_SUPPRESSION_REASONS.invalidPhone });
         continue;
       }
       if (seenPhones.has(phoneE164)) {
         skippedDuplicatePhone++;
         preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
           phoneNumber: phoneE164, status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
-          suppressionReason: "Telefone duplicado na audiência" });
+          suppressionReason: CAMPAIGN_SUPPRESSION_REASONS.duplicatePhoneInAudience });
         continue;
       }
       seenPhones.add(phoneE164);

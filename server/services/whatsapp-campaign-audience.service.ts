@@ -2,6 +2,7 @@ import { and, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
 import { clients } from "@shared/schema";
 import { db } from "../db";
 import { normalizePhoneE164 } from "@shared/phone";
+import { CAMPAIGN_SUPPRESSION_REASONS } from "@shared/whatsapp-campaign-reasons";
 
 export type CampaignAudienceSelector =
   | { mode: "explicit"; clientIds: string[] }
@@ -65,11 +66,11 @@ export async function validateCampaignRecipient(
 ): Promise<string | null> {
   const [client] = await db.select().from(clients).where(sql`${clients.id} = ${clientId}`).limit(1);
   if (!client) return "Contato não encontrado";
-  if (client.whatsappOptOut) return "Opt-out de campanhas do WhatsApp";
+  if (client.whatsappOptOut) return CAMPAIGN_SUPPRESSION_REASONS.optedOut;
   const currentPhone = normalizePhoneE164(client.phone);
-  if (!currentPhone || currentPhone !== expectedPhone) return "Telefone inválido ou alterado após o agendamento";
+  if (!currentPhone || currentPhone !== expectedPhone) return CAMPAIGN_SUPPRESSION_REASONS.invalidOrChangedPhone;
   if (!await stillMatchesCampaignAudience(clientId, selector)) {
-    return "Etiquetas alteradas: contato não corresponde mais à segmentação da campanha";
+    return CAMPAIGN_SUPPRESSION_REASONS.tagsChanged;
   }
   return null;
 }
