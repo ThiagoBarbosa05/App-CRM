@@ -12,6 +12,7 @@ import {
 } from "./whatsapp-opt-out.service";
 import { handleInboundBotMessage, persistBotMessage } from "./whatsapp-bot-engine.service";
 import { logChannelConnectionEvent } from "./baileys/connection-events.service";
+import { applyCampaignDeliveryStatus } from "./whatsapp-campaign-status.service";
 
 export function extractQuotedMessageSnapshot(message: Record<string, unknown> | undefined): {
   content: string | null;
@@ -349,6 +350,18 @@ export async function handleMessagesUpdate(data: unknown) {
         status: mapped,
       });
     }
+
+    // Independente de o UPDATE acima de whatsapp_messages ter afetado alguma
+    // linha (seu WHERE tem sua própria regra de monotonicidade, ex: não
+    // regride de "read" pra "delivered") — a campanha tem sua PRÓPRIA checagem
+    // de rank interna em applyCampaignDeliveryStatus, então é chamada sempre.
+    applyCampaignDeliveryStatus(
+      waMessageId,
+      mapped as "sent" | "delivered" | "read" | "failed",
+      { eventAt, errorMessage: statusReason },
+    ).catch((err) =>
+      console.error("[Baileys Events] Erro ao atualizar status de campanha:", err),
+    );
   }
 }
 

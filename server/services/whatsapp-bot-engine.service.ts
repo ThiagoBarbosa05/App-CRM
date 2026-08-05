@@ -738,7 +738,10 @@ async function executeNode(
     case "start_manual":
     case "start_channel": {
       const next = await getNextNode(botId, node.id);
-      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+      if (next) {
+        const tail = await executeNode(next, phone, sessionId, botId, variables);
+        if (tail) lastMessageId = tail;
+      }
       break;
     }
 
@@ -857,7 +860,10 @@ async function executeNode(
         }
       }
       const next = await getNextNode(botId, node.id);
-      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+      if (next) {
+        const tail = await executeNode(next, phone, sessionId, botId, variables);
+        if (tail) lastMessageId = tail;
+      }
       break;
     }
 
@@ -886,7 +892,10 @@ async function executeNode(
         console.log(`[WaBot][Condition] modo attribute: clientId=${conversation.clientId} handle=${handle}`);
         const next = await getNextConditionNode(botId, node, handle);
         console.log(`[WaBot][Condition] modo attribute: próximo nó=${next?.id ?? "(nenhum — encerrando)"}`);
-        if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+        if (next) {
+          const tail = await executeNode(next, phone, sessionId, botId, variables);
+          if (tail) lastMessageId = tail;
+        }
         else await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
         break;
       }
@@ -908,7 +917,10 @@ async function executeNode(
         const handle = matched ? "match" : conditionDefaultHandle(c);
         console.log(`[WaBot][Condition] avaliação imediata (sem regra de mensagem): handle=${handle}`);
         const next = await getNextConditionNode(botId, node, handle);
-        if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+        if (next) {
+          const tail = await executeNode(next, phone, sessionId, botId, variables);
+          if (tail) lastMessageId = tail;
+        }
         else await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
         break;
       }
@@ -1103,7 +1115,10 @@ async function executeNode(
       }
 
       const next = await getNextNode(botId, node.id);
-      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+      if (next) {
+        const tail = await executeNode(next, phone, sessionId, botId, variables);
+        if (tail) lastMessageId = tail;
+      }
       break;
     }
 
@@ -1120,7 +1135,10 @@ async function executeNode(
       if (!resumeAt || resumeAt.getTime() <= Date.now()) {
         // Sem espera válida (ou já passou): segue o fluxo imediatamente.
         const next = await getNextNode(botId, node.id);
-        if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+        if (next) {
+          const tail = await executeNode(next, phone, sessionId, botId, variables);
+          if (tail) lastMessageId = tail;
+        }
         break;
       }
 
@@ -1290,7 +1308,8 @@ async function executeNode(
       } else if (d.activateFlowIfFailed) {
         const next = await getNextNode(botId, node.id);
         if (next) {
-          lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+          const tail = await executeNode(next, phone, sessionId, botId, variables);
+          if (tail) lastMessageId = tail;
         } else {
           await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
         }
@@ -1340,7 +1359,8 @@ async function executeNode(
       } else if (d.activateFlowIfFailed) {
         const next = await getNextNode(botId, node.id);
         if (next) {
-          lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+          const tail = await executeNode(next, phone, sessionId, botId, variables);
+          if (tail) lastMessageId = tail;
         } else {
           await updateSession(sessionId, { status: "completed", completedAt: new Date(), completionReason: "end_of_flow" });
         }
@@ -1357,7 +1377,10 @@ async function executeNode(
       }
       const handle = pickDistributeHandle(d.outputs ?? [], Math.random);
       const next = await getNextNode(botId, node.id, handle ?? undefined);
-      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+      if (next) {
+        const tail = await executeNode(next, phone, sessionId, botId, variables);
+        if (tail) lastMessageId = tail;
+      }
       break;
     }
 
@@ -1412,7 +1435,10 @@ async function executeNode(
         console.warn("[BotEngine] edit_tags ignorado — conversa sem clientId vinculado");
       }
       const next = await getNextNode(botId, node.id);
-      if (next) lastMessageId = await executeNode(next, phone, sessionId, botId, variables);
+      if (next) {
+        const tail = await executeNode(next, phone, sessionId, botId, variables);
+        if (tail) lastMessageId = tail;
+      }
       break;
     }
 

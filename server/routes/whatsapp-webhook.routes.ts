@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { whatsappCampaignMessages, whatsappFlows, whatsappMessages } from "@shared/schema";
+import { whatsappFlows, whatsappMessages } from "@shared/schema";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
+import { applyCampaignDeliveryStatus, STATUS_RANK } from "../services/whatsapp-campaign-status.service";
 import { upsertWhatsappSetting } from "../services/whatsapp-settings.service";
 import {
   handleInboundBotMessage,
@@ -28,14 +29,6 @@ import {
 } from "../services/whatsapp-opt-out.service";
 
 const router = Router();
-
-// Ordem das transições de status (não permite regredir: read não volta a delivered).
-const STATUS_RANK: Record<string, number> = {
-  scheduled: 0,
-  sent: 1,
-  delivered: 2,
-  read: 3,
-};
 
 // GET — verificação inicial do webhook pelo Meta
 router.get("/webhook", async (req: Request, res: Response) => {
@@ -197,7 +190,10 @@ async function handleMessageStatus(status: {
     ? new Date(Number(status.timestamp) * 1000)
     : new Date();
 
-  await updateCampaignMessageStatus(status, eventAt).catch((err) =>
+  await applyCampaignDeliveryStatus(status.id, status.status, {
+    eventAt,
+    errorMessage: status.errors?.[0]?.message || status.errors?.[0]?.title,
+  }).catch((err) =>
     console.error("[WA Webhook] Erro ao atualizar status de campanha:", err),
   );
 
@@ -236,50 +232,6 @@ async function handleMessageStatus(status: {
     messageId: current.id,
     status: status.status,
   });
-}
-
-async function updateCampaignMessageStatus(
-  status: {
-    id: string;
-    status: "sent" | "delivered" | "read" | "failed";
-    errors?: Array<{ title?: string; message?: string; code?: number }>;
-  },
-  now: Date,
-): Promise<void> {
-  const [msg] = await db
-    .select()
-    .from(whatsappCampaignMessages)
-    .where(eq(whatsappCampaignMessages.messageId, status.id))
-    .limit(1);
-
-  if (!msg) return;
-
-  if (msg.status === "failed" || msg.status === "cancelled") return;
-
-  if (status.status === "failed") {
-    const err = status.errors?.[0];
-    const errorMessage =
-      err?.message || err?.title || "Falha reportada pela Meta";
-    await db
-      .update(whatsappCampaignMessages)
-      .set({ status: "failed", errorMessage, updatedAt: now })
-      .where(eq(whatsappCampaignMessages.id, msg.id));
-    return;
-  }
-
-  const currentRank = STATUS_RANK[msg.status] ?? 0;
-  const nextRank = STATUS_RANK[status.status] ?? 0;
-  if (nextRank <= currentRank) return;
-
-  await db
-    .update(whatsappCampaignMessages)
-    .set({
-      status: status.status,
-      ...(status.status === "delivered" ? { deliveredAt: now } : {}),
-      ...(status.status === "read" ? { readAt: now } : {}),
-      updatedAt: now,
-    })
-    .where(eq(whatsappCampaignMessages.id, msg.id));
 }
 
 // ── Handler: messages (mensagens recebidas) ────────────────────────────────────

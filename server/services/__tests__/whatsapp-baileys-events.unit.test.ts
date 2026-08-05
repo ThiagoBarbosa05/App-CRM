@@ -3,15 +3,26 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // handleMessagesUpdate é a única função exercida aqui. Os módulos abaixo são
 // puramente side-effect (DB real, integrações externas, engine de bot) e
 // irrelevantes para a lógica pura de "mapear status do Baileys + detectar 463".
-const { updateMock, setMock, saveInboundMessageMock, saveInboundReactionMock, getChannelMock } = vi.hoisted(() => ({
+const {
+  updateMock,
+  setMock,
+  saveInboundMessageMock,
+  saveInboundReactionMock,
+  getChannelMock,
+  applyCampaignDeliveryStatusMock,
+} = vi.hoisted(() => ({
   updateMock: vi.fn(),
   setMock: vi.fn(),
   saveInboundMessageMock: vi.fn(),
   saveInboundReactionMock: vi.fn(),
   getChannelMock: vi.fn(),
+  applyCampaignDeliveryStatusMock: vi.fn(),
 }));
 
 vi.mock("../../db", () => ({ db: { update: updateMock } }));
+vi.mock("../whatsapp-campaign-status.service", () => ({
+  applyCampaignDeliveryStatus: applyCampaignDeliveryStatusMock,
+}));
 vi.mock("../whatsapp-channels.service", () => ({
   getChannelByEvolutionInstance: getChannelMock,
   updateConnectionStatus: async () => {},
@@ -160,6 +171,8 @@ describe("handleMessagesUpdate — detecção de conta restrita (erro 463)", () 
   beforeEach(() => {
     updateMock.mockReset();
     setMock.mockReset();
+    applyCampaignDeliveryStatusMock.mockReset();
+    applyCampaignDeliveryStatusMock.mockResolvedValue(undefined);
     setMock.mockReturnValue({
       where: () => ({
         returning: () => Promise.resolve([]),
@@ -221,5 +234,65 @@ describe("handleMessagesUpdate — detecção de conta restrita (erro 463)", () 
         readAt: expect.any(Date),
       }),
     );
+  });
+});
+
+describe("handleMessagesUpdate — propagação pra applyCampaignDeliveryStatus", () => {
+  beforeEach(() => {
+    updateMock.mockReset();
+    setMock.mockReset();
+    applyCampaignDeliveryStatusMock.mockReset();
+    applyCampaignDeliveryStatusMock.mockResolvedValue(undefined);
+    setMock.mockReturnValue({
+      where: () => ({
+        returning: () => Promise.resolve([]),
+      }),
+    });
+    updateMock.mockReturnValue({ set: setMock });
+  });
+
+  it("chama applyCampaignDeliveryStatus com waMessageId, status mapeado e eventAt", async () => {
+    await handleMessagesUpdate([
+      { key: { id: "wamid-6" }, update: { status: "delivery_ack" } },
+    ]);
+
+    expect(applyCampaignDeliveryStatusMock).toHaveBeenCalledTimes(1);
+    expect(applyCampaignDeliveryStatusMock).toHaveBeenCalledWith(
+      "wamid-6",
+      "delivered",
+      expect.objectContaining({ eventAt: expect.any(Date) }),
+    );
+  });
+
+  it("propaga o statusReason de conta restrita (463) como errorMessage", async () => {
+    await handleMessagesUpdate([
+      { key: { id: "wamid-7" }, update: { status: "error", messageStubParameters: ["463"] } },
+    ]);
+
+    expect(applyCampaignDeliveryStatusMock).toHaveBeenCalledWith(
+      "wamid-7",
+      "failed",
+      expect.objectContaining({ errorMessage: "account_restricted" }),
+    );
+  });
+
+  it("é chamada incondicionalmente mesmo quando o UPDATE de whatsapp_messages não retorna linha (returning vazio)", async () => {
+    // setMock().where().returning() já resolve [] no beforeEach — simula o
+    // WHERE de monotonicidade barrando o update de whatsapp_messages (ex:
+    // já estava "read" e chegou "delivered"). Mesmo assim a campanha deve
+    // ser verificada, porque tem sua própria checagem de rank independente.
+    await handleMessagesUpdate([
+      { key: { id: "wamid-8" }, update: { status: "delivery_ack" } },
+    ]);
+
+    expect(applyCampaignDeliveryStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("erro em applyCampaignDeliveryStatus não propaga (fire-and-forget com .catch)", async () => {
+    applyCampaignDeliveryStatusMock.mockRejectedValue(new Error("boom"));
+
+    await expect(
+      handleMessagesUpdate([{ key: { id: "wamid-9" }, update: { status: "read" } }]),
+    ).resolves.toBeUndefined();
   });
 });
