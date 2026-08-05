@@ -416,6 +416,13 @@ router.post("/campaigns", async (req, res) => {
 
     let queued = 0;
     let suppressedDuplicate = 0;
+    // Corrida entre o pré-filtro (alreadyQueuedIds, SELECT antes do loop) e o
+    // INSERT dentro de reserveCampaignMessage: duplo clique ou retry de rede
+    // simultâneos podem passar pelo pré-filtro e ainda assim colidir no
+    // índice único da mensagem. Não é uma supressão por conteúdo duplicado
+    // (dedupe de fingerprint) — é só uma re-tentativa idempotente de um
+    // enfileiramento que já aconteceu, então não entra em suppressedDuplicate.
+    let raceAlreadyQueued = 0;
     const conflicts: Array<{
       campaignId: string;
       campaignMessageId: string;
@@ -440,6 +447,8 @@ router.post("/campaigns", async (req, res) => {
       });
       if (result.queued) {
         queued++;
+      } else if (result.alreadyExisted) {
+        raceAlreadyQueued++;
       } else {
         suppressedDuplicate++;
         if (result.conflict && conflicts.length < 10) {
@@ -492,7 +501,7 @@ router.post("/campaigns", async (req, res) => {
       skippedNoPhone: skippedInvalidPhone,
       skippedDuplicatePhone,
       skippedOptedOut,
-      skippedAlreadyQueued: alreadyQueuedIds.size,
+      skippedAlreadyQueued: alreadyQueuedIds.size + raceAlreadyQueued,
       conflicts,
       scheduledAt: isScheduled ? scheduledDate?.toISOString() : null,
     };

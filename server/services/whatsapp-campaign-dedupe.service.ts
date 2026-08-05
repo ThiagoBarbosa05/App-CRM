@@ -236,7 +236,7 @@ export async function reserveCampaignMessage(input: {
   scheduledFor: Date;
   windowHours: number;
   postSendTagRequested: boolean;
-}): Promise<{ queued: boolean; conflict: CampaignDedupeConflict | null }> {
+}): Promise<{ queued: boolean; alreadyExisted: boolean; conflict: CampaignDedupeConflict | null }> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.phoneNormalized}), hashtext(${input.contentFingerprint}))`);
     const conflict = await findConflict(
@@ -247,7 +247,7 @@ export async function reserveCampaignMessage(input: {
       input.windowHours,
     );
     const messageId = `${input.campaignId}-${input.client.id}`;
-    await tx
+    const insertedRows = await tx
       .insert(whatsappCampaignMessages)
       .values({
         id: messageId,
@@ -263,8 +263,10 @@ export async function reserveCampaignMessage(input: {
         conflictingCampaignMessageId: conflict?.campaignMessageId ?? null,
         tagApplicationStatus: input.postSendTagRequested ? "pending" : "not_requested",
       })
-      .onConflictDoNothing();
-    if (!conflict) {
+      .onConflictDoNothing()
+      .returning({ id: whatsappCampaignMessages.id });
+    const inserted = insertedRows.length > 0;
+    if (inserted && !conflict) {
       await tx
         .insert(whatsappCampaignImpacts)
         .values({
@@ -276,7 +278,7 @@ export async function reserveCampaignMessage(input: {
         })
         .onConflictDoNothing();
     }
-    return { queued: !conflict, conflict };
+    return { queued: inserted && !conflict, alreadyExisted: !inserted, conflict };
   });
 }
 
