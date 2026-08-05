@@ -1,9 +1,10 @@
 import cron from "node-cron";
 import { db, pool } from "server/db";
-import { whatsappCampaigns, whatsappCampaignMessages } from "@shared/schema";
-import { and, eq, count, inArray, lte } from "drizzle-orm";
+import { campaigns, whatsappCampaigns, whatsappCampaignMessages } from "@shared/schema";
+import { and, eq, count, getTableColumns, inArray, lte } from "drizzle-orm";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
 import { decideFinalization } from "../services/whatsapp-campaign-finalize";
+import { CampaignConfigError } from "../services/whatsapp-campaign-errors";
 
 // Mensagens processadas por tick, por campanha. O `wa_message_delay_ms` controla
 // o intervalo entre envios dentro de executeCampaign (rate-limit da Meta).
@@ -112,9 +113,15 @@ async function runTick(): Promise<void> {
       );
 
     // Processa apenas campanhas em andamento (pausadas/canceladas ficam de fora).
+    // innerJoin com `campaigns` exclui linhas órfãs de whatsapp_campaigns sem
+    // linha correspondente (ex: legado do Umbler Talk) — sem isso o dispatcher
+    // ficaria tentando (e falhando) disparar a mesma campanha órfã a cada tick,
+    // para sempre. Não filtramos por campaigns.deletedAt: uma campanha
+    // soft-deletada em voo deve continuar até finalizar normalmente.
     const active = await db
-      .select()
+      .select(getTableColumns(whatsappCampaigns))
       .from(whatsappCampaigns)
+      .innerJoin(campaigns, eq(campaigns.id, whatsappCampaigns.id))
       .where(eq(whatsappCampaigns.status, "in_progress"));
 
     if (active.length === 0) return;
@@ -134,10 +141,19 @@ async function runTick(): Promise<void> {
           );
         }
       } catch (err) {
-        console.error(
-          `[wa-campaign-dispatcher] erro na campanha ${camp.id}:`,
-          err,
-        );
+        if (err instanceof CampaignConfigError) {
+          // Erro de configuração (sem template nem bot) — não é transitório,
+          // vai se repetir a cada tick até o operador corrigir a campanha.
+          // Loga sem stack trace para não poluir os logs de erro.
+          console.warn(
+            `[wa-campaign-dispatcher] campanha ${camp.id} mal configurada: ${err.message}`,
+          );
+        } else {
+          console.error(
+            `[wa-campaign-dispatcher] erro na campanha ${camp.id}:`,
+            err,
+          );
+        }
       }
     }
   } catch (e) {

@@ -19,6 +19,7 @@ import {
   validateCampaignRecipient,
   type CampaignAudienceSelector,
 } from "./whatsapp-campaign-audience.service";
+import { CampaignConfigError } from "./whatsapp-campaign-errors";
 
 const DEFAULT_DELAY_MS = 1000;
 const MAX_SEND_ATTEMPTS = 5;
@@ -159,7 +160,7 @@ export async function executeCampaign(
   }
 
   if (!campaign.waTemplateId && !campaign.waBotId) {
-    throw new Error(`Campanha ${campaignId} não possui template ou bot configurado`);
+    throw new CampaignConfigError(`Campanha ${campaignId} não possui template ou bot configurado`);
   }
 
   const now0 = new Date();
