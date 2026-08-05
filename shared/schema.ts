@@ -22,6 +22,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 import { normalizePhoneE164 } from "./phone";
+import { isValidDocument } from "./document";
 
 export const sessions = pgTable("sessions", {
   sid: varchar("sid").primaryKey(),
@@ -1337,6 +1338,10 @@ export const insertClientSchema = createInsertSchema(clients)
   .refine((data) => !data.phone || normalizePhoneE164(data.phone) !== null, {
     message: "Telefone inválido — use um número de celular ou fixo brasileiro válido",
     path: ["phone"],
+  })
+  .refine((data) => isValidDocument(data.cpf), {
+    message: "CPF ou CNPJ inválido — confira os números digitados",
+    path: ["cpf"],
   });
 
 // Schema para atualização de clientes (partial, sem validação de maioridade para não bloquear atualizações)
@@ -1396,6 +1401,10 @@ export const updateClientSchema = createInsertSchema(clients)
   .refine((data) => !data.phone || normalizePhoneE164(data.phone) !== null, {
     message: "Telefone inválido — use um número de celular ou fixo brasileiro válido",
     path: ["phone"],
+  })
+  .refine((data) => isValidDocument(data.cpf), {
+    message: "CPF ou CNPJ inválido — confira os números digitados",
+    path: ["cpf"],
   });
 
 export const insertSectorSchema = createInsertSchema(sectors).omit({

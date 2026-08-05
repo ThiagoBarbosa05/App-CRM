@@ -18,6 +18,12 @@ import { normalizePhoneE164 } from "@shared/phone";
 import { syncClientToBling, BlingSyncError } from "./bling-clients-export.service";
 import { ensureClientInDesvendandoVinhoFunnel } from "./desvendando-vinho-funnel.service";
 import { autoLinkConversationsByPhone } from "./whatsapp-conversations.service";
+import {
+  ClientOperationError,
+  mapDatabaseError,
+  duplicateDocumentError,
+  duplicateEmailError,
+} from "./clients.errors";
 
 export interface GetClientsParams {
   userId?: string;
@@ -545,22 +551,19 @@ export class ClientsService {
     } catch (error) {
       console.error("Erro no ClientsService.createClient:", error);
 
-      // Re-throw erros de validação Zod para serem tratados no controller
+      // Erros de validação Zod e de domínio já carregam a mensagem exibível;
+      // o controller sabe traduzi-los em status + texto para o usuário.
       if (error instanceof z.ZodError) {
         throw error;
       }
+      if (error instanceof ClientOperationError) {
+        throw error;
+      }
 
-      // Re-throw erros de banco (telefone duplicado, etc.)
-      if (error && error.toString().includes("clients_phone_unique")) {
-        throw new Error(
-          "Este número de telefone já está cadastrado para outro cliente.",
-        );
-      }
-      if (error && error.toString().includes("clients_cpf_unique")) {
-        throw new Error("Este CPF/CNPJ já está cadastrado para outro cliente.");
-      }
-      if (error && error.toString().includes("clients_email_unique")) {
-        throw new Error("Este e-mail já está cadastrado para outro cliente.");
+      // Violação de constraint (duplicidade que escapou do pré-check por corrida).
+      const mapped = mapDatabaseError(error);
+      if (mapped) {
+        throw mapped;
       }
 
       throw error;
@@ -698,8 +701,11 @@ export class ClientsService {
     } catch (error) {
       console.error("Erro no ClientsService.updateClient:", error);
 
-      // Re-throw erros de validação Zod para serem tratados no controller
+      // Erros de validação Zod e de domínio já carregam a mensagem exibível.
       if (error instanceof z.ZodError) {
+        throw error;
+      }
+      if (error instanceof ClientOperationError) {
         throw error;
       }
 
@@ -708,20 +714,16 @@ export class ClientsService {
         throw error;
       }
 
-      // Re-throw erros de banco (telefone/cpf/email duplicado, etc.)
-      if (error && error.toString().includes("clients_phone_unique")) {
-        throw new Error(
-          "Este número de telefone já está cadastrado para outro cliente.",
-        );
-      }
-      if (error && error.toString().includes("clients_cpf_unique")) {
-        throw new Error("Este CPF/CNPJ já está cadastrado para outro cliente.");
-      }
-      if (error && error.toString().includes("clients_email_unique")) {
-        throw new Error("Este e-mail já está cadastrado para outro cliente.");
+      // Violação de constraint (duplicidade que escapou do pré-check por corrida).
+      const mapped = mapDatabaseError(error);
+      if (mapped) {
+        throw mapped;
       }
 
-      throw new Error("Erro ao atualizar cliente");
+      // Erro desconhecido sobe intacto: quem decide a resposta genérica é o
+      // controller. Substituí-lo aqui por uma mensagem fixa é o que fazia
+      // duplicidade de CPF/e-mail na edição virar 500 sem explicação.
+      throw error;
     }
   }
 
@@ -750,9 +752,7 @@ export class ClientsService {
           )
           .limit(1);
         if (existing.length > 0) {
-          throw new Error(
-            `Este CPF/CNPJ já está cadastrado para o cliente "${existing[0].name}".`,
-          );
+          throw duplicateDocumentError(existing[0].name);
         }
       }
     }
@@ -773,9 +773,7 @@ export class ClientsService {
           )
           .limit(1);
         if (existing.length > 0) {
-          throw new Error(
-            `Este e-mail já está cadastrado para o cliente "${existing[0].name}".`,
-          );
+          throw duplicateEmailError(existing[0].name);
         }
       }
     }
@@ -901,17 +899,15 @@ export class ClientsService {
    */
   private processUpdateClientData(
     updateData: any,
-    userId?: string,
+    _userId?: string,
     userRole?: string,
   ): any {
     // Converter strings vazias em null para campos opcionais (sem defaults para atualização)
-    let processedData = {
+    const processedData: any = {
       ...updateData,
       name: typeof updateData.name === "string" && updateData.name.trim()
         ? this.toTitleCase(updateData.name)
         : updateData.name,
-      responsavelId:
-        updateData.responsavelId === "" ? null : updateData.responsavelId,
       cpf: updateData.cpf === "" ? null : updateData.cpf,
       phone:
         updateData.phone === "" ? null : this.normalizePhoneField(updateData.phone),
@@ -922,9 +918,20 @@ export class ClientsService {
       email: updateData.email === "" ? null : updateData.email,
     };
 
-    // Se não for admin e não foi especificado um responsável, usar o usuário atual
-    if (userRole !== "admin" && !processedData.responsavelId && userId) {
-      processedData.responsavelId = userId;
+    // `categoria` e `origem` são NOT NULL. Como o schema de atualização é
+    // parcial, um valor vazio vindo do formulário sobrescreveria o dado bom
+    // com string vazia — melhor não tocar no campo.
+    if (!processedData.categoria) delete processedData.categoria;
+    if (!processedData.origem) delete processedData.origem;
+
+    // A reatribuição de responsável só acontece por escolha explícita. Antes,
+    // qualquer atualização parcial feita por um não-admin (inclusive a que só
+    // aplica dados da Assertiva) transferia o cliente para quem editou.
+    const canReassign = userRole === "admin" || userRole === "gerente";
+    if (!canReassign || !("responsavelId" in updateData)) {
+      delete processedData.responsavelId;
+    } else if (processedData.responsavelId === "") {
+      processedData.responsavelId = null;
     }
 
     return processedData;
