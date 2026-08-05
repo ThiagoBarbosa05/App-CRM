@@ -43,6 +43,8 @@ import {
   analyzeBotCompatibility,
   BotCompatibilityLookupError,
 } from "../services/whatsapp-bot-compatibility.service";
+import { requeueFailedMessages } from "../services/whatsapp-campaign.service";
+import { CampaignRequeueBlockedError } from "../services/whatsapp-campaign-errors";
 
 const router = Router();
 
@@ -529,26 +531,12 @@ router.post("/campaigns", async (req, res) => {
 router.post("/campaigns/:id/retry-failed", async (req, res) => {
   const campaignId = req.params.id;
   try {
-    const failed = await db
-      .update(whatsappCampaignMessages)
-      .set({ status: "scheduled", errorMessage: null, updatedAt: new Date() })
-      .where(
-        and(
-          eq(whatsappCampaignMessages.campaignId, campaignId),
-          eq(whatsappCampaignMessages.status, "failed"),
-        ),
-      )
-      .returning({ id: whatsappCampaignMessages.id });
-
-    if (failed.length > 0) {
-      await db
-        .update(whatsappCampaigns)
-        .set({ status: "in_progress", completedAt: null, updatedAt: new Date() })
-        .where(eq(whatsappCampaigns.id, campaignId));
-    }
-
-    res.json({ campaignId, requeued: failed.length });
+    const { requeued } = await requeueFailedMessages(campaignId);
+    res.json({ campaignId, requeued });
   } catch (e) {
+    if (e instanceof CampaignRequeueBlockedError) {
+      return res.status(409).json({ message: e.message });
+    }
     const message = e instanceof Error ? e.message : "Erro ao reprocessar falhas";
     res.status(500).json({ message });
   }

@@ -1,6 +1,6 @@
 import { db } from "server/db";
-import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappTemplates, whatsappBots, whatsappChannels, whatsappMessages, clients } from "@shared/schema";
-import { eq, and, or, isNull, lte } from "drizzle-orm";
+import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappCampaignImpacts, whatsappTemplates, whatsappBots, whatsappChannels, whatsappMessages, clients } from "@shared/schema";
+import { eq, and, or, isNull, lte, inArray } from "drizzle-orm";
 import { sendTemplateMessage } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 import { classifySendError, computeBackoffMs } from "./whatsapp-campaign-retry";
@@ -19,7 +19,12 @@ import {
   validateCampaignRecipient,
   type CampaignAudienceSelector,
 } from "./whatsapp-campaign-audience.service";
-import { CampaignConfigError } from "./whatsapp-campaign-errors";
+import { CampaignConfigError, CampaignRequeueBlockedError } from "./whatsapp-campaign-errors";
+
+// Status a partir dos quais um retry-failed pode "reviver" a campanha para
+// in_progress. Qualquer outro status atual (cancelled, paused, created) é
+// tratado como bloqueio — ver requeueFailedMessages.
+const REQUEUE_ALLOWED_STATUSES = ["completed", "failed", "in_progress"] as const;
 
 const DEFAULT_DELAY_MS = 1000;
 const MAX_SEND_ATTEMPTS = 5;
@@ -127,6 +132,82 @@ async function suppressIfAudienceChanged(
   }).where(eq(whatsappCampaignMessages.id, msg.id));
   await releaseImpact(msg.id);
   return true;
+}
+
+/**
+ * Reenfileira mensagens `failed` → `scheduled` de uma campanha, resetando o
+ * estado de retry automático (attempts/nextAttemptAt/errorMessage) e
+ * restaurando as reservas de dedupe (`whatsapp_campaign_impacts`) que tinham
+ * sido liberadas quando cada mensagem falhou. Tudo roda em uma única
+ * transação: se a campanha estiver num status que não permite retry, nenhum
+ * dos UPDATEs abaixo sobrevive (o throw dispara ROLLBACK).
+ */
+export async function requeueFailedMessages(
+  campaignId: string,
+): Promise<{ requeued: number }> {
+  return db.transaction(async (tx) => {
+    const requeuedMessages = await tx
+      .update(whatsappCampaignMessages)
+      .set({
+        status: "scheduled",
+        errorMessage: null,
+        attempts: 0,
+        nextAttemptAt: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(whatsappCampaignMessages.campaignId, campaignId),
+          eq(whatsappCampaignMessages.status, "failed"),
+        ),
+      )
+      .returning({ id: whatsappCampaignMessages.id });
+
+    const requeuedIds = requeuedMessages.map((m) => m.id);
+
+    if (requeuedIds.length > 0) {
+      // Restaura reserved sem re-rodar findConflict: retry é uma decisão
+      // explícita do operador (ele já sabe que aquele conteúdo/telefone teve
+      // uma falha e está pedindo pra tentar de novo), então não faz sentido
+      // bloquear o próprio retry por dedupe contra a mensagem que está sendo
+      // reenviada. A linha do impact já existe — releaseImpact fez um UPDATE
+      // (não delete) quando a mensagem falhou — então aqui também é UPDATE.
+      await tx
+        .update(whatsappCampaignImpacts)
+        .set({ status: "reserved", scheduledFor: new Date(), sentAt: null, updatedAt: new Date() })
+        .where(
+          and(
+            inArray(whatsappCampaignImpacts.campaignMessageId, requeuedIds),
+            eq(whatsappCampaignImpacts.status, "released"),
+          ),
+        );
+    }
+
+    const [campaign] = await tx
+      .select({ status: whatsappCampaigns.status })
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.id, campaignId));
+
+    if (requeuedIds.length > 0 && campaign) {
+      if (!REQUEUE_ALLOWED_STATUSES.includes(campaign.status as typeof REQUEUE_ALLOWED_STATUSES[number])) {
+        // Lançar aqui reverte (ROLLBACK) os UPDATEs de mensagens/impacts já
+        // feitos nesta mesma transação — nada é persistido quando bloqueado.
+        throw new CampaignRequeueBlockedError(
+          campaign.status === "cancelled"
+            ? "Campanha cancelada não pode ser reprocessada."
+            : `Campanha no estado atual (${campaign.status}) não pode ser reprocessada.`,
+          campaign.status,
+        );
+      }
+
+      await tx
+        .update(whatsappCampaigns)
+        .set({ status: "in_progress", completedAt: null, updatedAt: new Date() })
+        .where(eq(whatsappCampaigns.id, campaignId));
+    }
+
+    return { requeued: requeuedIds.length };
+  });
 }
 
 export async function executeCampaign(

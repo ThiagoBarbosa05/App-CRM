@@ -10,3 +10,20 @@ export class CampaignConfigError extends Error {
     this.name = "CampaignConfigError";
   }
 }
+
+/**
+ * Sinaliza que `requeueFailedMessages` foi chamada para uma campanha cujo
+ * status atual não permite reprocessamento (ex: `cancelled`, ou qualquer
+ * outro status fora de completed/failed/in_progress). A transação inteira é
+ * revertida antes de lançar este erro — nenhum UPDATE de mensagens/impacts
+ * sobrevive. O endpoint HTTP mapeia isso para 409.
+ */
+export class CampaignRequeueBlockedError extends Error {
+  constructor(
+    message: string,
+    public readonly campaignStatus: string,
+  ) {
+    super(message);
+    this.name = "CampaignRequeueBlockedError";
+  }
+}
