@@ -98,6 +98,20 @@ async function completeSuccessfulImpact(
   }
 }
 
+/**
+ * Verifica se a campanha saiu de "in_progress" (pausada/cancelada pelo
+ * operador) enquanto o batch atual estava sendo processado. Chamada antes de
+ * cada mensagem nos dois loops de envio — se não estiver mais em andamento,
+ * o loop deve parar imediatamente, sem processar as mensagens restantes.
+ */
+async function isCampaignHalted(campaignId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ status: whatsappCampaigns.status })
+    .from(whatsappCampaigns)
+    .where(eq(whatsappCampaigns.id, campaignId));
+  return row?.status !== "in_progress";
+}
+
 async function suppressIfAudienceChanged(
   msg: typeof whatsappCampaignMessages.$inferSelect,
   selector: CampaignAudienceSelector | null,
@@ -122,6 +136,7 @@ export async function executeCampaign(
   failed: number;
   skipped: number;
   retried: number;
+  halted: boolean;
 }> {
   const [campaign] = await db
     .select()
@@ -140,7 +155,7 @@ export async function executeCampaign(
 
   if (!campaign.waEnabled) {
     console.log(`[WaCampaign] Campanha ${campaignId} não tem waEnabled — ignorando`);
-    return { sent: 0, failed: 0, skipped: 0, retried: 0 };
+    return { sent: 0, failed: 0, skipped: 0, retried: 0, halted: false };
   }
 
   if (!campaign.waTemplateId && !campaign.waBotId) {
@@ -169,7 +184,7 @@ export async function executeCampaign(
 
   if (pendingMessages.length === 0) {
     console.log(`[WaCampaign] Nenhuma mensagem pendente para campanha ${campaignId}`);
-    return { sent: 0, failed: 0, skipped: 0, retried: 0 };
+    return { sent: 0, failed: 0, skipped: 0, retried: 0, halted: false };
   }
 
   console.log(`[WaCampaign] Enviando ${pendingMessages.length} mensagem(ns) para campanha ${campaignId}`);
@@ -179,6 +194,7 @@ export async function executeCampaign(
   let failed = 0;
   let skipped = 0;
   let retried = 0;
+  let halted = false;
   let selectedCampaignChannel: ResolvedChannel | null = null;
 
   if (campaign.waChannelId != null) {
@@ -225,6 +241,12 @@ export async function executeCampaign(
     if (!bot) throw new Error(`Bot ${campaign.waBotId} não encontrado`);
 
     for (const msg of pendingMessages) {
+      if (await isCampaignHalted(campaignId)) {
+        // Operador pausou/cancelou a campanha durante este batch — para de
+        // processar mensagens restantes deste tick.
+        halted = true;
+        break;
+      }
       if (await suppressIfAudienceChanged(msg, campaignLog?.audienceSelector as CampaignAudienceSelector | null)) {
         skipped++;
         continue;
@@ -343,6 +365,12 @@ export async function executeCampaign(
         : undefined;
 
     for (const msg of pendingMessages) {
+      if (await isCampaignHalted(campaignId)) {
+        // Operador pausou/cancelou a campanha durante este batch — para de
+        // processar mensagens restantes deste tick.
+        halted = true;
+        break;
+      }
       if (await suppressIfAudienceChanged(msg, campaignLog?.audienceSelector as CampaignAudienceSelector | null)) {
         skipped++;
         continue;
@@ -408,7 +436,7 @@ export async function executeCampaign(
   }
 
   console.log(`[WaCampaign] Campanha ${campaignId} concluída — enviadas: ${sent}, falhas: ${failed}, puladas: ${skipped}, reagendadas: ${retried}`);
-  return { sent, failed, skipped, retried };
+  return { sent, failed, skipped, retried, halted };
 }
 
 /**

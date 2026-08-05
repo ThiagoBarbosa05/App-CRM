@@ -3,6 +3,7 @@ import { db, pool } from "server/db";
 import { whatsappCampaigns, whatsappCampaignMessages } from "@shared/schema";
 import { and, eq, count, inArray, lte } from "drizzle-orm";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
+import { decideFinalization } from "../services/whatsapp-campaign-finalize";
 
 // Mensagens processadas por tick, por campanha. O `wa_message_delay_ms` controla
 // o intervalo entre envios dentro de executeCampaign (rate-limit da Meta).
@@ -49,18 +50,33 @@ async function finalizeIfDone(campaignId: string): Promise<void> {
   const sentNum = Number(sent);
   const failedNum = Number(failed);
 
-  if (Number(remaining) === 0) {
+  const decision = decideFinalization({
+    remaining: Number(remaining),
+    sent: sentNum,
+    failed: failedNum,
+  });
+
+  // Ambos os UPDATEs abaixo exigem status atual === "in_progress". Se o
+  // operador pausou/cancelou a campanha enquanto este batch rodava, a linha
+  // já não está mais "in_progress" e o UPDATE não afeta nenhuma linha — o
+  // pause/cancel vence e não é revertido por este finalize.
+  if (decision.terminal) {
     // Campanha concluída: failed se nada saiu, completed caso contrário.
     await db
       .update(whatsappCampaigns)
       .set({
-        status: sentNum === 0 && failedNum > 0 ? "failed" : "completed",
+        status: decision.status,
         sentMessages: sentNum,
         failedMessages: failedNum,
         completedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(whatsappCampaigns.id, campaignId));
+      .where(
+        and(
+          eq(whatsappCampaigns.id, campaignId),
+          eq(whatsappCampaigns.status, "in_progress"),
+        ),
+      );
   } else {
     // Ainda em andamento: atualiza contadores para o monitoramento ao vivo.
     await db
@@ -71,7 +87,12 @@ async function finalizeIfDone(campaignId: string): Promise<void> {
         failedMessages: failedNum,
         updatedAt: new Date(),
       })
-      .where(eq(whatsappCampaigns.id, campaignId));
+      .where(
+        and(
+          eq(whatsappCampaigns.id, campaignId),
+          eq(whatsappCampaigns.status, "in_progress"),
+        ),
+      );
   }
 }
 
@@ -101,7 +122,12 @@ async function runTick(): Promise<void> {
     for (const camp of active) {
       try {
         const result = await executeCampaign(camp.id, { limit: BATCH_SIZE });
-        await finalizeIfDone(camp.id);
+        // Se o loop de envio percebeu que a campanha não está mais
+        // "in_progress" (pausada/cancelada no meio do batch), pula o
+        // finalize — recalcular/gravar contadores nela agora seria incorreto.
+        if (!result.halted) {
+          await finalizeIfDone(camp.id);
+        }
         if (result.sent > 0 || result.failed > 0) {
           console.log(
             `[wa-campaign-dispatcher] ${camp.title} | ok=${result.sent} fail=${result.failed} skip=${result.skipped}`,
