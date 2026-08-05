@@ -22,7 +22,7 @@ describe("decideFinalization", () => {
     });
   });
 
-  it("completed quando remaining=0, sent=0 e failed=0 (regra atual, não a 'honesta' do passo 8)", () => {
+  it("completed quando remaining=0, sent=0 e failed=0 (regra honesta da Task 8: todos os contatos suprimidos)", () => {
     expect(decideFinalization({ remaining: 0, sent: 0, failed: 0 })).toEqual({
       terminal: true,
       status: "completed",

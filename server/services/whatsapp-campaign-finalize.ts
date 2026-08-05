@@ -3,10 +3,12 @@
  * `finalizeIfDone` (server/jobs/whatsapp-campaign-dispatcher.ts) para poder
  * ser testada sem tocar no banco.
  *
- * Replica EXATAMENTE a regra atual do dispatcher — não é a regra "honesta"
- * do passo 8 do plano (que também vai considerar mensagens `suppressed`
- * como terminais mesmo com sent=0/failed=0); essa revisão é uma task futura
- * separada.
+ * Implementa a regra "honesta" do passo 8 do plano: campanha só é `completed`
+ * se não há mais mensagens agendadas (remaining=0). Mensagens `suppressed` são
+ * tratadas como terminais mesmo com sent=0/failed=0, de forma que uma campanha
+ * onde TODOS os contatos foram suprimidos por dedupe/opt-out/número inválido/etc
+ * é finalizada como `completed` (status honesto) — o frontend decide exibir um
+ * badge contextualizado via condicional (ver campaign-details.tsx).
  */
 
 export type FinalizationCounts = {
@@ -28,8 +30,9 @@ export function decideFinalization(
   }
 
   // Nada mais agendado: falha total (nenhum envio, mas houve falha) vira
-  // "failed"; qualquer outro caso (inclusive 0 envios e 0 falhas) vira
-  // "completed".
+  // "failed"; qualquer outro caso (inclusive 0 envios e 0 falhas, p. ex.
+  // todos os contatos suprimidos por dedupe/opt-out/número inválido) vira
+  // "completed" — a regra honesta da Task 8 já está implementada aqui.
   const status = counts.sent === 0 && counts.failed > 0 ? "failed" : "completed";
   return { terminal: true, status };
 }

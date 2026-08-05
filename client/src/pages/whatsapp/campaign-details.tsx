@@ -261,6 +261,13 @@ export default function WhatsAppCampaignDetails() {
   const totalMessages = stats?.total ?? campaign.messages?.length ?? 0;
   const executedCount = Math.max(totalMessages - pendingMessages - cancelledCount, 0);
 
+  // Task 8: quando campanha está "completed" mas TODOS os contatos foram suprimidos,
+  // mostrar label contextualizado em vez do padrão "Concluída".
+  const statusLabel =
+    campaign.status === "completed" && stats && stats.total > 0 && stats.suppressed === stats.total
+      ? "Concluída — todos os contatos suprimidos"
+      : CAMPAIGN_STATUS_CONFIG[campaign.status].label;
+
   return (
     <div className="overflow-y-auto h-full p-3 sm:p-5 lg:p-6">
     <div className="space-y-4 sm:space-y-6 pb-10">
@@ -284,7 +291,7 @@ export default function WhatsAppCampaignDetails() {
             <PageHeader.Description>
               <span className="inline-flex items-center gap-2">
                 <Badge className={`${CAMPAIGN_STATUS_CONFIG[campaign.status].className} border-0`}>
-                  {CAMPAIGN_STATUS_CONFIG[campaign.status].label}
+                  {statusLabel}
                 </Badge>
                 {campaign.status === "created"
                   ? `Agendada para ${formatDate(campaign.startDate)}`
