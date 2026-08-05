@@ -43,6 +43,7 @@ import {
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
 import { clientsService } from "../services/clients.service";
+import { respondWithClientError } from "../controllers/clients/handle-client-error";
 import { downloadMediaToBuffer } from "../integrations/whatsapp";
 import { resolveChannelById } from "../services/whatsapp-channels.service";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
@@ -881,7 +882,9 @@ router.post("/conversations/:conversationId/link-client", async (req, res) => {
     res.json({ ok: true, conversationId, clientId: result.id, client: result });
   } catch (err) {
     console.error("[WA Conversations] Erro ao vincular cliente:", err);
-    res.status(500).json({ message: "Erro ao vincular cliente", detail: err instanceof Error ? err.message : String(err) });
+    // Duplicidade e validação viram 409/400 com frase exibível; o detalhe
+    // técnico fica só no log (antes ia para o browser no campo `detail`).
+    respondWithClientError(res, err, "create");
   }
 });
 

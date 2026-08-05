@@ -2,7 +2,7 @@ import cron from "node-cron";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { whatsappChannels } from "@shared/schema";
-import { baileysGateway } from "../integrations/baileys-gateway";
+import { BaileysGatewayError, baileysGateway } from "../integrations/baileys-gateway";
 import {
   applyChannelConnectionStatus,
   type ChannelConnectionStatus,
@@ -71,6 +71,16 @@ export async function reconcileBaileysStatus(): Promise<void> {
             : undefined,
       });
     } catch (error) {
+      if (error instanceof BaileysGatewayError && error.code === "not_found") {
+        await updateConnectionStatus(row.id, "disconnected");
+        await logChannelConnectionEvent(
+          row.id,
+          "disconnected",
+          "INSTANCE_NOT_FOUND",
+          "Instância do canal não existe no Baileys Gateway; reconecte via QR Code",
+        ).catch((eventError) => console.error("[ReconcileBaileysStatus] Falha ao registrar evento:", eventError));
+        continue;
+      }
       // Falha de rede/gateway não prova que o WhatsApp caiu.
       console.error(`[ReconcileBaileysStatus] Falha ao consultar gateway de "${row.evolutionInstanceName}":`, error);
     }

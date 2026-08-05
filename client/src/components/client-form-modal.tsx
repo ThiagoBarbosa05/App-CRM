@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { getClientErrorMessage, extractApiFieldErrors } from "@/lib/api-error";
 import { InputMask } from "@/components/ui/input-mask";
 import { X, Tag, User, Phone, MapPin, Briefcase, Store, AlertCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -40,7 +41,13 @@ import { TagSelector } from "@/components/ui/tag-selector";
 interface ClientFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Cliente existente — a presença dele coloca o modal em modo de edição. */
   client?: Client;
+  /**
+   * Pré-preenchimento para um cadastro novo (ex.: nome e telefone vindos de uma
+   * conversa do WhatsApp). Não coloca o modal em modo de edição.
+   */
+  initialValues?: Partial<Client>;
 }
 
 interface BlingSellerMapping {
@@ -85,6 +92,7 @@ export default function ClientFormModal({
   open,
   onOpenChange,
   client,
+  initialValues,
 }: ClientFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,33 +155,39 @@ export default function ClientFormModal({
     return dateStr;
   };
 
+  // `client` significa edição; `initialValues` só pré-preenche um cadastro novo.
+  const isEditing = Boolean(client?.id);
+  const prefill: Partial<Client> | undefined = client ?? initialValues;
+
+  const buildDefaultValues = () => ({
+    name: prefill?.name || "",
+    phone: prefill?.phone || "",
+    fixedPhone: prefill?.fixedPhone || "",
+    documentType: (prefill?.documentType as "cpf" | "cnpj") || "cpf",
+    cpf: prefill?.cpf || "",
+    nomeFantasia: prefill?.nomeFantasia || "",
+    inscricaoEstadual: prefill?.inscricaoEstadual || "",
+    email: prefill?.email || "",
+    instagram: prefill?.instagram || "",
+    birthday: convertBrazilianDateToISO(prefill?.birthday || ""),
+    sexo: (prefill?.sexo as "M" | "F") || "",
+    cep: prefill?.cep || "",
+    address: prefill?.address || "",
+    number: prefill?.number || "",
+    complement: prefill?.complement || "",
+    neighborhood: prefill?.neighborhood || "",
+    city: prefill?.city || "",
+    state: prefill?.state || "",
+    markers: prefill?.markers || [],
+    responsavelId: prefill?.responsavelId || user?.id || "",
+    categoria: prefill?.categoria || "",
+    origem: prefill?.origem || "",
+    externalTagIds: [] as string[],
+  });
+
   const form = useForm({
     resolver: zodResolver(clientValidationSchema),
-    defaultValues: {
-      name: client?.name || "",
-      phone: client?.phone || "",
-      fixedPhone: client?.fixedPhone || "",
-      documentType: (client?.documentType as "cpf" | "cnpj") || "cpf",
-      cpf: client?.cpf || "",
-      nomeFantasia: client?.nomeFantasia || "",
-      inscricaoEstadual: client?.inscricaoEstadual || "",
-      email: client?.email || "",
-      instagram: client?.instagram || "",
-      birthday: convertBrazilianDateToISO(client?.birthday || ""),
-      sexo: (client?.sexo as "M" | "F") || "",
-      cep: client?.cep || "",
-      address: client?.address || "",
-      number: client?.number || "",
-      complement: client?.complement || "",
-      neighborhood: client?.neighborhood || "",
-      city: client?.city || "",
-      state: client?.state || "",
-      markers: client?.markers || [],
-      responsavelId: client?.responsavelId || user?.id || "",
-      categoria: client?.categoria || "",
-      origem: client?.origem || "",
-      externalTagIds: [],
-    },
+    defaultValues: buildDefaultValues(),
     mode: "onChange",
   });
 
@@ -182,6 +196,29 @@ export default function ClientFormModal({
   const watchedPhone = form.watch("phone");
   const watchedEmail = form.watch("email");
   const watchedCep = form.watch("cep");
+
+  // Último CEP já consultado no ViaCEP. Começa com o CEP que veio do cliente
+  // para que abrir o modal em modo de edição não dispare a busca e sobrescreva
+  // um endereço ajustado à mão.
+  const lastLookedUpCep = useRef<string>(
+    (prefill?.cep || "").replace(/\D/g, ""),
+  );
+
+  // O modal de criação fica montado permanentemente em algumas telas, então
+  // sem este reset os dados de uma tentativa anterior (inclusive uma que
+  // falhou) reaparecem na próxima abertura.
+  const wasOpen = useRef(open);
+  const lastClientId = useRef(client?.id);
+  useEffect(() => {
+    const justOpened = open && !wasOpen.current;
+    const clientChanged = client?.id !== lastClientId.current;
+    wasOpen.current = open;
+    lastClientId.current = client?.id;
+
+    if (!open || (!justOpened && !clientChanged)) return;
+    form.reset(buildDefaultValues());
+    lastLookedUpCep.current = (prefill?.cep || "").replace(/\D/g, "");
+  }, [open, client?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Integração Bling (apenas no modo de criação) ──────────────────────────
   const isAdminOrGerente =
@@ -209,7 +246,7 @@ export default function ClientFormModal({
       return (json?.data ?? []) as BlingSellerMapping[];
     },
     enabled:
-      open && !client && (isAdminOrGerente ? !!blingSellerUserId : !!user),
+      open && !isEditing && (isAdminOrGerente ? !!blingSellerUserId : !!user),
   });
 
   // Apenas contas conectadas e com ID de vendedor vinculado podem receber o cliente.
@@ -254,10 +291,12 @@ export default function ClientFormModal({
   }, [watchedCpf]);
 
   // Sincroniza documentType quando o campo muda
-  const documentType = isCnpj ? "cnpj" : "cpf";
-  if (form.getValues("documentType") !== documentType) {
-    form.setValue("documentType", documentType);
-  }
+  useEffect(() => {
+    const documentType = isCnpj ? "cnpj" : "cpf";
+    if (form.getValues("documentType") !== documentType) {
+      form.setValue("documentType", documentType);
+    }
+  }, [isCnpj]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lookupCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, "");
@@ -295,13 +334,15 @@ export default function ClientFormModal({
     }
   };
 
-  // Auto-busca de CEP quando 8 dígitos são preenchidos
+  // Auto-busca de CEP quando 8 dígitos são preenchidos. Só dispara para um CEP
+  // diferente do já consultado — abrir a edição de um cliente que já tem CEP
+  // não pode sobrescrever o endereço com o do ViaCEP.
   useEffect(() => {
     const digits = (watchedCep || "").replace(/\D/g, "");
-    if (digits.length === 8) {
-      lookupCep(digits);
-    }
-  }, [watchedCep]);
+    if (digits.length !== 8 || digits === lastLookedUpCep.current) return;
+    lastLookedUpCep.current = digits;
+    lookupCep(digits);
+  }, [watchedCep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lookupCpfData = async (cpf: string) => {
     setIsLoadingCpfLookup(true);
@@ -343,14 +384,46 @@ export default function ClientFormModal({
   // Auto-busca de dados na Assertiva quando um CPF completo (11 dígitos) é digitado —
   // só no modo de criação, nunca ao editar um cliente já existente.
   useEffect(() => {
-    if (client) return;
+    if (isEditing) return;
     const digits = (watchedCpf || "").replace(/\D/g, "");
     if (digits.length === 11) {
       lookupCpfData(digits);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedCpf, client]);
+  }, [watchedCpf, isEditing]);
 
+
+  // Campos do formulário — usado para só marcar erro em campo que existe aqui.
+  const formFields = Object.keys(form.getValues());
+
+  /**
+   * Apresenta uma falha de gravação. A mensagem vem pronta do servidor (frase
+   * em português) e as falhas de validação são marcadas no próprio campo, para
+   * o usuário ver o que corrigir sem precisar interpretar um toast.
+   */
+  const showSaveError = (error: unknown, fallback: string) => {
+    const fieldErrors = extractApiFieldErrors(error);
+    let markedField: string | null = null;
+
+    for (const { field, message } of fieldErrors) {
+      if (!formFields.includes(field)) continue;
+      form.setError(field as keyof ReturnType<typeof buildDefaultValues>, {
+        type: "server",
+        message,
+      });
+      markedField ??= field;
+    }
+
+    if (markedField) {
+      form.setFocus(markedField as keyof ReturnType<typeof buildDefaultValues>);
+    }
+
+    toast({
+      title: "Não foi possível salvar o cliente",
+      description: getClientErrorMessage(error, fallback),
+      variant: "destructive",
+    });
+  };
 
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -398,18 +471,19 @@ export default function ClientFormModal({
       onOpenChange(false);
       form.reset();
     },
-    onError: (error: any) => {
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível criar o cliente.",
-        variant: "destructive",
-      });
+    onError: (error: unknown) => {
+      showSaveError(error, "Não foi possível cadastrar o cliente.");
     },
   });
 
   const updateClientMutation = useMutation({
     mutationFn: async (data: any) => {
-      const url = `/api/clients/${client!.id}?userId=${user?.id}&userRole=${
+      if (!client?.id) {
+        // Sem id não existe o que atualizar. Falhar aqui é melhor do que
+        // disparar `PUT /api/clients/undefined` e receber um 404 confuso.
+        throw new Error("Cliente sem identificador — reabra a tela e tente novamente.");
+      }
+      const url = `/api/clients/${client.id}?userId=${user?.id}&userRole=${
         user?.role
       }`;
       const response = await apiRequest("PUT", url, data);
@@ -417,6 +491,9 @@ export default function ClientFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      if (client?.id) {
+        queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id] });
+      }
       // Invalidate marker stats cache to update goal calculations
       queryClient.invalidateQueries({
         predicate: (q) =>
@@ -429,12 +506,8 @@ export default function ClientFormModal({
       });
       onOpenChange(false);
     },
-    onError: (error: any) => {
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível atualizar o cliente.",
-        variant: "destructive",
-      });
+    onError: (error: unknown) => {
+      showSaveError(error, "Não foi possível salvar as alterações.");
     },
   });
 
@@ -455,20 +528,13 @@ export default function ClientFormModal({
   };
 
   const onSubmit = async (data: any) => {
-    console.log("Dados do formulário:", data);
-    console.log("Erros do formulário:", form.formState.errors);
     setIsSubmitting(true);
     try {
       // Converter campos vazios para null e garantir que responsavelId seja sempre o usuário atual
       const processedData = {
         ...data,
-        // CPF é opcional: limpa o valor se estiver vazio ou parcialmente preenchido
-        cpf: (() => {
-          const digits = (data.cpf || "").replace(/\D/g, "");
-          if (digits.length === 11 || digits.length === 14)
-            return data.cpf?.trim() || null;
-          return null;
-        })(),
+        // CPF é opcional; quando preenchido, o Zod já garantiu 11 ou 14 dígitos.
+        cpf: data.cpf?.trim() || null,
         phone: data.phone?.replace(/\D/g, "") || null,
         documentType: isCnpj ? "cnpj" : "cpf",
         nomeFantasia: isCnpj ? data.nomeFantasia?.trim() || null : null,
@@ -478,33 +544,35 @@ export default function ClientFormModal({
         email: data.email?.trim() || null,
         instagram: data.instagram?.trim() || null,
         sexo: isCnpj ? null : data.sexo || null,
-        cep: data.cep?.trim() || "",
-        address: data.address?.trim() || "",
-        number: data.number?.trim() || "",
-        complement: data.complement?.trim() || "",
-        neighborhood: data.neighborhood?.trim() || "",
-        city: data.city?.trim() || "",
-        state: data.state?.trim() || "",
+        // Campo vazio vira null, como cpf/email/telefone — gravar "" deixa o
+        // cadastro "preenchido" com nada e atrapalha os filtros de qualidade.
+        cep: data.cep?.trim() || null,
+        address: data.address?.trim() || null,
+        number: data.number?.trim() || null,
+        complement: data.complement?.trim() || null,
+        neighborhood: data.neighborhood?.trim() || null,
+        city: data.city?.trim() || null,
+        state: data.state?.trim() || null,
         responsavelId:
           user?.role === "admin" || user?.role === "gerente"
             ? data.responsavelId
             : user?.id || null, // Admin e gerente podem escolher, outros usam usuário atual
         // Opção de criar o cliente no Bling (apenas na criação). O ID do vendedor
         // Bling é derivado no servidor de (connectionId, responsavelId).
-        ...(!client && createInBling && blingConnectionId
+        ...(!isEditing && createInBling && blingConnectionId
           ? {
               bling: { createInBling: true, connectionId: blingConnectionId },
             }
           : {}),
       };
 
-      if (client) {
+      if (isEditing) {
         await updateClientMutation.mutateAsync(processedData);
       } else {
         await createClientMutation.mutateAsync(processedData);
       }
-    } catch (error) {
-      console.error("Erro no submit:", error);
+    } catch {
+      // O toast e a marcação por campo já aconteceram no onError da mutation.
     } finally {
       setIsSubmitting(false);
     }
@@ -517,18 +585,14 @@ export default function ClientFormModal({
           <DialogHeader className="space-y-0">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-accent rounded-xl shadow-sm border border-border">
-                {client ? (
-                  <Tag className="h-6 w-6 text-primary" />
-                ) : (
-                  <Tag className="h-6 w-6 text-primary" />
-                )}
+                <Tag className="h-6 w-6 text-primary" />
               </div>
               <div className="flex-1">
                 <DialogTitle className="text-xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
-                  {client ? "Editar Cliente" : "Novo Cliente"}
+                  {isEditing ? "Editar Cliente" : "Novo Cliente"}
                 </DialogTitle>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                  {client
+                  {isEditing
                     ? "Atualize as informações do cliente abaixo."
                     : "Preencha as informações para cadastrar um novo cliente."}
                 </p>
@@ -545,7 +609,7 @@ export default function ClientFormModal({
               className="space-y-8"
             >
               {/* Integração Bling — apenas na criação */}
-              {!client && (
+              {!isEditing && (
                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-2">
@@ -1047,7 +1111,7 @@ export default function ClientFormModal({
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger className="dark:bg-slate-950 focus:ring-amber-500">
@@ -1095,7 +1159,7 @@ export default function ClientFormModal({
                         <FormControl>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger className="dark:bg-slate-950 focus:ring-purple-500">
@@ -1136,7 +1200,7 @@ export default function ClientFormModal({
                         <FormControl>
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            value={field.value}
                           >
                             <FormControl>
                               <SelectTrigger className="dark:bg-slate-950 focus:ring-purple-500">
@@ -1323,7 +1387,7 @@ export default function ClientFormModal({
                 <div className="animate-spin h-4 w-4 border-2 border-white/20 border-t-white rounded-full" />
                 Salvando...
               </span>
-            ) : client ? (
+            ) : isEditing ? (
               "Atualizar Cliente"
             ) : (
               "Cadastrar Cliente"

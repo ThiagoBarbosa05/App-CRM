@@ -1,27 +1,5 @@
 import { z } from "zod";
-import { validateCpf } from "./utils";
-
-function validateCnpj(cnpj: string): boolean {
-  const digits = cnpj.replace(/\D/g, "");
-  if (digits.length !== 14) return false;
-  if (/^(\d)\1+$/.test(digits)) return false;
-
-  const calc = (d: string, weights: number[]) =>
-    weights.reduce((acc, w, i) => acc + parseInt(d[i]) * w, 0);
-
-  const mod = (n: number) => {
-    const r = n % 11;
-    return r < 2 ? 0 : 11 - r;
-  };
-
-  const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-  const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-
-  return (
-    mod(calc(digits, w1)) === parseInt(digits[12]) &&
-    mod(calc(digits, w2)) === parseInt(digits[13])
-  );
-}
+import { isValidCpf, isValidCnpj } from "@shared/document";
 
 /**
  * Valida se a pessoa é maior de idade (18 anos ou mais)
@@ -76,16 +54,18 @@ export const clientValidationSchema = z.object({
     .string()
     .optional()
     .or(z.literal(""))
+    // Um documento pela metade era descartado silenciosamente no envio — o
+    // usuário salvava e o CPF simplesmente sumia do cadastro.
     .refine((val) => {
-      if (!val) return true;
-      const digits = val.replace(/\D/g, "");
-      if (digits.length === 0) return true;
-      // Só valida quando o campo está completamente preenchido
-      if (digits.length === 11) return validateCpf(val);
-      if (digits.length === 14) return validateCnpj(val);
-      // Input parcial não bloqueia o envio (será limpo no onSubmit)
+      const digits = (val || "").replace(/\D/g, "");
+      return digits.length === 0 || digits.length === 11 || digits.length === 14;
+    }, "Informe o CPF completo (11 dígitos) ou o CNPJ completo (14 dígitos)")
+    .refine((val) => {
+      const digits = (val || "").replace(/\D/g, "");
+      if (digits.length === 11) return isValidCpf(digits);
+      if (digits.length === 14) return isValidCnpj(digits);
       return true;
-    }, "CPF ou CNPJ inválido"),
+    }, "CPF ou CNPJ inválido — confira os números digitados"),
   nomeFantasia: z.string().optional().or(z.literal("")),
   inscricaoEstadual: z.string().optional().or(z.literal("")),
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
@@ -108,8 +88,11 @@ export const clientValidationSchema = z.object({
   state: z.string().optional().or(z.literal("")),
   markers: z.array(z.string()).default([]),
   responsavelId: z.string().optional(),
-  categoria: z.string().optional().or(z.literal("")),
-  origem: z.string().optional().or(z.literal("")),
+  // `categoria` e `origem` são NOT NULL no banco e a UI já os marca com "*".
+  // Como eram opcionais aqui, o cadastro passava vazio e o servidor gravava
+  // "Geral"/"Website" sem avisar ninguém.
+  categoria: z.string().min(1, "Selecione uma categoria"),
+  origem: z.string().min(1, "Selecione a origem principal"),
   externalTagIds: z.array(z.string()).optional(), // IDs das tags do Umbler
 });
 

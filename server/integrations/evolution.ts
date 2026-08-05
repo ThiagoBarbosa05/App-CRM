@@ -57,6 +57,17 @@ async function assertGatewayConnected(instanceName: string): Promise<void> {
       503,
     );
   } catch (error) {
+    if (error instanceof BaileysGatewayError && error.code === "not_found") {
+      // O canal pode continuar existindo no CRM depois de a instância ser
+      // removida/recriada no gateway. Nesse caso, o status salvo não é mais
+      // confiável e a sessão precisa ser pareada novamente.
+      await updateConnectionStatus(channel.id, "disconnected");
+      throw new BaileysGatewayError(
+        `Instância do canal QR "${instanceName}" não existe no gateway. Reconecte via QR Code.`,
+        "channel_offline",
+        503,
+      );
+    }
     if (error instanceof BaileysGatewayError) throw error;
     // Indisponibilidade do gateway não prova que o WhatsApp caiu. Não altera
     // o status persistido para evitar falsos negativos durante deploy/rede.
@@ -117,7 +128,7 @@ export async function sendText(
       options.idempotencyKey ?? `crm-${randomUUID()}`,
     );
   } catch (error) {
-    if (error instanceof BaileysGatewayError && error.code === "channel_offline") {
+    if (error instanceof BaileysGatewayError && (error.code === "channel_offline" || error.code === "not_found")) {
       const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
       if (channel) {
         await applyChannelConnectionStatus(channel.id, "disconnected", {

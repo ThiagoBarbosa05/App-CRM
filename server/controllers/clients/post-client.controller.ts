@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { clientsService } from "../../services/clients.service";
-import { z } from "zod";
-import { fromZodError } from "zod-validation-error";
+import { respondWithClientError } from "./handle-client-error";
 
 /**
  * @route POST /api/clients
@@ -21,16 +20,12 @@ import { fromZodError } from "zod-validation-error";
  * @headerParams {string} [x-user-id] - ID do usuário logado
  * @headerParams {string} [x-user-role] - Role do usuário (vendedor/admin)
  * @returns {Object} 201 - Cliente criado com sucesso
- * @returns {Object} 400 - Erro de validação ou telefone duplicado
+ * @returns {Object} 400 - Erro de validação (com `errors[]` por campo)
+ * @returns {Object} 409 - Telefone, CPF/CNPJ ou e-mail já cadastrado
  * @returns {Object} 500 - Erro interno do servidor
  */
 export const postClientController = async (req: Request, res: Response) => {
   try {
-    console.log(
-      "Dados recebidos para criação de cliente:",
-      JSON.stringify(req.body, null, 2)
-    );
-
     // Processar parâmetros da requisição
     const createClientParams = clientsService.processCreateClientParams(req);
 
@@ -39,30 +34,6 @@ export const postClientController = async (req: Request, res: Response) => {
 
     res.status(201).json(client);
   } catch (error) {
-    console.error("Erro no postClientController:", error);
-
-    // Tratamento específico para erros de validação Zod
-    if (error instanceof z.ZodError) {
-      const validationError = fromZodError(error);
-      console.error("Erro de validação Zod:", validationError.toString());
-      return res.status(400).json({
-        message: validationError.toString(),
-      });
-    }
-
-    // Tratamento específico para duplicatas conhecidas (telefone, CPF/CNPJ, etc.)
-    if (
-      error instanceof Error &&
-      error.message.includes("já está cadastrado")
-    ) {
-      return res.status(400).json({
-        message: error.message,
-      });
-    }
-
-    // Erro genérico do servidor
-    res.status(500).json({
-      message: "Erro ao criar cliente",
-    });
+    respondWithClientError(res, error, "create");
   }
 };

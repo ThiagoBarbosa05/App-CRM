@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { clientsService } from "../../services/clients.service";
-import { z } from "zod";
-import { fromZodError } from "zod-validation-error";
+import { respondWithClientError } from "./handle-client-error";
 
 /**
  * @route PUT /api/clients/:id
@@ -22,8 +21,9 @@ import { fromZodError } from "zod-validation-error";
  * @headerParams {string} [x-user-id] - ID do usuário logado
  * @headerParams {string} [x-user-role] - Role do usuário (vendedor/admin)
  * @returns {Object} 200 - Cliente atualizado com sucesso
- * @returns {Object} 400 - Erro de validação ou telefone duplicado
+ * @returns {Object} 400 - Erro de validação (com `errors[]` por campo)
  * @returns {Object} 404 - Cliente não encontrado
+ * @returns {Object} 409 - Telefone, CPF/CNPJ ou e-mail já cadastrado
  * @returns {Object} 500 - Erro interno do servidor
  */
 export const putClientController = async (req: Request, res: Response) => {
@@ -36,37 +36,6 @@ export const putClientController = async (req: Request, res: Response) => {
 
     res.status(200).json(client);
   } catch (error) {
-    console.error("Erro no putClientController:", error);
-
-    // Tratamento específico para erros de validação Zod
-    if (error instanceof z.ZodError) {
-      const validationError = fromZodError(error);
-      console.error("Erro de validação Zod:", validationError.toString());
-      return res.status(400).json({
-        message: validationError.toString(),
-      });
-    }
-
-    // Tratamento específico para cliente não encontrado
-    if (error instanceof Error && error.message === "CLIENT_NOT_FOUND") {
-      return res.status(404).json({
-        message: "Cliente não encontrado",
-      });
-    }
-
-    // Tratamento específico para telefone duplicado
-    if (
-      error instanceof Error &&
-      error.message.includes("telefone já está cadastrado")
-    ) {
-      return res.status(400).json({
-        message: error.message,
-      });
-    }
-
-    // Erro genérico do servidor
-    res.status(500).json({
-      message: "Erro ao atualizar cliente",
-    });
+    respondWithClientError(res, error, "update");
   }
 };

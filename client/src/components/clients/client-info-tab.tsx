@@ -72,6 +72,7 @@ import type { ReactNode } from "react";
 import { type Client } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getClientErrorMessage } from "@/lib/api-error";
 import { CpfVerificationDialog } from "@/components/clients/cpf-verification-dialog";
 
 interface ClientInfoTabProps {
@@ -104,7 +105,9 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
 
   const quickFillMutation = useMutation({
     mutationFn: async ({ field, value }: { field: QuickFillField; value: string }) => {
-      return apiRequest("PUT", `/api/clients/${client.id}`, { ...client, [field]: value });
+      // Só o campo editado: reenviar o cliente inteiro reescrevia status,
+      // código de confirmação e métricas de RFM a cada preenchimento rápido.
+      return apiRequest("PUT", `/api/clients/${client.id}`, { [field]: value });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", client.id] });
@@ -113,8 +116,12 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
       setQuickFillField(null);
       setQuickFillValue("");
     },
-    onError: () => {
-      toast({ title: "Erro", description: "Não foi possível salvar. Tente novamente.", variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({
+        title: "Não foi possível salvar",
+        description: getClientErrorMessage(error, "Não foi possível salvar. Tente novamente."),
+        variant: "destructive",
+      });
     },
   });
 

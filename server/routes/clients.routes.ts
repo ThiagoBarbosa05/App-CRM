@@ -6,6 +6,7 @@ import { getClientsExportAllController } from "../controllers/clients/get-client
 import { getClientsExportFilteredController } from "../controllers/clients/get-clients-export-filtered.controller";
 import { postClientController } from "../controllers/clients/post-client.controller";
 import { putClientController } from "../controllers/clients/put-client.controller";
+import { respondWithClientError } from "../controllers/clients/handle-client-error";
 import { patchWhatsappOptOutController } from "../controllers/clients/patch-whatsapp-opt-out.controller";
 import { deleteClientController } from "../controllers/clients/delete-client.controller";
 import { deleteClientsBulkController } from "../controllers/clients/delete-clients-bulk.controller";
@@ -285,10 +286,8 @@ clientsRouter.post("/:clientId/apply-cpf-data", requireAuth, async (req, res) =>
       fieldsUpdated: Object.keys(fields),
     });
     return res.json(client);
-  } catch (err: any) {
-    return res
-      .status(err.message === "CLIENT_NOT_FOUND" ? 404 : 400)
-      .json({ message: err.message ?? "Erro ao aplicar dados" });
+  } catch (err) {
+    return respondWithClientError(res, err, "update");
   }
 });
 

@@ -828,12 +828,10 @@ export default function ZernioInboxPage() {
               setLinkDialogOpen(true);
             }
           }}
-          client={
-            {
-              name: convName(activeConv) !== "Desconhecido" ? convName(activeConv) : "",
-              phone: activeConv.platform === "whatsapp" ? (activeConv.participant?.id ?? "") : "",
-            } as unknown as Client
-          }
+          initialValues={{
+            name: convName(activeConv) !== "Desconhecido" ? convName(activeConv) : "",
+            phone: activeConv.platform === "whatsapp" ? (activeConv.participant?.id ?? "") : "",
+          }}
         />
       )}
     </div>

@@ -14,7 +14,6 @@ import {
   assignTagToContact,
   getContactByPhone,
 } from "../integrations/umbler";
-import { normalizePhoneE164 } from "@shared/phone";
 import { syncClientToBling, BlingSyncError } from "./bling-clients-export.service";
 import { ensureClientInDesvendandoVinhoFunnel } from "./desvendando-vinho-funnel.service";
 import { autoLinkConversationsByPhone } from "./whatsapp-conversations.service";
@@ -24,6 +23,10 @@ import {
   duplicateDocumentError,
   duplicateEmailError,
 } from "./clients.errors";
+import {
+  normalizeClientCreateData,
+  normalizeClientUpdateData,
+} from "./clients-data";
 
 export interface GetClientsParams {
   userId?: string;
@@ -850,48 +853,16 @@ export class ClientsService {
    * normalização falhar, para que a validação do Zod rejeite com uma mensagem
    * clara em vez de a gente silenciosamente descartar o dado do usuário.
    */
-  private normalizePhoneField(value: unknown): unknown {
-    if (typeof value !== "string" || value.trim() === "") return value;
-    return normalizePhoneE164(value) ?? value;
-  }
-
   /**
-   * Processa e normaliza dados do cliente antes da validação (para criação)
+   * Processa e normaliza dados do cliente antes da validação (para criação).
+   * A lógica pura vive em clients-data.ts, testável sem banco.
    */
-  private toTitleCase(name: string): string {
-    return name
-      .trim()
-      .toLowerCase()
-      .replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
-  }
-
   private processClientData(
     clientData: any,
     userId?: string,
     userRole?: string,
   ): any {
-    // Converter strings vazias em null para campos opcionais
-    let processedData = {
-      ...clientData,
-      name: typeof clientData.name === "string" && clientData.name.trim()
-        ? this.toTitleCase(clientData.name)
-        : clientData.name,
-      responsavelId:
-        clientData.responsavelId === "" ? null : clientData.responsavelId,
-      cpf: clientData.cpf === "" ? null : clientData.cpf,
-      email: clientData.email === "" ? null : clientData.email,
-      categoria: clientData.categoria || "Geral",
-      origem: clientData.origem || "Website",
-      phone: this.normalizePhoneField(clientData.phone),
-      fixedPhone: this.normalizePhoneField(clientData.fixedPhone),
-    };
-
-    // Se não for admin e não foi especificado um responsável, usar o usuário atual
-    if (userRole !== "admin" && !processedData.responsavelId && userId) {
-      processedData.responsavelId = userId;
-    }
-
-    return processedData;
+    return normalizeClientCreateData(clientData, userId, userRole);
   }
 
   /**
@@ -902,39 +873,7 @@ export class ClientsService {
     _userId?: string,
     userRole?: string,
   ): any {
-    // Converter strings vazias em null para campos opcionais (sem defaults para atualização)
-    const processedData: any = {
-      ...updateData,
-      name: typeof updateData.name === "string" && updateData.name.trim()
-        ? this.toTitleCase(updateData.name)
-        : updateData.name,
-      cpf: updateData.cpf === "" ? null : updateData.cpf,
-      phone:
-        updateData.phone === "" ? null : this.normalizePhoneField(updateData.phone),
-      fixedPhone:
-        updateData.fixedPhone === ""
-          ? null
-          : this.normalizePhoneField(updateData.fixedPhone),
-      email: updateData.email === "" ? null : updateData.email,
-    };
-
-    // `categoria` e `origem` são NOT NULL. Como o schema de atualização é
-    // parcial, um valor vazio vindo do formulário sobrescreveria o dado bom
-    // com string vazia — melhor não tocar no campo.
-    if (!processedData.categoria) delete processedData.categoria;
-    if (!processedData.origem) delete processedData.origem;
-
-    // A reatribuição de responsável só acontece por escolha explícita. Antes,
-    // qualquer atualização parcial feita por um não-admin (inclusive a que só
-    // aplica dados da Assertiva) transferia o cliente para quem editou.
-    const canReassign = userRole === "admin" || userRole === "gerente";
-    if (!canReassign || !("responsavelId" in updateData)) {
-      delete processedData.responsavelId;
-    } else if (processedData.responsavelId === "") {
-      processedData.responsavelId = null;
-    }
-
-    return processedData;
+    return normalizeClientUpdateData(updateData, userRole);
   }
 
   /**

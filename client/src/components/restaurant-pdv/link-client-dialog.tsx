@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { getClientErrorMessage } from "@/lib/api-error";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,10 +100,7 @@ export function LinkClientDialog({
         phone: miniPhone.trim() || null,
         cpf: miniCpf.trim() || null,
       });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.message || "Erro ao cadastrar");
-      }
+      // `apiRequest` já lança quando a resposta não é ok.
       return res.json() as Promise<ClientResult>;
     },
     onSuccess: (client) => {
@@ -114,8 +112,12 @@ export function LinkClientDialog({
       setSearchQuery("");
       queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/clients/search"] });
     },
-    onError: (err: Error) => {
-      toast({ title: err.message, variant: "destructive" });
+    onError: (err: unknown) => {
+      toast({
+        title: "Não foi possível cadastrar o cliente",
+        description: getClientErrorMessage(err, "Tente novamente."),
+        variant: "destructive",
+      });
     },
   });
 
