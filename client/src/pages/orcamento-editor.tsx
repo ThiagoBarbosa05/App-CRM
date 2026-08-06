@@ -384,8 +384,44 @@ function DiscountInput({
   onTypeToggle: () => void;
   size?: "sm" | "md";
 }) {
+  const isSmall = size === "sm";
   return (
-    <div className={cn("flex items-center border rounded overflow-hidden", size === "sm" ? "text-xs h-7" : "text-sm h-9")}>
+    <div className={cn("flex items-center gap-1.5", isSmall ? "text-xs" : "text-sm")}>
+      {/* Type toggle pill */}
+      <div className={cn(
+        "flex items-center rounded-full border bg-slate-100 dark:bg-slate-800 p-0.5 shrink-0",
+        isSmall ? "gap-0" : "gap-0",
+      )}>
+        <button
+          type="button"
+          onClick={() => type !== "percent" && onTypeToggle()}
+          className={cn(
+            "rounded-full font-semibold transition-all",
+            isSmall ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs",
+            type === "percent"
+              ? "bg-white dark:bg-slate-600 text-primary shadow-sm"
+              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
+          )}
+          title="Desconto em percentual"
+        >
+          %
+        </button>
+        <button
+          type="button"
+          onClick={() => type !== "fixed" && onTypeToggle()}
+          className={cn(
+            "rounded-full font-semibold transition-all",
+            isSmall ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs",
+            type === "fixed"
+              ? "bg-white dark:bg-slate-600 text-primary shadow-sm"
+              : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300",
+          )}
+          title="Desconto em valor fixo"
+        >
+          R$
+        </button>
+      </div>
+      {/* Value input */}
       <input
         type="number"
         min={0}
@@ -394,22 +430,10 @@ function DiscountInput({
         onChange={(e) => onValueChange(parseFloat(e.target.value) || 0)}
         placeholder="0"
         className={cn(
-          "flex-1 min-w-0 bg-white dark:bg-slate-800 outline-none px-2",
-          size === "sm" ? "w-14 text-xs" : "w-20",
+          "border rounded bg-white dark:bg-slate-800 outline-none px-2 focus:border-primary dark:border-slate-600",
+          isSmall ? "w-16 h-7 text-xs" : "w-20 h-9",
         )}
       />
-      <button
-        type="button"
-        onClick={onTypeToggle}
-        className="px-2 bg-slate-50 dark:bg-slate-700 border-l h-full flex items-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors"
-        title={type === "percent" ? "Mudar para valor fixo" : "Mudar para percentual"}
-      >
-        {type === "percent" ? (
-          <Percent className={cn(size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5")} />
-        ) : (
-          <span className={cn("font-semibold", size === "sm" ? "text-[10px]" : "text-xs")}>R$</span>
-        )}
-      </button>
     </div>
   );
 }
