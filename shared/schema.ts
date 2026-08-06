@@ -5120,12 +5120,17 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   // Instante do evento que produziu o connectionStatus atual. Serve de guarda de
   // ordem: os webhooks do gateway chegam fora de ordem, e sem isso um "close"
   // reentregue depois de um "open" inverte o status do canal.
-  connectionStatusAt: timestamp("connection_status_at"),
+  // `withTimezone` não é preciosismo: um `timestamp` sem fuso é gravado com o
+  // relógio UTC e relido pelo driver como horário LOCAL, voltando 3h no futuro
+  // (America/Sao_Paulo). A guarda de ordem abaixo compara esse valor com um
+  // `new Date()` real, então TODO evento parecia velho e era descartado — o
+  // canal congelava no status antigo por 3 horas a cada escrita.
+  connectionStatusAt: timestamp("connection_status_at", { withTimezone: true }),
   // Última vez que o gateway CONFIRMOU o estado, mude ele ou não. Diferente de
   // connectionStatusAt, que só marca transições: sem este campo não há como
   // distinguir "conectado e verificado agora" de "conectado segundo um cache
   // que ninguém revalida há dias".
-  connectionCheckedAt: timestamp("connection_checked_at"),
+  connectionCheckedAt: timestamp("connection_checked_at", { withTimezone: true }),
   deviceEchoEnabled: boolean("device_echo_enabled").notNull().default(false),
   // Setor para o qual conversas novas recebidas neste canal são roteadas
   // automaticamente (findOrCreateConversation) — evita que um contato novo

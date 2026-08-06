@@ -828,7 +828,18 @@ function describeStatusVerification(checkedAt: string | null): {
   if (Number.isNaN(parsed.getTime())) {
     return { label: "não verificado", stale: true, tooltip: "Data de verificação inválida." };
   }
-  const stale = Date.now() - parsed.getTime() > STATUS_VERIFICATION_STALE_MS;
+  // Carimbo no futuro não é "recentíssimo": é sinal de fuso trocado entre banco
+  // e driver — o defeito que fazia a guarda de ordem descartar todo evento novo.
+  // Melhor gritar do que exibir "verificado há 3 horas" para algo de 50s atrás.
+  const age = Date.now() - parsed.getTime();
+  if (age < -60_000) {
+    return {
+      label: "verificação inconsistente",
+      stale: true,
+      tooltip: `A última verificação está registrada no futuro (${parsed.toLocaleString("pt-BR")}) — provável divergência de fuso horário no banco.`,
+    };
+  }
+  const stale = age > STATUS_VERIFICATION_STALE_MS;
   const distance = formatDistanceToNow(parsed, { locale: ptBR, addSuffix: false });
   return {
     label: `verificado há ${distance}`,
