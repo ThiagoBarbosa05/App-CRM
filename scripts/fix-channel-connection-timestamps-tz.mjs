@@ -56,16 +56,32 @@ for (const column of ["connection_status_at", "connection_checked_at"]) {
   console.log(`[migration] ${column} convertida para timestamptz.`);
 }
 
-const [check] = await sql`
-  SELECT connection_checked_at,
-         EXTRACT(EPOCH FROM (now() - connection_checked_at)) AS idade_s
-  FROM whatsapp_channels
-  WHERE connection_checked_at IS NOT NULL
-  ORDER BY connection_checked_at DESC LIMIT 1
-`;
-if (check) {
-  console.log(
-    `[migration] Verificação: última confirmação há ${Math.round(check.idade_s)}s ` +
-      `(negativo indicaria que o problema persiste).`,
+// Conferência final, meramente informativa: os ALTERs acima já aconteceram.
+// Vai dentro de try/catch porque versões diferentes do driver @neondatabase
+// divergem no formato da resposta (a do Replit devolve `rows: null` aqui), e
+// uma falha na CONFERÊNCIA não pode passar a impressão de que a MIGRAÇÃO
+// falhou — foi exatamente o susto que esse script deu na primeira execução.
+try {
+  const [check] = await sql`
+    SELECT connection_checked_at
+    FROM whatsapp_channels
+    WHERE connection_checked_at IS NOT NULL
+    ORDER BY connection_checked_at DESC LIMIT 1
+  `;
+  if (!check) {
+    console.log("[migration] Nenhum canal verificado ainda; nada a conferir.");
+  } else {
+    const ageSeconds = Math.round((Date.now() - new Date(check.connection_checked_at)) / 1000);
+    console.log(
+      `[migration] Verificação: última confirmação há ${ageSeconds}s ` +
+        (ageSeconds < 0
+          ? "— NEGATIVO: o desvio de fuso persiste, avise antes de seguir."
+          : "— positivo, o desvio de fuso foi corrigido."),
+    );
+  }
+} catch (error) {
+  console.warn(
+    "[migration] Colunas convertidas com sucesso; só a conferência final falhou:",
+    error.message,
   );
 }
