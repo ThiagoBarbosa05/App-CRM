@@ -4,6 +4,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { getCountryFlag } from "@/lib/country-flags";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Loader2,
   MessageSquare,
@@ -73,7 +74,7 @@ export function OrderItemSelector({
     }
   }, [productSearch]);
 
-  const { data: filtersResponse } = useQuery<FiltersResponse>({
+  const { data: filtersResponse, isLoading: isLoadingFilters } = useQuery<FiltersResponse>({
     queryKey: ["/api/restaurant-pdv/products/filters", { connectionId: blingConnectionId }],
     queryFn: async () => {
       const params = new URLSearchParams({ connectionId: blingConnectionId! });
@@ -92,7 +93,7 @@ export function OrderItemSelector({
     (c) => !HIDDEN_COUNTRIES.has(c.toUpperCase()),
   );
 
-  const { data: productsResponse, isFetching: isFetchingProducts } =
+  const { data: productsResponse, isFetching: isFetchingProducts, isLoading: isLoadingProducts } =
     useQuery<ProductsResponse>({
       queryKey: ["/api/restaurant-pdv/products", {
         connectionId: blingConnectionId,
@@ -144,8 +145,14 @@ export function OrderItemSelector({
         </div>
 
         {/* Chips de categoria */}
-        {categories.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+        {isLoadingFilters ? (
+          <div className="flex gap-1.5 overflow-hidden" aria-label="Carregando filtros">
+            {[64, 96, 80, 112].map((width) => (
+              <Skeleton key={width} className="h-7 shrink-0 rounded-full" style={{ width }} />
+            ))}
+          </div>
+        ) : categories.length > 0 && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
             <button
               onClick={() => setSelectedCategory(null)}
               className={cn(chipBase, selectedCategory === null ? chipActive : chipIdle)}
@@ -169,7 +176,7 @@ export function OrderItemSelector({
 
         {/* Chips de país */}
         {countries.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
             <button
               onClick={() => setSelectedCountry(null)}
               className={cn(chipBase, selectedCountry === null ? chipActive : chipIdle)}
@@ -201,8 +208,18 @@ export function OrderItemSelector({
               Nenhum catálogo Bling configurado. Configure em Configurações → editar unidade.
             </p>
           </div>
+        ) : isLoadingProducts ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Carregando produtos" aria-busy="true">
+            {Array.from({ length: 9 }, (_, index) => (
+              <div key={index} className="space-y-2 rounded-xl border bg-card p-3">
+                <Skeleton className="h-4 w-5/6" />
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className={cn("grid grid-cols-2 gap-2 sm:grid-cols-3", isFetchingProducts && "opacity-60")} aria-busy={isFetchingProducts}>
             {products.map((product) => {
               const qty = getCartQty(product.id);
               return (
@@ -242,7 +259,7 @@ export function OrderItemSelector({
       </div>
 
       {/* ── Carrinho ─────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t bg-card">
+      <div className="shrink-0 border-t bg-card pb-[env(safe-area-inset-bottom)]">
         {cart.length > 0 && (
           <button
             className="flex w-full items-center justify-between px-4 py-2 text-sm hover:bg-muted/50"

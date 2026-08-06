@@ -28,11 +28,14 @@ import {
   ArrowRightLeft,
   Clock,
   Combine,
+  ClipboardList,
   Lock,
+  Loader2,
   Minus,
   Plus,
   UserPlus,
   Users,
+  UtensilsCrossed,
   XCircle,
 } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -58,6 +61,7 @@ import {
   type PaymentOption,
 } from "@/hooks/use-bling-payment-methods";
 import { LinkClientDialog } from "@/components/restaurant-pdv/link-client-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface CartItem {
   id: string;
@@ -79,6 +83,54 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   aguardando_pagamento: "bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400",
 };
 
+function ComandaPageSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden" aria-label="Carregando comanda" aria-busy="true">
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b bg-card px-3 sm:px-4">
+        <Skeleton className="h-8 w-9 sm:w-20" />
+        <Skeleton className="h-5 w-24" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+        <Skeleton className="ml-auto h-8 w-24" />
+      </div>
+      <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(420px,48%)]">
+        <div className="hidden flex-col overflow-hidden border-r lg:flex">
+          <div className="space-y-3 border-b bg-muted/30 p-3">
+            <Skeleton className="h-10 w-full" />
+            <div className="flex gap-2 overflow-hidden">
+              {[72, 96, 82, 104].map((width) => <Skeleton key={width} className="h-7 shrink-0 rounded-full" style={{ width }} />)}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 p-3">
+            {Array.from({ length: 9 }, (_, index) => (
+              <Skeleton key={index} className="h-24 rounded-xl" />
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col bg-card">
+          <div className="flex items-center gap-2 border-b p-4">
+            <Skeleton className="h-5 w-5" />
+            <Skeleton className="h-5 w-28" />
+          </div>
+          <div className="flex-1 space-y-3 p-4">
+            {Array.from({ length: 5 }, (_, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <Skeleton className="h-10 flex-1" />
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-20" />
+              </div>
+            ))}
+          </div>
+          <div className="space-y-3 border-t p-4">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-7 w-full" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RestaurantComandaPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -96,6 +148,7 @@ export default function RestaurantComandaPage() {
   const [linkClientOpen, setLinkClientOpen] = useState(false);
   const [peopleCountPopoverOpen, setPeopleCountPopoverOpen] = useState(false);
   const [editingPeopleCount, setEditingPeopleCount] = useState(1);
+  const [mobilePanel, setMobilePanel] = useState<"products" | "order">("products");
 
   // wouter reaproveita a instância do componente ao trocar só o parâmetro da
   // rota (não remonta) — sem isto, ir e voltar entre duas comandas pelo
@@ -124,7 +177,7 @@ export default function RestaurantComandaPage() {
 
   // Formas de pagamento da conta Bling da unidade — só interessam na fase de
   // pagamento; sem Bling o hook devolve o conjunto local fixo.
-  const { options: paymentOptions } = useBlingPaymentMethods(
+  const { options: paymentOptions, isLoading: isLoadingPaymentOptions } = useBlingPaymentMethods(
     !!order?.paymentRequestedAt,
   );
 
@@ -438,6 +491,7 @@ export default function RestaurantComandaPage() {
     // Single invalidation after the full batch — avoids per-item refetch churn.
     if (anySuccess) {
       invalidateOrder();
+      setMobilePanel("order");
       toast({ title: "Pedido lançado", description: "Itens adicionados à comanda." });
     }
 
@@ -472,7 +526,7 @@ export default function RestaurantComandaPage() {
 
       <main className="flex flex-1 flex-col overflow-hidden">
         {isLoadingOrder ? (
-          <div className="p-6 text-center text-muted-foreground">Carregando comanda...</div>
+          <ComandaPageSkeleton />
         ) : isOrderError || !order ? (
           // Sem este ramo a tela ficava presa em "Carregando comanda..." para
           // sempre: com `retry: false` global, qualquer 404 (outro garçom
@@ -500,7 +554,7 @@ export default function RestaurantComandaPage() {
         ) : (
           <div className="flex flex-1 flex-col overflow-hidden">
             {/* ── Mesa sub-header ─────────────────────────────── */}
-            <div className="flex shrink-0 items-center gap-2 border-b bg-card px-3 py-2">
+            <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b bg-card px-3 py-2">
               <Button
                 variant="ghost"
                 size="sm"
@@ -618,9 +672,32 @@ export default function RestaurantComandaPage() {
             </div>
 
             {/* ── Two-column POS layout ──────────────────────── */}
+            <div className="grid shrink-0 grid-cols-2 gap-1 border-b bg-card p-1.5 lg:hidden">
+              <Button
+                size="sm"
+                variant={mobilePanel === "products" ? "secondary" : "ghost"}
+                className="h-9"
+                onClick={() => setMobilePanel("products")}
+              >
+                <UtensilsCrossed className="mr-2 h-4 w-4" />
+                Produtos
+                {cart.length > 0 ? <Badge className="ml-2 h-5 min-w-5 justify-center bg-orange-500 px-1.5 text-white">{cart.length}</Badge> : null}
+              </Button>
+              <Button
+                size="sm"
+                variant={mobilePanel === "order" ? "secondary" : "ghost"}
+                className="h-9"
+                onClick={() => setMobilePanel("order")}
+              >
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Comanda
+                {items.length > 0 ? <Badge variant="outline" className="ml-2 h-5 min-w-5 justify-center px-1.5">{items.length}</Badge> : null}
+              </Button>
+            </div>
+
             <div className="flex flex-1 overflow-hidden">
               {/* Left: item selector */}
-              <div className="flex flex-1 flex-col overflow-hidden border-r">
+              <div className={cn("flex flex-1 flex-col overflow-hidden border-r", mobilePanel !== "products" && "hidden lg:flex")}>
                 {isPaymentPhase ? (
                   <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
                     <Lock className="h-12 w-12 text-muted-foreground/30" />
@@ -658,7 +735,7 @@ export default function RestaurantComandaPage() {
               </div>
 
               {/* Right: order summary */}
-              <div className="flex w-[620px] shrink-0 flex-col overflow-hidden xl:w-[720px]">
+              <div className={cn("min-w-0 flex-1 flex-col overflow-hidden lg:flex lg:w-[48%] lg:max-w-[720px] lg:shrink-0", mobilePanel === "order" ? "flex" : "hidden")}>
                 <OrderSummaryCard
                   order={order}
                   items={items}
@@ -671,6 +748,7 @@ export default function RestaurantComandaPage() {
                   isGarcom={isGarcom}
                   isPaymentPhase={isPaymentPhase}
                   paymentOptions={paymentOptions}
+                  paymentOptionsLoading={isLoadingPaymentOptions}
                   selectedPayment={selectedPayment}
                   onSelectPayment={setSelectedPayment}
                   onUpdateItemQuantity={(itemId, quantity) =>

@@ -20,6 +20,7 @@ import {
   Banknote,
   ClipboardList,
   CreditCard,
+  Loader2,
   Minus,
   Plus,
   QrCode,
@@ -33,6 +34,7 @@ import type { RestaurantOrder, RestaurantOrderItem } from "@shared/schema";
 import { formatPercent } from "@shared/restaurant-order-totals";
 import type { PaymentOption } from "@/hooks/use-bling-payment-methods";
 import type { RestaurantPaymentMethod } from "@shared/bling-payment-method-map";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const METHOD_ICONS: Record<RestaurantPaymentMethod, typeof QrCode> = {
   pix: QrCode,
@@ -54,6 +56,7 @@ interface OrderSummaryCardProps {
   isGarcom: boolean;
   isPaymentPhase: boolean;
   paymentOptions: PaymentOption[];
+  paymentOptionsLoading: boolean;
   selectedPayment: PaymentOption | null;
   onSelectPayment: (option: PaymentOption) => void;
   onUpdateItemQuantity: (itemId: string, quantity: number) => void;
@@ -82,6 +85,7 @@ export function OrderSummaryCard({
   isGarcom,
   isPaymentPhase,
   paymentOptions,
+  paymentOptionsLoading,
   selectedPayment,
   onSelectPayment,
   onUpdateItemQuantity,
@@ -98,7 +102,7 @@ export function OrderSummaryCard({
   requestPaymentPending,
 }: OrderSummaryCardProps) {
   return (
-    <div className="flex h-full flex-col overflow-hidden border-l bg-card">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden bg-card lg:border-l">
       {/* Header */}
       <div className="shrink-0 border-b px-4 py-3">
         <div className="flex items-center justify-between">
@@ -293,7 +297,9 @@ export function OrderSummaryCard({
           <div className="space-y-3 border-t px-4 pb-4 pt-3">
             <Label className="text-xs uppercase text-muted-foreground">Forma de pagamento</Label>
             <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto">
-              {paymentOptions.map((option) => {
+              {paymentOptionsLoading ? Array.from({ length: 4 }, (_, index) => (
+                <Skeleton key={index} className="h-11 rounded-lg" />
+              )) : paymentOptions.map((option) => {
                 const Icon = METHOD_ICONS[option.method];
                 return (
                   <button
@@ -329,9 +335,9 @@ export function OrderSummaryCard({
                 <AlertDialogTrigger asChild>
                   <Button
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                    disabled={items.length === 0 || !selectedPayment}
+                    disabled={items.length === 0 || !selectedPayment || closeOrderPending}
                   >
-                    Fechar Comanda
+                    {closeOrderPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Fechando...</> : "Fechar Comanda"}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -360,7 +366,7 @@ export function OrderSummaryCard({
               disabled={items.length === 0 || requestPaymentPending}
               onClick={onRequestPayment}
             >
-              <Receipt className="mr-2 h-4 w-4" />
+              {requestPaymentPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Receipt className="mr-2 h-4 w-4" />}
               {requestPaymentPending ? "Solicitando..." : "PEDIR A CONTA"}
             </Button>
           </div>

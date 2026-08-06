@@ -1479,6 +1479,10 @@ function StepConfirm({
   });
   const [newTagName, setNewTagName] = useState("");
   const [creatingTag, setCreatingTag] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  const selectedCampaignTag = campaignTags.find(
+    (tag) => tag.id === postSendTagId,
+  );
 
   const createTag = async () => {
     const name = newTagName.trim();
@@ -1619,17 +1623,97 @@ function StepConfirm({
 
           <div className="space-y-2">
             <Label htmlFor="post-send-tag">Marcar após o primeiro envio</Label>
-            <select
-              id="post-send-tag"
-              value={postSendTagId}
-              onChange={(event) => onPostSendTagChange(event.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Não aplicar etiqueta</option>
-              {campaignTags.map((tag) => (
-                <option key={tag.id} value={tag.id}>{tag.name}</option>
-              ))}
-            </select>
+            <Popover open={tagPickerOpen} onOpenChange={setTagPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  id="post-send-tag"
+                  type="button"
+                  role="combobox"
+                  aria-expanded={tagPickerOpen}
+                  aria-label="Selecionar etiqueta para aplicar após o primeiro envio"
+                  className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  {selectedCampaignTag ? (
+                    <>
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: resolveTagColor(
+                            selectedCampaignTag.color,
+                            selectedCampaignTag.id,
+                          ),
+                        }}
+                      />
+                      <span className="flex-1 truncate">
+                        {selectedCampaignTag.name}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="flex-1 text-muted-foreground">
+                      Não aplicar etiqueta
+                    </span>
+                  )}
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-[var(--radix-popover-trigger-width)] p-0"
+                align="start"
+              >
+                <Command>
+                  <CommandInput
+                    placeholder="Pesquisar etiqueta..."
+                    className="h-9"
+                  />
+                  <CommandList className="max-h-56">
+                    <CommandEmpty>Nenhuma etiqueta encontrada.</CommandEmpty>
+                    <CommandItem
+                      value="nao aplicar etiqueta"
+                      onSelect={() => {
+                        onPostSendTagChange("");
+                        setTagPickerOpen(false);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          postSendTagId ? "opacity-0" : "opacity-100",
+                        )}
+                      />
+                      Não aplicar etiqueta
+                    </CommandItem>
+                    {campaignTags.map((tag) => (
+                      <CommandItem
+                        key={tag.id}
+                        value={tag.name}
+                        onSelect={() => {
+                          onPostSendTagChange(tag.id);
+                          setTagPickerOpen(false);
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            postSendTagId === tag.id
+                              ? "opacity-100"
+                              : "opacity-0",
+                          )}
+                        />
+                        <span
+                          className="mr-2 h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{
+                            backgroundColor: resolveTagColor(tag.color, tag.id),
+                          }}
+                        />
+                        <span className="truncate">{tag.name}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <div className="flex gap-2">
               <Input
                 value={newTagName}

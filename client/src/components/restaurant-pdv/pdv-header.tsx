@@ -43,10 +43,10 @@ export function PdvHeader() {
       )}
       <div className="flex items-center gap-1.5 shrink-0">
         <UtensilsCrossed className="h-4 w-4 text-orange-500" />
-        <span className="text-sm font-semibold">PDV Restaurante</span>
+        <span className="hidden text-sm font-semibold min-[380px]:inline">PDV Restaurante</span>
       </div>
       {user?.name && (
-        <span className={`text-xs text-muted-foreground ${isOperador ? "" : "ml-auto"}`}>
+        <span className={`min-w-0 truncate text-xs text-muted-foreground ${isOperador ? "" : "ml-auto"}`}>
           {isOperador ? "" : "Operador: "}{user.name}
         </span>
       )}
