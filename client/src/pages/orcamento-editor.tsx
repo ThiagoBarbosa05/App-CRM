@@ -164,27 +164,38 @@ function defaultValidUntil() {
 
 function ProductSearchCell({
   value,
-  products,
   onSelect,
   onChange,
 }: {
   value: string;
-  products: Product[];
   onSelect: (p: Product) => void;
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const [debouncedQuery, setDebouncedQuery] = useState(value);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filtered = useMemo(
-    () =>
-      products
-        .filter((p) => p.name.toLowerCase().includes(value.toLowerCase()))
-        .slice(0, 8),
-    [products, value],
-  );
+  // Debounce the search query
+  const handleChange = (v: string) => {
+    onChange(v);
+    setOpen(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedQuery(v), 300);
+  };
+
+  const { data: searchResults = [], isFetching } = useQuery<Product[]>({
+    queryKey: ["products-search", debouncedQuery],
+    queryFn: () =>
+      debouncedQuery.trim().length < 2
+        ? Promise.resolve([])
+        : apiFetch<{ data: Product[] }>(
+            `/api/products?name=${encodeURIComponent(debouncedQuery)}&pageSize=10`,
+          ).then((r) => r.data ?? []),
+    staleTime: 30_000,
+  });
 
   // Recalculate dropdown position whenever it opens
   useEffect(() => {
@@ -209,31 +220,41 @@ function ProductSearchCell({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const dropdown = open && filtered.length > 0
+  const showDropdown = open && debouncedQuery.trim().length >= 2;
+
+  const dropdown = showDropdown
     ? createPortal(
         <div
           style={dropdownStyle}
           className="bg-white dark:bg-slate-800 border rounded-lg shadow-xl overflow-hidden"
         >
-          {filtered.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onMouseDown={(e) => {
-                // Use mousedown so the selection fires before the input blur
-                e.preventDefault();
-                onSelect(p);
-                setOpen(false);
-              }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b last:border-0"
-            >
-              <div className="font-medium text-slate-800 dark:text-slate-100 truncate">{p.name}</div>
-              <div className="text-slate-400 mt-0.5">
-                {p.winery && `${p.winery} · `}
-                {fmtBRL(parseFloat(p.negotiatedPrice))}
-              </div>
-            </button>
-          ))}
+          {isFetching ? (
+            <div className="px-3 py-2 text-xs text-slate-400 flex items-center gap-1.5">
+              <Loader2 className="h-3 w-3 animate-spin" /> Buscando...
+            </div>
+          ) : searchResults.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-slate-400">Nenhum produto encontrado</div>
+          ) : (
+            searchResults.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onMouseDown={(e) => {
+                  // Use mousedown so the selection fires before the input blur
+                  e.preventDefault();
+                  onSelect(p);
+                  setOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b last:border-0"
+              >
+                <div className="font-medium text-slate-800 dark:text-slate-100 truncate">{p.name}</div>
+                <div className="text-slate-400 mt-0.5">
+                  {p.winery && `${p.winery} · `}
+                  {fmtBRL(parseFloat(p.negotiatedPrice))}
+                </div>
+              </button>
+            ))
+          )}
         </div>,
         document.body,
       )
@@ -246,10 +267,7 @@ function ProductSearchCell({
         type="text"
         value={value}
         placeholder="Produto..."
-        onChange={(e) => {
-          onChange(e.target.value);
-          setOpen(true);
-        }}
+        onChange={(e) => handleChange(e.target.value)}
         onFocus={() => setOpen(true)}
         className="w-full text-xs border rounded px-2 py-1.5 bg-white dark:bg-slate-800 outline-none focus:border-primary dark:border-slate-600"
       />
@@ -451,14 +469,6 @@ export default function OrcamentoEditor() {
     queryKey: ["quote", quoteId],
     queryFn: () => apiFetch<Quote>(`/api/quotes/${quoteId}`),
     enabled: !!quoteId,
-  });
-
-  // ── Load products ─────────────────────────────────────────────────────────
-  const { data: productsRaw = [] } = useQuery<Product[]>({
-    queryKey: ["products-all"],
-    queryFn: () =>
-      apiFetch<{ data: Product[] }>("/api/products?pageSize=500").then((r) => r.data ?? []),
-    staleTime: 5 * 60_000,
   });
 
   // ── Hydrate form from existing quote ────────────────────────────────────
@@ -755,7 +765,6 @@ export default function OrcamentoEditor() {
                               ) : (
                                 <ProductSearchCell
                                   value={item.productName}
-                                  products={productsRaw}
                                   onSelect={(p) =>
                                     updateItem(idx, {
                                       productId: p.id,
@@ -856,7 +865,6 @@ export default function OrcamentoEditor() {
                             ) : (
                               <ProductSearchCell
                                 value={item.productName}
-                                products={productsRaw}
                                 onSelect={(p) =>
                                   updateItem(idx, {
                                     productId: p.id,
