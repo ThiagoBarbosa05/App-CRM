@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { connectOrders, connectOrderItems, users, clients } from "../../shared/schema";
 import { resetReengagementProgress } from "./reengagement-automation.service";
+import { clientIdentityConditions, toStoredPhone } from "./client-lookup";
 import {
   eq,
   and,
@@ -83,11 +84,6 @@ function buildImportHash(saleCode: string): string {
   return crypto.createHash("sha256").update(saleCode).digest("hex");
 }
 
-/** Normaliza telefone — apenas dígitos */
-function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, "");
-}
-
 /** Normaliza CPF — apenas dígitos */
 function normalizeCpf(cpf: string): string {
   return cpf.replace(/\D/g, "");
@@ -106,27 +102,12 @@ async function findClientByCpfOrPhone(
   cellphone: string | null,
   phone: string | null,
 ): Promise<ClientRecord | null> {
-  const conditions = [];
-
-  const normalizedCpf = cpf ? normalizeCpf(cpf) : null;
-  const normalizedCell = cellphone ? normalizePhone(cellphone) : null;
-  const normalizedPhone = phone ? normalizePhone(phone) : null;
-
-  if (normalizedCpf && normalizedCpf.length === 11) {
-    conditions.push(eq(clients.cpf, normalizedCpf));
-  }
-  if (normalizedCell) {
-    conditions.push(
-      sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${normalizedCell}`,
-      sql`regexp_replace(COALESCE(${clients.fixedPhone}, ''), '[^0-9]', '', 'g') = ${normalizedCell}`,
-    );
-  }
-  if (normalizedPhone && normalizedPhone !== normalizedCell) {
-    conditions.push(
-      sql`regexp_replace(${clients.phone}, '[^0-9]', '', 'g') = ${normalizedPhone}`,
-      sql`regexp_replace(COALESCE(${clients.fixedPhone}, ''), '[^0-9]', '', 'g') = ${normalizedPhone}`,
-    );
-  }
+  // Casa CPF e telefone em qualquer formato já gravado — inclusive com o DDI 55
+  // e sem o 9º dígito, que a comparação só-dígitos anterior deixava passar.
+  const conditions = clientIdentityConditions({
+    cpf,
+    phones: [cellphone, phone],
+  });
 
   if (conditions.length === 0) return null;
 
@@ -152,8 +133,9 @@ async function createClientFromConnect(
   sellerId: string | null,
 ): Promise<ClientRecord | null> {
   const clientName = row.contactName?.trim() || "Cliente Connect";
-  const cellNorm = row.contactCellphone ? normalizePhone(row.contactCellphone) : null;
-  const phoneNorm = row.contactPhone ? normalizePhone(row.contactPhone) : null;
+  // E.164, o mesmo formato do cadastro manual — ver toStoredPhone.
+  const cellNorm = toStoredPhone(row.contactCellphone);
+  const phoneNorm = toStoredPhone(row.contactPhone);
   const primaryPhone = cellNorm || phoneNorm || null;
 
   const cpfNorm = row.contactCpf ? normalizeCpf(row.contactCpf) : null;

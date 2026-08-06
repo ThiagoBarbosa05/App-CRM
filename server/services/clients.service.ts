@@ -4,7 +4,7 @@ import { insertClientSchema, updateClientSchema } from "@shared/schema";
 import { z } from "zod";
 import { db } from "../db";
 import { clients } from "../../shared/schema";
-import { eq, and, ne, sql as drizzleSql } from "drizzle-orm";
+import { eq, and, ne, or, sql as drizzleSql } from "drizzle-orm";
 import { generateConfirmationCode } from "../lib/utils";
 import {
   syncContact,
@@ -22,7 +22,9 @@ import {
   mapDatabaseError,
   duplicateDocumentError,
   duplicateEmailError,
+  duplicatePhoneError,
 } from "./clients.errors";
+import { phoneMatchConditions } from "./client-lookup";
 import {
   normalizeClientCreateData,
   normalizeClientUpdateData,
@@ -340,8 +342,13 @@ export class ClientsService {
       // Validar dados usando o schema Zod
       const validatedData = insertClientSchema.parse(processedData);
 
-      // Verificar CPF e e-mail duplicados antes de inserir
-      await this.checkCpfEmailUniqueness(validatedData.cpf ?? null, validatedData.email ?? null, null);
+      // Verificar telefone, CPF e e-mail duplicados antes de inserir
+      await this.checkClientUniqueness(
+        validatedData.phone ?? null,
+        validatedData.cpf ?? null,
+        validatedData.email ?? null,
+        null,
+      );
 
       // Gerar código de confirmação
       const confirmationCode = generateConfirmationCode();
@@ -595,9 +602,14 @@ export class ClientsService {
       // Validar dados usando o schema Zod (partial para permitir atualizações parciais)
       const validatedData = updateClientSchema.parse(processedData);
 
-      // Verificar CPF e e-mail duplicados antes de atualizar
-      if (validatedData.cpf !== undefined || validatedData.email !== undefined) {
-        await this.checkCpfEmailUniqueness(
+      // Verificar telefone, CPF e e-mail duplicados antes de atualizar
+      if (
+        validatedData.phone !== undefined ||
+        validatedData.cpf !== undefined ||
+        validatedData.email !== undefined
+      ) {
+        await this.checkClientUniqueness(
+          validatedData.phone ?? null,
           validatedData.cpf ?? null,
           validatedData.email ?? null,
           clientId,
@@ -731,14 +743,39 @@ export class ClientsService {
   }
 
   /**
-   * Verifica se CPF ou e-mail já estão cadastrados para outro cliente.
+   * Verifica se telefone, CPF ou e-mail já estão cadastrados para outro cliente.
    * excludeId é o ID do cliente sendo editado (para não conflitar consigo mesmo).
    */
-  private async checkCpfEmailUniqueness(
+  private async checkClientUniqueness(
+    phone: string | null,
     cpf: string | null,
     email: string | null,
     excludeId: string | null,
   ): Promise<void> {
+    if (phone) {
+      // Compara por dígitos (com/sem DDI, com/sem o 9º dígito). O UNIQUE do
+      // banco sozinho não basta: ele é sobre o texto cru e não reconhece as
+      // linhas antigas de Bling/Connect gravadas sem o "+55".
+      const phoneConditions = phoneMatchConditions(phone);
+      if (phoneConditions.length > 0) {
+        const phoneMatch = or(...phoneConditions);
+        const existing = await db
+          .select({
+            id: clients.id,
+            name: clients.name,
+            categoria: clients.categoria,
+          })
+          .from(clients)
+          .where(
+            excludeId ? and(phoneMatch, ne(clients.id, excludeId)) : phoneMatch,
+          )
+          .limit(1);
+        if (existing.length > 0) {
+          throw duplicatePhoneError(existing[0].name, existing[0].categoria);
+        }
+      }
+    }
+
     if (cpf) {
       const normalizedCpf = cpf.replace(/\D/g, "");
       if (normalizedCpf.length > 0) {

@@ -8,8 +8,9 @@ import {
   referralIncentiveCatalog,
   referralIncentiveDeliveries,
 } from "../../shared/schema";
-import { eq, and, inArray, desc } from "drizzle-orm";
+import { eq, and, inArray, desc, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { phoneMatchConditions, toStoredPhone } from "./client-lookup";
 import type {
   Referral,
   ReferralBenefitCatalog,
@@ -89,14 +90,20 @@ export const referralsService = {
     referredPhone: string;
     createdByUserId: string | null;
   }): Promise<Referral> {
-    const phone = data.referredPhone.replace(/\D/g, "");
+    // Grava em E.164, igual ao cadastro manual, para que o UNIQUE de `phone`
+    // valha entre origens. `toStoredPhone` devolve null quando não sobra
+    // nenhum dígito — a indicação em si continua sendo gravada, só sem cliente.
+    const phone = toStoredPhone(data.referredPhone);
 
-    // Check if a client with this phone already exists — reject if so
+    // Check if a client with this phone already exists — reject if so.
+    // A comparação cobre qualquer formato já gravado (com/sem DDI, com/sem o
+    // 9º dígito); comparar a string crua deixava passar todo cadastro "+55…".
     if (phone) {
+      const phoneConditions = phoneMatchConditions(phone);
       const [existingClient] = await db
         .select({ id: clients.id })
         .from(clients)
-        .where(eq(clients.phone, phone))
+        .where(or(...phoneConditions))
         .limit(1);
 
       if (existingClient) {
@@ -132,7 +139,7 @@ export const referralsService = {
       .values({
         referrerId: data.referrerId,
         referredName: data.referredName,
-        referredPhone: phone,
+        referredPhone: phone ?? "",
         referredClientId,
       })
       .returning();

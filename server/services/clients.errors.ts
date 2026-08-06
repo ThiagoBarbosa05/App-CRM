@@ -97,6 +97,26 @@ export function duplicateDocumentError(
   );
 }
 
+/**
+ * Duplicidade de telefone detectada por consulta prévia.
+ *
+ * Não dá para depender só de `clients_phone_unique`: o UNIQUE é sobre o texto
+ * cru e as linhas antigas de Bling/Connect/PDV estão gravadas em formatos
+ * diferentes ("21975865422" vs "+5521975865422"), então a constraint não
+ * dispara contra elas. A consulta prévia compara por dígitos, cobrindo o legado.
+ */
+export function duplicatePhoneError(
+  existingClientName: string,
+  existingCategoria?: string | null,
+): ClientOperationError {
+  const origin = existingCategoria ? ` (${existingCategoria})` : "";
+  return new ClientOperationError(
+    `Este telefone já está cadastrado para o cliente "${existingClientName}"${origin}.`,
+    409,
+    { field: "phone" },
+  );
+}
+
 /** Duplicidade de e-mail detectada por consulta prévia. */
 export function duplicateEmailError(
   existingClientName: string,

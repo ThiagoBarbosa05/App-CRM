@@ -37,6 +37,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { TagSelector } from "@/components/ui/tag-selector";
+import { useDuplicateCheck } from "@/hooks/use-duplicate-check";
+import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 interface ClientFormModalProps {
   open: boolean;
@@ -196,6 +199,22 @@ export default function ClientFormModal({
   const watchedPhone = form.watch("phone");
   const watchedEmail = form.watch("email");
   const watchedCep = form.watch("cep");
+
+  const [, navigate] = useLocation();
+
+  // Aviso de duplicata: consulta o mesmo detector usado na tela /duplicates,
+  // com debounce, enquanto o vendedor preenche o formulário.
+  const {
+    matches: duplicateMatches,
+    blockingMatch: duplicateBlockingMatch,
+  } = useDuplicateCheck({
+    enabled: open,
+    name: watchedName,
+    phone: watchedPhone,
+    cpf: watchedCpf,
+    email: watchedEmail,
+    excludeId: client?.id,
+  });
 
   // Último CEP já consultado no ViaCEP. Começa com o CEP que veio do cliente
   // para que abrir o modal em modo de edição não dispare a busca e sobrescreva
@@ -1365,6 +1384,90 @@ export default function ClientFormModal({
             </form>
           </Form>
         </div>
+
+        {/* Aviso de possível duplicata — o mesmo cliente costumava entrar duas
+            vezes (um vindo do Bling, outro cadastrado à mão) sem nenhum alerta. */}
+        {duplicateMatches.length > 0 && (
+          <div
+            className={cn(
+              "border-t px-6 py-3 shrink-0",
+              duplicateBlockingMatch
+                ? "border-red-200 dark:border-red-900 bg-red-50/80 dark:bg-red-950/40"
+                : "border-amber-200 dark:border-amber-900 bg-amber-50/80 dark:bg-amber-950/40",
+            )}
+            data-testid="duplicate-warning"
+          >
+            <div className="flex items-start gap-2">
+              <AlertCircle
+                className={cn(
+                  "h-4 w-4 mt-0.5 shrink-0",
+                  duplicateBlockingMatch
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-amber-600 dark:text-amber-400",
+                )}
+              />
+              <div className="min-w-0 flex-1 space-y-2">
+                <p
+                  className={cn(
+                    "text-sm font-medium",
+                    duplicateBlockingMatch
+                      ? "text-red-800 dark:text-red-300"
+                      : "text-amber-800 dark:text-amber-300",
+                  )}
+                >
+                  {duplicateBlockingMatch
+                    ? "Este telefone já pertence a um cliente cadastrado"
+                    : "Talvez este cliente já esteja cadastrado"}
+                </p>
+
+                {duplicateMatches.slice(0, 3).map((match) => (
+                  <div
+                    key={match.id}
+                    className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-700 dark:text-slate-300"
+                  >
+                    <span className="font-medium">{match.name}</span>
+                    {match.phone && (
+                      <span className="text-slate-500 dark:text-slate-400">
+                        · {match.phone}
+                      </span>
+                    )}
+                    {match.categoria && (
+                      <Badge variant="outline" className="text-[11px]">
+                        {match.categoria}
+                      </Badge>
+                    )}
+                    {match.responsavelName && (
+                      <span className="text-slate-500 dark:text-slate-400">
+                        · resp. {match.responsavelName}
+                      </span>
+                    )}
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      ({match.matchReasons.join(", ")})
+                    </span>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs"
+                      onClick={() => {
+                        onOpenChange(false);
+                        navigate(`/clientes/${match.id}`);
+                      }}
+                    >
+                      Abrir cliente existente
+                    </Button>
+                  </div>
+                ))}
+
+                {!duplicateBlockingMatch && (
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Se for outra pessoa, siga com o cadastro normalmente.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer pegajoso para os botões */}
         <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md px-6 py-4 shrink-0 flex items-center justify-end gap-3 rounded-b-lg">

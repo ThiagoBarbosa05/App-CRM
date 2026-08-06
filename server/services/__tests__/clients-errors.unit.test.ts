@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { ClientOperationError, mapDatabaseError } from "../clients.errors";
+import {
+  ClientOperationError,
+  duplicatePhoneError,
+  mapDatabaseError,
+} from "../clients.errors";
 
 describe("mapDatabaseError", () => {
   it("traduz a constraint de telefone lendo o campo `constraint` do driver", () => {
@@ -53,6 +57,44 @@ describe("mapDatabaseError", () => {
   });
 
   it("nunca expõe o detalhe técnico na mensagem exibível", () => {
+    const error = Object.assign(
+      new Error('insert into "clients" ... violates "clients_cpf_unique"'),
+      { constraint: "clients_cpf_unique" },
+    );
+
+    const mapped = mapDatabaseError(error);
+
+    expect(mapped?.userMessage).not.toContain("clients_cpf_unique");
+    expect(mapped?.userMessage).not.toContain("insert into");
+  });
+});
+
+describe("duplicatePhoneError", () => {
+  // A checagem prévia existe porque o UNIQUE do banco é sobre o texto cru e não
+  // reconhece as linhas antigas gravadas sem o "+55" (ex.: as vindas do Bling).
+  it("nomeia o cliente existente e sua origem", () => {
+    const error = duplicatePhoneError("Amauri Quaresma", "Bling");
+
+    expect(error).toBeInstanceOf(ClientOperationError);
+    expect(error.httpStatus).toBe(409);
+    expect(error.field).toBe("phone");
+    expect(error.userMessage).toBe(
+      'Este telefone já está cadastrado para o cliente "Amauri Quaresma" (Bling).',
+    );
+  });
+
+  it("omite a origem quando ela não é conhecida", () => {
+    expect(duplicatePhoneError("Amauri Quaresma").userMessage).toBe(
+      'Este telefone já está cadastrado para o cliente "Amauri Quaresma".',
+    );
+    expect(duplicatePhoneError("Amauri Quaresma", null).userMessage).not.toContain(
+      "(",
+    );
+  });
+});
+
+describe("mapDatabaseError — sanitização", () => {
+  it("não vaza o SQL na mensagem exibível", () => {
     const error = Object.assign(
       new Error('insert into "clients" ... violates "clients_cpf_unique"'),
       { constraint: "clients_cpf_unique" },

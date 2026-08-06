@@ -22,6 +22,8 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  /** Permite cancelar a requisição — usado em buscas disparadas por digitação. */
+  options?: { signal?: AbortSignal },
 ): Promise<Response> {
   const headers: Record<string, string> = {
     ...getPdvUnitHeaders(url),
@@ -36,6 +38,7 @@ export async function apiRequest(
     headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
+    signal: options?.signal,
   });
 
   await throwIfResNotOk(res);

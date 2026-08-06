@@ -22,6 +22,7 @@ import type {
   SalesOrder,
 } from "../types/bling-orders-message";
 import { eq, and, isNull, desc, sql, ne, or, gt } from "drizzle-orm";
+import { clientIdentityConditions, toStoredPhone } from "./client-lookup";
 import { cashbackSettingsService } from "./cashback-settings.service";
 import { cashbackSettingsRepository } from "../repositories/cashback-settings.repository";
 import { dispatchCashbackEarnedAutomation } from "./cashback-automation.service";
@@ -612,55 +613,18 @@ export class BlingOrdersService {
    * CPF tem prioridade; em seguida celular, depois telefone fixo.
    * Retorna o primeiro cliente encontrado ou null.
    */
-  /**
-   * Remove o código de país brasileiro (+55 / 55) de um número já sem formatação,
-   * retornando apenas DDD + número (10 ou 11 dígitos).
-   * Ex.: "5521999961728" → "21999961728"  |  "21999961728" → "21999961728"
-   */
-  private stripBrCountryCode(digits: string): string {
-    if (/^55\d{10,11}$/.test(digits)) return digits.slice(2);
-    return digits;
-  }
-
   private async findAppClientByCpfOrPhone(
     cpf: string | null,
     celular: string | null,
     telefone: string | null,
   ): Promise<Client | null> {
-    const conditions: ReturnType<typeof sql>[] = [];
-
-    const normalizedCpf = cpf ? cpf.replace(/\D/g, "") : null;
-
-    // Normaliza input: remove não-dígitos e depois strip do prefixo 55
-    const rawCelular = celular ? celular.replace(/\D/g, "") : null;
-    const rawTelefone = telefone ? telefone.replace(/\D/g, "") : null;
-    const normalizedCelular = rawCelular ? this.stripBrCountryCode(rawCelular) : null;
-    const normalizedTelefone = rawTelefone ? this.stripBrCountryCode(rawTelefone) : null;
-
-    // Expressão SQL que normaliza o telefone do banco da mesma forma:
-    // 1. remove não-dígitos  2. strip do prefixo 55 de números com 12-13 dígitos
-    const dbPhoneNorm = (col: ReturnType<typeof sql>) => sql`
-      CASE
-        WHEN regexp_replace(${col}, '[^0-9]', '', 'g') ~ '^55\d{10,11}$'
-        THEN substring(regexp_replace(${col}, '[^0-9]', '', 'g'), 3)
-        ELSE regexp_replace(${col}, '[^0-9]', '', 'g')
-      END`;
-
-    if (normalizedCpf && normalizedCpf.length === 11) {
-      conditions.push(eq(clients.cpf, normalizedCpf));
-    }
-    if (normalizedCelular) {
-      conditions.push(
-        sql`${dbPhoneNorm(sql`${clients.phone}`)} = ${normalizedCelular}`,
-        sql`${dbPhoneNorm(sql`COALESCE(${clients.fixedPhone}, '')`)} = ${normalizedCelular}`,
-      );
-    }
-    if (normalizedTelefone && normalizedTelefone !== normalizedCelular) {
-      conditions.push(
-        sql`${dbPhoneNorm(sql`${clients.phone}`)} = ${normalizedTelefone}`,
-        sql`${dbPhoneNorm(sql`COALESCE(${clients.fixedPhone}, '')`)} = ${normalizedTelefone}`,
-      );
-    }
+    // `clientIdentityConditions` casa CPF e telefone em qualquer formato já
+    // gravado (com/sem DDI, com/sem o 9º dígito, com/sem pontuação) — ver
+    // server/services/client-lookup.ts.
+    const conditions = clientIdentityConditions({
+      cpf,
+      phones: [celular, telefone],
+    });
 
     if (conditions.length === 0) return null;
 
@@ -731,7 +695,12 @@ export class BlingOrdersService {
 
     if (!phone) return null;
 
-    const normalizedPhone = phone.replace(/\D/g, "");
+    // E.164 — mesmo formato do cadastro manual. Gravar dígitos crus aqui era o
+    // que fazia `clients_phone_unique` (UNIQUE sobre o texto cru) não disparar
+    // contra um cliente já cadastrado como "+5521975865422".
+    const normalizedPhone = toStoredPhone(phone);
+    if (!normalizedPhone) return null;
+
     const documento = order.contato.documento ?? null;
     const cpf =
       documento && /^\d{11}$/.test(documento.replace(/\D/g, ""))
@@ -748,7 +717,7 @@ export class BlingOrdersService {
           phone: normalizedPhone,
           // Se o celular foi usado como phone, guarda o telefone fixo separado
           ...(celular && telefone
-            ? { fixedPhone: telefone.replace(/\D/g, "") }
+            ? { fixedPhone: toStoredPhone(telefone) }
             : {}),
           ...(cpf ? { cpf } : {}),
           ...(order.contato.email ? { email: order.contato.email } : {}),

@@ -153,6 +153,7 @@ import { nanoid } from "nanoid";
 import { format, subMonths } from "date-fns";
 import type { Cursor } from "./lib/cursor-pagination";
 import { encodeCursor } from "./lib/cursor-pagination";
+import { toStoredPhone } from "./services/client-lookup";
 
 export interface ClientFilters {
   search?: string;
@@ -978,6 +979,10 @@ export class DatabaseStorage implements IStorage {
       .insert(clients)
       .values({
         ...insertClient,
+        // E.164, igual às demais origens — formatos divergentes de telefone são
+        // o que fazia o UNIQUE de `phone` não pegar o mesmo cliente duas vezes.
+        phone: toStoredPhone(insertClient.phone),
+        fixedPhone: toStoredPhone(insertClient.fixedPhone),
         markers: insertClient.markers || [],
       })
       .returning();

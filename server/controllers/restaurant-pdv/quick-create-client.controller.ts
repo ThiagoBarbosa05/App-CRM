@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { db } from "../../db";
 import { clients } from "@shared/schema";
+import { toStoredPhone } from "../../services/client-lookup";
 
 const schema = z.object({
   name: z.string().min(2, "Informe o nome completo"),
@@ -23,7 +24,9 @@ export const quickCreateClientController = async (req: Request, res: Response) =
       .insert(clients)
       .values({
         name,
-        phone: phone || null,
+        // E.164 — sem isso o PDV gravava o telefone exatamente como digitado, e
+        // o UNIQUE de `phone` não reconhecia o cliente já cadastrado.
+        phone: toStoredPhone(phone),
         cpf: cpf || null,
         email: email || null,
         categoria: "consumidor",
