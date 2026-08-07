@@ -683,25 +683,79 @@ async function fetchInactiveClients(
       c.name AS client_name,
       c.phone,
       GREATEST(
-        (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
+        (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD'))
+         FROM bling_orders bo
+         WHERE bo.deleted_at IS NULL
+           AND bo.app_client_id IN (
+             SELECT c2.id FROM clients c2
+             WHERE c2.id = c.id
+               OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+           )),
+        (SELECT MAX(co.sale_date::date)
+         FROM connect_orders co
+         WHERE co.app_client_id IN (
+           SELECT c2.id FROM clients c2
+           WHERE c2.id = c.id
+             OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+         ))
       )::text AS last_purchase_date,
       (
         CURRENT_DATE - GREATEST(
-          (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-          (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
+          (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD'))
+           FROM bling_orders bo
+           WHERE bo.deleted_at IS NULL
+             AND bo.app_client_id IN (
+               SELECT c2.id FROM clients c2
+               WHERE c2.id = c.id
+                 OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+             )),
+          (SELECT MAX(co.sale_date::date)
+           FROM connect_orders co
+           WHERE co.app_client_id IN (
+             SELECT c2.id FROM clients c2
+             WHERE c2.id = c.id
+               OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+           ))
         )
       ) AS days_since_purchase
     FROM clients c
     WHERE c.responsavel_id = ${userId}
       ${buildClientIdsCondition("c.id", clientIds)}
       AND (
-        EXISTS (SELECT 1 FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL)
-        OR EXISTS (SELECT 1 FROM connect_orders co WHERE co.app_client_id = c.id)
+        EXISTS (
+          SELECT 1 FROM bling_orders bo
+          WHERE bo.deleted_at IS NULL
+            AND bo.app_client_id IN (
+              SELECT c2.id FROM clients c2
+              WHERE c2.id = c.id
+                OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+            )
+        )
+        OR EXISTS (
+          SELECT 1 FROM connect_orders co
+          WHERE co.app_client_id IN (
+            SELECT c2.id FROM clients c2
+            WHERE c2.id = c.id
+              OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+          )
+        )
       )
       AND GREATEST(
-        (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD')) FROM bling_orders bo WHERE bo.app_client_id = c.id AND bo.deleted_at IS NULL),
-        (SELECT MAX(co.sale_date::date) FROM connect_orders co WHERE co.app_client_id = c.id)
+        (SELECT MAX(TO_DATE(bo.sale_date, 'YYYY-MM-DD'))
+         FROM bling_orders bo
+         WHERE bo.deleted_at IS NULL
+           AND bo.app_client_id IN (
+             SELECT c2.id FROM clients c2
+             WHERE c2.id = c.id
+               OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+           )),
+        (SELECT MAX(co.sale_date::date)
+         FROM connect_orders co
+         WHERE co.app_client_id IN (
+           SELECT c2.id FROM clients c2
+           WHERE c2.id = c.id
+             OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+         ))
       ) < CURRENT_DATE - (${daysStr} || ' days')::interval
     ORDER BY days_since_purchase DESC NULLS LAST
   `);
@@ -1967,15 +2021,23 @@ async function fetchClientPortfolioStats(
       COUNT(*) FILTER (
         WHERE EXISTS (
           SELECT 1 FROM bling_orders bo
-          WHERE bo.app_client_id = c.id
-            AND bo.deleted_at IS NULL
+          WHERE bo.deleted_at IS NULL
             AND bo.situation_id = '9'
             AND TO_DATE(bo.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
+            AND bo.app_client_id IN (
+              SELECT c2.id FROM clients c2
+              WHERE c2.id = c.id
+                OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+            )
         )
         OR EXISTS (
           SELECT 1 FROM connect_orders co
-          WHERE co.app_client_id = c.id
-            AND co.sale_date::date >= CURRENT_DATE - (${daysStr} || ' days')::interval
+          WHERE co.sale_date::date >= CURRENT_DATE - (${daysStr} || ' days')::interval
+            AND co.app_client_id IN (
+              SELECT c2.id FROM clients c2
+              WHERE c2.id = c.id
+                OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+            )
         )
       )::int AS active_count
     FROM clients c
@@ -2015,15 +2077,23 @@ async function fetchAllSellersPortfolioStats(
       COUNT(*) FILTER (
         WHERE EXISTS (
           SELECT 1 FROM bling_orders bo
-          WHERE bo.app_client_id = c.id
-            AND bo.deleted_at IS NULL
+          WHERE bo.deleted_at IS NULL
             AND bo.situation_id = '9'
             AND TO_DATE(bo.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${daysStr} || ' days')::interval
+            AND bo.app_client_id IN (
+              SELECT c2.id FROM clients c2
+              WHERE c2.id = c.id
+                OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+            )
         )
         OR EXISTS (
           SELECT 1 FROM connect_orders co
-          WHERE co.app_client_id = c.id
-            AND co.sale_date::date >= CURRENT_DATE - (${daysStr} || ' days')::interval
+          WHERE co.sale_date::date >= CURRENT_DATE - (${daysStr} || ' days')::interval
+            AND co.app_client_id IN (
+              SELECT c2.id FROM clients c2
+              WHERE c2.id = c.id
+                OR (c.cpf IS NOT NULL AND regexp_replace(c.cpf, '[^0-9]', '', 'g') <> '' AND regexp_replace(c2.cpf, '[^0-9]', '', 'g') = regexp_replace(c.cpf, '[^0-9]', '', 'g'))
+            )
         )
       )::int                                                             AS active_count
     FROM clients c

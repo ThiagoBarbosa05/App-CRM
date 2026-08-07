@@ -172,29 +172,38 @@ export class ClientsRepository {
 
     if (filters.purchaseStatus && filters.purchaseStatus !== "all") {
       const days = filters.purchaseStatusDays ?? 60;
+      // Sibling check: also consider orders linked to other client records that
+      // share the same CPF/CNPJ (same real-world entity registered multiple times).
+      const siblingIds = sql`
+        SELECT c_sib.id FROM clients c_sib
+        WHERE c_sib.id = ${clients.id}
+          OR (
+            ${clients.cpf} IS NOT NULL
+            AND regexp_replace(${clients.cpf}, '[^0-9]', '', 'g') <> ''
+            AND regexp_replace(c_sib.cpf, '[^0-9]', '', 'g') = regexp_replace(${clients.cpf}, '[^0-9]', '', 'g')
+          )
+      `;
       if (filters.purchaseStatus === "ativo") {
         conditions.push(sql`EXISTS (
-          SELECT 1 FROM (
-            SELECT app_client_id FROM bling_orders
-            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
-              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
-            UNION ALL
-            SELECT app_client_id FROM connect_orders
-            WHERE app_client_id = ${clients.id}
-              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
-          ) AS p
+          SELECT 1 FROM bling_orders bo
+          WHERE bo.deleted_at IS NULL
+            AND TO_DATE(bo.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            AND bo.app_client_id IN (${siblingIds})
+          UNION ALL
+          SELECT 1 FROM connect_orders co
+          WHERE co.sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            AND co.app_client_id IN (${siblingIds})
         )`);
       } else if (filters.purchaseStatus === "inativo") {
         conditions.push(sql`NOT EXISTS (
-          SELECT 1 FROM (
-            SELECT app_client_id FROM bling_orders
-            WHERE app_client_id = ${clients.id} AND deleted_at IS NULL
-              AND TO_DATE(sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
-            UNION ALL
-            SELECT app_client_id FROM connect_orders
-            WHERE app_client_id = ${clients.id}
-              AND sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
-          ) AS p
+          SELECT 1 FROM bling_orders bo
+          WHERE bo.deleted_at IS NULL
+            AND TO_DATE(bo.sale_date, 'YYYY-MM-DD') >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            AND bo.app_client_id IN (${siblingIds})
+          UNION ALL
+          SELECT 1 FROM connect_orders co
+          WHERE co.sale_date::date >= CURRENT_DATE - (${String(days)} || ' days')::interval
+            AND co.app_client_id IN (${siblingIds})
         )`);
       }
     }
@@ -302,19 +311,40 @@ export class ClientsRepository {
     if (clientIds.length === 0) return new Map();
     // IDs are NanoIDs/UUIDs — safe to inline (no SQL injection risk)
     const safeList = clientIds.map((id) => `'${id.replace(/'/g, "")}'`).join(",");
+    // Also consider purchases from sibling records (same CPF/CNPJ = same real-world entity
+    // registered multiple times in Bling), so the most recent purchase across all duplicates
+    // is returned for each target client.
     const result = await this.db.execute(
       sql.raw(`
-        SELECT client_id, MAX(sale_date)::text AS last_purchase_date
-        FROM (
-          SELECT app_client_id AS client_id, sale_date::text AS sale_date
+        WITH target_clients AS (
+          SELECT id, cpf FROM clients WHERE id IN (${safeList})
+        ),
+        sibling_clients AS (
+          SELECT tc.id AS target_id, c_sib.id AS sib_id
+          FROM target_clients tc
+          JOIN clients c_sib ON (
+            c_sib.id = tc.id
+            OR (
+              tc.cpf IS NOT NULL
+              AND regexp_replace(tc.cpf, '[^0-9]', '', 'g') <> ''
+              AND regexp_replace(c_sib.cpf, '[^0-9]', '', 'g') = regexp_replace(tc.cpf, '[^0-9]', '', 'g')
+            )
+          )
+        ),
+        purchases AS (
+          SELECT app_client_id, TO_DATE(sale_date, 'YYYY-MM-DD')::text AS sale_date
           FROM bling_orders
-          WHERE deleted_at IS NULL AND app_client_id IN (${safeList})
+          WHERE deleted_at IS NULL
+            AND app_client_id IN (SELECT sib_id FROM sibling_clients)
           UNION ALL
-          SELECT app_client_id AS client_id, to_char(sale_date, 'YYYY-MM-DD') AS sale_date
+          SELECT app_client_id, to_char(sale_date, 'YYYY-MM-DD') AS sale_date
           FROM connect_orders
-          WHERE app_client_id IN (${safeList})
-        ) AS purchases
-        GROUP BY client_id
+          WHERE app_client_id IN (SELECT sib_id FROM sibling_clients)
+        )
+        SELECT sc.target_id AS client_id, MAX(p.sale_date)::text AS last_purchase_date
+        FROM sibling_clients sc
+        JOIN purchases p ON p.app_client_id = sc.sib_id
+        GROUP BY sc.target_id
       `)
     );
     const map = new Map<string, string | null>();
