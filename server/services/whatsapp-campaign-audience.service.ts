@@ -65,7 +65,7 @@ export async function validateCampaignRecipient(
   selector: CampaignAudienceSelector | null,
 ): Promise<string | null> {
   const [client] = await db.select().from(clients).where(sql`${clients.id} = ${clientId}`).limit(1);
-  if (!client) return "Contato não encontrado";
+  if (!client) return CAMPAIGN_SUPPRESSION_REASONS.contactNotFound;
   if (client.whatsappOptOut) return CAMPAIGN_SUPPRESSION_REASONS.optedOut;
   const currentPhone = normalizePhoneE164(client.phone);
   if (!currentPhone || currentPhone !== expectedPhone) return CAMPAIGN_SUPPRESSION_REASONS.invalidOrChangedPhone;

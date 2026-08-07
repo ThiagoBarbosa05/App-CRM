@@ -211,12 +211,27 @@ app.use((req, res, next) => {
   startReconcileBaileysStatusJob();
   startGatewayWebhookInboxWorker();
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  // Rede de segurança para erros que escapam de um handler de rota. Na prática
+  // quase nunca dispara (as rotas têm try/catch próprio), mas quando dispara
+  // precisa terminar a requisição em vez de derrubar o processo.
+  //
+  // Antes ele fazia `throw err` depois de responder: um throw dentro de um
+  // error middleware não volta para o Express — vira unhandled rejection, e o
+  // stack não ia para lugar nenhum. Agora o erro é logado.
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    const status = err?.status || err?.statusCode || 500;
+    console.error(`[express] erro não tratado em ${req.method} ${req.path}:`, err);
 
+    // Se a resposta já começou a ser enviada, só o handler padrão do Express
+    // consegue encerrar a conexão corretamente.
+    if (res.headersSent) return next(err);
+
+    // Detalhe técnico fica no log; o cliente recebe uma frase genérica.
+    const message =
+      status >= 500
+        ? "Não foi possível concluir a operação. Tente novamente."
+        : err?.message || "Requisição inválida.";
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after

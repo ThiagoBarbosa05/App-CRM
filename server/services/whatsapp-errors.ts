@@ -68,7 +68,9 @@ export function waError(
 const GATEWAY_CODE_MAP: Record<GatewayErrorCode, WhatsappErrorCode> = {
   not_configured: "SEND_CREDENTIALS_MISSING",
   unauthorized: "SEND_CREDENTIALS_MISSING",
-  not_found: "SEND_CHANNEL_OFFLINE",
+  // `not_found` é o canal não existir no gateway — não adianta reagendar,
+  // diferente de `channel_offline`, que é uma queda momentânea.
+  not_found: "SEND_CHANNEL_NOT_REGISTERED",
   idempotency_conflict: "SEND_PROVIDER_REJECTED",
   payload_too_large: "SEND_PROVIDER_REJECTED",
   rate_limited: "SEND_RATE_LIMITED",

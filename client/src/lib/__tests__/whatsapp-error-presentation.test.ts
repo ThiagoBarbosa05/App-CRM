@@ -88,6 +88,28 @@ describe("getWhatsappErrorPresentation", () => {
     expect(title).toContain("servidor");
   });
 
+  it("expõe o scope do código, para a UI oferecer o atalho certo", () => {
+    expect(
+      getWhatsappErrorPresentation(
+        apiError(400, { message: "x", code: "CHANNEL_DISCONNECTED" }),
+      ).scope,
+    ).toBe("channel");
+
+    expect(
+      getWhatsappErrorPresentation(
+        apiError(409, { message: "x", code: "BOT_AUTOMATIC_CONFLICT" }),
+      ).scope,
+    ).toBe("bot");
+  });
+
+  it("sem código não há scope — nada de CTA adivinhado", () => {
+    expect(
+      getWhatsappErrorPresentation(apiError(400, { message: "x" })).scope,
+    ).toBeUndefined();
+    expect(getWhatsappErrorPresentation(new Error("Failed to fetch")).scope)
+      .toBeUndefined();
+  });
+
   it("erro de rede vira frase de conexão", () => {
     const { title } = getWhatsappErrorPresentation(new Error("Failed to fetch"));
     expect(title).toContain("conexão");

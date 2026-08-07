@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CAMPAIGN_SUPPRESSION_REASONS,
   classifySuppressionReason,
+  type CampaignSuppressionCategory,
 } from "@shared/whatsapp-campaign-reasons";
 
 // NOTA: este teste vive em server/services/__tests__/ (não em shared/) porque
@@ -65,5 +66,29 @@ describe("classifySuppressionReason", () => {
 
   it("motivo legado desconhecido vira other", () => {
     expect(classifySuppressionReason("motivo antigo qualquer")).toBe("other");
+  });
+
+  it("todo motivo conhecido tem categoria explícita na tabela", () => {
+    // Guarda contra o modo antigo: a classificação vinha de substring, então
+    // reescrever uma frase mudava a categoria do contador sem ninguém notar.
+    // Agora cada motivo precisa estar mapeado — inclusive os novos.
+    const expected: Record<
+      keyof typeof CAMPAIGN_SUPPRESSION_REASONS,
+      CampaignSuppressionCategory
+    > = {
+      optedOut: "opted_out",
+      invalidPhone: "invalid_phone",
+      duplicatePhoneInAudience: "invalid_phone",
+      invalidOrChangedPhone: "invalid_phone",
+      tagsChanged: "tags_changed",
+      duplicateContent: "duplicate_content",
+      contactNotFound: "other",
+    };
+
+    for (const [key, reason] of Object.entries(CAMPAIGN_SUPPRESSION_REASONS)) {
+      expect(classifySuppressionReason(reason), key).toBe(
+        expected[key as keyof typeof expected],
+      );
+    }
   });
 });

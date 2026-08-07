@@ -39,6 +39,7 @@ export type WhatsappErrorCode =
   | "SEND_AUDIENCE_DRIFT"
   | "SEND_RATE_LIMITED"
   | "SEND_CHANNEL_OFFLINE"
+  | "SEND_CHANNEL_NOT_REGISTERED"
   | "SEND_PROVIDER_REJECTED"
   | "SEND_PROVIDER_UNAVAILABLE"
   | "SEND_CREDENTIALS_MISSING"
@@ -59,6 +60,12 @@ export interface WhatsappErrorInfo {
   httpStatus: number;
   /** Onde o usuário corrige — permite escolher o CTA na UI. */
   scope: "campaign" | "bot" | "channel" | "audience" | "contact" | "system";
+  /**
+   * Falha passageira: vale reenviar sozinho. É a fonte da política de retry
+   * (`classifySendError`), para o texto exibido e a decisão de retentar não
+   * divergirem — antes eram duas listas separadas mantidas na mão.
+   */
+  retryable?: boolean;
 }
 
 export const WHATSAPP_ERRORS: Record<WhatsappErrorCode, WhatsappErrorInfo> = {
@@ -201,11 +208,19 @@ export const WHATSAPP_ERRORS: Record<WhatsappErrorCode, WhatsappErrorInfo> = {
     hint: "As mensagens serão reenviadas automaticamente. Nada precisa ser feito.",
     httpStatus: 429,
     scope: "system",
+    retryable: true,
   },
   SEND_CHANNEL_OFFLINE: {
     message: "O canal de envio ficou offline.",
     hint: "Verifique a conexão do número em WhatsApp › Canais. O envio é retomado sozinho quando ele voltar.",
     httpStatus: 503,
+    scope: "channel",
+    retryable: true,
+  },
+  SEND_CHANNEL_NOT_REGISTERED: {
+    message: "O canal de envio não está registrado no gateway.",
+    hint: "Abra WhatsApp › Canais e reconecte o número — reenviar sem isso não resolve.",
+    httpStatus: 404,
     scope: "channel",
   },
   SEND_PROVIDER_REJECTED: {
@@ -219,6 +234,7 @@ export const WHATSAPP_ERRORS: Record<WhatsappErrorCode, WhatsappErrorInfo> = {
     hint: "É uma falha temporária do provedor. O reenvio é automático.",
     httpStatus: 503,
     scope: "system",
+    retryable: true,
   },
   SEND_CREDENTIALS_MISSING: {
     message: "O canal de envio está sem credenciais configuradas.",
@@ -272,6 +288,11 @@ export function isWhatsappErrorCode(value: unknown): value is WhatsappErrorCode 
 /** Informação de apresentação do código, ou `null` se não for um código conhecido. */
 export function whatsappErrorInfo(value: unknown): WhatsappErrorInfo | null {
   return isWhatsappErrorCode(value) ? WHATSAPP_ERRORS[value] : null;
+}
+
+/** Vale reagendar? Códigos desconhecidos são tratados como permanentes. */
+export function isRetryableCode(value: unknown): boolean {
+  return whatsappErrorInfo(value)?.retryable === true;
 }
 
 /**

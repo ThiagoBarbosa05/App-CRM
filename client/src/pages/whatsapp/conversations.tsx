@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { getWhatsappErrorPresentation } from "@/lib/api-error";
+import { useWhatsappErrorToast } from "@/hooks/use-whatsapp-error-toast";
 import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
@@ -3104,6 +3104,7 @@ function ConversationMessages({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { toast } = useToast();
+  const showWhatsappError = useWhatsappErrorToast();
 
   // Pré-carrega arquivo de anexo passado pelo componente pai (ex.: PDF do orçamento).
   // O PDF chega de forma assíncrona, então o efeito observa a prop initialFile.
@@ -3265,10 +3266,7 @@ function ConversationMessages({
       }
       toast({ title: "Bot disparado com sucesso" });
     } catch (error) {
-      toast({
-        ...getWhatsappErrorPresentation(error, "Não foi possível disparar o bot."),
-        variant: "destructive",
-      });
+      showWhatsappError(error, "Não foi possível disparar o bot.");
     } finally {
       setTriggeringBotId(null);
     }

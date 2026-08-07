@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { getWhatsappErrorPresentation } from "@/lib/api-error";
+import { useWhatsappErrorToast } from "@/hooks/use-whatsapp-error-toast";
 
 // ---- Types ----
 
@@ -413,6 +413,7 @@ export function useWhatsappMessageLog(filters: WhatsappMessageLogFilters) {
 
 export function useExecuteCampaign() {
   const { toast } = useToast();
+  const showError = useWhatsappErrorToast();
   return useMutation({
     mutationFn: async (campaignId: string) => {
       const res = await apiRequest("POST", `/api/whatsapp/campaigns/${campaignId}/execute`);
@@ -424,16 +425,14 @@ export function useExecuteCampaign() {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
     },
     onError: (error: Error) => {
-      toast({
-        ...getWhatsappErrorPresentation(error, "Não foi possível executar a campanha."),
-        variant: "destructive",
-      });
+      showError(error, "Não foi possível executar a campanha.");
     },
   });
 }
 
 export function useRetryFailedCampaign() {
   const { toast } = useToast();
+  const showError = useWhatsappErrorToast();
   return useMutation({
     mutationFn: async (campaignId: string) => {
       const res = await apiRequest("POST", `/api/whatsapp/campaigns/${campaignId}/retry-failed`);
@@ -449,16 +448,14 @@ export function useRetryFailedCampaign() {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
     },
     onError: (error: Error) => {
-      toast({
-        ...getWhatsappErrorPresentation(error, "Não foi possível reprocessar as falhas."),
-        variant: "destructive",
-      });
+      showError(error, "Não foi possível reprocessar as falhas.");
     },
   });
 }
 
 function useCampaignControl(action: "pause" | "resume" | "cancel", successTitle: string) {
   const { toast } = useToast();
+  const showError = useWhatsappErrorToast();
   return useMutation({
     mutationFn: async (campaignId: string) => {
       const res = await apiRequest("POST", `/api/whatsapp/campaigns/${campaignId}/${action}`);
@@ -471,10 +468,7 @@ function useCampaignControl(action: "pause" | "resume" | "cancel", successTitle:
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
     },
     onError: (error: Error) => {
-      toast({
-        ...getWhatsappErrorPresentation(error, "Não foi possível alterar a campanha."),
-        variant: "destructive",
-      });
+      showError(error, "Não foi possível alterar a campanha.");
     },
   });
 }
@@ -493,7 +487,7 @@ export {
 
 // Creates a campaign (POST /api/campaigns) then dispatches (POST /api/whatsapp/campaigns)
 export function useCreateCampaignWithDispatch() {
-  const { toast } = useToast();
+  const showError = useWhatsappErrorToast();
   return useMutation({
     mutationFn: async (data: {
       name: string;
@@ -583,10 +577,7 @@ export function useCreateCampaignWithDispatch() {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns"] });
     },
     onError: (error: Error) => {
-      toast({
-        ...getWhatsappErrorPresentation(error, "Não foi possível criar a campanha."),
-        variant: "destructive",
-      });
+      showError(error, "Não foi possível criar a campanha.");
     },
   });
 }

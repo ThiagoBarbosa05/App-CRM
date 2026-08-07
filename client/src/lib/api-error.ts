@@ -1,4 +1,7 @@
-import { whatsappErrorInfo } from "@shared/whatsapp-error-codes";
+import {
+  whatsappErrorInfo,
+  type WhatsappErrorInfo,
+} from "@shared/whatsapp-error-codes";
 
 /**
  * Mensagem legível de um erro lançado por `apiRequest`.
@@ -164,6 +167,12 @@ export interface ErrorPresentation {
   title: string;
   /** Descrição do toast: como resolver. Ausente quando não há orientação. */
   description?: string;
+  /**
+   * Onde o usuário corrige, quando o erro veio com código conhecido. Serve
+   * para oferecer um atalho ("Ir para canais") em vez de só descrever o
+   * problema. Ausente em erro sem código (rota antiga, falha de rede).
+   */
+  scope?: WhatsappErrorInfo["scope"];
 }
 
 /**
@@ -193,6 +202,7 @@ export function getWhatsappErrorPresentation(
     return {
       title: message ?? info.message,
       description: hint ?? info.hint,
+      scope: info.scope,
     };
   }
 

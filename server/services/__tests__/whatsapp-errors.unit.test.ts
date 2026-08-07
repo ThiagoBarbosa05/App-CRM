@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { WhatsAppApiError } from "server/integrations/whatsapp";
 import { BaileysGatewayError } from "server/integrations/baileys-gateway";
+import { isRetryableCode } from "@shared/whatsapp-error-codes";
+import { classifySendError } from "../whatsapp-campaign-retry";
 import {
   classifyDispatchFailure,
   describeSendError,
@@ -25,7 +27,11 @@ describe("describeSendError", () => {
       ["not_configured", "SEND_CREDENTIALS_MISSING"],
       ["unauthorized", "SEND_CREDENTIALS_MISSING"],
       ["payload_too_large", "SEND_PROVIDER_REJECTED"],
+      ["idempotency_conflict", "SEND_PROVIDER_REJECTED"],
       ["unexpected", "SEND_PROVIDER_REJECTED"],
+      // Distinto de channel_offline de propósito: canal inexistente no
+      // gateway não se resolve com retentativa.
+      ["not_found", "SEND_CHANNEL_NOT_REGISTERED"],
     ] as const;
 
     for (const [gatewayCode, expected] of cases) {
@@ -158,6 +164,41 @@ describe("toWhatsappErrorResponse", () => {
     expect(status).toBe(500);
     expect(body.code).toBe("UNEXPECTED");
     expect(JSON.stringify(body)).not.toContain("duplicate key");
+  });
+});
+
+describe("política de retry derivada da tabela", () => {
+  // `classifySendError` agora consulta o flag `retryable` do código devolvido
+  // por `describeSendError`. Estes casos fixam o contrato entre os dois, que
+  // antes eram duas listas mantidas à mão e podiam divergir.
+  const GATEWAY_EXPECTATIONS = [
+    ["channel_offline", "retryable"],
+    ["overloaded", "retryable"],
+    ["rate_limited", "retryable"],
+    ["unavailable", "retryable"],
+    ["not_configured", "permanent"],
+    ["unauthorized", "permanent"],
+    ["not_found", "permanent"],
+    ["idempotency_conflict", "permanent"],
+    ["payload_too_large", "permanent"],
+    ["unexpected", "permanent"],
+  ] as const;
+
+  it("cada código do gateway mantém a classificação de retry", () => {
+    for (const [gatewayCode, expected] of GATEWAY_EXPECTATIONS) {
+      const err = new BaileysGatewayError("x", gatewayCode, 500);
+      expect(classifySendError(err), gatewayCode).toBe(expected);
+      expect(isRetryableCode(describeSendError(err).code), gatewayCode).toBe(
+        expected === "retryable",
+      );
+    }
+  });
+
+  it("credencial ausente nunca é retentada", () => {
+    const err = new Error(
+      "WhatsApp não configurado: wa_phone_number_id e wa_access_token são obrigatórios",
+    );
+    expect(classifySendError(err)).toBe("permanent");
   });
 });
 
