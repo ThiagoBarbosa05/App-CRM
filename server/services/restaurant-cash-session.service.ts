@@ -443,10 +443,16 @@ export const restaurantCashSessionService = {
     for (const row of liveSummary.byPaymentMethod) {
       const counted = countedByMethod[row.method];
       if (counted !== undefined) {
-        const sysCents = toCents(Number(row.total));
+        // Dinheiro inclui o saldo esperado na gaveta (fundo + vendas em
+        // dinheiro + suprimentos - sangrias), não apenas as vendas. Sem isso,
+        // informar o fundo de troco era registrado como sobra por método,
+        // embora a diferença geral estivesse correta.
+        const sysCents = row.method === "dinheiro"
+          ? expectedCents
+          : toCents(Number(row.total));
         const cntCents = toCents(Number(counted));
         methodDifferences[row.method] = {
-          system: row.total,
+          system: fromCents(sysCents),
           counted,
           diff: fromCents(cntCents - sysCents),
         };

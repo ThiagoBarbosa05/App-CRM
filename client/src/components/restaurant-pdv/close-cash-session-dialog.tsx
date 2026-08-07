@@ -29,6 +29,8 @@ interface CloseCashSessionDialogProps {
   onOpenChange: (open: boolean) => void;
   /** O que o sistema registrou por forma de pagamento nesta sessão. */
   byPaymentMethod: { method: string; total: string }[];
+  /** Valor esperado na gaveta, incluindo o fundo de troco e movimentos. */
+  expectedCash: string;
   isPending: boolean;
   onConfirm: (data: {
     countedCash: string;
@@ -59,6 +61,7 @@ export function CloseCashSessionDialog({
   open,
   onOpenChange,
   byPaymentMethod,
+  expectedCash,
   isPending,
   onConfirm,
 }: CloseCashSessionDialogProps) {
@@ -87,7 +90,9 @@ export function CloseCashSessionDialog({
   /** Quanto o sistema registrou para cada método (em reais). */
   function systemAmount(method: string): number {
     const row = byPaymentMethod.find((p) => p.method === method);
-    return row ? Number(row.total) : 0;
+    // O fundo de troco não é uma venda, mas permanece na gaveta e precisa ser
+    // conferido junto com o dinheiro recebido. O backend usa esta mesma regra.
+    return method === "dinheiro" ? Number(expectedCash) : row ? Number(row.total) : 0;
   }
 
   /** Rows calculadas: sistema, contado, diferença em centavos. */

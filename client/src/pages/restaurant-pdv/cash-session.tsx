@@ -665,6 +665,7 @@ export default function RestaurantCashSessionPage() {
         open={closeDialogOpen}
         onOpenChange={setCloseDialogOpen}
         byPaymentMethod={summary?.byPaymentMethod ?? []}
+        expectedCash={summary?.cash.expected ?? "0"}
         isPending={closeMutation.isPending}
         onConfirm={(data) => closeMutation.mutate(data)}
       />
