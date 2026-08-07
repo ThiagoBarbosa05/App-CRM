@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getWhatsappErrorPresentation } from "@/lib/api-error";
 import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
@@ -3258,18 +3259,14 @@ function ConversationMessages({
         },
       );
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        toast({
-          title:
-            (err as { message?: string }).message ?? "Erro ao disparar bot",
-          variant: "destructive",
-        });
-        return;
+        // Mesmo formato de `apiRequest`, para `code`/`hint` chegarem ao toast.
+        const raw = await res.text().catch(() => "");
+        throw new Error(`${res.status}: ${raw || res.statusText}`);
       }
       toast({ title: "Bot disparado com sucesso" });
-    } catch {
+    } catch (error) {
       toast({
-        title: "Erro de conexão ao disparar bot",
+        ...getWhatsappErrorPresentation(error, "Não foi possível disparar o bot."),
         variant: "destructive",
       });
     } finally {

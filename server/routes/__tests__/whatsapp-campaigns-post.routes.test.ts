@@ -192,7 +192,12 @@ describe("POST /campaigns", () => {
       .send({ campaignId: CAMPAIGN_ID, audience: { mode: "explicit", clientIds: [CLIENT_ID] } });
 
     expect(res.status).toBe(409);
-    expect(res.body.message).toMatch(/em andamento ou pausada/);
+    expect(res.body).toMatchObject({
+      code: "CAMPAIGN_ALREADY_RUNNING",
+      campaignStatus: "in_progress",
+    });
+    // O hint é o que diz ao usuário o que fazer no lugar de disparar de novo.
+    expect(res.body.hint).toMatch(/pausar|retomar|cancelar/i);
     expect(insertValuesMock).not.toHaveBeenCalled();
     expect(updateSetCalls).toHaveLength(0);
   });
@@ -217,8 +222,11 @@ describe("POST /campaigns", () => {
       .send({ campaignId: CAMPAIGN_ID, audience: { mode: "explicit", clientIds: [CLIENT_ID] } });
 
     expect(res.status).toBe(409);
-    expect(res.body.message).toMatch(/retry-failed/);
-    expect(res.body.message).toMatch(/cancelled/);
+    expect(res.body).toMatchObject({
+      code: "CAMPAIGN_ALREADY_FINISHED",
+      campaignStatus: "cancelled",
+    });
+    expect(res.body.hint).toMatch(/Reenviar falhas/i);
     expect(insertValuesMock).not.toHaveBeenCalled();
     expect(updateSetCalls).toHaveLength(0);
   });
@@ -231,7 +239,10 @@ describe("POST /campaigns", () => {
       .send({ campaignId: CAMPAIGN_ID, audience: { mode: "explicit", clientIds: [CLIENT_ID] } });
 
     expect(res.status).toBe(409);
-    expect(res.body.message).toMatch(/retry-failed/);
+    expect(res.body).toMatchObject({
+      code: "CAMPAIGN_ALREADY_FINISHED",
+      campaignStatus: "completed",
+    });
     expect(insertValuesMock).not.toHaveBeenCalled();
   });
 
@@ -298,5 +309,105 @@ describe("POST /campaigns", () => {
 
     expect(res.status).toBe(202);
     expect(res.body).toHaveProperty("skippedAlreadyQueued");
+  });
+});
+
+// Antes destes casos, o disparo respondia sempre com uma frase solta (ou, no
+// catch-all, com o `message` cru da exceção). O contrato agora é `code` +
+// `hint`, para a tela poder dizer o que fazer em vez de só "deu erro".
+describe("POST /campaigns — erros com código e orientação", () => {
+  beforeEach(() => {
+    selectResults.length = 0;
+    updateSetCalls.length = 0;
+    insertValuesMock.mockClear();
+
+    resolveChannelByIdMock.mockReset().mockResolvedValue({ provider: "cloud_api" });
+    listChannelIdsForUserMock.mockReset();
+    resolveCampaignAudienceMock.mockReset().mockResolvedValue([
+      { id: CLIENT_ID, name: "Cliente 1", phone: "22999999999", whatsappOptOut: false },
+    ]);
+    analyzeBotCompatibilityMock.mockReset();
+    buildCampaignContentSnapshotMock.mockReset().mockResolvedValue("snapshot-1");
+    fingerprintForClientMock.mockReset().mockReturnValue("fp-1");
+    reserveCampaignMessageMock.mockReset().mockResolvedValue({ queued: true });
+  });
+
+  async function post() {
+    return request(makeApp())
+      .post("/api/whatsapp/campaigns")
+      .send({ campaignId: CAMPAIGN_ID, audience: { mode: "explicit", clientIds: [CLIENT_ID] } });
+  }
+
+  it("canal removido/desconectado → CHANNEL_DISCONNECTED com orientação de reconectar", async () => {
+    selectResults.push([baseCampaignRow]);
+    selectResults.push([]); // canal não encontrado (inativo ou excluído)
+
+    const res = await post();
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("CHANNEL_DISCONNECTED");
+    expect(res.body.hint).toMatch(/Canais/i);
+    expect(insertValuesMock).not.toHaveBeenCalled();
+  });
+
+  it("template em canal não Cloud API → CHANNEL_NOT_CLOUD_API", async () => {
+    resolveChannelByIdMock.mockResolvedValue({ provider: "baileys" });
+    selectResults.push([baseCampaignRow]);
+    selectResults.push([baseChannelRow]);
+
+    const res = await post();
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("CHANNEL_NOT_CLOUD_API");
+  });
+
+  it("campanha sem canal → CAMPAIGN_NO_CHANNEL", async () => {
+    selectResults.push([{ ...baseCampaignRow, waChannelId: null }]);
+
+    const res = await post();
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("CAMPAIGN_NO_CHANNEL");
+  });
+
+  it("todos os contatos com opt-out → AUDIENCE_EMPTY_ALL_OPTED_OUT", async () => {
+    resolveCampaignAudienceMock.mockResolvedValue([
+      { id: CLIENT_ID, name: "Cliente 1", phone: "22999999999", whatsappOptOut: true },
+    ]);
+    selectResults.push([baseCampaignRow]);
+    selectResults.push([baseChannelRow]);
+
+    const res = await post();
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("AUDIENCE_EMPTY_ALL_OPTED_OUT");
+  });
+
+  it("nenhum telefone válido → AUDIENCE_EMPTY_NO_VALID_PHONE", async () => {
+    resolveCampaignAudienceMock.mockResolvedValue([
+      { id: CLIENT_ID, name: "Cliente 1", phone: "123", whatsappOptOut: false },
+    ]);
+    selectResults.push([baseCampaignRow]);
+    selectResults.push([baseChannelRow]);
+
+    const res = await post();
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("AUDIENCE_EMPTY_NO_VALID_PHONE");
+  });
+
+  it("erro inesperado → 500 UNEXPECTED, sem vazar o texto técnico", async () => {
+    // Era o pior vazamento: o catch-all devolvia `e.message` direto na tela.
+    resolveCampaignAudienceMock.mockRejectedValue(
+      new Error('relation "clients" does not exist'),
+    );
+    selectResults.push([baseCampaignRow]);
+    selectResults.push([baseChannelRow]);
+
+    const res = await post();
+
+    expect(res.status).toBe(500);
+    expect(res.body.code).toBe("UNEXPECTED");
+    expect(JSON.stringify(res.body)).not.toContain("relation");
   });
 });

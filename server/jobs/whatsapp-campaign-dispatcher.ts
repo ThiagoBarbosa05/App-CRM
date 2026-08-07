@@ -4,7 +4,8 @@ import { campaigns, whatsappCampaigns, whatsappCampaignMessages } from "@shared/
 import { and, eq, count, getTableColumns, inArray, lte } from "drizzle-orm";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
 import { decideFinalization } from "../services/whatsapp-campaign-finalize";
-import { CampaignConfigError } from "../services/whatsapp-campaign-errors";
+import { classifyDispatchFailure } from "../services/whatsapp-errors";
+import { failCampaign } from "../services/whatsapp-campaign-failure";
 
 // Mensagens processadas por tick, por campanha. O `wa_message_delay_ms` controla
 // o intervalo entre envios dentro de executeCampaign (rate-limit da Meta).
@@ -141,14 +142,29 @@ async function runTick(): Promise<void> {
           );
         }
       } catch (err) {
-        if (err instanceof CampaignConfigError) {
-          // Erro de configuração (sem template nem bot) — não é transitório,
-          // vai se repetir a cada tick até o operador corrigir a campanha.
-          // Loga sem stack trace para não poluir os logs de erro.
+        // Falha estrutural (canal desconectado, bot/template removido, campanha
+        // sem conteúdo): retentar no próximo tick não resolve. Antes só logava,
+        // e a campanha ficava presa em "in_progress" refazendo a mesma falha a
+        // cada minuto, sem nada visível para o operador. Agora ela é encerrada
+        // como `failed` com o motivo gravado nas mensagens pendentes, e o
+        // caminho de recuperação é o "Reenviar falhas" depois da correção.
+        const verdict = classifyDispatchFailure(err);
+
+        if (verdict.permanent) {
+          const detail = err instanceof Error ? err.message : String(err);
           console.warn(
-            `[wa-campaign-dispatcher] campanha ${camp.id} mal configurada: ${err.message}`,
+            `[wa-campaign-dispatcher] campanha ${camp.id} encerrada por falha estrutural [${verdict.code}]: ${detail}`,
           );
+          try {
+            await failCampaign(camp.id, verdict.code, detail);
+          } catch (failErr) {
+            console.error(
+              `[wa-campaign-dispatcher] não foi possível encerrar a campanha ${camp.id}:`,
+              failErr,
+            );
+          }
         } else {
+          // Transitório (rede, banco): deve mesmo ser retentado no próximo tick.
           console.error(
             `[wa-campaign-dispatcher] erro na campanha ${camp.id}:`,
             err,

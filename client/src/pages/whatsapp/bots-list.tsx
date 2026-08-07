@@ -18,6 +18,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { getWhatsappErrorPresentation } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -238,8 +239,11 @@ export default function WhatsAppBotsList() {
       setShowCreate(false);
       createForm.reset();
       navigate(`/whatsapp/bots/${result.bot.id}/editor`);
-    } catch {
-      toast({ title: "Erro ao criar bot", variant: "destructive" });
+    } catch (error) {
+      toast({
+        ...getWhatsappErrorPresentation(error, "Não foi possível criar o bot."),
+        variant: "destructive",
+      });
     }
   }
 
@@ -260,8 +264,11 @@ export default function WhatsAppBotsList() {
       });
       setEditTarget(null);
       toast({ title: "Bot atualizado" });
-    } catch {
-      toast({ title: "Erro ao atualizar bot", variant: "destructive" });
+    } catch (error) {
+      toast({
+        ...getWhatsappErrorPresentation(error, "Não foi possível atualizar o bot."),
+        variant: "destructive",
+      });
     }
   }
 
@@ -269,8 +276,11 @@ export default function WhatsAppBotsList() {
     try {
       await duplicateBot.mutateAsync(bot.id);
       toast({ title: "Bot duplicado" });
-    } catch {
-      toast({ title: "Erro ao duplicar bot", variant: "destructive" });
+    } catch (error) {
+      toast({
+        ...getWhatsappErrorPresentation(error, "Não foi possível duplicar o bot."),
+        variant: "destructive",
+      });
     }
   }
 
@@ -279,8 +289,11 @@ export default function WhatsAppBotsList() {
     try {
       await deleteBot.mutateAsync(deleteTarget.id);
       toast({ title: "Bot excluído" });
-    } catch {
-      toast({ title: "Erro ao excluir bot", variant: "destructive" });
+    } catch (error) {
+      toast({
+        ...getWhatsappErrorPresentation(error, "Não foi possível excluir o bot."),
+        variant: "destructive",
+      });
     } finally {
       setDeleteTarget(null);
     }
@@ -292,7 +305,12 @@ export default function WhatsAppBotsList() {
       toast({ title: bot.isActive ? "Bot desativado" : "Bot ativado" });
     } catch (error) {
       toast({
-        title: error instanceof Error ? error.message : "Erro ao alterar status",
+        ...getWhatsappErrorPresentation(
+          error,
+          bot.isActive
+            ? "Não foi possível desativar o bot."
+            : "Não foi possível ativar o bot.",
+        ),
         variant: "destructive",
       });
     }

@@ -111,7 +111,10 @@ describe("POST /campaigns/:id/retry-failed", () => {
       .send();
 
     expect(res.status).toBe(409);
-    expect(res.body).toEqual({ message: "Campanha cancelada não pode ser reprocessada." });
+    expect(res.body).toMatchObject({
+      message: "Campanha cancelada não pode ser reprocessada.",
+      code: "CAMPAIGN_REQUEUE_BLOCKED",
+    });
   });
 
   it("409 com mensagem genérica quando o status bloqueado não é cancelled (ex: paused)", async () => {
@@ -124,7 +127,10 @@ describe("POST /campaigns/:id/retry-failed", () => {
       .send();
 
     expect(res.status).toBe(409);
-    expect(res.body).toEqual({ message: "Campanha no estado atual (paused) não pode ser reprocessada." });
+    expect(res.body).toMatchObject({
+      message: "Campanha no estado atual (paused) não pode ser reprocessada.",
+      code: "CAMPAIGN_REQUEUE_BLOCKED",
+    });
   });
 
   it("409 quando a campanha não é encontrada", async () => {
@@ -137,17 +143,23 @@ describe("POST /campaigns/:id/retry-failed", () => {
       .send();
 
     expect(res.status).toBe(409);
-    expect(res.body).toEqual({ message: "Campanha camp-1 não encontrada." });
+    expect(res.body).toMatchObject({
+      message: "Campanha camp-1 não encontrada.",
+      code: "CAMPAIGN_REQUEUE_BLOCKED",
+    });
   });
 
-  it("500 para erros inesperados que não são CampaignRequeueBlockedError", async () => {
-    requeueFailedMessagesMock.mockRejectedValue(new Error("boom"));
+  it("500 genérico para erros inesperados — sem vazar o texto técnico", async () => {
+    requeueFailedMessagesMock.mockRejectedValue(
+      new Error('duplicate key violates constraint "wa_campaigns_pkey"'),
+    );
 
     const res = await request(makeApp())
       .post("/api/whatsapp/campaigns/camp-1/retry-failed")
       .send();
 
     expect(res.status).toBe(500);
-    expect(res.body).toEqual({ message: "boom" });
+    expect(res.body.code).toBe("UNEXPECTED");
+    expect(JSON.stringify(res.body)).not.toContain("duplicate key");
   });
 });

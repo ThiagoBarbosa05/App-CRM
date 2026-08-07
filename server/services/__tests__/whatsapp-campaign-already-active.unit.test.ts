@@ -6,6 +6,10 @@ import {
   whatsappBots,
   whatsappChannels,
 } from "@shared/schema";
+import {
+  decodeCampaignMessageError,
+  WHATSAPP_ERRORS,
+} from "@shared/whatsapp-error-codes";
 
 // executeCampaign é exercido com um `db` inteiramente mockado — sem banco
 // real. O objetivo deste teste é a Task 9 (Bug I): quando startBotSession
@@ -172,8 +176,11 @@ describe("executeCampaign — bot session já ativa (already_active) vira retry 
     expect(patch.attempts).toBe(1);
     expect(patch.nextAttemptAt).toBeInstanceOf(Date);
     expect((patch.nextAttemptAt as Date).getTime()).toBeGreaterThan(before);
-    expect(typeof patch.errorMessage).toBe("string");
-    expect(patch.errorMessage as string).toContain("1/5");
+    expect(decodeCampaignMessageError(patch.errorMessage as string)).toMatchObject({
+      info: WHATSAPP_ERRORS.SEND_BOT_SESSION_ACTIVE,
+      attempt: 1,
+      maxAttempts: 5,
+    });
 
     expect(releaseImpactMock).not.toHaveBeenCalled();
   });
@@ -191,8 +198,11 @@ describe("executeCampaign — bot session já ativa (already_active) vira retry 
     const patch = captured[0];
     expect(patch.status).toBe("failed");
     expect(patch.attempts).toBe(5);
-    expect(typeof patch.errorMessage).toBe("string");
-    expect(patch.errorMessage as string).toMatch(/5 tentativas/);
+    expect(decodeCampaignMessageError(patch.errorMessage as string)).toMatchObject({
+      info: WHATSAPP_ERRORS.SEND_BOT_SESSION_GAVE_UP,
+      attempt: 5,
+      maxAttempts: 5,
+    });
 
     expect(releaseImpactMock).toHaveBeenCalledTimes(1);
     expect(releaseImpactMock).toHaveBeenCalledWith("msg-1");
@@ -210,7 +220,9 @@ describe("executeCampaign — bot session já ativa (already_active) vira retry 
     expect(captured).toHaveLength(1);
     const patch = captured[0];
     expect(patch.status).toBe("failed");
-    expect(patch.errorMessage).toBe("Bot não possui nó inicial configurado");
+    expect(decodeCampaignMessageError(patch.errorMessage as string).info).toBe(
+      WHATSAPP_ERRORS.BOT_NO_ENTRY_NODE,
+    );
 
     expect(releaseImpactMock).toHaveBeenCalledTimes(1);
     expect(releaseImpactMock).toHaveBeenCalledWith("msg-1");

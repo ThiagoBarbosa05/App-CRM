@@ -46,6 +46,7 @@ import { clientsService } from "../services/clients.service";
 import { respondWithClientError } from "../controllers/clients/handle-client-error";
 import { downloadMediaToBuffer } from "../integrations/whatsapp";
 import { resolveChannelById } from "../services/whatsapp-channels.service";
+import { respondWhatsappError, waError } from "../services/whatsapp-errors";
 import { uploadWhatsappMedia, getWhatsappMediaObject } from "../lib/r2";
 import { addConversationSseClient, addSseClient } from "../lib/sse-hub";
 import { isAdminOrGerente } from "../middleware/validation";
@@ -800,20 +801,19 @@ router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
       },
     );
 
-    if (result.status === "no_start_node") {
-      return res.status(400).json({ message: "Bot sem nó inicial configurado" });
-    }
+    if (result.status === "no_start_node") throw waError("BOT_NO_ENTRY_NODE");
     if (result.status === "already_active") {
-      return res.status(409).json({ message: "Já existe uma sessão de bot ativa para este contato" });
+      // O hint padrão fala do reagendamento automático das campanhas; no
+      // disparo manual não há retentativa, então a orientação é outra.
+      throw waError("SEND_BOT_SESSION_ACTIVE", {
+        hint: "Aguarde a conversa em andamento terminar e dispare novamente.",
+      });
     }
-    if (result.status === "opted_out") {
-      return res.status(409).json({ message: "Cliente optou por não receber mensagens de marketing" });
-    }
+    if (result.status === "opted_out") throw waError("SEND_OPTED_OUT");
 
     res.json({ ok: true });
   } catch (err) {
-    console.error("[WA TriggerBot] Erro ao disparar bot:", err);
-    res.status(500).json({ message: "Erro ao disparar bot", detail: err instanceof Error ? err.message : String(err) });
+    return respondWhatsappError(res, err, "[WA TriggerBot]");
   }
 });
 

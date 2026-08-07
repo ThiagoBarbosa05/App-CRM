@@ -1,3 +1,5 @@
+import { whatsappErrorInfo } from "@shared/whatsapp-error-codes";
+
 /**
  * Mensagem legível de um erro lançado por `apiRequest`.
  *
@@ -42,12 +44,22 @@ interface ParsedApiError {
   status: number | null;
   /** `message` do corpo JSON — `null` quando a resposta não trouxe um. */
   message: string | null;
+  /** `code` do vocabulário compartilhado, quando o endpoint o envia. */
+  code: string | null;
+  /** `hint` do corpo: o que o usuário deve fazer para resolver. */
+  hint: string | null;
   /** Falhas de validação campo a campo, quando o endpoint as envia. */
   fieldErrors: ApiFieldError[];
 }
 
 function parseApiError(error: unknown): ParsedApiError {
-  const empty: ParsedApiError = { status: null, message: null, fieldErrors: [] };
+  const empty: ParsedApiError = {
+    status: null,
+    message: null,
+    code: null,
+    hint: null,
+    fieldErrors: [],
+  };
   if (!(error instanceof Error) || !error.message) return empty;
 
   const statusMatch = error.message.match(/^(\d{3}):\s*/);
@@ -58,6 +70,8 @@ function parseApiError(error: unknown): ParsedApiError {
   try {
     const parsed = JSON.parse(body) as {
       message?: unknown;
+      code?: unknown;
+      hint?: unknown;
       errors?: unknown;
     };
     if (typeof parsed !== "object" || parsed === null) return { ...empty, status };
@@ -66,6 +80,12 @@ function parseApiError(error: unknown): ParsedApiError {
       typeof parsed.message === "string" && parsed.message.trim()
         ? parsed.message
         : null;
+
+    const code =
+      typeof parsed.code === "string" && parsed.code.trim() ? parsed.code : null;
+
+    const hint =
+      typeof parsed.hint === "string" && parsed.hint.trim() ? parsed.hint : null;
 
     const fieldErrors = Array.isArray(parsed.errors)
       ? parsed.errors.flatMap((item): ApiFieldError[] => {
@@ -78,7 +98,7 @@ function parseApiError(error: unknown): ParsedApiError {
         })
       : [];
 
-    return { status, message, fieldErrors };
+    return { status, message, code, hint, fieldErrors };
   } catch {
     // Não era JSON (HTML de proxy, texto simples). Só o status é aproveitável.
     return { ...empty, status };
@@ -88,6 +108,11 @@ function parseApiError(error: unknown): ParsedApiError {
 /** Status HTTP do erro, quando `apiRequest` o prefixou. */
 export function extractApiStatus(error: unknown): number | null {
   return parseApiError(error).status;
+}
+
+/** Código do vocabulário compartilhado, quando o endpoint o envia. */
+export function extractApiErrorCode(error: unknown): string | null {
+  return parseApiError(error).code;
 }
 
 /**
@@ -132,4 +157,48 @@ export function getClientErrorMessage(
   }
 
   return fallback;
+}
+
+export interface ErrorPresentation {
+  /** Título do toast: o que aconteceu. */
+  title: string;
+  /** Descrição do toast: como resolver. Ausente quando não há orientação. */
+  description?: string;
+}
+
+/**
+ * Converte um erro das rotas de WhatsApp em título + descrição prontos.
+ *
+ * Ordem de resolução:
+ * 1. `code` do vocabulário compartilhado — texto controlado pelo frontend,
+ *    imune a mudanças de redação no servidor;
+ * 2. `message` (+ `hint`) do corpo da resposta — cobre rotas ainda não
+ *    migradas e mensagens específicas que citam o item com problema;
+ * 3. `getClientErrorMessage` — status HTTP / falha de rede.
+ *
+ * É a única função que as telas de WhatsApp precisam chamar: nunca devolve
+ * JSON cru nem `"409: {...}"` na tela, que é o que acontecia ao jogar
+ * `error.message` direto no toast.
+ */
+export function getWhatsappErrorPresentation(
+  error: unknown,
+  fallbackTitle = "Não foi possível concluir a operação.",
+): ErrorPresentation {
+  const { code, message, hint } = parseApiError(error);
+
+  const info = whatsappErrorInfo(code);
+  if (info) {
+    // A mensagem do servidor ganha do texto da tabela quando existe: rotas
+    // como validação de fluxo citam qual nó ou qual bot está com problema.
+    return {
+      title: message ?? info.message,
+      description: hint ?? info.hint,
+    };
+  }
+
+  if (message) {
+    return { title: message, description: hint ?? undefined };
+  }
+
+  return { title: getClientErrorMessage(error, fallbackTitle) };
 }

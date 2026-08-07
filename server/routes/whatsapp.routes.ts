@@ -40,12 +40,9 @@ import {
   resolveCampaignAudience,
   type CampaignAudienceSelector,
 } from "../services/whatsapp-campaign-audience.service";
-import {
-  analyzeBotCompatibility,
-  BotCompatibilityLookupError,
-} from "../services/whatsapp-bot-compatibility.service";
+import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
 import { requeueFailedMessages } from "../services/whatsapp-campaign.service";
-import { CampaignRequeueBlockedError } from "../services/whatsapp-campaign-errors";
+import { respondWhatsappError, waError } from "../services/whatsapp-errors";
 
 const router = Router();
 
@@ -124,7 +121,7 @@ router.post("/campaigns/preview", async (req, res) => {
   }
   try {
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, parsed.data.campaignId));
-    if (!campaign) return res.status(404).json({ message: "Campanha não encontrada" });
+    if (!campaign) throw waError("CAMPAIGN_NOT_FOUND");
     const rows = await resolveCampaignAudience(parsed.data.audience as CampaignAudienceSelector);
     const snapshot = await buildCampaignContentSnapshot(campaign);
     const scheduledFor = parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : new Date();
@@ -178,8 +175,7 @@ router.post("/campaigns/preview", async (req, res) => {
       conflicts,
     });
   } catch (error) {
-    console.error("[WA campaigns preview] erro:", error);
-    return res.status(500).json({ message: "Erro ao calcular prévia" });
+    return respondWhatsappError(res, error, "[WA campaigns preview]");
   }
 });
 
@@ -218,25 +214,15 @@ router.post("/campaigns", async (req, res) => {
       .from(campaigns)
       .where(and(eq(campaigns.id, campaignId), isNull(campaigns.deletedAt)));
 
-    if (!campaign) {
-      return res.status(404).json({ message: "Campanha não encontrada" });
-    }
-    if (!campaign.waEnabled) {
-      return res.status(400).json({ message: "Campanha não está habilitada para WhatsApp (waEnabled = false)" });
-    }
+    if (!campaign) throw waError("CAMPAIGN_NOT_FOUND");
+    if (!campaign.waEnabled) throw waError("CAMPAIGN_WA_DISABLED");
     if (!campaign.waTemplateId && !campaign.waBotId) {
-      return res.status(400).json({ message: "Campanha não possui template ou bot configurado" });
+      throw waError("CAMPAIGN_NO_CONTENT");
     }
     if (Boolean(campaign.waTemplateId) === Boolean(campaign.waBotId)) {
-      return res.status(400).json({
-        message: "A campanha deve possuir exatamente um template ou bot",
-      });
+      throw waError("CAMPAIGN_AMBIGUOUS_CONTENT");
     }
-    if (campaign.waChannelId == null) {
-      return res.status(400).json({
-        message: "A campanha não possui um canal de envio selecionado",
-      });
-    }
+    if (campaign.waChannelId == null) throw waError("CAMPAIGN_NO_CHANNEL");
 
     const [channel] = await db
       .select({
@@ -260,13 +246,13 @@ router.post("/campaigns", async (req, res) => {
       (resolvedChannel.provider === "evolution" &&
         channel?.connectionStatus !== "connected")
     ) {
-      return res.status(400).json({
-        message: "O canal da campanha está desconectado ou sem configuração",
+      throw waError("CHANNEL_DISCONNECTED", {
+        technicalMessage: `Canal ${campaign.waChannelId} desconectado ou sem configuração`,
       });
     }
     if (campaign.waTemplateId && resolvedChannel.provider !== "cloud_api") {
-      return res.status(400).json({
-        message: "Campanhas com template exigem um canal Cloud API",
+      throw waError("CHANNEL_NOT_CLOUD_API", {
+        technicalMessage: `Canal ${campaign.waChannelId} é ${resolvedChannel.provider}`,
       });
     }
     if (campaign.waBotId) {
@@ -275,10 +261,9 @@ router.post("/campaigns", async (req, res) => {
         campaign.waChannelId,
       );
       if (!compatibility.compatible) {
-        return res.status(400).json({
-          message: "O bot não é compatível com o canal selecionado",
-          compatibility,
-        });
+        // `compatibility` segue no corpo: a tela lista os problemas por
+        // `issue.code` ao lado da mensagem geral.
+        throw waError("BOT_INCOMPATIBLE_CHANNEL", { details: { compatibility } });
       }
     }
 
@@ -289,9 +274,7 @@ router.post("/campaigns", async (req, res) => {
     if (user.role === "vendedor") {
       const accessibleChannelIds = await listChannelIdsForUser(user.userId);
       if (!accessibleChannelIds.includes(campaign.waChannelId)) {
-        return res.status(403).json({
-          message: "Você não possui acesso ao canal selecionado",
-        });
+        throw waError("CHANNEL_ACCESS_DENIED");
       }
     }
 
@@ -346,12 +329,11 @@ router.post("/campaigns", async (req, res) => {
     }
 
     if (validClients.length === 0) {
-      return res.status(400).json({
-        message:
-          skippedOptedOut > 0 && skippedInvalidPhone === 0
-            ? "Todos os clientes fornecidos optaram por não receber mensagens de marketing"
-            : "Nenhum dos clientes fornecidos possui telefone válido",
-      });
+      throw waError(
+        skippedOptedOut > 0 && skippedInvalidPhone === 0
+          ? "AUDIENCE_EMPTY_ALL_OPTED_OUT"
+          : "AUDIENCE_EMPTY_NO_VALID_PHONE",
+      );
     }
 
     // 3. Idempotência: bloquear reenfileiramento por cima de uma campanha que
@@ -365,8 +347,8 @@ router.post("/campaigns", async (req, res) => {
 
     if (existingWaCampaign) {
       if (existingWaCampaign.status === "in_progress" || existingWaCampaign.status === "paused") {
-        return res.status(409).json({
-          message: "Campanha já está em andamento ou pausada — use pause/resume/cancel em vez de reenfileirar.",
+        throw waError("CAMPAIGN_ALREADY_RUNNING", {
+          details: { campaignStatus: existingWaCampaign.status },
         });
       }
       if (
@@ -374,8 +356,8 @@ router.post("/campaigns", async (req, res) => {
         existingWaCampaign.status === "failed" ||
         existingWaCampaign.status === "cancelled"
       ) {
-        return res.status(409).json({
-          message: `Campanha já foi finalizada (status: ${existingWaCampaign.status}). Use POST /campaigns/:id/retry-failed para reprocessar falhas.`,
+        throw waError("CAMPAIGN_ALREADY_FINISHED", {
+          details: { campaignStatus: existingWaCampaign.status },
         });
       }
     }
@@ -554,19 +536,13 @@ router.post("/campaigns", async (req, res) => {
       scheduledAt: isScheduled ? scheduledDate?.toISOString() : null,
     };
     if (queued === 0) {
-      return res.status(409).json({
-        ...responseBody,
-        message: "Nenhum destinatário elegível permaneceu após a proteção contra duplicidade",
-      });
+      // Contadores seguem no corpo — a tela usa para explicar quantos foram
+      // barrados por duplicidade, opt-out e telefone inválido.
+      throw waError("CAMPAIGN_ALL_DUPLICATE", { details: responseBody });
     }
     return res.status(202).json(responseBody);
   } catch (e) {
-    if (e instanceof BotCompatibilityLookupError) {
-      return res.status(e.statusCode).json({ message: e.message });
-    }
-    const message = e instanceof Error ? e.message : "Erro ao enfileirar campanha";
-    console.error("[WA campaigns] erro:", e);
-    res.status(500).json({ message });
+    return respondWhatsappError(res, e, "[WA campaigns]");
   }
 });
 
@@ -580,11 +556,7 @@ router.post("/campaigns/:id/retry-failed", async (req, res) => {
     const { requeued } = await requeueFailedMessages(campaignId);
     res.json({ campaignId, requeued });
   } catch (e) {
-    if (e instanceof CampaignRequeueBlockedError) {
-      return res.status(409).json({ message: e.message });
-    }
-    const message = e instanceof Error ? e.message : "Erro ao reprocessar falhas";
-    res.status(500).json({ message });
+    return respondWhatsappError(res, e, "[WA campaigns retry-failed]");
   }
 });
 
@@ -640,8 +612,7 @@ router.post("/campaigns/:id/pause", async (req, res) => {
       );
     res.json({ campaignId: req.params.id, status: "paused" });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Erro ao pausar campanha";
-    res.status(500).json({ message });
+    return respondWhatsappError(res, e, "[WA campaigns pause]");
   }
 });
 
@@ -658,8 +629,7 @@ router.post("/campaigns/:id/resume", async (req, res) => {
       );
     res.json({ campaignId: req.params.id, status: "in_progress" });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Erro ao retomar campanha";
-    res.status(500).json({ message });
+    return respondWhatsappError(res, e, "[WA campaigns resume]");
   }
 });
 
@@ -692,8 +662,7 @@ router.post("/campaigns/:id/cancel", async (req, res) => {
 
     res.json({ campaignId, cancelledMessages: cancelled.length });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Erro ao cancelar campanha";
-    res.status(500).json({ message });
+    return respondWhatsappError(res, e, "[WA campaigns cancel]");
   }
 });
 

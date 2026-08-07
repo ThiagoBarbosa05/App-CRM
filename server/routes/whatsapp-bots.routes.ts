@@ -10,15 +10,12 @@ import {
   deleteBot,
   duplicateBot,
   saveFlow,
-  BotFlowValidationError,
 } from "../services/whatsapp-bot.service";
 import { r2 } from "../lib/r2";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import {
-  analyzeBotCompatibility,
-  BotCompatibilityLookupError,
-} from "../services/whatsapp-bot-compatibility.service";
+import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
 import { listChannelIdsForUser } from "../services/whatsapp-channels.service";
+import { respondWhatsappError, waError } from "../services/whatsapp-errors";
 
 const BUCKET = process.env.CLOUDFLARE_BUCKET_NAME || "crm-test";
 
@@ -113,8 +110,8 @@ router.get("/bots", async (req, res) => {
         : undefined,
     );
     res.json(bots);
-  } catch {
-    res.status(500).json({ message: "Erro ao listar bots" });
+  } catch (error) {
+    return respondWhatsappError(res, error, "[WhatsApp Bots] listar");
   }
 });
 
@@ -130,18 +127,18 @@ router.post("/bots", async (req, res) => {
 
     const flow = await createBot({ ...parsed.data, createdBy: userId });
     res.status(201).json(flow);
-  } catch {
-    res.status(500).json({ message: "Erro ao criar bot" });
+  } catch (error) {
+    return respondWhatsappError(res, error, "[WhatsApp Bots] criar");
   }
 });
 
 router.get("/bots/:id", async (req, res) => {
   try {
     const flow = await getBot(req.params.id);
-    if (!flow) return res.status(404).json({ message: "Bot não encontrado" });
+    if (!flow) throw waError("BOT_NOT_FOUND");
     res.json(flow);
-  } catch {
-    res.status(500).json({ message: "Erro ao buscar bot" });
+  } catch (error) {
+    return respondWhatsappError(res, error, "[WhatsApp Bots] buscar");
   }
 });
 
@@ -154,10 +151,7 @@ router.put("/bots/:id", async (req, res) => {
     const bot = await updateBot(req.params.id, parsed.data);
     res.json(bot);
   } catch (error) {
-    if (error instanceof BotFlowValidationError) {
-      return res.status(error.statusCode).json({ message: error.message });
-    }
-    res.status(500).json({ message: "Erro ao atualizar bot" });
+    return respondWhatsappError(res, error, "[WhatsApp Bots] atualizar");
   }
 });
 
@@ -170,22 +164,19 @@ router.post("/bots/:id/duplicate", async (req, res) => {
     res.status(201).json(flow);
   } catch (err) {
     if (err instanceof Error && err.message === "Bot not found") {
-      return res.status(404).json({ message: "Bot não encontrado" });
+      return respondWhatsappError(res, waError("BOT_NOT_FOUND"), "[WhatsApp Bots] duplicar");
     }
-    res.status(500).json({ message: "Erro ao duplicar bot" });
+    return respondWhatsappError(res, err, "[WhatsApp Bots] duplicar");
   }
 });
 
 router.delete("/bots/:id", async (req, res) => {
   try {
     const deleted = await deleteBot(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ message: "Bot não encontrado" });
-    }
+    if (!deleted) throw waError("BOT_NOT_FOUND");
     res.status(204).send();
   } catch (error) {
-    console.error("[WhatsApp Bots] Erro ao remover bot:", error);
-    res.status(500).json({ message: "Erro ao excluir bot" });
+    return respondWhatsappError(res, error, "[WhatsApp Bots] excluir");
   }
 });
 
@@ -201,18 +192,14 @@ router.get("/bots/:id/compatibility", async (req, res) => {
     if (user.role === "vendedor") {
       const channelIds = await listChannelIdsForUser(user.userId);
       if (!channelIds.includes(parsedChannelId.data)) {
-        return res.status(403).json({ message: "Você não possui acesso ao canal selecionado" });
+        throw waError("CHANNEL_ACCESS_DENIED");
       }
     }
 
     const result = await analyzeBotCompatibility(req.params.id, parsedChannelId.data);
     return res.json(result);
   } catch (error) {
-    if (error instanceof BotCompatibilityLookupError) {
-      return res.status(error.statusCode).json({ message: error.message });
-    }
-    console.error("[WhatsApp Bots] Erro ao analisar compatibilidade:", error);
-    return res.status(500).json({ message: "Erro ao analisar compatibilidade do bot" });
+    return respondWhatsappError(res, error, "[WhatsApp Bots] compatibilidade");
   }
 });
 
@@ -225,10 +212,7 @@ router.put("/bots/:id/flow", async (req, res) => {
     await saveFlow(req.params.id, parsed.data.nodes, parsed.data.edges);
     res.json({ ok: true });
   } catch (error) {
-    if (error instanceof BotFlowValidationError) {
-      return res.status(error.statusCode).json({ message: error.message });
-    }
-    res.status(500).json({ message: "Erro ao salvar fluxo" });
+    return respondWhatsappError(res, error, "[WhatsApp Bots] salvar fluxo");
   }
 });
 
@@ -237,10 +221,7 @@ router.post("/bots/:id/activate", async (req, res) => {
     const bot = await updateBot(req.params.id, { isActive: true });
     res.json(bot);
   } catch (error) {
-    if (error instanceof BotFlowValidationError) {
-      return res.status(error.statusCode).json({ message: error.message });
-    }
-    res.status(500).json({ message: "Erro ao ativar bot" });
+    return respondWhatsappError(res, error, "[WhatsApp Bots] ativar");
   }
 });
 
@@ -248,8 +229,8 @@ router.post("/bots/:id/deactivate", async (req, res) => {
   try {
     const bot = await updateBot(req.params.id, { isActive: false });
     res.json(bot);
-  } catch {
-    res.status(500).json({ message: "Erro ao desativar bot" });
+  } catch (error) {
+    return respondWhatsappError(res, error, "[WhatsApp Bots] desativar");
   }
 });
 

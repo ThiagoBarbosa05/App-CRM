@@ -54,6 +54,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { CampaignMessageError } from "@/components/whatsapp/campaign-message-error";
 import { useWhatsappBots } from "@/hooks/use-whatsapp-bots";
 import {
   useWhatsappBotDispatchHistory,
@@ -463,10 +464,14 @@ export default function WhatsAppBotHistory() {
               </div>
             )}
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Mensagem de erro</p>
-              <pre className="whitespace-pre-wrap break-words text-xs bg-muted rounded-md p-3 max-h-64 overflow-y-auto">
-                {errorRow?.errorMessage ?? "Nenhuma mensagem de erro registrada."}
-              </pre>
+              <p className="text-xs font-medium text-muted-foreground mb-1">O que aconteceu</p>
+              {errorRow?.errorMessage ? (
+                <CampaignMessageError errorMessage={errorRow.errorMessage} />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma mensagem de erro registrada.
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
               <span>Iniciado: {formatDate(errorRow?.startedAt)}</span>

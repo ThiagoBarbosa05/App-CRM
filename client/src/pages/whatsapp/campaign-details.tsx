@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { classifySuppressionReason } from "@shared/whatsapp-campaign-reasons";
 import { PageHeader } from "@/components/page-header";
+import { CampaignMessageError } from "@/components/whatsapp/campaign-message-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -591,9 +592,7 @@ export default function WhatsAppCampaignDetails() {
                         {msg.scheduledAt && <span>Agendado: {formatDate(msg.scheduledAt)}</span>}
                         {msg.sentAt && <span>Enviado: {formatDate(msg.sentAt)}</span>}
                       </div>
-                      {msg.errorMessage && (
-                        <p className="text-xs text-red-500 break-words whitespace-pre-wrap">{msg.errorMessage}</p>
-                      )}
+                      <CampaignMessageError errorMessage={msg.errorMessage} />
                       <div className="flex items-center gap-1.5 pt-1">
                         {msg.contactId && (
                           <Button
@@ -655,8 +654,12 @@ export default function WhatsAppCampaignDetails() {
                           </TableCell>
                           <TableCell className="text-muted-foreground text-sm">{formatDate(msg.scheduledAt)}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{formatDate(msg.sentAt)}</TableCell>
-                          <TableCell className="hidden lg:table-cell text-red-500 text-sm max-w-xs whitespace-pre-wrap break-words">
-                            {msg.errorMessage ?? "—"}
+                          <TableCell className="hidden lg:table-cell max-w-xs">
+                            {msg.errorMessage ? (
+                              <CampaignMessageError errorMessage={msg.errorMessage} />
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right pr-6">
                             <div className="flex items-center justify-end gap-1">

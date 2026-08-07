@@ -45,9 +45,15 @@ export interface BotCompatibilityResult {
   issues: BotCompatibilityIssue[];
 }
 
-async function throwBotApiError(res: Response, fallback: string): Promise<never> {
-  const body = await res.json().catch(() => ({})) as { message?: string };
-  throw new Error(body.message ?? fallback);
+/**
+ * Lança no mesmo formato de `apiRequest` (`"<status>: <corpo cru>"`), que é o
+ * que `getWhatsappErrorPresentation` sabe ler — assim `code`/`hint` chegam
+ * intactos até o toast. Estes hooks não usam `apiRequest` porque precisam do
+ * header `x-user-id`, mas o formato do erro tem que ser o mesmo.
+ */
+async function throwBotApiError(res: Response): Promise<never> {
+  const body = await res.text().catch(() => "");
+  throw new Error(`${res.status}: ${body || res.statusText}`);
 }
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -59,7 +65,7 @@ export function useWhatsappBots() {
       const res = await fetch("/api/whatsapp/bots", {
         headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
       });
-      if (!res.ok) throw new Error("Erro ao buscar bots");
+      if (!res.ok) await throwBotApiError(res);
       return res.json();
     },
   });
@@ -76,7 +82,7 @@ export function useWhatsappBotCompatibility(
         `/api/whatsapp/bots/${botId}/compatibility?channelId=${channelId}`,
         { headers: { "x-user-id": localStorage.getItem("userId") ?? "" } },
       );
-      if (!res.ok) await throwBotApiError(res, "Erro ao verificar compatibilidade do bot");
+      if (!res.ok) await throwBotApiError(res);
       return res.json() as Promise<BotCompatibilityResult>;
     },
     enabled: botId.length > 0 && channelId !== null,
@@ -91,7 +97,7 @@ export function useWhatsappBotFlow(botId: string) {
       const res = await fetch(`/api/whatsapp/bots/${botId}`, {
         headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
       });
-      if (!res.ok) throw new Error("Erro ao buscar bot");
+      if (!res.ok) await throwBotApiError(res);
       return res.json();
     },
     enabled: !!botId,
@@ -114,7 +120,7 @@ export function useCreateBot() {
         },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Erro ao criar bot");
+      if (!res.ok) await throwBotApiError(res);
       return res.json() as Promise<BotWithFlow>;
     },
     onSuccess: () => {
@@ -145,7 +151,7 @@ export function useUpdateBot() {
         },
         body: JSON.stringify(data),
       });
-      if (!res.ok) return throwBotApiError(res, "Erro ao atualizar bot");
+      if (!res.ok) return throwBotApiError(res);
       return res.json() as Promise<WhatsappBot>;
     },
     onSuccess: (_data, vars) => {
@@ -165,7 +171,7 @@ export function useDeleteBot() {
         method: "DELETE",
         headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
       });
-      if (!res.ok) return throwBotApiError(res, "Erro ao excluir bot");
+      if (!res.ok) return throwBotApiError(res);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "bots"] });
@@ -181,7 +187,7 @@ export function useDuplicateBot() {
         method: "POST",
         headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
       });
-      if (!res.ok) throw new Error("Erro ao duplicar bot");
+      if (!res.ok) await throwBotApiError(res);
       return res.json() as Promise<BotWithFlow>;
     },
     onSuccess: () => {
@@ -225,7 +231,7 @@ export function useSaveFlow() {
         },
         body: JSON.stringify({ nodes, edges }),
       });
-      if (!res.ok) return throwBotApiError(res, "Erro ao salvar fluxo");
+      if (!res.ok) return throwBotApiError(res);
       return res.json();
     },
     onSuccess: (_data, vars) => {
@@ -251,7 +257,7 @@ export function useToggleBotActive() {
         method: "POST",
         headers: { "x-user-id": localStorage.getItem("userId") ?? "" },
       });
-      if (!res.ok) return throwBotApiError(res, "Erro ao alterar status do bot");
+      if (!res.ok) return throwBotApiError(res);
       return res.json() as Promise<WhatsappBot>;
     },
     onSuccess: () => {

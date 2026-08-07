@@ -20,6 +20,8 @@ import {
   type CampaignAudienceSelector,
 } from "./whatsapp-campaign-audience.service";
 import { CampaignConfigError, CampaignRequeueBlockedError } from "./whatsapp-campaign-errors";
+import { describeSendError, waError } from "./whatsapp-errors";
+import { encodeCampaignMessageError } from "@shared/whatsapp-error-codes";
 
 // Status a partir dos quais um retry-failed pode "reviver" a campanha para
 // in_progress. Qualquer outro status atual (cancelled, paused, created) é
@@ -55,7 +57,9 @@ async function handleSendFailure(
   msg: typeof whatsappCampaignMessages.$inferSelect,
   err: unknown,
 ): Promise<"retried" | "failed"> {
-  const errorMessage = err instanceof Error ? err.message : String(err);
+  // `code` é o que a tela mostra; `detail` guarda o texto cru do provedor
+  // (corpo de erro da Meta, mensagem do gateway) para o "Ver detalhe técnico".
+  const { code, detail } = describeSendError(err);
   const isRetryable = classifySendError(err) === "retryable";
   const nextAttempts = (msg.attempts ?? 0) + 1;
 
@@ -66,7 +70,12 @@ async function handleSendFailure(
         status: "scheduled",
         attempts: nextAttempts,
         nextAttemptAt: new Date(Date.now() + computeBackoffMs(nextAttempts)),
-        errorMessage: `Erro transitório — nova tentativa agendada (${nextAttempts}/${MAX_SEND_ATTEMPTS}): ${errorMessage}`,
+        errorMessage: encodeCampaignMessageError({
+          code: "SEND_RETRY_SCHEDULED",
+          attempt: nextAttempts,
+          maxAttempts: MAX_SEND_ATTEMPTS,
+          detail,
+        }),
         updatedAt: new Date(),
       })
       .where(eq(whatsappCampaignMessages.id, msg.id));
@@ -75,7 +84,17 @@ async function handleSendFailure(
 
   await db
     .update(whatsappCampaignMessages)
-    .set({ status: "failed", attempts: nextAttempts, errorMessage, updatedAt: new Date() })
+    .set({
+      status: "failed",
+      attempts: nextAttempts,
+      errorMessage: encodeCampaignMessageError({
+        code,
+        attempt: nextAttempts,
+        maxAttempts: MAX_SEND_ATTEMPTS,
+        detail,
+      }),
+      updatedAt: new Date(),
+    })
     .where(eq(whatsappCampaignMessages.id, msg.id));
   await releaseImpact(msg.id);
   return "failed";
@@ -244,7 +263,12 @@ export async function executeCampaign(
     .from(whatsappCampaigns)
     .where(eq(whatsappCampaigns.id, campaignId));
 
-  if (!campaign) throw new Error(`Campanha ${campaignId} não encontrada`);
+  if (!campaign) {
+    throw waError("CAMPAIGN_NOT_FOUND", {
+      permanent: true,
+      technicalMessage: `Campanha ${campaignId} não encontrada`,
+    });
+  }
 
   if (!campaign.waEnabled) {
     console.log(`[WaCampaign] Campanha ${campaignId} não tem waEnabled — ignorando`);
@@ -313,9 +337,10 @@ export async function executeCampaign(
       (selectedCampaignChannel.provider === "evolution" &&
         activeChannel?.connectionStatus !== "connected")
     ) {
-      throw new Error(
-        "O canal de envio da campanha está inativo, desconectado, removido ou sem configuração",
-      );
+      throw waError("CHANNEL_DISCONNECTED", {
+        permanent: true,
+        technicalMessage: `Canal ${campaign.waChannelId} da campanha ${campaignId} inativo, desconectado, removido ou sem configuração`,
+      });
     }
   }
 
@@ -331,7 +356,12 @@ export async function executeCampaign(
         ),
       );
 
-    if (!bot) throw new Error(`Bot ${campaign.waBotId} não encontrado`);
+    if (!bot) {
+      throw waError("BOT_NOT_FOUND", {
+        permanent: true,
+        technicalMessage: `Bot ${campaign.waBotId} não encontrado`,
+      });
+    }
 
     for (const msg of pendingMessages) {
       if (await isCampaignHalted(campaignId)) {
@@ -347,7 +377,11 @@ export async function executeCampaign(
       if (!msg.phoneNumber) {
         await db
           .update(whatsappCampaignMessages)
-          .set({ status: "failed", errorMessage: "Telefone ausente", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            errorMessage: encodeCampaignMessageError({ code: "SEND_MISSING_PHONE" }),
+            updatedAt: new Date(),
+          })
           .where(eq(whatsappCampaignMessages.id, msg.id));
         await releaseImpact(msg.id);
         failed++;
@@ -357,7 +391,11 @@ export async function executeCampaign(
       if (!phoneE164) {
         await db
           .update(whatsappCampaignMessages)
-          .set({ status: "failed", errorMessage: "Telefone inválido", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            errorMessage: encodeCampaignMessageError({ code: "SEND_INVALID_PHONE" }),
+            updatedAt: new Date(),
+          })
           .where(eq(whatsappCampaignMessages.id, msg.id));
         await releaseImpact(msg.id);
         failed++;
@@ -365,7 +403,10 @@ export async function executeCampaign(
       }
       try {
         if (!campaign.waChannelId) {
-          throw new Error("Campanha de bot sem canal de WhatsApp configurado");
+          throw waError("CAMPAIGN_NO_CHANNEL", {
+            permanent: true,
+            technicalMessage: `Campanha de bot ${campaignId} sem canal de WhatsApp configurado`,
+          });
         }
         const { status, lastMessageId, channelId: botChannelId } =
           await startBotSession(
@@ -387,7 +428,7 @@ export async function executeCampaign(
             .update(whatsappCampaignMessages)
             .set({
               status: "cancelled",
-              errorMessage: "Cliente optou por não receber mensagens de marketing",
+              errorMessage: encodeCampaignMessageError({ code: "SEND_OPTED_OUT" }),
               updatedAt: new Date(),
             })
             .where(eq(whatsappCampaignMessages.id, msg.id));
@@ -399,14 +440,17 @@ export async function executeCampaign(
         }
 
         if (status === "no_start_node") {
-          const errorMessage = "Bot não possui nó inicial configurado";
           await db
             .update(whatsappCampaignMessages)
-            .set({ status: "failed", errorMessage, updatedAt: new Date() })
+            .set({
+              status: "failed",
+              errorMessage: encodeCampaignMessageError({ code: "BOT_NO_ENTRY_NODE" }),
+              updatedAt: new Date(),
+            })
             .where(eq(whatsappCampaignMessages.id, msg.id));
           await releaseImpact(msg.id);
           failed++;
-          console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): ${errorMessage}`);
+          console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): bot sem nó inicial`);
           if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
           continue;
         }
@@ -425,21 +469,33 @@ export async function executeCampaign(
                 status: "scheduled",
                 attempts: nextAttempts,
                 nextAttemptAt: new Date(Date.now() + computeBackoffMs(nextAttempts)),
-                errorMessage: `Contato com sessão de bot ativa — nova tentativa agendada (${nextAttempts}/${MAX_SEND_ATTEMPTS})`,
+                errorMessage: encodeCampaignMessageError({
+                  code: "SEND_BOT_SESSION_ACTIVE",
+                  attempt: nextAttempts,
+                  maxAttempts: MAX_SEND_ATTEMPTS,
+                }),
                 updatedAt: new Date(),
               })
               .where(eq(whatsappCampaignMessages.id, msg.id));
             retried++;
             console.error(`[WaCampaign] Bot ↻ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): sessão de bot já ativa — reagendado (${nextAttempts}/${MAX_SEND_ATTEMPTS})`);
           } else {
-            const errorMessage = `Sessão de bot permaneceu ativa após ${MAX_SEND_ATTEMPTS} tentativas — desistindo`;
             await db
               .update(whatsappCampaignMessages)
-              .set({ status: "failed", attempts: nextAttempts, errorMessage, updatedAt: new Date() })
+              .set({
+                status: "failed",
+                attempts: nextAttempts,
+                errorMessage: encodeCampaignMessageError({
+                  code: "SEND_BOT_SESSION_GAVE_UP",
+                  attempt: nextAttempts,
+                  maxAttempts: MAX_SEND_ATTEMPTS,
+                }),
+                updatedAt: new Date(),
+              })
               .where(eq(whatsappCampaignMessages.id, msg.id));
             await releaseImpact(msg.id);
             failed++;
-            console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): ${errorMessage}`);
+            console.error(`[WaCampaign] Bot ✗ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}): sessão ativa após ${MAX_SEND_ATTEMPTS} tentativas — desistindo`);
           }
           if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
           continue;
@@ -468,12 +524,20 @@ export async function executeCampaign(
       .from(whatsappTemplates)
       .where(eq(whatsappTemplates.id, campaign.waTemplateId!));
 
-    if (!template) throw new Error(`Template ${campaign.waTemplateId} não encontrado`);
+    if (!template) {
+      throw waError("TEMPLATE_NOT_FOUND", {
+        permanent: true,
+        technicalMessage: `Template ${campaign.waTemplateId} não encontrado`,
+      });
+    }
     if (
       campaign.waChannelId != null &&
       selectedCampaignChannel?.provider !== "cloud_api"
     ) {
-      throw new Error("Campanhas com template exigem um canal Cloud API conectado");
+      throw waError("CHANNEL_NOT_CLOUD_API", {
+        permanent: true,
+        technicalMessage: `Canal ${campaign.waChannelId} não é cloud_api (provider=${selectedCampaignChannel?.provider ?? "n/a"})`,
+      });
     }
 
     // Resolvido uma vez por execução: o número de disparo é o mesmo para toda a
@@ -502,7 +566,11 @@ export async function executeCampaign(
       if (!msg.phoneNumber) {
         await db
           .update(whatsappCampaignMessages)
-          .set({ status: "failed", errorMessage: "Telefone ausente", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            errorMessage: encodeCampaignMessageError({ code: "SEND_MISSING_PHONE" }),
+            updatedAt: new Date(),
+          })
           .where(eq(whatsappCampaignMessages.id, msg.id));
         await releaseImpact(msg.id);
         console.warn(`[WaCampaign] Mensagem ${msg.id} sem phoneNumber — pulando`);
@@ -513,7 +581,11 @@ export async function executeCampaign(
       if (!phoneE164) {
         await db
           .update(whatsappCampaignMessages)
-          .set({ status: "failed", errorMessage: "Telefone inválido", updatedAt: new Date() })
+          .set({
+            status: "failed",
+            errorMessage: encodeCampaignMessageError({ code: "SEND_INVALID_PHONE" }),
+            updatedAt: new Date(),
+          })
           .where(eq(whatsappCampaignMessages.id, msg.id));
         await releaseImpact(msg.id);
         failed++;

@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { getWhatsappErrorPresentation } from "@/lib/api-error";
 
 // ---- Types ----
 
@@ -423,7 +424,10 @@ export function useExecuteCampaign() {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro ao executar campanha", description: error.message, variant: "destructive" });
+      toast({
+        ...getWhatsappErrorPresentation(error, "Não foi possível executar a campanha."),
+        variant: "destructive",
+      });
     },
   });
 }
@@ -445,7 +449,10 @@ export function useRetryFailedCampaign() {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro ao reprocessar falhas", description: error.message, variant: "destructive" });
+      toast({
+        ...getWhatsappErrorPresentation(error, "Não foi possível reprocessar as falhas."),
+        variant: "destructive",
+      });
     },
   });
 }
@@ -464,7 +471,10 @@ function useCampaignControl(action: "pause" | "resume" | "cancel", successTitle:
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      toast({
+        ...getWhatsappErrorPresentation(error, "Não foi possível alterar a campanha."),
+        variant: "destructive",
+      });
     },
   });
 }
@@ -563,11 +573,9 @@ export function useCreateCampaignWithDispatch() {
             cleanupError,
           );
         }
-        if (error instanceof Error && error.message.startsWith("409:")) {
-          throw new Error(
-            "Todos os contatos selecionados já receberam esta mensagem recentemente. Nenhuma mensagem foi enviada.",
-          );
-        }
+        // Antes, qualquer 409 virava a mensagem de duplicidade — o que mentia
+        // quando o 409 era "campanha já em andamento". Agora o motivo vem no
+        // `code` da resposta e o texto sai de `WHATSAPP_ERRORS`.
         throw error;
       }
     },
@@ -575,7 +583,10 @@ export function useCreateCampaignWithDispatch() {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns"] });
     },
     onError: (error: Error) => {
-      toast({ title: "Erro ao criar campanha", description: error.message, variant: "destructive" });
+      toast({
+        ...getWhatsappErrorPresentation(error, "Não foi possível criar a campanha."),
+        variant: "destructive",
+      });
     },
   });
 }
