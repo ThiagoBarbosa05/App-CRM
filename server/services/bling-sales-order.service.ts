@@ -19,7 +19,12 @@ import type {
 } from "../integrations/bling";
 import { blingConnectionsService } from "./bling-connections.service";
 import { decryptToken } from "../lib/token-crypto";
-import { createBlingPedidoVenda, getBlingPedidoVenda } from "../integrations/bling";
+import {
+  BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO,
+  createBlingPedidoVenda,
+  getBlingPedidoVenda,
+  updateBlingPedidoVendaSituacao,
+} from "../integrations/bling";
 import type { DbExecutor } from "../db";
 import { fromCents, toCents } from "../../shared/restaurant-order-totals";
 import { compareBlingSalesOrderTotals } from "../../shared/bling-sales-order-check";
@@ -206,6 +211,10 @@ export function resolveBlingSalesOrderPayload(
     dataSaida: closedDate,
     dataPrevista: closedDate,
     contato: { id: Number(contactBlingId) },
+    // A comanda já foi paga e fechada — o pedido no Bling nasce concluído, não
+    // "Em aberto" (a situação padrão de quem não manda este campo). É a
+    // situação 9 que a analítica de vendas conta como venda realizada.
+    situacao: { id: BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO },
     itens,
     // A taxa de serviço vai em "outras despesas" para que o total calculado
     // pelo Bling (produtos − desconto + outras despesas) bata com o total da
@@ -645,7 +654,47 @@ async function attemptSendOrderToBling(orderId: string): Promise<SendAttemptResu
 }
 
 /**
- * Lê o pedido de volta do Bling e confere o total contra o da comanda.
+ * Garante que o pedido esteja na situação "Atendido", corrigindo-o quando não
+ * estiver. Recebe o pedido já lido para não gastar um GET a mais — no caminho
+ * feliz (o `situacao` do POST foi respeitado) nenhuma chamada extra acontece.
+ *
+ * Devolve a nota a anexar ao detalhe da conferência, ou `null` quando não houve
+ * nada a fazer. Nunca lança: falhar aqui não invalida o pedido, que existe no
+ * Bling com o valor certo — só a situação ficou para trás.
+ */
+async function ensureSituacaoAtendido(params: {
+  orderId: string;
+  blingSalesOrderId: string;
+  situacaoAtual: number | undefined;
+  accessToken: string;
+  onTokenRefresh: () => Promise<string>;
+}): Promise<string | null> {
+  const { orderId, blingSalesOrderId, situacaoAtual, accessToken, onTokenRefresh } =
+    params;
+
+  if (situacaoAtual === BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO) return null;
+
+  try {
+    await updateBlingPedidoVendaSituacao(
+      accessToken,
+      Number(blingSalesOrderId),
+      BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO,
+      onTokenRefresh,
+    );
+    return "Situação ajustada para Atendido";
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(
+      `[BlingSalesOrderSync] Não foi possível marcar o pedido ${blingSalesOrderId} ` +
+        `da comanda ${orderId} como Atendido (situação atual: ${situacaoAtual ?? "desconhecida"}): ${message}`,
+    );
+    return `Situação não pôde ser alterada para Atendido: ${message}`;
+  }
+}
+
+/**
+ * Lê o pedido de volta do Bling, confere o total contra o da comanda e garante
+ * que ele esteja na situação "Atendido".
  *
  * Roda FORA da transação de envio de propósito: aquela transação segura o lock
  * `FOR UPDATE` da comanda, e uma segunda chamada HTTP lá dentro dobraria o
@@ -706,7 +755,23 @@ export async function verifyBlingSalesOrder(params: {
       alertas,
     });
 
-    await recordCheckResult(order, result);
+    // Depois da conferência de valores: se o ajuste falhar, o veredito do total
+    // (que é o que importa fiscalmente) já está formado e é gravado do mesmo
+    // jeito, com a nota da situação junto.
+    const situacaoNote = await ensureSituacaoAtendido({
+      orderId,
+      blingSalesOrderId,
+      situacaoAtual: blingOrder.situacao?.id,
+      accessToken,
+      onTokenRefresh,
+    });
+
+    await recordCheckResult(order, {
+      ...result,
+      detail: situacaoNote
+        ? [result.detail, situacaoNote].filter(Boolean).join(" | ")
+        : result.detail,
+    });
 
     if (result.status === "divergente") {
       console.warn(

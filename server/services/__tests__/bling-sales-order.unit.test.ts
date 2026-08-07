@@ -4,6 +4,7 @@ import {
   type ResolveBlingSalesOrderInput,
 } from "../bling-sales-order.service";
 import type { RestaurantOrder, RestaurantOrderItem } from "../../../shared/schema";
+import { BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO } from "../../integrations/bling";
 
 /**
  * O que está sob teste: a regra de "não mandar pedido divergente" — qualquer
@@ -101,6 +102,22 @@ describe("resolveBlingSalesOrderPayload", () => {
       { dataVencimento: "2026-07-26", valor: 110 },
     ]);
     expect(result.payload.data).toBe("2026-07-26");
+  });
+
+  /**
+   * Sem `situacao` o Bling cria o pedido em "Em aberto" (6), e a comanda paga
+   * volta pelo webhook como venda não concluída — fora de todo o faturamento,
+   * que filtra por `situation_id = '9'`.
+   */
+  it("cria o pedido já na situação Atendido", () => {
+    const result = resolveBlingSalesOrderPayload(baseInput());
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("esperava ok:true");
+    expect(result.payload.situacao).toEqual({
+      id: BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO,
+    });
+    expect(BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO).toBe(9);
   });
 
   /**

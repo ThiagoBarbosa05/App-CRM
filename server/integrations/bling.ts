@@ -186,6 +186,14 @@ export async function getBlingPedidoVenda(
 // Criação de pedido de venda
 // ---------------------------------------------------------------------------
 
+/**
+ * Situação "Atendido" do módulo de vendas do Bling — a que marca o pedido como
+ * concluído. Sem enviá-la, o Bling cria o pedido na situação padrão 6 ("Em
+ * aberto"), e o pedido volta pelo webhook com `situation_id` diferente de "9",
+ * que é o valor que a analítica de vendas conta como venda concluída.
+ */
+export const BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO = 9;
+
 export interface BlingPedidoVendaItemPayload {
   codigo?: string;
   unidade?: string;
@@ -342,6 +350,48 @@ export async function createBlingPedidoVenda(
 
   const body = (await response.json()) as BlingCreatePedidoVendaResponse;
   return { id: body.data.id, alertas: formatBlingAlertas(body.data.alertas) };
+}
+
+/**
+ * Altera a situação de um pedido de venda já existente
+ * (PATCH /pedidos/vendas/{id}/situacoes/{idSituacao}, sem corpo, 204 no sucesso).
+ *
+ * Existe como rede de segurança do `situacao` enviado na criação: há contas em
+ * que o Bling ignora esse campo no POST (mudar para "Atendido" dispara baixa de
+ * estoque e financeiro, que o Bling prefere executar por este endpoint
+ * dedicado). Também é o caminho para corrigir pedidos que já nasceram
+ * "Em aberto".
+ *
+ * @param accessToken    - Token de acesso OAuth2 válido do Bling.
+ * @param pedidoId       - ID do pedido de venda no Bling.
+ * @param situacaoId     - ID da situação de destino (ex: `BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO`).
+ * @param onTokenRefresh - Callback opcional que renova o token e retorna o novo access token.
+ */
+export async function updateBlingPedidoVendaSituacao(
+  accessToken: string,
+  pedidoId: number,
+  situacaoId: number,
+  onTokenRefresh?: () => Promise<string>,
+): Promise<void> {
+  let token = accessToken;
+  const path = `/pedidos/vendas/${pedidoId}/situacoes/${situacaoId}`;
+  const requestInit: RequestInit = { method: "PATCH" };
+
+  let response = await fetchBlingApi(token, path, undefined, requestInit);
+
+  if ((response.status === 401 || response.status === 403) && onTokenRefresh) {
+    token = await onTokenRefresh();
+    response = await fetchBlingApi(token, path, undefined, requestInit);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new BlingApiError(
+      response.status,
+      `Falha ao alterar a situação do pedido de venda ${pedidoId} no Bling: ` +
+        formatBlingApiError(errorText, response.statusText),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
