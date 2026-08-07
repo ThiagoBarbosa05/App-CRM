@@ -69,6 +69,56 @@ export function phoneVariants(phone: string | null | undefined): string[] {
 }
 
 /**
+ * Forma canônica **local** de um telefone: DDD + número, sem o DDI e sempre com
+ * o 9º dígito de celular (`21999961728`). É a chave de agrupamento do detector
+ * de duplicatas (`duplicate-detection.service.ts`).
+ *
+ * Diferente de `canonicalPhone`, que mantém o `55`. E, diferente das outras
+ * funções deste arquivo, é implementada passo a passo em vez de delegar a
+ * `normalizePhoneE164`: precisa espelhar exatamente o `phoneNormSql` abaixo,
+ * inclusive nos números que não são telefones brasileiros válidos. Se as duas
+ * divergirem, o aviso em tempo real do formulário de cliente e a varredura em
+ * lote da tela de duplicatas passam a discordar sobre o que é duplicata.
+ *
+ * A versão anterior desta normalização só removia o `55`, e por isso a tela de
+ * duplicatas enxergava `3199910141` e `31999910141` como clientes diferentes —
+ * justamente o par que ela existe para mostrar, e que o `phoneVariants` acima
+ * (usado pelo lookup das integrações) sempre casou.
+ */
+export function canonicalLocalPhone(phone: string): string {
+  return phone
+    .replace(/\D/g, "")
+    .replace(/^55(?=\d{10,}$)/, "") // DDI, só quando sobram 10+ dígitos
+    .replace(/^0/, "") // zero de operadora/DDD
+    // 9º dígito. Replacer em função, e não `"$19$2"`: a string faria o TS/JS
+    // hesitarem entre o grupo 19 e "grupo 1 seguido de 9".
+    .replace(/^(\d{2})([6-9]\d{7})$/, (_, ddd: string, num: string) => `${ddd}9${num}`);
+}
+
+/**
+ * Equivalente SQL de `canonicalLocalPhone` — mesmos quatro passos, na mesma
+ * ordem. Recebe o nome qualificado da coluna (ex.: `"c.phone"`).
+ *
+ * `regexp_replace` encadeado em vez de `CASE` aninhado de propósito: cada `CASE`
+ * teria de repetir a expressão inteira do passo anterior nos seus ramos, e o
+ * custo explodiria numa varredura agrupada sobre toda a tabela `clients`.
+ */
+export function phoneNormSql(col: string): string {
+  return `
+    regexp_replace(
+      regexp_replace(
+        regexp_replace(
+          regexp_replace(COALESCE(${col}, ''), '[^0-9]', '', 'g'),
+          '^55(?=[0-9]{10,}$)', ''
+        ),
+        '^0', ''
+      ),
+      '^([0-9]{2})([6-9][0-9]{7})$', '\\19\\2'
+    )
+  `.trim();
+}
+
+/**
  * Confere se um número recebido é um auto-echo do MESMO canal que o recebeu —
  * ex.: dispositivo vinculado via Evolution/Baileys espelhando de volta uma
  * mensagem que o próprio número do canal enviou. Compara só contra o canal que

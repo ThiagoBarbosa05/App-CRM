@@ -32,6 +32,8 @@ interface ClientResult {
   phone: string | null;
   cpf: string | null;
   email: string | null;
+  /** Presente só na resposta do cadastro rápido: o cliente já existia e foi reaproveitado. */
+  existing?: boolean;
 }
 
 interface OpenTableDialogProps {
@@ -125,7 +127,14 @@ export function OpenTableDialog({
       setMiniCpf("");
       setSearchQuery("");
       queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/clients/search"] });
-      toast({ title: "Cliente cadastrado com sucesso" });
+      toast(
+        client.existing
+          ? {
+              title: "Cliente já cadastrado",
+              description: `${client.name} já existia e foi selecionado.`,
+            }
+          : { title: "Cliente cadastrado com sucesso" },
+      );
     },
     onError: (err: unknown) => {
       toast({

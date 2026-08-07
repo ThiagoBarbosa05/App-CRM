@@ -23,6 +23,8 @@ interface ClientResult {
   phone: string | null;
   cpf: string | null;
   email: string | null;
+  /** Presente só na resposta do cadastro rápido: o cliente já existia e foi reaproveitado. */
+  existing?: boolean;
 }
 
 interface LinkClientDialogProps {
@@ -111,6 +113,12 @@ export function LinkClientDialog({
       setMiniCpf("");
       setSearchQuery("");
       queryClient.invalidateQueries({ queryKey: ["/api/restaurant-pdv/clients/search"] });
+      if (client.existing) {
+        toast({
+          title: "Cliente já cadastrado",
+          description: `${client.name} já existia e foi selecionado.`,
+        });
+      }
     },
     onError: (err: unknown) => {
       toast({

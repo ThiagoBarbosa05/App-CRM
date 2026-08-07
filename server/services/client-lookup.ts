@@ -1,4 +1,4 @@
-import { inArray, sql, type SQL } from "drizzle-orm";
+import { asc, inArray, or, sql, type SQL } from "drizzle-orm";
 import { clients } from "@shared/schema";
 import { normalizePhoneE164 } from "@shared/phone";
 import { phoneVariants } from "../lib/phone";
@@ -75,26 +75,87 @@ export function cpfMatchCondition(cpf: string | null | undefined): SQL | null {
 }
 
 /**
- * Todas as condições de identidade de um contato (CPF + telefones), na ordem em
- * que devem ser combinadas com `or(...)`. Vazio significa "não há dado
- * suficiente para procurar" — o chamador não deve buscar nem criar às cegas.
+ * Condição SQL de e-mail, comparando em minúsculas dos dois lados. O
+ * `clients_email_unique` é case-sensitive, então um cadastro gravado como
+ * `Fulano@Mail.com` não colide com `fulano@mail.com` — sem esta condição a
+ * integração estoura `23505` e não consegue achar o cliente que causou o erro.
+ * Como a coluna é UNIQUE, no máximo uma linha casa: é seguro usar como chave.
  */
-export function clientIdentityConditions(params: {
+export function emailMatchCondition(email: string | null | undefined): SQL | null {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) return null;
+  return sql`lower(COALESCE(${clients.email}, '')) = ${normalized}`;
+}
+
+/** Dados de identidade de um contato vindo de uma origem externa. */
+export interface ClientIdentityParams {
   cpf?: string | null;
   phones?: (string | null | undefined)[];
-}): SQL[] {
-  const conditions: SQL[] = [];
+  email?: string | null;
+}
 
-  const cpfCondition = cpfMatchCondition(params.cpf ?? null);
-  if (cpfCondition) conditions.push(cpfCondition);
-
+/** As condições separadas por chave, para reuso entre `where` e `order by`. */
+function identityParts(params: ClientIdentityParams): {
+  cpf: SQL | null;
+  phones: SQL[];
+  email: SQL | null;
+} {
+  const phones: SQL[] = [];
   const seen = new Set<string>();
   for (const phone of params.phones ?? []) {
     const digits = toDigits(phone);
     if (!digits || seen.has(digits)) continue;
     seen.add(digits);
-    conditions.push(...phoneMatchConditions(phone));
+    phones.push(...phoneMatchConditions(phone));
   }
 
+  return {
+    cpf: cpfMatchCondition(params.cpf ?? null),
+    phones,
+    email: emailMatchCondition(params.email ?? null),
+  };
+}
+
+/**
+ * Todas as condições de identidade de um contato (CPF + telefones + e-mail), na
+ * ordem em que devem ser combinadas com `or(...)`. Vazio significa "não há dado
+ * suficiente para procurar" — o chamador não deve buscar nem criar às cegas.
+ */
+export function clientIdentityConditions(params: ClientIdentityParams): SQL[] {
+  const { cpf, phones, email } = identityParts(params);
+
+  const conditions: SQL[] = [];
+  if (cpf) conditions.push(cpf);
+  conditions.push(...phones);
+  if (email) conditions.push(email);
+
   return conditions;
+}
+
+/**
+ * Ordenação a aplicar junto com `clientIdentityConditions`. Sem ela, um
+ * `or(...) + limit(1)` devolve uma linha arbitrária quando o CPF casa num
+ * cliente e o telefone casa noutro — e o mesmo contato pode alternar entre os
+ * dois a cada pedido. A prioridade é CPF > telefone > e-mail, com o cadastro
+ * mais antigo como desempate (é o canônico; os posteriores é que são as cópias).
+ */
+export function clientIdentityOrderBy(params: ClientIdentityParams): SQL[] {
+  const { cpf, phones, email } = identityParts(params);
+
+  const whens: SQL[] = [];
+  let rank = 0;
+  // `sql.raw` nos inteiros: como parâmetro ligado, o Postgres não consegue
+  // inferir o tipo do `THEN` dentro de um `ORDER BY`.
+  if (cpf) whens.push(sql`WHEN ${cpf} THEN ${sql.raw(String(rank++))}`);
+  if (phones.length > 0) {
+    whens.push(sql`WHEN ${or(...phones)} THEN ${sql.raw(String(rank++))}`);
+  }
+  if (email) whens.push(sql`WHEN ${email} THEN ${sql.raw(String(rank++))}`);
+
+  if (whens.length === 0) return [asc(clients.createdAt)];
+
+  return [
+    sql`CASE ${sql.join(whens, sql` `)} ELSE ${sql.raw(String(rank))} END`,
+    asc(clients.createdAt),
+  ];
 }

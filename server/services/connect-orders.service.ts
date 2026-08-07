@@ -1,7 +1,11 @@
 import { db } from "../db";
 import { connectOrders, connectOrderItems, users, clients } from "../../shared/schema";
 import { resetReengagementProgress } from "./reengagement-automation.service";
-import { clientIdentityConditions, toStoredPhone } from "./client-lookup";
+import {
+  clientIdentityConditions,
+  clientIdentityOrderBy,
+  toStoredPhone,
+} from "./client-lookup";
 import {
   eq,
   and,
@@ -104,10 +108,9 @@ async function findClientByCpfOrPhone(
 ): Promise<ClientRecord | null> {
   // Casa CPF e telefone em qualquer formato já gravado — inclusive com o DDI 55
   // e sem o 9º dígito, que a comparação só-dígitos anterior deixava passar.
-  const conditions = clientIdentityConditions({
-    cpf,
-    phones: [cellphone, phone],
-  });
+  // (O CSV do Connect não traz e-mail, então essa chave não se aplica aqui.)
+  const identity = { cpf, phones: [cellphone, phone] };
+  const conditions = clientIdentityConditions(identity);
 
   if (conditions.length === 0) return null;
 
@@ -116,6 +119,7 @@ async function findClientByCpfOrPhone(
       .select()
       .from(clients)
       .where(or(...conditions))
+      .orderBy(...clientIdentityOrderBy(identity))
       .limit(1);
     return found ?? null;
   } catch {

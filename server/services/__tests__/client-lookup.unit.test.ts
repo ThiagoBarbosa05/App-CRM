@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { PgDialect } from "drizzle-orm/pg-core";
 import {
   clientIdentityConditions,
+  clientIdentityOrderBy,
   cpfMatchCondition,
+  emailMatchCondition,
   phoneMatchConditions,
   toComparableCpf,
   toDigits,
@@ -137,5 +140,69 @@ describe("clientIdentityConditions", () => {
 
   it("retorna vazio sem nenhum dado — o chamador não deve buscar às cegas", () => {
     expect(clientIdentityConditions({})).toEqual([]);
+  });
+
+  it("inclui o e-mail como chave", () => {
+    // 1 (CPF) + 2 (telefone) + 1 (e-mail) = 4
+    expect(
+      clientIdentityConditions({
+        cpf: "127.022.387-93",
+        phones: ["21975865422"],
+        email: "fulano@mail.com",
+      }),
+    ).toHaveLength(4);
+  });
+
+  it("busca só por e-mail quando é o único dado", () => {
+    expect(clientIdentityConditions({ email: "fulano@mail.com" })).toHaveLength(1);
+  });
+});
+
+describe("emailMatchCondition", () => {
+  it("gera condição para e-mail preenchido", () => {
+    expect(emailMatchCondition("Fulano@Mail.com")).not.toBeNull();
+  });
+
+  it("não gera condição para e-mail ausente ou em branco", () => {
+    expect(emailMatchCondition(null)).toBeNull();
+    expect(emailMatchCondition("")).toBeNull();
+    expect(emailMatchCondition("   ")).toBeNull();
+  });
+});
+
+describe("clientIdentityOrderBy", () => {
+  /**
+   * Sem ordenação, `or(...) + limit(1)` devolve uma linha arbitrária quando o
+   * CPF casa num cliente e o telefone casa noutro — e o mesmo contato do Bling
+   * podia alternar entre os dois a cada pedido.
+   */
+  it("gera o CASE de prioridade mais o desempate por data", () => {
+    expect(
+      clientIdentityOrderBy({
+        cpf: "127.022.387-93",
+        phones: ["21975865422"],
+        email: "fulano@mail.com",
+      }),
+    ).toHaveLength(2);
+  });
+
+  it("ordena por CPF, depois telefone, depois e-mail", () => {
+    const [caseExpr] = clientIdentityOrderBy({
+      cpf: "127.022.387-93",
+      phones: ["21975865422"],
+      email: "fulano@mail.com",
+    });
+    const { sql: compiled } = new PgDialect().sqlToQuery(caseExpr);
+
+    // Os ranks precisam sair como SQL literal, não como parâmetro ligado: o
+    // Postgres não infere o tipo de um `$n` no THEN dentro de um ORDER BY.
+    expect(compiled).toMatch(/"cpf"[\s\S]*THEN 0/);
+    expect(compiled).toMatch(/"phone"[\s\S]*THEN 1/);
+    expect(compiled).toMatch(/"email"[\s\S]*THEN 2/);
+    expect(compiled).toContain("ELSE 3 END");
+  });
+
+  it("sem nenhum dado, cai só no desempate por data", () => {
+    expect(clientIdentityOrderBy({})).toHaveLength(1);
   });
 });

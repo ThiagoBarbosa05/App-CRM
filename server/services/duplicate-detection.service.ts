@@ -1,6 +1,9 @@
 import { db } from "../db";
 import { sql } from "drizzle-orm";
-import { normalizePhoneE164, toMetaWhatsAppId } from "@shared/phone";
+import { canonicalLocalPhone, phoneNormSql } from "../lib/phone";
+
+/** Alias local: o restante do arquivo já chamava a normalização assim. */
+const normalizePhone = canonicalLocalPhone;
 
 export interface DuplicateMatch {
   id: string;
@@ -24,22 +27,6 @@ export interface DuplicateGroup {
 export type DuplicateField = "cpf" | "email" | "phone" | "name";
 
 /**
- * Normaliza telefone para dígitos SEM DDI brasileiro.
- * Usa normalizePhoneE164 como base e depois remove o prefixo "55" quando o
- * resultado tem 12-13 dígitos — assim "+5521999961728" e "21999961728"
- * produzem o mesmo valor canônico "21999961728".
- */
-function normalizePhone(phone: string): string {
-  const e164 = normalizePhoneE164(phone);
-  const digits = e164 ? toMetaWhatsAppId(e164) : phone.replace(/\D/g, "");
-  // Remove DDI Brasil (55) se presente: 55 + 10-11 dígitos = 12-13 dígitos
-  if (digits.length >= 12 && digits.length <= 13 && digits.startsWith("55")) {
-    return digits.slice(2);
-  }
-  return digits;
-}
-
-/**
  * Normaliza CPF/CNPJ removendo tudo que não é dígito.
  * Retorna null se vazio, nulo, todo zeros, ou todos os dígitos iguais
  * (ex: 000.000.000-00, 111.111.111-11, 99999999999).
@@ -51,22 +38,6 @@ function normalizeDocument(doc: string | null): string | null {
   // Rejeita sequências com todos os dígitos iguais (0000…, 1111…, 9999…)
   if (/^(\d)\1+$/.test(d)) return null;
   return d;
-}
-
-/**
- * Expressão SQL que normaliza a coluna `phone` para dígitos sem DDI brasileiro.
- * "+5521999961728" → "21999961728", "21999961728" → "21999961728".
- * Substitua <COL> pelo nome qualificado da coluna (ex: "c.phone", "a.phone").
- */
-function phoneNormSql(col: string): string {
-  return `
-    CASE
-      WHEN length(regexp_replace(${col}, '[^0-9]', '', 'g')) BETWEEN 12 AND 13
-           AND left(regexp_replace(${col}, '[^0-9]', '', 'g'), 2) = '55'
-      THEN substring(regexp_replace(${col}, '[^0-9]', '', 'g') FROM 3)
-      ELSE regexp_replace(${col}, '[^0-9]', '', 'g')
-    END
-  `.trim();
 }
 
 /**

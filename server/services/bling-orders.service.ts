@@ -22,7 +22,11 @@ import type {
   SalesOrder,
 } from "../types/bling-orders-message";
 import { eq, and, isNull, desc, sql, ne, or, gt } from "drizzle-orm";
-import { clientIdentityConditions, toStoredPhone } from "./client-lookup";
+import {
+  clientIdentityConditions,
+  clientIdentityOrderBy,
+  toStoredPhone,
+} from "./client-lookup";
 import { cashbackSettingsService } from "./cashback-settings.service";
 import { cashbackSettingsRepository } from "../repositories/cashback-settings.repository";
 import { dispatchCashbackEarnedAutomation } from "./cashback-automation.service";
@@ -608,23 +612,60 @@ export class BlingOrdersService {
   }
 
   /**
-   * Busca um cliente no app pelo CPF, celular ou telefone fixo do contato Bling.
-   * Normaliza ambos os lados para comparação apenas por dígitos.
-   * CPF tem prioridade; em seguida celular, depois telefone fixo.
-   * Retorna o primeiro cliente encontrado ou null.
+   * Resolve o cliente do app pelo id do contato no Bling, via
+   * `blingContactMappings` (escopo da conexão).
+   *
+   * É a identidade autoritativa do contato: sobrevive a qualquer edição de
+   * telefone, CPF ou e-mail feita no CRM depois do primeiro pedido. Sem
+   * consultá-la, o mesmo contato era re-resolvido do zero a cada pedido e
+   * virava um cliente novo assim que o telefone deixava de bater.
+   *
+   * Devolve null quando não há mapeamento ou quando o cliente apontado não
+   * existe mais (mesclado/apagado) — o chamador cai para o lookup por
+   * identidade.
+   */
+  private async findAppClientByBlingContactId(
+    connectionId: string,
+    blingContactId: string,
+  ): Promise<Client | null> {
+    try {
+      const [found] = await db
+        .select({ client: clients })
+        .from(blingContactMappings)
+        .innerJoin(clients, eq(clients.id, blingContactMappings.clientId))
+        .where(
+          and(
+            eq(blingContactMappings.connectionId, connectionId),
+            eq(blingContactMappings.blingContactId, blingContactId),
+          ),
+        )
+        .limit(1);
+      return found?.client ?? null;
+    } catch (error) {
+      console.error(
+        "[BlingOrdersService] Erro ao buscar cliente por blingContactId:",
+        error,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Busca um cliente no app pelo CPF, telefones ou e-mail do contato Bling.
+   * Normaliza ambos os lados. CPF tem prioridade, depois telefone, depois
+   * e-mail; empate resolve pelo cadastro mais antigo — ver `clientIdentityOrderBy`.
    */
   private async findAppClientByCpfOrPhone(
     cpf: string | null,
     celular: string | null,
     telefone: string | null,
+    email: string | null = null,
   ): Promise<Client | null> {
-    // `clientIdentityConditions` casa CPF e telefone em qualquer formato já
-    // gravado (com/sem DDI, com/sem o 9º dígito, com/sem pontuação) — ver
-    // server/services/client-lookup.ts.
-    const conditions = clientIdentityConditions({
-      cpf,
-      phones: [celular, telefone],
-    });
+    // `clientIdentityConditions` casa CPF, telefone e e-mail em qualquer formato
+    // já gravado (com/sem DDI, com/sem o 9º dígito, com/sem pontuação, e-mail em
+    // qualquer caixa) — ver server/services/client-lookup.ts.
+    const identity = { cpf, phones: [celular, telefone], email };
+    const conditions = clientIdentityConditions(identity);
 
     if (conditions.length === 0) return null;
 
@@ -633,6 +674,7 @@ export class BlingOrdersService {
         .select()
         .from(clients)
         .where(or(...conditions))
+        .orderBy(...clientIdentityOrderBy(identity))
         .limit(1);
       return found ?? null;
     } catch (error) {
@@ -728,6 +770,11 @@ export class BlingOrdersService {
           ...(end?.municipio ? { city: end.municipio } : {}),
           ...(end?.uf ? { state: end.uf } : {}),
           ...(responsavelId ? { responsavelId } : {}),
+          // Identidade do contato no Bling, para o próximo pedido reencontrar
+          // este cliente mesmo que o telefone mude no CRM.
+          ...(order.contato.id
+            ? { blingContactId: String(order.contato.id) }
+            : {}),
           categoria: "Bling",
           origem: "Bling",
           status: "pending",
@@ -740,7 +787,11 @@ export class BlingOrdersService {
       );
       return created;
     } catch (error: unknown) {
-      // Violação de unique em phone → outra mensagem criou o cliente concorrentemente
+      // Violação de unique (phone, cpf ou email) → o cliente já existe: ou outra
+      // mensagem o criou concorrentemente, ou o e-mail/CPF já estava cadastrado
+      // com outro telefone. Rebuscar incluindo o e-mail é o que evita o pedido
+      // ficar órfão (sem appClientId, logo sem cashback e sem venda) toda vez
+      // que a colisão foi em `clients_email_unique`.
       const isUniqueViolation =
         typeof error === "object" &&
         error !== null &&
@@ -749,9 +800,14 @@ export class BlingOrdersService {
 
       if (isUniqueViolation) {
         console.warn(
-          "[BlingOrdersService] Race condition ao criar cliente — buscando existente por CPF/telefone",
+          "[BlingOrdersService] Cliente já existente (unique violation) — rebuscando por CPF/telefone/e-mail",
         );
-        return this.findAppClientByCpfOrPhone(cpf, celular, telefone);
+        return this.findAppClientByCpfOrPhone(
+          cpf,
+          celular,
+          telefone,
+          order.contato.email ?? null,
+        );
       }
 
       console.error(
@@ -1025,11 +1081,28 @@ export class BlingOrdersService {
       connectionId,
     ).catch(() => null);
 
-    // Busca cliente no app por CPF, celular ou telefone (normalizado)
+    const email = order.contato.email ?? null;
+
     let appClient: Client | null = null;
-    if (cpf || celular || telefone) {
+
+    // 1ª chave: o mapeamento do contato Bling desta conexão. É a identidade
+    // autoritativa e imune a edições de telefone/CPF/e-mail feitas no CRM.
+    if (connectionId && order.contato.id) {
+      appClient = await this.findAppClientByBlingContactId(
+        connectionId,
+        String(order.contato.id),
+      );
+    }
+
+    // 2ª chave: CPF, telefones e e-mail (todos normalizados).
+    if (!appClient && (cpf || celular || telefone || email)) {
       try {
-        appClient = await this.findAppClientByCpfOrPhone(cpf, celular, telefone);
+        appClient = await this.findAppClientByCpfOrPhone(
+          cpf,
+          celular,
+          telefone,
+          email,
+        );
       } catch (error) {
         console.error(
           "[BlingOrdersService] Erro ao buscar cliente no app por CPF/telefone:",
