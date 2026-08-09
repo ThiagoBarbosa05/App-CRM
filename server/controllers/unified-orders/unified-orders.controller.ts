@@ -241,26 +241,16 @@ export class UnifiedOrdersController {
     try {
       const query = listQuerySchema.parse(req.query);
 
-      let blingVendedorId: string | undefined;
-      let connectUserId: string | undefined;
-      let excludeBling = false;
-
-      if (query.userId && !query.sellerId) {
-        blingVendedorId = await resolveBlingVendedorId(query.userId);
-        connectUserId = query.userId;
-        if (!blingVendedorId) excludeBling = true;
-      }
-
-      const effectiveSource = query.source;
-
       const data = await unifiedOrdersService.getSellerTotalsWithGoals({
         startDate: query.startDate,
         endDate: query.endDate,
         contactName: query.contactName,
         sellerId: query.userId ?? query.sellerId,
-        source: effectiveSource,
+        source: query.source,
         minValue: query.minValue,
         maxValue: query.maxValue,
+        situation: query.situation,
+        orderNumber: query.orderNumber,
       });
 
       return res.json({ success: true, data });

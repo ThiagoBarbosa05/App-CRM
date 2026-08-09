@@ -16,6 +16,7 @@ import {
   useSellerTotalsWithGoals,
   type OrderSource,
   type SellerTotalWithGoal,
+  type UnifiedOrdersFilters,
 } from "@/hooks/use-unified-orders";
 import { exportUnifiedOrdersToExcel } from "@/lib/excel-export";
 import { useToast } from "@/hooks/use-toast";
@@ -91,7 +92,7 @@ function SellerCard({ seller }: { seller: SellerTotalWithGoal }) {
         </TooltipTrigger>
         {hasGoal && (
           <TooltipContent side="bottom" className="text-xs">
-            <p>Meta: {formatCurrency(seller.salesGoal)}</p>
+            <p>Meta do período: {formatCurrency(seller.salesGoal)}</p>
             <p>
               {isOver
                 ? `Superou em ${formatCurrency(seller.totalValue - seller.salesGoal)}`
@@ -104,35 +105,12 @@ function SellerCard({ seller }: { seller: SellerTotalWithGoal }) {
   );
 }
 
-function SellerTotalsSection({
-  startDate,
-  endDate,
-  contactName,
-  sellerId,
-  userId,
-  source,
-  minValue,
-  maxValue,
-}: {
-  startDate: string;
-  endDate: string;
-  contactName?: string;
-  sellerId?: string;
-  userId?: string;
-  source: OrderSource;
-  minValue?: number;
-  maxValue?: number;
-}) {
-  const { data: sellers = [], isLoading } = useSellerTotalsWithGoals({
-    startDate,
-    endDate,
-    contactName,
-    sellerId,
-    userId,
-    source,
-    minValue,
-    maxValue,
-  });
+/**
+ * Recebe o mesmo objeto de filtros da tabela — passar campo a campo já fez os
+ * cards ignorarem "situação" e "nº do pedido" e divergirem da listagem.
+ */
+function SellerTotalsSection({ filters }: { filters: UnifiedOrdersFilters }) {
+  const { data: sellers = [], isLoading } = useSellerTotalsWithGoals(filters);
 
   if (!isLoading && sellers.length === 0) return null;
 
@@ -326,16 +304,7 @@ export function OrdersSection({
         isLoading={isOrdersLoading}
       />
 
-      <SellerTotalsSection
-        startDate={startDate}
-        endDate={endDate}
-        contactName={debouncedContact || undefined}
-        sellerId={lockedUserId ? undefined : sellerId}
-        userId={lockedUserId}
-        source={source}
-        minValue={debouncedMinValue}
-        maxValue={debouncedMaxValue}
-      />
+      <SellerTotalsSection filters={sharedFilters} />
 
       <UnifiedOrdersTable
         orders={orders}

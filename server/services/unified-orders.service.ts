@@ -103,7 +103,11 @@ export interface SellerTotalWithGoal {
   totalOrders: number;
   /** Total vendido contando apenas vendas concluídas (Bling situationId = '9') */
   totalValue: number;
-  /** Soma das metas mensais do período (user_goals.sales_goal). 0 se não cadastrado. */
+  /**
+   * Metas mensais (user_goals.sales_goal) rateadas pela fração de cada mês que
+   * o período cobre — um filtro de 1 dia compara contra ~1/30 da meta do mês.
+   * 0 se não cadastrado.
+   */
   salesGoal: number;
 }
 
@@ -189,6 +193,14 @@ export const unifiedOrdersService = {
     const includeBling = source !== "connect";
     const includeConnect =
       source !== "bling" && !orderNumber && situation !== "nao_concluido";
+
+    // Origem=Connect combinada com um filtro que só existe no Bling (nº do
+    // pedido ou "não concluído") não deixa nenhuma fonte de pé. Sem este
+    // curto-circuito o `unionFrag` cairia no `connectFrag` e devolveria todo o
+    // Connect como se o filtro não tivesse sido informado.
+    if (!includeBling && !includeConnect) {
+      return { data: [], total: 0, totalValueCompleted: 0 };
+    }
 
     // ── Bling fragment (sale_date is text YYYY-MM-DD) ─────────────────────
     const blingFrag = sql`
@@ -553,9 +565,14 @@ export const unifiedOrdersService = {
    * vendedores do Connect fazem JOIN com a tabela de usuários.
    */
   /**
-   * Totais por vendedor (Bling + Connect) respeitando os mesmos filtros da
-   * listagem principal. Inclui a meta de vendas acumulada dos meses do período
-   * para os vendedores que têm user_goals cadastrado.
+   * Totais por vendedor (Bling + Connect) respeitando **todos** os filtros da
+   * listagem principal — inclusive situação e nº do pedido, senão os cards
+   * mostram um recorte diferente do da tabela.
+   *
+   * O valor soma apenas vendas concluídas (Bling situação '9' + Connect), a
+   * mesma regra do total "Concluído" do rodapé da tabela, e acrescenta as
+   * vendas lançadas manualmente em weekly_results. A meta vem rateada pela
+   * fração do mês coberta pelo período.
    */
   async getSellerTotalsWithGoals(filters: {
     startDate: string;
@@ -565,6 +582,8 @@ export const unifiedOrdersService = {
     source?: Source;
     minValue?: number;
     maxValue?: number;
+    situation?: "concluido" | "nao_concluido";
+    orderNumber?: string;
   }): Promise<SellerTotalWithGoal[]> {
     const {
       startDate,
@@ -574,6 +593,8 @@ export const unifiedOrdersService = {
       source = "all",
       minValue,
       maxValue,
+      situation,
+      orderNumber,
     } = filters;
 
     const contactLike = contactName ? `%${contactName}%` : null;
@@ -581,6 +602,24 @@ export const unifiedOrdersService = {
     const connectEnd = `${endDate}T23:59:59`;
     const blingValueFilter = buildValueFilter(sql`bo.total_value`, minValue, maxValue);
     const connectValueFilter = buildValueFilter(sql`co.total_value`, minValue, maxValue);
+
+    // Mesmas regras de recorte de `listOrders` — os cards precisam enxergar
+    // exatamente as mesmas linhas da tabela, senão os totais não batem.
+    const blingSituationFilter =
+      situation === "concluido"
+        ? sql`AND bo.situation_id = ${BLING_SITUATION_COMPLETED}`
+        : situation === "nao_concluido"
+          ? sql`AND bo.situation_id != ${BLING_SITUATION_COMPLETED}`
+          : sql``;
+    const blingOrderNumberFilter = orderNumber
+      ? sql`AND bo.order_number ILIKE ${`%${orderNumber}%`}`
+      : sql``;
+
+    const includeBling = source !== "connect";
+    const includeConnect =
+      source !== "bling" && !orderNumber && situation !== "nao_concluido";
+
+    if (!includeBling && !includeConnect) return [];
 
     const blingFrag = sql`
       SELECT
@@ -590,6 +629,8 @@ export const unifiedOrdersService = {
           'bling:' || COALESCE(bo.connection_id, 'legacy') || ':' || bo.seller_id
         )                                AS seller_id,
         COALESCE(mapped_user.name, legacy_user.name, bo.seller_name) AS seller_name,
+        'bling'::text                    AS source,
+        bo.situation_id                  AS situation_id,
         bo.total_value::numeric          AS net_value
       FROM bling_orders bo
       LEFT JOIN bling_seller_mappings bsm
@@ -603,19 +644,22 @@ export const unifiedOrdersService = {
         LIMIT 1
       ) legacy_user ON true
       WHERE bo.deleted_at IS NULL
-        AND bo.situation_id = ${BLING_SITUATION_COMPLETED}
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.seller_id IS NOT NULL
         ${contactLike !== null ? sql`AND bo.contact_name ILIKE ${contactLike}` : sql``}
         ${sellerId ? sql`AND (bsm.user_id = ${sellerId} OR legacy_user.id = ${sellerId})` : sql``}
         ${blingValueFilter}
+        ${blingSituationFilter}
+        ${blingOrderNumberFilter}
     `;
 
     const connectFrag = sql`
       SELECT
         co.seller_id                                  AS seller_id,
         COALESCE(u.name, co.seller_name_raw)          AS seller_name,
+        'connect'::text                               AS source,
+        NULL::text                                    AS situation_id,
         co.total_value::numeric                       AS net_value
       FROM connect_orders co
       LEFT JOIN users u ON co.seller_id = u.id
@@ -628,11 +672,11 @@ export const unifiedOrdersService = {
     `;
 
     const unionFrag =
-      source === "bling"
-        ? blingFrag
-        : source === "connect"
-          ? connectFrag
-          : sql`${blingFrag} UNION ALL ${connectFrag}`;
+      includeBling && includeConnect
+        ? sql`${blingFrag} UNION ALL ${connectFrag}`
+        : includeBling
+          ? blingFrag
+          : connectFrag;
 
     const result = await db.execute<{
       seller_id: string;
@@ -641,31 +685,62 @@ export const unifiedOrdersService = {
       total_value: string;
       sales_goal: string;
     }>(sql`
-      WITH period_goals AS (
+      WITH goal_months AS (
+        -- Metas mensais que tocam o período, com a fração do mês que o período
+        -- cobre (1 = mês inteiro). Filtrar um único dia não pode comparar a
+        -- venda daquele dia contra a meta do mês inteiro.
+        SELECT
+          ug.id,
+          ug.user_id,
+          ug.sales_goal::numeric AS sales_goal,
+          GREATEST(
+            0,
+            LEAST(${endDate}::date, m.month_end)
+              - GREATEST(${startDate}::date, m.month_start)
+              + 1
+          )::numeric / (m.month_end - m.month_start + 1)::numeric AS period_ratio
+        FROM user_goals ug
+        CROSS JOIN LATERAL (
+          SELECT
+            MAKE_DATE(ug.year, ug.month, 1) AS month_start,
+            (MAKE_DATE(ug.year, ug.month, 1) + INTERVAL '1 month' - INTERVAL '1 day')::date AS month_end
+        ) m
+        WHERE m.month_start >= DATE_TRUNC('month', ${startDate}::date)
+          AND m.month_start <= DATE_TRUNC('month', ${endDate}::date)
+      ),
+      period_goals AS (
         SELECT
           user_id,
-          COALESCE(SUM(sales_goal::numeric), 0) AS total_goal
-        FROM user_goals
-        WHERE MAKE_DATE(year, month, 1) >= DATE_TRUNC('month', ${startDate}::date)
-          AND MAKE_DATE(year, month, 1) <= DATE_TRUNC('month', ${endDate}::date)
+          COALESCE(SUM(sales_goal * period_ratio), 0) AS total_goal
+        FROM goal_months
         GROUP BY user_id
       ),
       manual_sales AS (
+        -- weekly_results só guarda a semana do mês (1-4), sem data: o mesmo
+        -- rateio da meta é aplicado aqui para numerador e denominador do
+        -- progresso ficarem na mesma base de tempo.
         SELECT
-          ug.user_id,
-          COALESCE(SUM(wr.sales_achieved::numeric), 0) AS total_manual
-        FROM user_goals ug
-        JOIN weekly_results wr ON wr.goal_id = ug.id
-        WHERE MAKE_DATE(ug.year, ug.month, 1) >= DATE_TRUNC('month', ${startDate}::date)
-          AND MAKE_DATE(ug.year, ug.month, 1) <= DATE_TRUNC('month', ${endDate}::date)
-        GROUP BY ug.user_id
+          gm.user_id,
+          COALESCE(SUM(wr.sales_achieved::numeric * gm.period_ratio), 0) AS total_manual
+        FROM goal_months gm
+        JOIN weekly_results wr ON wr.goal_id = gm.id
+        GROUP BY gm.user_id
       ),
       seller_totals AS (
+        -- Mesma regra do rodapé "Concluído" da tabela: só Bling atendido e
+        -- Connect entram no valor, mas o recorte de linhas é o dos filtros.
         SELECT
           seller_id,
-          MAX(seller_name)       AS seller_name,
-          COUNT(*)::int          AS total_orders,
-          COALESCE(SUM(net_value), 0) AS total_value
+          MAX(seller_name) AS seller_name,
+          COUNT(*) FILTER (
+            WHERE source = 'connect' OR situation_id = ${BLING_SITUATION_COMPLETED}
+          )::int AS total_orders,
+          COALESCE(SUM(
+            CASE WHEN source = 'connect' OR situation_id = ${BLING_SITUATION_COMPLETED}
+              THEN net_value
+              ELSE 0
+            END
+          ), 0) AS total_value
         FROM (${unionFrag}) _orders
         GROUP BY seller_id
       )
