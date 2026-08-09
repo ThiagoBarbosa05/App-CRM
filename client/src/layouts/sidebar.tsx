@@ -18,6 +18,7 @@ import {
   LogOut,
   Megaphone,
   MessageCircle,
+  Package,
   PhoneCall,
   Settings,
   Share2,
@@ -53,6 +54,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/copiloto", icon: Compass, label: "Copiloto" },
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/pedidos", icon: Package, label: "Pedidos", roles: ["admin"] },
   { href: "/marketing-gastos", icon: TrendingDown, label: "Gastos Marketing", roles: ["admin"] },
   { href: "/orcamentos", icon: FileText, label: "Orçamentos", roles: ["admin", "gerente", "vendedor"], activeBasePath: "/orcamentos" },
   { href: "/metas", icon: Target, label: "Metas" },

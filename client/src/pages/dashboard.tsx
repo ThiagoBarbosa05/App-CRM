@@ -8,12 +8,6 @@ import {
   UnderlineTabsTrigger,
 } from "@/components/app-tabs";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -26,10 +20,8 @@ import { useLocation } from "wouter";
 import {
   BarChart3,
   Calendar,
-  CalendarIcon,
   ClipboardList,
   CreditCard,
-  Package,
   Percent,
   TrendingUp,
   Upload,
@@ -37,15 +29,9 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfDay,
-  endOfDay,
-  subMonths,
-} from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { DateRange } from "react-day-picker";
+  DateRangeFilter,
+  useDateRangeFilter,
+} from "@/components/date-range-filter";
 
 import EventsDashboard from "@/components/events-dashboard";
 import { ClientDebt, DashboardStats } from "@/types/dashboard";
@@ -54,7 +40,6 @@ import { DashboardDebtsTab } from "@/components/dashboard/dashboard-debts-tab";
 import { DashboardSummaryTab } from "@/components/dashboard/dashboard-summary-tab";
 import { AggregateView } from "@/components/seller-dashboard/aggregate-view";
 import { IndividualSellerView } from "@/components/seller-dashboard/individual-seller-view";
-import { OrdersSection } from "@/components/seller-dashboard/orders-section";
 import { ConnectCsvImportModal } from "@/components/connect-sales/connect-csv-import-modal";
 import { CohortAnalysisTable } from "@/components/bling-sales/cohort-analysis-table";
 import { useCohortAnalysis } from "@/hooks/use-bling-orders";
@@ -110,42 +95,8 @@ export default function DashboardPage() {
   });
 
   // ── Date range ────────────────────────────────────────────────────────────
-  type DatePreset = "hoje" | "este-mes" | "mes-passado" | "periodo";
-  const [datePreset, setDatePreset] = useState<DatePreset>("este-mes");
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [customRange, setCustomRange] = useState<DateRange | undefined>();
-
-  const dateRange = useMemo<DateRange>(() => {
-    const now = new Date();
-    if (datePreset === "hoje")
-      return { from: startOfDay(now), to: endOfDay(now) };
-    if (datePreset === "mes-passado") {
-      const prev = subMonths(now, 1);
-      return { from: startOfMonth(prev), to: endOfMonth(prev) };
-    }
-    if (datePreset === "periodo" && customRange?.from)
-      return { from: customRange.from, to: customRange.to ?? customRange.from };
-    return { from: startOfMonth(now), to: endOfDay(now) };
-  }, [datePreset, customRange]);
-
-  const startDate = useMemo(
-    () => format(dateRange.from!, "yyyy-MM-dd"),
-    [dateRange.from],
-  );
-  const endDate = useMemo(
-    () => format(dateRange.to!, "yyyy-MM-dd"),
-    [dateRange.to],
-  );
-
-  // Quando o filtro é "Este mês", compara contra o mesmo intervalo do mês anterior
-  // (ex: 01/05–13/05 compara com 01/04–13/04, não com 18/04–30/04)
-  const { prevStartDate, prevEndDate } = useMemo(() => {
-    if (datePreset !== "este-mes") return { prevStartDate: undefined, prevEndDate: undefined };
-    return {
-      prevStartDate: format(subMonths(dateRange.from!, 1), "yyyy-MM-dd"),
-      prevEndDate: format(subMonths(dateRange.to!, 1), "yyyy-MM-dd"),
-    };
-  }, [datePreset, dateRange.from, dateRange.to]);
+  const { startDate, endDate, prevStartDate, prevEndDate, dateFilterProps } =
+    useDateRangeFilter();
 
   // ── Seletor de vendedor (admin) ────────────────────────────────────────────
   const [selectedSellerId, setSelectedSellerId] = useState<string>("all");
@@ -218,68 +169,7 @@ export default function DashboardPage() {
 
         <PageHeader.Actions className="flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Filtro de período */}
-          <div className="overflow-x-auto max-w-full">
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-sm min-w-max">
-              {(
-                [
-                  { value: "hoje", label: "Hoje" },
-                  { value: "este-mes", label: "Este mês" },
-                  { value: "mes-passado", label: "Mês passado" },
-                ] as const
-              ).map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setDatePreset(value)}
-                  className={`inline-flex items-center whitespace-nowrap px-3.5 py-2 rounded-lg text-sm transition-all duration-200 outline-none border ${
-                    datePreset === value
-                      ? "font-semibold text-primary bg-accent border-border"
-                      : "font-medium text-muted-foreground border-transparent hover:text-foreground hover:bg-accent"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    onClick={() => setDatePreset("periodo")}
-                    className={`inline-flex items-center gap-1.5 whitespace-nowrap px-3.5 py-2 rounded-lg text-sm transition-all duration-200 outline-none border ${
-                      datePreset === "periodo"
-                        ? "font-semibold text-primary bg-accent border-border"
-                        : "font-medium text-muted-foreground border-transparent hover:text-foreground hover:bg-accent"
-                    }`}
-                  >
-                    <CalendarIcon className="h-3.5 w-3.5" />
-                    {datePreset === "periodo" && customRange?.from ? (
-                      <span>
-                        {format(customRange.from, "dd/MM/yy")}
-                        {customRange.to &&
-                          customRange.to !== customRange.from &&
-                          ` — ${format(customRange.to, "dd/MM/yy")}`}
-                      </span>
-                    ) : (
-                      "Período"
-                    )}
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <CalendarComponent
-                    initialFocus
-                    mode="range"
-                    defaultMonth={customRange?.from ?? new Date()}
-                    selected={customRange}
-                    onSelect={(range) => {
-                      setCustomRange(range);
-                      if (range?.from && range?.to) setIsCalendarOpen(false);
-                    }}
-                    numberOfMonths={2}
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
+          <DateRangeFilter {...dateFilterProps} />
 
           {/* Seletor de vendedor */}
           {isAdmin && (
@@ -381,11 +271,6 @@ export default function DashboardPage() {
                 <Percent className="h-4 w-4 shrink-0" />
                 <span>Cohort</span>
               </UnderlineTabsTrigger>
-
-              <UnderlineTabsTrigger value="pedidos" color="orange">
-                <Package className="h-4 w-4 shrink-0" />
-                <span>Pedidos</span>
-              </UnderlineTabsTrigger>
             </UnderlineTabsList>
 
             <TabsContent value="vendas" className="m-0 outline-none">
@@ -412,10 +297,6 @@ export default function DashboardPage() {
 
             <TabsContent value="cohort" className="m-0 outline-none">
               <CohortAnalysisContent startDate={startDate} endDate={endDate} userId={resolvedSellerId || undefined} />
-            </TabsContent>
-
-            <TabsContent value="pedidos" className="m-0 outline-none">
-              <OrdersSection startDate={startDate} endDate={endDate} lockedUserId={resolvedSellerId || undefined} />
             </TabsContent>
           </Tabs>
         </TabsContent>

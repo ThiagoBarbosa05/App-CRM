@@ -58,7 +58,8 @@ interface UnifiedOrdersTableProps {
   onPageChange: (page: number) => void;
   hasMore: boolean;
   totalOrders?: number;
-  totalValueNonCancelled?: number;
+  /** Soma apenas das vendas concluídas (Bling situationId '9' + todo o Connect) */
+  totalValueCompleted?: number;
 }
 
 function getSituationLabel(value: string | null | undefined) {
@@ -169,7 +170,7 @@ export function UnifiedOrdersTable({
   onPageChange,
   hasMore,
   totalOrders = 0,
-  totalValueNonCancelled = 0,
+  totalValueCompleted = 0,
 }: UnifiedOrdersTableProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -675,12 +676,15 @@ export function UnifiedOrdersTable({
             </p>
           </div>
 
-          {totalValueNonCancelled > 0 && (
-            <div className="bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-2xl border border-emerald-100 dark:border-emerald-800">
+          {totalValueCompleted > 0 && (
+            <div
+              className="bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-2xl border border-emerald-100 dark:border-emerald-800"
+              title="Soma apenas dos pedidos concluídos — pedidos em aberto e cancelados aparecem na lista, mas não entram neste total"
+            >
               <p className="text-xs font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">
-                Total{" "}
+                Concluído{" "}
                 <span className="text-emerald-700 dark:text-emerald-300">
-                  {formatCurrency(totalValueNonCancelled)}
+                  {formatCurrency(totalValueCompleted)}
                 </span>
               </p>
             </div>

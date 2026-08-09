@@ -12,9 +12,19 @@ export interface UnifiedOrderFilters {
   blingVendedorId?: string; // filtro específico para Bling (bling_orders.seller_id)
   connectUserId?: string;   // filtro específico para Connect (connect_orders.seller_id = users.id)
   source?: "bling" | "connect" | "all";
+  /** Valor total mínimo do pedido (R$) */
+  minValue?: number;
+  /** Valor total máximo do pedido (R$) */
+  maxValue?: number;
   limit?: number;
   offset?: number;
 }
+
+/**
+ * Situação Bling que a analítica de vendas conta como venda concluída
+ * ("Atendido"). Ver BLING_SITUACAO_PEDIDO_VENDA_ATENDIDO em integrations/bling.ts.
+ */
+const BLING_SITUATION_COMPLETED = "9";
 
 export interface UnifiedOrderItem {
   id: number;
@@ -83,7 +93,7 @@ export interface SellerTotalWithGoal {
   sellerId: string;
   sellerName: string;
   totalOrders: number;
-  /** Total vendido excluindo pedidos cancelados (situationValue = '2') */
+  /** Total vendido contando apenas vendas concluídas (Bling situationId = '9') */
   totalValue: number;
   /** Soma das metas mensais do período (user_goals.sales_goal). 0 se não cadastrado. */
   salesGoal: number;
@@ -112,6 +122,18 @@ function getPreviousPeriod(
 
 type Source = "bling" | "connect" | "all";
 
+/** Fragmento `AND <coluna> BETWEEN min AND max`, omitindo os limites não informados. */
+function buildValueFilter(
+  column: ReturnType<typeof sql>,
+  minValue?: number,
+  maxValue?: number,
+) {
+  return sql`
+    ${minValue !== undefined ? sql`AND ${column}::numeric >= ${minValue}::numeric` : sql``}
+    ${maxValue !== undefined ? sql`AND ${column}::numeric <= ${maxValue}::numeric` : sql``}
+  `;
+}
+
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export const unifiedOrdersService = {
@@ -122,18 +144,22 @@ export const unifiedOrdersService = {
    */
   async listOrders(
     filters: UnifiedOrderFilters,
-  ): Promise<{ data: UnifiedOrder[]; total: number; totalValueNonCancelled: number }> {
+  ): Promise<{ data: UnifiedOrder[]; total: number; totalValueCompleted: number }> {
     const {
       startDate,
       endDate,
       contactName,
       sellerId,
       source = "all",
+      minValue,
+      maxValue,
       limit = 20,
       offset = 0,
     } = filters;
 
     const contactLike = contactName ? `%${contactName}%` : null;
+    const blingValueFilter = buildValueFilter(sql`bo.total_value`, minValue, maxValue);
+    const connectValueFilter = buildValueFilter(sql`co.total_value`, minValue, maxValue);
 
     // ── Bling fragment (sale_date is text YYYY-MM-DD) ─────────────────────
     const blingFrag = sql`
@@ -153,6 +179,7 @@ export const unifiedOrdersService = {
         )                                    AS seller_id,
         bo.app_client_id                     AS app_client_id,
         bo.situation_value                   AS situation_value,
+        bo.situation_id                      AS situation_id,
         bo.contact_type                      AS contact_type,
         NULL::text                           AS app_client_status,
         NULL::text                           AS sale_code,
@@ -175,6 +202,7 @@ export const unifiedOrdersService = {
         AND bo.sale_date <= ${endDate}
         ${contactLike !== null ? sql`AND bo.contact_name ILIKE ${contactLike}` : sql``}
         ${sellerId ? sql`AND (bsm.user_id = ${sellerId} OR legacy_user.id = ${sellerId})` : sql``}
+        ${blingValueFilter}
     `;
 
     // ── Connect fragment (sale_date is timestamp) ─────────────────────────
@@ -194,6 +222,7 @@ export const unifiedOrdersService = {
         co.seller_id                                  AS seller_id,
         co.app_client_id                              AS app_client_id,
         NULL::text                                    AS situation_value,
+        NULL::text                                    AS situation_id,
         'F'::text                                     AS contact_type,
         co.app_client_status                          AS app_client_status,
         co.sale_code                                  AS sale_code,
@@ -205,6 +234,7 @@ export const unifiedOrdersService = {
         AND co.sale_date <= ${connectEnd}::timestamp
         ${contactLike !== null ? sql`AND co.contact_name ILIKE ${contactLike}` : sql``}
         ${sellerId ? sql`AND co.seller_id = ${sellerId}` : sql``}
+        ${connectValueFilter}
     `;
 
     const unionFrag =
@@ -219,21 +249,23 @@ export const unifiedOrdersService = {
         SELECT
           COUNT(*) AS total,
           COALESCE(SUM(
-            CASE WHEN situation_value IS DISTINCT FROM '2'
+            CASE WHEN source = 'connect' OR situation_id = ${BLING_SITUATION_COMPLETED}
               THEN total_value::numeric
               ELSE 0
             END
-          ), 0) AS total_value_non_cancelled
+          ), 0) AS total_value_completed
         FROM (${unionFrag}) _combined
       `),
+      // O desempate por (source, id) é obrigatório: sale_date tem granularidade
+      // de dia, então sem ele o LIMIT/OFFSET repete e pula pedidos entre páginas.
       db.execute(
-        sql`SELECT * FROM (${unionFrag}) _combined ORDER BY sale_date DESC LIMIT ${limit} OFFSET ${offset}`,
+        sql`SELECT * FROM (${unionFrag}) _combined ORDER BY sale_date DESC, source ASC, id ASC LIMIT ${limit} OFFSET ${offset}`,
       ),
     ]);
 
     const countRow = countResult.rows[0] as Record<string, unknown>;
     const total = Number(countRow?.total ?? 0);
-    const totalValueNonCancelled = parseFloat(String(countRow?.total_value_non_cancelled ?? "0"));
+    const totalValueCompleted = parseFloat(String(countRow?.total_value_completed ?? "0"));
 
     const data: UnifiedOrder[] = (
       dataResult.rows as Record<string, unknown>[]
@@ -298,7 +330,7 @@ export const unifiedOrdersService = {
       }
     }
 
-    return { data, total, totalValueNonCancelled };
+    return { data, total, totalValueCompleted };
   },
 
   /**
@@ -500,6 +532,8 @@ export const unifiedOrdersService = {
     contactName?: string;
     sellerId?: string;
     source?: Source;
+    minValue?: number;
+    maxValue?: number;
   }): Promise<SellerTotalWithGoal[]> {
     const {
       startDate,
@@ -507,11 +541,15 @@ export const unifiedOrdersService = {
       contactName,
       sellerId,
       source = "all",
+      minValue,
+      maxValue,
     } = filters;
 
     const contactLike = contactName ? `%${contactName}%` : null;
     const connectStart = `${startDate}T00:00:00`;
     const connectEnd = `${endDate}T23:59:59`;
+    const blingValueFilter = buildValueFilter(sql`bo.total_value`, minValue, maxValue);
+    const connectValueFilter = buildValueFilter(sql`co.total_value`, minValue, maxValue);
 
     const blingFrag = sql`
       SELECT
@@ -534,12 +572,13 @@ export const unifiedOrdersService = {
         LIMIT 1
       ) legacy_user ON true
       WHERE bo.deleted_at IS NULL
-        AND bo.situation_id = '9'
+        AND bo.situation_id = ${BLING_SITUATION_COMPLETED}
         AND bo.sale_date >= ${startDate}
         AND bo.sale_date <= ${endDate}
         AND bo.seller_id IS NOT NULL
         ${contactLike !== null ? sql`AND bo.contact_name ILIKE ${contactLike}` : sql``}
         ${sellerId ? sql`AND (bsm.user_id = ${sellerId} OR legacy_user.id = ${sellerId})` : sql``}
+        ${blingValueFilter}
     `;
 
     const connectFrag = sql`
@@ -554,6 +593,7 @@ export const unifiedOrdersService = {
         AND co.seller_id IS NOT NULL
         ${contactLike !== null ? sql`AND co.contact_name ILIKE ${contactLike}` : sql``}
         ${sellerId ? sql`AND co.seller_id = ${sellerId}` : sql``}
+        ${connectValueFilter}
     `;
 
     const unionFrag =

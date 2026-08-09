@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { unifiedOrdersController } from "../controllers/unified-orders/unified-orders.controller";
-import { requireAdminOrGerente } from "../middleware/validation";
+import { requireAdmin, requireAdminOrGerente } from "../middleware/validation";
 import { db } from "../db";
 import { blingOrders, connectOrders, clients } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -10,10 +10,14 @@ const router = Router();
 /**
  * @route   GET /api/unified-orders
  * @desc    Lista pedidos unificados (Bling + Connect) com filtros e paginação
- * @query   startDate, endDate, contactName?, sellerId?, source?, limit?, offset?
+ * @access  Admin — consome a página /pedidos. Sem `requireAdmin` qualquer
+ *          usuário autenticado poderia omitir `userId` e ler os pedidos de
+ *          todos os vendedores.
+ * @query   startDate, endDate, contactName?, sellerId?, source?, minValue?, maxValue?, limit?, offset?
  */
 router.get(
   "/",
+  requireAdmin,
   unifiedOrdersController.listOrders.bind(unifiedOrdersController),
 );
 
@@ -50,10 +54,12 @@ router.get(
 /**
  * @route   GET /api/unified-orders/statistics/seller-totals
  * @desc    Totais por vendedor respeitando os filtros da listagem + meta mensal de user_goals
- * @query   startDate, endDate, contactName?, sellerId?, userId?, source?
+ * @access  Admin — expõe o faturamento de todos os vendedores.
+ * @query   startDate, endDate, contactName?, sellerId?, userId?, source?, minValue?, maxValue?
  */
 router.get(
   "/statistics/seller-totals",
+  requireAdmin,
   unifiedOrdersController.getSellerTotals.bind(unifiedOrdersController),
 );
 

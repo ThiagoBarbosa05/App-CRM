@@ -25,6 +25,7 @@ import Marketing from "@/pages/marketing";
 import AutomationsPage from "@/pages/automations";
 import Configurations from "@/pages/configurations";
 import DashboardPage from "./pages/dashboard";
+import PedidosPage from "./pages/pedidos";
 import Products from "./pages/products";
 import ProductProfilePage from "./pages/product-profile";
 import ProductDuplicatesPage from "./pages/product-duplicates";
@@ -166,6 +167,20 @@ function Router() {
             <DashboardPage />
           </MainLayout>
         )}
+      />
+      {/* Pedidos é restrito a admin — o backend responde 403 em
+          /api/unified-orders para os demais perfis. */}
+      <Route
+        path="/pedidos"
+        component={() =>
+          user.role !== "admin" ? (
+            <Redirect to="/dashboard" />
+          ) : (
+            <MainLayout>
+              <PedidosPage />
+            </MainLayout>
+          )
+        }
       />
       <Route
         path="/clientes"

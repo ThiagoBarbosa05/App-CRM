@@ -44,13 +44,26 @@ const baseQuerySchema = z.object({
     .optional(),
 });
 
-const listQuerySchema = baseQuerySchema.extend({
-  contactName: z.string().optional(),
-  sellerId: z.string().optional(),
-  userId: z.string().optional(),
-  limit: z.coerce.number().min(1).max(100).optional().default(20),
-  offset: z.coerce.number().min(0).optional().default(0),
-});
+const listQuerySchema = baseQuerySchema
+  .extend({
+    contactName: z.string().optional(),
+    sellerId: z.string().optional(),
+    userId: z.string().optional(),
+    minValue: z.coerce.number().min(0).optional(),
+    maxValue: z.coerce.number().min(0).optional(),
+    limit: z.coerce.number().min(1).max(100).optional().default(20),
+    offset: z.coerce.number().min(0).optional().default(0),
+  })
+  .refine(
+    (data) =>
+      data.minValue === undefined ||
+      data.maxValue === undefined ||
+      data.minValue <= data.maxValue,
+    {
+      message: "minValue deve ser menor ou igual a maxValue",
+      path: ["minValue"],
+    },
+  );
 
 const evolutionQuerySchema = baseQuerySchema.extend({
   groupBy: z.enum(["day", "week", "month"]).optional().default("day"),
@@ -84,7 +97,7 @@ export class UnifiedOrdersController {
 
       const effectiveSource = query.source;
 
-      const { data, total, totalValueNonCancelled } = await unifiedOrdersService.listOrders({
+      const { data, total, totalValueCompleted } = await unifiedOrdersService.listOrders({
         startDate: query.startDate,
         endDate: query.endDate,
         contactName: query.contactName,
@@ -92,6 +105,8 @@ export class UnifiedOrdersController {
         blingVendedorId,
         connectUserId,
         source: effectiveSource,
+        minValue: query.minValue,
+        maxValue: query.maxValue,
         limit: query.limit,
         offset: query.offset,
       });
@@ -101,7 +116,7 @@ export class UnifiedOrdersController {
         data,
         pagination: {
           total,
-          totalValueNonCancelled,
+          totalValueCompleted,
           limit: query.limit,
           offset: query.offset,
           hasMore: query.offset + data.length < total,
@@ -240,6 +255,8 @@ export class UnifiedOrdersController {
         contactName: query.contactName,
         sellerId: query.userId ?? query.sellerId,
         source: effectiveSource,
+        minValue: query.minValue,
+        maxValue: query.maxValue,
       });
 
       return res.json({ success: true, data });

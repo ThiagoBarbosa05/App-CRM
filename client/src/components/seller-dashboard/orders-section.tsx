@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Download, Loader2, Target, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,6 +112,8 @@ function SellerTotalsSection({
   sellerId,
   userId,
   source,
+  minValue,
+  maxValue,
 }: {
   startDate: string;
   endDate: string;
@@ -119,6 +121,8 @@ function SellerTotalsSection({
   sellerId?: string;
   userId?: string;
   source: OrderSource;
+  minValue?: number;
+  maxValue?: number;
 }) {
   const { data: sellers = [], isLoading } = useSellerTotalsWithGoals({
     startDate,
@@ -127,6 +131,8 @@ function SellerTotalsSection({
     sellerId,
     userId,
     source,
+    minValue,
+    maxValue,
   });
 
   if (!isLoading && sellers.length === 0) return null;
@@ -187,6 +193,16 @@ export function OrdersSection({
   const [source, setSource] = useState<OrderSource>("all");
   const [minValue, setMinValue] = useState<number | undefined>();
   const [maxValue, setMaxValue] = useState<number | undefined>();
+  // Sem debounce, digitar "1000" dispararia uma consulta por dígito
+  const debouncedMinValue = useDebounce(minValue, 500);
+  const debouncedMaxValue = useDebounce(maxValue, 500);
+
+  // Período e vendedor vêm por prop; os filtros internos já resetam a página
+  // sozinhos. Sem isto, trocar o dia estando na página 3 abre a tabela vazia
+  // num offset que não existe mais no novo recorte.
+  useEffect(() => {
+    setPage(1);
+  }, [startDate, endDate, lockedUserId]);
 
   const { data: ordersResponse, isLoading: isOrdersLoading } = useUnifiedOrders(
     {
@@ -196,6 +212,8 @@ export function OrdersSection({
       sellerId: lockedUserId ? undefined : sellerId,
       userId: lockedUserId,
       source,
+      minValue: debouncedMinValue,
+      maxValue: debouncedMaxValue,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
     },
@@ -205,7 +223,7 @@ export function OrdersSection({
   const pagination = ordersResponse?.pagination;
   const hasMore = pagination?.hasMore ?? false;
   const totalOrders = pagination?.total ?? 0;
-  const totalValueNonCancelled = pagination?.totalValueNonCancelled ?? 0;
+  const totalValueCompleted = pagination?.totalValueCompleted ?? 0;
 
   const { refetch: refetchExport, isFetching: isFetchingExport } =
     useBlingOrdersForExport(
@@ -316,6 +334,8 @@ export function OrdersSection({
         sellerId={lockedUserId ? undefined : sellerId}
         userId={lockedUserId}
         source={source}
+        minValue={debouncedMinValue}
+        maxValue={debouncedMaxValue}
       />
 
       <UnifiedOrdersTable
@@ -325,7 +345,7 @@ export function OrdersSection({
         onPageChange={setPage}
         hasMore={hasMore}
         totalOrders={totalOrders}
-        totalValueNonCancelled={totalValueNonCancelled}
+        totalValueCompleted={totalValueCompleted}
       />
     </section>
   );

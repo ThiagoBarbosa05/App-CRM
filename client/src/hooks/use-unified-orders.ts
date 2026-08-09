@@ -81,6 +81,10 @@ export interface UnifiedOrdersFilters {
   sellerId?: string;
   userId?: string;
   source?: OrderSource;
+  /** Valor total mínimo do pedido (R$) */
+  minValue?: number;
+  /** Valor total máximo do pedido (R$) */
+  maxValue?: number;
   limit?: number;
   offset?: number;
 }
@@ -105,7 +109,7 @@ export function useUnifiedOrders(filters: UnifiedOrdersFilters) {
   );
   return useQuery<{
     data: UnifiedOrder[];
-    pagination: { total: number; totalValueNonCancelled: number; hasMore: boolean };
+    pagination: { total: number; totalValueCompleted: number; hasMore: boolean };
   }>({
     queryKey: ["/api/unified-orders", filters],
     queryFn: async () => {
