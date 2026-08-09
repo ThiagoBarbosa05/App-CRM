@@ -120,6 +120,44 @@ function formatDateForExcel(dateStr: string): string {
 }
 
 /**
+ * Exporta pedidos unificados (Bling + Connect) para Excel
+ */
+export function exportUnifiedOrdersToExcel(orders: Array<{
+  source: "bling" | "connect";
+  orderNumber: string | null;
+  saleCode: string | null;
+  saleDate: string;
+  contactName: string | null;
+  sellerName: string | null;
+  situationValue: string | null;
+  totalValue: string;
+  appClientId: string | null;
+  contactType: string | null;
+}>) {
+  const data = orders.map((order) => ({
+    Origem: order.source === "bling" ? "Bling" : "Connect",
+    "Nº Pedido / Código": order.orderNumber || order.saleCode || "—",
+    "Data Venda": formatDateForExcel(order.saleDate),
+    Cliente: order.contactName || "",
+    Vendedor: order.sellerName || "",
+    Situação:
+      order.source === "bling"
+        ? order.situationValue || ""
+        : "Connect",
+    "Tipo Contato":
+      order.source === "connect" || order.contactType === "F" ? "PF" : "PJ",
+    "Valor Total (R$)": parseFloat(order.totalValue || "0"),
+    "Vínculo App": order.appClientId ? "Vinculado" : "Sem vínculo",
+  }));
+
+  exportToExcel(
+    data,
+    `pedidos_${new Date().toISOString().split("T")[0]}`,
+    "Pedidos",
+  );
+}
+
+/**
  * Exporta pedidos do Bling para Excel com dados completos
  */
 export function exportBlingOrdersToExcel(orders: BlingOrder[]) {

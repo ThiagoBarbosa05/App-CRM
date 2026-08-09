@@ -51,8 +51,10 @@ const listQuerySchema = baseQuerySchema
     userId: z.string().optional(),
     minValue: z.coerce.number().min(0).optional(),
     maxValue: z.coerce.number().min(0).optional(),
-    limit: z.coerce.number().min(1).max(100).optional().default(20),
+    limit: z.coerce.number().min(1).max(5000).optional().default(20),
     offset: z.coerce.number().min(0).optional().default(0),
+    situation: z.enum(["concluido", "nao_concluido"]).optional(),
+    orderNumber: z.string().optional(),
   })
   .refine(
     (data) =>
@@ -87,15 +89,15 @@ export class UnifiedOrdersController {
 
       let blingVendedorId: string | undefined;
       let connectUserId: string | undefined;
-      let excludeBling = false;
+      let effectiveSource = query.source;
+
       if (query.userId && !query.sellerId) {
         blingVendedorId = await resolveBlingVendedorId(query.userId);
         connectUserId = query.userId;
-        // Se não encontrou o blingVendedorId, exclui pedidos Bling para não vazar dados de outros vendedores
-        if (!blingVendedorId) excludeBling = true;
+        // Se não encontrou o blingVendedorId, restringe a Connect para não vazar
+        // pedidos Bling de outros vendedores.
+        if (!blingVendedorId) effectiveSource = "connect";
       }
-
-      const effectiveSource = query.source;
 
       const { data, total, totalValueCompleted } = await unifiedOrdersService.listOrders({
         startDate: query.startDate,
@@ -109,6 +111,8 @@ export class UnifiedOrdersController {
         maxValue: query.maxValue,
         limit: query.limit,
         offset: query.offset,
+        situation: query.situation,
+        orderNumber: query.orderNumber,
       });
 
       return res.json({

@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FilterX, Search, SlidersHorizontal, Briefcase, Store } from "lucide-react";
+import { FilterX, Search, SlidersHorizontal, Briefcase, Store, CheckCircle2, Hash } from "lucide-react";
 import { type OrderSource } from "@/hooks/use-unified-orders";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -19,9 +19,14 @@ interface SellerUserOption {
   isActive: string;
 }
 
+export type OrderSituation = "all" | "concluido" | "nao_concluido";
+
 interface OrdersFiltersProps {
   contactName?: string;
   onContactNameChange: (name: string) => void;
+
+  orderNumber?: string;
+  onOrderNumberChange: (value: string) => void;
 
   sellerId?: string;
   onSellerIdChange: (id: string | undefined) => void;
@@ -29,6 +34,9 @@ interface OrdersFiltersProps {
 
   source?: OrderSource;
   onSourceChange: (source: OrderSource) => void;
+
+  situation?: OrderSituation;
+  onSituationChange: (situation: OrderSituation) => void;
 
   minValue?: number;
   onMinValueChange: (value: number | undefined) => void;
@@ -42,11 +50,15 @@ interface OrdersFiltersProps {
 export function OrdersFilters({
   contactName,
   onContactNameChange,
+  orderNumber,
+  onOrderNumberChange,
   sellerId,
   onSellerIdChange,
   hideSeller = false,
   source = "all",
   onSourceChange,
+  situation = "all",
+  onSituationChange,
   minValue,
   onMinValueChange,
   maxValue,
@@ -65,16 +77,20 @@ export function OrdersFilters({
 
   const handleClearFilters = () => {
     onContactNameChange("");
+    onOrderNumberChange("");
     onSellerIdChange(undefined);
     onSourceChange("all");
+    onSituationChange("all");
     onMinValueChange(undefined);
     onMaxValueChange(undefined);
   };
 
   const hasActiveFilters =
     contactName ||
+    orderNumber ||
     sellerId ||
     source !== "all" ||
+    situation !== "all" ||
     minValue !== undefined ||
     maxValue !== undefined;
 
@@ -113,6 +129,7 @@ export function OrdersFilters({
           </AnimatePresence>
         </div>
 
+        {/* Row 1: Cliente, Nº Pedido, Vendedor, Origem, Situação */}
         <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${hideSeller ? "lg:grid-cols-4" : "lg:grid-cols-5"}`}>
           {/* Client Name Search */}
           <div className="space-y-1.5">
@@ -131,20 +148,56 @@ export function OrdersFilters({
             </div>
           </div>
 
+          {/* Order Number Search */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+              Nº Pedido (Bling)
+            </label>
+            <div className="relative">
+              <Hash className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Ex: 12345..."
+                value={orderNumber || ""}
+                onChange={(e) => onOrderNumberChange(e.target.value)}
+                className="w-full pl-11 h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl font-medium focus-visible:ring-blue-500"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
           {/* Seller Select — oculto quando o vendedor é fixado pelo contexto */}
           {!hideSeller && (
-            <FilterSelect
-              label="Vendedor"
-              icon={<Briefcase className="h-4 w-4 text-emerald-500" />}
-              value={sellerId}
-              onValueChange={onSellerIdChange}
-              options={sellers.map((seller) => ({
-                value: seller.id,
-                label: seller.name,
-              }))}
-              placeholder="Todos os Vendedores"
-              isLoading={isSellersLoading || isLoading}
-            />
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+                Vendedor
+              </label>
+              <Select
+                value={sellerId || "all"}
+                onValueChange={(val) => onSellerIdChange(val === "all" ? undefined : val)}
+                disabled={isSellersLoading || isLoading}
+              >
+                <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold transition-all hover:border-slate-300 dark:hover:border-slate-600">
+                  <div className="flex items-center gap-3">
+                    <Briefcase className="h-4 w-4 text-emerald-500" />
+                    <SelectValue placeholder={isSellersLoading ? "Carregando..." : "Todos os Vendedores"} />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
+                  <SelectItem value="all" className="rounded-xl font-bold">
+                    Todos os Vendedores
+                  </SelectItem>
+                  {sellers.map((seller) => (
+                    <SelectItem
+                      key={seller.id}
+                      value={seller.id}
+                      className="rounded-xl"
+                    >
+                      <span className="font-medium">{seller.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
           {/* Origem Select */}
@@ -181,103 +234,86 @@ export function OrdersFilters({
             </Select>
           </div>
 
-          {/* Range de Valor */}
-          <div className="space-y-1.5 md:col-span-2 lg:col-span-2">
+          {/* Situação Select */}
+          <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
-              Range de Valor (R$)
+              Situação
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                  DE
-                </span>
-                <Input
-                  type="number"
-                  placeholder="0,00"
-                  value={minValue ?? ""}
-                  onChange={(e) =>
-                    onMinValueChange(
-                      e.target.value ? parseFloat(e.target.value) : undefined,
-                    )
-                  }
-                  className="w-full pl-10 h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl font-bold"
-                  disabled={isLoading}
-                />
-              </div>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                  ATÉ
-                </span>
-                <Input
-                  type="number"
-                  placeholder="∞"
-                  value={maxValue ?? ""}
-                  onChange={(e) =>
-                    onMaxValueChange(
-                      e.target.value ? parseFloat(e.target.value) : undefined,
-                    )
-                  }
-                  className="w-full pl-10 h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl font-bold"
-                  disabled={isLoading}
-                />
-              </div>
+            <Select
+              value={situation}
+              onValueChange={(val) => onSituationChange(val as OrderSituation)}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold transition-all hover:border-slate-300 dark:hover:border-slate-600">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
+                <SelectItem value="all" className="rounded-xl font-bold">
+                  Todas as situações
+                </SelectItem>
+                <SelectItem value="concluido" className="rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                    Concluídos
+                  </div>
+                </SelectItem>
+                <SelectItem value="nao_concluido" className="rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                    Não concluídos (Bling)
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Row 2: Range de Valor */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+            Range de Valor (R$)
+          </label>
+          <div className="grid grid-cols-2 gap-3 max-w-sm">
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                DE
+              </span>
+              <Input
+                type="number"
+                placeholder="0,00"
+                value={minValue ?? ""}
+                onChange={(e) =>
+                  onMinValueChange(
+                    e.target.value ? parseFloat(e.target.value) : undefined,
+                  )
+                }
+                className="w-full pl-10 h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl font-bold"
+                disabled={isLoading}
+              />
+            </div>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                ATÉ
+              </span>
+              <Input
+                type="number"
+                placeholder="∞"
+                value={maxValue ?? ""}
+                onChange={(e) =>
+                  onMaxValueChange(
+                    e.target.value ? parseFloat(e.target.value) : undefined,
+                  )
+                }
+                className="w-full pl-10 h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl font-bold"
+                disabled={isLoading}
+              />
             </div>
           </div>
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function FilterSelect({
-  label,
-  icon,
-  value,
-  onValueChange,
-  options,
-  placeholder,
-  isLoading,
-}: any) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">
-        {label}
-      </label>
-      <Select
-        value={value || "all"}
-        onValueChange={(val) => onValueChange(val === "all" ? undefined : val)}
-        disabled={isLoading}
-      >
-        <SelectTrigger className="w-full h-11 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 rounded-xl px-4 font-bold transition-all hover:border-slate-300 dark:hover:border-slate-600">
-          <div className="flex items-center gap-3">
-            {icon}
-            <SelectValue
-              placeholder={isLoading ? "Carregando..." : placeholder}
-            />
-          </div>
-        </SelectTrigger>
-        <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800">
-          <SelectItem value="all" className="rounded-xl font-bold">
-            {placeholder}
-          </SelectItem>
-          {options?.map((opt: any) => (
-            <SelectItem
-              key={opt.value || "no-val"}
-              value={opt.value || "no-val"}
-              className="rounded-xl"
-            >
-              <div className="flex items-center justify-between w-full min-w-[150px]">
-                <span className="font-medium">
-                  {opt.label || "Não definido"}
-                </span>
-                <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md text-[10px] font-black text-slate-500 ml-2">
-                  {opt.count}
-                </span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
   );
 }

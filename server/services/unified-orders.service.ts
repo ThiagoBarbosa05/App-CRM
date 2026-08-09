@@ -18,6 +18,14 @@ export interface UnifiedOrderFilters {
   maxValue?: number;
   limit?: number;
   offset?: number;
+  /**
+   * Filtro de situação:
+   * - 'concluido'     → Bling situationId='9' + todo o Connect
+   * - 'nao_concluido' → apenas Bling com situação != '9' (Connect excluído)
+   */
+  situation?: "concluido" | "nao_concluido";
+  /** Busca parcial por número do pedido Bling (Connect não tem order_number e é excluído) */
+  orderNumber?: string;
 }
 
 /**
@@ -155,11 +163,32 @@ export const unifiedOrdersService = {
       maxValue,
       limit = 20,
       offset = 0,
+      situation,
+      orderNumber,
     } = filters;
 
     const contactLike = contactName ? `%${contactName}%` : null;
     const blingValueFilter = buildValueFilter(sql`bo.total_value`, minValue, maxValue);
     const connectValueFilter = buildValueFilter(sql`co.total_value`, minValue, maxValue);
+
+    // Situation filter applies only to Bling (Connect has no situation field)
+    const blingSituationFilter =
+      situation === "concluido"
+        ? sql`AND bo.situation_id = ${BLING_SITUATION_COMPLETED}`
+        : situation === "nao_concluido"
+          ? sql`AND bo.situation_id != ${BLING_SITUATION_COMPLETED}`
+          : sql``;
+
+    // Order number filter applies only to Bling (Connect has no order_number)
+    const blingOrderNumberFilter = orderNumber
+      ? sql`AND bo.order_number ILIKE ${`%${orderNumber}%`}`
+      : sql``;
+
+    // Bling is shown unless source=connect; Connect is excluded when filtering by
+    // order number (Connect has none) or by "nao_concluido" (Connect has no situation)
+    const includeBling = source !== "connect";
+    const includeConnect =
+      source !== "bling" && !orderNumber && situation !== "nao_concluido";
 
     // ── Bling fragment (sale_date is text YYYY-MM-DD) ─────────────────────
     const blingFrag = sql`
@@ -203,6 +232,8 @@ export const unifiedOrdersService = {
         ${contactLike !== null ? sql`AND bo.contact_name ILIKE ${contactLike}` : sql``}
         ${sellerId ? sql`AND (bsm.user_id = ${sellerId} OR legacy_user.id = ${sellerId})` : sql``}
         ${blingValueFilter}
+        ${blingSituationFilter}
+        ${blingOrderNumberFilter}
     `;
 
     // ── Connect fragment (sale_date is timestamp) ─────────────────────────
@@ -238,11 +269,11 @@ export const unifiedOrdersService = {
     `;
 
     const unionFrag =
-      source === "bling"
-        ? blingFrag
-        : source === "connect"
-          ? connectFrag
-          : sql`${blingFrag} UNION ALL ${connectFrag}`;
+      includeBling && includeConnect
+        ? sql`${blingFrag} UNION ALL ${connectFrag}`
+        : includeBling
+          ? blingFrag
+          : connectFrag;
 
     const [countResult, dataResult] = await Promise.all([
       db.execute(sql`

@@ -17,10 +17,9 @@ import {
   type OrderSource,
   type SellerTotalWithGoal,
 } from "@/hooks/use-unified-orders";
-import { useBlingOrdersForExport } from "@/hooks/use-bling-orders";
-import { exportBlingOrdersToExcel } from "@/lib/excel-export";
+import { exportUnifiedOrdersToExcel } from "@/lib/excel-export";
 import { useToast } from "@/hooks/use-toast";
-import { OrdersFilters } from "@/components/bling-sales/orders-filters";
+import { OrdersFilters, type OrderSituation } from "@/components/bling-sales/orders-filters";
 import { UnifiedOrdersTable } from "@/components/bling-sales/unified-orders-table";
 import { formatCurrency } from "@/lib/utils";
 
@@ -189,11 +188,13 @@ export function OrdersSection({
 
   const [contactName, setContactName] = useState("");
   const debouncedContact = useDebounce(contactName, 500);
+  const [orderNumber, setOrderNumber] = useState("");
+  const debouncedOrderNumber = useDebounce(orderNumber, 500);
   const [sellerId, setSellerId] = useState<string | undefined>();
   const [source, setSource] = useState<OrderSource>("all");
+  const [situation, setSituation] = useState<OrderSituation>("all");
   const [minValue, setMinValue] = useState<number | undefined>();
   const [maxValue, setMaxValue] = useState<number | undefined>();
-  // Sem debounce, digitar "1000" dispararia uma consulta por dígito
   const debouncedMinValue = useDebounce(minValue, 500);
   const debouncedMaxValue = useDebounce(maxValue, 500);
 
@@ -204,20 +205,24 @@ export function OrdersSection({
     setPage(1);
   }, [startDate, endDate, lockedUserId]);
 
-  const { data: ordersResponse, isLoading: isOrdersLoading } = useUnifiedOrders(
-    {
-      startDate,
-      endDate,
-      contactName: debouncedContact || undefined,
-      sellerId: lockedUserId ? undefined : sellerId,
-      userId: lockedUserId,
-      source,
-      minValue: debouncedMinValue,
-      maxValue: debouncedMaxValue,
-      limit: PAGE_SIZE,
-      offset: (page - 1) * PAGE_SIZE,
-    },
-  );
+  const sharedFilters = {
+    startDate,
+    endDate,
+    contactName: debouncedContact || undefined,
+    sellerId: lockedUserId ? undefined : sellerId,
+    userId: lockedUserId,
+    source,
+    situation: situation !== "all" ? situation : undefined,
+    orderNumber: debouncedOrderNumber || undefined,
+    minValue: debouncedMinValue,
+    maxValue: debouncedMaxValue,
+  } as const;
+
+  const { data: ordersResponse, isLoading: isOrdersLoading } = useUnifiedOrders({
+    ...sharedFilters,
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+  });
 
   const orders = ordersResponse?.data ?? [];
   const pagination = ordersResponse?.pagination;
@@ -225,36 +230,41 @@ export function OrdersSection({
   const totalOrders = pagination?.total ?? 0;
   const totalValueCompleted = pagination?.totalValueCompleted ?? 0;
 
-  const { refetch: refetchExport, isFetching: isFetchingExport } =
-    useBlingOrdersForExport(
-      {
-        startDate,
-        endDate,
-        contactType: "F",
-        contactName: debouncedContact || undefined,
-        sellerUserId: lockedUserId ?? sellerId,
-        minValue,
-        maxValue,
-      },
-      false,
-    );
-
+  /** Exporta todos os pedidos com os filtros atuais (sem paginação, limite 5000). */
   const handleExport = async () => {
+    if (!startDate || !endDate) return;
     try {
       setIsExporting(true);
-      const result = await refetchExport();
-      if (!result.data || result.data.length === 0) {
+      const params = new URLSearchParams();
+      params.set("startDate", startDate);
+      params.set("endDate", endDate);
+      if (sharedFilters.contactName) params.set("contactName", sharedFilters.contactName);
+      if (sharedFilters.sellerId)    params.set("sellerId",    sharedFilters.sellerId);
+      if (sharedFilters.userId)      params.set("userId",      sharedFilters.userId);
+      if (sharedFilters.source !== "all") params.set("source", sharedFilters.source);
+      if (sharedFilters.situation)   params.set("situation",   sharedFilters.situation);
+      if (sharedFilters.orderNumber) params.set("orderNumber", sharedFilters.orderNumber);
+      if (sharedFilters.minValue !== undefined) params.set("minValue", String(sharedFilters.minValue));
+      if (sharedFilters.maxValue !== undefined) params.set("maxValue", String(sharedFilters.maxValue));
+      params.set("limit",  "5000");
+      params.set("offset", "0");
+
+      const res  = await fetch(`/api/unified-orders?${params}`);
+      const json = await res.json() as { success: boolean; data?: unknown[] };
+
+      if (!json.success || !json.data?.length) {
         toast({
           title: "Nenhum dado",
-          description: "Não há pedidos Bling com os filtros selecionados.",
+          description: "Não há pedidos com os filtros selecionados.",
           variant: "destructive",
         });
         return;
       }
-      exportBlingOrdersToExcel(result.data);
+
+      exportUnifiedOrdersToExcel(json.data as Parameters<typeof exportUnifiedOrdersToExcel>[0]);
       toast({
-        title: "Sucesso!",
-        description: `${result.data.length} pedido(s) Bling exportado(s).`,
+        title: "Exportado!",
+        description: `${json.data.length} pedido(s) Bling + Connect exportados.`,
       });
     } catch {
       toast({ title: "Erro na exportação", variant: "destructive" });
@@ -278,12 +288,12 @@ export function OrdersSection({
         <div className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
         <Button
           onClick={handleExport}
-          disabled={!startDate || !endDate || isExporting || isFetchingExport}
+          disabled={!startDate || !endDate || isExporting}
           variant="outline"
           size="sm"
           className="gap-2 rounded-xl h-8 px-3 font-bold text-xs border-slate-200 dark:border-slate-700"
         >
-          {isExporting || isFetchingExport ? (
+          {isExporting ? (
             <>
               <Loader2 className="h-3 w-3 animate-spin" />
               <span>Exportando…</span>
@@ -299,31 +309,20 @@ export function OrdersSection({
 
       <OrdersFilters
         contactName={contactName}
-        onContactNameChange={(name) => {
-          setContactName(name);
-          setPage(1);
-        }}
+        onContactNameChange={(name) => { setContactName(name); setPage(1); }}
+        orderNumber={orderNumber}
+        onOrderNumberChange={(val) => { setOrderNumber(val); setPage(1); }}
         sellerId={sellerId}
-        onSellerIdChange={(id) => {
-          setSellerId(id);
-          setPage(1);
-        }}
+        onSellerIdChange={(id) => { setSellerId(id); setPage(1); }}
         hideSeller={!!lockedUserId}
         source={source}
-        onSourceChange={(s) => {
-          setSource(s);
-          setPage(1);
-        }}
+        onSourceChange={(s) => { setSource(s); setPage(1); }}
+        situation={situation}
+        onSituationChange={(s) => { setSituation(s); setPage(1); }}
         minValue={minValue}
-        onMinValueChange={(val) => {
-          setMinValue(val);
-          setPage(1);
-        }}
+        onMinValueChange={(val) => { setMinValue(val); setPage(1); }}
         maxValue={maxValue}
-        onMaxValueChange={(val) => {
-          setMaxValue(val);
-          setPage(1);
-        }}
+        onMaxValueChange={(val) => { setMaxValue(val); setPage(1); }}
         isLoading={isOrdersLoading}
       />
 

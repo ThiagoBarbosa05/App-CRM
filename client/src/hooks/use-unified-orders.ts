@@ -87,6 +87,10 @@ export interface UnifiedOrdersFilters {
   maxValue?: number;
   limit?: number;
   offset?: number;
+  /** Filtro de situação: 'concluido' = Bling situação atendida + Connect; 'nao_concluido' = Bling não-atendidos */
+  situation?: "concluido" | "nao_concluido";
+  /** Busca parcial por número do pedido Bling */
+  orderNumber?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
