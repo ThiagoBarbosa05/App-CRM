@@ -586,6 +586,80 @@ export async function getContactByPhone(phone: string) {
   return response.json();
 }
 
+export interface UmblerContactAddress {
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  country: string | null;
+}
+
+export interface UmblerContactDetails {
+  id: string;
+  name: string | null;
+  phoneNumber: string | null;
+  email: string | null;
+  gender: string | null;
+  landline: string | null;
+  address: UmblerContactAddress | null;
+  tags: UmblerMemberContactTag[];
+}
+
+/**
+ * Busca os detalhes completos de um contato do Umbler (GET /v1/contacts/{id}/),
+ * incluindo e-mail, endereço e gênero, para enriquecer a importação de
+ * clientes no CRM além do que a listagem de chats já traz.
+ */
+export async function getContactById(
+  contactId: string,
+): Promise<UmblerContactDetails | null> {
+  const response = await fetch(
+    `${apiEndpoint}/contacts/${contactId}/?organizationId=${organizationId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    },
+  );
+
+  if (response.status === 404) return null;
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`HTTP ${response.status}: ${body || response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  return {
+    id: data.id,
+    name: data.name ?? null,
+    phoneNumber: data.phoneNumber ?? null,
+    email: data.email ?? null,
+    gender: data.gender ?? null,
+    landline: data.landline ?? null,
+    address: data.address
+      ? {
+          addressLine1: data.address.addressLine1 ?? null,
+          addressLine2: data.address.addressLine2 ?? null,
+          city: data.address.city ?? null,
+          state: data.address.state ?? null,
+          zipCode: data.address.zipCode ?? null,
+          country: data.address.country ?? null,
+        }
+      : null,
+    tags: Array.isArray(data.tags)
+      ? data.tags.map((tag: any) => ({
+          id: tag.id,
+          name: tag.name,
+          emoji: tag.emoji ?? null,
+          color: tag.color ?? null,
+        }))
+      : [],
+  };
+}
+
 /**
  * Busca contatos na organização com filtro de query
  * @param query - String de busca para filtrar contatos (opcional)
@@ -743,6 +817,152 @@ export async function getContacts(
     console.error("Error fetching contacts:", error);
     return null;
   }
+}
+
+export interface UmblerOrganizationMember {
+  id: string;
+  displayName: string;
+  emailAddress: string | null;
+  active: boolean;
+}
+
+/**
+ * Busca os atendentes (membros humanos) da organização no Umbler Talk.
+ * Usado para o usuário vincular manualmente um vendedor do CRM a um
+ * atendente do Umbler (não dá para casar por e-mail, pois as plataformas
+ * usam e-mails diferentes).
+ */
+export async function getOrganizationMembers(): Promise<
+  UmblerOrganizationMember[]
+> {
+  const response = await fetch(
+    `${apiEndpoint}/organizations/${organizationId}/`,
+    {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`HTTP ${response.status}: ${body || response.statusText}`);
+  }
+
+  const data = await response.json();
+  const members: any[] = data.organizationMembers || [];
+
+  return members
+    .filter((member) => member._t === "OrganizationHumanAgentReferenceModel")
+    .map((member) => ({
+      id: member.id,
+      displayName: member.displayName || member.emailAddress || member.id,
+      emailAddress: member.emailAddress ?? null,
+      active: Boolean(member.active),
+    }));
+}
+
+export interface UmblerMemberContactTag {
+  id: string;
+  name: string;
+  emoji?: string | null;
+  color?: string | null;
+}
+
+export interface UmblerMemberContact {
+  id: string;
+  name: string | null;
+  phoneNumber: string | null;
+  tags: UmblerMemberContactTag[];
+}
+
+/**
+ * Deduplica contatos extraídos de uma lista de chats, mantendo o primeiro
+ * contato encontrado para cada `contact.id`. Função pura, sem I/O, para
+ * facilitar teste unitário isolado da paginação/rede.
+ */
+export function dedupeContactsFromChats(
+  chats: Array<{ contact?: any }>,
+): UmblerMemberContact[] {
+  const seen = new Map<string, UmblerMemberContact>();
+
+  for (const chat of chats) {
+    const contact = chat.contact;
+    if (!contact || !contact.id || seen.has(contact.id)) continue;
+
+    seen.set(contact.id, {
+      id: contact.id,
+      name: contact.name ?? null,
+      phoneNumber: contact.phoneNumber ?? null,
+      tags: Array.isArray(contact.tags)
+        ? contact.tags.map((tag: any) => ({
+            id: tag.id,
+            name: tag.name,
+            emoji: tag.emoji ?? null,
+            color: tag.color ?? null,
+          }))
+        : [],
+    });
+  }
+
+  return Array.from(seen.values());
+}
+
+/**
+ * Busca todos os chats atribuídos a um atendente (membro) específico e
+ * retorna os contatos únicos envolvidos nesses chats. A API do Umbler não
+ * permite filtrar contatos diretamente por atendente — só chats — por isso
+ * o caminho é buscar os chats do membro e deduplicar os contatos.
+ */
+export async function getChatsByMember(
+  memberId: string,
+): Promise<UmblerMemberContact[]> {
+  const allChats: any[] = [];
+  let skip = 0;
+  const take = 220;
+  let hasMore = true;
+  let pageNumber = 0;
+
+  while (hasMore) {
+    pageNumber++;
+    const params = new URLSearchParams();
+    params.append("organizationId", organizationId);
+    params.append("Skip", String(skip));
+    params.append("Take", String(take));
+    params.append("Members.Rule", "ContainsAny");
+    params.append("Members.Values", memberId);
+
+    const response = await fetch(`${apiEndpoint}/chats/?${params.toString()}`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      throw new Error(
+        `HTTP ${response.status}: ${body || response.statusText}`,
+      );
+    }
+
+    const responseData = await response.json();
+    const items: any[] = responseData.items || [];
+
+    if (items.length > 0) {
+      allChats.push(...items);
+      skip += take;
+      hasMore = items.length === take;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  console.log(
+    `[Umbler Chats] Atendente ${memberId}: ${pageNumber} página(s), ${allChats.length} chat(s)`,
+  );
+
+  return dedupeContactsFromChats(allChats);
 }
 
 export async function syncContact(customerData: {

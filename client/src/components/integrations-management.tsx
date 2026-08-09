@@ -8,6 +8,7 @@ import {
 import BlingAccountsManagement from "@/components/bling-accounts-management";
 import { TelephonyAISettings } from "@/components/telephony-ai-settings";
 import { WhatsappSettingsManagement } from "@/components/whatsapp-settings-management";
+import { UmblerContactImportManagement } from "@/components/umbler-contact-import-management";
 import { useQuery } from "@tanstack/react-query";
 import { useBlingAccounts } from "@/hooks/use-bling-accounts";
 import { useWhatsappStatus } from "@/hooks/use-whatsapp-settings";
@@ -165,6 +166,17 @@ export function IntegrationsManagement() {
           </PillTabsTrigger>
 
           <PillTabsTrigger
+            value="umbler"
+            color="teal"
+            className="gap-2.5 px-4 py-2.5"
+            title="Umbler"
+          >
+            <span className="text-[0.8rem] font-bold leading-none tracking-tight">
+              Umbler
+            </span>
+          </PillTabsTrigger>
+
+          <PillTabsTrigger
             value="assertiva"
             color="amber"
             className="gap-2.5 px-4 py-2.5"
@@ -217,6 +229,10 @@ export function IntegrationsManagement() {
 
         <AppTabsContent value="whatsapp" className="mt-0">
           <WhatsappSettingsManagement />
+        </AppTabsContent>
+
+        <AppTabsContent value="umbler" className="mt-0">
+          <UmblerContactImportManagement />
         </AppTabsContent>
 
         <AppTabsContent value="assertiva" className="mt-0">

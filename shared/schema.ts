@@ -44,6 +44,8 @@ export const users = pgTable("users", {
   isActive: text("is_active").notNull().default("true"),
   blingVendedorId: text("bling_vendedor_id"),
   blingVendedorName: text("bling_vendedor_name"),
+  umblerMemberId: text("umbler_member_id"),
+  umblerMemberName: text("umbler_member_name"),
   pdvUnitId: varchar("pdv_unit_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

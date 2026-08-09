@@ -33,6 +33,8 @@ export class UsersRepository {
           isActive: users.isActive,
           blingVendedorId: users.blingVendedorId,
           blingVendedorName: users.blingVendedorName,
+          umblerMemberId: users.umblerMemberId,
+          umblerMemberName: users.umblerMemberName,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           serviceChannel: {
