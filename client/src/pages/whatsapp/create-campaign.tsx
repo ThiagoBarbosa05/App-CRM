@@ -22,8 +22,10 @@ import {
   ChevronDown,
   Tag,
   RadioTower,
+  FileSpreadsheet,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { CampaignImportModal } from "@/components/whatsapp/campaign-import-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -377,6 +379,7 @@ function StepClients({
   const [exclusiveTags, setExclusiveTags] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewSelectedOnly, setViewSelectedOnly] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const PAGE_SIZE = 20;
 
   const { data: whatsappTags = [] } = useQuery<WhatsappFilterTag[]>({
@@ -510,8 +513,40 @@ function StepClients({
     ? Math.max(0, filterAudience.total - filterAudience.excludedClientIds.length)
     : selectedIds.length;
 
+  /**
+   * Contatos vindos de planilha já foram criados/casados como clientes pelo
+   * modal, então basta somar os IDs à seleção explícita. O modo "filtro" é
+   * desligado: os dois são mutuamente exclusivos no payload da campanha.
+   */
+  const handleImported = (importedIds: string[]) => {
+    if (importedIds.length === 0) return;
+    onFilterAudienceChange(null);
+    onChange(Array.from(new Set([...selectedIds, ...importedIds])));
+    setViewSelectedOnly(true);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setImportOpen(true)}
+          data-testid="button-open-campaign-import"
+        >
+          <FileSpreadsheet className="h-4 w-4 mr-1.5" />
+          Importar planilha
+        </Button>
+      </div>
+
+      <CampaignImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={handleImported}
+      />
+
       {/* Search */}
       {!isViewingSelected && (
         <div className="relative">

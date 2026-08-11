@@ -64,6 +64,32 @@ export function phoneMatchConditions(phone: string | null | undefined): SQL[] {
 }
 
 /**
+ * Versão em lote de `phoneMatchConditions`: mesmas duas condições (telefone e
+ * telefone fixo), mas com as variantes de **todos** os telefones da lista numa
+ * única `IN`. Um import de planilha com centenas de linhas vira uma consulta só,
+ * em vez de `2 * N` condições combinadas com `or(...)`.
+ *
+ * Quem chama casa o resultado de volta em memória usando `phoneVariants` no
+ * telefone gravado — as duas pontas usam a mesma função, então não há como o
+ * SQL e o casamento em memória divergirem.
+ */
+export function phoneMatchConditionsBatch(
+  phones: (string | null | undefined)[],
+): SQL[] {
+  const variants = new Set<string>();
+  for (const phone of phones) {
+    for (const variant of phoneVariants(phone ?? null)) variants.add(variant);
+  }
+  if (variants.size === 0) return [];
+
+  const list = Array.from(variants);
+  return [
+    inArray(phoneDigitsSql(sql`${clients.phone}`), list),
+    inArray(phoneDigitsSql(sql`${clients.fixedPhone}`), list),
+  ];
+}
+
+/**
  * Condição SQL de CPF, normalizando **os dois lados**. Comparar contra a coluna
  * crua (`eq(clients.cpf, ...)`) não acha um cadastro salvo como
  * `127.022.387-93`, que é como o cadastro manual antigo gravava.

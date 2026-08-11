@@ -25,9 +25,13 @@ import { getReferralsController } from "../controllers/referrals/get-referrals.c
 import { postReferralController } from "../controllers/referrals/post-referral.controller";
 import { getReferrerController } from "../controllers/referrals/get-referrer.controller";
 import { deliverBenefitController } from "../controllers/referrals/deliver-benefit.controller";
+import {
+  postImportAudienceController,
+  importAudienceSchema,
+} from "../controllers/clients/post-import-audience.controller";
 import multer from "multer";
 import { syncClientToBling, BlingSyncError } from "../services/bling-clients-export.service";
-import { requireAuth } from "../middleware/validation";
+import { requireAuth, validateBody } from "../middleware/validation";
 import { rateLimit } from "../middleware/rate-limit";
 import { consultarCPF, testarCPF, mapAssertivaCpfResponse } from "../services/assertiva.service";
 import { logCpfVerification } from "../services/cpf-verification-log.service";
@@ -98,6 +102,19 @@ clientsRouter.get("/health", getClientsHealthController);
 clientsRouter.get("/duplicates", getDuplicatesController);
 clientsRouter.post("/check-duplicate", checkDuplicateController);
 clientsRouter.post("/:keepId/merge/:mergeId", mergeClientsController);
+/**
+ * @route POST /api/clients/import-audience
+ * @description Importa contatos de uma planilha (já parseada no cliente) e
+ *              devolve os IDs de cliente para montar a audiência de uma campanha.
+ * @access Private
+ */
+clientsRouter.post(
+  "/import-audience",
+  requireAuth,
+  validateBody(importAudienceSchema),
+  postImportAudienceController,
+);
+
 clientsRouter.post("/import", clientsImportUpload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
