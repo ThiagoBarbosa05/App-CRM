@@ -14,6 +14,7 @@ import {
   tags,
   whatsappTags,
   whatsappSectors,
+  whatsappSectorMembers,
   users,
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt, type SQL, type SQLWrapper } from "drizzle-orm";
@@ -905,6 +906,84 @@ export async function transferConversationToSector(conversationId: string, secto
     );
   }
   return updated ?? null;
+}
+
+/**
+ * Decide se uma resposta inbound deve rotear a conversa para o setor do
+ * vendedor responsável pelo cliente. Só dispara na PRIMEIRA resposta a uma
+ * conversa de origem de campanha — não em qualquer mensagem espontânea (ver
+ * comentário sobre isClientAccessibleToUser acima) nem em respostas
+ * subsequentes, para não sobrescrever uma transferência manual feita depois
+ * por um atendente. Função pura para ser testável sem banco.
+ */
+export function resolveCampaignReplySectorTarget(input: {
+  hasResponsibleSeller: boolean;
+  hasCampaignOrigin: boolean;
+  isFirstInboundReply: boolean;
+  sellerSectorId: string | null;
+}): string | null {
+  if (!input.hasResponsibleSeller || !input.hasCampaignOrigin || !input.isFirstInboundReply) return null;
+  return input.sellerSectorId;
+}
+
+/**
+ * Se esta for a primeira resposta do contato a uma conversa que se originou
+ * de uma campanha (whatsappMessages.campaignMessageId), transfere a conversa
+ * para o setor ao qual o vendedor responsável pelo cliente pertence. Sem
+ * setor configurado para o vendedor, mantém o setor padrão do canal (setado
+ * na criação da conversa) — nunca bloqueia nem lança erro.
+ */
+async function routeCampaignReplyToSellerSector(conversationId: string, clientId: string | null, newMessageId: string) {
+  const client = clientId
+    ? (await db.select({ responsavelId: clients.responsavelId }).from(clients).where(eq(clients.id, clientId)).limit(1))[0]
+    : null;
+
+  const campaignOriginRow = (
+    await db
+      .select({ id: whatsappMessages.id })
+      .from(whatsappMessages)
+      .where(and(eq(whatsappMessages.conversationId, conversationId), isNotNull(whatsappMessages.campaignMessageId)))
+      .limit(1)
+  )[0];
+
+  const priorInbound = await db
+    .select({ id: whatsappMessages.id })
+    .from(whatsappMessages)
+    .where(
+      and(
+        eq(whatsappMessages.conversationId, conversationId),
+        eq(whatsappMessages.direction, "inbound"),
+        ne(whatsappMessages.id, newMessageId),
+      ),
+    )
+    .limit(1);
+
+  let sellerSectorId: string | null = null;
+  if (client?.responsavelId) {
+    const membership = await db
+      .select({ sectorId: whatsappSectorMembers.sectorId })
+      .from(whatsappSectorMembers)
+      .innerJoin(whatsappSectors, eq(whatsappSectors.id, whatsappSectorMembers.sectorId))
+      .where(and(eq(whatsappSectorMembers.userId, client.responsavelId), eq(whatsappSectors.isActive, true)))
+      .orderBy(asc(whatsappSectorMembers.createdAt))
+      .limit(1);
+    sellerSectorId = membership[0]?.sectorId ?? null;
+  }
+
+  const targetSectorId = resolveCampaignReplySectorTarget({
+    hasResponsibleSeller: !!client?.responsavelId,
+    hasCampaignOrigin: !!campaignOriginRow,
+    isFirstInboundReply: priorInbound.length === 0,
+    sellerSectorId,
+  });
+
+  if (targetSectorId) {
+    await transferConversationToSector(
+      conversationId,
+      targetSectorId,
+      "Resposta à campanha — roteado automaticamente para o setor do vendedor responsável",
+    );
+  }
 }
 
 export async function closeConversation(
@@ -3028,6 +3107,14 @@ export async function saveInboundMessage(data: {
       };
     }
     throw err;
+  }
+
+  if (direction === "inbound") {
+    try {
+      await routeCampaignReplyToSellerSector(conv.id, conv.clientId, savedMessage.id);
+    } catch (err) {
+      console.error("[WA Webhook] Falha ao rotear resposta de campanha para setor do vendedor:", err);
+    }
   }
 
   if (data.mediaData) {
