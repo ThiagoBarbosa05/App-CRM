@@ -81,6 +81,8 @@ import {
   parseTemplateVars,
 } from "@/lib/whatsapp-template";
 import { WhatsappOptOutInfoBanner } from "@/components/whatsapp/opt-out-info-banner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { WHATSAPP_CAMPAIGN_SEGMENT_STORAGE_KEY } from "@/components/marketing/segmentation-tab";
 
 type WhatsappFilterTag = {
   id: string;
@@ -1776,6 +1778,47 @@ export default function WhatsAppCreateCampaign() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [dedupeWindowHours, setDedupeWindowHours] = useState(24);
   const [postSendTagId, setPostSendTagId] = useState("");
+  const [prefilledSegmentLabel, setPrefilledSegmentLabel] = useState<string | null>(null);
+  const [prefilledSegmentLoading, setPrefilledSegmentLoading] = useState(false);
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem(WHATSAPP_CAMPAIGN_SEGMENT_STORAGE_KEY);
+    if (!raw) return;
+    sessionStorage.removeItem(WHATSAPP_CAMPAIGN_SEGMENT_STORAGE_KEY);
+    let parsed: { segmentLabel?: string; filters?: Record<string, string | boolean> };
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (!parsed.segmentLabel || !parsed.filters) return;
+
+    const segmentLabel = parsed.segmentLabel;
+    const filters = parsed.filters;
+    setPrefilledSegmentLoading(true);
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        for (const [key, value] of Object.entries(filters)) {
+          if (value === undefined || value === null || value === "") continue;
+          params.set(key, String(value));
+        }
+        const res = await fetch(`/api/clients/ids?${params.toString()}`);
+        if (!res.ok) throw new Error("Erro ao buscar clientes do segmento");
+        const data: { clientIds: string[] } = await res.json();
+        setSelectedClientIds(data.clientIds);
+        setPrefilledSegmentLabel(segmentLabel);
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Não foi possível pré-selecionar o segmento",
+          description: "Selecione os clientes manualmente no passo 2.",
+        });
+      } finally {
+        setPrefilledSegmentLoading(false);
+      }
+    })();
+  }, []);
 
   const createMutation = useCreateCampaignWithDispatch();
   const {
@@ -2044,12 +2087,44 @@ export default function WhatsAppCreateCampaign() {
                 />
               )}
               {step === 2 && (
-                <StepClients
-                  selectedIds={selectedClientIds}
-                  onChange={setSelectedClientIds}
-                  filterAudience={filterAudience}
-                  onFilterAudienceChange={setFilterAudience}
-                />
+                <>
+                  {prefilledSegmentLoading && (
+                    <Alert className="mb-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <AlertTitle>Carregando clientes do segmento…</AlertTitle>
+                    </Alert>
+                  )}
+                  {prefilledSegmentLabel && !prefilledSegmentLoading && (
+                    <Alert className="mb-4 border-green-200 bg-green-50 text-green-900 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-200">
+                      <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <AlertTitle>
+                        {selectedClientIds.length} cliente(s) pré-selecionado(s) do segmento{" "}
+                        <strong>{prefilledSegmentLabel}</strong>
+                      </AlertTitle>
+                      <AlertDescription className="flex items-center justify-between gap-2 text-green-800/90 dark:text-green-300/90">
+                        <span>Você pode ajustar a seleção manualmente abaixo, se preferir.</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => {
+                            setSelectedClientIds([]);
+                            setPrefilledSegmentLabel(null);
+                          }}
+                        >
+                          Limpar seleção
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <StepClients
+                    selectedIds={selectedClientIds}
+                    onChange={setSelectedClientIds}
+                    filterAudience={filterAudience}
+                    onFilterAudienceChange={setFilterAudience}
+                  />
+                </>
               )}
               {step === 3 && (
                 <StepTemplateOrBot

@@ -123,6 +123,16 @@ export class ClientsService {
   }
 
   /**
+   * Busca apenas os IDs de clientes que correspondem aos filtros, sem paginação.
+   * Usado para resolver um segmento (RFM, ciclo de vida, etc.) em uma lista de
+   * destinatários a ser pré-selecionada em fluxos de campanha.
+   */
+  async getFilteredClientIds(params: GetClientsParams): Promise<string[]> {
+    const { userId, userRole, filters = {} } = params;
+    return this.clientsRepository.getFilteredClientIds(userId, userRole, filters);
+  }
+
+  /**
    * Valida e normaliza os filtros de entrada
    */
   private normalizeFilters(rawFilters: any): ClientFilters {

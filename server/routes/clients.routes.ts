@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getClientsController } from "../controllers/clients/get-clients.controller";
+import { getClientIdsController } from "../controllers/clients/get-client-ids.controller";
 import { getClientByPhoneController } from "../controllers/clients/get-client-by-phone.controller";
 import { getClientsWithoutContactController } from "../controllers/clients/get-clients-without-contact.controller";
 import { getClientsExportAllController } from "../controllers/clients/get-clients-export-all.controller";
@@ -72,6 +73,15 @@ const clientsImportUpload = multer({
  * @returns {object} Lista paginada de clientes
  */
 clientsRouter.get("/", getClientsController);
+
+/**
+ * @route GET /api/clients/ids
+ * @description Busca apenas os IDs de clientes que correspondem aos filtros, sem paginação
+ * @access Private (baseado em role do usuário)
+ * @queryParams Mesmos filtros de GET /api/clients (rfmSegment, markers, wineRegion, etc.)
+ * @returns {object} { clientIds: string[] }
+ */
+clientsRouter.get("/ids", getClientIdsController);
 clientsRouter.get("/health", getClientsHealthController);
 clientsRouter.get("/duplicates", getDuplicatesController);
 clientsRouter.post("/check-duplicate", checkDuplicateController);

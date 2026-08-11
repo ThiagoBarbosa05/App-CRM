@@ -36,7 +36,7 @@ export default function Marketing() {
       setSmsSegment(payload);
       setActiveTab("sms");
     } else if (payload.channel === "whatsapp") {
-      navigate("/criar-campanha");
+      navigate("/whatsapp/campanhas/criar");
     }
   }
 

@@ -51,6 +51,12 @@ export interface SegmentCampaignPayload {
   channel: "email" | "sms" | "whatsapp";
 }
 
+/** Chave usada para repassar o segmento escolhido para o wizard de campanha de
+ * WhatsApp via sessionStorage (a navegação troca de página, então não dá para
+ * repassar via prop/estado do componente pai como é feito para email/SMS). */
+export const WHATSAPP_CAMPAIGN_SEGMENT_STORAGE_KEY =
+  "whatsapp-campaign-prefill-segment";
+
 interface Props {
   onCreateCampaign?: (payload: SegmentCampaignPayload) => void;
 }
@@ -151,6 +157,15 @@ export function MarketingSegmentationTab({ onCreateCampaign }: Props) {
 
   function handleChannelSelect(channel: "email" | "sms" | "whatsapp") {
     if (!channelDialogSegment || !onCreateCampaign) return;
+    if (channel === "whatsapp") {
+      sessionStorage.setItem(
+        WHATSAPP_CAMPAIGN_SEGMENT_STORAGE_KEY,
+        JSON.stringify({
+          segmentLabel: channelDialogSegment.label,
+          filters: channelDialogSegment.filters,
+        }),
+      );
+    }
     onCreateCampaign({
       segmentLabel: channelDialogSegment.label,
       filters: channelDialogSegment.filters,
