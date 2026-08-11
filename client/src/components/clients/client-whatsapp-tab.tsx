@@ -18,8 +18,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
+  useAvailableWaChannels,
   useClientConversation,
   useClientConversationCapabilities,
   useClientConversationStream,
@@ -27,6 +35,7 @@ import {
   useSendClientMessage,
   useStartClientConversation,
   type ClientWaMessage,
+  type WaChannel,
 } from "@/hooks/use-client-whatsapp-conversation";
 import { useToggleWhatsappOptOut } from "@/hooks/use-whatsapp-opt-out";
 
@@ -76,6 +85,16 @@ export function ClientWhatsAppTab({
   const startConversation = useStartClientConversation(clientId);
   const sendMessage = useSendClientMessage(clientId);
   const sendMedia = useSendClientMedia(clientId);
+
+  const { data: waChannels = [] } = useAvailableWaChannels(
+    enabled && conversationExists === false,
+  );
+  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
+  useEffect(() => {
+    if (waChannels.length > 0 && selectedChannelId == null) {
+      setSelectedChannelId(waChannels[0].id);
+    }
+  }, [waChannels, selectedChannelId]);
 
   const isCloudApi = capabilities?.provider === "cloud_api";
   const windowOpen = lastInboundAt ? Date.now() - new Date(lastInboundAt).getTime() < WINDOW_MS : false;
@@ -198,8 +217,13 @@ export function ClientWhatsAppTab({
           </div>
         ) : conversationExists === false ? (
           <EmptyConversationPanel
+            channels={waChannels}
+            selectedChannelId={selectedChannelId}
+            onSelectChannel={setSelectedChannelId}
             isPending={startConversation.isPending}
-            onStart={() => startConversation.mutate()}
+            onStart={() =>
+              startConversation.mutate(selectedChannelId ?? undefined)
+            }
           />
         ) : (
           <div className="flex flex-col overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-[0_18px_35px_-35px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900/75">
@@ -300,12 +324,20 @@ export function ClientWhatsAppTab({
 }
 
 function EmptyConversationPanel({
+  channels,
+  selectedChannelId,
+  onSelectChannel,
   isPending,
   onStart,
 }: {
+  channels: WaChannel[];
+  selectedChannelId: number | null;
+  onSelectChannel: (id: number) => void;
   isPending: boolean;
   onStart: () => void;
 }) {
+  const noAccessibleChannel = channels.length === 0;
+
   return (
     <div className="flex flex-col items-center justify-center rounded-[24px] border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center dark:border-slate-800 dark:bg-slate-900/50">
       <div className="mb-4 rounded-full bg-white p-3 shadow-sm dark:bg-slate-800">
@@ -315,10 +347,32 @@ function EmptyConversationPanel({
         Nenhuma conversa ativa
       </h4>
       <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
-        Inicie uma conversa no WhatsApp para começar a interagir com este cliente.
+        {noAccessibleChannel
+          ? "Você não tem acesso a nenhum canal de WhatsApp para iniciar esta conversa."
+          : "Escolha o canal e inicie uma conversa no WhatsApp para começar a interagir com este cliente."}
       </p>
+
+      {channels.length > 1 && (
+        <Select
+          value={selectedChannelId != null ? String(selectedChannelId) : undefined}
+          onValueChange={(v) => onSelectChannel(Number(v))}
+        >
+          <SelectTrigger className="mt-5 h-11 w-full max-w-xs rounded-xl text-sm">
+            <SelectValue placeholder="Selecione o canal" />
+          </SelectTrigger>
+          <SelectContent>
+            {channels.map((c) => (
+              <SelectItem key={c.id} value={String(c.id)}>
+                {c.name}
+                {c.displayPhone ? ` — ${c.displayPhone}` : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
       <Button
-        disabled={isPending}
+        disabled={isPending || noAccessibleChannel || selectedChannelId == null}
         onClick={onStart}
         className="mt-6 h-11 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 px-5 text-sm font-bold text-white shadow-[0_16px_30px_-18px_rgba(22,163,74,0.55)] transition-all hover:translate-y-[-1px] hover:from-green-700 hover:to-emerald-600"
       >

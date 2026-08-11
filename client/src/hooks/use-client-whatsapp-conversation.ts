@@ -27,6 +27,14 @@ interface ConversationCapabilities {
   provider: "cloud_api" | "evolution";
 }
 
+export interface WaChannel {
+  id: number;
+  name: string;
+  displayPhone: string | null;
+  connectionStatus: string | null;
+  provider: string;
+}
+
 interface ConversationPage {
   messages: ClientWaMessage[];
   nextCursor: string | null;
@@ -99,13 +107,33 @@ export function useClientConversationCapabilities(clientId: string, enabled: boo
   });
 }
 
-/** Reabre/cria a conversa sob demanda — equivalente ao "Nova conversa" da inbox, sem seletor de canal. */
+/**
+ * Canais de WhatsApp que o usuário logado pode usar para iniciar uma conversa —
+ * mesmo endpoint que a inbox geral usa (`/api/whatsapp/channels/mine`): vendedor
+ * só vê os canais aos quais tem acesso, admin/gerente veem todos os canais ativos.
+ */
+export function useAvailableWaChannels(enabled: boolean) {
+  return useQuery<WaChannel[]>({
+    queryKey: ["/api/whatsapp/channels/mine"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/channels/mine");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled,
+  });
+}
+
+/** Reabre/cria a conversa sob demanda — equivalente ao "Nova conversa" da inbox, com escolha de canal. */
 export function useStartClientConversation(clientId: string) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   return useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/whatsapp/conversations/start", { clientId });
+    mutationFn: async (channelId?: number) => {
+      const res = await apiRequest("POST", "/api/whatsapp/conversations/start", {
+        clientId,
+        channelId,
+      });
       return res.json() as Promise<{ clientId: string | null; conversationId: string }>;
     },
     onSuccess: () => {
