@@ -100,6 +100,10 @@ export class ClientsRepository {
       }
     }
 
+    if (filters.ids && filters.ids.length > 0) {
+      conditions.push(inArray(clients.id, filters.ids));
+    }
+
     if (filters.tagIds && filters.tagIds.length > 0) {
       conditions.push(
         sql`EXISTS (

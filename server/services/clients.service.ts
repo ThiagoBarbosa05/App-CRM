@@ -213,6 +213,14 @@ export class ClientsService {
     if (rawFilters.isEventParticipant === "true" || rawFilters.isEventParticipant === true) {
       filters.isEventParticipant = true;
     }
+    if (rawFilters.ids) {
+      const ids = Array.isArray(rawFilters.ids)
+        ? (rawFilters.ids as string[]).filter((id) => typeof id === "string" && id.length > 0)
+        : typeof rawFilters.ids === "string"
+          ? rawFilters.ids.split(",").map((s: string) => s.trim()).filter(Boolean)
+          : [];
+      if (ids.length > 0) filters.ids = ids;
+    }
     if (rawFilters.tagIds) {
       const ids = Array.isArray(rawFilters.tagIds)
         ? (rawFilters.tagIds as string[]).filter((id) => typeof id === "string" && id.length > 0)
@@ -1123,6 +1131,7 @@ export class ClientsService {
       origem: req.query.origem,
       status: req.query.status,
       markers: req.query.markers,
+      ids: req.query.ids,
       tagIds: req.query.tagIds,
       whatsappTagIds: req.query.whatsappTagIds,
       exclusiveWhatsappTags: req.query.exclusiveWhatsappTags,

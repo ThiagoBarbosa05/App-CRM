@@ -1,6 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getClientsController } from "../controllers/clients/get-clients.controller";
 import { getClientIdsController } from "../controllers/clients/get-client-ids.controller";
+import { getClientsByIdsController } from "../controllers/clients/get-clients-by-ids.controller";
 import { getClientByPhoneController } from "../controllers/clients/get-client-by-phone.controller";
 import { getClientsWithoutContactController } from "../controllers/clients/get-clients-without-contact.controller";
 import { getClientsExportAllController } from "../controllers/clients/get-clients-export-all.controller";
@@ -82,6 +83,17 @@ clientsRouter.get("/", getClientsController);
  * @returns {object} { clientIds: string[] }
  */
 clientsRouter.get("/ids", getClientIdsController);
+
+/**
+ * @route POST /api/clients/by-ids
+ * @description Busca clientes paginados a partir de uma lista explícita de IDs (corpo da requisição)
+ * @access Private
+ * @bodyParams {string[]} clientIds - IDs dos clientes a buscar
+ * @bodyParams {number} [page=1]
+ * @bodyParams {number} [pageSize=100]
+ * @returns {object} Lista paginada de clientes (mesmo formato de GET /api/clients)
+ */
+clientsRouter.post("/by-ids", getClientsByIdsController);
 clientsRouter.get("/health", getClientsHealthController);
 clientsRouter.get("/duplicates", getDuplicatesController);
 clientsRouter.post("/check-duplicate", checkDuplicateController);

@@ -174,6 +174,8 @@ export interface ClientFilters {
   origem?: string;
   status?: string;
   markers?: string;
+  /** Restringe a um conjunto explícito de clientes (ex.: revisar destinatários já selecionados). */
+  ids?: string[];
   tagIds?: string[];
   whatsappTagIds?: string[];
   exclusiveWhatsappTags?: boolean;

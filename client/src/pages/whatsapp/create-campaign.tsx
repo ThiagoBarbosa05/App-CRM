@@ -376,6 +376,7 @@ function StepClients({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [exclusiveTags, setExclusiveTags] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewSelectedOnly, setViewSelectedOnly] = useState(false);
   const PAGE_SIZE = 20;
 
   const { data: whatsappTags = [] } = useQuery<WhatsappFilterTag[]>({
@@ -387,16 +388,26 @@ function StepClients({
     },
   });
 
+  const isViewingSelected = viewSelectedOnly && !filterAudience;
+
   const { data: clientsResponse, isFetching } = useQuery({
-    queryKey: [
-      "/api/clients",
-      "campaign-select",
-      search,
-      selectedTagIds,
-      exclusiveTags,
-      currentPage,
-    ],
+    queryKey: isViewingSelected
+      ? ["/api/clients", "campaign-select", "selected", selectedIds, currentPage]
+      : ["/api/clients", "campaign-select", search, selectedTagIds, exclusiveTags, currentPage],
     queryFn: async () => {
+      if (isViewingSelected) {
+        const res = await fetch("/api/clients/by-ids", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clientIds: selectedIds,
+            page: currentPage,
+            pageSize: PAGE_SIZE,
+          }),
+        });
+        if (!res.ok) throw new Error("Erro ao buscar clientes selecionados");
+        return res.json();
+      }
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (selectedTagIds.length > 0) {
@@ -409,7 +420,15 @@ function StepClients({
       if (!res.ok) throw new Error("Erro ao buscar clientes");
       return res.json();
     },
+    enabled: !isViewingSelected || selectedIds.length > 0,
   });
+
+  useEffect(() => {
+    if (viewSelectedOnly && (filterAudience || selectedIds.length === 0)) {
+      setViewSelectedOnly(false);
+      setCurrentPage(1);
+    }
+  }, [viewSelectedOnly, filterAudience, selectedIds.length]);
 
   const clients: Client[] = useMemo(
     () => clientsResponse?.data ?? [],
@@ -494,22 +513,24 @@ function StepClients({
   return (
     <div className="space-y-3">
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-        <Input
-          value={search}
-          onChange={(e) => {
-            onFilterAudienceChange(null);
-            setSearch(e.target.value);
-            setCurrentPage(1);
-          }}
-          placeholder="Buscar por nome ou telefone"
-          className="pl-9"
-        />
-      </div>
+      {!isViewingSelected && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => {
+              onFilterAudienceChange(null);
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Buscar por nome ou telefone"
+            className="pl-9"
+          />
+        </div>
+      )}
 
       {/* WhatsApp tag filters */}
-      {whatsappTags.length > 0 && (
+      {!isViewingSelected && whatsappTags.length > 0 && (
         <div className="space-y-2">
           <Popover>
             <PopoverTrigger asChild>
@@ -620,7 +641,7 @@ function StepClients({
       )}
 
       {/* Exclusive tag toggle */}
-      {selectedTagIds.length > 0 && (
+      {!isViewingSelected && selectedTagIds.length > 0 && (
         <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer w-fit">
           <Checkbox
             checked={exclusiveTags}
@@ -636,7 +657,7 @@ function StepClients({
         </label>
       )}
 
-      {totalItems > 0 && (
+      {!isViewingSelected && totalItems > 0 && (
         <Button
           type="button"
           variant={filterAudience ? "default" : "outline"}
@@ -672,6 +693,18 @@ function StepClients({
             {selectedCount} cliente{selectedCount !== 1 ? "s" : ""}{" "}
             selecionado{selectedCount !== 1 ? "s" : ""}
           </span>
+          {!filterAudience && (
+            <button
+              type="button"
+              className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+              onClick={() => {
+                setViewSelectedOnly((v) => !v);
+                setCurrentPage(1);
+              }}
+            >
+              {viewSelectedOnly ? "Ver todos" : "Ver quem vai receber"}
+            </button>
+          )}
           <button
             type="button"
             className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
@@ -680,6 +713,12 @@ function StepClients({
             <X className="h-3 w-3" /> Limpar
           </button>
         </div>
+      )}
+
+      {isViewingSelected && (
+        <p className="text-xs text-muted-foreground px-1">
+          Mostrando apenas os clientes selecionados que receberão a campanha.
+        </p>
       )}
 
       {/* Table */}
