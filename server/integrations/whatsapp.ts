@@ -1,4 +1,8 @@
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
+import {
+  applyNamedParameters,
+  getTemplateParamMeta,
+} from "../services/whatsapp-template-format.service";
 import { toMetaWhatsAppId } from "@shared/phone";
 
 // Erro tipado com o status HTTP da resposta da Meta, para que quem chama
@@ -89,6 +93,25 @@ export async function sendTemplateMessage(
   channel?: ChannelOverride,
 ) {
   const cfg = await getConfig(channel);
+
+  // Templates com `parameter_format: "NAMED"` exigem `parameter_name` em cada
+  // parâmetro de texto; sem ele a Meta devolve (#100) "Parameter name is missing
+  // or empty". Quem monta os components (campanha, bot, aniversário, pós-atendimento)
+  // não conhece o formato, então ele é resolvido aqui. Falha na consulta não pode
+  // derrubar o envio — degrada para o payload como veio.
+  let finalComponents = components;
+  try {
+    finalComponents = applyNamedParameters(
+      components,
+      await getTemplateParamMeta(templateName, languageCode),
+    );
+  } catch (err) {
+    console.warn(
+      `[WA] não foi possível resolver parameter_format de "${templateName}" (${languageCode}):`,
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   const payload = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
@@ -97,7 +120,7 @@ export async function sendTemplateMessage(
     template: {
       name: templateName,
       language: { code: languageCode },
-      ...(components?.length ? { components } : {}),
+      ...(finalComponents?.length ? { components: finalComponents } : {}),
     },
   };
 
