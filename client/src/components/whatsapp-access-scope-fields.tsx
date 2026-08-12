@@ -85,10 +85,18 @@ export function ScopeMultiSelect<TId extends string | number>({
           <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[280px] p-0" align="start">
+      <PopoverContent className="w-[280px] p-0" align="start" collisionPadding={16}>
         <Command shouldFilter>
           <CommandInput placeholder="Pesquisar" />
-          <CommandList>
+          {/* Sem isso, quando o trigger fica perto da borda da tela o popover
+              pode se estender além do viewport — o scroll interno da lista
+              não ajuda porque o conteúdo extra fica literalmente fora da
+              área visível. A var é calculada pelo Radix a cada reposição. */}
+          <CommandList
+            style={{
+              maxHeight: "min(300px, var(--radix-popover-content-available-height, 300px))",
+            }}
+          >
             {isLoading ? (
               <div className="flex items-center gap-2 py-6 justify-center text-sm text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando...
