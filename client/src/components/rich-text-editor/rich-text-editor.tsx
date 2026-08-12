@@ -1,4 +1,8 @@
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import {
+  useEditor,
+  EditorContent,
+  type Editor,
+} from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Highlight from "@tiptap/extension-highlight";
@@ -7,7 +11,7 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useState, forwardRef, useImperativeHandle } from "react";
 import { cn } from "@/lib/utils";
 import {
   Bold,
@@ -413,6 +417,11 @@ function Toolbar({ editor }: { editor: Editor }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+export interface RichTextEditorHandle {
+  /** Retorna o conteúdo atual como HTML renderizado */
+  getHtml: () => string;
+}
+
 interface RichTextEditorProps {
   value: string;
   onChange: (jsonString: string) => void;
@@ -420,12 +429,13 @@ interface RichTextEditorProps {
   className?: string;
 }
 
-export function RichTextEditor({
+export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
+function RichTextEditor({
   value,
   onChange,
   placeholder = "Escreva sua anotação aqui...",
   className,
-}: RichTextEditorProps) {
+}, ref) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -458,6 +468,11 @@ export function RichTextEditor({
     },
   });
 
+  // Expõe getHtml() para o componente pai via ref
+  useImperativeHandle(ref, () => ({
+    getHtml: () => editor?.getHTML() ?? "",
+  }), [editor]);
+
   // Atualiza o conteúdo do editor quando a nota muda (troca de nota)
   useEffect(() => {
     if (!editor) return;
@@ -485,4 +500,6 @@ export function RichTextEditor({
       />
     </div>
   );
-}
+});
+
+RichTextEditor.displayName = "RichTextEditor";

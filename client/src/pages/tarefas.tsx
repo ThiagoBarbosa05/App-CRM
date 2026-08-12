@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RichTextEditor } from "@/components/rich-text-editor/rich-text-editor";
+import {
+  RichTextEditor,
+  type RichTextEditorHandle,
+} from "@/components/rich-text-editor/rich-text-editor";
 import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -33,6 +36,7 @@ import {
   NotebookPen,
   Check,
   Loader2,
+  Printer,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -1976,6 +1980,58 @@ function NotesView() {
     "idle",
   );
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteEditorRef = useRef<RichTextEditorHandle>(null);
+
+  const handlePrintNote = () => {
+    const html = noteEditorRef.current?.getHtml() ?? "";
+    const win = window.open("", "_blank", "width=800,height=600");
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>${noteTitle || "Nota"}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; line-height: 1.7; color: #1e293b; padding: 40px 48px; max-width: 800px; margin: auto; }
+    h1.note-title { font-size: 22px; font-weight: 700; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; }
+    h1 { font-size: 20px; font-weight: 700; margin: 14px 0 6px; }
+    h2 { font-size: 17px; font-weight: 700; margin: 12px 0 5px; }
+    h3 { font-size: 14px; font-weight: 700; margin: 10px 0 4px; }
+    p { margin: 4px 0; }
+    ul { list-style: disc; padding-left: 22px; margin: 4px 0; }
+    ol { list-style: decimal; padding-left: 22px; margin: 4px 0; }
+    li p { margin: 0; }
+    ul[data-type="taskList"] { list-style: none; padding-left: 2px; }
+    ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 6px; }
+    ul[data-type="taskList"] li label { display: flex; align-items: center; margin-top: 3px; }
+    ul[data-type="taskList"] input[type="checkbox"] { width: 13px; height: 13px; }
+    ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: #94a3b8; }
+    table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 12px; }
+    td, th { border: 1px solid #cbd5e1; padding: 5px 8px; }
+    th { background: #f8fafc; font-weight: 600; }
+    mark { background: #fef08a; border-radius: 2px; padding: 0 2px; }
+    a { color: #2563eb; text-decoration: underline; }
+    code { background: #f1f5f9; border-radius: 3px; padding: 0 4px; font-family: monospace; font-size: 11px; }
+    pre { background: #f1f5f9; border-radius: 6px; padding: 10px 14px; font-family: monospace; font-size: 11px; margin: 8px 0; overflow-x: auto; }
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 14px 0; }
+    strong { font-weight: 700; }
+    em { font-style: italic; }
+    u { text-decoration: underline; }
+    s { text-decoration: line-through; }
+    .note-meta { font-size: 11px; color: #94a3b8; margin-top: 32px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+    @media print { body { padding: 20px 28px; } }
+  </style>
+</head>
+<body>
+  <h1 class="note-title">${noteTitle || "Nota sem título"}</h1>
+  ${html}
+  <div class="note-meta">Exportado em ${new Date().toLocaleString("pt-BR")}</div>
+  <script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`);
+    win.document.close();
+  };
   const [confirmDeleteSectionOpen, setConfirmDeleteSectionOpen] =
     useState(false);
   const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(
@@ -2456,6 +2512,7 @@ function NotesView() {
                 placeholder="Título da nota"
               />
               <RichTextEditor
+                ref={noteEditorRef}
                 value={noteContent}
                 onChange={handleContentChange}
                 placeholder="Escreva sua anotação aqui..."
@@ -2470,13 +2527,23 @@ function NotesView() {
                       locale: ptBR,
                     })}
                 </span>
-                <button
-                  onClick={() => setConfirmDeleteNoteId(selectedNoteId)}
-                  className="text-red-400 hover:text-red-600 transition-colors flex items-center gap-1"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Excluir nota
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handlePrintNote}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex items-center gap-1"
+                    title="Imprimir / Salvar como PDF"
+                  >
+                    <Printer className="h-3 w-3" />
+                    Imprimir / PDF
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteNoteId(selectedNoteId)}
+                    className="text-red-400 hover:text-red-600 transition-colors flex items-center gap-1"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Excluir nota
+                  </button>
+                </div>
               </div>
             </div>
           </div>
