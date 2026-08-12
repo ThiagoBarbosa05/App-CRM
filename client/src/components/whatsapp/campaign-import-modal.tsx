@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
+  Info,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -402,6 +403,22 @@ export function CampaignImportModal({
                 </Select>
               </div>
             </div>
+
+            {preview.valid.length > 0 && (
+              <Alert data-testid="alert-import-variable-coverage">
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  Contatos que ainda não existem no CRM entram só com{" "}
+                  <strong>nome, telefone, categoria e origem</strong>. Se a mensagem
+                  da campanha usar outras variáveis do cliente (
+                  <span className="font-mono">{"{{cidade}}"}</span>,{" "}
+                  <span className="font-mono">{"{{email}}"}</span>,{" "}
+                  <span className="font-mono">{"{{cpf}}"}</span>…), elas sairão
+                  vazias para esses contatos. Quem já está cadastrado mantém todos
+                  os dados.
+                </AlertDescription>
+              </Alert>
+            )}
 
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary" className="gap-1">

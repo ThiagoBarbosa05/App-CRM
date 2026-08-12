@@ -119,17 +119,27 @@ type TemplateHeaderMediaValue = {
   mediaType: "image" | "video" | "document";
 };
 
+// Mesma lista do editor de bot (CLIENT_VARIABLES em bot-editor.tsx) — as duas
+// telas alimentam o mesmo `buildClientVariables` no servidor.
 const CLIENT_VARIABLE_TOKENS = [
   { label: "Nome", value: "{{nome}}" },
   { label: "E-mail", value: "{{email}}" },
   { label: "Telefone", value: "{{telefone}}" },
   { label: "Telefone fixo", value: "{{telefone_fixo}}" },
   { label: "CPF", value: "{{cpf}}" },
+  { label: "Instagram", value: "{{instagram}}" },
+  { label: "CEP", value: "{{cep}}" },
+  { label: "Endereço", value: "{{endereco}}" },
+  { label: "Número", value: "{{numero}}" },
+  { label: "Complemento", value: "{{complemento}}" },
+  { label: "Bairro", value: "{{bairro}}" },
   { label: "Cidade", value: "{{cidade}}" },
   { label: "Estado", value: "{{estado}}" },
-  { label: "Endereço", value: "{{endereco}}" },
-  { label: "Bairro", value: "{{bairro}}" },
   { label: "Aniversário", value: "{{aniversario}}" },
+  { label: "Categoria", value: "{{categoria}}" },
+  { label: "Origem", value: "{{origem}}" },
+  { label: "Nome fantasia", value: "{{nome_fantasia}}" },
+  { label: "Inscrição estadual", value: "{{inscricao_estadual}}" },
 ];
 
 const CLIENT_VARIABLE_LABELS: Record<string, string> = {
@@ -138,11 +148,19 @@ const CLIENT_VARIABLE_LABELS: Record<string, string> = {
   telefone: "Telefone do cliente",
   telefone_fixo: "Telefone fixo do cliente",
   cpf: "CPF do cliente",
+  instagram: "Instagram do cliente",
+  cep: "CEP do cliente",
+  endereco: "Endereço do cliente",
+  numero: "Número do cliente",
+  complemento: "Complemento do cliente",
+  bairro: "Bairro do cliente",
   cidade: "Cidade do cliente",
   estado: "Estado do cliente",
-  endereco: "Endereço do cliente",
-  bairro: "Bairro do cliente",
   aniversario: "Aniversário do cliente",
+  categoria: "Categoria do cliente",
+  origem: "Origem do cliente",
+  nome_fantasia: "Nome fantasia do cliente",
+  inscricao_estadual: "Inscrição estadual do cliente",
 };
 
 function ClientVariableMenu({

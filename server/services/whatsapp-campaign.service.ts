@@ -420,6 +420,7 @@ export async function executeCampaign(
               source: "campaign",
               channelId: campaign.waChannelId,
               campaignId,
+              clientId: msg.contactId ?? null,
             },
           );
 

@@ -67,11 +67,20 @@ export type StartBotContext =
       source: "external";
       channelId: number;
       campaignId?: string;
+      /** Ver `clientId` do disparo por campanha. */
+      clientId?: string | null;
     }
   | {
       source: "campaign";
       channelId: number;
       campaignId: string;
+      /**
+       * Destinatário da campanha (`whatsapp_campaign_messages.contact_id`). É a
+       * fonte primária das variáveis de personalização: resolver só pela conversa
+       * existente deixava a sessão sem variável nenhuma no primeiro disparo para
+       * um contato sem histórico — caso normal de audiência importada por planilha.
+       */
+      clientId?: string | null;
     };
 
 export function nodeAllowsExternalChannel(
@@ -2178,12 +2187,23 @@ export async function startBotSession(
   if (!bot) return { status: "no_start_node", lastMessageId: null };
   const botName = bot.name;
 
-  // Injeta campos do cliente como variáveis iniciais da sessão
-  const convRow = await findConversationClientIdByPhone(phone);
+  // Injeta campos do cliente como variáveis iniciais da sessão.
+  // Quem disparou já sabe qual cliente é (o destinatário da campanha) — usar esse
+  // ID direto é o único caminho que funciona para contato sem conversa prévia,
+  // porque a conversa só é criada mais abaixo, depois de `clientVars` ser montado.
+  const contextClientId =
+    context && context.source !== "manual" ? context.clientId : undefined;
   let clientRow: Client | null = null;
-  if (convRow?.clientId) {
-    const [client] = await db.select().from(clients).where(eq(clients.id, convRow.clientId)).limit(1);
+  if (contextClientId) {
+    const [client] = await db.select().from(clients).where(eq(clients.id, contextClientId)).limit(1);
     clientRow = client ?? null;
+  }
+  if (!clientRow) {
+    const convRow = await findConversationClientIdByPhone(phone);
+    if (convRow?.clientId) {
+      const [client] = await db.select().from(clients).where(eq(clients.id, convRow.clientId)).limit(1);
+      clientRow = client ?? null;
+    }
   }
 
   if (clientRow?.whatsappOptOut) {
