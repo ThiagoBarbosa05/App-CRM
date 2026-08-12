@@ -123,6 +123,9 @@ import {
   type InteractionGoal,
   type InsertInteractionWeeklyResult,
   type InteractionWeeklyResult,
+  type GoalPeriod,
+  type WineryGoalWithProgress,
+  type CategoryGoalWithProgress,
 } from "@shared/schema";
 import {
   getClientRegistrationQuality,
@@ -154,6 +157,33 @@ import { format, subMonths } from "date-fns";
 import type { Cursor } from "./lib/cursor-pagination";
 import { encodeCursor } from "./lib/cursor-pagination";
 import { toStoredPhone } from "./services/client-lookup";
+
+/**
+ * Limites do mês selecionado, como texto ISO `YYYY-MM-DD`.
+ *
+ * `end` é inclusivo e serve só para o teste de sobreposição contra as datas
+ * das metas (que são sempre `YYYY-MM-DD` puros, garantido pelo zod das rotas).
+ * `endExclusive` é o primeiro dia do mês seguinte e é o que deve ser usado ao
+ * comparar com `bling_orders.sale_date`: a coluna é `text` gravada crua do
+ * Bling, então um `<= '2026-08-31'` descartaria em silêncio um pedido gravado
+ * como `2026-08-31 14:22:00`. Intervalo semiaberto funciona nos dois formatos
+ * e continua usando índice (diferente de um cast `::date`).
+ */
+function getMonthBounds(period: GoalPeriod): {
+  start: string;
+  end: string;
+  endExclusive: string;
+} {
+  const { month, year } = period;
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    start: `${year}-${pad(month)}-01`,
+    end: `${year}-${pad(month)}-${pad(lastDay)}`,
+    endExclusive:
+      month === 12 ? `${year + 1}-01-01` : `${year}-${pad(month + 1)}-01`,
+  };
+}
 
 export interface ClientFilters {
   search?: string;
@@ -379,12 +409,12 @@ export interface IStorage {
   deleteProductGoal(id: string): Promise<boolean>;
 
   // Winery Goals (meta por vinícola com período livre)
-  getWineryGoals(): Promise<any[]>;
+  getWineryGoals(period: GoalPeriod): Promise<WineryGoalWithProgress[]>;
   createWineryGoal(goal: any): Promise<any>;
   deleteWineryGoal(id: string): Promise<boolean>;
 
   // Category Goals (meta por categoria com período livre)
-  getCategoryGoals(): Promise<any[]>;
+  getCategoryGoals(period: GoalPeriod): Promise<CategoryGoalWithProgress[]>;
   createCategoryGoal(goal: any): Promise<any>;
   deleteCategoryGoal(id: string): Promise<boolean>;
 
@@ -2665,10 +2695,7 @@ export class DatabaseStorage implements IStorage {
 
     if (goals.length === 0) return [];
 
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const startDate = `${year}-${pad(month)}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
+    const { start: startDate, endExclusive } = getMonthBounds({ month, year });
 
     const productIds = [...new Set(goals.map((g) => g.productId))];
     const userIds = [...new Set(goals.map((g) => g.userId))];
@@ -2694,7 +2721,7 @@ export class DatabaseStorage implements IStorage {
         ON boi.product_id = bpm.bling_product_id
         AND bo.connection_id = bpm.connection_id
       WHERE bo.sale_date >= ${startDate}
-        AND bo.sale_date <= ${endDate}
+        AND bo.sale_date < ${endExclusive}
         AND bo.deleted_at IS NULL
         AND bsm.user_id IN (${userIdsIn})
         AND bpm.product_id IN (${productIdsIn})
@@ -2728,61 +2755,68 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount !== null && result.rowCount > 0;
   }
 
-  async getWineryGoals(): Promise<any[]> {
+  async getWineryGoals(period: GoalPeriod): Promise<WineryGoalWithProgress[]> {
+    const { start, end, endExclusive } = getMonthBounds(period);
+
+    // Uma query só (LEFT JOIN LATERAL) em vez de um round-trip por meta.
+    // `achieved` é recortado à interseção meta ∩ período selecionado — é o que
+    // entra no total do card, que precisa ser comparável às metas de produto
+    // (sempre mensais). `achieved_total` cobre o intervalo inteiro da meta e
+    // alimenta a barra individual, que exibe o período próprio da meta.
     const rows = await this.db.execute<{
       id: string; user_id: string; winery_name: string; goal_qty: number;
       start_date: string; end_date: string; created_at: string;
-      user_name: string; user_email: string;
+      user_name: string | null; user_email: string | null;
+      achieved: number; achieved_total: number;
     }>(sql`
       SELECT wg.id, wg.user_id, wg.winery_name, wg.goal_qty,
              wg.start_date, wg.end_date, wg.created_at,
-             u.name AS user_name, u.email AS user_email
+             u.name AS user_name, u.email AS user_email,
+             s.achieved, s.achieved_total
       FROM winery_goals wg
       LEFT JOIN users u ON wg.user_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT
+          COALESCE(SUM(boi.quantity::numeric) FILTER (
+            WHERE bo.sale_date >= GREATEST(wg.start_date, ${start})
+              AND bo.sale_date < LEAST(
+                    to_char(wg.end_date::date + INTERVAL '1 day', 'YYYY-MM-DD'),
+                    ${endExclusive})
+          ), 0)::int AS achieved,
+          COALESCE(SUM(boi.quantity::numeric), 0)::int AS achieved_total
+        FROM bling_order_items boi
+        JOIN bling_orders bo ON boi.order_id = bo.id
+        JOIN bling_seller_mappings bsm
+          ON bo.seller_id = bsm.bling_vendedor_id
+          AND bo.connection_id = bsm.connection_id
+        JOIN bling_product_mappings bpm
+          ON boi.product_id = bpm.bling_product_id
+          AND bo.connection_id = bpm.connection_id
+        JOIN products p ON bpm.product_id = p.id
+        WHERE bo.sale_date >= wg.start_date
+          AND bo.sale_date < to_char(wg.end_date::date + INTERVAL '1 day', 'YYYY-MM-DD')
+          AND bo.deleted_at IS NULL
+          AND bsm.user_id = wg.user_id
+          AND p.winery = wg.winery_name
+      ) s ON TRUE
+      WHERE wg.start_date <= ${end}
+        AND wg.end_date >= ${start}
       ORDER BY u.name, wg.start_date
     `);
 
-    if (rows.rows.length === 0) return [];
-
-    const goals = rows.rows;
-
-    // Calcular realizado por meta
-    const results = await Promise.all(
-      goals.map(async (g) => {
-        const soldResult = await this.db.execute<{ qty_sold: number }>(sql`
-          SELECT COALESCE(SUM(boi.quantity::numeric)::int, 0) AS qty_sold
-          FROM bling_order_items boi
-          JOIN bling_orders bo ON boi.order_id = bo.id
-          JOIN bling_seller_mappings bsm
-            ON bo.seller_id = bsm.bling_vendedor_id
-            AND bo.connection_id = bsm.connection_id
-          JOIN bling_product_mappings bpm
-            ON boi.product_id = bpm.bling_product_id
-            AND bo.connection_id = bpm.connection_id
-          JOIN products p ON bpm.product_id = p.id
-          WHERE bo.sale_date >= ${g.start_date}
-            AND bo.sale_date <= ${g.end_date}
-            AND bo.deleted_at IS NULL
-            AND bsm.user_id = ${g.user_id}
-            AND p.winery = ${g.winery_name}
-        `);
-        const achieved = soldResult.rows[0]?.qty_sold ?? 0;
-        return {
-          id: g.id,
-          userId: g.user_id,
-          userName: g.user_name,
-          userEmail: g.user_email,
-          wineryName: g.winery_name,
-          goalQty: g.goal_qty,
-          startDate: g.start_date,
-          endDate: g.end_date,
-          createdAt: g.created_at,
-          achieved,
-        };
-      }),
-    );
-
-    return results;
+    return rows.rows.map((g) => ({
+      id: g.id,
+      userId: g.user_id,
+      userName: g.user_name,
+      userEmail: g.user_email,
+      wineryName: g.winery_name,
+      goalQty: g.goal_qty,
+      startDate: g.start_date,
+      endDate: g.end_date,
+      createdAt: g.created_at,
+      achieved: Number(g.achieved ?? 0),
+      achievedTotal: Number(g.achieved_total ?? 0),
+    }));
   }
 
   async createWineryGoal(goal: any): Promise<any> {
@@ -2801,58 +2835,66 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount ?? 0) > 0;
   }
 
-  async getCategoryGoals(): Promise<any[]> {
+  async getCategoryGoals(
+    period: GoalPeriod,
+  ): Promise<CategoryGoalWithProgress[]> {
+    const { start, end, endExclusive } = getMonthBounds(period);
+
+    // Mesma estrutura de getWineryGoals — ver comentário lá.
     const rows = await this.db.execute<{
       id: string; user_id: string; category_name: string; goal_qty: number;
       start_date: string; end_date: string; created_at: string;
-      user_name: string; user_email: string;
+      user_name: string | null; user_email: string | null;
+      achieved: number; achieved_total: number;
     }>(sql`
       SELECT cg.id, cg.user_id, cg.category_name, cg.goal_qty,
              cg.start_date, cg.end_date, cg.created_at,
-             u.name AS user_name, u.email AS user_email
+             u.name AS user_name, u.email AS user_email,
+             s.achieved, s.achieved_total
       FROM category_goals cg
       LEFT JOIN users u ON cg.user_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT
+          COALESCE(SUM(boi.quantity::numeric) FILTER (
+            WHERE bo.sale_date >= GREATEST(cg.start_date, ${start})
+              AND bo.sale_date < LEAST(
+                    to_char(cg.end_date::date + INTERVAL '1 day', 'YYYY-MM-DD'),
+                    ${endExclusive})
+          ), 0)::int AS achieved,
+          COALESCE(SUM(boi.quantity::numeric), 0)::int AS achieved_total
+        FROM bling_order_items boi
+        JOIN bling_orders bo ON boi.order_id = bo.id
+        JOIN bling_seller_mappings bsm
+          ON bo.seller_id = bsm.bling_vendedor_id
+          AND bo.connection_id = bsm.connection_id
+        JOIN bling_product_mappings bpm
+          ON boi.product_id = bpm.bling_product_id
+          AND bo.connection_id = bpm.connection_id
+        JOIN products p ON bpm.product_id = p.id
+        WHERE bo.sale_date >= cg.start_date
+          AND bo.sale_date < to_char(cg.end_date::date + INTERVAL '1 day', 'YYYY-MM-DD')
+          AND bo.deleted_at IS NULL
+          AND bsm.user_id = cg.user_id
+          AND UPPER(p.category) = UPPER(cg.category_name)
+      ) s ON TRUE
+      WHERE cg.start_date <= ${end}
+        AND cg.end_date >= ${start}
       ORDER BY u.name, cg.start_date
     `);
 
-    if (rows.rows.length === 0) return [];
-
-    const results = await Promise.all(
-      rows.rows.map(async (g) => {
-        const soldResult = await this.db.execute<{ qty_sold: number }>(sql`
-          SELECT COALESCE(SUM(boi.quantity::numeric)::int, 0) AS qty_sold
-          FROM bling_order_items boi
-          JOIN bling_orders bo ON boi.order_id = bo.id
-          JOIN bling_seller_mappings bsm
-            ON bo.seller_id = bsm.bling_vendedor_id
-            AND bo.connection_id = bsm.connection_id
-          JOIN bling_product_mappings bpm
-            ON boi.product_id = bpm.bling_product_id
-            AND bo.connection_id = bpm.connection_id
-          JOIN products p ON bpm.product_id = p.id
-          WHERE bo.sale_date >= ${g.start_date}
-            AND bo.sale_date <= ${g.end_date}
-            AND bo.deleted_at IS NULL
-            AND bsm.user_id = ${g.user_id}
-            AND UPPER(p.category) = UPPER(${g.category_name})
-        `);
-        const achieved = soldResult.rows[0]?.qty_sold ?? 0;
-        return {
-          id: g.id,
-          userId: g.user_id,
-          userName: g.user_name,
-          userEmail: g.user_email,
-          categoryName: g.category_name,
-          goalQty: g.goal_qty,
-          startDate: g.start_date,
-          endDate: g.end_date,
-          createdAt: g.created_at,
-          achieved,
-        };
-      }),
-    );
-
-    return results;
+    return rows.rows.map((g) => ({
+      id: g.id,
+      userId: g.user_id,
+      userName: g.user_name,
+      userEmail: g.user_email,
+      categoryName: g.category_name,
+      goalQty: g.goal_qty,
+      startDate: g.start_date,
+      endDate: g.end_date,
+      createdAt: g.created_at,
+      achieved: Number(g.achieved ?? 0),
+      achievedTotal: Number(g.achieved_total ?? 0),
+    }));
   }
 
   async createCategoryGoal(goal: any): Promise<any> {
@@ -2897,10 +2939,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(users.name);
 
     // Positivação da carteira: clientes com compra no mês / total da carteira por vendedor
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const startDate = `${year}-${pad(month)}-01`;
-    const lastDay = new Date(year, month, 0).getDate();
-    const endDate = `${year}-${pad(month)}-${pad(lastDay)}`;
+    const {
+      start: startDate,
+      end: endDate,
+      endExclusive,
+    } = getMonthBounds({ month, year });
 
     const connectStart = `${startDate}T00:00:00`;
     const connectEnd = `${endDate}T23:59:59`;
@@ -2914,7 +2957,7 @@ export class DatabaseStorage implements IStorage {
             WHERE bo.app_client_id = c.id
               AND bo.deleted_at IS NULL
               AND bo.sale_date >= ${startDate}
-              AND bo.sale_date <= ${endDate}
+              AND bo.sale_date < ${endExclusive}
           )
           OR EXISTS (
             SELECT 1 FROM connect_orders co
@@ -2972,7 +3015,7 @@ export class DatabaseStorage implements IStorage {
           ON boi.product_id = bpm.bling_product_id
           AND bo.connection_id = bpm.connection_id
         WHERE bo.sale_date >= ${startDate}
-          AND bo.sale_date <= ${endDate}
+          AND bo.sale_date < ${endExclusive}
           AND bo.deleted_at IS NULL
           AND bsm.user_id IN (${userIdsIn})
           AND bpm.product_id IN (${productIdsIn})

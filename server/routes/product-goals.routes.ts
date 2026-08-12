@@ -1,41 +1,43 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
+import type { GoalPeriod } from "@shared/schema";
 import { storage } from "../storage";
 import { requireAuth } from "../middleware/validation";
+import {
+  goalPeriodParamsSchema,
+  isManagerRole,
+  validateGoalParams,
+} from "./goal-route-validation";
 
 export const productGoalsRouter = Router();
 
-const MANAGER_ROLES = new Set(["admin", "administrador", "gerente"]);
+productGoalsRouter.get(
+  "/:month/:year",
+  requireAuth,
+  validateGoalParams(goalPeriodParamsSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { month, year } = req.params as unknown as GoalPeriod;
+      const user = req.user!;
 
-productGoalsRouter.get("/:month/:year", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const month = Number(req.params.month);
-    const year = Number(req.params.year);
-    if (isNaN(month) || isNaN(year)) {
-      return res.status(400).json({ message: "Mês e ano inválidos" });
+      const goals = await storage.getProductGoalsByPeriod(month, year);
+
+      // Vendedor só vê as metas atribuídas a ele; admin/gerente vê tudo.
+      const filtered = isManagerRole(user.role)
+        ? goals
+        : goals.filter((g: { userId: string }) => g.userId === user.userId);
+
+      return res.json(filtered);
+    } catch (error) {
+      console.error("Erro ao buscar metas de produto:", error);
+      return res.status(500).json({ message: "Erro ao buscar metas de produto" });
     }
-
-    const user = req.user!;
-    const isManager = MANAGER_ROLES.has(user.role ?? "");
-
-    const goals = await storage.getProductGoalsByPeriod(month, year);
-
-    // Vendedor só vê as metas atribuídas a ele; admin/gerente vê tudo.
-    const filtered = isManager
-      ? goals
-      : goals.filter((g: any) => g.userId === user.userId);
-
-    return res.json(filtered);
-  } catch (error) {
-    console.error("Erro ao buscar metas de produto:", error);
-    return res.status(500).json({ message: "Erro ao buscar metas de produto" });
-  }
-});
+  },
+);
 
 productGoalsRouter.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
-    const user = req.user!;
-    if (!MANAGER_ROLES.has(user.role ?? "")) {
+    if (!isManagerRole(req.user!.role)) {
       return res.status(403).json({ message: "Sem permissão" });
     }
 
@@ -60,8 +62,7 @@ productGoalsRouter.post("/", requireAuth, async (req: Request, res: Response) =>
 
 productGoalsRouter.delete("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
-    const user = req.user!;
-    if (!MANAGER_ROLES.has(user.role ?? "")) {
+    if (!isManagerRole(req.user!.role)) {
       return res.status(403).json({ message: "Sem permissão" });
     }
 

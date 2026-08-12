@@ -12,6 +12,10 @@ import { Label } from "@/components/ui/label";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type {
+  WineryGoalWithProgress,
+  CategoryGoalWithProgress,
+} from "@shared/schema";
 
 interface Seller {
   id: string;
@@ -28,25 +32,8 @@ interface ProductGoalRow {
   achieved: number;
 }
 
-interface WineryGoalRow {
-  id: string;
-  userId: string;
-  wineryName: string;
-  goalQty: number;
-  startDate: string;
-  endDate: string;
-  achieved: number;
-}
-
-interface CategoryGoalRow {
-  id: string;
-  userId: string;
-  categoryName: string;
-  goalQty: number;
-  startDate: string;
-  endDate: string;
-  achieved: number;
-}
+type WineryGoalRow = WineryGoalWithProgress;
+type CategoryGoalRow = CategoryGoalWithProgress;
 
 interface ProductGoalModalProps {
   open: boolean;
@@ -65,6 +52,30 @@ function formatDateBR(iso: string) {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+/** Primeiro e último dia do mês selecionado, em ISO `YYYY-MM-DD`. */
+function monthBounds(month: number, year: number): { start: string; end: string } {
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    start: `${year}-${pad(month)}-01`,
+    end: `${year}-${pad(month)}-${pad(lastDay)}`,
+  };
+}
+
+/**
+ * A aba só lista metas que cruzam o período selecionado. Um intervalo fora
+ * dele salva normalmente, mas some da tela até o usuário voltar ao mês da
+ * meta — daí o aviso.
+ */
+function isOutsidePeriod(
+  start: string,
+  end: string,
+  bounds: { start: string; end: string },
+): boolean {
+  if (!start || !end) return false;
+  return start > bounds.end || end < bounds.start;
 }
 
 export function ProductGoalModal({
@@ -110,6 +121,12 @@ export function ProductGoalModal({
   const sellerList = sellers.filter((u) => u.role === "vendedor");
   const isEditing = !!editingSellerId;
 
+  // Chaves de query iguais às de metas.tsx — o queryFn padrão monta a URL a
+  // partir da chave, então elas precisam carregar o período.
+  const wineryGoalsKey = `/api/winery-goals/${selectedMonth}/${selectedYear}`;
+  const categoryGoalsKey = `/api/category-goals/${selectedMonth}/${selectedYear}`;
+  const periodBounds = monthBounds(selectedMonth, selectedYear);
+
   useEffect(() => {
     if (open) {
       setSelectedSellerId(editingSellerId ?? "");
@@ -123,16 +140,19 @@ export function ProductGoalModal({
       setShowWineryList(false);
       setAddWineryName("");
       setWineryQty("1");
-      setWineryStartDate("");
-      setWineryEndDate("");
+      // Pré-preenche com o mês selecionado: é o caso comum e deixa o botão
+      // "Adicionar" utilizável sem passar pelos dois seletores de data.
+      const bounds = monthBounds(selectedMonth, selectedYear);
+      setWineryStartDate(bounds.start);
+      setWineryEndDate(bounds.end);
       setCategorySearch("");
       setShowCategoryList(false);
       setAddCategoryName("");
       setCategoryQty("1");
-      setCategoryStartDate("");
-      setCategoryEndDate("");
+      setCategoryStartDate(bounds.start);
+      setCategoryEndDate(bounds.end);
     }
-  }, [open, editingSellerId, editingSellerName]);
+  }, [open, editingSellerId, editingSellerName, selectedMonth, selectedYear]);
 
   // ─── Queries ───────────────────────────────────────────────────
   const { data: productsData } = useQuery<{ data: { id: string; name: string; type?: string }[] }>({
@@ -209,12 +229,12 @@ export function ProductGoalModal({
         endDate: wineryEndDate,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/winery-goals"] });
+      queryClient.invalidateQueries({ queryKey: [wineryGoalsKey] });
       toast({ title: "Meta de vinícola adicionada", description: `Meta para ${addWineryName} criada.` });
       setAddWineryName("");
       setWineryQty("1");
-      setWineryStartDate("");
-      setWineryEndDate("");
+      setWineryStartDate(periodBounds.start);
+      setWineryEndDate(periodBounds.end);
       setWinerySearch("");
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -223,7 +243,7 @@ export function ProductGoalModal({
   const deleteWineryMutation = useMutation({
     mutationFn: (goalId: string) => apiRequest("DELETE", `/api/winery-goals/${goalId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/winery-goals"] });
+      queryClient.invalidateQueries({ queryKey: [wineryGoalsKey] });
       toast({ title: "Meta de vinícola removida" });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -240,12 +260,12 @@ export function ProductGoalModal({
         endDate: categoryEndDate,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/category-goals"] });
+      queryClient.invalidateQueries({ queryKey: [categoryGoalsKey] });
       toast({ title: "Meta de categoria adicionada", description: `Meta para ${addCategoryName} criada.` });
       setAddCategoryName("");
       setCategoryQty("1");
-      setCategoryStartDate("");
-      setCategoryEndDate("");
+      setCategoryStartDate(periodBounds.start);
+      setCategoryEndDate(periodBounds.end);
       setCategorySearch("");
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -254,7 +274,7 @@ export function ProductGoalModal({
   const deleteCategoryMutation = useMutation({
     mutationFn: (goalId: string) => apiRequest("DELETE", `/api/category-goals/${goalId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/category-goals"] });
+      queryClient.invalidateQueries({ queryKey: [categoryGoalsKey] });
       toast({ title: "Meta de categoria removida" });
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -495,7 +515,7 @@ export function ProductGoalModal({
                               {g.wineryName}
                             </p>
                             <p className="text-[10px] text-slate-400 font-medium">
-                              Meta: {g.goalQty} un · Realizado: {g.achieved} un · {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
+                              Meta: {g.goalQty} un · Realizado: {g.achievedTotal} un · {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
                             </p>
                           </div>
                         </div>
@@ -605,6 +625,13 @@ export function ProductGoalModal({
                         </div>
                       </div>
 
+                      {isOutsidePeriod(wineryStartDate, wineryEndDate, periodBounds) && (
+                        <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 ml-1">
+                          Este intervalo não cruza {monthLabel} — a meta será salva, mas
+                          só aparecerá ao selecionar o período dela.
+                        </p>
+                      )}
+
                       <div className="flex items-end gap-3">
                         <div className="flex-1 space-y-1.5">
                           <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -664,7 +691,7 @@ export function ProductGoalModal({
                               {g.categoryName}
                             </p>
                             <p className="text-[10px] text-slate-400 font-medium">
-                              Meta: {g.goalQty} un · Realizado: {g.achieved} un · {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
+                              Meta: {g.goalQty} un · Realizado: {g.achievedTotal} un · {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
                             </p>
                           </div>
                         </div>
@@ -771,6 +798,13 @@ export function ProductGoalModal({
                           />
                         </div>
                       </div>
+
+                      {isOutsidePeriod(categoryStartDate, categoryEndDate, periodBounds) && (
+                        <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 ml-1">
+                          Este intervalo não cruza {monthLabel} — a meta será salva, mas
+                          só aparecerá ao selecionar o período dela.
+                        </p>
+                      )}
 
                       <div className="flex items-end gap-3">
                         <div className="flex-1 space-y-1.5">

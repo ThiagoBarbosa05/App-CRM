@@ -1123,6 +1123,35 @@ export const insertCategoryGoalSchema = createInsertSchema(categoryGoals).omit({
 export type InsertCategoryGoal = z.infer<typeof insertCategoryGoalSchema>;
 export type CategoryGoal = typeof categoryGoals.$inferSelect;
 
+// Período (mês/ano) usado pelas rotas e queries de metas.
+export interface GoalPeriod {
+  month: number;
+  year: number;
+}
+
+interface GoalProgressBase {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  goalQty: number;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  /** Vendas na interseção (intervalo da meta ∩ período selecionado). */
+  achieved: number;
+  /** Vendas em todo o intervalo da meta, independente do período selecionado. */
+  achievedTotal: number;
+}
+
+export interface WineryGoalWithProgress extends GoalProgressBase {
+  wineryName: string;
+}
+
+export interface CategoryGoalWithProgress extends GoalProgressBase {
+  categoryName: string;
+}
+
 // Tabela de indicações (programa de referral)
 export const referrals = pgTable("referrals", {
   id: varchar("id")

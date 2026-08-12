@@ -11,6 +11,16 @@ export const goalPeriodParamsSchema = z.object({
   year: z.coerce.number().int().min(2000),
 });
 
+export const MANAGER_ROLES: ReadonlySet<string> = new Set([
+  "admin",
+  "administrador",
+  "gerente",
+]);
+
+export function isManagerRole(role: string | undefined): boolean {
+  return MANAGER_ROLES.has(role ?? "");
+}
+
 export function validateGoalBody(schema: z.ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
     try {

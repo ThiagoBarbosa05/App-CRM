@@ -29,6 +29,10 @@ import {
 } from "@/components/app-tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import type {
+  WineryGoalWithProgress,
+  CategoryGoalWithProgress,
+} from "@shared/schema";
 
 import { PageHeader } from "@/components/page-header";
 
@@ -125,12 +129,12 @@ export default function Metas() {
     queryKey: [`/api/product-goals/${selectedMonth}/${selectedYear}`],
   });
 
-  const { data: wineryGoalsData = [] } = useQuery<any[]>({
-    queryKey: ["/api/winery-goals"],
+  const { data: wineryGoalsData = [] } = useQuery<WineryGoalWithProgress[]>({
+    queryKey: [`/api/winery-goals/${selectedMonth}/${selectedYear}`],
   });
 
-  const { data: categoryGoalsData = [] } = useQuery<any[]>({
-    queryKey: ["/api/category-goals"],
+  const { data: categoryGoalsData = [] } = useQuery<CategoryGoalWithProgress[]>({
+    queryKey: [`/api/category-goals/${selectedMonth}/${selectedYear}`],
   });
 
   const { data: telemarketingGoals = [] } = useQuery<any[]>({
@@ -254,7 +258,7 @@ export default function Metas() {
   // Lógica de filtro
   // -------------------------------------------------------------------------
 
-  const filterGoals = (items: any[]) => {
+  const filterGoals = <T extends { userId: string }>(items: T[]): T[] => {
     if (!isManager) return items.filter((i) => i.userId === user?.id);
     if (selectedSellerId !== "all")
       return items.filter((i) => i.userId === selectedSellerId);
@@ -627,9 +631,9 @@ export default function Metas() {
         {/* Produtos */}
         <TabsContent value="products" className="m-0 outline-none">
           <ProductGoalsTab
-            productGoals={productGoalsData}
-            wineryGoals={wineryGoalsData}
-            categoryGoals={categoryGoalsData}
+            productGoals={filterGoals(productGoalsData)}
+            wineryGoals={filterGoals(wineryGoalsData)}
+            categoryGoals={filterGoals(categoryGoalsData)}
             sellers={users}
             isLoading={isProductGoalsLoading}
             selectedMonth={selectedMonth}

@@ -4,6 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import type {
+  WineryGoalWithProgress,
+  CategoryGoalWithProgress,
+} from "@shared/schema";
 
 interface Seller {
   id: string;
@@ -25,29 +29,8 @@ interface ProductGoalRow {
   year: number;
 }
 
-interface WineryGoalRow {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  wineryName: string;
-  goalQty: number;
-  startDate: string;
-  endDate: string;
-  achieved: number;
-}
-
-interface CategoryGoalRow {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  categoryName: string;
-  goalQty: number;
-  startDate: string;
-  endDate: string;
-  achieved: number;
-}
+type WineryGoalRow = WineryGoalWithProgress;
+type CategoryGoalRow = CategoryGoalWithProgress;
 
 interface ProductGoalsTabProps {
   productGoals: ProductGoalRow[];
@@ -277,17 +260,26 @@ export function ProductGoalsTab({
                           <Factory className="h-2.5 w-2.5" /> Por Vinícola
                         </p>
                         {wg.map((g) => {
-                          const pct = g.goalQty > 0 ? Math.min((g.achieved / g.goalQty) * 100, 100) : 0;
+                          // Barra individual: intervalo completo da meta, que é o
+                          // período exibido na própria linha (start → end).
+                          const pct = g.goalQty > 0 ? Math.min((g.achievedTotal / g.goalQty) * 100, 100) : 0;
                           const t = getProgressTone(pct);
                           return (
                             <div key={g.id} className="rounded-xl border border-amber-100 dark:border-amber-900/30 bg-amber-50/50 dark:bg-amber-900/10 px-3 py-2.5 space-y-1.5">
                               <div className="flex items-center justify-between gap-2">
-                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
                                   <Factory className="h-3 w-3 text-amber-500 shrink-0" />
-                                  {g.wineryName}
-                                </p>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                                      {g.wineryName}
+                                    </p>
+                                    <p className="text-[9px] text-slate-400 font-medium">
+                                      {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
+                                    </p>
+                                  </div>
+                                </div>
                                 <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
-                                  {g.achieved}/{g.goalQty} un
+                                  {g.achievedTotal}/{g.goalQty} un
                                 </span>
                               </div>
                               <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -311,17 +303,26 @@ export function ProductGoalsTab({
                           <Tag className="h-2.5 w-2.5" /> Por Categoria
                         </p>
                         {cg.map((g) => {
-                          const pct = g.goalQty > 0 ? Math.min((g.achieved / g.goalQty) * 100, 100) : 0;
+                          // Barra individual: intervalo completo da meta, que é o
+                          // período exibido na própria linha (start → end).
+                          const pct = g.goalQty > 0 ? Math.min((g.achievedTotal / g.goalQty) * 100, 100) : 0;
                           const t = getProgressTone(pct);
                           return (
                             <div key={g.id} className="rounded-xl border border-emerald-100 dark:border-emerald-900/30 bg-emerald-50/50 dark:bg-emerald-900/10 px-3 py-2.5 space-y-1.5">
                               <div className="flex items-center justify-between gap-2">
-                                <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate flex items-center gap-1.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
                                   <Tag className="h-3 w-3 text-emerald-500 shrink-0" />
-                                  {g.categoryName}
-                                </p>
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">
+                                      {g.categoryName}
+                                    </p>
+                                    <p className="text-[9px] text-slate-400 font-medium">
+                                      {formatDateBR(g.startDate)} → {formatDateBR(g.endDate)}
+                                    </p>
+                                  </div>
+                                </div>
                                 <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
-                                  {g.achieved}/{g.goalQty} un
+                                  {g.achievedTotal}/{g.goalQty} un
                                 </span>
                               </div>
                               <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -503,8 +504,10 @@ export function ProductGoalsTab({
                               <Factory className="h-2.5 w-2.5" /> Por Vinícola
                             </p>
                             {wg.map((g) => {
+                              // Barra individual: intervalo completo da meta, que é o
+                              // período exibido na própria linha (start → end).
                               const pct = g.goalQty > 0
-                                ? Math.min((g.achieved / g.goalQty) * 100, 100)
+                                ? Math.min((g.achievedTotal / g.goalQty) * 100, 100)
                                 : 0;
                               const t = getProgressTone(pct);
                               return (
@@ -520,7 +523,7 @@ export function ProductGoalsTab({
                                       </div>
                                     </div>
                                     <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
-                                      {g.achieved}/{g.goalQty} un
+                                      {g.achievedTotal}/{g.goalQty} un
                                     </span>
                                   </div>
                                   <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -544,8 +547,10 @@ export function ProductGoalsTab({
                               <Tag className="h-2.5 w-2.5" /> Por Categoria
                             </p>
                             {cg.map((g) => {
+                              // Barra individual: intervalo completo da meta, que é o
+                              // período exibido na própria linha (start → end).
                               const pct = g.goalQty > 0
-                                ? Math.min((g.achieved / g.goalQty) * 100, 100)
+                                ? Math.min((g.achievedTotal / g.goalQty) * 100, 100)
                                 : 0;
                               const t = getProgressTone(pct);
                               return (
@@ -561,7 +566,7 @@ export function ProductGoalsTab({
                                       </div>
                                     </div>
                                     <span className={`text-[10px] font-black tabular-nums ${t.text} shrink-0`}>
-                                      {g.achieved}/{g.goalQty} un
+                                      {g.achievedTotal}/{g.goalQty} un
                                     </span>
                                   </div>
                                   <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
