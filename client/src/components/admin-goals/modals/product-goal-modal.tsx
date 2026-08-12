@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { ScopeMultiSelect } from "@/components/whatsapp-access-scope-fields";
 import type {
   WineryGoalWithProgress,
   CategoryGoalWithProgress,
@@ -34,6 +35,25 @@ interface ProductGoalRow {
 
 type WineryGoalRow = WineryGoalWithProgress;
 type CategoryGoalRow = CategoryGoalWithProgress;
+
+type BulkAddResult =
+  | { mode: "single" }
+  | { mode: "bulk"; created: number; skipped: string[] };
+
+/** Mensagem de sucesso do toast — diferencia criação única de criação em lote. */
+function bulkAddDescription(
+  result: BulkAddResult,
+  totalSelected: number,
+  singleDescription: string,
+  itemLabel: string,
+): string {
+  if (result.mode === "single") return singleDescription;
+  const skippedNote =
+    result.skipped.length > 0
+      ? ` — ${result.skipped.length} vendedor(es) já tinha(m) meta para ${itemLabel}.`
+      : ".";
+  return `Meta criada para ${result.created} de ${totalSelected} vendedores${skippedNote}`;
+}
 
 interface ProductGoalModalProps {
   open: boolean;
@@ -93,9 +113,14 @@ export function ProductGoalModal({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // ─── Vendedor(es) ──────────────────────────────────────────────
+  // No modo edição, sempre um único vendedor fixo. No modo criação, o
+  // gestor pode selecionar vários para replicar a mesma meta a todos.
+  const [selectedSellerIds, setSelectedSellerIds] = useState<string[]>(
+    editingSellerId ? [editingSellerId] : [],
+  );
+
   // ─── Produto ───────────────────────────────────────────────────
-  const [selectedSellerId, setSelectedSellerId] = useState(editingSellerId ?? "");
-  const [selectedSellerName, setSelectedSellerName] = useState(editingSellerName ?? "");
   const [productSearch, setProductSearch] = useState("");
   const [showProductList, setShowProductList] = useState(false);
   const [addProductId, setAddProductId] = useState("");
@@ -129,8 +154,7 @@ export function ProductGoalModal({
 
   useEffect(() => {
     if (open) {
-      setSelectedSellerId(editingSellerId ?? "");
-      setSelectedSellerName(editingSellerName ?? "");
+      setSelectedSellerIds(editingSellerId ? [editingSellerId] : []);
       setProductSearch("");
       setShowProductList(false);
       setAddProductId("");
@@ -189,17 +213,38 @@ export function ProductGoalModal({
 
   // ─── Mutations produto ─────────────────────────────────────────
   const addProductMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/product-goals", {
-        userId: selectedSellerId,
+    mutationFn: async (): Promise<BulkAddResult> => {
+      if (selectedSellerIds.length === 1) {
+        await apiRequest("POST", "/api/product-goals", {
+          userId: selectedSellerIds[0],
+          month: selectedMonth,
+          year: selectedYear,
+          productId: addProductId,
+          productGoalQty: Number(addQty),
+        });
+        return { mode: "single" };
+      }
+      const res = await apiRequest("POST", "/api/product-goals/bulk", {
+        userIds: selectedSellerIds,
         month: selectedMonth,
         year: selectedYear,
         productId: addProductId,
         productGoalQty: Number(addQty),
-      }),
-    onSuccess: () => {
+      });
+      const body = (await res.json()) as { created: number; skipped: string[] };
+      return { mode: "bulk", created: body.created, skipped: body.skipped };
+    },
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: [`/api/product-goals/${selectedMonth}/${selectedYear}`] });
-      toast({ title: "Produto adicionado", description: `${addProductName} adicionado como meta.` });
+      toast({
+        title: "Produto adicionado",
+        description: bulkAddDescription(
+          result,
+          selectedSellerIds.length,
+          `${addProductName} adicionado como meta.`,
+          "este produto",
+        ),
+      });
       setAddProductId("");
       setAddProductName("");
       setAddQty("1");
@@ -220,17 +265,38 @@ export function ProductGoalModal({
 
   // ─── Mutations vinícola ────────────────────────────────────────
   const addWineryMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/winery-goals", {
-        userId: selectedSellerId,
+    mutationFn: async (): Promise<BulkAddResult> => {
+      if (selectedSellerIds.length === 1) {
+        await apiRequest("POST", "/api/winery-goals", {
+          userId: selectedSellerIds[0],
+          wineryName: addWineryName,
+          goalQty: Number(wineryQty),
+          startDate: wineryStartDate,
+          endDate: wineryEndDate,
+        });
+        return { mode: "single" };
+      }
+      const res = await apiRequest("POST", "/api/winery-goals/bulk", {
+        userIds: selectedSellerIds,
         wineryName: addWineryName,
         goalQty: Number(wineryQty),
         startDate: wineryStartDate,
         endDate: wineryEndDate,
-      }),
-    onSuccess: () => {
+      });
+      const body = (await res.json()) as { created: number; skipped: string[] };
+      return { mode: "bulk", created: body.created, skipped: body.skipped };
+    },
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: [wineryGoalsKey] });
-      toast({ title: "Meta de vinícola adicionada", description: `Meta para ${addWineryName} criada.` });
+      toast({
+        title: "Meta de vinícola adicionada",
+        description: bulkAddDescription(
+          result,
+          selectedSellerIds.length,
+          `Meta para ${addWineryName} criada.`,
+          "esta vinícola",
+        ),
+      });
       setAddWineryName("");
       setWineryQty("1");
       setWineryStartDate(periodBounds.start);
@@ -251,17 +317,38 @@ export function ProductGoalModal({
 
   // ─── Mutations categoria ───────────────────────────────────────
   const addCategoryMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/category-goals", {
-        userId: selectedSellerId,
+    mutationFn: async (): Promise<BulkAddResult> => {
+      if (selectedSellerIds.length === 1) {
+        await apiRequest("POST", "/api/category-goals", {
+          userId: selectedSellerIds[0],
+          categoryName: addCategoryName,
+          goalQty: Number(categoryQty),
+          startDate: categoryStartDate,
+          endDate: categoryEndDate,
+        });
+        return { mode: "single" };
+      }
+      const res = await apiRequest("POST", "/api/category-goals/bulk", {
+        userIds: selectedSellerIds,
         categoryName: addCategoryName,
         goalQty: Number(categoryQty),
         startDate: categoryStartDate,
         endDate: categoryEndDate,
-      }),
-    onSuccess: () => {
+      });
+      const body = (await res.json()) as { created: number; skipped: string[] };
+      return { mode: "bulk", created: body.created, skipped: body.skipped };
+    },
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: [categoryGoalsKey] });
-      toast({ title: "Meta de categoria adicionada", description: `Meta para ${addCategoryName} criada.` });
+      toast({
+        title: "Meta de categoria adicionada",
+        description: bulkAddDescription(
+          result,
+          selectedSellerIds.length,
+          `Meta para ${addCategoryName} criada.`,
+          "esta categoria",
+        ),
+      });
       setAddCategoryName("");
       setCategoryQty("1");
       setCategoryStartDate(periodBounds.start);
@@ -285,25 +372,29 @@ export function ProductGoalModal({
     year: "numeric",
   });
 
-  const canAddProduct = selectedSellerId && addProductId && Number(addQty) >= 1;
+  const hasSellers = selectedSellerIds.length > 0;
+  const canAddProduct = hasSellers && addProductId && Number(addQty) >= 1;
   const canAddWinery =
-    selectedSellerId &&
+    hasSellers &&
     addWineryName &&
     Number(wineryQty) >= 1 &&
     wineryStartDate &&
     wineryEndDate &&
     wineryStartDate <= wineryEndDate;
   const canAddCategory =
-    selectedSellerId &&
+    hasSellers &&
     addCategoryName &&
     Number(categoryQty) >= 1 &&
     categoryStartDate &&
     categoryEndDate &&
     categoryStartDate <= categoryEndDate;
 
-  const sellerProductGoals = existingGoals.filter((g) => g.userId === selectedSellerId);
-  const sellerWineryGoals = wineryGoals.filter((g) => g.userId === selectedSellerId);
-  const sellerCategoryGoals = categoryGoals.filter((g) => g.userId === selectedSellerId);
+  // Listagem "já adicionados" só faz sentido com um único vendedor
+  // selecionado — com vários, mostrar todos poluiria a tela.
+  const singleSellerId = selectedSellerIds.length === 1 ? selectedSellerIds[0] : null;
+  const sellerProductGoals = existingGoals.filter((g) => g.userId === singleSellerId);
+  const sellerWineryGoals = wineryGoals.filter((g) => g.userId === singleSellerId);
+  const sellerCategoryGoals = categoryGoals.filter((g) => g.userId === singleSellerId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -330,30 +421,26 @@ export function ProductGoalModal({
         </div>
 
         <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
-          {/* Seletor de vendedor — apenas no modo "nova meta" */}
+          {/* Seletor de vendedor(es) — apenas no modo "nova meta". Vários
+              vendedores podem ser selecionados para replicar a mesma meta. */}
           {!isEditing && (
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                Vendedor
+                Vendedor(es)
               </Label>
-              <select
-                value={selectedSellerId}
-                onChange={(e) => {
-                  const seller = sellerList.find((s) => s.id === e.target.value);
-                  setSelectedSellerId(e.target.value);
-                  setSelectedSellerName(seller?.name ?? "");
-                }}
-                className="w-full h-12 px-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition-all"
-              >
-                <option value="">Selecione um vendedor</option>
-                {sellerList.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              <ScopeMultiSelect
+                items={sellerList.map((s) => ({ id: s.id, label: s.name }))}
+                selectedIds={selectedSellerIds}
+                onChange={setSelectedSellerIds}
+                placeholder="Selecione um ou mais vendedores"
+                emptyLabel="Nenhum vendedor cadastrado."
+                isLoading={false}
+                selectAllLabel="Selecionar todos os vendedores"
+              />
             </div>
           )}
 
-          {selectedSellerId && (
+          {hasSellers && (
             <>
               {/* ══════════════ SEÇÃO: PRODUTO ══════════════ */}
               <div className="space-y-3">

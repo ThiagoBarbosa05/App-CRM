@@ -1875,6 +1875,35 @@ export const insertProductGoalSchema = createInsertSchema(productGoals)
 export type InsertProductGoal = z.infer<typeof insertProductGoalSchema>;
 export type ProductGoal = typeof productGoals.$inferSelect;
 
+// Bulk: cria a mesma meta para vários vendedores de uma vez — usado quando a
+// meta é igual entre eles (ex: mesmo produto/quantidade no mesmo período).
+export const bulkProductGoalSchema = z.object({
+  userIds: z.array(z.string().min(1)).min(1, "Selecione ao menos um vendedor"),
+  month: z.coerce.number().min(1).max(12),
+  year: z.coerce.number().min(2000),
+  productId: z.string().min(1, "Produto obrigatório"),
+  productGoalQty: z.coerce.number().int().min(1, "Mínimo 1 unidade"),
+});
+export type BulkProductGoal = z.infer<typeof bulkProductGoalSchema>;
+
+export const bulkWineryGoalSchema = z.object({
+  userIds: z.array(z.string().min(1)).min(1, "Selecione ao menos um vendedor"),
+  wineryName: z.string().min(1, "Vinícola obrigatória"),
+  goalQty: z.coerce.number().int().min(1, "Mínimo 1 unidade"),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
+});
+export type BulkWineryGoal = z.infer<typeof bulkWineryGoalSchema>;
+
+export const bulkCategoryGoalSchema = z.object({
+  userIds: z.array(z.string().min(1)).min(1, "Selecione ao menos um vendedor"),
+  categoryName: z.string().min(1, "Categoria obrigatória"),
+  goalQty: z.coerce.number().int().min(1, "Mínimo 1 unidade"),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida"),
+});
+export type BulkCategoryGoal = z.infer<typeof bulkCategoryGoalSchema>;
+
 // Tipos
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;

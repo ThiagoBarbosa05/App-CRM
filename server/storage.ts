@@ -406,16 +406,19 @@ export interface IStorage {
   // Product Goals (multi-product per seller)
   getProductGoalsByPeriod(month: number, year: number): Promise<any[]>;
   createProductGoal(goal: any): Promise<any>;
+  createProductGoalsBulk(goals: any[]): Promise<any[]>;
   deleteProductGoal(id: string): Promise<boolean>;
 
   // Winery Goals (meta por vinícola com período livre)
   getWineryGoals(period: GoalPeriod): Promise<WineryGoalWithProgress[]>;
   createWineryGoal(goal: any): Promise<any>;
+  createWineryGoalsBulk(goals: any[]): Promise<any[]>;
   deleteWineryGoal(id: string): Promise<boolean>;
 
   // Category Goals (meta por categoria com período livre)
   getCategoryGoals(period: GoalPeriod): Promise<CategoryGoalWithProgress[]>;
   createCategoryGoal(goal: any): Promise<any>;
+  createCategoryGoalsBulk(goals: any[]): Promise<any[]>;
   deleteCategoryGoal(id: string): Promise<boolean>;
 
   // Weekly Results methods
@@ -2748,6 +2751,11 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async createProductGoalsBulk(goals: any[]): Promise<any[]> {
+    if (goals.length === 0) return [];
+    return this.db.insert(productGoals).values(goals).returning();
+  }
+
   async deleteProductGoal(id: string): Promise<boolean> {
     const result = await this.db
       .delete(productGoals)
@@ -2828,6 +2836,14 @@ export class DatabaseStorage implements IStorage {
     return result.rows[0];
   }
 
+  async createWineryGoalsBulk(goals: any[]): Promise<any[]> {
+    const created: any[] = [];
+    for (const goal of goals) {
+      created.push(await this.createWineryGoal(goal));
+    }
+    return created;
+  }
+
   async deleteWineryGoal(id: string): Promise<boolean> {
     const result = await this.db.execute(
       sql`DELETE FROM winery_goals WHERE id = ${id}`,
@@ -2904,6 +2920,14 @@ export class DatabaseStorage implements IStorage {
       RETURNING *
     `);
     return result.rows[0];
+  }
+
+  async createCategoryGoalsBulk(goals: any[]): Promise<any[]> {
+    const created: any[] = [];
+    for (const goal of goals) {
+      created.push(await this.createCategoryGoal(goal));
+    }
+    return created;
   }
 
   async deleteCategoryGoal(id: string): Promise<boolean> {

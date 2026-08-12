@@ -8,17 +8,23 @@ import {
 } from "../../test/create-route-test-app";
 import { categoryGoalsRouter } from "../category-goals.routes";
 
-const { getCategoryGoalsMock, createCategoryGoalMock, deleteCategoryGoalMock } =
-  vi.hoisted(() => ({
-    getCategoryGoalsMock: vi.fn(),
-    createCategoryGoalMock: vi.fn(),
-    deleteCategoryGoalMock: vi.fn(),
-  }));
+const {
+  getCategoryGoalsMock,
+  createCategoryGoalMock,
+  createCategoryGoalsBulkMock,
+  deleteCategoryGoalMock,
+} = vi.hoisted(() => ({
+  getCategoryGoalsMock: vi.fn(),
+  createCategoryGoalMock: vi.fn(),
+  createCategoryGoalsBulkMock: vi.fn(),
+  deleteCategoryGoalMock: vi.fn(),
+}));
 
 vi.mock("../../storage", () => ({
   storage: {
     getCategoryGoals: getCategoryGoalsMock,
     createCategoryGoal: createCategoryGoalMock,
+    createCategoryGoalsBulk: createCategoryGoalsBulkMock,
     deleteCategoryGoal: deleteCategoryGoalMock,
   },
 }));
@@ -53,6 +59,7 @@ describe("category goals router", () => {
   beforeEach(() => {
     getCategoryGoalsMock.mockReset();
     createCategoryGoalMock.mockReset();
+    createCategoryGoalsBulkMock.mockReset();
     deleteCategoryGoalMock.mockReset();
   });
 
@@ -131,5 +138,79 @@ describe("category goals router", () => {
     const response = await request(buildApp()).delete("/category-goals/g1");
 
     expect(response.status).toBe(404);
+  });
+
+  describe("POST /bulk", () => {
+    const bulkBody = {
+      userIds: ["u1", "u2"],
+      categoryName: "Tinto",
+      goalQty: 10,
+      startDate: "2026-08-01",
+      endDate: "2026-08-31",
+    };
+
+    it("cria a meta para todos os vendedores selecionados", async () => {
+      getCategoryGoalsMock.mockResolvedValue([]);
+      createCategoryGoalsBulkMock.mockResolvedValue([
+        goalFor("u1", "g1"),
+        goalFor("u2", "g2"),
+      ]);
+
+      const response = await request(buildApp())
+        .post("/category-goals/bulk")
+        .send(bulkBody);
+
+      expect(response.status).toBe(201);
+      expect(response.body).toMatchObject({ created: 2, total: 2, skipped: [] });
+      expect(getCategoryGoalsMock).toHaveBeenCalledWith({ month: 8, year: 2026 });
+      expect(createCategoryGoalsBulkMock).toHaveBeenCalledWith([
+        { userId: "u1", categoryName: "Tinto", goalQty: 10, startDate: "2026-08-01", endDate: "2026-08-31" },
+        { userId: "u2", categoryName: "Tinto", goalQty: 10, startDate: "2026-08-01", endDate: "2026-08-31" },
+      ]);
+    });
+
+    it("pula vendedores que já têm meta para a mesma categoria e período", async () => {
+      getCategoryGoalsMock.mockResolvedValue([goalFor("u1", "existing")]);
+      createCategoryGoalsBulkMock.mockResolvedValue([goalFor("u2", "g2")]);
+
+      const response = await request(buildApp())
+        .post("/category-goals/bulk")
+        .send(bulkBody);
+
+      expect(response.status).toBe(201);
+      expect(response.body).toMatchObject({ created: 1, total: 2, skipped: ["u1"] });
+    });
+
+    it("devolve 400 quando todos os vendedores já têm meta", async () => {
+      getCategoryGoalsMock.mockResolvedValue([
+        goalFor("u1", "e1"),
+        goalFor("u2", "e2"),
+      ]);
+
+      const response = await request(buildApp())
+        .post("/category-goals/bulk")
+        .send(bulkBody);
+
+      expect(response.status).toBe(400);
+      expect(createCategoryGoalsBulkMock).not.toHaveBeenCalled();
+    });
+
+    it("bloqueia vendedor com 403 sem tocar no storage", async () => {
+      const response = await request(buildApp({ role: "vendedor", userId: "u1" }))
+        .post("/category-goals/bulk")
+        .send(bulkBody);
+
+      expect(response.status).toBe(403);
+      expect(createCategoryGoalsBulkMock).not.toHaveBeenCalled();
+    });
+
+    it("rejeita userIds vazio com 400", async () => {
+      const response = await request(buildApp())
+        .post("/category-goals/bulk")
+        .send({ ...bulkBody, userIds: [] });
+
+      expect(response.status).toBe(400);
+      expect(createCategoryGoalsBulkMock).not.toHaveBeenCalled();
+    });
   });
 });

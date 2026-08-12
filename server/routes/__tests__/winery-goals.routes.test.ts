@@ -8,17 +8,23 @@ import {
 } from "../../test/create-route-test-app";
 import { wineryGoalsRouter } from "../winery-goals.routes";
 
-const { getWineryGoalsMock, createWineryGoalMock, deleteWineryGoalMock } =
-  vi.hoisted(() => ({
-    getWineryGoalsMock: vi.fn(),
-    createWineryGoalMock: vi.fn(),
-    deleteWineryGoalMock: vi.fn(),
-  }));
+const {
+  getWineryGoalsMock,
+  createWineryGoalMock,
+  createWineryGoalsBulkMock,
+  deleteWineryGoalMock,
+} = vi.hoisted(() => ({
+  getWineryGoalsMock: vi.fn(),
+  createWineryGoalMock: vi.fn(),
+  createWineryGoalsBulkMock: vi.fn(),
+  deleteWineryGoalMock: vi.fn(),
+}));
 
 vi.mock("../../storage", () => ({
   storage: {
     getWineryGoals: getWineryGoalsMock,
     createWineryGoal: createWineryGoalMock,
+    createWineryGoalsBulk: createWineryGoalsBulkMock,
     deleteWineryGoal: deleteWineryGoalMock,
   },
 }));
@@ -54,6 +60,7 @@ describe("winery goals router", () => {
   beforeEach(() => {
     getWineryGoalsMock.mockReset();
     createWineryGoalMock.mockReset();
+    createWineryGoalsBulkMock.mockReset();
     deleteWineryGoalMock.mockReset();
   });
 
@@ -132,5 +139,79 @@ describe("winery goals router", () => {
     const response = await request(buildApp()).delete("/winery-goals/g1");
 
     expect(response.status).toBe(404);
+  });
+
+  describe("POST /bulk", () => {
+    const bulkBody = {
+      userIds: ["u1", "u2"],
+      wineryName: "Malbec",
+      goalQty: 10,
+      startDate: "2026-08-01",
+      endDate: "2026-08-31",
+    };
+
+    it("cria a meta para todos os vendedores selecionados", async () => {
+      getWineryGoalsMock.mockResolvedValue([]);
+      createWineryGoalsBulkMock.mockResolvedValue([
+        goalFor("u1", "g1"),
+        goalFor("u2", "g2"),
+      ]);
+
+      const response = await request(buildApp())
+        .post("/winery-goals/bulk")
+        .send(bulkBody);
+
+      expect(response.status).toBe(201);
+      expect(response.body).toMatchObject({ created: 2, total: 2, skipped: [] });
+      expect(getWineryGoalsMock).toHaveBeenCalledWith({ month: 8, year: 2026 });
+      expect(createWineryGoalsBulkMock).toHaveBeenCalledWith([
+        { userId: "u1", wineryName: "Malbec", goalQty: 10, startDate: "2026-08-01", endDate: "2026-08-31" },
+        { userId: "u2", wineryName: "Malbec", goalQty: 10, startDate: "2026-08-01", endDate: "2026-08-31" },
+      ]);
+    });
+
+    it("pula vendedores que já têm meta para a mesma vinícola e período", async () => {
+      getWineryGoalsMock.mockResolvedValue([goalFor("u1", "existing")]);
+      createWineryGoalsBulkMock.mockResolvedValue([goalFor("u2", "g2")]);
+
+      const response = await request(buildApp())
+        .post("/winery-goals/bulk")
+        .send(bulkBody);
+
+      expect(response.status).toBe(201);
+      expect(response.body).toMatchObject({ created: 1, total: 2, skipped: ["u1"] });
+    });
+
+    it("devolve 400 quando todos os vendedores já têm meta", async () => {
+      getWineryGoalsMock.mockResolvedValue([
+        goalFor("u1", "e1"),
+        goalFor("u2", "e2"),
+      ]);
+
+      const response = await request(buildApp())
+        .post("/winery-goals/bulk")
+        .send(bulkBody);
+
+      expect(response.status).toBe(400);
+      expect(createWineryGoalsBulkMock).not.toHaveBeenCalled();
+    });
+
+    it("bloqueia vendedor com 403 sem tocar no storage", async () => {
+      const response = await request(buildApp({ role: "vendedor", userId: "u1" }))
+        .post("/winery-goals/bulk")
+        .send(bulkBody);
+
+      expect(response.status).toBe(403);
+      expect(createWineryGoalsBulkMock).not.toHaveBeenCalled();
+    });
+
+    it("rejeita userIds vazio com 400", async () => {
+      const response = await request(buildApp())
+        .post("/winery-goals/bulk")
+        .send({ ...bulkBody, userIds: [] });
+
+      expect(response.status).toBe(400);
+      expect(createWineryGoalsBulkMock).not.toHaveBeenCalled();
+    });
   });
 });

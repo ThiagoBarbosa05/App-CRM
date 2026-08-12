@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import type { GoalPeriod } from "@shared/schema";
+import { bulkCategoryGoalSchema, type GoalPeriod } from "@shared/schema";
 import { storage } from "../storage";
 import { requireAuth } from "../middleware/validation";
 import {
@@ -57,6 +57,65 @@ categoryGoalsRouter.post("/", requireAuth, async (req: Request, res: Response) =
     }
     console.error("Erro ao criar meta de categoria:", error);
     return res.status(500).json({ message: "Erro ao criar meta de categoria" });
+  }
+});
+
+categoryGoalsRouter.post("/bulk", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!isManagerRole(req.user!.role)) {
+      return res.status(403).json({ message: "Sem permissão" });
+    }
+
+    const data = bulkCategoryGoalSchema.parse(req.body);
+
+    // Evita duplicar (userId, categoryName) já existente no período.
+    const existing = await storage.getCategoryGoals({
+      month: Number(data.startDate.slice(5, 7)),
+      year: Number(data.startDate.slice(0, 4)),
+    });
+    const alreadyGoaled = new Set(
+      existing
+        .filter((g) => g.categoryName === data.categoryName)
+        .map((g) => g.userId),
+    );
+
+    const toCreate = data.userIds.filter((id) => !alreadyGoaled.has(id));
+    const skipped = data.userIds.filter((id) => alreadyGoaled.has(id));
+
+    const created =
+      toCreate.length > 0
+        ? await storage.createCategoryGoalsBulk(
+            toCreate.map((userId) => ({
+              userId,
+              categoryName: data.categoryName,
+              goalQty: data.goalQty,
+              startDate: data.startDate,
+              endDate: data.endDate,
+            })),
+          )
+        : [];
+
+    if (created.length === 0) {
+      return res.status(400).json({
+        message:
+          "Nenhuma meta criada — todos os vendedores selecionados já têm meta para esta categoria no período.",
+        skipped,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      created: created.length,
+      total: data.userIds.length,
+      skipped,
+      goals: created,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: error.errors[0].message });
+    }
+    console.error("Erro ao criar metas de categoria em lote:", error);
+    return res.status(500).json({ message: "Erro ao criar metas de categoria em lote" });
   }
 });
 

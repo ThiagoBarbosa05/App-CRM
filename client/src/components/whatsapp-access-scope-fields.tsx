@@ -34,6 +34,7 @@ export function ScopeMultiSelect<TId extends string | number>({
   placeholder,
   emptyLabel,
   isLoading,
+  selectAllLabel = "Permitir todos atuais e futuros",
 }: {
   items: ScopeItem<TId>[];
   selectedIds: TId[];
@@ -41,6 +42,7 @@ export function ScopeMultiSelect<TId extends string | number>({
   placeholder: string;
   emptyLabel: string;
   isLoading: boolean;
+  selectAllLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -125,7 +127,7 @@ export function ScopeMultiSelect<TId extends string | number>({
                         : "border-primary/40 text-primary hover:bg-primary/5",
                     )}
                   >
-                    Permitir todos atuais e futuros
+                    {selectAllLabel}
                   </button>
                 </div>
               </>

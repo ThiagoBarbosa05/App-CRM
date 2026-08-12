@@ -11,10 +11,12 @@ import { productGoalsRouter } from "../product-goals.routes";
 const {
   getProductGoalsByPeriodMock,
   createProductGoalMock,
+  createProductGoalsBulkMock,
   deleteProductGoalMock,
 } = vi.hoisted(() => ({
   getProductGoalsByPeriodMock: vi.fn(),
   createProductGoalMock: vi.fn(),
+  createProductGoalsBulkMock: vi.fn(),
   deleteProductGoalMock: vi.fn(),
 }));
 
@@ -22,6 +24,7 @@ vi.mock("../../storage", () => ({
   storage: {
     getProductGoalsByPeriod: getProductGoalsByPeriodMock,
     createProductGoal: createProductGoalMock,
+    createProductGoalsBulk: createProductGoalsBulkMock,
     deleteProductGoal: deleteProductGoalMock,
   },
 }));
@@ -53,6 +56,7 @@ describe("product goals router", () => {
   beforeEach(() => {
     getProductGoalsByPeriodMock.mockReset();
     createProductGoalMock.mockReset();
+    createProductGoalsBulkMock.mockReset();
     deleteProductGoalMock.mockReset();
   });
 
@@ -131,5 +135,94 @@ describe("product goals router", () => {
     const response = await request(buildApp()).delete("/product-goals/g1");
 
     expect(response.status).toBe(404);
+  });
+
+  describe("POST /bulk", () => {
+    it("cria a meta para todos os vendedores selecionados", async () => {
+      getProductGoalsByPeriodMock.mockResolvedValue([]);
+      createProductGoalsBulkMock.mockResolvedValue([
+        goalFor("u1", "g1"),
+        goalFor("u2", "g2"),
+      ]);
+
+      const response = await request(buildApp())
+        .post("/product-goals/bulk")
+        .send({
+          userIds: ["u1", "u2"],
+          month: 8,
+          year: 2026,
+          productId: "p1",
+          productGoalQty: 10,
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toMatchObject({ created: 2, total: 2, skipped: [] });
+      expect(createProductGoalsBulkMock).toHaveBeenCalledWith([
+        { userId: "u1", month: 8, year: 2026, productId: "p1", productGoalQty: 10 },
+        { userId: "u2", month: 8, year: 2026, productId: "p1", productGoalQty: 10 },
+      ]);
+    });
+
+    it("pula vendedores que já têm meta para o mesmo produto e período", async () => {
+      getProductGoalsByPeriodMock.mockResolvedValue([goalFor("u1", "existing")]);
+      createProductGoalsBulkMock.mockResolvedValue([goalFor("u2", "g2")]);
+
+      const response = await request(buildApp())
+        .post("/product-goals/bulk")
+        .send({
+          userIds: ["u1", "u2"],
+          month: 8,
+          year: 2026,
+          productId: "p1",
+          productGoalQty: 10,
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body).toMatchObject({ created: 1, total: 2, skipped: ["u1"] });
+      expect(createProductGoalsBulkMock).toHaveBeenCalledWith([
+        { userId: "u2", month: 8, year: 2026, productId: "p1", productGoalQty: 10 },
+      ]);
+    });
+
+    it("devolve 400 quando todos os vendedores já têm meta", async () => {
+      getProductGoalsByPeriodMock.mockResolvedValue([goalFor("u1", "existing")]);
+
+      const response = await request(buildApp())
+        .post("/product-goals/bulk")
+        .send({
+          userIds: ["u1"],
+          month: 8,
+          year: 2026,
+          productId: "p1",
+          productGoalQty: 10,
+        });
+
+      expect(response.status).toBe(400);
+      expect(createProductGoalsBulkMock).not.toHaveBeenCalled();
+    });
+
+    it("bloqueia vendedor com 403 sem tocar no storage", async () => {
+      const response = await request(buildApp({ role: "vendedor", userId: "u1" }))
+        .post("/product-goals/bulk")
+        .send({
+          userIds: ["u1"],
+          month: 8,
+          year: 2026,
+          productId: "p1",
+          productGoalQty: 10,
+        });
+
+      expect(response.status).toBe(403);
+      expect(createProductGoalsBulkMock).not.toHaveBeenCalled();
+    });
+
+    it("rejeita userIds vazio com 400", async () => {
+      const response = await request(buildApp())
+        .post("/product-goals/bulk")
+        .send({ userIds: [], month: 8, year: 2026, productId: "p1", productGoalQty: 10 });
+
+      expect(response.status).toBe(400);
+      expect(createProductGoalsBulkMock).not.toHaveBeenCalled();
+    });
   });
 });
