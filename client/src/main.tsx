@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./components/rich-text-editor/editor.css";
 
 // Force refresh
 console.log("App starting at:", new Date().toISOString());

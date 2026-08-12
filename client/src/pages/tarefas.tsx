@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { RichTextEditor } from "@/components/rich-text-editor/rich-text-editor";
 import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -2454,12 +2455,11 @@ function NotesView() {
                 className="text-xl font-bold text-slate-800 dark:text-slate-100 bg-transparent outline-none border-b border-transparent focus:border-slate-200 dark:focus:border-slate-700 pb-1 transition-colors"
                 placeholder="Título da nota"
               />
-              <textarea
+              <RichTextEditor
                 value={noteContent}
-                onChange={(e) => handleContentChange(e.target.value)}
+                onChange={handleContentChange}
                 placeholder="Escreva sua anotação aqui..."
-                className="flex-1 bg-transparent outline-none text-sm text-slate-700 dark:text-slate-300 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 leading-relaxed"
-                style={{ minHeight: 300 }}
+                className="flex-1"
               />
               <div className="text-xs text-slate-400 flex items-center justify-between pt-2 border-t">
                 <span>
