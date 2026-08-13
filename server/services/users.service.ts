@@ -1,5 +1,21 @@
 import { usersRepository } from "../repositories/users.repository";
+import { toAvatarUrl } from "../lib/user-serializer";
 import type { User, InsertUser } from "../../shared/schema";
+
+/**
+ * Contrato público de usuário na listagem: sem senha, sem a chave crua do R2,
+ * com a URL da foto já pronta para o client. Mesma troca feita por
+ * `toPublicUser` — aqui à mão porque o repositório devolve uma projeção com
+ * `serviceChannel`, não um `User` completo.
+ */
+export function toPublicUserRow(row: Record<string, unknown>) {
+  const { password: _password, avatarStorageKey, ...rest } = row;
+
+  return {
+    ...rest,
+    avatarUrl: toAvatarUrl(avatarStorageKey as string | null | undefined),
+  };
+}
 
 /**
  * Service responsável pela lógica de negócio de usuários
@@ -12,17 +28,14 @@ export class UsersService {
 
   /**
    * Busca todos os usuários
-   * Remove o campo password da resposta por segurança
+   * Remove o campo password da resposta e expõe a foto como avatarUrl
    * @returns Promise com lista de usuários sem senhas
    */
   async getUsers(): Promise<any[]> {
     try {
       const users = await this.usersRepository.getUsers();
 
-      // Remove passwords from response for security
-      const usersWithoutPasswords = users.map(({ password, ...user }) => user);
-
-      return usersWithoutPasswords;
+      return users.map(toPublicUserRow);
     } catch (error) {
       if (error instanceof Error) {
         throw error;

@@ -35,6 +35,7 @@ export class UsersRepository {
           blingVendedorName: users.blingVendedorName,
           umblerMemberId: users.umblerMemberId,
           umblerMemberName: users.umblerMemberName,
+          avatarStorageKey: users.avatarStorageKey,
           createdAt: users.createdAt,
           updatedAt: users.updatedAt,
           serviceChannel: {
