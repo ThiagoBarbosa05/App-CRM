@@ -3,11 +3,6 @@ import {
   RichTextEditor,
   type RichTextEditorHandle,
 } from "@/components/rich-text-editor/rich-text-editor";
-import {
-  NoteCanvas,
-  isCanvasDoc,
-  emptyCanvasDoc,
-} from "@/components/note-canvas/note-canvas";
 import { PageHeader } from "@/components/page-header";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -1979,7 +1974,6 @@ function NotesView() {
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingSectionName, setEditingSectionName] = useState("");
-  const [newNoteMode, setNewNoteMode] = useState<"doc" | "canvas">("doc");
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">(
@@ -2167,30 +2161,17 @@ function NotesView() {
   };
 
   const addNoteMutation = useMutation({
-    mutationFn: ({
-      title,
-      sectionId,
-      mode,
-    }: {
-      title: string;
-      sectionId: string;
-      mode: "doc" | "canvas";
-    }) =>
+    mutationFn: ({ title, sectionId }: { title: string; sectionId: string }) =>
       apiFetch("/api/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          sectionId,
-          content: mode === "canvas" ? emptyCanvasDoc() : "",
-        }),
+        body: JSON.stringify({ title, sectionId }),
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["notes", selectedSectionId] });
       queryClient.invalidateQueries({ queryKey: ["note-sections"] });
       setSelectedNoteId((data as Note).id);
       setNewNoteTitle("");
-      setNewNoteMode("doc");
       setCreateNoteOpen(false);
     },
     onError: (e: Error) =>
@@ -2530,20 +2511,13 @@ function NotesView() {
                 className="text-xl font-bold text-slate-800 dark:text-slate-100 bg-transparent outline-none border-b border-transparent focus:border-slate-200 dark:focus:border-slate-700 pb-1 transition-colors"
                 placeholder="Título da nota"
               />
-              {isCanvasDoc(noteContent) ? (
-                <NoteCanvas
-                  value={noteContent}
-                  onChange={handleContentChange}
-                />
-              ) : (
-                <RichTextEditor
-                  ref={noteEditorRef}
-                  value={noteContent}
-                  onChange={handleContentChange}
-                  placeholder="Escreva sua anotação aqui..."
-                  className="flex-1"
-                />
-              )}
+              <RichTextEditor
+                ref={noteEditorRef}
+                value={noteContent}
+                onChange={handleContentChange}
+                placeholder="Escreva sua anotação aqui..."
+                className="flex-1"
+              />
               <div className="text-xs text-slate-400 flex items-center justify-between pt-2 border-t">
                 <span>
                   {selectedNote?.createdBy?.name &&
@@ -2621,61 +2595,17 @@ function NotesView() {
                     addNoteMutation.mutate({
                       title: newNoteTitle.trim(),
                       sectionId: selectedSectionId,
-                      mode: newNoteMode,
                     });
                   }
                 }}
               />
             </div>
-
-            {/* Seletor de modo */}
-            <div>
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 block mb-2">
-                Tipo de nota
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNewNoteMode("doc")}
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center",
-                    newNoteMode === "doc"
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                      : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300",
-                  )}
-                >
-                  <span className="text-xl">📄</span>
-                  <span className="text-xs font-semibold">Documento</span>
-                  <span className="text-[10px] text-slate-400 leading-tight">
-                    Editor de texto com formatação
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewNoteMode("canvas")}
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center",
-                    newNoteMode === "canvas"
-                      ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
-                      : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300",
-                  )}
-                >
-                  <span className="text-xl">🖊️</span>
-                  <span className="text-xs font-semibold">Canvas</span>
-                  <span className="text-[10px] text-slate-400 leading-tight">
-                    Caixas livres como OneNote
-                  </span>
-                </button>
-              </div>
-            </div>
-
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
                   setCreateNoteOpen(false);
                   setNewNoteTitle("");
-                  setNewNoteMode("doc");
                 }}
               >
                 Cancelar
@@ -2687,7 +2617,6 @@ function NotesView() {
                     addNoteMutation.mutate({
                       title: newNoteTitle.trim(),
                       sectionId: selectedSectionId,
-                      mode: newNoteMode,
                     });
                   }
                 }}
