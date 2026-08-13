@@ -1,11 +1,14 @@
+import { ProfileModal } from "@/components/profile-modal";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils";
+import { cn, userInitials } from "@/lib/utils";
 import {
   Calculator,
+  Camera,
   CalendarDays,
   CheckSquare,
   ChevronLeft,
@@ -34,6 +37,7 @@ import {
   X,
   FileText,
 } from "lucide-react";
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
 interface AppSidebarProps {
@@ -124,6 +128,23 @@ const navItems: NavItem[] = [
   },
 ];
 
+/**
+ * Avatar do usuário logado. O tipo é estrutural porque `useAuth` não exporta a
+ * interface `User`.
+ */
+function renderAvatar(user: { name: string; avatarUrl: string | null }) {
+  const initials = userInitials(user.name);
+
+  return (
+    <Avatar className="h-9 w-9 shrink-0">
+      <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
+      <AvatarFallback className="bg-accent text-primary text-xs">
+        {initials || <User className="h-4 w-4" />}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
 export function AppSidebar({
   onCloseSidebar,
   collapsed,
@@ -131,6 +152,7 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const closeMobileMenu = () => onCloseSidebar(false);
 
@@ -183,18 +205,29 @@ export function AppSidebar({
           <>
             {collapsed ? (
               <div className="flex justify-center mb-2">
-                <div
-                  title={user.name}
-                  className="bg-accent rounded-full p-2.5 cursor-default"
+                <button
+                  type="button"
+                  title="Meu perfil"
+                  onClick={() => setIsProfileOpen(true)}
+                  className="relative rounded-full transition-opacity hover:opacity-80"
                 >
-                  <User className="h-4 w-4 text-primary" />
-                </div>
+                  {renderAvatar(user)}
+                  {/* Sem foto: o badge de câmera sinaliza que dá para adicionar uma. */}
+                  {!user.avatarUrl && (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <Camera className="h-2.5 w-2.5" />
+                    </span>
+                  )}
+                </button>
               </div>
             ) : (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary border border-border mb-3">
-                <div className="bg-accent rounded-full p-2 shrink-0">
-                  <User className="h-4 w-4 text-primary" />
-                </div>
+              <button
+                type="button"
+                title="Meu perfil"
+                onClick={() => setIsProfileOpen(true)}
+                className="w-full text-left flex items-center gap-3 p-3 rounded-xl bg-secondary border border-border mb-3 transition-colors hover:bg-accent/60"
+              >
+                {renderAvatar(user)}
                 <div className="flex flex-col min-w-0 gap-1">
                   <span className="text-sm font-semibold leading-none text-foreground truncate">
                     {user.name}
@@ -205,12 +238,20 @@ export function AppSidebar({
                   <Badge className="self-start bg-accent text-primary border-border text-[10px] px-1.5 py-0 h-4 font-medium">
                     {user.role}
                   </Badge>
+                  {!user.avatarUrl && (
+                    <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-medium text-primary">
+                      <Camera className="h-3 w-3" />
+                      Adicionar foto
+                    </span>
+                  )}
                 </div>
-              </div>
+              </button>
             )}
           </>
         )}
       </div>
+
+      <ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
 
       {/* Navigation */}
       <nav

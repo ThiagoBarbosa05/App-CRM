@@ -15,18 +15,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { resizeImageFile } from "@/lib/image-resize";
+import { userInitials } from "@/lib/utils";
 
 const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
-
-function initials(name: string): string {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
 
 async function resizeImageFileSafe(file: File): Promise<Blob> {
   try {
@@ -146,7 +138,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
           <Avatar className="h-24 w-24">
             <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? "Usuário"} />
             <AvatarFallback className="text-xl">
-              {initials(user?.name ?? "?")}
+              {userInitials(user?.name) || "?"}
             </AvatarFallback>
           </Avatar>
 

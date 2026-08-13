@@ -7,6 +7,16 @@ export function cn(...inputs: ClassValue[]) {
 
 export const baseS3Url = "https://pub-2430b33535154e839fd64049d300b4a4.r2.dev/";
 
+/** Iniciais do nome (até 2 letras) para o fallback do Avatar. */
+export function userInitials(name: string | null | undefined): string {
+  return (name ?? "")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
 export function formatCpf(cpf: string): string {
   const cleaned = cpf.replace(/\D/g, "");
   return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
