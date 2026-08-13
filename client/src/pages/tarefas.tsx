@@ -155,6 +155,7 @@ interface TaskWithComments extends Task {
 interface NoteSection {
   id: string;
   name: string;
+  description?: string | null;
   color: string;
   order: number;
   createdById: string;
@@ -1974,6 +1975,8 @@ function NotesView() {
   const [newNoteTitle, setNewNoteTitle] = useState("");
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [editingSectionName, setEditingSectionName] = useState("");
+  const [editingSectionDescId, setEditingSectionDescId] = useState<string | null>(null);
+  const [editingSectionDesc, setEditingSectionDesc] = useState("");
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "idle">(
@@ -2158,6 +2161,24 @@ function NotesView() {
     const trimmed = editingSectionName.trim();
     if (trimmed) renameSectionMutation.mutate({ id, name: trimmed });
     setEditingSectionId(null);
+  };
+
+  const updateSectionDescMutation = useMutation({
+    mutationFn: ({ id, description }: { id: string; description: string }) =>
+      apiFetch(`/api/note-sections/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: description || null }),
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["note-sections"] }),
+    onError: (e: Error) =>
+      toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const saveSectionDesc = (id: string) => {
+    updateSectionDescMutation.mutate({ id, description: editingSectionDesc });
+    setEditingSectionDescId(null);
   };
 
   const addNoteMutation = useMutation({
@@ -2374,10 +2395,36 @@ function NotesView() {
                       "bg-slate-400",
                   )}
                 />
-                <h2 className="font-semibold text-slate-800 dark:text-slate-100 truncate">
-                  {selectedSection?.name}
-                </h2>
-                <span className="text-xs text-slate-400 hidden sm:inline">
+                <div className="flex flex-col min-w-0">
+                  <h2 className="font-semibold text-slate-800 dark:text-slate-100 truncate">
+                    {selectedSection?.name}
+                  </h2>
+                  {editingSectionDescId === selectedSectionId ? (
+                    <input
+                      autoFocus
+                      value={editingSectionDesc}
+                      onChange={(e) => setEditingSectionDesc(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveSectionDesc(selectedSectionId!);
+                        if (e.key === "Escape") setEditingSectionDescId(null);
+                      }}
+                      onBlur={() => saveSectionDesc(selectedSectionId!)}
+                      placeholder="Adicionar descrição..."
+                      className="text-xs text-slate-500 bg-transparent outline-none border-b border-slate-300 dark:border-slate-600 w-full max-w-xs mt-0.5"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingSectionDescId(selectedSectionId!);
+                        setEditingSectionDesc(selectedSection?.description ?? "");
+                      }}
+                      className="text-xs text-left text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 mt-0.5 truncate max-w-xs"
+                    >
+                      {selectedSection?.description || "Adicionar descrição..."}
+                    </button>
+                  )}
+                </div>
+                <span className="text-xs text-slate-400 hidden sm:inline flex-shrink-0">
                   {sectionNotes.length} nota
                   {sectionNotes.length !== 1 ? "s" : ""}
                 </span>
@@ -2652,6 +2699,7 @@ function NotesView() {
 interface TaskFileFolder {
   id: string;
   name: string;
+  description?: string | null;
   color: string;
   order: number;
   createdById: string;
@@ -2715,6 +2763,8 @@ function FilesView() {
   const [showAddFolder, setShowAddFolder] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
+  const [editingFolderDescId, setEditingFolderDescId] = useState<string | null>(null);
+  const [editingFolderDesc, setEditingFolderDesc] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteFolderOpen, setConfirmDeleteFolderOpen] = useState(false);
@@ -2777,6 +2827,24 @@ function FilesView() {
     const trimmed = editingFolderName.trim();
     if (trimmed) renameFolderMutation.mutate({ id, name: trimmed });
     setEditingFolderId(null);
+  };
+
+  const updateFolderDescMutation = useMutation({
+    mutationFn: ({ id, description }: { id: string; description: string }) =>
+      apiFetch(`/api/task-file-folders/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description: description || null }),
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["task-file-folders"] }),
+    onError: (e: Error) =>
+      toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const saveFolderDesc = (id: string) => {
+    updateFolderDescMutation.mutate({ id, description: editingFolderDesc });
+    setEditingFolderDescId(null);
   };
 
   const deleteFolderMutation = useMutation({
@@ -3003,10 +3071,36 @@ function FilesView() {
                       "bg-slate-400",
                   )}
                 />
-                <h2 className="font-semibold text-slate-800 dark:text-slate-100 truncate">
-                  {selectedFolder?.name}
-                </h2>
-                <span className="text-xs text-slate-400 hidden sm:inline">
+                <div className="flex flex-col min-w-0">
+                  <h2 className="font-semibold text-slate-800 dark:text-slate-100 truncate">
+                    {selectedFolder?.name}
+                  </h2>
+                  {editingFolderDescId === selectedFolderId ? (
+                    <input
+                      autoFocus
+                      value={editingFolderDesc}
+                      onChange={(e) => setEditingFolderDesc(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveFolderDesc(selectedFolderId!);
+                        if (e.key === "Escape") setEditingFolderDescId(null);
+                      }}
+                      onBlur={() => saveFolderDesc(selectedFolderId!)}
+                      placeholder="Adicionar descrição..."
+                      className="text-xs text-slate-500 bg-transparent outline-none border-b border-slate-300 dark:border-slate-600 w-full max-w-xs mt-0.5"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setEditingFolderDescId(selectedFolderId!);
+                        setEditingFolderDesc(selectedFolder?.description ?? "");
+                      }}
+                      className="text-xs text-left text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 mt-0.5 truncate max-w-xs"
+                    >
+                      {selectedFolder?.description || "Adicionar descrição..."}
+                    </button>
+                  )}
+                </div>
+                <span className="text-xs text-slate-400 hidden sm:inline flex-shrink-0">
                   {folderFiles.length} arquivo
                   {folderFiles.length !== 1 ? "s" : ""}
                 </span>

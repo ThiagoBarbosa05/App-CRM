@@ -4869,6 +4869,7 @@ export const noteSections = pgTable("note_sections", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  description: text("description"),
   color: text("color").notNull().default("slate"),
   order: integer("order").notNull().default(0),
   createdById: varchar("created_by_id")
@@ -4919,6 +4920,7 @@ export const taskFileFolders = pgTable("task_file_folders", {
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  description: text("description"),
   color: text("color").notNull().default("slate"),
   order: integer("order").notNull().default(0),
   createdById: varchar("created_by_id")

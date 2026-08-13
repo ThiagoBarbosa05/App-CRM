@@ -29,8 +29,12 @@ taskFileFoldersRouter.get("/", async (_req, res) => {
 taskFileFoldersRouter.post("/", async (req, res) => {
   try {
     const { userId } = req.user!;
-    const { name, color } = z
-      .object({ name: z.string().min(1), color: z.string().optional() })
+    const { name, color, description } = z
+      .object({
+        name: z.string().min(1),
+        color: z.string().optional(),
+        description: z.string().optional(),
+      })
       .parse(req.body);
 
     const [{ maxOrder }] = await db
@@ -39,7 +43,13 @@ taskFileFoldersRouter.post("/", async (req, res) => {
 
     const [folder] = await db
       .insert(taskFileFolders)
-      .values({ name, color: color ?? "slate", order: (maxOrder ?? 0) + 1, createdById: userId })
+      .values({
+        name,
+        color: color ?? "slate",
+        description: description ?? null,
+        order: (maxOrder ?? 0) + 1,
+        createdById: userId,
+      })
       .returning();
 
     return res.status(201).json({ ...folder, fileCount: 0 });
@@ -52,13 +62,18 @@ taskFileFoldersRouter.post("/", async (req, res) => {
 async function updateFolder(req: any, res: any) {
   try {
     const { id } = req.params;
-    const { name, color } = z
-      .object({ name: z.string().min(1).optional(), color: z.string().optional() })
+    const { name, color, description } = z
+      .object({
+        name: z.string().min(1).optional(),
+        color: z.string().optional(),
+        description: z.string().nullable().optional(),
+      })
       .parse(req.body);
 
     const updates: Record<string, unknown> = {};
     if (name !== undefined) updates.name = name;
     if (color !== undefined) updates.color = color;
+    if (description !== undefined) updates.description = description;
 
     const [folder] = await db
       .update(taskFileFolders)
