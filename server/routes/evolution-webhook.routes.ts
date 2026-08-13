@@ -2,7 +2,6 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import {
-  drainGatewayWebhookInbox,
   enqueueGatewayWebhook,
   type GatewayWebhookEnvelope,
 } from "../services/baileys-gateway-webhook-inbox.service";
@@ -87,10 +86,6 @@ router.post("/webhook", async (req: Request, res: Response) => {
       parsed.data as GatewayWebhookEnvelope,
     );
     res.status(result === "created" ? 202 : 200).json({ status: result });
-    // Processa fora do caminho da resposta: o gateway já recebeu o 202 e a
-    // entrega está garantida pela tabela de inbox. Um evento duplicado não
-    // precisa de drain — ele já foi processado ou está na fila.
-    if (result === "created") drainGatewayWebhookInbox();
   } catch (error) {
     console.error("[Baileys Gateway Webhook] Falha ao persistir:", error);
     res.status(500).json({ message: "Falha ao persistir evento" });

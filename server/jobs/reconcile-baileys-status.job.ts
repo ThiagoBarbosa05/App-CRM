@@ -1,3 +1,4 @@
+import cron from "node-cron";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { whatsappChannels } from "@shared/schema";
@@ -8,16 +9,14 @@ import {
   type ChannelConnectionStatus,
 } from "../services/baileys/connection-status.service";
 
-/**
- * Um tick da reconciliação. Agendado pelo worker de background — ver
- * server/jobs/registry.ts.
- */
-export async function runReconcileBaileysStatusTick(): Promise<void> {
-  try {
-    await reconcileBaileysStatus();
-  } catch (error) {
-    console.error("[ReconcileBaileysStatus] Erro:", error);
-  }
+export function startReconcileBaileysStatusJob(): void {
+  cron.schedule("*/1 * * * *", async () => {
+    try {
+      await reconcileBaileysStatus();
+    } catch (error) {
+      console.error("[ReconcileBaileysStatus] Erro:", error);
+    }
+  });
 }
 
 /**
@@ -33,20 +32,12 @@ function normalizeObservedState(observedState: string): ChannelConnectionStatus 
 }
 
 /**
- * Por quanto tempo o gateway pode ficar inalcançável antes de o canal ser
- * marcado offline.
- *
- * Antes isto era um contador de falhas consecutivas em memória do processo.
- * Não sobrevive ao worker de background, que é um container efêmero: cada
- * execução começaria com o mapa vazio, chegaria a 1 falha e nunca ao limite —
- * um gateway fora do ar deixaria "Conectado" na tela para sempre.
- *
- * `connection_checked_at` é o mesmo sinal, só que durável e compartilhado
- * entre réplicas: `touchChannelConnectionCheckedAt` o carimba a cada resposta
- * bem-sucedida do gateway, então "faz mais de 30 min que ninguém confirma este
- * canal" é exatamente a condição que queremos.
+ * Quantas rodadas seguidas o gateway pode falhar antes de o canal ser marcado
+ * offline. O cron roda a cada minuto, então são ~3 minutos de tolerância: o
+ * bastante para um deploy ou um hiccup de rede, pouco o bastante para a tela
+ * não mentir por muito tempo.
  */
-const UNREACHABLE_GRACE_MS = 30 * 60 * 1000;
+const UNREACHABLE_THRESHOLD = 3;
 
 /**
  * Falhas que significam "não consegui falar com o gateway". `unauthorized`,
@@ -63,6 +54,13 @@ function isGatewayUnreachable(error: unknown): boolean {
   );
 }
 
+/**
+ * Falhas consecutivas por canal. Em memória de propósito: se o processo do CRM
+ * reinicia, o pior caso são mais três minutos até degradar — não vale uma
+ * coluna no banco.
+ */
+const consecutiveFailures = new Map<number, number>();
+
 /** Sincroniza o cache do CRM com o observed_state autoritativo do gateway. */
 export async function reconcileBaileysStatus(): Promise<void> {
   const rows = await db
@@ -70,7 +68,6 @@ export async function reconcileBaileysStatus(): Promise<void> {
       id: whatsappChannels.id,
       evolutionInstanceName: whatsappChannels.evolutionInstanceName,
       connectionStatus: whatsappChannels.connectionStatus,
-      connectionCheckedAt: whatsappChannels.connectionCheckedAt,
     })
     .from(whatsappChannels)
     .where(
@@ -81,6 +78,11 @@ export async function reconcileBaileysStatus(): Promise<void> {
         isNull(whatsappChannels.deletedAt),
       ),
     );
+
+  const liveChannelIds = new Set(rows.map((row) => row.id));
+  for (const channelId of Array.from(consecutiveFailures.keys())) {
+    if (!liveChannelIds.has(channelId)) consecutiveFailures.delete(channelId);
+  }
 
   for (const row of rows) {
     if (!row.evolutionInstanceName) continue;
@@ -100,13 +102,13 @@ interface ReconcileRow {
   id: number;
   evolutionInstanceName: string | null;
   connectionStatus: string | null;
-  connectionCheckedAt: Date | null;
 }
 
 async function reconcileChannel(row: ReconcileRow): Promise<void> {
   if (!row.evolutionInstanceName) return;
   try {
     const instance = await baileysGateway.getInstance(row.evolutionInstanceName);
+    consecutiveFailures.delete(row.id);
 
     // `observed_state_stale`: o processo dono da sessão parou de bater
     // heartbeat (deploy, OOM, kill). A linha do gateway pode continuar
@@ -136,6 +138,7 @@ async function reconcileChannel(row: ReconcileRow): Promise<void> {
     if (error instanceof BaileysGatewayError && error.code === "not_found") {
       // O gateway respondeu — só não conhece esta instância. Não conta como
       // indisponibilidade, e a sessão precisa ser pareada de novo.
+      consecutiveFailures.delete(row.id);
       await applyChannelConnectionStatus(row.id, "disconnected", {
         source: "reconcile",
         occurredAt: new Date(),
@@ -155,17 +158,12 @@ async function reconcileChannel(row: ReconcileRow): Promise<void> {
 
     // Gateway inalcançável não prova que o WhatsApp caiu — mas manter
     // "Conectado" na tela indefinidamente mente para o vendedor, já que com o
-    // gateway fora nenhuma mensagem sai. Tolera a janela de graça e degrada.
-    //
-    // `connectionCheckedAt` nulo significa que este canal nunca teve uma
-    // confirmação do gateway: não há o que degradar por indisponibilidade, e
-    // carimbar "offline" agora sobrescreveria um estado que ninguém verificou.
-    const lastCheck = row.connectionCheckedAt?.getTime();
-    const unreachableFor = lastCheck === undefined ? 0 : Date.now() - lastCheck;
-    if (unreachableFor < UNREACHABLE_GRACE_MS) {
+    // gateway fora nenhuma mensagem sai. Tolera alguns minutos e então degrada.
+    const failures = (consecutiveFailures.get(row.id) ?? 0) + 1;
+    consecutiveFailures.set(row.id, failures);
+    if (failures < UNREACHABLE_THRESHOLD) {
       console.error(
-        `[ReconcileBaileysStatus] Gateway indisponível para "${row.evolutionInstanceName}" ` +
-          `(sem confirmação há ${Math.round(unreachableFor / 60_000)} min):`,
+        `[ReconcileBaileysStatus] Gateway indisponível para "${row.evolutionInstanceName}" (${failures}/${UNREACHABLE_THRESHOLD}):`,
         error,
       );
       return;

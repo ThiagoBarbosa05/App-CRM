@@ -1031,11 +1031,7 @@ export function useEvolutionChannelStatus(id: number | null) {
     },
     enabled: id !== null,
     staleTime: 0,
-    // Cada refetch aqui vira uma chamada HTTP ao gateway. Em "Meu WhatsApp" o
-    // componente fica montado o tempo todo, então 15s custava 240 chamadas por
-    // hora por vendedor com a tela aberta. Mudança real de status chega pelo
-    // SSE `evolution_connection_update`; este polling é só rede de segurança.
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
     refetchOnWindowFocus: true,
     retry: false,
   });

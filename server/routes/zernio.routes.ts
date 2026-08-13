@@ -13,7 +13,6 @@ import {
   upsertConversation,
 } from "../lib/zernio-store";
 import { findClientMatch } from "../lib/zernio-client-match";
-import { addZernioSseClient, publishZernioEvent } from "../lib/zernio-sse";
 import { redactPii } from "../lib/log-redaction";
 import { requireAdmin } from "../middleware/validation";
 import {
@@ -210,11 +209,10 @@ router.get("/events", (req, res) => {
     "X-Accel-Buffering": "no",
   });
   res.flushHeaders();
-  // Registro síncrono de propósito: com o `import()` dinâmico que havia aqui,
-  // um cliente que desconectasse antes da microtask resolver perdia o listener
-  // de "close" — o Response ficava no Set para sempre, com o ping de 25s junto.
-  const cleanup = addZernioSseClient(res);
-  req.on("close", cleanup);
+  import("../lib/zernio-sse").then(({ addZernioSseClient }) => {
+    const cleanup = addZernioSseClient(res);
+    req.on("close", cleanup);
+  });
 });
 
 export default router;
@@ -350,7 +348,9 @@ zernioWebhookRouter.post("/message", async (req, res) => {
 
       // Emite o evento SSE já normalizado no formato que o inbox espera
       if (isNew) {
-        publishZernioEvent(storedMessage);
+        import("../lib/zernio-sse").then(({ publishZernioEvent }) => {
+          publishZernioEvent(storedMessage);
+        });
       }
     }
 

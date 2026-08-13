@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useIsPageActive } from "@/hooks/use-page-active";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -157,7 +156,6 @@ interface MessagesData {
 export default function ZernioInboxPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const pageActive = useIsPageActive();
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [search, setSearch] = useState("");
   const [activeConv, setActiveConv] = useState<ZernioConversation | null>(null);
@@ -214,8 +212,7 @@ export default function ZernioInboxPage() {
       return resp.json();
     },
     enabled: status?.configured === true,
-    // Sem refetchInterval: o SSE /api/zernio/events já invalida esta chave a
-    // cada mensagem recebida. O polling de 30s duplicava o mesmo dado.
+    refetchInterval: 30_000,
   });
 
   // Abre automaticamente a conversa indicada via ?conversationId= (ex: link vindo do perfil do cliente)
@@ -246,8 +243,7 @@ export default function ZernioInboxPage() {
       return resp.json();
     },
     enabled: !!activeConv,
-    // Sem refetchInterval: idem — o SSE invalida esta chave quando chega
-    // mensagem da conversa aberta.
+    refetchInterval: 15_000,
   });
 
   // Enviar mensagem
@@ -338,10 +334,6 @@ export default function ZernioInboxPage() {
   // SSE — mensagens em tempo real
   useEffect(() => {
     if (!status?.configured) return;
-    // Aba em segundo plano fecha o stream: uma EventSource aberta conta como
-    // requisição em voo e impede o Autoscale de desligar a instância.
-    if (!pageActive) return;
-
     const es = new EventSource("/api/zernio/events");
     sseRef.current = es;
     es.addEventListener("open", () => setSseConnected(true));
@@ -356,7 +348,7 @@ export default function ZernioInboxPage() {
       } catch {}
     });
     return () => { es.close(); setSseConnected(false); };
-  }, [status?.configured, pageActive]);
+  }, [status?.configured]);
 
   // Scroll automático para o final
   useEffect(() => {

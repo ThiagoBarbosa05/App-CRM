@@ -2,7 +2,6 @@ import { Menu } from "lucide-react";
 import { AppSidebar } from "./sidebar";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { useRevalidateOnPageActive } from "@/hooks/use-page-active";
 import { motion, AnimatePresence } from "framer-motion";
 import { BlingStatusBanner } from "@/components/bling-status-banner";
 import { WhatsAppFloatingButton } from "@/components/whatsapp-floating-button";
@@ -18,12 +17,6 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   // atendentes também exibem esse status — e o botão flutuante do WhatsApp,
   // que hospeda o outro assinante SSE, só é renderizado para alguns usuários.
   useChannelStatusStream();
-
-  // Os streams SSE são fechados quando a aba fica em segundo plano, para o
-  // Autoscale conseguir desligar a instância. Na volta, o cache precisa ser
-  // revalidado: o servidor não guarda backlog do que passou.
-  useRevalidateOnPageActive();
-
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sidebar-collapsed") === "true",
   );

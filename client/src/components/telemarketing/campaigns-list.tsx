@@ -162,10 +162,7 @@ function CampaignProgress({
       return res.json();
     },
     staleTime: 15_000,
-    // Este componente é renderizado uma vez POR CARD de campanha, então o
-    // intervalo se multiplica pelo tamanho da lista. Campanha que não está
-    // ativa não muda de progresso sozinha e não precisa de polling nenhum.
-    refetchInterval: campaign.status === "ativa" ? 15_000 : false,
+    refetchInterval: 15_000,
   });
 
   const total = stats?.total ?? 0;

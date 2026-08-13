@@ -213,13 +213,23 @@ async function alertStaleQuotesWithoutDueDate(): Promise<void> {
 }
 
 /**
- * Os dois alertas de orçamento, na ordem. Agendado às 8h (horário de São
- * Paulo) pelo worker de background, para o vendedor ver no início do dia útil —
- * ver server/jobs/registry.ts.
+ * Roda todos os dias às 8h (horário de São Paulo) para garantir que o
+ * vendedor veja o alerta no início do dia útil.
  */
-export async function runQuoteAlerts(): Promise<void> {
+cron.schedule("0 8 * * *", async () => {
   await alertExpiringQuotes();
   await alertStaleQuotesWithoutDueDate();
-}
+}, {
+  timezone: "America/Sao_Paulo",
+});
+
+// Execução inicial ao subir o servidor (útil também para detectar problemas)
+Promise.all([alertExpiringQuotes(), alertStaleQuotesWithoutDueDate()])
+  .then(() => {
+    console.log("[QuoteExpiry] Sistema de alertas de orçamentos iniciado (com vencimento + sem data).");
+  })
+  .catch((err) => {
+    console.error("[QuoteExpiry] Erro na inicialização dos alertas de orçamentos:", err);
+  });
 
 export { alertExpiringQuotes, alertStaleQuotesWithoutDueDate };

@@ -1,3 +1,4 @@
+import cron from "node-cron";
 import { calculateRfm } from "../services/rfm.service";
 
 /**
@@ -18,7 +19,13 @@ async function recalculateRfm(): Promise<void> {
   }
 }
 
-// Agendado às 3h (baixo tráfego) pelo worker de background — ver
-// server/jobs/registry.ts. calculateRfm() faz um UPDATE por cliente em loop,
-// então nunca deve rodar no boot de um processo.
+/**
+ * Roda todos os dias às 3h da manhã (baixo tráfego), horário de São Paulo.
+ * Não executa imediatamente ao subir o servidor: calculateRfm() faz um
+ * UPDATE por cliente em loop, o que seria custoso a cada restart/deploy.
+ */
+cron.schedule("0 3 * * *", recalculateRfm, {
+  timezone: "America/Sao_Paulo",
+});
+
 export { recalculateRfm };

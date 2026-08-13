@@ -58,18 +58,8 @@ export function useAutomationExecutions(
         total: number;
       }>;
     },
-    // 5s era caro para uma tela que quase sempre está parada: só faz sentido
-    // pesquisar rápido enquanto há execução acontecendo.
-    refetchInterval: (query) =>
-      hasRunningExecution(query.state.data?.executions) ? 5_000 : 30_000,
+    refetchInterval: 5000, // Atualizar a cada 5 segundos
   });
-}
-
-/** Uma execução em andamento justifica polling curto; nenhuma, não. */
-function hasRunningExecution(executions: AutomationExecution[] | undefined): boolean {
-  return (executions ?? []).some(
-    (execution) => execution.status === "running" || execution.status === "queued",
-  );
 }
 
 /**
@@ -90,10 +80,7 @@ export function useRunningExecutions() {
         executions: AutomationExecution[];
       }>;
     },
-    // Enquanto há execução rodando, 5s; parado, 30s. Antes eram 3s fixos —
-    // 1200 requisições por hora por aba aberta, para um contador que fica em
-    // zero a maior parte do dia.
-    refetchInterval: (query) => ((query.state.data?.count ?? 0) > 0 ? 5_000 : 30_000),
+    refetchInterval: 3000, // Atualizar a cada 3 segundos
   });
 }
 
@@ -137,8 +124,7 @@ export function useCatchupStatus() {
 
       return response.json() as Promise<CatchupStatus>;
     },
-    // Só vale acompanhar de perto enquanto o catch-up está rodando.
-    refetchInterval: (query) => (query.state.data?.isRunning ? 5_000 : 30_000),
+    refetchInterval: 3000, // Atualizar a cada 3 segundos
   });
 }
 

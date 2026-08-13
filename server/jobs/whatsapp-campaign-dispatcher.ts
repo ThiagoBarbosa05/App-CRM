@@ -1,12 +1,11 @@
-import { db } from "server/db";
+import cron from "node-cron";
+import { db, pool } from "server/db";
 import { campaigns, whatsappCampaigns, whatsappCampaignMessages } from "@shared/schema";
 import { and, eq, count, getTableColumns, inArray, lte } from "drizzle-orm";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
 import { decideFinalization } from "../services/whatsapp-campaign-finalize";
 import { classifyDispatchFailure } from "../services/whatsapp-errors";
 import { failCampaign } from "../services/whatsapp-campaign-failure";
-import { LOCK_KEYS } from "./lock-keys";
-import { withAdvisoryLock } from "./with-advisory-lock";
 
 // Mensagens processadas por tick, por campanha. O `wa_message_delay_ms` controla
 // o intervalo entre envios dentro de executeCampaign (rate-limit da Meta).
@@ -15,7 +14,7 @@ const BATCH_SIZE = 25;
 // Chave arbitrária e estável para o advisory lock do Postgres — garante que
 // só uma instância do servidor processe um tick por vez, mesmo com múltiplos
 // processos/containers rodando o mesmo cron em produção.
-const WA_DISPATCH_LOCK_KEY = LOCK_KEYS.whatsappCampaignDispatch;
+const WA_DISPATCH_LOCK_KEY = 727_100_001;
 
 const SENT_LIKE = ["sent", "delivered", "read"] as const;
 
@@ -178,11 +177,33 @@ async function runTick(): Promise<void> {
   }
 }
 
-/**
- * Um tick completo, já protegido pelo advisory lock: se outro processo já está
- * despachando, este retorna sem enviar nada, evitando mensagem duplicada.
- * Chamado pelo worker de background.
- */
-export async function runWhatsappCampaignDispatchTick(): Promise<void> {
-  await withAdvisoryLock(WA_DISPATCH_LOCK_KEY, runTick);
-}
+let running = false;
+cron.schedule("*/1 * * * *", async () => {
+  if (running) return; // já rodando neste processo — evita sobreposição local
+  running = true;
+  try {
+    // Advisory lock do Postgres: se outra instância do servidor já está
+    // processando este tick, pg_try_advisory_lock retorna false imediatamente
+    // (não bloqueia) e esta instância pula o tick, evitando que duas
+    // instâncias enviem a mesma mensagem em paralelo.
+    const client = await pool.connect();
+    try {
+      const { rows } = await client.query(
+        "SELECT pg_try_advisory_lock($1) AS locked",
+        [WA_DISPATCH_LOCK_KEY],
+      );
+      if (!rows[0]?.locked) return;
+      try {
+        await runTick();
+      } finally {
+        await client.query("SELECT pg_advisory_unlock($1)", [WA_DISPATCH_LOCK_KEY]);
+      }
+    } finally {
+      client.release();
+    }
+  } finally {
+    running = false;
+  }
+});
+
+console.log("[wa-campaign-dispatcher] agendado: a cada 1 minuto");

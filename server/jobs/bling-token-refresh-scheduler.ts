@@ -1,10 +1,7 @@
+import cron from "node-cron";
 import { blingConnectionsService } from "../services/bling-connections.service";
 
-/**
- * Marca conexões Bling expiradas e renova as que estão perto de vencer.
- * Agendado pelo worker de background (ver server/jobs/registry.ts).
- */
-export async function refreshBlingConnections(): Promise<void> {
+async function refreshBlingConnections(): Promise<void> {
   try {
     const expiredCount = await blingConnectionsService.markExpiredConnections();
     const refreshedCount = await blingConnectionsService.refreshConnectionsExpiringSoon();
@@ -18,3 +15,17 @@ export async function refreshBlingConnections(): Promise<void> {
     console.error("[Bling Scheduler] Erro ao renovar conexoes do Bling:", error);
   }
 }
+
+cron.schedule(
+  "*/15 * * * *",
+  async () => {
+    await refreshBlingConnections();
+  },
+  {
+    timezone: "America/Sao_Paulo",
+  },
+);
+
+refreshBlingConnections().catch((error) => {
+  console.error("[Bling Scheduler] Erro ao iniciar rotina de refresh do Bling:", error);
+});

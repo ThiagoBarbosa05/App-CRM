@@ -1,3 +1,4 @@
+import cron from "node-cron";
 import { runInactivityReengagement } from "../services/reengagement-automation.service";
 
 /**
@@ -21,6 +22,12 @@ async function checkInactivityReengagement(): Promise<void> {
   }
 }
 
-// Agendado pelo worker de background logo após a verificação de vencimento de
-// cashback — ver server/jobs/registry.ts.
+/**
+ * Roda todos os dias às 8h30 (horário de São Paulo), logo após a verificação
+ * de vencimento de cashback.
+ */
+cron.schedule("30 8 * * *", checkInactivityReengagement, {
+  timezone: "America/Sao_Paulo",
+});
+
 export { checkInactivityReengagement };

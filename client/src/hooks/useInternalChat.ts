@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { apiRequest } from "@/lib/queryClient";
-import { useIsPageActive } from "@/hooks/use-page-active";
 
 export type ChatTab = "all" | "attendants" | "groups";
 
@@ -220,30 +219,23 @@ export function useRenameGroup(conversationId: string | null) {
  */
 export function useInternalChatNotifications() {
   const queryClient = useQueryClient();
-  // Sem isto, uma aba esquecida em segundo plano segura uma requisição em voo
-  // para sempre e o Autoscale nunca desliga a instância.
-  const pageActive = useIsPageActive();
 
   useEffect(() => {
-    if (!pageActive) return;
-
     const es = new EventSource("/api/internal-chat/stream");
     es.addEventListener("internal_conversation_updated", () => {
       queryClient.invalidateQueries({ queryKey: ["/api/internal-chat/conversations"] });
     });
     return () => es.close();
-  }, [queryClient, pageActive]);
+  }, [queryClient]);
 }
 
 /** Assina eventos em tempo real da conversa aberta (nova mensagem, membros). */
 export function useInternalConversationStream(conversationId: string | null) {
   const queryClient = useQueryClient();
   const esRef = useRef<EventSource | null>(null);
-  const pageActive = useIsPageActive();
 
   useEffect(() => {
     if (!conversationId || conversationId.startsWith("pending:")) return;
-    if (!pageActive) return;
 
     const es = new EventSource(`/api/internal-chat/conversations/${conversationId}/stream`);
     esRef.current = es;
@@ -261,5 +253,5 @@ export function useInternalConversationStream(conversationId: string | null) {
       es.close();
       esRef.current = null;
     };
-  }, [conversationId, queryClient, pageActive]);
+  }, [conversationId, queryClient]);
 }
