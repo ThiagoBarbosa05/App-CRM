@@ -46,6 +46,9 @@ export const users = pgTable("users", {
   blingVendedorName: text("bling_vendedor_name"),
   umblerMemberId: text("umbler_member_id"),
   umblerMemberName: text("umbler_member_name"),
+  // Chave do objeto no R2 (ex.: "avatars/<userId>/<uuid>"). A URL pública não é
+  // persistida — deriva-se de getPublicR2Url(). Ver server/lib/user-serializer.ts.
+  avatarStorageKey: text("avatar_storage_key"),
   pdvUnitId: varchar("pdv_unit_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
