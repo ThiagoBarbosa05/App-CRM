@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useIsPageActive } from "@/hooks/use-page-active";
 import { dedupById, refreshFirstPage } from "@/lib/wa-chat-pagination";
 
 export interface ClientWaMessageMedia {
@@ -211,9 +212,12 @@ export function useSendClientMedia(clientId: string) {
 /** Assina o SSE por conversa (mesmo endpoint da inbox) e atualiza a página mais recente ao chegar evento. */
 export function useClientConversationStream(clientId: string, enabled: boolean) {
   const queryClient = useQueryClient();
+  // Fecha o stream com a aba em segundo plano: enquanto uma EventSource está
+  // aberta, o Autoscale conta uma requisição em voo e não desliga a instância.
+  const pageActive = useIsPageActive();
 
   useEffect(() => {
-    if (!enabled || !clientId) return;
+    if (!enabled || !clientId || !pageActive) return;
 
     const es = new EventSource(`/api/whatsapp/conversations/${clientId}/stream`);
     const refresh = () => {
@@ -225,5 +229,5 @@ export function useClientConversationStream(clientId: string, enabled: boolean) 
     es.addEventListener("message_status", refresh);
 
     return () => es.close();
-  }, [clientId, enabled, queryClient]);
+  }, [clientId, enabled, queryClient, pageActive]);
 }

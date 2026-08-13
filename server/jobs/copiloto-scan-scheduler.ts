@@ -1,5 +1,3 @@
-import cron from "node-cron";
-
 import { scanCopilotoSignals } from "../services/copiloto.service";
 
 /**
@@ -20,14 +18,8 @@ async function scanCopiloto(): Promise<void> {
   }
 }
 
-/**
- * Roda às 5h, depois do recálculo de RFM das 3h (rfm-recalculate-scheduler),
- * já que o sinal de campeão silencioso lê clients.rfm_segment. Não executa ao
- * subir o servidor: a varredura é pesada e um deploy no meio do dia recriaria a
- * fila sob os pés do vendedor.
- */
-cron.schedule("0 9 * * *", scanCopiloto, {
-  timezone: "America/Sao_Paulo",
-});
-
+// Agendado pelo worker de background depois do recálculo de RFM das 3h (o
+// sinal de campeão silencioso lê clients.rfm_segment) — ver
+// server/jobs/registry.ts. Nunca roda no boot: a varredura é pesada e
+// recriaria a fila sob os pés do vendedor no meio do dia.
 export { scanCopiloto };

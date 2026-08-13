@@ -139,29 +139,53 @@ export async function processGatewayWebhookInboxBatch(limit = 10): Promise<numbe
   return processed;
 }
 
-let workerTimer: ReturnType<typeof setInterval> | null = null;
-let workerRunning = false;
-
-export function startGatewayWebhookInboxWorker(): void {
-  if (workerTimer) return;
-  // Um processo pode cair depois do claim. Na inicialização, devolve esses
-  // registros à fila; a deduplicação dos handlers torna o replay seguro.
-  pool.query(
+/**
+ * Um processo pode cair depois do claim, deixando o registro preso em
+ * `processing`. Devolve esses eventos à fila; a deduplicação dos handlers torna
+ * o replay seguro. Roda no worker de background, não no boot do processo web —
+ * com scale-to-zero, o boot acontece a cada subida de instância.
+ */
+export async function recoverStuckGatewayWebhooks(): Promise<void> {
+  await pool.query(
     `UPDATE baileys_gateway_webhook_inbox
      SET status='failed', next_attempt_at=now(),
          last_error=COALESCE(last_error, 'Processamento interrompido por restart')
      WHERE status='processing'`,
-  ).catch((error) =>
-    console.error("[Baileys Gateway Inbox] Falha ao recuperar eventos:", error),
   );
-  workerTimer = setInterval(() => {
-    if (workerRunning) return;
-    workerRunning = true;
-    processGatewayWebhookInboxBatch()
-      .catch((error) => console.error("[Baileys Gateway Inbox] Worker falhou:", error))
-      .finally(() => {
-        workerRunning = false;
-      });
-  }, 2_000);
-  workerTimer.unref();
+}
+
+let draining = false;
+let drainRequested = false;
+
+/**
+ * Drena a fila imediatamente, sem bloquear quem chamou.
+ *
+ * O gateway entrega os eventos por push, então varrer a fila em intervalo fixo
+ * era puro desperdício: mantinha uma transação a cada 2s mesmo com a fila
+ * vazia, e — no Autoscale — segurava CPU alocada 24h por dia. Agora o próprio
+ * POST do webhook dispara o processamento depois de responder 202.
+ *
+ * O `drainRequested` fecha a janela de corrida em que um evento novo chega
+ * enquanto o laço anterior já checou a fila pela última vez: em vez de esperar
+ * o job de retentativa, o laço reinicia. Retentativas com `next_attempt_at` no
+ * futuro não são reclamadas, então o laço sempre termina.
+ */
+export function drainGatewayWebhookInbox(): void {
+  drainRequested = true;
+  if (draining) return;
+  draining = true;
+  void (async () => {
+    try {
+      while (drainRequested) {
+        drainRequested = false;
+        while ((await processGatewayWebhookInboxBatch()) > 0) {
+          // continua enquanto houver evento elegível
+        }
+      }
+    } catch (error) {
+      console.error("[Baileys Gateway Inbox] Drain falhou:", error);
+    } finally {
+      draining = false;
+    }
+  })();
 }

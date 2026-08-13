@@ -19,38 +19,27 @@ import cookieParser from "cookie-parser";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import "./jobs/birthday-job-scheduler";
-import "./jobs/update-expired-events-scheduler";
-import "./jobs/bling-token-refresh-scheduler";
-import "./jobs/bling-sales-order-sync-scheduler";
-import "./jobs/assertiva-token-refresh-scheduler";
-import "./jobs/campaign-dispatcher";
-import "./jobs/whatsapp-campaign-dispatcher";
-import "./jobs/email-campaign-dispatcher";
-import "./jobs/sms-campaign-dispatcher";
-import "./jobs/rfm-recalculate-scheduler";
-import "./jobs/copiloto-scan-scheduler";
-import "./jobs/cashback-automation-scheduler";
-import "./jobs/reengagement-automation-scheduler";
-import "./jobs/quote-expiry-alert-scheduler";
-import { startReconcileBaileysStatusJob } from "./jobs/reconcile-baileys-status.job";
-import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
-import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
-import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";
-import { startGatewayWebhookInboxWorker } from "./services/baileys-gateway-webhook-inbox.service";
 import { assertGatewayConfiguration } from "./integrations/baileys-gateway";
 
 import { storage } from "./storage";
 import { getCachedPage, setCachedPage } from "./lib/landing-page-cache";
-import { seedCountries } from "./jobs/seed-countries";
-import { migrateWineryGoals } from "./jobs/migrate-winery-goals";
-import { migrateCategoryGoals } from "./jobs/migrate-category-goals";
-import { migratePdvSettings } from "./jobs/migrate-pdv-settings";
-import { migrateOrderClient } from "./jobs/migrate-order-client";
-import { migrateQuotes } from "./jobs/migrate-quotes";
 import { redactPii } from "./lib/log-redaction";
 import { UsersService } from "./services/users.service";
-// import "./jobs/umbler-sync-scheduler";
+
+/**
+ * Papel deste processo.
+ *
+ * "web" (padrão em produção) serve HTTP e mais nada: sem cron, sem worker de
+ * polling, sem trabalho no boot. É o que permite ao Autoscale escalar a zero
+ * quando ninguém está usando o CRM — antes, os jobs em processo mantinham o
+ * container aceso 24h por dia, e nem rodavam de forma confiável, já que um
+ * serviço desligado não tem cron.
+ *
+ * "all" agenda os jobs aqui dentro, para `npm run dev` continuar sendo um
+ * processo só. Em produção os jobs vivem em Scheduled Deployments chamando
+ * `npm run job -- <grupo>` (ver server/worker.ts e server/jobs/registry.ts).
+ */
+const APP_ROLE = process.env.APP_ROLE ?? (process.env.NODE_ENV === "production" ? "web" : "all");
 
 const app = express();
 
@@ -187,29 +176,21 @@ app.use((req, res, next) => {
     }
   });
   const server = await registerRoutes(app);
-  seedCountries().catch((err) =>
-    console.error("[Seed] seedCountries falhou:", err),
-  );
-  migrateWineryGoals().catch((err) =>
-    console.error("[Migrate] migrateWineryGoals falhou:", err),
-  );
-  migrateCategoryGoals().catch((err) =>
-    console.error("[Migrate] migrateCategoryGoals falhou:", err),
-  );
-  migratePdvSettings().catch((err) =>
-    console.error("[Migrate] migratePdvSettings falhou:", err),
-  );
-  migrateOrderClient().catch((err) =>
-    console.error("[Migrate] migrateOrderClient falhou:", err),
-  );
-  migrateQuotes().catch((err) =>
-    console.error("[Migrate] migrateQuotes falhou:", err),
-  );
-  startExpireBotSessionsJob();
-  startResumeBotSessionsJob();
-  startTemplateTimeoutsJob();
-  startReconcileBaileysStatusJob();
-  startGatewayWebhookInboxWorker();
+
+  // O seed de países e as migrações de dados saíram daqui: eram disparados a
+  // cada subida do processo, e com scale-to-zero isso passa a ser toda vez que
+  // o Autoscale acorda o container. Agora são um job sob demanda —
+  // `npm run job -- bootstrap`.
+  //
+  // Os jobs periódicos idem: em produção rodam em Scheduled Deployments. O
+  // inbox de webhooks do gateway não tem mais worker de polling — cada POST em
+  // /api/evolution/webhook drena a fila logo após responder 202.
+  if (APP_ROLE === "all") {
+    const { startInProcessScheduler } = await import("./jobs/dev-scheduler");
+    startInProcessScheduler();
+  } else {
+    log(`APP_ROLE=${APP_ROLE}: jobs de background não são agendados neste processo`);
+  }
 
   // Rede de segurança para erros que escapam de um handler de rota. Na prática
   // quase nunca dispara (as rotas têm try/catch próprio), mas quando dispara

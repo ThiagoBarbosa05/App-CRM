@@ -1,4 +1,3 @@
-import cron from "node-cron";
 import { runCashbackExpiringReminders } from "../services/cashback-automation.service";
 
 /**
@@ -22,12 +21,7 @@ async function checkCashbackExpiringReminders(): Promise<void> {
   }
 }
 
-/**
- * Roda todos os dias às 8h (horário de São Paulo), horário comercial em que
- * o cliente tem mais chance de ver a mensagem.
- */
-cron.schedule("0 8 * * *", checkCashbackExpiringReminders, {
-  timezone: "America/Sao_Paulo",
-});
-
+// Agendado às 8h (horário de São Paulo) pelo worker de background — horário
+// comercial em que o cliente tem mais chance de ver a mensagem. Ver
+// server/jobs/registry.ts.
 export { checkCashbackExpiringReminders };

@@ -6,11 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev          # Start dev server (Express + Vite)
-npm run build        # Build frontend (Vite) + backend (esbuild)
-npm start            # Run production build
+npm run build        # Build frontend (Vite) + backend (esbuild): dist/index.js + dist/worker.js
+npm start            # Run production build (processo web)
+npm run job -- <grupo>  # Executa um grupo de jobs de background e encerra
 npm run check        # TypeScript type check — run before finishing any task
 npm run sync:umbler  # Manually trigger Umbler sync job
 ```
+
+> **IMPORTANTE — Jobs de background não rodam no processo web.**
+> O deploy é Autoscale e precisa poder escalar a zero; cron dentro dele custa
+> caro e nem é confiável (serviço desligado não tem cron rodando). Os grupos e
+> suas expressões cron vivem em `server/jobs/registry.ts`; em produção rodam em
+> Scheduled Deployments do Replit via `npm run job -- <grupo>`. Em dev,
+> `APP_ROLE=all` (padrão fora de produção) agenda tudo no processo.
+> **Não adicione `cron.schedule` ou `setInterval` novo em `server/index.ts` nem
+> como efeito colateral de import** — registre no `registry.ts`.
+> Ver `docs/background-jobs.md`.
 
 > **IMPORTANTE — Mudanças no banco de dados:**
 > Nunca usar `npm run db:push` (o prompt interativo pode bloquear ou sobrescrever dados).

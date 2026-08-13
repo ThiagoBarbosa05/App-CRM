@@ -1,4 +1,3 @@
-import cron from "node-cron";
 import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
 import { db } from "../db";
 import { restaurantOrders } from "../../shared/schema";
@@ -7,7 +6,11 @@ import {
   sendOrderToBling,
 } from "../services/bling-sales-order.service";
 
-async function retryPendingBlingSyncs(): Promise<void> {
+/**
+ * Reenvia ao Bling as comandas fechadas que ficaram pendentes ou com erro.
+ * Agendado pelo worker de background (ver server/jobs/registry.ts).
+ */
+export async function retryPendingBlingSyncs(): Promise<void> {
   try {
     const pending = await db
       .select({ id: restaurantOrders.id })
@@ -38,16 +41,3 @@ async function retryPendingBlingSyncs(): Promise<void> {
   }
 }
 
-cron.schedule(
-  "*/5 * * * *",
-  async () => {
-    await retryPendingBlingSyncs();
-  },
-  {
-    timezone: "America/Sao_Paulo",
-  },
-);
-
-retryPendingBlingSyncs().catch((error) => {
-  console.error("[Bling Sales Order Sync] Erro ao iniciar rotina de retry:", error);
-});

@@ -55,12 +55,16 @@ const authCodes = new Map<string, AuthCodeEntry>();
 const accessTokens = new Map<string, AccessTokenEntry>();
 const registeredClients = new Map<string, RegisteredClient>();
 
-// Limpeza periódica de entradas expiradas (a cada 15 minutos)
-setInterval(() => {
+// Limpeza periódica de entradas expiradas (a cada 15 minutos). O `unref()`
+// impede que este timer sozinho segure o event loop — sem ele o processo nunca
+// encerra por conta própria, o que atrapalha tanto o shutdown quanto o
+// scale-to-zero do Autoscale.
+const mcpCleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of authCodes) if (v.expiresAt < now) authCodes.delete(k);
   for (const [k, v] of accessTokens) if (v.expiresAt < now) accessTokens.delete(k);
 }, 15 * 60 * 1000);
+mcpCleanupTimer.unref();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Validação de autenticação (API Key direta OU OAuth access token)

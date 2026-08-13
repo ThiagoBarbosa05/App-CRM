@@ -160,8 +160,8 @@ function LiveCallsSection() {
       if (!res.ok) throw new Error("Erro ao buscar chamadas ativas");
       return res.json();
     },
-    refetchInterval: 5_000,
-    staleTime: 4_000,
+    refetchInterval: 15_000,
+    staleTime: 10_000,
   });
 
   const endCallMutation = useMutation({

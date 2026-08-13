@@ -1,16 +1,17 @@
-import cron from "node-cron";
 import { ensureFreshToken } from "../services/assertiva.service";
 
-cron.schedule(
-  "*/5 * * * *",
-  async () => {
+/**
+ * Renova o token OAuth da Assertiva antes que expire.
+ *
+ * Antes rodava por cron dentro do processo web e também no import, o que
+ * significava uma chamada HTTP à Assertiva a cada subida de container. Agora é
+ * o worker de background que agenda (ver server/jobs/registry.ts).
+ */
+export async function refreshAssertivaToken(): Promise<void> {
+  try {
     await ensureFreshToken();
-  },
-  {
-    timezone: "America/Sao_Paulo",
-  },
-);
-
-ensureFreshToken().catch(() => {
-  // Erros já são registrados via getAssertivaStatus(); o cron não deve falhar na inicialização.
-});
+  } catch {
+    // Erros já são registrados via getAssertivaStatus(); um tick que falha não
+    // deve derrubar o worker inteiro.
+  }
+}

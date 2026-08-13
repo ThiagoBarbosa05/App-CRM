@@ -1,4 +1,3 @@
-import cron from "node-cron";
 import { db } from "server/db";
 import {
   campaigns,
@@ -274,15 +273,7 @@ async function runTick(): Promise<void> {
   }
 }
 
-let running = false;
-cron.schedule("*/1 * * * *", async () => {
-  if (running) return;
-  running = true;
-  try {
-    await runTick();
-  } finally {
-    running = false;
-  }
-});
-
-console.log("[campaign-dispatcher] agendado: a cada 1 minuto");
+/** Um tick completo do dispatcher de campanhas de voz. Chamado pelo worker. */
+export async function runVoiceCampaignDispatchTick(): Promise<void> {
+  await runTick();
+}

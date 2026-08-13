@@ -1,5 +1,4 @@
-import cron from "node-cron";
-import { db, pool } from "server/db";
+import { db } from "server/db";
 import { smsCampaigns } from "@shared/schema";
 import { and, eq, lte } from "drizzle-orm";
 import {
@@ -7,6 +6,8 @@ import {
   countPendingRecipients,
   markCampaignSent,
 } from "../services/sms-campaign.service";
+import { LOCK_KEYS } from "./lock-keys";
+import { withAdvisoryLock } from "./with-advisory-lock";
 
 // Destinatários processados por tick, por campanha — evita estourar o rate
 // limit do Twilio em campanhas grandes.
@@ -14,7 +15,7 @@ const BATCH_SIZE = 25;
 
 // Chave arbitrária e estável para o advisory lock do Postgres — garante que
 // só uma instância do servidor processe um tick por vez.
-const SMS_DISPATCH_LOCK_KEY = 727_100_003;
+const SMS_DISPATCH_LOCK_KEY = LOCK_KEYS.smsCampaignDispatch;
 
 async function runTick(): Promise<void> {
   try {
@@ -46,29 +47,7 @@ async function runTick(): Promise<void> {
   }
 }
 
-let running = false;
-cron.schedule("*/1 * * * *", async () => {
-  if (running) return;
-  running = true;
-  try {
-    const client = await pool.connect();
-    try {
-      const { rows } = await client.query(
-        "SELECT pg_try_advisory_lock($1) AS locked",
-        [SMS_DISPATCH_LOCK_KEY],
-      );
-      if (!rows[0]?.locked) return;
-      try {
-        await runTick();
-      } finally {
-        await client.query("SELECT pg_advisory_unlock($1)", [SMS_DISPATCH_LOCK_KEY]);
-      }
-    } finally {
-      client.release();
-    }
-  } finally {
-    running = false;
-  }
-});
-
-console.log("[sms-campaign-dispatcher] agendado: a cada 1 minuto");
+/** Um tick completo, já protegido pelo advisory lock. Chamado pelo worker. */
+export async function runSmsCampaignDispatchTick(): Promise<void> {
+  await withAdvisoryLock(SMS_DISPATCH_LOCK_KEY, runTick);
+}

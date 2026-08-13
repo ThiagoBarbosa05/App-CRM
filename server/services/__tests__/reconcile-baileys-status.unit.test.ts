@@ -38,17 +38,23 @@ vi.mock("../baileys/connection-status.service", () => ({
 
 import { BaileysGatewayError } from "../../integrations/baileys-gateway";
 
-/**
- * O contador de falhas consecutivas é estado de módulo. Reimportar a cada teste
- * o zera sem precisar exportá-lo só para o teste.
- */
+/** Reimporta o módulo a cada teste, isolando qualquer estado de módulo. */
 async function loadJob() {
   vi.resetModules();
   return import("../../jobs/reconcile-baileys-status.job");
 }
 
-function channel(id: number, connectionStatus = "connected") {
-  return { id, evolutionInstanceName: `canal-${id}`, connectionStatus };
+function channel(
+  id: number,
+  connectionStatus = "connected",
+  connectionCheckedAt: Date | null = new Date(),
+) {
+  return { id, evolutionInstanceName: `canal-${id}`, connectionStatus, connectionCheckedAt };
+}
+
+/** Um instante `minutes` minutos no passado, para montar a janela de graça. */
+function minutesAgo(minutes: number): Date {
+  return new Date(Date.now() - minutes * 60_000);
 }
 
 function instance(overrides: Record<string, unknown> = {}) {
@@ -106,18 +112,15 @@ describe("reconcileBaileysStatus", () => {
     );
   });
 
-  it("tolera duas falhas de infra e degrada na terceira", async () => {
-    rowsRef.current = [channel(1)];
+  it("degrada quando ninguém confirma o canal há mais que a janela de graça", async () => {
+    rowsRef.current = [channel(1, "connected", minutesAgo(31))];
     getInstanceMock.mockRejectedValue(
       new BaileysGatewayError("Baileys Gateway indisponível", "unavailable"),
     );
 
     const { reconcileBaileysStatus } = await loadJob();
     await reconcileBaileysStatus();
-    await reconcileBaileysStatus();
-    expect(applyStatusMock).not.toHaveBeenCalled();
 
-    await reconcileBaileysStatus();
     expect(applyStatusMock).toHaveBeenCalledWith(
       1,
       "disconnected",
@@ -125,18 +128,33 @@ describe("reconcileBaileysStatus", () => {
     );
   });
 
-  it("uma resposta boa no meio zera o contador de falhas", async () => {
-    rowsRef.current = [channel(1)];
-    const boom = new BaileysGatewayError("Baileys Gateway indisponível", "unavailable");
-    getInstanceMock
-      .mockRejectedValueOnce(boom)
-      .mockRejectedValueOnce(boom)
-      .mockResolvedValueOnce(instance())
-      .mockRejectedValueOnce(boom)
-      .mockRejectedValueOnce(boom);
+  it("tolera o gateway fora enquanto a confirmação do canal ainda é recente", async () => {
+    // A tolerância vem de `connection_checked_at`, não de um contador em
+    // memória: o job roda em container efêmero, onde um contador zeraria a
+    // cada execução e o canal nunca degradaria.
+    rowsRef.current = [channel(1, "connected", minutesAgo(5))];
+    getInstanceMock.mockRejectedValue(
+      new BaileysGatewayError("Baileys Gateway indisponível", "unavailable"),
+    );
 
     const { reconcileBaileysStatus } = await loadJob();
-    for (let i = 0; i < 5; i += 1) await reconcileBaileysStatus();
+    await reconcileBaileysStatus();
+    await reconcileBaileysStatus();
+    await reconcileBaileysStatus();
+
+    expect(applyStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("não degrada canal que o gateway nunca confirmou", async () => {
+    // Sem nenhuma confirmação anterior não há indisponibilidade a comprovar, e
+    // marcar "offline" sobrescreveria um estado que ninguém verificou.
+    rowsRef.current = [channel(1, "connected", null)];
+    getInstanceMock.mockRejectedValue(
+      new BaileysGatewayError("Baileys Gateway indisponível", "unavailable"),
+    );
+
+    const { reconcileBaileysStatus } = await loadJob();
+    await reconcileBaileysStatus();
 
     expect(applyStatusMock).not.toHaveBeenCalled();
   });

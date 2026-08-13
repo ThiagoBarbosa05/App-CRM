@@ -1,4 +1,3 @@
-import cron from "node-cron";
 import { storage } from "../storage";
 
 /**
@@ -21,42 +20,8 @@ async function updateExpiredEvents(): Promise<void> {
   }
 }
 
-/**
- * Job principal que roda todos os dias à meia-noite (00:00)
- * para atualizar eventos que já passaram
- */
-cron.schedule(
-  "0 0 * * *",
-  async () => {
-    console.log("[Scheduler] Executando verificação diária de eventos expirados...");
-    await updateExpiredEvents();
-  },
-  {
-    timezone: "America/Sao_Paulo",
-  }
-);
-
-/**
- * Job de desenvolvimento que roda a cada minuto para testes
- * Apenas em ambiente de desenvolvimento
- */
-if (process.env.NODE_ENV === "development") {
-  cron.schedule("* * * * *", async () => {
-    console.log(
-      "[Scheduler - DEV] Verificando eventos expirados (desenvolvimento)..."
-    );
-    await updateExpiredEvents();
-  });
-}
-
-// Executar uma verificação inicial ao iniciar o servidor
-updateExpiredEvents()
-  .then(() => {
-    console.log("[Scheduler] Sistema de atualização automática de eventos iniciado.");
-  })
-  .catch((error) => {
-    console.error("[Scheduler] Erro ao iniciar sistema de atualização de eventos:", error);
-  });
-
-// Exportar a função para uso externo se necessário
+// Agendado à meia-noite (horário de São Paulo) pelo worker de background — ver
+// server/jobs/registry.ts. O cron de 1 minuto que existia só em
+// NODE_ENV=development foi removido: rodava a varredura 1440x por dia para
+// nada.
 export { updateExpiredEvents };

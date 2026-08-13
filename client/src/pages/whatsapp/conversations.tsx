@@ -51,6 +51,7 @@ import { useWhatsappErrorToast } from "@/hooks/use-whatsapp-error-toast";
 import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
+import { useIsPageActive } from "@/hooks/use-page-active";
 import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
@@ -3098,6 +3099,7 @@ function ConversationMessages({
   const recordingChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const queryClient = useQueryClient();
+  const pageActive = useIsPageActive();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number | null>(null);
@@ -3368,17 +3370,11 @@ function ConversationMessages({
       new Date(b.sentAt ?? b.createdAt).getTime(),
   );
 
-  // Reforço periódico: re-busca só a página mais recente, sem tocar nas
-  // páginas antigas já carregadas via scroll (mesmo padrão da lista de
-  // conversas, ver conversationsListQueryKey).
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshFirstPage(queryClient, messagesQueryKey, () =>
-        fetchMessagesPage(null),
-      );
-    }, 15_000);
-    return () => clearInterval(interval);
-  }, [conversationKey, queryClient, viewAsChannelId]);
+  // O reforço periódico de 15s que existia aqui foi removido: duplicava o que
+  // o SSE por conversa (abaixo) já entrega, a cada 15 segundos por aba aberta.
+  // O caso que ele cobria — aba dormindo e perdendo eventos — passou a ser
+  // tratado por useRevalidateOnPageActive (client/src/hooks/use-page-active.ts),
+  // que revalida o cache quando a aba volta a ficar ativa.
 
   const loadOlderMessages = useCallback(() => {
     if (!hasMoreMessages || isFetchingOlderMessages) return;
@@ -3512,6 +3508,10 @@ function ConversationMessages({
   }, [rawMessages]);
 
   useEffect(() => {
+    // Aba em segundo plano não mantém o stream aberto: cada EventSource é uma
+    // requisição em voo que impede o Autoscale de desligar a instância.
+    if (!pageActive) return;
+
     const es = new EventSource(
       `/api/whatsapp/conversations/${conversationKey}/stream`,
     );
@@ -3540,7 +3540,7 @@ function ConversationMessages({
     // viewAsChannelId nas deps: ao trocar de perspectiva, o handler precisa
     // re-fechar sobre a messagesQueryKey/fetch atuais para atualizar a página
     // certa quando chega mensagem nova.
-  }, [conversationKey, queryClient, viewAsChannelId]);
+  }, [conversationKey, queryClient, viewAsChannelId, pageActive]);
 
   const attemptSend = useCallback(
     async (
@@ -6847,26 +6847,10 @@ export default function WhatsAppConversationsPage() {
   const conversationsListQueryKeyRef = useRef(conversationsListQueryKey);
   conversationsListQueryKeyRef.current = conversationsListQueryKey;
 
-  // Reforço periódico: re-busca só a página mais recente, sem tocar nas
-  // páginas antigas já carregadas via scroll.
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshFirstPage(queryClient, conversationsListQueryKey, () =>
-        fetchConversationsListPage(null),
-      );
-    }, 15_000);
-    return () => clearInterval(interval);
-  }, [
-    queryClient,
-    debouncedSearch,
-    selectedTagIds,
-    statusFilter,
-    selectedSectorIds,
-    selectedAttendantId,
-    selectedChannelIds,
-    dateRange,
-    user?.id,
-  ]);
+  // O reforço periódico de 15s foi removido: a lista já é atualizada pelo SSE
+  // global de notificações, e o timer disparava a cada 15 segundos por aba
+  // aberta — inclusive em segundo plano. A recuperação após a aba dormir ficou
+  // com useRevalidateOnPageActive (client/src/hooks/use-page-active.ts).
 
   // Assim que a busca por telefone (vinda do parâmetro ?phone=) retornar,
   // seleciona automaticamente a conversa correspondente — uma única vez.
