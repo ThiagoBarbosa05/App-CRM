@@ -157,6 +157,7 @@ import { format, subMonths } from "date-fns";
 import type { Cursor } from "./lib/cursor-pagination";
 import { encodeCursor } from "./lib/cursor-pagination";
 import { toStoredPhone } from "./services/client-lookup";
+import { toAvatarUrl } from "./lib/user-serializer";
 
 /**
  * Limites do mês selecionado, como texto ISO `YYYY-MM-DD`.
@@ -758,6 +759,7 @@ export class DatabaseStorage implements IStorage {
         password: users.password,
         role: users.role,
         isActive: users.isActive,
+        avatarStorageKey: users.avatarStorageKey,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         serviceChannel: {
@@ -774,7 +776,13 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(users.createdAt);
 
-    return result.reverse();
+    // A chave crua do R2 não sai daqui — o client recebe só a URL pronta.
+    const withAvatar = result.map(({ avatarStorageKey, ...row }) => ({
+      ...row,
+      avatarUrl: toAvatarUrl(avatarStorageKey),
+    }));
+
+    return withAvatar.reverse();
   }
 
   async getUser(id: string): Promise<User | undefined> {
