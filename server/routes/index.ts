@@ -7,6 +7,7 @@ import { dealsRouter } from "./deals.routes";
 import { dealQuestionsRouter } from "./deal-questions.routes";
 import { dealAnswersRouter } from "./deal-answers.routes";
 import { usersRouter } from "./users.routes";
+import { userProfileRouter } from "./user-profile.routes";
 import { birthdaysRouter } from "./birthdays.routes";
 import tagsRouter, {
   categoriesRouter,
@@ -195,6 +196,7 @@ apiRouter.use("/funnels", funnelsRouter);
 apiRouter.use("/deals", dealsRouter);
 apiRouter.use("/deal-questions", dealQuestionsRouter);
 apiRouter.use("/", dealAnswersRouter);
+apiRouter.use("/users", userProfileRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/birthdays", birthdaysRouter);
 apiRouter.use("/tags", tagsRouter);
