@@ -1,4 +1,3 @@
-import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,10 +19,10 @@ vi.mock("../../lib/r2", () => ({
 }));
 
 // requireAuth real depende de cookie JWT, que os testes de rota não emitem.
-// Aqui ele vira um passthrough condicionado a req.user: o teste de 401 usa um
-// app "cru" sem middleware de auth (req.user nunca é setado, então 401); os
-// demais testes usam createMockAuthMiddleware, que injeta req.user antes desta
-// checagem rodar.
+// Aqui ele vira um passthrough condicionado a req.user: todos os testes deste
+// arquivo usam createMockAuthMiddleware, que injeta req.user antes desta
+// checagem rodar. O 401 do requireAuth real é coberto separadamente em
+// user-profile.routes.auth.test.ts, que não mocka este módulo.
 vi.mock("../../middleware/validation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../middleware/validation")>();
   return {
@@ -104,20 +103,6 @@ describe("POST /api/users/me/avatar", () => {
     updateUserMock.mockResolvedValue({ id: "user-1" });
   });
 
-  it("rejeita sem autenticação", async () => {
-    // App sem o mock de auth: exercita o requireAuth real.
-    const app = express();
-    app.use("/api/users", userProfileRouter);
-
-    const response = await request(app)
-      .post("/api/users/me/avatar")
-      .attach("file", Buffer.from("fake"), { filename: "foto.jpg", contentType: "image/jpeg" });
-
-    expect(response.status).toBe(401);
-    expect(s3SendMock).not.toHaveBeenCalled();
-    expect(updateUserMock).not.toHaveBeenCalled();
-  });
-
   it("rejeita mime não permitido com 400", async () => {
     const app = createRouteTestApp({
       router: userProfileRouter,
@@ -185,6 +170,7 @@ describe("POST /api/users/me/avatar", () => {
   it("responde 200 mesmo se a remoção da foto anterior falhar", async () => {
     getUserMock.mockResolvedValue({ id: "user-1", avatarStorageKey: "avatars/user-1/antiga" });
     deleteR2ObjectMock.mockRejectedValue(new Error("R2 fora do ar"));
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const app = createRouteTestApp({
       router: userProfileRouter,
       basePath: "/api/users",
@@ -196,6 +182,30 @@ describe("POST /api/users/me/avatar", () => {
       .attach("file", Buffer.from("fake"), { filename: "foto.jpg", contentType: "image/jpeg" });
 
     expect(response.status).toBe(200);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Erro ao remover avatar anterior do R2:",
+      expect.any(Error),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("rejeita arquivo acima do limite com 400, sem chamar R2 nem storage", async () => {
+    const app = createRouteTestApp({
+      router: userProfileRouter,
+      basePath: "/api/users",
+      middlewares: [createMockAuthMiddleware({ userId: "user-1" })],
+    });
+
+    const oversized = Buffer.alloc(AVATAR_MAX_BYTES + 1, 1);
+
+    const response = await request(app)
+      .post("/api/users/me/avatar")
+      .attach("file", oversized, { filename: "foto.jpg", contentType: "image/jpeg" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("A imagem deve ter no máximo 5 MB.");
+    expect(s3SendMock).not.toHaveBeenCalled();
+    expect(updateUserMock).not.toHaveBeenCalled();
   });
 });
 

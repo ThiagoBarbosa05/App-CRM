@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import multer, { MulterError } from "multer";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
@@ -93,9 +94,6 @@ userProfileRouter.post(
 
       return res.json({ avatarUrl: toAvatarUrl(key) });
     } catch (error) {
-      if (error instanceof MulterError) {
-        return res.status(400).json({ message: "A imagem deve ter no máximo 5 MB." });
-      }
       console.error("Erro ao atualizar foto de perfil:", error);
       return res.status(500).json({ message: "Erro ao atualizar foto de perfil" });
     }
@@ -116,3 +114,19 @@ userProfileRouter.delete("/me/avatar", requireAuth, async (req, res) => {
     return res.status(500).json({ message: "Erro ao remover foto de perfil" });
   }
 });
+
+/**
+ * `upload.single("file")` roda como middleware de rota, antes do handler
+ * async: quando o multer rejeita o arquivo (ex.: acima de AVATAR_MAX_BYTES),
+ * ele chama `next(err)` diretamente, então o erro nunca cai no try/catch do
+ * handler. Sem este middleware de 4 argumentos, o MulterError seguiria até o
+ * error handler global, que devolve 500 em vez do 400 esperado pelo cliente.
+ */
+userProfileRouter.use(
+  (error: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (error instanceof MulterError && error.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ message: "A imagem deve ter no máximo 5 MB." });
+    }
+    return next(error);
+  },
+);
