@@ -12,6 +12,7 @@ import {
 import { eq, and, or, desc, asc, sql, inArray, ne, isNull, lt, ilike } from "drizzle-orm";
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { clampLimit } from "../lib/cursor-pagination";
+import { toAvatarUrl } from "../lib/user-serializer";
 
 /** Chave normalizada e ordem-independente para o par de usuários de uma DM. */
 function buildDmKey(userAId: string, userBId: string): string {
@@ -25,7 +26,7 @@ export type ConversationSummary = {
   type: "dm" | "group";
   name: string | null;
   avatarUrl: string | null;
-  otherUser: { id: string; name: string; email: string } | null;
+  otherUser: { id: string; name: string; email: string; avatarUrl: string | null } | null;
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   unreadCount: number;
@@ -436,7 +437,12 @@ export async function listConversationsForUser(
     if (search?.trim()) conditions.push(ilike(users.name, `%${search.trim()}%`));
 
     const attendants = await db
-      .select({ id: users.id, name: users.name, email: users.email })
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        avatarStorageKey: users.avatarStorageKey,
+      })
       .from(users)
       .where(and(...conditions))
       .orderBy(asc(users.name));
@@ -455,14 +461,15 @@ export async function listConversationsForUser(
         : [];
     const dmByKey = new Map(existingDms.map((c) => [c.dmKey, c]));
 
-    return attendants.map((attendant) => {
+    return attendants.map(({ avatarStorageKey, ...attendant }) => {
       const dm = dmByKey.get(buildDmKey(userId, attendant.id));
+      const avatarUrl = toAvatarUrl(avatarStorageKey);
       return {
         id: dm?.id ?? `pending:${attendant.id}`,
         type: "dm" as const,
         name: attendant.name,
-        avatarUrl: null,
-        otherUser: attendant,
+        avatarUrl,
+        otherUser: { ...attendant, avatarUrl },
         lastMessageAt: dm?.lastMessageAt ? dm.lastMessageAt.toISOString() : null,
         lastMessagePreview: null,
         unreadCount: 0,
@@ -472,7 +479,12 @@ export async function listConversationsForUser(
   }
 
   const typeCondition = tab === "groups" ? eq(internalConversations.type, "group") : undefined;
-  const otherUserAlias = { id: users.id, name: users.name, email: users.email };
+  const otherUserAlias = {
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    avatarStorageKey: users.avatarStorageKey,
+  };
 
   const rows = await db
     .select({
@@ -514,7 +526,10 @@ export async function listConversationsForUser(
           ),
         )
         .limit(1);
-      otherUser = member ?? null;
+      if (member) {
+        const { avatarStorageKey, ...rest } = member;
+        otherUser = { ...rest, avatarUrl: toAvatarUrl(avatarStorageKey) };
+      }
     }
 
     const [lastMessage] = await db
@@ -545,7 +560,10 @@ export async function listConversationsForUser(
       id: row.conversation.id,
       type: row.conversation.type as "dm" | "group",
       name: row.conversation.name,
-      avatarUrl: row.conversation.avatarUrl,
+      avatarUrl:
+        row.conversation.type === "dm"
+          ? otherUser?.avatarUrl ?? null
+          : row.conversation.avatarUrl,
       otherUser,
       lastMessageAt: row.conversation.lastMessageAt?.toISOString() ?? null,
       lastMessagePreview: lastMessage
