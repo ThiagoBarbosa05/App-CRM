@@ -22,6 +22,13 @@
 - Limite de upload: **5 MB**. Mimes aceitos: **`image/jpeg`, `image/png`, `image/webp`**. Prefixo no R2: **`avatars/<userId>/<uuid>`**. Lado máximo da imagem após redução no client: **512 px**, jpeg qualidade **0.85**.
 - Testes do projeto `unit` rodam em `environment: "node"` — sem `document`, sem `<canvas>`. Só lógica pura é testada no client.
 - O glob do projeto `unit` é fechado ([vitest.config.ts:28](../../../vitest.config.ts)): arquivos de teste só rodam em `server/routes/__tests__/**/*.test.ts`, `server/services/__tests__/**/*.unit.test.ts` ou `client/src/lib/__tests__/**/*.test.ts`. Um teste fora desses caminhos nunca é coletado e a suíte segue verde mentindo.
+- **`npx vitest list --project unit` está quebrado neste repo** e não pode ser usado para conferir coleta: um erro de coleta pré-existente em `server/routes/__tests__/users.routes.test.ts` (mock sem o export `requireAdminOrGerente`) derruba o comando antes de imprimir qualquer coisa. Para provar que um arquivo de teste novo roda: execute-o direto (`npx vitest run --project unit <caminho>`) e confira que o caminho casa com um dos globs acima.
+- **Baseline da suíte, medido antes da Task 1** — estas 3 falhas são pré-existentes e não têm relação com este plano. `npm run test:unit` passa quando o resultado for exatamente este, nem mais nem menos:
+  - `server/routes/__tests__/users.routes.test.ts` — erro de coleta (mock incompleto)
+  - `server/routes/__tests__/products.routes.test.ts` — `returns 400 for invalid PUT /products/:id body`
+  - `server/services/__tests__/gateway-only-runtime.unit.test.ts` — `server/index.ts não referencia o runtime Baileys legado`
+
+  Total: **3 arquivos falhando, 2 testes falhando, 998 passando (1000)**. Qualquer falha além destas é regressão sua.
 
 ## File Structure
 
@@ -279,11 +286,9 @@ Esperado: PASS, 6 testes.
 
 - [ ] **Step 5: Confirmar que o vitest coleta o arquivo novo**
 
-```bash
-npx vitest list --project unit
-```
-
-Esperado: `server/routes/__tests__/user-serializer.test.ts` aparece na lista.
+O Step 4 já é a prova: o arquivo está em `server/routes/__tests__/`, que casa com o
+glob `server/routes/__tests__/**/*.test.ts`, e rodou de fato. Não usar
+`npx vitest list` — está quebrado neste repo (ver Global Constraints).
 
 - [ ] **Step 6: Commit**
 
@@ -964,7 +969,8 @@ Esperado: `server/storage.ts` já acusa erros pré-existentes neste modo isolado
 npm run test:unit
 ```
 
-Esperado: PASS.
+Esperado: exatamente o baseline das Global Constraints — 3 arquivos falhando,
+2 testes falhando, 998 passando. Nada além disso.
 
 - [ ] **Step 5: Commit**
 
@@ -1250,11 +1256,9 @@ Esperado: PASS, 6 testes.
 
 - [ ] **Step 5: Confirmar a coleta**
 
-```bash
-npx vitest list --project unit
-```
-
-Esperado: `client/src/lib/__tests__/image-resize.test.ts` aparece.
+O Step 4 já é a prova: o arquivo está em `client/src/lib/__tests__/`, que casa com o
+glob `client/src/lib/__tests__/**/*.test.ts`, e rodou de fato. Não usar
+`npx vitest list` — está quebrado neste repo (ver Global Constraints).
 
 - [ ] **Step 6: Commit**
 
@@ -1689,7 +1693,8 @@ Esperado: nenhum erro. Apagar o `tsconfig.tmp.json`.
 npm run test:unit
 ```
 
-Esperado: PASS, sem regressão.
+Esperado: exatamente o baseline das Global Constraints — 3 arquivos falhando,
+2 testes falhando, e os testes novos deste plano somados aos 998.
 
 - [ ] **Step 9: Commit**
 
@@ -1702,7 +1707,7 @@ git commit -m "feat: show user avatars in users list and internal chat"
 
 ## Verificação final
 
-- [ ] `npm run test:unit` passa.
-- [ ] `npx vitest list --project unit` mostra os três arquivos de teste novos: `user-serializer.test.ts`, `user-profile.routes.test.ts`, `image-resize.test.ts`.
+- [ ] `npm run test:unit` bate com o baseline (3 arquivos falhando, 2 testes falhando) e nada mais.
+- [ ] Os três arquivos de teste novos rodam de fato: `npx vitest run --project unit server/routes/__tests__/user-serializer.test.ts server/routes/__tests__/user-profile.routes.test.ts client/src/lib/__tests__/image-resize.test.ts`.
 - [ ] Nenhum `tsconfig.tmp.json` ficou no repositório: `git status` limpo.
 - [ ] `git log --oneline` mostra os 10 commits das tasks.
