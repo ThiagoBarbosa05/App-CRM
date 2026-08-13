@@ -110,6 +110,7 @@ export function LinkChannelModal({
       updateUserAuthenticated({
         ...user,
         serviceChannelId: data.channelId,
+        avatarUrl: userAuthenticated?.avatarUrl ?? null,
       });
       onOpenChange(false);
     },

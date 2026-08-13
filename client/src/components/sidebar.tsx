@@ -30,6 +30,8 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { ThemeToggle } from "./theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { ProfileModal } from "./profile-modal";
 
 interface SidebarProps {
   activeTab: string;
@@ -39,6 +41,7 @@ interface SidebarProps {
 export default function Sidebar() {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { user, logout } = useAuth();
 
   const toggleMobileMenu = () => {
@@ -101,11 +104,28 @@ export default function Sidebar() {
           </div>
 
           {/* User Info Section */}
-          <div className="mb-4 sm:mb-6 p-3 bg-accent rounded-lg">
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(true)}
+            className="w-full text-left mb-4 sm:mb-6 p-3 bg-accent rounded-lg hover:bg-accent/80 transition-colors"
+            title="Meu perfil"
+          >
             <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-4 w-4 text-primary" />
-              </div>
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.name ?? "Usuário"} />
+                <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                  {user?.name ? (
+                    user.name
+                      .split(" ")
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((part) => part[0]?.toUpperCase())
+                      .join("")
+                  ) : (
+                    <User className="h-4 w-4" />
+                  )}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">
                   {user?.name || "Usuário"}
@@ -118,13 +138,15 @@ export default function Sidebar() {
             {user?.role && (
               <div className="mt-2">
                 <Badge variant="secondary" className="text-xs">
-                  {user.role === "admin" ? "Administrador" : 
+                  {user.role === "admin" ? "Administrador" :
                    user.role === "gerente" ? "Gerente" :
                    user.role === "vendedor" ? "Vendedor" : "Usuário"}
                 </Badge>
               </div>
             )}
-          </div>
+          </button>
+
+          <ProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
 
           <Separator className="mb-4 sm:mb-6" />
         </div>
