@@ -6,6 +6,7 @@ import { storage } from "../storage";
 import { signToken } from "../lib/jwt";
 import { validateBody, requireAuth } from "../middleware/validation";
 import { rateLimit } from "../middleware/rate-limit";
+import { toAvatarUrl, toPublicUser } from "../lib/user-serializer";
 
 export const authRouter = Router();
 
@@ -54,6 +55,7 @@ authRouter.post("/login", loginRateLimit, validateBody(loginSchema), async (req,
         role: user.role,
         isActive: user.isActive,
         serviceChannelId: user.serviceChannel?.id ?? null,
+        avatarUrl: toAvatarUrl(user.avatarStorageKey),
       },
       message: "Login realizado com sucesso",
     });
@@ -77,9 +79,7 @@ authRouter.get("/me", requireAuth, async (req, res) => {
       return res.status(401).json({ message: "Sessão inválida", code: "UNAUTHORIZED" });
     }
 
-    const { password: _, ...userWithoutPassword } = user;
-
-    return res.json({ user: userWithoutPassword });
+    return res.json({ user: toPublicUser(user) });
   } catch (error) {
     console.error("Erro ao buscar usuário autenticado:", error);
     return res.status(500).json({ message: "Erro interno do servidor" });

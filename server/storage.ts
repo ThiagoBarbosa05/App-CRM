@@ -791,6 +791,7 @@ export class DatabaseStorage implements IStorage {
         password: users.password,
         role: users.role,
         isActive: users.isActive,
+        avatarStorageKey: users.avatarStorageKey,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
         serviceChannel: {
