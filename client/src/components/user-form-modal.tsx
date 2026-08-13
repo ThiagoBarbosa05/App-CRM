@@ -40,7 +40,7 @@ import {
 interface UserFormModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: User | null;
+  user: Omit<User, "avatarStorageKey"> | null;
 }
 
 const userFormSchema = insertUserSchema

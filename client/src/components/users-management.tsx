@@ -29,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -50,8 +50,10 @@ import { formatDate } from "@/lib/utils";
 import { LinkChannelModal } from "./link-channel-modal";
 import { LinkBlingVendorModal } from "./link-bling-vendor-modal";
 
-// Estende o tipo User para incluir serviceChannel
-type UserWithChannel = UserType & {
+// Estende o tipo User para incluir serviceChannel.
+// A API troca avatarStorageKey (chave crua do R2) por avatarUrl já pronta.
+type UserWithChannel = Omit<UserType, "avatarStorageKey"> & {
+  avatarUrl: string | null;
   serviceChannel?: {
     id: string;
     name: string;
@@ -300,11 +302,12 @@ export default function UsersManagement() {
                     {/* Avatar e informações principais */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <Avatar className="h-12 w-12 border-2 border-slate-200 dark:border-slate-600">
-                        <div className="h-12 w-12 rounded-full bg-accent flex items-center justify-center">
+                        <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
+                        <AvatarFallback className="bg-accent">
                           <span className="text-sm font-semibold text-primary">
                             {getInitials(user.name)}
                           </span>
-                        </div>
+                        </AvatarFallback>
                       </Avatar>
 
                       <div className="flex-1 min-w-0">
