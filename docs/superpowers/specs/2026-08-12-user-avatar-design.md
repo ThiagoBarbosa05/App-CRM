@@ -135,9 +135,13 @@ O tipo `otherUser` ganha `avatarUrl: string | null`. O client não muda de contr
 
 ### `client/src/lib/image-resize.ts` (novo)
 
-`resizeImageFile(file: File, maxSize = 512): Promise<Blob>` — desenha em `<canvas>`
-mantendo proporção, exporta jpeg com qualidade 0.85. Se a imagem já for menor que
-`maxSize`, devolve o arquivo original sem reprocessar.
+Duas funções:
+
+- `computeResizedDimensions(width, height, maxSize)` → `{ width, height }` — pura,
+  mantém a proporção e nunca amplia.
+- `resizeImageFile(file: File, maxSize = 512): Promise<Blob>` — desenha em
+  `<canvas>` nas dimensões calculadas e exporta jpeg com qualidade 0.85. Se a
+  imagem já couber em `maxSize`, devolve o arquivo original sem reprocessar.
 
 ### `client/src/components/profile-modal.tsx` (novo)
 
@@ -171,7 +175,11 @@ Unit (`server/routes/__tests__/`, `client/src/lib/__tests__/`):
 - `buildAvatarKey`: prefixo `avatars/<userId>/` e unicidade.
 - `toPublicUser`: não vaza `password` nem `avatarStorageKey`; deriva `avatarUrl`;
   devolve `null` quando não há key.
-- `resizeImageFile`: imagem menor que o limite passa intacta; maior é reduzida.
+- `computeResizedDimensions`: imagem menor que o limite passa intacta; maior é
+  reduzida mantendo proporção; retrato e paisagem. O projeto `unit` roda em
+  `environment: "node"` ([vitest.config.ts:23](../../../vitest.config.ts)), sem
+  `document` nem `<canvas>` — por isso o cálculo é extraído numa função pura e o
+  desenho no canvas (`resizeImageFile`) fica sem teste automatizado.
 
 Rota — `server/routes/__tests__/user-profile.routes.test.ts`, com
 `createRouteTestApp()` e `createMockAuthMiddleware()`, R2 mockado:
