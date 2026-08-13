@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, MessageSquareText, Paperclip, Send, Users, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
@@ -249,6 +249,7 @@ export function InternalChatPanel({ onExit, initialConversationId, onInitialCons
                 )}
               >
                 <Avatar className="h-10 w-10 shrink-0">
+                  <AvatarImage src={conversation.avatarUrl ?? undefined} alt={label ?? ""} />
                   <AvatarFallback className={conversation.type === "group" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200" : undefined}>
                     {conversation.type === "group" ? (
                       <Users className="h-4 w-4" />
@@ -300,6 +301,10 @@ export function InternalChatPanel({ onExit, initialConversationId, onInitialCons
                 <ArrowLeft className="h-4 w-4" />
               </button>
               <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src={selectedConversation?.avatarUrl ?? undefined}
+                  alt={conversationLabel ?? ""}
+                />
                 <AvatarFallback>
                   {selectedConversation?.type === "group" ? (
                     <Users className="h-4 w-4" />

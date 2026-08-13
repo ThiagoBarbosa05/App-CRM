@@ -27,7 +27,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface LinkChannelModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: User & {
+  user: Omit<User, "avatarStorageKey"> & {
     serviceChannel?: {
       id: string;
       name: string;
@@ -110,6 +110,7 @@ export function LinkChannelModal({
       updateUserAuthenticated({
         ...user,
         serviceChannelId: data.channelId,
+        avatarUrl: userAuthenticated?.avatarUrl ?? null,
       });
       onOpenChange(false);
     },

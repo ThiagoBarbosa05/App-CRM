@@ -13,6 +13,7 @@ interface User {
   role: string;
   isActive: string;
   serviceChannelId: string | null;
+  avatarUrl: string | null;
 }
 
 interface AuthContextType {
