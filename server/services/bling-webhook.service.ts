@@ -330,24 +330,26 @@ async function markLogFailed(logId: string, error: unknown): Promise<void> {
 // Helper: obtém access token descriptografado e cria callback de refresh
 // ---------------------------------------------------------------------------
 
-export function getAccessTokenAndRefresher(connection: BlingConnection): {
+export async function getAccessTokenAndRefresher(connection: BlingConnection): Promise<{
   accessToken: string;
   onTokenRefresh: () => Promise<string>;
-} {
+}> {
   if (!connection.accessTokenEncrypted) {
     throw new Error(
       `Conexão ${connection.id} sem access token — reconecte a conta Bling.`,
     );
   }
 
-  const accessToken = decryptToken(connection.accessTokenEncrypted);
+  let accessToken = await blingConnectionsService.getValidAccessToken(connection.id);
 
   const onTokenRefresh = async (): Promise<string> => {
     // Força a renovação do token via refresh token (não apenas relê o valor
     // atual do banco — o token em DB pode estar igualmente expirado se o
     // scheduler ainda não rodou). refreshConnection persiste o novo token.
     try {
-      await blingConnectionsService.refreshConnection(connection.id);
+      await blingConnectionsService.refreshConnection(connection.id, {
+        rejectedAccessToken: accessToken,
+      });
     } catch (error) {
       // Refresh token também inválido/expirado → conexão precisa de reauth.
       // Sinaliza como 401 para que o chamador traduza em "reconecte a conta".
@@ -367,7 +369,8 @@ export function getAccessTokenAndRefresher(connection: BlingConnection): {
       throw new Error(`Conexão ${connection.id} sem access token após refresh`);
     }
 
-    return decryptToken(fresh.accessTokenEncrypted);
+    accessToken = decryptToken(fresh.accessTokenEncrypted);
+    return accessToken;
   };
 
   return { accessToken, onTokenRefresh };
@@ -543,7 +546,7 @@ async function processCreateOrUpdateEvent(
   connection: BlingConnection,
 ): Promise<void> {
   const { accessToken, onTokenRefresh } =
-    getAccessTokenAndRefresher(connection);
+    await getAccessTokenAndRefresher(connection);
 
   // 1) Busca detalhes completos do pedido (conta como 1 req para o rate limit)
   const pedido = await getBlingPedidoVenda(
@@ -712,7 +715,7 @@ async function processProductCreateOrUpdateEvent(
   event: BlingWebhookEvent,
   connection: BlingConnection,
 ): Promise<void> {
-  const { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
+  const { accessToken, onTokenRefresh } = await getAccessTokenAndRefresher(connection);
 
   // 1) Busca detalhes completos do produto na API do Bling
   const blingProduct = await getBlingProduto(accessToken, productId, onTokenRefresh);

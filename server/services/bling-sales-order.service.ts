@@ -527,9 +527,11 @@ async function attemptSendOrderToBling(orderId: string): Promise<SendAttemptResu
           throw new Error("Conexão Bling sem token de acesso");
         }
 
-        let accessToken = decryptToken(connection.accessTokenEncrypted);
+        let accessToken = await blingConnectionsService.getValidAccessToken(connectionId);
         const onTokenRefresh = async (): Promise<string> => {
-          await blingConnectionsService.refreshConnection(connectionId);
+          await blingConnectionsService.refreshConnection(connectionId, {
+            rejectedAccessToken: accessToken,
+          });
           const refreshed = await blingConnectionsService.getById(connectionId);
           if (!refreshed?.accessTokenEncrypted) {
             throw new Error("Não foi possível renovar o token do Bling");
@@ -726,9 +728,11 @@ export async function verifyBlingSalesOrder(params: {
       throw new Error("Conexão Bling sem token de acesso");
     }
 
-    let accessToken = decryptToken(connection.accessTokenEncrypted);
+    let accessToken = await blingConnectionsService.getValidAccessToken(connectionId);
     const onTokenRefresh = async (): Promise<string> => {
-      await blingConnectionsService.refreshConnection(connectionId);
+      await blingConnectionsService.refreshConnection(connectionId, {
+        rejectedAccessToken: accessToken,
+      });
       const refreshed = await blingConnectionsService.getById(connectionId);
       if (!refreshed?.accessTokenEncrypted) {
         throw new Error("Não foi possível renovar o token do Bling");

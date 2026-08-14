@@ -1803,7 +1803,8 @@ async function postOAuthToken(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
+    throw new BlingApiError(
+      response.status,
       `Falha ao obter token do Bling: ${errorText || response.statusText}`,
     );
   }

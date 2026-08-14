@@ -19,7 +19,8 @@
     "db:apply-bling-multi-account": "node scripts/apply-bling-multi-account-index.mjs",
     "db:apply-pdv-bling-contact-resolution": "node scripts/add-pdv-bling-contact-resolution.mjs",
     "baileys:sessions:reset": "tsx scripts/reset-baileys-sessions.ts",
-    "sync:umbler": "tsx server/jobs/umbler-sync.worker.ts"
+    "sync:umbler": "tsx server/jobs/umbler-sync.worker.ts",
+    "maintain:bling-tokens": "tsx server/jobs/bling-token-maintenance.worker.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",

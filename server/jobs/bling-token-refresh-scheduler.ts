@@ -1,31 +1,29 @@
 import cron from "node-cron";
-import { blingConnectionsService } from "../services/bling-connections.service";
+import { runBlingTokenMaintenance } from "./bling-token-maintenance.worker";
 
-async function refreshBlingConnections(): Promise<void> {
+const BLING_TOKEN_MAINTENANCE_CRON =
+  process.env.BLING_TOKEN_MAINTENANCE_CRON?.trim() || "30 3 * * *";
+
+async function runMaintenanceSafely(source: "cron" | "startup"): Promise<void> {
   try {
-    const expiredCount = await blingConnectionsService.markExpiredConnections();
-    const refreshedCount = await blingConnectionsService.refreshConnectionsExpiringSoon();
-
-    if (expiredCount > 0 || refreshedCount > 0) {
-      console.log(
-        `[Bling Scheduler] ${expiredCount} conexoes expiradas e ${refreshedCount} conexoes renovadas.`,
-      );
-    }
-  } catch (error) {
-    console.error("[Bling Scheduler] Erro ao renovar conexoes do Bling:", error);
+    await runBlingTokenMaintenance();
+  } catch (error: unknown) {
+    console.error(
+      `[Bling Token Maintenance] Falha na execucao via ${source}:`,
+      error,
+    );
   }
 }
 
 cron.schedule(
-  "*/15 * * * *",
+  BLING_TOKEN_MAINTENANCE_CRON,
   async () => {
-    await refreshBlingConnections();
+    await runMaintenanceSafely("cron");
   },
-  {
-    timezone: "America/Sao_Paulo",
-  },
+  { timezone: "America/Sao_Paulo" },
 );
 
-refreshBlingConnections().catch((error) => {
-  console.error("[Bling Scheduler] Erro ao iniciar rotina de refresh do Bling:", error);
-});
+// O processo pode estar desligado no horario do cron em ambientes Autoscale.
+// A selecao por vencimento e os advisory locks tornam este catch-up seguro
+// quando mais de uma replica inicia ao mesmo tempo.
+void runMaintenanceSafely("startup");

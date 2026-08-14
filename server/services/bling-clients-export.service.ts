@@ -225,7 +225,7 @@ async function runExport(
   params: ExportClientsParams,
   progress: ExportProgress,
 ): Promise<void> {
-  let { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
+  let { accessToken, onTokenRefresh } = await getAccessTokenAndRefresher(connection);
   const includeBlingSourced = params.includeBlingSourced ?? false;
   const responsavelId = params.responsavelId ?? null;
 
@@ -711,7 +711,7 @@ export async function ensureBlingContactForClient(
     return { blingContactId: client.blingContactId, resolution: "mapping" };
   }
 
-  const { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
+  const { accessToken, onTokenRefresh } = await getAccessTokenAndRefresher(connection);
 
   try {
     const document = sanitizeDocument(client.cpf);
@@ -976,7 +976,7 @@ export async function syncClientToBling(
     );
   }
 
-  const { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
+  const { accessToken, onTokenRefresh } = await getAccessTokenAndRefresher(connection);
 
   const stub: ExportProgress = {
     status: "running",

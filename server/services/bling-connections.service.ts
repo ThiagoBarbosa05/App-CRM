@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import { and, eq, inArray, lt } from "drizzle-orm";
-import { db } from "../db";
+import { and, eq, lt, lte } from "drizzle-orm";
+import { db, pool } from "../db";
 import {
   blingConnections,
   blingOAuthStates,
@@ -14,7 +14,33 @@ import {
   parseJwtPayload,
   refreshBlingAccessToken,
   revokeBlingToken,
+  BlingApiError,
 } from "../integrations/bling";
+
+const DEFAULT_ACCESS_TOKEN_REFRESH_WINDOW_MS = 5 * 60 * 1000;
+const DEFAULT_REFRESH_TOKEN_MAINTENANCE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+const refreshesInFlight = new Map<string, Promise<ReturnType<typeof sanitizeConnection>>>();
+
+function getPositiveEnvNumber(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function isDefinitiveOAuthFailure(error: unknown): boolean {
+  return (
+    (error instanceof BlingApiError &&
+      (error.status === 400 || error.status === 401)) ||
+    (error instanceof Error &&
+      (error.message.includes("Client ID") ||
+        error.message.includes("Client Secret")))
+  );
+}
+
+interface RefreshConnectionOptions {
+  force?: boolean;
+  rejectedAccessToken?: string;
+  expectedRefreshTokenExpiresAt?: Date | null;
+}
 
 interface CreateConnectionParams {
   userId: string;
@@ -304,23 +330,71 @@ export class BlingConnectionsService {
     };
   }
 
-  async refreshConnection(connectionId: string) {
-    const connection = await this.getById(connectionId);
-
-    if (!connection) {
-      throw new Error("Conexao Bling nao encontrada");
-    }
-
-    if (!connection.refreshTokenEncrypted) {
-      throw new Error("Conexao sem refresh token salvo");
-    }
+  private async refreshConnectionWithLock(
+    connectionId: string,
+    options: RefreshConnectionOptions,
+  ) {
+    const lockClient = await pool.connect();
+    const lockName = `bling-token-refresh:${connectionId}`;
 
     try {
-      const refreshToken = decryptToken(connection.refreshTokenEncrypted);
-      const tokenResponse = await refreshBlingAccessToken(
-        refreshToken,
-        getOAuthCredentials(connection),
+      await lockClient.query("SELECT pg_advisory_lock(hashtext($1))", [lockName]);
+      const connection = await this.getById(connectionId);
+
+      if (!connection) {
+        throw new Error("Conexao Bling nao encontrada");
+      }
+
+      if (!connection.refreshTokenEncrypted) {
+        throw new Error("Conexao sem refresh token salvo");
+      }
+
+      const tokenChanged =
+        options.rejectedAccessToken !== undefined &&
+        connection.accessTokenEncrypted !== null &&
+        decryptToken(connection.accessTokenEncrypted) !== options.rejectedAccessToken;
+      const refreshTokenWasAlreadyRotated =
+        options.expectedRefreshTokenExpiresAt !== undefined &&
+        connection.refreshTokenExpiresAt?.getTime() !==
+          options.expectedRefreshTokenExpiresAt?.getTime();
+      const refreshWindowMs = getPositiveEnvNumber(
+        "BLING_ACCESS_TOKEN_REFRESH_WINDOW_MS",
+        DEFAULT_ACCESS_TOKEN_REFRESH_WINDOW_MS,
       );
+      const accessTokenIsFresh =
+        connection.accessTokenEncrypted !== null &&
+        connection.accessTokenExpiresAt !== null &&
+        connection.accessTokenExpiresAt.getTime() - Date.now() > refreshWindowMs;
+
+      if (
+        tokenChanged ||
+        refreshTokenWasAlreadyRotated ||
+        (!options.force &&
+          options.rejectedAccessToken === undefined &&
+          accessTokenIsFresh)
+      ) {
+        return sanitizeConnection(connection);
+      }
+
+      const refreshToken = decryptToken(connection.refreshTokenEncrypted);
+      let tokenResponse;
+      try {
+        tokenResponse = await refreshBlingAccessToken(
+          refreshToken,
+          getOAuthCredentials(connection),
+        );
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Erro ao renovar token do Bling";
+        await db
+          .update(blingConnections)
+          .set({
+            status: isDefinitiveOAuthFailure(error) ? "reauth_required" : connection.status,
+            lastError: message,
+            updatedAt: new Date(),
+          })
+          .where(eq(blingConnections.id, connection.id));
+        throw error;
+      }
       const identity = getBlingIdentity(tokenResponse.access_token);
 
       await db
@@ -344,31 +418,33 @@ export class BlingConnectionsService {
           updatedAt: new Date(),
         })
         .where(eq(blingConnections.id, connection.id));
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Erro ao renovar token do Bling";
+      const refreshedConnection = await this.getById(connection.id);
 
-      await db
-        .update(blingConnections)
-        .set({
-          status: "reauth_required",
-          lastError: message,
-          updatedAt: new Date(),
-        })
-        .where(eq(blingConnections.id, connection.id));
+      if (!refreshedConnection) {
+        throw new Error("Conexao Bling nao encontrada apos refresh");
+      }
 
-      throw error;
+      return sanitizeConnection(refreshedConnection);
+    } finally {
+      await lockClient
+        .query("SELECT pg_advisory_unlock(hashtext($1))", [lockName])
+        .catch(() => undefined);
+      lockClient.release();
     }
+  }
 
-    const refreshedConnection = await this.getById(connection.id);
+  async refreshConnection(
+    connectionId: string,
+    options: RefreshConnectionOptions = { force: true },
+  ) {
+    const existing = refreshesInFlight.get(connectionId);
+    if (existing) return existing;
 
-    if (!refreshedConnection) {
-      throw new Error("Conexao Bling nao encontrada apos refresh");
-    }
-
-    return sanitizeConnection(refreshedConnection);
+    const refresh = this.refreshConnectionWithLock(connectionId, options).finally(() => {
+      refreshesInFlight.delete(connectionId);
+    });
+    refreshesInFlight.set(connectionId, refresh);
+    return refresh;
   }
 
   async disconnectConnection(connectionId: string) {
@@ -417,35 +493,64 @@ export class BlingConnectionsService {
   }
 
   async refreshConnectionsExpiringSoon() {
-    const threshold = new Date(Date.now() + 10 * 60 * 1000);
+    const threshold = new Date(
+      Date.now() +
+        getPositiveEnvNumber(
+          "BLING_REFRESH_TOKEN_MAINTENANCE_WINDOW_MS",
+          DEFAULT_REFRESH_TOKEN_MAINTENANCE_WINDOW_MS,
+        ),
+    );
 
     const connections = await db
       .select()
       .from(blingConnections)
-      .where(eq(blingConnections.status, "connected"));
+      .where(
+        and(
+          eq(blingConnections.status, "connected"),
+          lte(blingConnections.refreshTokenExpiresAt, threshold),
+        ),
+      );
 
     const candidates = connections.filter(
-      (connection) =>
-        connection.accessTokenExpiresAt !== null &&
-        connection.accessTokenExpiresAt <= threshold &&
-        connection.refreshTokenEncrypted,
+      (connection) => connection.refreshTokenEncrypted,
     );
 
-    for (const connection of candidates) {
-      try {
-        await this.refreshConnection(connection.id);
-      } catch (error) {
-        console.error(
-          `[BlingConnectionsService] Erro ao renovar conexao ${connection.id}:`,
-          error,
-        );
-      }
+    const concurrency = Math.max(
+      1,
+      Math.floor(getPositiveEnvNumber("BLING_TOKEN_MAINTENANCE_CONCURRENCY", 3)),
+    );
+    let refreshedCount = 0;
+    for (let offset = 0; offset < candidates.length; offset += concurrency) {
+      const batch = candidates.slice(offset, offset + concurrency);
+      await Promise.all(
+        batch.map(async (connection) => {
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, Math.floor(Math.random() * 250));
+          });
+          try {
+            await this.refreshConnection(connection.id, {
+              force: true,
+              expectedRefreshTokenExpiresAt: connection.refreshTokenExpiresAt,
+            });
+            refreshedCount += 1;
+          } catch (error) {
+            console.error(
+              `[BlingConnectionsService] Erro ao renovar conexao ${connection.id}:`,
+              error,
+            );
+          }
+        }),
+      );
     }
 
-    return candidates.length;
+    return refreshedCount;
   }
 
   async getAccessTokenByConnectionId(connectionId: string): Promise<string> {
+    return this.getValidAccessToken(connectionId);
+  }
+
+  async getValidAccessToken(connectionId: string): Promise<string> {
     const connection = await this.getById(connectionId);
     if (!connection) {
       throw new Error("Conexão Bling não encontrada.");
@@ -453,7 +558,44 @@ export class BlingConnectionsService {
     if (connection.status !== "connected" || !connection.accessTokenEncrypted) {
       throw new Error("Conexão Bling não está ativa. Reconecte a conta antes de continuar.");
     }
-    return decryptToken(connection.accessTokenEncrypted);
+    const refreshWindowMs = getPositiveEnvNumber(
+      "BLING_ACCESS_TOKEN_REFRESH_WINDOW_MS",
+      DEFAULT_ACCESS_TOKEN_REFRESH_WINDOW_MS,
+    );
+    if (
+      connection.accessTokenExpiresAt &&
+      connection.accessTokenExpiresAt.getTime() - Date.now() > refreshWindowMs
+    ) {
+      return decryptToken(connection.accessTokenEncrypted);
+    }
+
+    const refreshed = await this.refreshConnection(connectionId, { force: false });
+    const freshConnection = await this.getById(refreshed.id);
+    if (!freshConnection?.accessTokenEncrypted) {
+      throw new Error("Nao foi possivel obter o token renovado do Bling");
+    }
+    return decryptToken(freshConnection.accessTokenEncrypted);
+  }
+
+  async createTokenRefresher(connectionId: string): Promise<{
+    accessToken: string;
+    onTokenRefresh: () => Promise<string>;
+  }> {
+    let accessToken = await this.getValidAccessToken(connectionId);
+    return {
+      accessToken,
+      onTokenRefresh: async (): Promise<string> => {
+        const refreshed = await this.refreshConnection(connectionId, {
+          rejectedAccessToken: accessToken,
+        });
+        const freshConnection = await this.getById(refreshed.id);
+        if (!freshConnection?.accessTokenEncrypted) {
+          throw new Error("Nao foi possivel obter o token renovado do Bling");
+        }
+        accessToken = decryptToken(freshConnection.accessTokenEncrypted);
+        return accessToken;
+      },
+    };
   }
 
   async getFirstConnectedAccessToken(): Promise<string> {
@@ -469,39 +611,26 @@ export class BlingConnectionsService {
       );
     }
 
-    return decryptToken(connection.accessTokenEncrypted);
+    return this.getValidAccessToken(connection.id);
   }
 
   async markExpiredConnections() {
     const now = new Date();
-    const expiringConnections = await db
-      .select({ id: blingConnections.id })
-      .from(blingConnections)
-      .where(
-        and(
-          eq(blingConnections.status, "connected"),
-          lt(blingConnections.refreshTokenExpiresAt, now),
-        ),
-      );
-
-    if (expiringConnections.length === 0) {
-      return 0;
-    }
-
-    await db
+    const expired = await db
       .update(blingConnections)
       .set({
         status: "expired",
         updatedAt: new Date(),
       })
       .where(
-        inArray(
-          blingConnections.id,
-          expiringConnections.map((connection) => connection.id),
+        and(
+          eq(blingConnections.status, "connected"),
+          lt(blingConnections.refreshTokenExpiresAt, now),
         ),
-      );
+      )
+      .returning({ id: blingConnections.id });
 
-    return expiringConnections.length;
+    return expired.length;
   }
 }
 

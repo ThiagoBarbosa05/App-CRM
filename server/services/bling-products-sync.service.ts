@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { products, blingProductMappings } from "../../shared/schema";
-import { decryptToken } from "../lib/token-crypto";
 import {
   getBlingProdutos,
   getBlingProduto,
@@ -49,15 +48,10 @@ export async function syncBlingProducts(
     throw new Error("Token de acesso da conexao Bling esta ausente");
   }
 
-  let accessToken = decryptToken(connection.accessTokenEncrypted);
-
+  const tokenContext = await blingConnectionsService.createTokenRefresher(connectionId);
+  let accessToken = tokenContext.accessToken;
   const onTokenRefresh = async (): Promise<string> => {
-    await blingConnectionsService.refreshConnection(connectionId);
-    const refreshed = await blingConnectionsService.getById(connectionId);
-    if (!refreshed?.accessTokenEncrypted) {
-      throw new Error("Nao foi possivel obter o novo token apos refresh");
-    }
-    accessToken = decryptToken(refreshed.accessTokenEncrypted);
+    accessToken = await tokenContext.onTokenRefresh();
     return accessToken;
   };
 

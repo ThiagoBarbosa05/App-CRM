@@ -1,20 +1,33 @@
 import { db } from "server/db";
 import { assertivaTokens } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { decryptToken, encryptToken } from "../lib/token-crypto";
+import type { DbExecutor } from "../db";
 
 const TOKEN_URL = "https://api.assertivasolucoes.com.br/oauth2/v3/token";
 const CPF_URL = "https://api.assertivasolucoes.com.br/localize/v3/cpf";
 
 const PROACTIVE_REFRESH_WINDOW_MS = 5 * 60 * 1000;
 const TOKEN_ROW_ID = "singleton";
+const ASSERTIVA_REFRESH_LOCK_KEY = "assertiva-token-refresh";
+
+interface AssertivaTokenResponse {
+  access_token: string;
+  expires_in: number;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "Erro desconhecido ao renovar token da Assertiva";
+}
 
 // Deduplica chamadas concorrentes de refresh dentro do mesmo processo. Não precisa
 // ser persistido: o token em si (fonte da verdade) vive na tabela `assertiva_tokens`.
 let refreshInFlight: Promise<string> | null = null;
 
-async function readTokenRow() {
-  const [row] = await db
+async function readTokenRow(executor: DbExecutor = db) {
+  const [row] = await executor
     .select()
     .from(assertivaTokens)
     .where(eq(assertivaTokens.id, TOKEN_ROW_ID))
@@ -33,13 +46,13 @@ async function upsertTokenRow(patch: {
   expiresAt?: Date | null;
   lastRefreshAt?: Date | null;
   lastError?: string | null;
-}) {
+}, executor: DbExecutor = db): Promise<void> {
   const { accessToken, ...rest } = patch;
   const dbPatch: typeof rest & { accessTokenEncrypted?: string | null } = { ...rest };
   if (accessToken !== undefined) {
     dbPatch.accessTokenEncrypted = accessToken ? encryptToken(accessToken) : null;
   }
-  await db
+  await executor
     .insert(assertivaTokens)
     .values({ id: TOKEN_ROW_ID, ...dbPatch, updatedAt: new Date() })
     .onConflictDoUpdate({
@@ -48,10 +61,7 @@ async function upsertTokenRow(patch: {
     });
 }
 
-async function fetchNewToken(): Promise<{
-  access_token: string;
-  expires_in: number;
-}> {
+async function fetchNewToken(): Promise<AssertivaTokenResponse> {
   const clientId = process.env.ASSERTIVA_CLIENT_ID?.trim();
   const clientSecret = process.env.ASSERTIVA_CLIENT_SECRET?.trim();
 
@@ -84,7 +94,7 @@ async function fetchNewToken(): Promise<{
     );
   }
 
-  let data: any;
+  let data: unknown;
   try {
     data = JSON.parse(responseText);
   } catch {
@@ -93,14 +103,23 @@ async function fetchNewToken(): Promise<{
     );
   }
 
-  if (!data.access_token) {
+  if (
+    typeof data !== "object" ||
+    data === null ||
+    !("access_token" in data) ||
+    typeof data.access_token !== "string"
+  ) {
     throw new Error("A Assertiva não retornou access_token.");
   }
 
-  return data;
+  return {
+    access_token: data.access_token,
+    expires_in:
+      "expires_in" in data ? Number(data.expires_in) : 0,
+  };
 }
 
-async function refreshToken(): Promise<string> {
+async function fetchAndPersistToken(executor: DbExecutor): Promise<string> {
   try {
     const tokenData = await fetchNewToken();
 
@@ -114,15 +133,37 @@ async function refreshToken(): Promise<string> {
       expiresAt,
       lastRefreshAt: new Date(),
       lastError: null,
-    });
+    }, executor);
 
     return tokenData.access_token;
-  } catch (err: any) {
-    const message =
-      err?.message ?? "Erro desconhecido ao renovar token da Assertiva";
-    await upsertTokenRow({ lastError: message }).catch(() => {});
-    throw err;
+  } catch (error: unknown) {
+    await upsertTokenRow(
+      { lastError: getErrorMessage(error) },
+      executor,
+    ).catch(() => {});
+    throw error;
   }
+}
+
+async function refreshToken(force = false, rejectedToken?: string): Promise<string> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${ASSERTIVA_REFRESH_LOCK_KEY}))`,
+    );
+
+    const current = await readTokenRow(tx);
+    if (
+      ((!force && rejectedToken === undefined) ||
+        (rejectedToken !== undefined && current?.accessToken !== rejectedToken)) &&
+      current?.accessToken &&
+      current.expiresAt &&
+      current.expiresAt.getTime() > Date.now()
+    ) {
+      return current.accessToken;
+    }
+
+    return fetchAndPersistToken(tx);
+  });
 }
 
 async function getToken(): Promise<string> {
@@ -183,7 +224,7 @@ export async function getAssertivaStatus() {
 }
 
 export async function forceRefreshAssertivaToken() {
-  await refreshToken();
+  await refreshToken(true);
   return getAssertivaStatus();
 }
 
@@ -192,11 +233,14 @@ function buildCpfUrl(cpf: string): string {
   return `${CPF_URL}?cpf=${clean}&idFinalidade=1`;
 }
 
-async function doConsultarCPF(cpf: string, token: string) {
+async function doConsultarCPF(
+  cpf: string,
+  token: string,
+): Promise<{ status: number; data: unknown }> {
   const res = await fetch(buildCpfUrl(cpf), {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
-  let data: any;
+  let data: unknown;
   try {
     data = await res.json();
   } catch {
@@ -223,7 +267,7 @@ export async function testarCPF(cpf: string) {
   };
 }
 
-function safeJson(text: string) {
+function safeJson(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
@@ -231,7 +275,7 @@ function safeJson(text: string) {
   }
 }
 
-export async function consultarCPF(cpf: string) {
+export async function consultarCPF(cpf: string): Promise<unknown> {
   if (
     !process.env.ASSERTIVA_CLIENT_ID ||
     !process.env.ASSERTIVA_CLIENT_SECRET
@@ -243,7 +287,7 @@ export async function consultarCPF(cpf: string) {
   let { status, data } = await doConsultarCPF(cpf, token);
 
   if (status === 401) {
-    token = await refreshToken();
+    token = await refreshToken(false, token);
     ({ status, data } = await doConsultarCPF(cpf, token));
   }
 
@@ -297,16 +341,31 @@ function normalizeSexo(value: unknown): "M" | "F" | undefined {
  * `docs`/`swagger.json`) para os campos equivalentes do cliente. Os dados cadastrais
  * ficam em `resposta.dadosCadastrais`; o e-mail (quando existe) em `resposta.emails`.
  */
-export function mapAssertivaCpfResponse(raw: any): {
+interface AssertivaCpfResponse {
+  resposta?: {
+    dadosCadastrais?: {
+      nome?: unknown;
+      dataNascimento?: unknown;
+      sexo?: unknown;
+    };
+    emails?: Array<{ email?: unknown }>;
+  };
+}
+
+export function mapAssertivaCpfResponse(raw: unknown): {
   name?: string;
   birthday?: string;
   sexo?: "M" | "F";
   email?: string;
 } {
-  const dadosCadastrais = raw?.resposta?.dadosCadastrais;
+  const response =
+    typeof raw === "object" && raw !== null
+      ? (raw as AssertivaCpfResponse)
+      : {};
+  const dadosCadastrais = response.resposta?.dadosCadastrais;
   const nome = dadosCadastrais?.nome;
   const dataNascimento = dadosCadastrais?.dataNascimento;
-  const emailEntry = raw?.resposta?.emails?.[0]?.email;
+  const emailEntry = response.resposta?.emails?.[0]?.email;
 
   const mapped: { name?: string; birthday?: string; sexo?: "M" | "F"; email?: string } = {};
   if (typeof nome === "string" && nome.trim()) mapped.name = nome.trim();

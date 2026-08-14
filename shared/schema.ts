@@ -3363,6 +3363,10 @@ export const blingConnections = pgTable(
   (table) => [
     index("bling_connections_user_idx").on(table.userId),
     index("bling_connections_status_idx").on(table.status),
+    index("bling_connections_status_refresh_expiry_idx").on(
+      table.status,
+      table.refreshTokenExpiresAt,
+    ),
     index("bling_connections_company_id_idx").on(table.blingCompanyId),
     uniqueIndex("bling_connections_user_name_uidx").on(
       table.userId,

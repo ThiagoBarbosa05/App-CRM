@@ -202,7 +202,7 @@ async function runImport(
   params: ImportOrdersParams,
   progress: ImportProgress,
 ): Promise<void> {
-  let { accessToken, onTokenRefresh } = getAccessTokenAndRefresher(connection);
+  let { accessToken, onTokenRefresh } = await getAccessTokenAndRefresher(connection);
   const forceUpdate = params.forceUpdate ?? true;
   const companyId = connection.blingCompanyId ?? connection.id;
 
