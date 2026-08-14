@@ -7,6 +7,7 @@ import { createRouteTestApp } from "../../test/create-route-test-app";
 const {
   getEventsMock,
   getEventsPaginatedMock,
+  getEventByIdMock,
   createEventMock,
   addEventAttachmentMock,
   updateEventMock,
@@ -22,6 +23,7 @@ const {
 } = vi.hoisted(() => ({
   getEventsMock: vi.fn(),
   getEventsPaginatedMock: vi.fn(),
+  getEventByIdMock: vi.fn(),
   createEventMock: vi.fn(),
   addEventAttachmentMock: vi.fn(),
   updateEventMock: vi.fn(),
@@ -40,6 +42,7 @@ vi.mock("../../storage", () => ({
   storage: {
     getEvents: getEventsMock,
     getEventsPaginated: getEventsPaginatedMock,
+    getEventById: getEventByIdMock,
     createEvent: createEventMock,
     addEventAttachment: addEventAttachmentMock,
     updateEvent: updateEventMock,
@@ -66,6 +69,7 @@ describe("eventsRouter", () => {
   beforeEach(() => {
     getEventsMock.mockReset();
     getEventsPaginatedMock.mockReset();
+    getEventByIdMock.mockReset();
     createEventMock.mockReset();
     addEventAttachmentMock.mockReset();
     updateEventMock.mockReset();
@@ -180,6 +184,57 @@ describe("eventsRouter", () => {
     expect(createEventMock).toHaveBeenCalledTimes(1);
     expect(addEventAttachmentMock).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(201);
+  });
+
+  it("rejects rescheduling a finalized event without reopening it", async () => {
+    getEventByIdMock.mockResolvedValue({
+      id: "event-1",
+      status: "finalizado",
+      eventDate: new Date("2026-08-10T21:00:00.000Z"),
+    });
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app).put("/events/event-1").send({
+      eventDate: "2099-08-20T18:00",
+      status: "finalizado",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("Planejado ou Ativo");
+    expect(updateEventMock).not.toHaveBeenCalled();
+  });
+
+  it("allows explicitly reopening a rescheduled finalized event", async () => {
+    getEventByIdMock.mockResolvedValue({
+      id: "event-1",
+      status: "finalizado",
+      eventDate: new Date("2026-08-10T21:00:00.000Z"),
+    });
+    updateEventMock.mockResolvedValue({ id: "event-1", status: "planejado" });
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app).put("/events/event-1").send({
+      eventDate: "2099-08-20T18:00",
+      status: "planejado",
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateEventMock).toHaveBeenCalledWith(
+      "event-1",
+      expect.objectContaining({ status: "planejado" }),
+    );
+  });
+
+  it("returns 404 when updating an event that does not exist", async () => {
+    getEventByIdMock.mockResolvedValue(null);
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app).put("/events/missing").send({
+      status: "ativo",
+    });
+
+    expect(response.status).toBe(404);
+    expect(updateEventMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 for DELETE /events/:id when missing", async () => {

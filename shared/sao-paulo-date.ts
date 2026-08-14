@@ -32,6 +32,11 @@ export function todayInSaoPaulo(now: Date = new Date()): string {
   return isoDateFormatter.format(now);
 }
 
+/** Instante correspondente a 00:00 do dia civil atual em São Paulo. */
+export function startOfTodayInSaoPaulo(now: Date = new Date()): Date {
+  return saoPauloDayRange(todayInSaoPaulo(now)).from;
+}
+
 /**
  * `days` dias atrás, contados no calendário de São Paulo.
  *

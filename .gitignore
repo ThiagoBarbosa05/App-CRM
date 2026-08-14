@@ -9,6 +9,7 @@ bling-control-0f37ef3dad78.json
 # server/index.ts
 *.sql
 !migrations/0010_whatsapp_campaign_audience.sql
+!migrations/0011_events_pending_finalization_index.sql
 !migrations/0006_baileys_gateway.sql
 !migrations/0007_whatsapp_unified_messages.sql
 !migrations/0008_whatsapp_message_receipts.sql

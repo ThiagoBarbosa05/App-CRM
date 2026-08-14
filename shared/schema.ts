@@ -3087,37 +3087,45 @@ export const automationExecutionLogs = pgTable("automation_execution_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 // Tabela de eventos
-export const events = pgTable("events", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  eventDate: timestamp("event_date").notNull(),
-  registrationDeadline: timestamp("registration_deadline"),
-  location: text("location").notNull(),
-  pricePerPerson: decimal("price_per_person", {
-    precision: 10,
-    scale: 2,
-  }).notNull(),
-  maxCapacity: integer("max_capacity"),
-  category: text("category").notNull().default("Geral"),
-  status: text("status", {
-    enum: ["planejado", "ativo", "finalizado", "cancelado"],
-  })
-    .notNull()
-    .default("planejado"),
-  notes: text("notes"),
-  imageUrl: text("image_url"),
-  wineRevenue: decimal("wine_revenue", { precision: 10, scale: 2 }),
-  slug: text("slug").unique(),
-  landingPageHtmlKey: text("landing_page_html_key"),
-  createdBy: varchar("created_by")
-    .references(() => users.id)
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const events = pgTable(
+  "events",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: text("name").notNull(),
+    description: text("description"),
+    eventDate: timestamp("event_date").notNull(),
+    registrationDeadline: timestamp("registration_deadline"),
+    location: text("location").notNull(),
+    pricePerPerson: decimal("price_per_person", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    maxCapacity: integer("max_capacity"),
+    category: text("category").notNull().default("Geral"),
+    status: text("status", {
+      enum: ["planejado", "ativo", "finalizado", "cancelado"],
+    })
+      .notNull()
+      .default("planejado"),
+    notes: text("notes"),
+    imageUrl: text("image_url"),
+    wineRevenue: decimal("wine_revenue", { precision: 10, scale: 2 }),
+    slug: text("slug").unique(),
+    landingPageHtmlKey: text("landing_page_html_key"),
+    createdBy: varchar("created_by")
+      .references(() => users.id)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("events_pending_finalization_event_date_idx")
+      .on(table.eventDate)
+      .where(sql`${table.status} IN ('planejado', 'ativo')`),
+  ],
+);
 
 export const eventAttachments = pgTable("event_attachments", {
   id: varchar("id")

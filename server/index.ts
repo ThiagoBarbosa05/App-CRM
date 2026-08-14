@@ -20,7 +20,6 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import "./jobs/birthday-job-scheduler";
-import "./jobs/update-expired-events-scheduler";
 import "./jobs/bling-token-refresh-scheduler";
 import "./jobs/bling-sales-order-sync-scheduler";
 import "./jobs/assertiva-token-refresh-scheduler";
@@ -37,6 +36,7 @@ import { startReconcileBaileysStatusJob } from "./jobs/reconcile-baileys-status.
 import { startExpireBotSessionsJob } from "./jobs/expire-bot-sessions.job";
 import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";
+import { startUpdateExpiredEventsJob } from "./jobs/update-expired-events-scheduler";
 import { startGatewayWebhookInboxWorker } from "./services/baileys-gateway-webhook-inbox.service";
 import { assertGatewayConfiguration } from "./integrations/baileys-gateway";
 
@@ -208,6 +208,10 @@ app.use((req, res, next) => {
   startExpireBotSessionsJob();
   startResumeBotSessionsJob();
   startTemplateTimeoutsJob();
+  const expiredEventsJob = startUpdateExpiredEventsJob();
+  expiredEventsJob.catchUp.catch((error) => {
+    console.error("[ExpiredEvents] Catch-up inicial falhou:", error);
+  });
   startReconcileBaileysStatusJob();
   startGatewayWebhookInboxWorker();
 

@@ -18,6 +18,7 @@ import { decodeCursor, clampLimit } from "../lib/cursor-pagination";
 import { invalidateCachedPage } from "../lib/landing-page-cache";
 import { optimizeHtml } from "../lib/html-optimizer";
 import { nanoid } from "nanoid";
+import { startOfTodayInSaoPaulo } from "@shared/sao-paulo-date";
 
 const LP_PUBLIC_DOMAIN = "https://eventos.grandcrub2b.com";
 
@@ -213,6 +214,11 @@ eventsRouter.post("/", async (req, res) => {
 eventsRouter.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const currentEvent = await storage.getEventById(id);
+    if (!currentEvent) {
+      return res.status(404).json({ message: "Evento não encontrado" });
+    }
+
     const eventData = { ...req.body };
     if (eventData.eventDate && typeof eventData.eventDate === "string") {
       eventData.eventDate = new Date(eventData.eventDate + ":00-03:00");
@@ -233,6 +239,25 @@ eventsRouter.put("/:id", async (req, res) => {
     }
     const { attachments, ...eventDataOnly } = eventData;
     const validatedData = insertEventSchema.partial().parse(eventDataOnly);
+
+    const nextEventDate = validatedData.eventDate;
+    const isChangingFinalizedEventDate =
+      currentEvent.status === "finalizado" &&
+      nextEventDate !== undefined &&
+      nextEventDate.getTime() !== currentEvent.eventDate.getTime();
+    const nextStatus = validatedData.status ?? currentEvent.status;
+    if (
+      isChangingFinalizedEventDate &&
+      nextEventDate !== undefined &&
+      nextEventDate >= startOfTodayInSaoPaulo() &&
+      nextStatus === "finalizado"
+    ) {
+      return res.status(400).json({
+        message:
+          "Ao reagendar um evento finalizado para uma data futura, altere o status para Planejado ou Ativo.",
+      });
+    }
+
     const event = await storage.updateEvent(id, validatedData);
 
     if (attachments !== undefined) {
