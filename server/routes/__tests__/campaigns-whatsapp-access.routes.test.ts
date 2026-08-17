@@ -143,7 +143,6 @@ describe("autorização de campanhas WhatsApp no router misto", () => {
   it.each([
     ["get", "/campaign-wa"],
     ["put", "/campaign-wa"],
-    ["delete", "/campaign-wa/incomplete"],
     ["delete", "/campaign-wa"],
     ["get", "/campaign-wa/clients"],
     ["post", "/campaign-wa/clients"],

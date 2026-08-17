@@ -96,11 +96,12 @@ function outboundNodePayload(node: WhatsappBotNode): unknown | null {
 }
 
 async function resolveBotOpening(
+  executor: DbExecutor,
   botId: string,
 ): Promise<unknown> {
   const [nodes, edges] = await Promise.all([
-    db.select().from(whatsappBotNodes).where(eq(whatsappBotNodes.botId, botId)),
-    db.select().from(whatsappBotEdges).where(eq(whatsappBotEdges.botId, botId)),
+    executor.select().from(whatsappBotNodes).where(eq(whatsappBotNodes.botId, botId)),
+    executor.select().from(whatsappBotEdges).where(eq(whatsappBotEdges.botId, botId)),
   ]);
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const entryNode = selectCampaignEntryNode(nodes, edges);
@@ -128,15 +129,18 @@ async function resolveBotOpening(
   return openings.length > 0 ? openings : { botId, noOpeningMessage: true };
 }
 
-export async function buildCampaignContentSnapshot(campaign: Campaign): Promise<string> {
+export async function buildCampaignContentSnapshot(
+  executor: DbExecutor,
+  campaign: Campaign,
+): Promise<string> {
   if (campaign.waBotId) {
     return JSON.stringify(canonicalize({
       kind: "bot",
-      opening: await resolveBotOpening(campaign.waBotId),
+      opening: await resolveBotOpening(executor, campaign.waBotId),
     }));
   }
   if (campaign.waTemplateId) {
-    const [template] = await db
+    const [template] = await executor
       .select()
       .from(whatsappTemplates)
       .where(eq(whatsappTemplates.id, campaign.waTemplateId));
@@ -229,7 +233,7 @@ export async function findConflict(
   return conflict ? { ...conflict, phoneMasked: maskPhone(phoneNormalized) } : null;
 }
 
-export async function reserveCampaignMessage(input: {
+export async function reserveCampaignMessage(executor: DbExecutor, input: {
   campaignId: string;
   client: Client;
   phoneNormalized: string;
@@ -238,49 +242,47 @@ export async function reserveCampaignMessage(input: {
   windowHours: number;
   postSendTagRequested: boolean;
 }): Promise<{ queued: boolean; alreadyExisted: boolean; conflict: CampaignDedupeConflict | null }> {
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.phoneNormalized}), hashtext(${input.contentFingerprint}))`);
-    const conflict = await findConflict(
-      tx,
-      input.phoneNormalized,
-      input.contentFingerprint,
-      input.scheduledFor,
-      input.windowHours,
-    );
-    const messageId = `${input.campaignId}-${input.client.id}`;
-    const insertedRows = await tx
-      .insert(whatsappCampaignMessages)
+  await executor.execute(sql`select pg_advisory_xact_lock(hashtext(${input.phoneNormalized}), hashtext(${input.contentFingerprint}))`);
+  const conflict = await findConflict(
+    executor,
+    input.phoneNormalized,
+    input.contentFingerprint,
+    input.scheduledFor,
+    input.windowHours,
+  );
+  const messageId = `${input.campaignId}-${input.client.id}`;
+  const insertedRows = await executor
+    .insert(whatsappCampaignMessages)
+    .values({
+      id: messageId,
+      campaignId: input.campaignId,
+      contactId: input.client.id,
+      contactName: input.client.name,
+      phoneNumber: input.phoneNormalized,
+      phoneNormalized: input.phoneNormalized,
+      contentFingerprint: input.contentFingerprint,
+      status: conflict ? "suppressed" : "scheduled",
+      scheduledAt: input.scheduledFor,
+      suppressionReason: conflict ? CAMPAIGN_SUPPRESSION_REASONS.duplicateContent : null,
+      conflictingCampaignMessageId: conflict?.campaignMessageId ?? null,
+      tagApplicationStatus: input.postSendTagRequested ? "pending" : "not_requested",
+    })
+    .onConflictDoNothing()
+    .returning({ id: whatsappCampaignMessages.id });
+  const inserted = insertedRows.length > 0;
+  if (inserted && !conflict) {
+    await executor
+      .insert(whatsappCampaignImpacts)
       .values({
-        id: messageId,
-        campaignId: input.campaignId,
-        contactId: input.client.id,
-        contactName: input.client.name,
-        phoneNumber: input.phoneNormalized,
         phoneNormalized: input.phoneNormalized,
         contentFingerprint: input.contentFingerprint,
-        status: conflict ? "suppressed" : "scheduled",
-        scheduledAt: input.scheduledFor,
-        suppressionReason: conflict ? CAMPAIGN_SUPPRESSION_REASONS.duplicateContent : null,
-        conflictingCampaignMessageId: conflict?.campaignMessageId ?? null,
-        tagApplicationStatus: input.postSendTagRequested ? "pending" : "not_requested",
+        campaignId: input.campaignId,
+        campaignMessageId: messageId,
+        scheduledFor: input.scheduledFor,
       })
-      .onConflictDoNothing()
-      .returning({ id: whatsappCampaignMessages.id });
-    const inserted = insertedRows.length > 0;
-    if (inserted && !conflict) {
-      await tx
-        .insert(whatsappCampaignImpacts)
-        .values({
-          phoneNormalized: input.phoneNormalized,
-          contentFingerprint: input.contentFingerprint,
-          campaignId: input.campaignId,
-          campaignMessageId: messageId,
-          scheduledFor: input.scheduledFor,
-        })
-        .onConflictDoNothing();
-    }
-    return { queued: inserted && !conflict, alreadyExisted: !inserted, conflict };
-  });
+      .onConflictDoNothing();
+  }
+  return { queued: inserted && !conflict, alreadyExisted: !inserted, conflict };
 }
 
 export async function markImpactSent(campaignMessageId: string, sentAt: Date): Promise<void> {

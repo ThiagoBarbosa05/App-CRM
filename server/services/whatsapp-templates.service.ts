@@ -1,4 +1,4 @@
-import { db } from "server/db";
+import { db, type DbExecutor } from "server/db";
 import {
   whatsappTemplates,
   whatsappTemplateMedia,
@@ -24,14 +24,14 @@ export async function getTemplateByUseCase(useCase: string): Promise<WhatsappTem
  * campanhas funcionando (que referencia `waTemplateId`) sem expor o conceito
  * de "template local" para o usuário — ele só seleciona templates da Meta.
  */
-export async function ensureLocalTemplateForMeta(params: {
+export async function ensureLocalTemplateForMeta(executor: DbExecutor, params: {
   name: string;
   languageCode: string;
   category?: string;
   bodyParams?: string[];
   createdBy: string;
 }): Promise<WhatsappTemplate> {
-  const existing = await db
+  const existing = await executor
     .select()
     .from(whatsappTemplates)
     .where(eq(whatsappTemplates.name, params.name));
@@ -43,7 +43,7 @@ export async function ensureLocalTemplateForMeta(params: {
     if (!match.isActive) patch.isActive = true;
     if (params.bodyParams) patch.bodyParams = params.bodyParams;
     if (Object.keys(patch).length === 0) return match;
-    const [updated] = await db
+    const [updated] = await executor
       .update(whatsappTemplates)
       .set({ ...patch, updatedAt: new Date() })
       .where(eq(whatsappTemplates.id, match.id))
@@ -51,7 +51,7 @@ export async function ensureLocalTemplateForMeta(params: {
     return updated;
   }
 
-  const [created] = await db
+  const [created] = await executor
     .insert(whatsappTemplates)
     .values({
       name: params.name,

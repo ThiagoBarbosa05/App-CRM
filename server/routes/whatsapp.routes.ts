@@ -9,7 +9,7 @@ import {
   whatsappCampaignMessages,
   whatsappChannels,
 } from "@shared/schema";
-import { eq, and, inArray, isNull, count } from "drizzle-orm";
+import { eq, and, inArray, isNull } from "drizzle-orm";
 import { sendTextMessage, sendTemplateMessage } from "../integrations/whatsapp";
 import {
   listCampaigns,
@@ -18,7 +18,6 @@ import {
   getCampaignBotStats,
 } from "../controllers/campaigns/campaign-logger";
 import { normalizePhoneE164 } from "@shared/phone";
-import { CAMPAIGN_SUPPRESSION_REASONS } from "@shared/whatsapp-campaign-reasons";
 import {
   listBotDispatchHistory,
   parseBotSessionHistoryQuery,
@@ -30,10 +29,8 @@ import {
   fingerprintForClient,
   findConflict,
   MAX_DEDUPE_WINDOW_HOURS,
-  reserveCampaignMessage,
 } from "../services/whatsapp-campaign-dedupe.service";
 import {
-  listChannelIdsForUser,
   resolveChannelById,
 } from "../services/whatsapp-channels.service";
 import {
@@ -42,6 +39,7 @@ import {
 } from "../services/whatsapp-campaign-audience.service";
 import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
 import { requeueFailedMessages } from "../services/whatsapp-campaign.service";
+import { createAtomicWhatsappCampaign } from "../services/whatsapp-campaign-creation.service";
 import { respondWhatsappError, waError } from "../services/whatsapp-errors";
 import { requireAdminOrGerente } from "../middleware/validation";
 
@@ -125,8 +123,8 @@ router.post("/campaigns/preview", async (req, res) => {
   try {
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, parsed.data.campaignId));
     if (!campaign) throw waError("CAMPAIGN_NOT_FOUND");
-    const rows = await resolveCampaignAudience(parsed.data.audience as CampaignAudienceSelector);
-    const snapshot = await buildCampaignContentSnapshot(campaign);
+    const rows = await resolveCampaignAudience(db, parsed.data.audience as CampaignAudienceSelector);
+    const snapshot = await buildCampaignContentSnapshot(db, campaign);
     const scheduledFor = parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : new Date();
     const seenPhones = new Set<string>();
     let optedOut = 0;
@@ -182,370 +180,87 @@ router.post("/campaigns/preview", async (req, res) => {
   }
 });
 
-router.post("/campaigns", async (req, res) => {
-  const schema = z.object({
-    campaignId: z.string().uuid(),
-    audience: audienceSelectorSchema,
-    scheduledAt: z.string().datetime().optional(),
-    dedupeWindowHours: z.number().int().min(1).max(MAX_DEDUPE_WINDOW_HOURS)
-      .default(DEFAULT_DEDUPE_WINDOW_HOURS),
-    postSendWhatsappTagId: z.string().uuid().nullable().optional(),
-  });
+const createWhatsappCampaignSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2000).optional(),
+  waTemplateId: z.string().min(1).optional(),
+  waBotId: z.string().min(1).optional(),
+  waChannelId: z.number().int().positive(),
+  metaTemplateName: z.string().trim().min(1).optional(),
+  metaTemplateLanguage: z.string().trim().min(1).optional(),
+  metaTemplateCategory: z.string().trim().min(1).optional(),
+  metaTemplateBodyParams: z.array(z.string()).optional(),
+  metaTemplateHeaderParams: z.array(z.string()).optional(),
+  metaTemplateHeaderMedia: z.object({
+    storageKey: z.string().min(1),
+    mediaType: z.enum(["image", "video", "document"]),
+  }).optional(),
+  audience: audienceSelectorSchema,
+  scheduledAt: z.string().datetime().optional(),
+  dedupeWindowHours: z.number().int().min(1).max(MAX_DEDUPE_WINDOW_HOURS)
+    .default(DEFAULT_DEDUPE_WINDOW_HOURS),
+  postSendWhatsappTagId: z.string().uuid().nullable().optional(),
+}).superRefine((value, context) => {
+  const hasTemplate = Boolean(value.waTemplateId || value.metaTemplateName);
+  const hasBot = Boolean(value.waBotId);
+  if (hasTemplate === hasBot) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Selecione exatamente um conteúdo: template ou bot",
+      path: ["waTemplateId"],
+    });
+  }
+});
 
-  const parsed = schema.safeParse(req.body);
+router.post("/campaigns", async (req, res) => {
+  const parsed = createWhatsappCampaignSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: "Parâmetros inválidos", errors: parsed.error.errors });
   }
-
-  const {
-    campaignId,
-    audience,
-    scheduledAt,
-    dedupeWindowHours,
-    postSendWhatsappTagId,
-  } = parsed.data;
-
-  // Se a data de agendamento estiver no futuro, a campanha fica "created"
-  // (agendada) e o job só inicia quando startDate <= agora.
-  const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
-  const isScheduled = !!scheduledDate && scheduledDate.getTime() > Date.now();
+  const userId = req.user?.userId;
+  if (!userId) return res.status(401).json({ message: "Não autenticado" });
 
   try {
-    // 1. Validar campanha
-    const [campaign] = await db
-      .select()
-      .from(campaigns)
-      .where(and(eq(campaigns.id, campaignId), isNull(campaigns.deletedAt)));
-
-    if (!campaign) throw waError("CAMPAIGN_NOT_FOUND");
-    if (!campaign.waEnabled) throw waError("CAMPAIGN_WA_DISABLED");
-    if (!campaign.waTemplateId && !campaign.waBotId) {
-      throw waError("CAMPAIGN_NO_CONTENT");
-    }
-    if (Boolean(campaign.waTemplateId) === Boolean(campaign.waBotId)) {
-      throw waError("CAMPAIGN_AMBIGUOUS_CONTENT");
-    }
-    if (campaign.waChannelId == null) throw waError("CAMPAIGN_NO_CHANNEL");
-
     const [channel] = await db
       .select({
         id: whatsappChannels.id,
+        provider: whatsappChannels.provider,
         connectionStatus: whatsappChannels.connectionStatus,
       })
       .from(whatsappChannels)
       .where(
         and(
-          eq(whatsappChannels.id, campaign.waChannelId),
+          eq(whatsappChannels.id, parsed.data.waChannelId),
           eq(whatsappChannels.isActive, true),
           isNull(whatsappChannels.deletedAt),
         ),
       )
       .limit(1);
-    const resolvedChannel = channel
-      ? await resolveChannelById(channel.id)
-      : null;
+    const resolvedChannel = channel ? await resolveChannelById(channel.id) : null;
     if (
       !resolvedChannel ||
-      (resolvedChannel.provider === "evolution" &&
-        channel?.connectionStatus !== "connected")
+      (resolvedChannel.provider === "evolution" && channel?.connectionStatus !== "connected")
     ) {
       throw waError("CHANNEL_DISCONNECTED", {
-        technicalMessage: `Canal ${campaign.waChannelId} desconectado ou sem configuração`,
+        technicalMessage: `Canal ${parsed.data.waChannelId} desconectado ou sem configuração`,
       });
     }
-    if (campaign.waTemplateId && resolvedChannel.provider !== "cloud_api") {
+    if ((parsed.data.waTemplateId || parsed.data.metaTemplateName) && resolvedChannel.provider !== "cloud_api") {
       throw waError("CHANNEL_NOT_CLOUD_API", {
-        technicalMessage: `Canal ${campaign.waChannelId} é ${resolvedChannel.provider}`,
+        technicalMessage: `Canal ${parsed.data.waChannelId} é ${resolvedChannel.provider}`,
       });
     }
-    if (campaign.waBotId) {
-      const compatibility = await analyzeBotCompatibility(
-        campaign.waBotId,
-        campaign.waChannelId,
-      );
+    if (parsed.data.waBotId) {
+      const compatibility = await analyzeBotCompatibility(parsed.data.waBotId, channel.id);
       if (!compatibility.compatible) {
-        // `compatibility` segue no corpo: a tela lista os problemas por
-        // `issue.code` ao lado da mensagem geral.
         throw waError("BOT_INCOMPATIBLE_CHANNEL", { details: { compatibility } });
       }
     }
 
-    const user = req.user;
-    if (!user?.userId) {
-      return res.status(401).json({ message: "Não autenticado" });
-    }
-    if (user.role === "vendedor") {
-      const accessibleChannelIds = await listChannelIdsForUser(user.userId);
-      if (!accessibleChannelIds.includes(campaign.waChannelId)) {
-        throw waError("CHANNEL_ACCESS_DENIED");
-      }
-    }
-
-    // 2. Buscar clientes e normalizar telefone (E.164). Contatos com telefone
-    //    ausente/inválido são descartados; contatos cujo telefone normalizado
-    //    já apareceu antes na lista (mesmo número real, cadastros duplicados
-    //    em formatos diferentes) também são descartados, mantendo só o primeiro,
-    //    para não disparar duas vezes para a mesma pessoa.
-    const clientRows = await resolveCampaignAudience(audience as CampaignAudienceSelector);
-
-    const seenPhones = new Set<string>();
-    const validClients: { id: string; name: string; phone: string; phoneE164: string }[] = [];
-    let skippedInvalidPhone = 0;
-    let skippedDuplicatePhone = 0;
-    let skippedOptedOut = 0;
-    const preSuppressed: Array<{
-      id: string;
-      campaignId: string;
-      contactId: string;
-      contactName: string;
-      phoneNumber: string;
-      status: "suppressed";
-      scheduledAt: Date;
-      suppressionReason: string;
-    }> = [];
-
-    for (const c of clientRows) {
-      if (c.whatsappOptOut) {
-        skippedOptedOut++;
-        preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
-          phoneNumber: c.phone ?? "sem telefone", status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
-          suppressionReason: CAMPAIGN_SUPPRESSION_REASONS.optedOut });
-        continue;
-      }
-      const phoneE164 = c.phone?.trim() ? normalizePhoneE164(c.phone) : null;
-      if (!phoneE164) {
-        skippedInvalidPhone++;
-        preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
-          phoneNumber: c.phone ?? "sem telefone", status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
-          suppressionReason: CAMPAIGN_SUPPRESSION_REASONS.invalidPhone });
-        continue;
-      }
-      if (seenPhones.has(phoneE164)) {
-        skippedDuplicatePhone++;
-        preSuppressed.push({ id: `${campaignId}-${c.id}`, campaignId, contactId: c.id, contactName: c.name,
-          phoneNumber: phoneE164, status: "suppressed", scheduledAt: scheduledDate ?? new Date(),
-          suppressionReason: CAMPAIGN_SUPPRESSION_REASONS.duplicatePhoneInAudience });
-        continue;
-      }
-      seenPhones.add(phoneE164);
-      validClients.push({ id: c.id, name: c.name, phone: c.phone!, phoneE164 });
-    }
-
-    if (validClients.length === 0) {
-      throw waError(
-        skippedOptedOut > 0 && skippedInvalidPhone === 0
-          ? "AUDIENCE_EMPTY_ALL_OPTED_OUT"
-          : "AUDIENCE_EMPTY_NO_VALID_PHONE",
-      );
-    }
-
-    // 3. Idempotência: bloquear reenfileiramento por cima de uma campanha que
-    //    já está em andamento/pausada (evita duplicar disparos e sobrescrever
-    //    totalContacts/scheduledMessages/audienceSelector no meio do processo)
-    //    ou que já terminou (o caminho correto pra isso é retry-failed).
-    const [existingWaCampaign] = await db
-      .select({ status: whatsappCampaigns.status })
-      .from(whatsappCampaigns)
-      .where(eq(whatsappCampaigns.id, campaignId));
-
-    if (existingWaCampaign) {
-      if (existingWaCampaign.status === "in_progress" || existingWaCampaign.status === "paused") {
-        throw waError("CAMPAIGN_ALREADY_RUNNING", {
-          details: { campaignStatus: existingWaCampaign.status },
-        });
-      }
-      if (
-        existingWaCampaign.status === "completed" ||
-        existingWaCampaign.status === "failed" ||
-        existingWaCampaign.status === "cancelled"
-      ) {
-        throw waError("CAMPAIGN_ALREADY_FINISHED", {
-          details: { campaignStatus: existingWaCampaign.status },
-        });
-      }
-    }
-
-    // Garantir entrada em whatsappCampaigns (satisfaz FK de whatsappCampaignMessages)
-    await db
-      .insert(whatsappCampaigns)
-      .values({
-        id: campaignId,
-        title: campaign.name,
-        status: isScheduled ? "created" : "in_progress",
-        totalContacts: validClients.length,
-        scheduledMessages: validClients.length,
-        startDate: scheduledDate ?? new Date(),
-        botId: campaign.waBotId ?? campaign.waTemplateId ?? "",
-        botTriggerName: "whatsapp",
-        channelId: "whatsapp",
-        fromPhone: "",
-        intervalSeconds: 1,
-        exclusiveTagFilter: false,
-        tagIds: [],
-        organizationId: "",
-        audienceSelector: audience,
-      })
-      .onConflictDoUpdate({
-        target: whatsappCampaigns.id,
-        set: {
-          status: isScheduled ? "created" : "in_progress",
-          totalContacts: validClients.length,
-          scheduledMessages: validClients.length,
-          startDate: scheduledDate ?? new Date(),
-          audienceSelector: audience,
-          updatedAt: new Date(),
-        },
-      });
-
-    if (preSuppressed.length > 0) {
-      await db.insert(whatsappCampaignMessages).values(preSuppressed).onConflictDoNothing();
-    }
-
-    // 4. Excluir contatos que já têm mensagem não-terminal/enviada nesta campanha
-    //    (reenvio do mesmo formulário, duplo clique, retry de rede no frontend
-    //    não devem gerar um novo disparo para quem já está na fila ou já recebeu).
-    const alreadyQueued = await db
-      .select({ contactId: whatsappCampaignMessages.contactId })
-      .from(whatsappCampaignMessages)
-      .where(
-        and(
-          eq(whatsappCampaignMessages.campaignId, campaignId),
-          inArray(whatsappCampaignMessages.contactId, validClients.map((c) => c.id)),
-          inArray(whatsappCampaignMessages.status, ["scheduled", "sent", "delivered", "read"]),
-        ),
-      );
-    const alreadyQueuedIds = new Set(alreadyQueued.map((m) => m.contactId));
-
-    const now = new Date();
-    const contentSnapshot = await buildCampaignContentSnapshot(campaign);
-    await db
-      .update(whatsappCampaigns)
-      .set({
-        dedupeWindowHours,
-        postSendWhatsappTagId: postSendWhatsappTagId ?? null,
-        contentFingerprintSnapshot: contentSnapshot,
-        updatedAt: new Date(),
-      })
-      .where(eq(whatsappCampaigns.id, campaignId));
-
-    let queued = 0;
-    let suppressedDuplicate = 0;
-    // Corrida entre o pré-filtro (alreadyQueuedIds, SELECT antes do loop) e o
-    // INSERT dentro de reserveCampaignMessage: duplo clique ou retry de rede
-    // simultâneos podem passar pelo pré-filtro e ainda assim colidir no
-    // índice único da mensagem. Não é uma supressão por conteúdo duplicado
-    // (dedupe de fingerprint) — é só uma re-tentativa idempotente de um
-    // enfileiramento que já aconteceu, então não entra em suppressedDuplicate.
-    let raceAlreadyQueued = 0;
-    const conflicts: Array<{
-      campaignId: string;
-      campaignMessageId: string;
-      scheduledFor: string;
-      phoneMasked: string;
-    }> = [];
-    for (const client of validClients.filter((item) => !alreadyQueuedIds.has(item.id))) {
-      const fullClient = clientRows.find((row) => row.id === client.id);
-      if (!fullClient) continue;
-      const result = await reserveCampaignMessage({
-        campaignId,
-        client: fullClient as typeof clients.$inferSelect,
-        phoneNormalized: client.phoneE164,
-        contentFingerprint: fingerprintForClient(
-          contentSnapshot,
-          fullClient as typeof clients.$inferSelect,
-          client.phoneE164,
-        ),
-        scheduledFor: scheduledDate ?? now,
-        windowHours: dedupeWindowHours,
-        postSendTagRequested: Boolean(postSendWhatsappTagId),
-      });
-      if (result.queued) {
-        queued++;
-      } else if (result.alreadyExisted) {
-        raceAlreadyQueued++;
-      } else {
-        suppressedDuplicate++;
-        if (result.conflict && conflicts.length < 10) {
-          conflicts.push({
-            ...result.conflict,
-            scheduledFor: result.conflict.scheduledFor.toISOString(),
-          });
-        }
-      }
-    }
-
-    /*
-    const messageValues = validClients
-      .filter((client) => !alreadyQueuedIds.has(client.id))
-      .map((client) => ({
-        // Id determinístico por (campanha, contato) — junto com o índice único
-        // wa_campaign_messages_campaign_contact_uidx, onConflictDoNothing abaixo
-        // vira uma rede de segurança real contra corrida na exclusão acima.
-        id: `${campaignId}-${client.id}`,
-        campaignId,
-        contactId: client.id,
-        contactName: client.name,
-        phoneNumber: client.phoneE164,
-        status: "scheduled" as const,
-        scheduledAt: now,
-      }));
-
-    if (messageValues.length > 0) {
-      await db.insert(whatsappCampaignMessages).values(messageValues).onConflictDoNothing();
-    }
-    */
-
-    // Recount agrupado direto na tabela real: os contadores locais (queued,
-    // suppressedDuplicate, preSuppressed.length) refletem só o que esta
-    // submissão processou, ignorando mensagens de submissões anteriores
-    // (ex: alreadyQueuedIds, excluídas do loop mas não contadas em nada acima).
-    const statusCounts = await db
-      .select({ status: whatsappCampaignMessages.status, count: count() })
-      .from(whatsappCampaignMessages)
-      .where(eq(whatsappCampaignMessages.campaignId, campaignId))
-      .groupBy(whatsappCampaignMessages.status);
-
-    const countByStatus = Object.fromEntries(statusCounts.map((r) => [r.status, Number(r.count)]));
-    const totalContacts = statusCounts.reduce((sum, r) => sum + Number(r.count), 0);
-    const scheduledMessages = countByStatus["scheduled"] ?? 0;
-    const sentMessages =
-      (countByStatus["sent"] ?? 0) + (countByStatus["delivered"] ?? 0) + (countByStatus["read"] ?? 0);
-    const failedMessages = countByStatus["failed"] ?? 0;
-
-    await db
-      .update(whatsappCampaigns)
-      .set({
-        totalContacts,
-        scheduledMessages,
-        sentMessages,
-        failedMessages,
-        status: scheduledMessages === 0 ? "completed" : isScheduled ? "created" : "in_progress",
-        completedAt: scheduledMessages === 0 ? new Date() : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(whatsappCampaigns.id, campaignId));
-
-    // 5. NÃO dispara inline — apenas enfileira. O job whatsapp-campaign-dispatcher
-    //    processa as mensagens "scheduled" em lotes (evita timeout em disparo em massa).
-    const responseBody = {
-      campaignId,
-      queued,
-      suppressedDuplicate,
-      skippedNoPhone: skippedInvalidPhone,
-      skippedDuplicatePhone,
-      skippedOptedOut,
-      skippedAlreadyQueued: alreadyQueuedIds.size + raceAlreadyQueued,
-      conflicts,
-      scheduledAt: isScheduled ? scheduledDate?.toISOString() : null,
-    };
-    if (queued === 0) {
-      // Contadores seguem no corpo — a tela usa para explicar quantos foram
-      // barrados por duplicidade, opt-out e telefone inválido.
-      throw waError("CAMPAIGN_ALL_DUPLICATE", { details: responseBody });
-    }
-    return res.status(202).json(responseBody);
-  } catch (e) {
-    return respondWhatsappError(res, e, "[WA campaigns]");
+    const result = await createAtomicWhatsappCampaign({ ...parsed.data, createdBy: userId });
+    return res.status(202).json(result);
+  } catch (error) {
+    return respondWhatsappError(res, error, "[WA campaigns]");
   }
 });
 

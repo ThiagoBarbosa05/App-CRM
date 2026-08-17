@@ -485,7 +485,7 @@ export {
   type BotCompatibilityResult,
 } from "./use-whatsapp-bots";
 
-// Creates a campaign (POST /api/campaigns) then dispatches (POST /api/whatsapp/campaigns)
+// Cria o registro genérico e o dispatch WhatsApp atomicamente no backend.
 export function useCreateCampaignWithDispatch() {
   const showError = useWhatsappErrorToast();
   return useMutation({
@@ -514,13 +514,11 @@ export function useCreateCampaignWithDispatch() {
       dedupeWindowHours?: number;
       postSendWhatsappTagId?: string;
     }) => {
-      const campaignRes = await apiRequest("POST", "/api/campaigns", {
+      const response = await apiRequest("POST", "/api/whatsapp/campaigns", {
         name: data.name,
         description: data.description,
-        type: "humano",
-        waEnabled: true,
-        waTemplateId: data.waTemplateId ?? null,
-        waBotId: data.waBotId ?? null,
+        waTemplateId: data.waTemplateId,
+        waBotId: data.waBotId,
         waChannelId: data.waChannelId,
         metaTemplateName: data.metaTemplateName,
         metaTemplateLanguage: data.metaTemplateLanguage,
@@ -528,50 +526,24 @@ export function useCreateCampaignWithDispatch() {
         metaTemplateBodyParams: data.metaTemplateBodyParams,
         metaTemplateHeaderParams: data.metaTemplateHeaderParams,
         metaTemplateHeaderMedia: data.metaTemplateHeaderMedia,
+        audience: data.audience,
+        scheduledAt: data.scheduledAt,
+        dedupeWindowHours: data.dedupeWindowHours ?? 24,
+        postSendWhatsappTagId: data.postSendWhatsappTagId ?? null,
       });
-      const campaign = (await campaignRes.json()) as { id: string };
-
-      try {
-        const previewRes = await apiRequest("POST", "/api/whatsapp/campaigns/preview", {
-          campaignId: campaign.id,
-          audience: data.audience,
-          scheduledAt: data.scheduledAt,
-          dedupeWindowHours: data.dedupeWindowHours ?? 24,
-        });
-        const preview = (await previewRes.json()) as {
-          selected: number;
-          eligible: number;
-          optedOut: number;
-          invalidPhone: number;
-          duplicatePhone: number;
-          suppressedDuplicate: number;
-        };
-        const dispatchRes = await apiRequest("POST", "/api/whatsapp/campaigns", {
-          campaignId: campaign.id,
-          audience: data.audience,
-          scheduledAt: data.scheduledAt,
-          dedupeWindowHours: data.dedupeWindowHours ?? 24,
-          postSendWhatsappTagId: data.postSendWhatsappTagId ?? null,
-        });
-        const dispatch = await dispatchRes.json() as { campaignId: string };
-        return { ...dispatch, preview };
-      } catch (error) {
-        // A criação ainda usa dois endpoints legados. Compensa a primeira
-        // gravação para que uma falha de validação/enfileiramento não deixe uma
-        // campanha incompleta visível.
-        try {
-          await apiRequest("DELETE", `/api/campaigns/${campaign.id}/incomplete`);
-        } catch (cleanupError) {
-          console.error(
-            "[WhatsApp campaign] Falha ao remover campanha incompleta:",
-            cleanupError,
-          );
-        }
-        // Antes, qualquer 409 virava a mensagem de duplicidade — o que mentia
-        // quando o 409 era "campanha já em andamento". Agora o motivo vem no
-        // `code` da resposta e o texto sai de `WHATSAPP_ERRORS`.
-        throw error;
-      }
+      return response.json() as Promise<{
+        campaignId: string;
+        status: "created" | "in_progress";
+        queued: number;
+        selected: number;
+        eligible: number;
+        suppressedDuplicate: number;
+        skippedNoPhone: number;
+        skippedDuplicatePhone: number;
+        skippedOptedOut: number;
+        skippedAlreadyQueued: number;
+        scheduledAt: string | null;
+      }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns"] });

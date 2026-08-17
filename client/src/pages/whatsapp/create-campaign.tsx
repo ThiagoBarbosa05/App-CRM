@@ -2089,8 +2089,8 @@ export default function WhatsAppCreateCampaign() {
             title: scheduledIso
               ? "Campanha agendada!"
               : "Campanha enfileirada!",
-            description: data.preview.suppressedDuplicate > 0
-              ? `${data.preview.eligible} elegíveis; ${data.preview.suppressedDuplicate} mensagens repetidas foram protegidas.`
+            description: data.suppressedDuplicate > 0
+              ? `${data.eligible} elegíveis; ${data.suppressedDuplicate} mensagens repetidas foram protegidas.`
               : scheduledIso
                 ? "Será disparada automaticamente no horário escolhido."
                 : "O disparo será processado em segundo plano.",

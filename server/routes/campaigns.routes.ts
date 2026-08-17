@@ -259,7 +259,7 @@ router.post("/", rejectWhatsappCampaignActivation, async (req: Request, res: Res
       if (!userId) {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
-      const local = await ensureLocalTemplateForMeta({
+      const local = await ensureLocalTemplateForMeta(db, {
         name: metaTemplateName,
         languageCode: metaTemplateLanguage || "pt_BR",
         category: metaTemplateCategory,
@@ -392,45 +392,6 @@ router.put("/:id", rejectWhatsappCampaignActivation, async (req: Request, res: R
 });
 
 // ─── Excluir campanha ─────────────────────────────────────────────────────────
-
-router.delete("/:id/incomplete", async (req: Request, res: Response) => {
-  try {
-    const [campaign] = await db
-      .select({ id: campaigns.id, createdBy: campaigns.createdBy })
-      .from(campaigns)
-      .where(and(eq(campaigns.id, req.params.id), isNull(campaigns.deletedAt)))
-      .limit(1);
-    if (!campaign) {
-      return res.status(404).json({ message: "Campanha não encontrada" });
-    }
-    if (
-      req.user?.role === "vendedor" &&
-      campaign.createdBy !== req.user.userId
-    ) {
-      return res.status(403).json({ message: "Acesso negado" });
-    }
-
-    const [dispatch] = await db
-      .select({ id: whatsappCampaigns.id })
-      .from(whatsappCampaigns)
-      .where(eq(whatsappCampaigns.id, campaign.id))
-      .limit(1);
-    if (dispatch) {
-      return res.status(409).json({
-        message: "A campanha já foi enfileirada e não pode ser removida como incompleta",
-      });
-    }
-
-    await db
-      .update(campaigns)
-      .set({ deletedAt: new Date(), updatedAt: new Date() })
-      .where(eq(campaigns.id, campaign.id));
-    return res.json({ ok: true });
-  } catch (error) {
-    console.error("[DELETE /api/campaigns/:id/incomplete] Erro:", error);
-    return res.status(500).json({ message: "Erro ao remover campanha incompleta" });
-  }
-});
 
 router.delete("/:id", async (req: Request, res: Response) => {
   try {

@@ -1,19 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { whatsappCampaignImpacts, whatsappCampaignMessages, type Client } from "@shared/schema";
 
-// reserveCampaignMessage roda inteiro dentro de db.transaction(async (tx) =>
-// {...}). Aqui mockamos db.transaction para chamar o callback com um `tx`
-// falso que a gente controla: select/limit (findConflict), execute (advisory
+// reserveCampaignMessage participa da transacao aberta pelo chamador. Aqui
+// passamos um `tx` falso que a gente controla: select/limit (findConflict), execute (advisory
 // lock) e insert(...).values(...).onConflictDoNothing() para as duas tabelas
 // (mensagem e impact), com .returning() no insert da mensagem — é exatamente
 // esse .returning() que a Task 4 introduziu, então o mock precisa simular
 // tanto "linha inserida" quanto "onConflictDoNothing engoliu o insert"
 // (array vazio) para cobrir os 3 casos do bug.
-const { transactionMock } = vi.hoisted(() => ({
-  transactionMock: vi.fn(),
-}));
-
-vi.mock("../../db", () => ({ db: { transaction: transactionMock } }));
+vi.mock("../../db", () => ({ db: {} }));
 
 // selectCampaignEntryNode/buildClientVariables só são usados por
 // buildCampaignContentSnapshot/fingerprintForClient, não por
@@ -77,15 +72,10 @@ const baseInput = {
 };
 
 describe("reserveCampaignMessage", () => {
-  beforeEach(() => {
-    transactionMock.mockReset();
-  });
-
   it("corrida no insert da mensagem (.returning() vazio, sem conflito de fingerprint): não insere impact, alreadyExisted true, queued false", async () => {
     const { tx, impactValuesMock } = makeTx({ conflict: null, messageReturningRows: [] });
-    transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-    const result = await reserveCampaignMessage(baseInput);
+    const result = await reserveCampaignMessage(tx, baseInput);
 
     expect(result).toEqual({ queued: false, alreadyExisted: true, conflict: null });
     expect(impactValuesMock).not.toHaveBeenCalled();
@@ -96,9 +86,7 @@ describe("reserveCampaignMessage", () => {
       conflict: null,
       messageReturningRows: [{ id: "camp-1-client-1" }],
     });
-    transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
-
-    const result = await reserveCampaignMessage(baseInput);
+    const result = await reserveCampaignMessage(tx, baseInput);
 
     expect(result).toEqual({ queued: true, alreadyExisted: false, conflict: null });
     expect(impactValuesMock).toHaveBeenCalledTimes(1);
@@ -125,9 +113,7 @@ describe("reserveCampaignMessage", () => {
       // aqui, então .returning() traz a linha normalmente.
       messageReturningRows: [{ id: "camp-1-client-1" }],
     });
-    transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
-
-    const result = await reserveCampaignMessage(baseInput);
+    const result = await reserveCampaignMessage(tx, baseInput);
 
     expect(result).toEqual({ queued: false, alreadyExisted: false, conflict });
     expect(impactValuesMock).not.toHaveBeenCalled();

@@ -1,6 +1,6 @@
 import { and, ilike, inArray, notInArray, or, sql } from "drizzle-orm";
 import { clients } from "@shared/schema";
-import { db } from "../db";
+import { db, type DbExecutor } from "../db";
 import { normalizePhoneE164 } from "@shared/phone";
 import { CAMPAIGN_SUPPRESSION_REASONS } from "@shared/whatsapp-campaign-reasons";
 
@@ -14,11 +14,15 @@ export type CampaignAudienceSelector =
       excludedClientIds: string[];
     };
 
-export async function resolveCampaignAudience(selector: CampaignAudienceSelector, onlyClientId?: string) {
+export async function resolveCampaignAudience(
+  executor: DbExecutor,
+  selector: CampaignAudienceSelector,
+  onlyClientId?: string,
+) {
   if (selector.mode === "explicit") {
     const ids = onlyClientId ? selector.clientIds.filter((id) => id === onlyClientId) : selector.clientIds;
     if (ids.length === 0) return [];
-    return db.select().from(clients).where(inArray(clients.id, ids));
+    return executor.select().from(clients).where(inArray(clients.id, ids));
   }
 
   const conditions = [];
@@ -47,7 +51,7 @@ export async function resolveCampaignAudience(selector: CampaignAudienceSelector
       ) = ${ids.length}`);
     }
   }
-  return db.select().from(clients).where(conditions.length ? and(...conditions) : undefined);
+  return executor.select().from(clients).where(conditions.length ? and(...conditions) : undefined);
 }
 
 export async function stillMatchesCampaignAudience(
@@ -55,7 +59,7 @@ export async function stillMatchesCampaignAudience(
   selector: CampaignAudienceSelector | null,
 ): Promise<boolean> {
   if (!selector || selector.mode === "explicit") return true;
-  const rows = await resolveCampaignAudience(selector, clientId);
+  const rows = await resolveCampaignAudience(db, selector, clientId);
   return rows.length > 0;
 }
 
