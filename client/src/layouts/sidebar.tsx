@@ -100,7 +100,7 @@ const navItems: NavItem[] = [
     icon: MessageCircle,
     label: "WhatsApp",
     activeBasePath: "/whatsapp",
-    roles: ["admin"],
+    roles: ["admin", "gerente"],
   },
   {
     href: "/inbox",

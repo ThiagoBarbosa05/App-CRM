@@ -43,8 +43,11 @@ import {
 import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
 import { requeueFailedMessages } from "../services/whatsapp-campaign.service";
 import { respondWhatsappError, waError } from "../services/whatsapp-errors";
+import { requireAdminOrGerente } from "../middleware/validation";
 
 const router = Router();
+
+router.use("/campaigns", requireAdminOrGerente);
 
 const audienceSelectorSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("explicit"), clientIds: z.array(z.string().uuid()).min(1) }),

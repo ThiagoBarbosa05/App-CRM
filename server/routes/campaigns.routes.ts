@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { db } from "server/db";
 import {
   campaigns,
@@ -26,19 +26,92 @@ import {
   analyzeBotCompatibility,
   BotCompatibilityLookupError,
 } from "../services/whatsapp-bot-compatibility.service";
+import {
+  canActorAccessWhatsappCampaign,
+  isWhatsappCampaign,
+} from "../services/campaign-access.service";
 
 const router = Router();
 
+function respondCampaignAccessDenied(res: Response): Response {
+  return res.status(403).json({
+    message: "Acesso restrito a administradores e gerentes",
+    code: "FORBIDDEN",
+  });
+}
+
+function rejectWhatsappCampaignActivation(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Response | void {
+  if (
+    Boolean(req.body?.waEnabled || req.body?.umblerEnabled) &&
+    !canActorAccessWhatsappCampaign(req.user?.role)
+  ) {
+    return respondCampaignAccessDenied(res);
+  }
+  return next();
+}
+
+async function requireCampaignAccess(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<Response | void> {
+  if (canActorAccessWhatsappCampaign(req.user?.role)) {
+    return next();
+  }
+
+  try {
+    const [campaign] = await db
+      .select({
+        id: campaigns.id,
+        waEnabled: campaigns.waEnabled,
+        umblerEnabled: campaigns.umblerEnabled,
+        whatsappCampaignId: whatsappCampaigns.id,
+      })
+      .from(campaigns)
+      .leftJoin(whatsappCampaigns, eq(whatsappCampaigns.id, campaigns.id))
+      .where(eq(campaigns.id, req.params.id))
+      .limit(1);
+
+    if (campaign && isWhatsappCampaign(campaign)) {
+      return respondCampaignAccessDenied(res);
+    }
+    return next();
+  } catch (error) {
+    console.error("[campaigns access] Erro ao verificar acesso:", error);
+    return res.status(500).json({ message: "Erro ao verificar acesso à campanha" });
+  }
+}
+
 // ─── Listar campanhas ─────────────────────────────────────────────────────────
 
-router.get("/", async (_req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const rows = await db
-      .select()
+      .select({
+        campaign: campaigns,
+        whatsappCampaignId: whatsappCampaigns.id,
+      })
       .from(campaigns)
+      .leftJoin(whatsappCampaigns, eq(whatsappCampaigns.id, campaigns.id))
       .where(isNull(campaigns.deletedAt))
       .orderBy(campaigns.createdAt);
-    res.json(rows);
+
+    const visibleCampaigns = rows
+      .filter(
+        ({ campaign, whatsappCampaignId }) =>
+          canActorAccessWhatsappCampaign(req.user?.role) ||
+          !isWhatsappCampaign({
+            waEnabled: campaign.waEnabled,
+            umblerEnabled: campaign.umblerEnabled,
+            whatsappCampaignId,
+          }),
+      )
+      .map(({ campaign }) => campaign);
+    res.json(visibleCampaigns);
   } catch (e) {
     res.status(500).json({ message: "Erro ao buscar campanhas" });
   }
@@ -46,7 +119,7 @@ router.get("/", async (_req: Request, res: Response) => {
 
 // ─── Criar campanha ───────────────────────────────────────────────────────────
 
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", rejectWhatsappCampaignActivation, async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
     const {
@@ -235,6 +308,11 @@ router.post("/", async (req: Request, res: Response) => {
 
 // ─── Buscar campanha ──────────────────────────────────────────────────────────
 
+// Todas as operações por ID passam por uma única fronteira de acesso.
+// Vendedores continuam usando campanhas de telemarketing, mas nunca conseguem
+// consultar nem alterar campanhas que possuem qualquer integração WhatsApp.
+router.use("/:id", requireCampaignAccess);
+
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const [campaign] = await db
@@ -250,7 +328,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 // ─── Atualizar campanha ───────────────────────────────────────────────────────
 
-router.put("/:id", async (req: Request, res: Response) => {
+router.put("/:id", rejectWhatsappCampaignActivation, async (req: Request, res: Response) => {
   try {
     const {
       name,

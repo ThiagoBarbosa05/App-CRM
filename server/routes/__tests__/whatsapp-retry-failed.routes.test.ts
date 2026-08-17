@@ -65,11 +65,11 @@ vi.mock("../../integrations/whatsapp", () => ({
 import whatsappRouter from "../whatsapp.routes";
 import { CampaignRequeueBlockedError } from "../../services/whatsapp-campaign-errors";
 
-function makeApp() {
+function makeApp(role: "admin" | "gerente" | "vendedor" = "admin") {
   return createRouteTestApp({
     router: whatsappRouter,
     basePath: "/api/whatsapp",
-    middlewares: [createMockAuthMiddleware({ userId: "u1", role: "admin" })],
+    middlewares: [createMockAuthMiddleware({ userId: "u1", role })],
   });
 }
 
@@ -88,6 +88,39 @@ describe("POST /campaigns/:id/retry-failed", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ campaignId: "camp-1", requeued: 3 });
     expect(requeueFailedMessagesMock).toHaveBeenCalledWith("camp-1");
+  });
+
+  it("permite que gerente controle campanhas", async () => {
+    requeueFailedMessagesMock.mockResolvedValue({ requeued: 2 });
+
+    const res = await request(makeApp("gerente"))
+      .post("/api/whatsapp/campaigns/camp-1/retry-failed")
+      .send();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ campaignId: "camp-1", requeued: 2 });
+  });
+
+  it("bloqueia vendedor antes de consultar ou alterar a campanha", async () => {
+    const res = await request(makeApp("vendedor"))
+      .post("/api/whatsapp/campaigns/camp-1/retry-failed")
+      .send();
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({
+      message: "Acesso restrito a administradores e gerentes",
+      code: "FORBIDDEN",
+    });
+    expect(requeueFailedMessagesMock).not.toHaveBeenCalled();
+  });
+
+  it("bloqueia vendedor no prefixo antes mesmo da validação do preview", async () => {
+    const res = await request(makeApp("vendedor"))
+      .post("/api/whatsapp/campaigns/preview")
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("FORBIDDEN");
   });
 
   it("{ requeued: 0 } quando não há mensagens failed", async () => {

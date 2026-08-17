@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRouteTestApp } from "../../test/create-route-test-app";
+import { createMockAuthMiddleware, createRouteTestApp } from "../../test/create-route-test-app";
 import { umblerRouter } from "../umbler.routes";
 
 const {
@@ -454,7 +454,11 @@ describe("umblerRouter simple endpoints", () => {
   });
 
   it("delegates campaign routes to statically imported controllers", async () => {
-    const app = createRouteTestApp({ router: umblerRouter, basePath: "/" });
+    const app = createRouteTestApp({
+      router: umblerRouter,
+      basePath: "/",
+      middlewares: [createMockAuthMiddleware({ userId: "admin-1", role: "admin" })],
+    });
 
     const [createResponse, listResponse, detailsResponse, statsResponse] = await Promise.all([
       request(app).post("/umbler/campaigns").send({ title: "Campanha" }),
@@ -471,6 +475,40 @@ describe("umblerRouter simple endpoints", () => {
     expect(listResponse.body).toEqual({ route: "list-campaigns" });
     expect(detailsResponse.body).toEqual({ route: "campaign-details" });
     expect(statsResponse.body).toEqual({ route: "campaign-stats" });
+  });
+
+  it("permite campanhas legadas para gerente", async () => {
+    const app = createRouteTestApp({
+      router: umblerRouter,
+      basePath: "/",
+      middlewares: [createMockAuthMiddleware({ userId: "manager-1", role: "gerente" })],
+    });
+
+    const response = await request(app).get("/umbler/campaigns");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ route: "list-campaigns" });
+  });
+
+  it.each([
+    ["post", "/umbler/campaigns"],
+    ["get", "/umbler/campaigns"],
+    ["get", "/umbler/campaigns/campaign-1"],
+    ["get", "/umbler/campaigns/campaign-1/stats"],
+  ] as const)("bloqueia vendedor em %s %s antes do controller", async (method, path) => {
+    const app = createRouteTestApp({
+      router: umblerRouter,
+      basePath: "/",
+      middlewares: [createMockAuthMiddleware({ userId: "seller-1", role: "vendedor" })],
+    });
+
+    const response = await request(app)[method](path).send({});
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      message: "Acesso restrito a administradores e gerentes",
+      code: "FORBIDDEN",
+    });
   });
 
   it("keeps POST /client/umbler/tag response shape", async () => {
