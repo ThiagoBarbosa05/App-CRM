@@ -36,8 +36,11 @@ import { createCampaignController } from "../controllers/campaigns/create-campai
 import { listCampaignsController } from "../controllers/campaigns/list-campaigns.controller";
 import { getCampaignDetailsController } from "../controllers/campaigns/get-campaign-details.controller";
 import { getCampaignStatsController } from "../controllers/campaigns/get-campaign-stats.controller";
+import { requireAdminOrGerente } from "../middleware/validation";
 
 export const umblerRouter = Router();
+
+umblerRouter.use("/umbler/campaigns", requireAdminOrGerente);
 
 umblerRouter.get("/umbler/channels", async (_req, res) => {
   try {
