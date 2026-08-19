@@ -85,14 +85,23 @@ async function processWhatsappCloudWebhookPayload(body: WhatsappCloudWebhookPayl
               console.error("[WA Webhook] Erro ao processar status:", err),
             );
           }
-          for (const message of value.messages ?? []) {
+          const incomingMessages = Array.isArray(value.messages)
+            ? value.messages as IncomingMessage[]
+            : [];
+          const orderedMessages: Array<{ message: IncomingMessage; index: number }> = incomingMessages
+            .map((message, index) => ({ message, index }))
+            .sort((left, right) => {
+              const timestampDifference = Number(left.message.timestamp ?? 0) - Number(right.message.timestamp ?? 0);
+              return timestampDifference !== 0 ? timestampDifference : left.index - right.index;
+            });
+          for (const { message } of orderedMessages) {
             // `contacts[]` traz o nome de perfil do WhatsApp de quem escreveu —
             // é o equivalente ao pushName do Baileys e a única fonte de nome
             // para um contato que ainda não está cadastrado no CRM.
             const profileName = (value.contacts ?? []).find(
               (c: { wa_id?: string; profile?: { name?: string } }) => c.wa_id === message.from,
             )?.profile?.name as string | undefined;
-            handleIncomingMessage(message, value.metadata, profileName).catch((err) =>
+            await handleIncomingMessage(message, value.metadata, profileName).catch((err) =>
               console.error("[WA Webhook] Erro ao processar mensagem:", err),
             );
           }

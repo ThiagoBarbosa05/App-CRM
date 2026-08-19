@@ -52,6 +52,7 @@ import { findOrCreateConversation, resolveOutboundChannel, transferConversationT
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { classifyMessageIntent } from "../ai-helpers";
 import { getAutomaticBotForChannel } from "./whatsapp-bot.service";
+import { withWhatsappBotSessionLock } from "./whatsapp-bot-session-lock.service";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
 const SESSION_TIMEOUT_MINUTES = 30;
@@ -2307,6 +2308,15 @@ export async function handleFlowResponse(
   phone: string,
   responseJson: Record<string, unknown>,
 ): Promise<void> {
+  await withWhatsappBotSessionLock(phone, async () => {
+    await handleFlowResponseUnlocked(phone, responseJson);
+  });
+}
+
+async function handleFlowResponseUnlocked(
+  phone: string,
+  responseJson: Record<string, unknown>,
+): Promise<void> {
   let sessionId: string | undefined;
   try {
     const session = await getActiveSession(phone);
@@ -2345,6 +2355,18 @@ export async function handleInboundBotMessage(params: {
   channelId?: number | null;
   startsConversation: boolean;
 }): Promise<void> {
+  await withWhatsappBotSessionLock(params.phone, async () => {
+    await handleInboundBotMessageUnlocked(params);
+  });
+}
+
+async function handleInboundBotMessageUnlocked(params: {
+  phone: string;
+  messageText?: string | null;
+  replyId?: string | null;
+  channelId?: number | null;
+  startsConversation: boolean;
+}): Promise<void> {
   if (params.startsConversation && params.channelId != null) {
     const automaticBot = await getAutomaticBotForChannel(params.channelId);
     if (automaticBot) {
@@ -2370,7 +2392,7 @@ export async function handleInboundBotMessage(params: {
   }
 
   if (params.messageText) {
-    await handleIncomingMessage(
+    await handleIncomingMessageUnlocked(
       params.phone,
       params.messageText,
       params.replyId,
@@ -2379,6 +2401,16 @@ export async function handleInboundBotMessage(params: {
 }
 
 export async function handleIncomingMessage(
+  phone: string,
+  messageText: string,
+  replyId?: string | null,
+): Promise<void> {
+  await withWhatsappBotSessionLock(phone, async () => {
+    await handleIncomingMessageUnlocked(phone, messageText, replyId);
+  });
+}
+
+async function handleIncomingMessageUnlocked(
   phone: string,
   messageText: string,
   replyId?: string | null,

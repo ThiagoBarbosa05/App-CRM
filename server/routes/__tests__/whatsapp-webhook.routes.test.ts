@@ -1,14 +1,24 @@
 import request from "supertest";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRouteTestApp } from "../../test/create-route-test-app";
 
-const { enqueueWhatsappCloudWebhookMock } = vi.hoisted(() => ({
+const {
+  enqueueWhatsappCloudWebhookMock,
+  getChannelByPhoneNumberIdMock,
+  isSameChannelPhoneMock,
+  registerWhatsappCloudWebhookDispatcherMock,
+  saveInboundMessageMock,
+} = vi.hoisted(() => ({
   enqueueWhatsappCloudWebhookMock: vi.fn(),
+  getChannelByPhoneNumberIdMock: vi.fn(),
+  isSameChannelPhoneMock: vi.fn(),
+  registerWhatsappCloudWebhookDispatcherMock: vi.fn(),
+  saveInboundMessageMock: vi.fn(),
 }));
 
 vi.mock("../../services/whatsapp-cloud-webhook-inbox.service", () => ({
   enqueueWhatsappCloudWebhook: enqueueWhatsappCloudWebhookMock,
-  registerWhatsappCloudWebhookDispatcher: vi.fn(),
+  registerWhatsappCloudWebhookDispatcher: registerWhatsappCloudWebhookDispatcherMock,
 }));
 vi.mock("../../db", () => ({ db: {} }));
 vi.mock("../../services/whatsapp-settings.service", () => ({
@@ -22,10 +32,11 @@ vi.mock("../../services/whatsapp-bot-engine.service", () => ({
   handleTemplateDeliveryFailure: vi.fn(), persistBotMessage: vi.fn(),
 }));
 vi.mock("../../services/whatsapp-conversations.service", () => ({
-  saveInboundMessage: vi.fn(), saveInboundReaction: vi.fn(),
+  saveInboundMessage: saveInboundMessageMock, saveInboundReaction: vi.fn(),
 }));
 vi.mock("../../services/whatsapp-channels.service", () => ({
-  getChannelByPhoneNumberId: vi.fn(), isSameChannelPhone: vi.fn(),
+  getChannelByPhoneNumberId: getChannelByPhoneNumberIdMock,
+  isSameChannelPhone: isSameChannelPhoneMock,
 }));
 vi.mock("../../services/whatsapp-account-events.service", () => ({ logAccountEvent: vi.fn() }));
 vi.mock("../../services/whatsapp-templates.service", () => ({
@@ -41,6 +52,22 @@ vi.mock("../../services/whatsapp-opt-out.service", () => ({
 import whatsappWebhookRouter from "../whatsapp-webhook.routes";
 
 describe("POST /webhook — inbox durável da Cloud API", () => {
+  beforeEach(() => {
+    enqueueWhatsappCloudWebhookMock.mockReset();
+    getChannelByPhoneNumberIdMock.mockReset();
+    isSameChannelPhoneMock.mockReset();
+    saveInboundMessageMock.mockReset();
+    getChannelByPhoneNumberIdMock.mockResolvedValue(null);
+    isSameChannelPhoneMock.mockReturnValue(false);
+    saveInboundMessageMock.mockResolvedValue({
+      saved: false,
+      conversationId: null,
+      direction: null,
+      channelId: null,
+      startsConversation: false,
+    });
+  });
+
   it("só confirma a Meta depois de persistir o payload", async () => {
     enqueueWhatsappCloudWebhookMock.mockResolvedValue("created");
     const payload = { object: "whatsapp_business_account", entry: [] };
@@ -62,5 +89,53 @@ describe("POST /webhook — inbox durável da Cloud API", () => {
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({ message: "Falha ao persistir evento" });
+  });
+
+  it("processa mensagens do mesmo payload em ordem, sem iniciar a próxima antes da persistência anterior", async () => {
+    const dispatcher = registerWhatsappCloudWebhookDispatcherMock.mock.calls[0]?.[0] as
+      | ((payload: Record<string, unknown>) => Promise<void>)
+      | undefined;
+    expect(dispatcher).toBeDefined();
+
+    const order: string[] = [];
+    let releaseFirstSave: (() => void) | undefined;
+    const firstSaveStarted = new Promise<void>((resolve) => {
+      saveInboundMessageMock.mockImplementationOnce(async (data: { waMessageId: string }) => {
+        order.push(`${data.waMessageId}:start`);
+        resolve();
+        await new Promise<void>((continueSave) => {
+          releaseFirstSave = continueSave;
+        });
+        order.push(`${data.waMessageId}:end`);
+        return { saved: false, conversationId: null, direction: null, channelId: null, startsConversation: false };
+      });
+    });
+    saveInboundMessageMock.mockImplementationOnce(async (data: { waMessageId: string }) => {
+      order.push(`${data.waMessageId}:start`);
+      order.push(`${data.waMessageId}:end`);
+      return { saved: false, conversationId: null, direction: null, channelId: null, startsConversation: false };
+    });
+
+    const processing = dispatcher!({
+      entry: [{
+        changes: [{
+          field: "messages",
+          value: {
+            metadata: { phone_number_id: "phone-id", display_phone_number: "5511999999999" },
+            messages: [
+              { id: "first", from: "5511988888888", type: "text", timestamp: "10", text: { body: "primeira" } },
+              { id: "second", from: "5511988888888", type: "text", timestamp: "11", text: { body: "segunda" } },
+            ],
+          },
+        }],
+      }],
+    });
+
+    await firstSaveStarted;
+    expect(order).toEqual(["first:start"]);
+
+    releaseFirstSave?.();
+    await processing;
+    expect(order).toEqual(["first:start", "first:end", "second:start", "second:end"]);
   });
 });
