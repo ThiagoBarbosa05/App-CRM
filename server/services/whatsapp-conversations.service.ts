@@ -21,7 +21,7 @@ import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, sendReaction as evoSendReaction, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
-import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject, deleteR2Object } from "../lib/r2";
+import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import {
   publishConversationEvent,
@@ -2485,7 +2485,7 @@ export async function sendConversationMedia(
 
   let waMessageId: string | null = null;
   let waMediaId: string | null = null;
-  let storageKey: string | null = null;
+  let storageKey: string;
   const [savedMessage] = await db
     .insert(whatsappMessages)
     .values({
@@ -2503,11 +2503,28 @@ export async function sendConversationMedia(
     })
     .returning({ id: whatsappMessages.id });
 
+  // A cópia no R2 é a fonte durável para retry. Ela precisa existir antes de
+  // chamar o provedor: se a API aceitar o upload mas rejeitar a mensagem, o
+  // anexo ainda pode ser reenviado sem pedir o arquivo ao usuário novamente.
+  try {
+    storageKey = await uploadWhatsappMedia(effectiveBuffer, effectiveMime);
+  } catch (err) {
+    console.error(`[sendConversationMedia] falha ao persistir mídia no R2:`, err);
+    throw err;
+  }
+
+  await db.insert(whatsappMedia).values({
+    messageId: savedMessage.id,
+    storageKey,
+    mimeType: effectiveMime,
+    filename: effectiveName,
+    size: effectiveBuffer.length,
+  });
+
   if (resolvedChannel?.provider === "evolution") {
     const evoMediaType = mediaType;
     console.log(`[sendConversationMedia] Evolution sendMedia type=${evoMediaType}`);
     try {
-      storageKey = await uploadWhatsappMedia(effectiveBuffer, effectiveMime);
       const evoResult = await evoSendMedia(
         resolvedChannel.evolutionInstanceName,
         resolved.targetPhone,
@@ -2524,19 +2541,6 @@ export async function sendConversationMedia(
       waMessageId = evoResult?.key?.id ?? null;
     } catch (err) {
       console.error(`[sendConversationMedia] Evolution sendMedia falhou:`, err);
-      // O objeto sobe antes do envio (o gateway lê a mídia do R2). Se o envio
-      // falha, nenhuma linha de whatsapp_media vai referenciá-lo — sem esta
-      // limpeza o bucket acumula um órfão por tentativa frustrada.
-      const orphanKey = storageKey;
-      if (orphanKey) {
-        storageKey = null;
-        await deleteR2Object(orphanKey).catch((cleanupErr) =>
-          console.error(
-            `[sendConversationMedia] falha ao remover mídia órfã ${orphanKey}:`,
-            cleanupErr,
-          ),
-        );
-      }
       throw err;
     }
   } else {
@@ -2547,6 +2551,10 @@ export async function sendConversationMedia(
     console.log(`[sendConversationMedia] uploadMedia → mimetype=${effectiveMime} filename=${effectiveName}`);
     try {
       waMediaId = await uploadMedia(effectiveBuffer, effectiveName, effectiveMime, cloudOverride ?? undefined);
+      await db
+        .update(whatsappMedia)
+        .set({ whatsappMediaId: waMediaId })
+        .where(eq(whatsappMedia.messageId, savedMessage.id));
     } catch (err) {
       console.error(`[sendConversationMedia] uploadMedia falhou:`, err);
       throw err;
@@ -2571,27 +2579,6 @@ export async function sendConversationMedia(
         isNull(whatsappMessages.statusReason),
       ),
     );
-
-  // No QR/Baileys o upload ocorre antes do envio, pois o gateway baixa a mídia
-  // diretamente do R2. Na Cloud API a cópia posterior continua não bloqueante.
-  if (!storageKey) {
-    try {
-      storageKey = await uploadWhatsappMedia(effectiveBuffer, effectiveMime);
-    } catch (err) {
-      console.error(`[sendConversationMedia] falha ao cachear mídia no R2:`, err);
-    }
-  }
-
-  await db
-    .insert(whatsappMedia)
-    .values({
-      messageId: savedMessage.id,
-      whatsappMediaId: waMediaId,
-      storageKey,
-      mimeType: effectiveMime,
-      filename: effectiveName,
-      size: effectiveBuffer.length,
-    });
 
   await db
     .update(whatsappConversations)
@@ -2736,6 +2723,7 @@ export async function retryFailedMessage(
       rawPayload: whatsappMessages.rawPayload,
       mediaId: whatsappMedia.id,
       waMediaId: whatsappMedia.whatsappMediaId,
+      storageKey: whatsappMedia.storageKey,
       mimeType: whatsappMedia.mimeType,
       filename: whatsappMedia.filename,
     })
@@ -2850,34 +2838,62 @@ export async function retryFailedMessage(
       return "sent";
     }
 
-    const isMedia = msg.type === "image" || msg.type === "document" || msg.type === "video" || msg.type === "audio";
+    const isMedia = msg.type === "image" || msg.type === "document" || msg.type === "video" || msg.type === "audio" || msg.type === "sticker";
 
     console.log(`[retryFailedMessage] isMedia=${isMedia} waMediaId=${msg.waMediaId}`);
 
     if (isMedia) {
-      // Reenvio de mídia por canal evolution exigiria o buffer original (o
-      // waMediaId é um handle da Meta, sem equivalente no Baileys). Em vez de
-      // cair no número global, orienta a reenviar o arquivo.
-      if (resolvedChannel.provider !== "cloud_api") {
-        throw new Error("Reenvio automático de mídia não é suportado neste canal. Envie o arquivo novamente.");
-      }
-      if (!msg.waMediaId) {
-        console.error(`[retryFailedMessage] mensagem de mídia sem waMediaId — não é possível reenviar automaticamente`);
-        throw new Error("Não foi possível reenviar: ID de mídia do WhatsApp ausente. Envie o arquivo novamente.");
-      }
-      const mediaTypeMap: Record<string, "image" | "document" | "video" | "audio"> = {
-        image: "image", document: "document", video: "video", audio: "audio",
+      const mediaTypeMap: Record<string, "image" | "document" | "video" | "audio" | "sticker"> = {
+        image: "image", document: "document", video: "video", audio: "audio", sticker: "sticker",
       };
       const mediaType = mediaTypeMap[msg.type!] ?? "document";
-      console.log(`[retryFailedMessage] sendMediaMessage type=${mediaType} waMediaId=${msg.waMediaId}`);
-      result = await sendMediaMessage(
-        resolved.targetPhone,
-        msg.waMediaId,
-        mediaType,
-        msg.caption ?? undefined,
-        msg.filename ?? undefined,
-        cloudOverride,
-      );
+      if (resolvedChannel.provider === "evolution") {
+        if (!msg.storageKey || !msg.mimeType) {
+          throw new Error("Não foi possível reenviar: cópia da mídia ausente. Envie o arquivo novamente.");
+        }
+        const evoResult = await evoSendMedia(
+          resolvedChannel.evolutionInstanceName,
+          resolved.targetPhone,
+          mediaType,
+          {
+            url: getPublicR2Url(msg.storageKey),
+            caption: msg.caption ?? undefined,
+            filename: msg.filename ?? undefined,
+            mimetype: msg.mimeType,
+            idempotencyKey: `message-${messageId}`,
+          },
+        );
+        result = { messages: [{ id: evoResult?.key?.id ?? null }] };
+      } else {
+        let retryMediaId = msg.waMediaId;
+        if (!retryMediaId) {
+          if (!msg.storageKey || !msg.mimeType) {
+            throw new Error("Não foi possível reenviar: cópia da mídia ausente. Envie o arquivo novamente.");
+          }
+          const object = await getWhatsappMediaObject(msg.storageKey);
+          const bytes = await object.Body?.transformToByteArray();
+          if (!bytes) throw new Error("Não foi possível reenviar: cópia da mídia indisponível.");
+          retryMediaId = await uploadMedia(
+            Buffer.from(bytes),
+            msg.filename ?? `whatsapp-${msg.id}`,
+            msg.mimeType,
+            cloudOverride,
+          );
+          await db
+            .update(whatsappMedia)
+            .set({ whatsappMediaId: retryMediaId })
+            .where(eq(whatsappMedia.messageId, messageId));
+        }
+        console.log(`[retryFailedMessage] sendMediaMessage type=${mediaType} waMediaId=${retryMediaId}`);
+        result = await sendMediaMessage(
+          resolved.targetPhone,
+          retryMediaId,
+          mediaType,
+          msg.caption ?? undefined,
+          msg.filename ?? undefined,
+          cloudOverride,
+        );
+      }
     } else {
       if (!msg.content) throw new Error("Conteúdo da mensagem ausente para reenvio");
       console.log(`[retryFailedMessage] reenvio texto content="${msg.content}"`);

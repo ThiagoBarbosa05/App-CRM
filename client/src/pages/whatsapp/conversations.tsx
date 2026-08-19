@@ -3635,12 +3635,22 @@ function ConversationMessages({
         return s;
       });
       try {
-        await fetch(
+        const response = await fetch(
           `/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/retry`,
           {
             method: "POST",
           },
         );
+        if (!response.ok) {
+          const payload: { message?: string } = await response.json().catch(() => ({}));
+          throw new Error(payload.message ?? "Não foi possível reenviar a mensagem.");
+        }
+      } catch (error) {
+        toast({
+          title: "Não foi possível reenviar",
+          description: error instanceof Error ? error.message : "Tente novamente.",
+          variant: "destructive",
+        });
       } finally {
         setRetryingIds((prev) => {
           const s = new Set(prev);
@@ -3655,7 +3665,7 @@ function ConversationMessages({
         });
       }
     },
-    [conversationKey, queryClient],
+    [conversationKey, queryClient, toast],
   );
 
   const sendMedia = useCallback(
