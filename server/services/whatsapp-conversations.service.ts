@@ -29,6 +29,7 @@ import type { ResolvedChannel, ChannelIdentity } from "./whatsapp-channels.servi
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
+import { SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES } from "../lib/whatsapp-message-status";
 
 // Reexportado do util compartilhado para não quebrar imports existentes
 // (whatsapp-opt-out.service.ts, bot-session-history.controller.ts).
@@ -2073,17 +2074,22 @@ export async function sendConversationMessage(
       waMessageId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
     }
 
-    // Guard: se um nack tardio (ex.: erro 463 — conta restrita) já gravou um
-    // motivo de falha nesta mensagem entre o insert e aqui, não sobrescrever
-    // com "sent" — o motivo registrado é mais preciso que o ack de envio.
+    // O webhook/eco pode gravar delivered ou read antes deste ACK. Confirmação
+    // de envio nunca pode regredir um estado mais avançado para "sent".
     await db
       .update(whatsappMessages)
       .set({ status: "sent", waMessageId })
-      .where(and(eq(whatsappMessages.id, savedMessage.id), isNull(whatsappMessages.statusReason)));
+      .where(
+        and(
+          eq(whatsappMessages.id, savedMessage.id),
+          inArray(whatsappMessages.status, SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES),
+          isNull(whatsappMessages.statusReason),
+        ),
+      );
     await reopenActivePerspective(conversationId, resolved.channelId);
 
-    // Publica o evento SSE somente após o status "sent" estar gravado no banco,
-    // evitando que o frontend refaça a query e veja status "failed" prematuramente
+    // Publica o evento SSE depois da confirmação, para que a UI veja o estado
+    // persistido — "sent" ou um estado mais avançado já recebido pelo webhook.
     if (conv.id) {
       publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
     }
@@ -2350,7 +2356,13 @@ export async function sendConversationTemplate(
     const updateResult = await db
       .update(whatsappMessages)
       .set({ status: "sent", waMessageId })
-      .where(eq(whatsappMessages.id, savedMessage.id))
+      .where(
+        and(
+          eq(whatsappMessages.id, savedMessage.id),
+          inArray(whatsappMessages.status, SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES),
+          isNull(whatsappMessages.statusReason),
+        ),
+      )
       .returning({ id: whatsappMessages.id, status: whatsappMessages.status });
 
     console.log(`[sendConversationTemplate] DB update result:`, JSON.stringify(updateResult));
@@ -2543,7 +2555,13 @@ export async function sendConversationMedia(
   await db
     .update(whatsappMessages)
     .set({ status: "sent", waMessageId })
-    .where(eq(whatsappMessages.id, savedMessage.id));
+    .where(
+      and(
+        eq(whatsappMessages.id, savedMessage.id),
+        inArray(whatsappMessages.status, SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES),
+        isNull(whatsappMessages.statusReason),
+      ),
+    );
 
   // No QR/Baileys o upload ocorre antes do envio, pois o gateway baixa a mídia
   // diretamente do R2. Na Cloud API a cópia posterior continua não bloqueante.
@@ -2810,7 +2828,13 @@ export async function retryFailedMessage(
       await db
         .update(whatsappMessages)
         .set({ status: "sent", waMessageId: tplWaId, sentAt: new Date(), channelId: resolved.channelId })
-        .where(and(eq(whatsappMessages.id, messageId), isNull(whatsappMessages.statusReason)));
+        .where(
+          and(
+            eq(whatsappMessages.id, messageId),
+            inArray(whatsappMessages.status, SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES),
+            isNull(whatsappMessages.statusReason),
+          ),
+        );
       if (conv.id) {
         publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
       }
@@ -2868,7 +2892,13 @@ export async function retryFailedMessage(
     await db
       .update(whatsappMessages)
       .set({ status: "sent", waMessageId, sentAt: new Date(), channelId: resolved.channelId })
-      .where(and(eq(whatsappMessages.id, messageId), isNull(whatsappMessages.statusReason)));
+      .where(
+        and(
+          eq(whatsappMessages.id, messageId),
+          inArray(whatsappMessages.status, SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES),
+          isNull(whatsappMessages.statusReason),
+        ),
+      );
 
     if (conv.id) {
       publishConversationEvent(conv.id, "new_message", { clientId: conv.clientId ?? null });
