@@ -27,6 +27,11 @@ import {
   OPT_OUT_CONFIRMATION_TEXT,
   OPT_IN_CONFIRMATION_TEXT,
 } from "../services/whatsapp-opt-out.service";
+import {
+  enqueueWhatsappCloudWebhook,
+  registerWhatsappCloudWebhookDispatcher,
+  type WhatsappCloudWebhookPayload,
+} from "../services/whatsapp-cloud-webhook-inbox.service";
 
 const router = Router();
 
@@ -47,13 +52,24 @@ router.get("/webhook", async (req: Request, res: Response) => {
 });
 
 // POST — receber notificações de status e mensagens
-router.post("/webhook", (req: Request, res: Response) => {
+router.post("/webhook", async (req: Request, res: Response) => {
   const body = req.body;
 
   if (body.object !== "whatsapp_business_account") {
     res.sendStatus(404);
     return;
   }
+
+  try {
+    const result = await enqueueWhatsappCloudWebhook(body as WhatsappCloudWebhookPayload);
+    res.status(result === "created" ? 202 : 200).json({ status: result });
+  } catch (error) {
+    console.error("[WA Webhook] Falha ao persistir evento:", error);
+    res.status(500).json({ message: "Falha ao persistir evento" });
+  }
+});
+
+async function processWhatsappCloudWebhookPayload(body: WhatsappCloudWebhookPayload): Promise<void> {
 
   for (const entry of body.entry ?? []) {
     const wabaId = entry.id as string | undefined;
@@ -163,8 +179,9 @@ router.post("/webhook", (req: Request, res: Response) => {
     }
   }
 
-  res.sendStatus(200);
-});
+}
+
+registerWhatsappCloudWebhookDispatcher(processWhatsappCloudWebhookPayload);
 
 // ── Handler: messages (status de entrega) ──────────────────────────────────────
 

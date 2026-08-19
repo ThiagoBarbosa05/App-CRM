@@ -37,6 +37,7 @@ import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";
 import { startUpdateExpiredEventsJob } from "./jobs/update-expired-events-scheduler";
 import { startGatewayWebhookInboxWorker } from "./services/baileys-gateway-webhook-inbox.service";
+import { startWhatsappCloudWebhookInboxWorker } from "./services/whatsapp-cloud-webhook-inbox.service";
 import { assertGatewayConfiguration } from "./integrations/baileys-gateway";
 
 import { storage } from "./storage";
@@ -213,6 +214,7 @@ app.use((req, res, next) => {
   });
   startReconcileBaileysStatusJob();
   startGatewayWebhookInboxWorker();
+  startWhatsappCloudWebhookInboxWorker();
 
   // Rede de segurança para erros que escapam de um handler de rota. Na prática
   // quase nunca dispara (as rotas têm try/catch próprio), mas quando dispara

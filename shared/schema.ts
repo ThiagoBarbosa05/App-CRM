@@ -5247,6 +5247,32 @@ export const baileysGatewayWebhookInbox = pgTable(
 export type BaileysGatewayWebhookInbox =
   typeof baileysGatewayWebhookInbox.$inferSelect;
 
+// Inbox durável dos webhooks da WhatsApp Cloud API. A Meta só recebe 2xx após
+// o payload inteiro estar no banco; o worker abaixo do servidor faz o
+// processamento com retry depois, sem perder eventos em caso de queda.
+export const whatsappCloudWebhookInbox = pgTable(
+  "whatsapp_cloud_webhook_inbox",
+  {
+    eventId: varchar("event_id").primaryKey(),
+    payload: jsonb("payload").notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at").defaultNow().notNull(),
+    lastError: text("last_error"),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+    processedAt: timestamp("processed_at"),
+  },
+  (t) => ({
+    pendingIdx: index("whatsapp_cloud_webhook_inbox_pending_idx").on(
+      t.status,
+      t.nextAttemptAt,
+    ),
+  }),
+);
+
+export type WhatsappCloudWebhookInbox =
+  typeof whatsappCloudWebhookInbox.$inferSelect;
+
 // Histórico de conexão/desconexão dos canais Baileys (QR Code), com o motivo
 // (DisconnectReason) traduzido, para o vendedor acompanhar a estabilidade do canal.
 export const whatsappChannelConnectionEvents = pgTable("whatsapp_channel_connection_events", {
