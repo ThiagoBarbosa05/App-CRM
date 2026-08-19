@@ -31,6 +31,7 @@ import {
 } from "../lib/sse-hub";
 import { getChannelById, resolveChannelForConversation, resolveChannelById, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
 import type { ResolvedChannel, ChannelIdentity } from "./whatsapp-channels.service";
+import { getWhatsappMediaType } from "@shared/whatsapp-media";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
@@ -2388,25 +2389,6 @@ export async function sendConversationTemplate(
   }
 }
 
-const ALLOWED_MEDIA_TYPES: Record<string, "image" | "video" | "audio" | "document" | "sticker"> = {
-  "image/jpeg": "image",
-  "image/png": "image",
-  "image/webp": "sticker",
-  "video/mp4": "video",
-  "video/3gpp": "video",
-  "audio/mpeg": "audio",
-  "audio/ogg": "audio",
-  "audio/opus": "audio",
-  "audio/aac": "audio",
-  "audio/mp4": "audio",
-  "audio/webm": "audio", // remuxed to audio/ogg before upload — see sendConversationMedia
-  "application/pdf": "document",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "document",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "document",
-  "text/plain": "document",
-};
-
 export async function sendConversationMedia(
   conversationId: string,
   file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
@@ -2431,7 +2413,7 @@ export async function sendConversationMedia(
     console.log(`[sendConversationMedia] remux OK: ${effectiveBuffer.length} bytes`);
   }
 
-  const mediaType = ALLOWED_MEDIA_TYPES[effectiveMime];
+  const mediaType = getWhatsappMediaType(effectiveMime);
   if (!mediaType) throw new Error(`Tipo de arquivo não suportado: ${effectiveMime}`);
 
   console.log(`[sendConversationMedia] mediaType resolvido: ${mediaType}`);

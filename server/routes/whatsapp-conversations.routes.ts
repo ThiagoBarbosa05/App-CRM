@@ -53,23 +53,11 @@ import { isAdminOrGerente } from "../middleware/validation";
 import { db } from "../db";
 import { whatsappTags } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { isWhatsappMediaMimeTypeSupported } from "@shared/whatsapp-media";
 
 const router = Router();
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
-
-const ALLOWED_MIMETYPES = new Set([
-  "image/jpeg", "image/png", "image/webp",
-  "video/mp4", "video/3gpp",
-  "audio/mpeg", "audio/ogg", "audio/opus", "audio/aac", "audio/mp4", "audio/webm",
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.ms-excel",
-  "text/csv",
-  "text/plain",
-]);
 
 router.post("/conversations/:clientId/messages/media", upload.single("file"), async (req, res) => {
   try {
@@ -77,7 +65,7 @@ router.post("/conversations/:clientId/messages/media", upload.single("file"), as
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
 
     if (!req.file) return res.status(400).json({ message: "Arquivo não enviado" });
-    if (!ALLOWED_MIMETYPES.has(req.file.mimetype)) {
+    if (!isWhatsappMediaMimeTypeSupported(req.file.mimetype)) {
       return res.status(400).json({ message: `Tipo de arquivo não suportado: ${req.file.mimetype}` });
     }
 
