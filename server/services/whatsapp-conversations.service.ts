@@ -3175,6 +3175,7 @@ export async function saveInboundMessage(data: {
         savedMedia.id,
         data.mediaData.whatsappMediaId,
         data.mediaData.mimeType,
+        data.channelId,
       );
     }
   }
@@ -3316,9 +3317,22 @@ export async function persistInboundMedia(
   mediaRowId: string,
   whatsappMediaId: string,
   mimeType?: string,
+  channelId?: number | null,
 ) {
   try {
-    const { buffer, contentType, size } = await downloadMediaToBuffer(whatsappMediaId);
+    let channelOverride: { phoneNumberId: string; accessToken: string } | undefined;
+    if (channelId != null) {
+      const channel = await resolveChannelById(channelId);
+      if (channel?.provider !== "cloud_api") {
+        throw new Error(`Canal Cloud API ${channelId} não encontrado para baixar mídia`);
+      }
+      channelOverride = {
+        phoneNumberId: channel.phoneNumberId,
+        accessToken: channel.accessToken,
+      };
+    }
+
+    const { buffer, contentType, size } = await downloadMediaToBuffer(whatsappMediaId, channelOverride);
     const storageKey = await uploadWhatsappMedia(buffer, mimeType ?? contentType);
     await updateMediaStorageKey(mediaRowId, storageKey, size);
     console.log(`[WA Media] Mídia ${whatsappMediaId} persistida no R2: ${storageKey}`);
