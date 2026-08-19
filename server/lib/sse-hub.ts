@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { Pool, type PoolClient } from "@neondatabase/serverless";
+import { randomUUID } from "node:crypto";
 
 type Client = { userId: string; res: Response };
 
@@ -21,6 +22,42 @@ const clients = new Set<Client>();
 // clientes locais desta réplica.
 const NOTIFY_CHANNEL = "whatsapp_sse";
 const NOTIFY_PAYLOAD_LIMIT = 7900;
+const INSTANCE_ID = randomUUID();
+
+type GlobalNotification = {
+  scope: "global";
+  event: string;
+  data: unknown;
+  userId?: string;
+  originInstanceId: string;
+};
+
+type ConversationNotification = {
+  scope: "conversation";
+  conversationId: string;
+  event: string;
+  data: unknown;
+  originInstanceId: string;
+};
+
+type ConversationAccessChangedNotification = {
+  scope: "conversation_access_changed";
+  conversationId: string;
+  originInstanceId: string;
+};
+
+type HubNotification =
+  | GlobalNotification
+  | ConversationNotification
+  | ConversationAccessChangedNotification;
+
+type ConversationAccessChecker = (
+  conversationId: string,
+  userId: string,
+  role: string,
+) => Promise<boolean>;
+
+let conversationAccessChecker: ConversationAccessChecker | null = null;
 
 const listenPool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -44,12 +81,7 @@ async function getListenClient(): Promise<PoolClient> {
       client.on("notification", (msg) => {
         if (msg.channel !== NOTIFY_CHANNEL || !msg.payload) return;
         try {
-          const { event, userId, data } = JSON.parse(msg.payload) as {
-            event: string;
-            userId?: string;
-            data: unknown;
-          };
-          deliverLocal(event, data, userId);
+          handleRemoteNotification(JSON.parse(msg.payload) as unknown);
         } catch (err) {
           console.error("[SSE hub] Payload de notificação inválido:", err);
         }
@@ -105,6 +137,17 @@ export function addConversationSseClient(
 }
 
 export function publishConversationEvent(conversationId: string, event: string, data: unknown): void {
+  deliverConversationLocal(conversationId, event, data);
+  publishCrossReplica({
+    scope: "conversation",
+    conversationId,
+    event,
+    data,
+    originInstanceId: INSTANCE_ID,
+  });
+}
+
+function deliverConversationLocal(conversationId: string, event: string, data: unknown): void {
   const set = conversationClients.get(conversationId);
   if (!set) return;
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -117,6 +160,11 @@ export function publishConversationEvent(conversationId: string, event: string, 
   }
 }
 
+/** Registra a checagem de acesso usada ao receber transferências de outra réplica. */
+export function registerConversationAccessChecker(checker: ConversationAccessChecker): void {
+  conversationAccessChecker = checker;
+}
+
 /**
  * Reavalia o acesso de cada subscriber SSE conectado a uma conversa (chamado
  * após transferências de canal/setor/atendente) e encerra à força as
@@ -127,6 +175,18 @@ export function publishConversationEvent(conversationId: string, event: string, 
  * whatsapp-conversations.service.ts, que já importa deste módulo.
  */
 export async function revokeStaleConversationAccess(
+  conversationId: string,
+  checkAccess: (userId: string, role: string) => Promise<boolean>,
+): Promise<void> {
+  await revokeStaleConversationAccessLocal(conversationId, checkAccess);
+  publishCrossReplica({
+    scope: "conversation_access_changed",
+    conversationId,
+    originInstanceId: INSTANCE_ID,
+  });
+}
+
+async function revokeStaleConversationAccessLocal(
   conversationId: string,
   checkAccess: (userId: string, role: string) => Promise<boolean>,
 ): Promise<void> {
@@ -210,10 +270,76 @@ export function publishSseEvent(
 ): void {
   deliverLocal(event, data, userId);
 
-  const notifyPayload = JSON.stringify({ event, userId, data });
+  publishCrossReplica({
+    scope: "global",
+    event,
+    data,
+    ...(userId ? { userId } : {}),
+    originInstanceId: INSTANCE_ID,
+  });
+}
+
+function publishCrossReplica(notification: HubNotification): void {
+  const notifyPayload = JSON.stringify(notification);
   if (notifyPayload.length > NOTIFY_PAYLOAD_LIMIT) return;
 
   getListenClient()
     .then((client) => client.query("SELECT pg_notify($1, $2)", [NOTIFY_CHANNEL, notifyPayload]))
     .catch((err) => console.error("[SSE hub] Falha ao propagar evento entre réplicas:", err));
+}
+
+function handleRemoteNotification(notification: unknown): void {
+  if (!isRecord(notification)) return;
+
+  // Compatibilidade com réplicas antigas durante deploy gradual.
+  if (notification.scope === undefined) {
+    if (typeof notification.event === "string") {
+      deliverLocal(
+        notification.event,
+        notification.data,
+        typeof notification.userId === "string" ? notification.userId : undefined,
+      );
+    }
+    return;
+  }
+
+  if (notification.originInstanceId === INSTANCE_ID) return;
+
+  if (
+    notification.scope === "global" &&
+    typeof notification.event === "string"
+  ) {
+    deliverLocal(
+      notification.event,
+      notification.data,
+      typeof notification.userId === "string" ? notification.userId : undefined,
+    );
+    return;
+  }
+
+  if (
+    notification.scope === "conversation" &&
+    typeof notification.conversationId === "string" &&
+    typeof notification.event === "string"
+  ) {
+    deliverConversationLocal(notification.conversationId, notification.event, notification.data);
+    return;
+  }
+
+  if (
+    notification.scope === "conversation_access_changed" &&
+    typeof notification.conversationId === "string" &&
+    conversationAccessChecker
+  ) {
+    const conversationId = notification.conversationId;
+    void revokeStaleConversationAccessLocal(conversationId, (userId, role) =>
+      conversationAccessChecker!(conversationId, userId, role),
+    ).catch((err) =>
+      console.error("[SSE hub] Falha ao revogar acesso de conversa em outra réplica:", err),
+    );
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

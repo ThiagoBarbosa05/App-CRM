@@ -23,7 +23,12 @@ import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, se
 import { sendText as evoSendText, sendMedia as evoSendMedia, sendReaction as evoSendReaction, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
 import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject, deleteR2Object } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
-import { publishConversationEvent, publishSseEvent, revokeStaleConversationAccess } from "../lib/sse-hub";
+import {
+  publishConversationEvent,
+  publishSseEvent,
+  registerConversationAccessChecker,
+  revokeStaleConversationAccess,
+} from "../lib/sse-hub";
 import { getChannelById, resolveChannelForConversation, resolveChannelById, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
 import type { ResolvedChannel, ChannelIdentity } from "./whatsapp-channels.service";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
@@ -130,6 +135,10 @@ export async function isConversationAccessibleToUser(
 
   return !!conv;
 }
+
+// O hub precisa da mesma regra de autorização em todas as réplicas para
+// encerrar streams que perderam acesso após uma transferência remota.
+registerConversationAccessChecker(isConversationAccessibleToUser);
 
 /**
  * Confere se um vendedor tem qualquer relação com um cliente (é o
