@@ -52,6 +52,7 @@ import {
   canSendFromChannel,
   resolveSenderChannelId,
 } from "@/lib/wa-conversation-sender";
+import { findDisconnectedOwnEvolutionChannel } from "@/lib/wa-own-channel-alert";
 import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
@@ -6692,22 +6693,6 @@ export default function WhatsAppConversationsPage() {
     isAdminOrGerente ||
     (myActionPermissions?.permissionKeys.includes("quick_replies_delete") ?? false);
 
-  // Canais em que o usuário tem permissão explícita de leitura de QR (além
-  // dos que já possui). Espelha canUserReadChannelQr no backend, que é quem
-  // de fato barra o GET/POST de connect/logout do canal Evolution.
-  const { data: qrAccess } = useQuery<{ channelIds: number[] }>({
-    queryKey: ["/api/users", user?.id, "whatsapp-qr-access"],
-    queryFn: async () => {
-      const res = await fetch(`/api/users/${user!.id}/whatsapp-qr-access`);
-      if (!res.ok) throw new Error("Failed to fetch whatsapp qr access");
-      return res.json();
-    },
-    enabled: !!user?.id && !isAdminOrGerente,
-  });
-  const qrAccessChannelIds = new Set(qrAccess?.channelIds ?? []);
-  const canReadChannelQr = (ch: Channel) =>
-    isAdminOrGerente || ch.userId === user?.id || qrAccessChannelIds.has(ch.id);
-
   const activeMoreFiltersCount =
     selectedTagIds.length +
     selectedSectorIds.length +
@@ -6781,6 +6766,9 @@ export default function WhatsAppConversationsPage() {
     },
     refetchInterval: 30_000,
   });
+  const disconnectedOwnChannel = isAdminOrGerente
+    ? null
+    : findDisconnectedOwnEvolutionChannel(availableChannels, user?.id);
 
   const { data: availableSectors = [] } = useQuery<WaSector[]>({
     queryKey: ["/api/whatsapp/sectors"],
@@ -7816,70 +7804,27 @@ export default function WhatsAppConversationsPage() {
           )}
         </div>
 
-        {/* Channel status strip — visible only for vendedores. É sobre os canais
-            do próprio usuário, não necessariamente o da conversa aberta (que pode
-            ter sido transferida e usar o canal de outro atendente) — por isso o
-            rótulo explícito, para não parecer contraditório com o status mostrado
-            dentro do chat. */}
-        {!isAdminOrGerente && availableChannels.length > 0 && (
-          <div className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
-            Meus canais
+        {disconnectedOwnChannel && (
+          <div className="mx-3 mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-800/60 dark:bg-amber-950/30 shrink-0">
+            <WifiOff className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-amber-900 dark:text-amber-100">
+                Canal desconectado
+              </p>
+              <p className="truncate text-[11px] text-amber-700 dark:text-amber-300">
+                {disconnectedOwnChannel.name || disconnectedOwnChannel.displayPhone}
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setQrDialogChannel(disconnectedOwnChannel)}
+              className="h-7 shrink-0 border-amber-300 bg-white px-2.5 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
+            >
+              Conectar canal
+            </Button>
           </div>
-        )}
-        {!isAdminOrGerente &&
-          availableChannels.length > 0 &&
-          availableChannels.map((ch) => {
-            const isConnected =
-              ch.provider === "cloud_api" ||
-              ch.connectionStatus === "connected";
-            const isConnecting = ch.connectionStatus === "connecting";
-            return (
-              <div
-                key={ch.id}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 border-b shrink-0",
-                  isConnected
-                    ? "border-slate-200 dark:border-slate-800 bg-green-50 dark:bg-green-950/20"
-                    : "border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/20",
-                )}
-              >
-                <span
-                  className={cn(
-                    "h-2 w-2 rounded-full shrink-0",
-                    isConnected
-                      ? "bg-green-500"
-                      : isConnecting
-                        ? "bg-amber-400 animate-pulse"
-                        : "bg-red-400",
-                  )}
-                />
-                <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate flex-1 min-w-0">
-                  {ch.name || ch.displayPhone}
-                </span>
-                {isConnected ? (
-                  <span className="text-[11px] text-green-600 dark:text-green-400 shrink-0 flex items-center gap-1">
-                    <Wifi className="h-3 w-3" /> Conectado
-                  </span>
-                ) : ch.provider === "evolution" && canReadChannelQr(ch) ? (
-                  <button
-                    onClick={() => setQrDialogChannel(ch)}
-                    className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:underline shrink-0 flex items-center gap-1"
-                  >
-                    <WifiOff className="h-3 w-3" />
-                    {isConnecting ? "Conectando..." : "Reconectar"}
-                  </button>
-                ) : (
-                  <span className="text-[11px] text-amber-700 dark:text-amber-400 shrink-0 flex items-center gap-1">
-                    <WifiOff className="h-3 w-3" /> Desconectado
-                  </span>
-                )}
-              </div>
-            );
-          })}
-
-        {/* Channel status placeholder when loading — vendedor only */}
-        {!isAdminOrGerente && availableChannels.length === 0 && (
-          <div className="h-9 border-b border-slate-200 dark:border-slate-800 bg-muted/40 animate-pulse shrink-0" />
         )}
 
         {/* QR Code dialog — vendedor reconnects their Evolution channel inline */}
