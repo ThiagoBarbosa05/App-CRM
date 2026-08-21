@@ -1219,6 +1219,62 @@ export function WhatsappTagBadge({ tag }: { tag: WhatsappClientTag }) {
   );
 }
 
+function CombinedTagBadge({ item }: { item: CombinedClientTag }) {
+  if (item.kind === "whatsapp") {
+    return <WhatsappTagBadge tag={item.tag} />;
+  }
+
+  return (
+    <span
+      className="inline-flex max-w-[120px] shrink-0 truncate rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-950/30 dark:text-blue-400"
+      title={item.tag.name}
+    >
+      {item.tag.name}
+    </span>
+  );
+}
+
+function CompactContactTags({ tags }: { tags: CombinedClientTag[] }) {
+  const [firstTag, ...remainingTags] = tags;
+  if (!firstTag) return null;
+
+  if (remainingTags.length === 0) {
+    return (
+      <div className="mt-1 flex min-w-0 md:hidden">
+        <CombinedTagBadge item={firstTag} />
+      </div>
+    );
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="mt-1 flex max-w-full items-center gap-1 rounded-full text-left outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 md:hidden"
+          aria-label={`Ver todas as ${tags.length} etiquetas do contato`}
+        >
+          <CombinedTagBadge item={firstTag} />
+          <span className="shrink-0 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+            +{remainingTags.length}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        className="w-[min(280px,calc(100vw-24px))] rounded-xl border-slate-700 bg-slate-800 p-2 shadow-xl dark:bg-slate-800"
+      >
+        <div className="flex flex-wrap gap-1.5" aria-label="Todas as etiquetas do contato">
+          {tags.map((item) => (
+            <CombinedTagBadge key={`${item.kind}-${item.tag.id}`} item={item} />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function SectorBadge({
   name,
   color,
@@ -4455,6 +4511,7 @@ function ConversationMessages({
   // calcula contactName por lado ao desdobrar o diálogo interno, ver
   // listClientsForChat). Então basta usar client.contactName.
   const displayName = client.clientName ?? client.contactName ?? client.phone;
+  const orderedHeaderTags = getOrderedClientTags(client);
 
   // Nome a exibir na badge por mensagem (quem enviou) num diálogo interno. NÃO
   // dá para usar o canal cru da mensagem (whatsapp_messages.channel_id): em
@@ -4507,22 +4564,7 @@ function ConversationMessages({
                 {displayName}
               </p>
             </div>
-            {((client.tags && client.tags.length > 0) ||
-              (client.whatsappTags && client.whatsappTags.length > 0)) && (
-              <div className="flex flex-wrap gap-1 mt-0.5">
-                {client.tags?.map((tag) => (
-                  <span
-                    key={tag.id}
-                    className="inline-flex text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
-                  >
-                    {tag.name}
-                  </span>
-                ))}
-                {client.whatsappTags?.map((tag) => (
-                  <WhatsappTagBadge key={tag.id} tag={tag} />
-                ))}
-              </div>
-            )}
+            <CompactContactTags tags={orderedHeaderTags} />
           </div>
 
           <Button
@@ -4604,6 +4646,17 @@ function ConversationMessages({
             </Button>
           )}
         </div>
+
+        {orderedHeaderTags.length > 0 && (
+          <div
+            className="no-scrollbar hidden max-w-full gap-1 overflow-x-auto px-2 pb-2 md:flex md:px-4 [&>*]:shrink-0"
+            aria-label="Etiquetas do contato"
+          >
+            {orderedHeaderTags.map((item) => (
+              <CombinedTagBadge key={`${item.kind}-${item.tag.id}`} item={item} />
+            ))}
+          </div>
+        )}
 
         {messageSearchOpen && (
           <div className="border-t border-slate-100 bg-slate-50/80 px-2 py-2 dark:border-slate-800 dark:bg-slate-950/30 sm:px-4">
