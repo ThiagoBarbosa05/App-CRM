@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { WhatsappBotEdge, WhatsappBotNode } from "@shared/schema";
-import { analyzeBotFlowCompatibility } from "../whatsapp-bot-compatibility.service";
+import {
+  analyzeBotFlowCompatibility,
+  filterBotsCompatibleWithProvider,
+} from "../whatsapp-bot-compatibility.service";
 
 function node(
   id: string,
@@ -120,5 +123,35 @@ describe("analyzeBotFlowCompatibility", () => {
     expect(issues).toContainEqual(
       expect.objectContaining({ nodeId: "start", code: "AMBIGUOUS_BRANCH" }),
     );
+  });
+});
+
+describe("filterBotsCompatibleWithProvider", () => {
+  const bots = [
+    { id: "plain", name: "Bot simples" },
+    { id: "meta", name: "Bot com template" },
+  ];
+  const nodes = [
+    node("plain-start", "start_manual"),
+    { ...node("plain-message", "send_message", { messageType: "text" }), botId: "plain" },
+    { ...node("meta-start", "start_manual"), botId: "meta" },
+    { ...node("meta-template", "send_template"), botId: "meta" },
+  ].map((item) => ({
+    ...item,
+    botId: item.id.startsWith("plain-") ? "plain" : item.botId,
+  }));
+  const edges = [
+    { ...edge("plain-start", "plain-message"), botId: "plain" },
+    { ...edge("meta-start", "meta-template"), botId: "meta" },
+  ];
+
+  it("oculta no QR Code bots cujo fluxo usa recursos exclusivos da Meta", () => {
+    expect(filterBotsCompatibleWithProvider(bots, nodes, edges, "evolution"))
+      .toEqual([{ id: "plain", name: "Bot simples" }]);
+  });
+
+  it("não filtra bots da listagem em canais Cloud API", () => {
+    expect(filterBotsCompatibleWithProvider(bots, nodes, edges, "cloud_api"))
+      .toEqual(bots);
   });
 });

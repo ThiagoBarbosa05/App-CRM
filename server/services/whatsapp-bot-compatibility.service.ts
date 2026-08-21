@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../db";
 import {
   whatsappBotEdges,
@@ -26,6 +26,55 @@ export type BotCompatibilityResult = {
   provider: ResolvedChannel["provider"];
   issues: BotCompatibilityIssue[];
 };
+
+export function filterBotsCompatibleWithProvider<T extends { id: string }>(
+  bots: T[],
+  nodes: WhatsappBotNode[],
+  edges: WhatsappBotEdge[],
+  provider: ResolvedChannel["provider"],
+): T[] {
+  if (provider === "cloud_api" || bots.length === 0) return bots;
+
+  const nodesByBot = new Map<string, WhatsappBotNode[]>();
+  const edgesByBot = new Map<string, WhatsappBotEdge[]>();
+  for (const node of nodes) {
+    const current = nodesByBot.get(node.botId) ?? [];
+    current.push(node);
+    nodesByBot.set(node.botId, current);
+  }
+  for (const edge of edges) {
+    const current = edgesByBot.get(edge.botId) ?? [];
+    current.push(edge);
+    edgesByBot.set(edge.botId, current);
+  }
+
+  return bots.filter((bot) =>
+    analyzeBotFlowCompatibility(
+      nodesByBot.get(bot.id) ?? [],
+      edgesByBot.get(bot.id) ?? [],
+      provider,
+    ).length === 0
+  );
+}
+
+export async function filterBotsForChannel<T extends { id: string }>(
+  bots: T[],
+  channelId: number,
+): Promise<T[]> {
+  if (bots.length === 0) return bots;
+  const channel = await resolveChannelById(channelId);
+  if (!channel) {
+    throw new BotCompatibilityLookupError("Canal sem configuração de envio", 409);
+  }
+  if (channel.provider === "cloud_api") return bots;
+
+  const botIds = bots.map((bot) => bot.id);
+  const [nodes, edges] = await Promise.all([
+    db.select().from(whatsappBotNodes).where(inArray(whatsappBotNodes.botId, botIds)),
+    db.select().from(whatsappBotEdges).where(inArray(whatsappBotEdges.botId, botIds)),
+  ]);
+  return filterBotsCompatibleWithProvider(bots, nodes, edges, channel.provider);
+}
 
 export class BotCompatibilityLookupError extends Error {
   constructor(

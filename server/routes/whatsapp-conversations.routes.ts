@@ -41,6 +41,7 @@ import {
   getConversationCapabilities,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
+import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
 import { clampLimit, decodeCursor } from "../lib/cursor-pagination";
 import { clientsService } from "../services/clients.service";
 import { respondWithClientError } from "../controllers/clients/handle-client-error";
@@ -771,6 +772,16 @@ router.post("/conversations/:conversationId/trigger-bot", async (req, res) => {
     if (!sender || sender.channelId !== parsed.data.channelId) {
       return res.status(400).json({
         message: "O canal informado não corresponde ao canal da conversa atual",
+      });
+    }
+
+    const compatibility = await analyzeBotCompatibility(
+      parsed.data.botId,
+      parsed.data.channelId,
+    );
+    if (!compatibility.compatible) {
+      throw waError("BOT_INCOMPATIBLE_CHANNEL", {
+        details: { compatibility },
       });
     }
 

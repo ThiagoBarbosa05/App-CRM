@@ -3210,12 +3210,18 @@ function ConversationMessages({
   });
 
   const { data: bots = [] } = useQuery<WhatsappBot[]>({
-    queryKey: ["/api/whatsapp/bots", "manual"],
+    queryKey: ["/api/whatsapp/bots", "manual", sendAsChannelId],
     queryFn: async () => {
-      const res = await fetch("/api/whatsapp/bots?activeOnly=true&manualOnly=true");
+      const params = new URLSearchParams({
+        activeOnly: "true",
+        manualOnly: "true",
+        channelId: String(sendAsChannelId),
+      });
+      const res = await fetch(`/api/whatsapp/bots?${params}`);
       if (!res.ok) return [];
       return res.json();
     },
+    enabled: sendAsChannelId != null,
   });
 
   const { data: waSettings } = useWhatsappSettings();
@@ -3229,15 +3235,21 @@ function ConversationMessages({
   const { data: filteredBots = [], isLoading: isBotSearchLoading } = useQuery<
     WhatsappBot[]
   >({
-    queryKey: ["/api/whatsapp/bots", "picker", debouncedBotSearch],
+    queryKey: [
+      "/api/whatsapp/bots",
+      "picker",
+      sendAsChannelId,
+      debouncedBotSearch,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({ activeOnly: "true", manualOnly: "true" });
+      params.set("channelId", String(sendAsChannelId));
       if (debouncedBotSearch) params.set("search", debouncedBotSearch);
       const res = await fetch(`/api/whatsapp/bots?${params}`);
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: botPickerOpen,
+    enabled: botPickerOpen && sendAsChannelId != null,
   });
 
   const botShortcuts = parseBotShortcuts(waSettings?.wa_bot_shortcut_ids);

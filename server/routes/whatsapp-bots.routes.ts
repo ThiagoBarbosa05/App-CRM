@@ -13,7 +13,10 @@ import {
 } from "../services/whatsapp-bot.service";
 import { r2 } from "../lib/r2";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
+import {
+  analyzeBotCompatibility,
+  filterBotsForChannel,
+} from "../services/whatsapp-bot-compatibility.service";
 import { listChannelIdsForUser } from "../services/whatsapp-channels.service";
 import { respondWhatsappError, waError } from "../services/whatsapp-errors";
 
@@ -104,12 +107,22 @@ router.get("/bots", async (req, res) => {
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const activeOnly = req.query.activeOnly === "true";
     const manualOnly = req.query.manualOnly === "true";
+    const parsedChannelId = req.query.channelId === undefined
+      ? null
+      : z.coerce.number().int().positive().safeParse(req.query.channelId);
+    if (parsedChannelId && !parsedChannelId.success) {
+      return res.status(400).json({ message: "channelId inválido" });
+    }
     const bots = await listBots(
       search || activeOnly || manualOnly
         ? { search: search || undefined, activeOnly, manualOnly }
         : undefined,
     );
-    res.json(bots);
+    const channelId = parsedChannelId?.success ? parsedChannelId.data : null;
+    const filteredBots = manualOnly && channelId !== null
+      ? await filterBotsForChannel(bots, channelId)
+      : bots;
+    res.json(filteredBots);
   } catch (error) {
     return respondWhatsappError(res, error, "[WhatsApp Bots] listar");
   }
