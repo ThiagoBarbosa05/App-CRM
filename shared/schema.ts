@@ -5496,7 +5496,12 @@ export const whatsappMessages = pgTable("whatsapp_messages", {
   ),
   sentAt: timestamp("sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  conversationEffectiveAtIdx: index("whatsapp_messages_conversation_effective_at_idx")
+    .on(table.conversationId, sql`COALESCE(${table.sentAt}, ${table.createdAt})`, table.id),
+  searchTrgmIdx: index("whatsapp_messages_search_trgm_idx")
+    .using("gin", sql`(COALESCE(${table.content}, '') || ' ' || COALESCE(${table.caption}, '')) gin_trgm_ops`),
+}));
 
 export const whatsappMedia = pgTable("whatsapp_media", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

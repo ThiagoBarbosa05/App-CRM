@@ -1976,6 +1976,123 @@ export async function getConversation(
   return { conversation: conv, messages, nextCursor };
 }
 
+export interface ConversationMessageSearchResult {
+  id: string;
+  effectiveAt: Date;
+  content: string | null;
+  caption: string | null;
+  type: string;
+  direction: "inbound" | "outbound";
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
+/** Busca textual paginada dentro de uma única conversa. A autorização deve ser
+ * validada pelo caller antes da consulta, como já ocorre no carregamento do chat. */
+export async function searchConversationMessages(
+  conversationId: string,
+  query: string,
+  pagination: { cursor?: Cursor | null; limit?: number } = {},
+): Promise<{
+  results: ConversationMessageSearchResult[];
+  total: number;
+  nextCursor: string | null;
+}> {
+  const normalizedQuery = query.trim();
+  if (normalizedQuery.length < 2) return { results: [], total: 0, nextCursor: null };
+
+  const limit = clampLimit(pagination.limit, { fallback: 25, max: 25 });
+  const cursor = pagination.cursor ?? null;
+  const effectiveAt = sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`;
+  const searchableText = sql<string>`COALESCE(${whatsappMessages.content}, '') || ' ' || COALESCE(${whatsappMessages.caption}, '')`;
+  const pattern = `%${escapeLikePattern(normalizedQuery)}%`;
+  const searchCondition = sql`${searchableText} ILIKE ${pattern} ESCAPE '\\'`;
+  const baseConditions = [
+    eq(whatsappMessages.conversationId, conversationId),
+    sql`${whatsappMessages.type} NOT IN ('system', 'note')`,
+    searchCondition,
+  ];
+  const pageConditions = [...baseConditions];
+  if (cursor?.at) {
+    pageConditions.push(
+      sql`(${effectiveAt}, ${whatsappMessages.id}) < (${cursor.at}::timestamp, ${cursor.id})`,
+    );
+  }
+
+  const rowsPromise = db
+      .select({
+        id: whatsappMessages.id,
+        effectiveAt: effectiveAt.mapWith(whatsappMessages.createdAt),
+        content: whatsappMessages.content,
+        caption: whatsappMessages.caption,
+        type: whatsappMessages.type,
+        direction: whatsappMessages.direction,
+      })
+      .from(whatsappMessages)
+      .where(and(...pageConditions))
+      .orderBy(desc(effectiveAt), desc(whatsappMessages.id))
+      .limit(limit + 1);
+  // O total é estável durante a sessão de busca e só é consumido da primeira
+  // página pelo cliente; não repete COUNT nas páginas seguintes.
+  const totalPromise = cursor
+    ? Promise.resolve([{ count: 0 }])
+    : db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(whatsappMessages)
+      .where(and(...baseConditions));
+  const [rows, totalRows] = await Promise.all([rowsPromise, totalPromise]);
+
+  const hasMore = rows.length > limit;
+  const results = rows.slice(0, limit) as ConversationMessageSearchResult[];
+  const oldest = results[results.length - 1];
+  return {
+    results,
+    total: totalRows[0]?.count ?? 0,
+    nextCursor: hasMore && oldest
+      ? encodeCursor({ at: oldest.effectiveAt.toISOString(), id: oldest.id })
+      : null,
+  };
+}
+
+/** Carrega uma janela de histórico iniciando na mensagem encontrada. O sufixo
+ * no id posiciona o cursor imediatamente após a âncora sem incluir mensagens
+ * cronologicamente mais novas que compartilhem o mesmo timestamp. */
+export async function getConversationMessageContext(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+  userRole: string,
+  opts: { asChannelId?: number } = {},
+) {
+  const [anchor] = await db
+    .select({
+      effectiveAt: sql<Date>`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`.mapWith(
+        whatsappMessages.createdAt,
+      ),
+    })
+    .from(whatsappMessages)
+    .where(and(
+      eq(whatsappMessages.id, messageId),
+      eq(whatsappMessages.conversationId, conversationId),
+    ))
+    .limit(1);
+  if (!anchor) return null;
+
+  const contextCursor: Cursor = {
+    at: anchor.effectiveAt.toISOString(),
+    id: `${messageId}\uffff`,
+  };
+  return getConversation(
+    conversationId,
+    userId,
+    userRole,
+    { cursor: contextCursor, limit: 50 },
+    opts,
+  );
+}
+
 export async function sendConversationMessage(
   conversationId: string,
   message: string,

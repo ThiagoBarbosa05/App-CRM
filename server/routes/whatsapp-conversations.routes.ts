@@ -39,6 +39,8 @@ import {
   resolveOutboundChannelForSender,
   forwardConversationMessage,
   getConversationCapabilities,
+  searchConversationMessages,
+  getConversationMessageContext,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
@@ -247,6 +249,61 @@ router.get("/conversations/:clientId", async (req, res) => {
     res.json(result);
   } catch {
     res.status(500).json({ message: "Erro ao buscar conversa" });
+  }
+});
+
+router.get("/conversations/:clientId/messages/search", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+    if (!(await isConversationAccessibleToUser(conversationId, user.userId, user.role))) {
+      return res.status(404).json({ message: "Conversa não encontrada" });
+    }
+
+    const query = typeof req.query.query === "string" ? req.query.query.trim() : "";
+    if (query.length < 2) {
+      return res.status(400).json({ message: "Digite pelo menos 2 caracteres" });
+    }
+    if (query.length > 200) {
+      return res.status(400).json({ message: "A busca deve ter no máximo 200 caracteres" });
+    }
+    const result = await searchConversationMessages(conversationId, query, {
+      cursor: decodeCursor(req.query.cursor),
+      limit: clampLimit(req.query.limit, { fallback: 25, max: 25 }),
+    });
+    res.json(result);
+  } catch (error) {
+    console.error("[WA Conversations] Erro ao buscar mensagens:", error);
+    res.status(500).json({ message: "Erro ao buscar mensagens" });
+  }
+});
+
+router.get("/conversations/:clientId/messages/:messageId/context", async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+    if (!(await isConversationAccessibleToUser(conversationId, user.userId, user.role))) {
+      return res.status(404).json({ message: "Conversa não encontrada" });
+    }
+    const asChannelIdRaw = Number(req.query.asChannelId);
+    const result = await getConversationMessageContext(
+      conversationId,
+      req.params.messageId,
+      user.userId,
+      user.role,
+      { asChannelId: Number.isFinite(asChannelIdRaw) ? asChannelIdRaw : undefined },
+    );
+    if (!result) return res.status(404).json({ message: "Mensagem não encontrada" });
+    res.json({ ...result, anchorMessageId: req.params.messageId, hasNewer: true });
+  } catch (error) {
+    console.error("[WA Conversations] Erro ao buscar contexto da mensagem:", error);
+    res.status(500).json({ message: "Erro ao buscar contexto da mensagem" });
   }
 });
 

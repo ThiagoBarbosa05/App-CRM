@@ -20,6 +20,8 @@ const {
   markConversationReadMock,
   closeConversationMock,
   reopenConversationMock,
+  searchConversationMessagesMock,
+  getConversationMessageContextMock,
 } = vi.hoisted(
   () => ({
     resolveConversationIdMock: vi.fn(),
@@ -27,6 +29,8 @@ const {
     markConversationReadMock: vi.fn(),
     closeConversationMock: vi.fn(),
     reopenConversationMock: vi.fn(),
+    searchConversationMessagesMock: vi.fn(),
+    getConversationMessageContextMock: vi.fn(),
   }),
 );
 
@@ -54,6 +58,8 @@ vi.mock("../../services/whatsapp-conversations.service", () => ({
   transferConversationToSector: vi.fn(),
   closeConversation: closeConversationMock,
   reopenConversation: reopenConversationMock,
+  searchConversationMessages: searchConversationMessagesMock,
+  getConversationMessageContext: getConversationMessageContextMock,
   isClientAccessibleToUser: vi.fn(),
   setContactWhatsappTags: vi.fn(),
   listWhatsappTagsForFilter: vi.fn(),
@@ -207,5 +213,71 @@ describe("encerramento por perspectiva", () => {
 
     expect(res.status).toBe(400);
     expect(closeConversationMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("busca no histórico da conversa", () => {
+  beforeEach(() => {
+    resolveConversationIdMock.mockReset().mockResolvedValue("c1");
+    isConversationAccessibleToUserMock.mockReset().mockResolvedValue(true);
+    searchConversationMessagesMock.mockReset().mockResolvedValue({
+      results: [{ id: "m1", content: "Pedido confirmado" }],
+      total: 1,
+      nextCursor: null,
+    });
+    getConversationMessageContextMock.mockReset().mockResolvedValue({
+      conversation: { id: "c1", lastInboundAt: null },
+      messages: [{ id: "m1", content: "Pedido confirmado" }],
+      nextCursor: "older",
+    });
+  });
+
+  it("exige pelo menos dois caracteres", async () => {
+    const response = await request(makeApp()).get(
+      "/api/whatsapp/conversations/c1/messages/search?query=p",
+    );
+
+    expect(response.status).toBe(400);
+    expect(searchConversationMessagesMock).not.toHaveBeenCalled();
+  });
+
+  it("pagina e delega a busca somente após validar o acesso", async () => {
+    const response = await request(makeApp("vendedor")).get(
+      "/api/whatsapp/conversations/c1/messages/search?query=pedido&limit=99",
+    );
+
+    expect(response.status).toBe(200);
+    expect(isConversationAccessibleToUserMock).toHaveBeenCalledWith("c1", "u1", "vendedor");
+    expect(searchConversationMessagesMock).toHaveBeenCalledWith("c1", "pedido", {
+      cursor: null,
+      limit: 25,
+    });
+  });
+
+  it("não revela uma conversa fora do escopo", async () => {
+    isConversationAccessibleToUserMock.mockResolvedValue(false);
+
+    const response = await request(makeApp("vendedor")).get(
+      "/api/whatsapp/conversations/c1/messages/search?query=pedido",
+    );
+
+    expect(response.status).toBe(404);
+    expect(searchConversationMessagesMock).not.toHaveBeenCalled();
+  });
+
+  it("carrega o contexto com a perspectiva do canal", async () => {
+    const response = await request(makeApp("admin")).get(
+      "/api/whatsapp/conversations/c1/messages/m1/context?asChannelId=12",
+    );
+
+    expect(response.status).toBe(200);
+    expect(getConversationMessageContextMock).toHaveBeenCalledWith(
+      "c1",
+      "m1",
+      "u1",
+      "admin",
+      { asChannelId: 12 },
+    );
+    expect(response.body.anchorMessageId).toBe("m1");
   });
 });

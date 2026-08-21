@@ -5,6 +5,7 @@ import {
   useRef,
   useCallback,
 } from "react";
+import type { ReactNode } from "react";
 import { useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -1829,9 +1830,11 @@ function AutomationEventBubble({
 function MessageContent({
   msg,
   isOutbound,
+  highlightQuery,
 }: {
   msg: WaMessage;
   isOutbound: boolean;
+  highlightQuery?: string;
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [mediaError, setMediaError] = useState(false);
@@ -1923,7 +1926,7 @@ function MessageContent({
           )}
           {msg.caption && (
             <p className="text-sm px-3.5 pt-1 pb-0.5 whitespace-pre-wrap break-words">
-              {msg.caption}
+              <HighlightedMessageText text={msg.caption} query={highlightQuery} />
             </p>
           )}
         </div>
@@ -1970,7 +1973,7 @@ function MessageContent({
         )}
         {msg.caption && (
           <p className="text-sm px-3.5 pt-1 pb-0.5 whitespace-pre-wrap break-words">
-            {msg.caption}
+            <HighlightedMessageText text={msg.caption} query={highlightQuery} />
           </p>
         )}
       </div>
@@ -2014,7 +2017,7 @@ function MessageContent({
   if (msg.content) {
     return (
       <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
-        {msg.content}
+        <HighlightedMessageText text={msg.content} query={highlightQuery} />
       </p>
     );
   }
@@ -2030,7 +2033,7 @@ function MessageContent({
           ? "audio"
           : "sticker",
     };
-    return <MessageContent msg={inferredMsg} isOutbound={isOutbound} />;
+    return <MessageContent msg={inferredMsg} isOutbound={isOutbound} highlightQuery={highlightQuery} />;
   }
 
   if (msg.type === "unsupported") {
@@ -2042,6 +2045,32 @@ function MessageContent({
   }
 
   return <p className="text-sm italic opacity-60">[{msg.type}]</p>;
+}
+
+function HighlightedMessageText({ text, query }: { text: string; query?: string }) {
+  const normalizedQuery = query?.trim();
+  if (!normalizedQuery) return <>{text}</>;
+  const lowerText = text.toLocaleLowerCase("pt-BR");
+  const lowerQuery = normalizedQuery.toLocaleLowerCase("pt-BR");
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  let matchIndex = lowerText.indexOf(lowerQuery);
+  while (matchIndex >= 0) {
+    if (matchIndex > cursor) parts.push(text.slice(cursor, matchIndex));
+    const end = matchIndex + normalizedQuery.length;
+    parts.push(
+      <mark
+        key={`${matchIndex}-${end}`}
+        className="rounded-sm bg-amber-300/90 px-0.5 text-slate-950 ring-1 ring-amber-400/40 dark:bg-amber-400"
+      >
+        {text.slice(matchIndex, end)}
+      </mark>,
+    );
+    cursor = end;
+    matchIndex = lowerText.indexOf(lowerQuery, cursor);
+  }
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
 }
 
 interface SavedSticker {
@@ -3206,6 +3235,14 @@ function ConversationMessages({
   const [transferSheetOpen, setTransferSheetOpen] = useState(false);
   const [contactDetailsOpen, setContactDetailsOpen] = useState(false);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [messageSearchOpen, setMessageSearchOpen] = useState(false);
+  const [messageSearch, setMessageSearch] = useState("");
+  const [activeSearchIndex, setActiveSearchIndex] = useState(-1);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [isHistoryAnchored, setIsHistoryAnchored] = useState(false);
+  const [searchMayHaveNewResults, setSearchMayHaveNewResults] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const debouncedMessageSearch = useDebounce(messageSearch, 300);
   // Diálogo interno canal↔canal nunca é "contato desconhecido" — o outro lado
   // é um atendente nosso, não um cliente em potencial.
   const isUnknownContact = !client.clientId && !client.peerChannelId;
@@ -3440,6 +3477,148 @@ function ConversationMessages({
     getNextPageParam: (last) => last.nextCursor,
   });
 
+  interface MessageSearchResult {
+    id: string;
+    effectiveAt: string;
+    content: string | null;
+    caption: string | null;
+    type: string;
+    direction: "inbound" | "outbound";
+  }
+  interface MessageSearchPage {
+    results: MessageSearchResult[];
+    total: number;
+    nextCursor: string | null;
+  }
+
+  const normalizedMessageSearch = debouncedMessageSearch.trim();
+  const {
+    data: messageSearchData,
+    isFetching: isMessageSearchFetching,
+    fetchNextPage: fetchMoreSearchResults,
+    hasNextPage: hasMoreSearchResults,
+  } = useInfiniteQuery({
+    queryKey: [
+      "/api/whatsapp/conversations",
+      conversationKey,
+      "message-search",
+      normalizedMessageSearch,
+    ],
+    queryFn: async ({ pageParam, signal }): Promise<MessageSearchPage> => {
+      const params = new URLSearchParams({ query: normalizedMessageSearch, limit: "25" });
+      if (pageParam) params.set("cursor", pageParam);
+      const response = await fetch(
+        `/api/whatsapp/conversations/${conversationKey}/messages/search?${params}`,
+        { signal },
+      );
+      if (!response.ok) throw new Error("Falha ao buscar mensagens");
+      return response.json();
+    },
+    enabled: messageSearchOpen && normalizedMessageSearch.length >= 2,
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+
+  const messageSearchResults = dedupById(
+    messageSearchData?.pages.flatMap((page) => page.results) ?? [],
+  );
+  const messageSearchTotal = messageSearchData?.pages[0]?.total ?? 0;
+
+  const jumpToSearchResult = useCallback(async (index: number) => {
+    const result = messageSearchResults[index];
+    if (!result) return;
+    const params = new URLSearchParams();
+    if (viewAsChannelId != null) params.set("asChannelId", String(viewAsChannelId));
+    const response = await fetch(
+      `/api/whatsapp/conversations/${conversationKey}/messages/${result.id}/context?${params}`,
+    );
+    if (!response.ok) {
+      toast({ title: "A mensagem não está mais disponível", variant: "destructive" });
+      return;
+    }
+    const context = await response.json();
+    const page: MessagesPage = {
+      messages: context.messages ?? [],
+      nextCursor: context.nextCursor ?? null,
+      lastInboundAt: context.conversation?.lastInboundAt ?? null,
+    };
+    queryClient.setQueryData(messagesQueryKey, {
+      pages: [page],
+      pageParams: [null],
+    });
+    setIsHistoryAnchored(true);
+    setActiveSearchIndex(index);
+    setHighlightedMessageId(result.id);
+  }, [conversationKey, messageSearchResults, messagesQueryKey, queryClient, toast, viewAsChannelId]);
+
+  useEffect(() => {
+    setActiveSearchIndex(-1);
+    setHighlightedMessageId(null);
+    setSearchMayHaveNewResults(false);
+  }, [normalizedMessageSearch]);
+
+  useEffect(() => {
+    if (!messageSearchOpen || normalizedMessageSearch.length < 2) return;
+    if (activeSearchIndex !== -1 || messageSearchResults.length === 0) return;
+    void jumpToSearchResult(0);
+  }, [activeSearchIndex, jumpToSearchResult, messageSearchOpen, messageSearchResults.length, normalizedMessageSearch]);
+
+  const navigateSearch = useCallback(async (direction: "newer" | "older") => {
+    if (messageSearchResults.length === 0) return;
+    if (direction === "newer") {
+      if (activeSearchIndex > 0) await jumpToSearchResult(activeSearchIndex - 1);
+      return;
+    }
+    const nextIndex = activeSearchIndex < 0 ? 0 : activeSearchIndex + 1;
+    if (nextIndex < messageSearchResults.length) {
+      await jumpToSearchResult(nextIndex);
+      return;
+    }
+    if (hasMoreSearchResults) {
+      const fetched = await fetchMoreSearchResults();
+      const expanded = dedupById(fetched.data?.pages.flatMap((page) => page.results) ?? []);
+      const next = expanded[nextIndex];
+      if (next) {
+        const params = new URLSearchParams();
+        if (viewAsChannelId != null) params.set("asChannelId", String(viewAsChannelId));
+        const response = await fetch(
+          `/api/whatsapp/conversations/${conversationKey}/messages/${next.id}/context?${params}`,
+        );
+        if (response.ok) {
+          const context = await response.json();
+          queryClient.setQueryData(messagesQueryKey, {
+            pages: [{
+              messages: context.messages ?? [],
+              nextCursor: context.nextCursor ?? null,
+              lastInboundAt: context.conversation?.lastInboundAt ?? null,
+            }],
+            pageParams: [null],
+          });
+          setIsHistoryAnchored(true);
+          setActiveSearchIndex(nextIndex);
+          setHighlightedMessageId(next.id);
+        }
+      }
+    }
+  }, [activeSearchIndex, conversationKey, fetchMoreSearchResults, hasMoreSearchResults, jumpToSearchResult, messageSearchResults, messagesQueryKey, queryClient, viewAsChannelId]);
+
+  const returnToLatestMessages = useCallback(async () => {
+    const latest = await fetchMessagesPage(null);
+    queryClient.setQueryData(messagesQueryKey, { pages: [latest], pageParams: [null] });
+    setIsHistoryAnchored(false);
+    setHighlightedMessageId(null);
+    requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ block: "end" }));
+  }, [messagesQueryKey, queryClient, viewAsChannelId]);
+
+  const closeMessageSearch = useCallback(() => {
+    setMessageSearchOpen(false);
+    setMessageSearch("");
+    setActiveSearchIndex(-1);
+    setSearchMayHaveNewResults(false);
+    if (isHistoryAnchored) void returnToLatestMessages();
+  }, [isHistoryAnchored, returnToLatestMessages]);
+
   // Página 0 (cursor null) é a mais recente; páginas seguintes são mais
   // antigas. Invertendo a ordem das páginas e concatenando reconstrói a
   // ordem cronológica completa (cada página já vem ascendente internamente).
@@ -3453,17 +3632,24 @@ function ConversationMessages({
       new Date(b.sentAt ?? b.createdAt).getTime(),
   );
 
+  useLayoutEffect(() => {
+    if (!highlightedMessageId) return;
+    const element = document.getElementById(`wa-message-${highlightedMessageId}`);
+    element?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightedMessageId, messages]);
+
   // Reforço periódico: re-busca só a página mais recente, sem tocar nas
   // páginas antigas já carregadas via scroll (mesmo padrão da lista de
   // conversas, ver conversationsListQueryKey).
   useEffect(() => {
     const interval = setInterval(() => {
+      if (isHistoryAnchored) return;
       refreshFirstPage(queryClient, messagesQueryKey, () =>
         fetchMessagesPage(null),
       );
     }, 15_000);
     return () => clearInterval(interval);
-  }, [conversationKey, queryClient, viewAsChannelId]);
+  }, [conversationKey, isHistoryAnchored, queryClient, viewAsChannelId]);
 
   const loadOlderMessages = useCallback(() => {
     if (!hasMoreMessages || isFetchingOlderMessages) return;
@@ -3601,9 +3787,12 @@ function ConversationMessages({
       `/api/whatsapp/conversations/${conversationKey}/stream`,
     );
     const refreshConversation = () => {
-      refreshFirstPage(queryClient, messagesQueryKey, () =>
-        fetchMessagesPage(null),
-      );
+      if (messageSearchOpen) setSearchMayHaveNewResults(true);
+      if (!isHistoryAnchored) {
+        refreshFirstPage(queryClient, messagesQueryKey, () =>
+          fetchMessagesPage(null),
+        );
+      }
       queryClient.invalidateQueries({
         queryKey: ["/api/whatsapp/conversations-list"],
       });
@@ -3625,7 +3814,7 @@ function ConversationMessages({
     // viewAsChannelId nas deps: ao trocar de perspectiva, o handler precisa
     // re-fechar sobre a messagesQueryKey/fetch atuais para atualizar a página
     // certa quando chega mensagem nova.
-  }, [conversationKey, queryClient, viewAsChannelId]);
+  }, [conversationKey, isHistoryAnchored, messageSearchOpen, queryClient, viewAsChannelId]);
 
   const attemptSend = useCallback(
     async (
@@ -4336,6 +4525,20 @@ function ConversationMessages({
             )}
           </div>
 
+          <Button
+            variant={messageSearchOpen ? "secondary" : "outline"}
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            title="Buscar nesta conversa"
+            aria-label="Buscar nesta conversa"
+            onClick={() => {
+              setMessageSearchOpen(true);
+              requestAnimationFrame(() => searchInputRef.current?.focus());
+            }}
+          >
+            <Search className="h-3.5 w-3.5" />
+          </Button>
+
           {/* Detalhes do contato — não faz sentido em diálogo interno canal↔canal,
               onde o outro lado é um atendente nosso, não um contato do CRM. */}
           {!client.peerChannelId && (
@@ -4401,6 +4604,73 @@ function ConversationMessages({
             </Button>
           )}
         </div>
+
+        {messageSearchOpen && (
+          <div className="border-t border-slate-100 bg-slate-50/80 px-2 py-2 dark:border-slate-800 dark:bg-slate-950/30 sm:px-4">
+            <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+              <Search className="ml-2 h-4 w-4 shrink-0 text-slate-400" />
+              <Input
+                ref={searchInputRef}
+                value={messageSearch}
+                maxLength={200}
+                onChange={(event) => setMessageSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") closeMessageSearch();
+                  if (event.key === "Enter") void navigateSearch(event.shiftKey ? "newer" : "older");
+                }}
+                placeholder="Buscar mensagem ou legenda"
+                aria-label="Buscar mensagem ou legenda"
+                className="h-8 min-w-0 flex-1 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0"
+              />
+              <div className="flex min-w-[76px] items-center justify-end text-[11px] tabular-nums text-slate-500 dark:text-slate-400">
+                {messageSearch.trim().length < 2
+                  ? "2+ caracteres"
+                  : isMessageSearchFetching && messageSearchResults.length === 0
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : messageSearchTotal === 0
+                      ? "Sem resultados"
+                      : `${Math.max(activeSearchIndex + 1, 1)} de ${messageSearchTotal}`}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={activeSearchIndex <= 0}
+                onClick={() => void navigateSearch("newer")}
+                title="Resultado mais recente"
+                aria-label="Resultado mais recente"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={messageSearchTotal === 0 || activeSearchIndex + 1 >= messageSearchTotal}
+                onClick={() => void navigateSearch("older")}
+                title="Resultado mais antigo"
+                aria-label="Resultado mais antigo"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={closeMessageSearch}
+                title="Fechar busca"
+                aria-label="Fechar busca"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            {searchMayHaveNewResults && (
+              <p className="mt-1.5 px-1 text-[11px] text-amber-700 dark:text-amber-400">
+                Novas mensagens chegaram. Refaça a busca para atualizar os resultados.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Setor é o único metadado adicional mantido no header. */}
         {client.sectorId && (
@@ -4505,6 +4775,19 @@ function ConversationMessages({
           </div>
         ) : (
           <>
+            {isHistoryAnchored && (
+              <div className="sticky top-0 z-20 flex justify-center pb-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 rounded-full border border-slate-200 bg-white/95 px-3 text-xs shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-900/95"
+                  onClick={() => void returnToLatestMessages()}
+                >
+                  <ChevronDown className="mr-1 h-3.5 w-3.5" />
+                  Voltar às mensagens recentes
+                </Button>
+              </div>
+            )}
             {hasMoreMessages && (
               <div
                 ref={olderMessagesSentinelRef}
@@ -4608,9 +4891,12 @@ function ConversationMessages({
                   return (
                     <div
                       key={msg.id}
+                      id={`wa-message-${msg.id}`}
                       className={cn(
-                        "group flex w-full items-end gap-2",
+                        "group flex w-full items-end gap-2 rounded-xl transition-[background-color,box-shadow] duration-500",
                         isOutbound ? "justify-end" : "justify-start",
+                        highlightedMessageId === msg.id &&
+                          "bg-amber-200/35 shadow-[0_0_0_4px_rgba(251,191,36,0.18)] dark:bg-amber-400/10",
                       )}
                     >
                       {/* Badge do canal — primeiro outbound de cada sequência */}
@@ -4876,7 +5162,11 @@ function ConversationMessages({
                               <span>Campanha</span>
                             </div>
                             )}
-                          <MessageContent msg={msg} isOutbound={isOutbound} />
+                          <MessageContent
+                            msg={msg}
+                            isOutbound={isOutbound}
+                            highlightQuery={highlightedMessageId === msg.id ? normalizedMessageSearch : undefined}
+                          />
                           <div
                             className={cn(
                               "flex items-center gap-1 mt-1",
