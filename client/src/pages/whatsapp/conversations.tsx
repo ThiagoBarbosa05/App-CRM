@@ -55,6 +55,10 @@ import {
 import { findDisconnectedOwnEvolutionChannel } from "@/lib/wa-own-channel-alert";
 import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
+import {
+  getAutomationEventPreview,
+  shouldRenderSystemPill,
+} from "@/lib/wa-message-preview";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
 import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
@@ -317,6 +321,11 @@ interface WaMessage {
     kind?: string;
     templateName?: string;
     language?: string;
+    campaignId?: string;
+    campaignName?: string;
+    botId?: string;
+    botName?: string;
+    preview?: string | null;
     components?: Array<{
       type: string;
       parameters?: Array<{
@@ -325,6 +334,7 @@ interface WaMessage {
         video?: { link?: string };
         document?: { link?: string };
         text?: string;
+        parameter_name?: string;
       }>;
     }>;
     buttons?: Array<{ type: string; text: string }>;
@@ -1712,17 +1722,30 @@ function TemplateBubble({
   isOutbound: boolean;
 }) {
   const payload = msg.rawPayload;
-  const headerComp = payload?.components?.find((c) => c.type === "header");
+  const headerComp = payload?.components?.find(
+    (component) => component.type.toLowerCase() === "header",
+  );
   const headerParam = headerComp?.parameters?.[0];
-  const imageUrl =
-    headerParam?.image?.link ??
-    headerParam?.video?.link ??
-    headerParam?.document?.link ??
-    null;
+  const imageUrl = headerParam?.image?.link ?? null;
+  const videoUrl = headerParam?.video?.link ?? null;
+  const documentUrl = headerParam?.document?.link ?? null;
   const buttons = payload?.buttons ?? [];
 
   return (
     <div className="overflow-hidden rounded-2xl" style={{ minWidth: 220, maxWidth: 320 }}>
+      {payload?.campaignName && (
+        <div
+          className={cn(
+            "flex items-center gap-1.5 px-3.5 pt-2.5 text-[10px] font-semibold uppercase tracking-wide",
+            isOutbound
+              ? "text-primary-foreground/70"
+              : "text-slate-500 dark:text-slate-400",
+          )}
+        >
+          <Radio className="h-3 w-3" />
+          <span className="truncate">Campanha · {payload.campaignName}</span>
+        </div>
+      )}
       {imageUrl && (
         <img
           src={imageUrl}
@@ -1730,6 +1753,31 @@ function TemplateBubble({
           className="w-full object-cover"
           style={{ maxHeight: 200 }}
         />
+      )}
+      {videoUrl && (
+        <video
+          src={videoUrl}
+          controls
+          preload="metadata"
+          className="w-full bg-black object-cover"
+          style={{ maxHeight: 200 }}
+        />
+      )}
+      {documentUrl && (
+        <a
+          href={documentUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            "mx-3.5 mt-2.5 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium",
+            isOutbound
+              ? "border-primary-foreground/20 bg-primary-foreground/10"
+              : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/40",
+          )}
+        >
+          <FileText className="h-4 w-4 shrink-0" />
+          <span className="truncate">Abrir documento do template</span>
+        </a>
       )}
       <div className="px-3.5 pt-2.5 pb-1.5">
         <p className="text-sm whitespace-pre-wrap leading-relaxed break-words">
@@ -1772,6 +1820,57 @@ function TemplateBubble({
   );
 }
 
+function AutomationEventBubble({
+  msg,
+  isOutbound,
+}: {
+  msg: WaMessage;
+  isOutbound: boolean;
+}) {
+  const event = getAutomationEventPreview(msg.rawPayload);
+  if (!event) return null;
+
+  return (
+    <div className="min-w-[220px] max-w-[320px]">
+      <div className="flex items-start gap-2.5">
+        <div
+          className={cn(
+            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+            isOutbound
+              ? "bg-primary-foreground/15 text-primary-foreground"
+              : "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300",
+          )}
+        >
+          <Bot className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">
+            {event.eyebrow}
+          </p>
+          <p className="truncate text-sm font-semibold">{event.title}</p>
+          {event.campaignName && (
+            <p className="mt-0.5 truncate text-[11px] opacity-70">
+              Campanha · {event.campaignName}
+            </p>
+          )}
+        </div>
+      </div>
+      {event.preview && (
+        <div
+          className={cn(
+            "mt-2 rounded-lg border-l-2 px-2.5 py-2 text-xs leading-relaxed",
+            isOutbound
+              ? "border-primary-foreground/45 bg-primary-foreground/10"
+              : "border-blue-400 bg-slate-50 dark:bg-slate-700/50",
+          )}
+        >
+          {event.preview}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MessageContent({
   msg,
   isOutbound,
@@ -1791,6 +1890,14 @@ function MessageContent({
     setMediaError(false);
     setRetryCount((n) => n + 1);
   };
+
+  if (
+    msg.type === "system" &&
+    (msg.rawPayload?.kind === "bot_started" ||
+      msg.rawPayload?.kind === "campaign_bot")
+  ) {
+    return <AutomationEventBubble msg={msg} isOutbound={isOutbound} />;
+  }
 
   if (msg.type === "template") {
     return <TemplateBubble msg={msg} isOutbound={isOutbound} />;
@@ -4666,7 +4773,8 @@ function ConversationMessages({
                   const isMedia =
                     msg.type === "image" ||
                     msg.type === "video" ||
-                    msg.type === "sticker";
+                    msg.type === "sticker" ||
+                    msg.type === "template";
                   const time = format(
                     toSP(msg.sentAt ?? msg.createdAt),
                     "HH:mm",
@@ -4698,7 +4806,7 @@ function ConversationMessages({
                         prevMsg.channelId !== msg.channelId));
 
                   // Mensagens de sistema (ex: bot iniciado) — banner centralizado
-                  if (msg.type === "system") {
+                  if (shouldRenderSystemPill(msg.type, msg.rawPayload)) {
                     return (
                       <div key={msg.id} className="flex justify-center py-1">
                         <span className="text-[11px] text-slate-400 dark:text-slate-500 italic bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
@@ -4994,12 +5102,13 @@ function ConversationMessages({
                             </div>
                           ) : null}
 
-                          {msg.campaignMessageId && (
+                          {msg.campaignMessageId &&
+                            !msg.rawPayload?.campaignName && (
                             <div className="text-[10px] font-medium mb-1 opacity-70 flex items-center gap-0.5">
                               <span>📢</span>
                               <span>Campanha</span>
                             </div>
-                          )}
+                            )}
                           <MessageContent msg={msg} isOutbound={isOutbound} />
                           <div
                             className={cn(

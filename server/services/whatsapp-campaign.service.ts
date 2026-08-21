@@ -22,6 +22,8 @@ import {
 import { CampaignConfigError, CampaignRequeueBlockedError } from "./whatsapp-campaign-errors";
 import { describeSendError, waError } from "./whatsapp-errors";
 import { encodeCampaignMessageError } from "@shared/whatsapp-error-codes";
+import { fetchMetaTemplates } from "./whatsapp-templates.service";
+import { buildTemplateMessageSnapshot } from "./whatsapp-message-preview";
 
 // Status a partir dos quais um retry-failed pode "reviver" a campanha para
 // in_progress. Qualquer outro status atual (cancelled, paused, created) é
@@ -408,7 +410,7 @@ export async function executeCampaign(
             technicalMessage: `Campanha de bot ${campaignId} sem canal de WhatsApp configurado`,
           });
         }
-        const { status, lastMessageId, channelId: botChannelId } =
+        const { status, lastMessageId } =
           await startBotSession(
             campaign.waBotId,
             phoneE164,
@@ -420,6 +422,8 @@ export async function executeCampaign(
               source: "campaign",
               channelId: campaign.waChannelId,
               campaignId,
+              campaignMessageId: msg.id,
+              campaignName: campaign.name,
               clientId: msg.contactId ?? null,
             },
           );
@@ -508,7 +512,6 @@ export async function executeCampaign(
           .set({ status: "sent", sentAt, messageId: lastMessageId, updatedAt: new Date() })
           .where(eq(whatsappCampaignMessages.id, msg.id));
         await completeSuccessfulImpact(msg, campaignLog?.postSendWhatsappTagId ?? null, sentAt);
-        await persistCampaignMessageToConversation(phoneE164, lastMessageId, "Disparo via bot", msg.id, botChannelId);
         sent++;
         console.log(`[WaCampaign] Bot ✓ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)})`);
       } catch (err) {
@@ -550,8 +553,20 @@ export async function executeCampaign(
         ? {
             phoneNumberId: selectedCampaignChannel.phoneNumberId,
             accessToken: selectedCampaignChannel.accessToken,
+            wabaId: selectedCampaignChannel.wabaId,
           }
         : undefined;
+    const metaTemplates = await fetchMetaTemplates(templateChannelOverride).catch(
+      (error: unknown) => {
+        console.error(`[WaCampaign] Não foi possível carregar o conteúdo do template "${template.name}" para o preview:`, error);
+        return [];
+      },
+    );
+    const metaTemplate = metaTemplates.find(
+      (candidate) =>
+        candidate.name === template.name &&
+        candidate.language === template.languageCode,
+    );
 
     for (const msg of pendingMessages) {
       if (await isCampaignHalted(campaignId)) {
@@ -620,7 +635,22 @@ export async function executeCampaign(
           })
           .where(eq(whatsappCampaignMessages.id, msg.id));
         await completeSuccessfulImpact(msg, campaignLog?.postSendWhatsappTagId ?? null, sentAt);
-        await persistCampaignMessageToConversation(phoneE164, waMessageId, `Template: ${template.name}`, msg.id, campaignChannelId);
+        const snapshot = buildTemplateMessageSnapshot({
+          templateName: template.name,
+          language: template.languageCode,
+          campaign: { id: campaignId, name: campaign.name },
+          templateComponents: metaTemplate?.components ?? [],
+          sentComponents: components ?? [],
+        });
+        await persistCampaignMessageToConversation({
+          phone: phoneE164,
+          waMessageId,
+          type: "template",
+          content: snapshot.content,
+          rawPayload: snapshot.rawPayload,
+          campaignMessageId: msg.id,
+          channelId: campaignChannelId,
+        });
         sent++;
         console.log(`[WaCampaign] ✓ ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)})`);
       } catch (err) {
@@ -656,24 +686,31 @@ async function resolveCampaignChannelId(): Promise<number | null> {
   }
 }
 
-async function persistCampaignMessageToConversation(
-  phone: string,
-  waMessageId: string | null,
-  content: string,
-  campaignMessageId: string,
-  channelId?: number | null,
-): Promise<void> {
+async function persistCampaignMessageToConversation(input: {
+  phone: string;
+  waMessageId: string | null;
+  type: "template";
+  content: string;
+  rawPayload: object;
+  campaignMessageId: string;
+  channelId?: number | null;
+}): Promise<void> {
   try {
-    const conversation = await findOrCreateConversation(phone, channelId ?? undefined);
+    const conversation = await findOrCreateConversation(
+      input.phone,
+      input.channelId ?? undefined,
+    );
     await db.insert(whatsappMessages).values({
       conversationId: conversation.id,
       channelId: conversation.channelId ?? null,
-      waMessageId: waMessageId ?? undefined,
+      waMessageId: input.waMessageId ?? undefined,
       direction: "outbound",
-      type: "text",
-      content,
+      type: input.type,
+      content: input.content,
+      origin: "campaign",
+      rawPayload: input.rawPayload,
       status: "sent",
-      campaignMessageId,
+      campaignMessageId: input.campaignMessageId,
       sentAt: new Date(),
     });
   } catch (err) {

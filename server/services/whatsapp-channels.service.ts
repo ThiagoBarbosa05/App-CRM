@@ -9,7 +9,7 @@ export { isSameChannelPhone };
 
 /** Canal resolvido para envio — discrimina pelo provider */
 export type ResolvedChannel =
-  | { id: number; provider: "cloud_api"; phoneNumberId: string; accessToken: string }
+  | { id: number; provider: "cloud_api"; phoneNumberId: string; accessToken: string; wabaId: string | null }
   | { id: number; provider: "evolution"; evolutionInstanceName: string };
 
 /**
@@ -272,12 +272,12 @@ export async function getChannelByEvolutionInstance(instanceName: string) {
   return channel ? decryptChannelRow(channel) : null;
 }
 
-function toResolvedChannel(ch: { id: number; provider: string; phoneNumberId: string | null; accessToken: string | null; evolutionInstanceName: string | null }): ResolvedChannel | null {
+function toResolvedChannel(ch: { id: number; provider: string; phoneNumberId: string | null; accessToken: string | null; evolutionInstanceName: string | null; wabaId?: string | null }): ResolvedChannel | null {
   if (ch.provider === "evolution" && ch.evolutionInstanceName) {
     return { id: ch.id, provider: "evolution", evolutionInstanceName: ch.evolutionInstanceName };
   }
   if (ch.phoneNumberId && ch.accessToken) {
-    return { id: ch.id, provider: "cloud_api", phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken };
+    return { id: ch.id, provider: "cloud_api", phoneNumberId: ch.phoneNumberId, accessToken: ch.accessToken, wabaId: ch.wabaId ?? null };
   }
   return null;
 }
@@ -294,6 +294,7 @@ export async function resolveChannelByUserId(userId: string): Promise<ResolvedCh
       id: whatsappChannels.id,
       provider: whatsappChannels.provider,
       phoneNumberId: whatsappChannels.phoneNumberId,
+      wabaId: whatsappChannels.wabaId,
       accessTokenEncrypted: whatsappChannels.accessTokenEncrypted,
       evolutionInstanceName: whatsappChannels.evolutionInstanceName,
     })
@@ -310,6 +311,7 @@ export async function resolveChannelForConversation(conversationId: string): Pro
       id: whatsappChannels.id,
       provider: whatsappChannels.provider,
       phoneNumberId: whatsappChannels.phoneNumberId,
+      wabaId: whatsappChannels.wabaId,
       accessTokenEncrypted: whatsappChannels.accessTokenEncrypted,
       evolutionInstanceName: whatsappChannels.evolutionInstanceName,
     })

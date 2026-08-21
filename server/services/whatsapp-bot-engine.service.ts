@@ -53,9 +53,40 @@ import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { classifyMessageIntent } from "../ai-helpers";
 import { getAutomaticBotForChannel } from "./whatsapp-bot.service";
 import { withWhatsappBotSessionLock } from "./whatsapp-bot-session-lock.service";
+import { fetchMetaTemplates } from "./whatsapp-templates.service";
+import {
+  buildTemplateMessageSnapshot,
+  describeBotMessagePreview,
+  getBotPreviewMessageId,
+  setBotPreviewMessageId,
+  truncateBotPreview,
+} from "./whatsapp-message-preview";
 
 const CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
 const SESSION_TIMEOUT_MINUTES = 30;
+
+async function buildBotTemplateSnapshot(
+  templateName: string,
+  language: string,
+  sentComponents: object[],
+  channel?: ChannelOverride,
+) {
+  const templates = await fetchMetaTemplates(channel).catch((error: unknown) => {
+    console.error(`[BotEngine] Não foi possível montar o preview do template "${templateName}":`, error);
+    return [];
+  });
+  const template = templates.find(
+    (candidate) =>
+      candidate.name === templateName && candidate.language === language,
+  );
+  return buildTemplateMessageSnapshot({
+    kind: "bot_template",
+    templateName,
+    language,
+    templateComponents: template?.components ?? [],
+    sentComponents,
+  });
+}
 
 export type StartBotContext =
   | {
@@ -75,6 +106,8 @@ export type StartBotContext =
       source: "campaign";
       channelId: number;
       campaignId: string;
+      campaignMessageId?: string;
+      campaignName?: string;
       /**
        * Destinatário da campanha (`whatsapp_campaign_messages.contact_id`). É a
        * fonte primária das variáveis de personalização: resolver só pela conversa
@@ -214,7 +247,11 @@ async function resolveCloudOnlyChannel(phone: string, featureLabel: string, sess
     );
   }
   if (resolvedChannel?.provider === "cloud_api") {
-    return { phoneNumberId: resolvedChannel.phoneNumberId, accessToken: resolvedChannel.accessToken };
+    return {
+      phoneNumberId: resolvedChannel.phoneNumberId,
+      accessToken: resolvedChannel.accessToken,
+      wabaId: resolvedChannel.wabaId,
+    };
   }
   return undefined;
 }
@@ -330,6 +367,33 @@ interface PersistBotMessageOptions {
   };
 }
 
+async function persistFirstBotMessagePreview(
+  sessionId: string,
+  preview: string,
+): Promise<void> {
+  const [session] = await db
+    .select({ sessionData: whatsappBotSessions.sessionData })
+    .from(whatsappBotSessions)
+    .where(eq(whatsappBotSessions.id, sessionId))
+    .limit(1);
+  const previewMessageId = getBotPreviewMessageId(session?.sessionData);
+  if (!previewMessageId) return;
+
+  const normalizedPreview = truncateBotPreview(preview);
+  if (!normalizedPreview) return;
+  await db
+    .update(whatsappMessages)
+    .set({
+      rawPayload: sql`jsonb_set(COALESCE(${whatsappMessages.rawPayload}, '{}'::jsonb), '{preview}', ${JSON.stringify(normalizedPreview)}::jsonb)`,
+    })
+    .where(
+      and(
+        eq(whatsappMessages.id, previewMessageId),
+        sql`${whatsappMessages.rawPayload}->>'preview' IS NULL`,
+      ),
+    );
+}
+
 export async function persistBotMessage(
   phone: string,
   options: PersistBotMessageOptions,
@@ -347,9 +411,21 @@ export async function persistBotMessage(
       content: hasContent ? (options.content ?? null) : null,
       caption: hasContent ? null : (options.caption ?? null),
       rawPayload: options.rawPayload ?? null,
+      origin: "bot",
       status: "sent",
       sentAt: new Date(),
     }).returning({ id: whatsappMessages.id });
+
+    if (options.sessionId) {
+      const preview = describeBotMessagePreview({
+        type: msgType,
+        content: options.content,
+        caption: options.caption,
+      });
+      if (preview) {
+        await persistFirstBotMessagePreview(options.sessionId, preview);
+      }
+    }
 
     if (options.media) {
       await db.insert(whatsappMedia).values({
@@ -794,11 +870,17 @@ async function executeNode(
               cloudOverride,
             );
             const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+            const snapshot = await buildBotTemplateSnapshot(
+              d.metaTemplateName,
+              d.metaTemplateLanguage ?? "pt_BR",
+              components,
+              cloudOverride,
+            );
             await persistBotMessage(phone, {
               waMessageId: waId,
               type: "template",
-              content: `Template: ${d.metaTemplateName}`,
-              rawPayload: { kind: "bot_template", templateName: d.metaTemplateName, language: d.metaTemplateLanguage ?? "pt_BR", components },
+              content: snapshot.content,
+              rawPayload: snapshot.rawPayload,
               sessionId,
             });
             lastMessageId = waId;
@@ -818,11 +900,17 @@ async function executeNode(
                 : [];
               const result = await sendTemplateMessage(phone, tpl.name, tpl.languageCode, components, cloudOverride);
               const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+              const snapshot = await buildBotTemplateSnapshot(
+                tpl.name,
+                tpl.languageCode,
+                components,
+                cloudOverride,
+              );
               await persistBotMessage(phone, {
                 waMessageId: waId,
                 type: "template",
-                content: `Template: ${tpl.name}`,
-                rawPayload: { kind: "bot_template", templateName: tpl.name, language: tpl.languageCode, components },
+                content: snapshot.content,
+                rawPayload: snapshot.rawPayload,
                 sessionId,
               });
               lastMessageId = waId;
@@ -1205,11 +1293,17 @@ async function executeNode(
         throw new Error(`Falha ao enviar template "${d.metaTemplateName}": ${err instanceof Error ? err.message : String(err)}`);
       }
       const waId = (result?.messages as Array<{ id?: string }>)?.[0]?.id ?? null;
+      const snapshot = await buildBotTemplateSnapshot(
+        d.metaTemplateName,
+        d.metaTemplateLanguage ?? "pt_BR",
+        components,
+        cloudOverride,
+      );
       await persistBotMessage(phone, {
         waMessageId: waId,
         type: "template",
-        content: `Template: ${d.metaTemplateName}`,
-        rawPayload: { kind: "bot_template", templateName: d.metaTemplateName, language: d.metaTemplateLanguage ?? "pt_BR", components },
+        content: snapshot.content,
+        rawPayload: snapshot.rawPayload,
         sessionId,
       });
       lastMessageId = waId;
@@ -2271,15 +2365,44 @@ export async function startBotSession(
       throw new Error("BOT_CHANNEL_MISMATCH");
     }
     await updateSession(newSession.id, { channelId: sessionChannelId });
-    await db.insert(whatsappMessages).values({
+    const isCampaignStart = context?.source === "campaign";
+    const automationPayload = {
+      kind: isCampaignStart ? "campaign_bot" as const : "bot_started" as const,
+      botId,
+      botName,
+      preview: null,
+      ...(isCampaignStart
+        ? {
+            campaignId: context.campaignId,
+            campaignName: context.campaignName,
+          }
+        : {}),
+    };
+    const [botStartedMessage] = await db.insert(whatsappMessages).values({
       conversationId: conversation.id,
       channelId: sessionChannelId,
       direction: "outbound",
       type: "system",
-      content: `🤖 Chatbot "${botName}" iniciado`,
+      content: isCampaignStart
+        ? `Campanha via bot: ${botName}`
+        : `🤖 Chatbot "${botName}" iniciado`,
+      origin: isCampaignStart ? "campaign" : "bot",
+      rawPayload: automationPayload,
+      campaignMessageId:
+        isCampaignStart ? context.campaignMessageId ?? null : null,
       status: "sent",
       sentAt: new Date(),
-    });
+    }).returning({ id: whatsappMessages.id });
+    if (botStartedMessage?.id) {
+      const sessionDataWithPreviewMarker = setBotPreviewMessageId(
+        clientVars,
+        botStartedMessage.id,
+      );
+      Object.assign(clientVars, sessionDataWithPreviewMarker);
+      await updateSession(newSession.id, {
+        sessionData: sessionDataWithPreviewMarker,
+      });
+    }
     await db
       .update(whatsappConversations)
       .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })

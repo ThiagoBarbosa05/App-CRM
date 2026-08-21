@@ -8,6 +8,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 import { getPublicR2Url } from "../lib/r2";
+import type { ChannelOverride } from "../integrations/whatsapp";
 
 export async function listLocalTemplates(): Promise<WhatsappTemplate[]> {
   return db.select().from(whatsappTemplates).orderBy(whatsappTemplates.createdAt);
@@ -135,11 +136,13 @@ export async function updateTemplateQualityScore(
     .where(eq(whatsappTemplates.name, templateName));
 }
 
-export async function fetchMetaTemplates(): Promise<MetaTemplate[]> {
+export async function fetchMetaTemplates(
+  channel?: Pick<ChannelOverride, "accessToken" | "wabaId" | "apiVersion">,
+): Promise<MetaTemplate[]> {
   const raw = await getWhatsappSettingsRaw();
-  const accessToken = raw["wa_access_token"];
-  const wabaId = raw["wa_waba_id"];
-  const apiVersion = raw["wa_api_version"] || "v21.0";
+  const accessToken = channel?.accessToken || raw["wa_access_token"];
+  const wabaId = channel?.wabaId || raw["wa_waba_id"];
+  const apiVersion = channel?.apiVersion || raw["wa_api_version"] || "v21.0";
 
   if (!accessToken || !wabaId) {
     throw new Error("wa_access_token e wa_waba_id são obrigatórios para buscar templates do Meta");

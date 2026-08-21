@@ -29,6 +29,7 @@ interface WaConfig {
 export interface ChannelOverride {
   phoneNumberId: string;
   accessToken: string;
+  wabaId?: string | null;
   apiVersion?: string;
 }
 
