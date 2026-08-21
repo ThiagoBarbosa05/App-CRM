@@ -48,6 +48,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useWhatsappErrorToast } from "@/hooks/use-whatsapp-error-toast";
+import {
+  canSendFromChannel,
+  resolveSenderChannelId,
+} from "@/lib/wa-conversation-sender";
 import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
@@ -3046,10 +3050,16 @@ function ConversationMessages({
   // e como channelId no ENVIO (a mensagem "assina" pelo canal daquele lado).
   const viewAsChannelId = client.perspectiveChannelId ?? null;
   // Canal pelo qual o envio deve "assinar". Numa caixa interna desdobrada é o
-  // lado desta caixa (o backend, via resolveOutboundChannelForSender, faz a
-  // mensagem sair por esse canal); caso contrário, o canal da conversa. Só é
-  // aplicado no backend para admin/gerente.
-  const sendAsChannelId = viewAsChannelId ?? selectedChannelId;
+  // lado desta caixa; para atendente comum, espelha a inferência do backend
+  // (peer sem acesso ao dono envia como peer). O channelId só é enviado como
+  // override para admin/gerente; nos demais perfis ele determina a disponibilidade
+  // local, e o backend chega ao mesmo canal pela associação do usuário.
+  const sendAsChannelId = resolveSenderChannelId({
+    conversationChannelId: selectedChannelId,
+    peerChannelId: client.peerChannelId,
+    perspectiveChannelId: viewAsChannelId,
+    accessibleChannelIds: channels.map((channel) => channel.id),
+  });
   const [isUploading, setIsUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -4017,20 +4027,21 @@ function ConversationMessages({
   // de quem transferiu). Nesse caso cai no fallback com os dados do canal que
   // já vêm junto da conversa, em vez de tratar como "desconectado".
   const activeChannel =
-    channels.find((c) => c.id === selectedChannelId) ??
-    (selectedChannelId != null && selectedChannelId === client.channelId && client.channelName
+    channels.find((c) => c.id === sendAsChannelId) ??
+    (sendAsChannelId != null && sendAsChannelId === client.channelId && client.channelName
       ? {
-          id: selectedChannelId,
+          id: sendAsChannelId,
           name: client.channelName,
           displayPhone: client.channelDisplayPhone ?? null,
           connectionStatus: client.channelConnectionStatus ?? null,
           provider: client.channelProvider ?? "cloud_api",
         }
       : null);
-  const canSendMessages =
-    activeChannel != null &&
-    (activeChannel.provider === "cloud_api" ||
-      activeChannel.connectionStatus === "connected");
+  const canSendMessages = canSendFromChannel(sendAsChannelId, channels) ||
+    (activeChannel != null &&
+      sendAsChannelId === client.channelId &&
+      (activeChannel.provider === "cloud_api" ||
+        activeChannel.connectionStatus === "connected"));
 
   // Janela de atendimento de 24h da Meta: só vale para o canal oficial (cloud_api).
   // A janela abre na última mensagem RECEBIDA do contato; fora dela, a Meta só
