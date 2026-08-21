@@ -1,6 +1,8 @@
 import { Switch, Route, Redirect, useLocation } from "wouter";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import WhatsAppHub from "@/pages/whatsapp/whatsapp-hub";
+import { AppErrorBoundary } from "@/components/app-error-boundary";
+import { lazyWithReload } from "@/lib/lazy-with-reload";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -50,23 +52,57 @@ import RestaurantComandaPage from "@/pages/restaurant-pdv/comanda";
 import RestaurantPdvHub from "@/pages/restaurant-pdv/hub";
 import AdminPanel from "@/pages/restaurant-pdv/admin-panel";
 
-const WhatsAppCampaignsList = lazy(() => import("@/pages/whatsapp/campaigns-list"));
-const WhatsAppCreateCampaign = lazy(() => import("@/pages/whatsapp/create-campaign"));
-const WhatsAppCampaignDetails = lazy(() => import("@/pages/whatsapp/campaign-details"));
-const WhatsAppTemplates = lazy(() => import("@/pages/whatsapp/templates"));
-const WhatsAppSettings = lazy(() => import("@/pages/whatsapp/settings"));
-const WhatsAppChannels = lazy(() => import("@/pages/whatsapp/channels"));
-const WhatsAppAttendants = lazy(() => import("@/pages/whatsapp/attendants"));
-const WhatsAppBotsList = lazy(() => import("@/pages/whatsapp/bots-list"));
-const WhatsAppBotHistory = lazy(() => import("@/pages/whatsapp/bot-history"));
-const WhatsAppMessageLog = lazy(() => import("@/pages/whatsapp/message-log"));
-const WhatsAppBotEditor = lazy(() => import("@/pages/whatsapp/bot-editor"));
-const WhatsAppConversations = lazy(() => import("@/pages/whatsapp/conversations"));
-const WhatsAppMetaMonitor = lazy(() => import("@/pages/whatsapp/meta-monitor"));
-const RestaurantReports = lazy(() => import("@/pages/restaurant-pdv/reports"));
-const RestaurantOrdersHistory = lazy(() => import("@/pages/restaurant-pdv/orders-history"));
-const RestaurantCashSession = lazy(() => import("@/pages/restaurant-pdv/cash-session"));
-const PdvSettings = lazy(() => import("@/pages/restaurant-pdv/settings"));
+const WhatsAppCampaignsList = lazyWithReload("whatsapp-campaigns", () =>
+  import("@/pages/whatsapp/campaigns-list"),
+);
+const WhatsAppCreateCampaign = lazyWithReload("whatsapp-create-campaign", () =>
+  import("@/pages/whatsapp/create-campaign"),
+);
+const WhatsAppCampaignDetails = lazyWithReload("whatsapp-campaign-details", () =>
+  import("@/pages/whatsapp/campaign-details"),
+);
+const WhatsAppTemplates = lazyWithReload("whatsapp-templates", () =>
+  import("@/pages/whatsapp/templates"),
+);
+const WhatsAppSettings = lazyWithReload("whatsapp-settings", () =>
+  import("@/pages/whatsapp/settings"),
+);
+const WhatsAppChannels = lazyWithReload("whatsapp-channels", () =>
+  import("@/pages/whatsapp/channels"),
+);
+const WhatsAppAttendants = lazyWithReload("whatsapp-attendants", () =>
+  import("@/pages/whatsapp/attendants"),
+);
+const WhatsAppBotsList = lazyWithReload("whatsapp-bots", () =>
+  import("@/pages/whatsapp/bots-list"),
+);
+const WhatsAppBotHistory = lazyWithReload("whatsapp-bot-history", () =>
+  import("@/pages/whatsapp/bot-history"),
+);
+const WhatsAppMessageLog = lazyWithReload("whatsapp-message-log", () =>
+  import("@/pages/whatsapp/message-log"),
+);
+const WhatsAppBotEditor = lazyWithReload("whatsapp-bot-editor", () =>
+  import("@/pages/whatsapp/bot-editor"),
+);
+const WhatsAppConversations = lazyWithReload("whatsapp-conversations", () =>
+  import("@/pages/whatsapp/conversations"),
+);
+const WhatsAppMetaMonitor = lazyWithReload("whatsapp-meta-monitor", () =>
+  import("@/pages/whatsapp/meta-monitor"),
+);
+const RestaurantReports = lazyWithReload("restaurant-reports", () =>
+  import("@/pages/restaurant-pdv/reports"),
+);
+const RestaurantOrdersHistory = lazyWithReload("restaurant-orders-history", () =>
+  import("@/pages/restaurant-pdv/orders-history"),
+);
+const RestaurantCashSession = lazyWithReload("restaurant-cash-session", () =>
+  import("@/pages/restaurant-pdv/cash-session"),
+);
+const PdvSettings = lazyWithReload("restaurant-settings", () =>
+  import("@/pages/restaurant-pdv/settings"),
+);
 
 // Páginas do módulo WhatsApp que um vendedor pode acessar diretamente pela
 // URL — as demais (campanhas, templates, atendentes, bots, etc.) já ficam
@@ -456,17 +492,19 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="vinocrm-ui-theme">
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <PageTitleUpdater />
-            <Router />
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider defaultTheme="light" storageKey="vinocrm-ui-theme">
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <PageTitleUpdater />
+              <Router />
+            </TooltipProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }
 

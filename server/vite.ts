@@ -79,8 +79,10 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
-export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+export function serveStatic(
+  app: Express,
+  distPath = path.resolve(import.meta.dirname, "public"),
+) {
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
@@ -88,13 +90,36 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      setHeaders(res, filePath) {
+        if (filePath.startsWith(path.join(distPath, "assets") + path.sep)) {
+          res.setHeader(
+            "Cache-Control",
+            "public, max-age=31536000, immutable",
+          );
+        } else if (filePath === path.join(distPath, "index.html")) {
+          res.setHeader(
+            "Cache-Control",
+            "no-cache, no-store, must-revalidate",
+          );
+        }
+      },
+    }),
+  );
 
   // fall through to index.html if the file doesn't exist (apenas para GET/HEAD)
   app.use("*", (req, res) => {
     if (req.originalUrl.startsWith("/api/") || (req.method !== "GET" && req.method !== "HEAD")) {
       return res.status(404).json({ message: "Rota não encontrada" });
     }
+    if (
+      req.originalUrl === "/assets" ||
+      req.originalUrl.startsWith("/assets/")
+    ) {
+      return res.status(404).type("text/plain").send("Asset não encontrado");
+    }
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
