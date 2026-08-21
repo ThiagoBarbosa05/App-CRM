@@ -7,9 +7,21 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Mail, MapPin, Calendar, Phone, ExternalLink, Tag, Cake, BellOff } from "lucide-react";
+import {
+  Mail,
+  MapPin,
+  Calendar,
+  Phone,
+  ExternalLink,
+  Tag,
+  Cake,
+  BellOff,
+  ShoppingBag,
+} from "lucide-react";
 import { formatPhone, formatCpf, formatDate } from "@/lib/utils";
 import type { Client } from "@shared/schema";
+import type { ClientRegistrationQuality } from "@shared/client-registration-quality";
+import { RegistrationQualityBar } from "@/components/clients/registration-quality-bar";
 import {
   ContactAvatar,
   WhatsappTagBadge,
@@ -22,6 +34,11 @@ interface ContactDetailsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type ClientDetails = Client & {
+  registrationQuality?: ClientRegistrationQuality;
+  lastPurchaseDate?: string | null;
+};
+
 export function ContactDetailsSheet({
   client,
   open,
@@ -32,7 +49,7 @@ export function ContactDetailsSheet({
     (client.tags && client.tags.length > 0) ||
     (client.whatsappTags && client.whatsappTags.length > 0);
 
-  const { data: fullClient, isLoading } = useQuery<Client>({
+  const { data: fullClient, isLoading } = useQuery<ClientDetails>({
     queryKey: ["/api/clients", client.clientId],
     queryFn: async () => {
       const res = await fetch(`/api/clients/${client.clientId}`);
@@ -40,6 +57,7 @@ export function ContactDetailsSheet({
       return res.json();
     },
     enabled: open && !!client.clientId,
+    staleTime: 60_000,
   });
 
   return (
@@ -117,6 +135,27 @@ export function ContactDetailsSheet({
                 </div>
               ) : fullClient ? (
                 <div className="space-y-3 text-sm">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/50">
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                        Cadastro
+                      </p>
+                      {fullClient.registrationQuality ? (
+                        <RegistrationQualityBar quality={fullClient.registrationQuality} />
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/50">
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                        Última compra
+                      </p>
+                      <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-200">
+                        <ShoppingBag className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        <span>{fullClient.lastPurchaseDate ? formatDate(fullClient.lastPurchaseDate) : "—"}</span>
+                      </div>
+                    </div>
+                  </div>
                   {fullClient.email && (
                     <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
                       <Mail className="h-4 w-4 shrink-0 text-slate-400" />

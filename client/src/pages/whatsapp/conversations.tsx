@@ -101,7 +101,6 @@ import {
   Check,
   ArrowRightLeft,
   StickyNote,
-  Wifi,
   WifiOff,
   Eye,
   Radio,
@@ -139,50 +138,6 @@ import {
 } from "@/components/ui/tooltip";
 import { useWhatsappSettings } from "@/hooks/use-whatsapp";
 import { BOT_SHORTCUT_ICONS, parseBotShortcuts } from "@/lib/bot-shortcut-icons";
-import { RegistrationQualityBar } from "@/components/clients/registration-quality-bar";
-import type { ClientRegistrationQuality } from "@shared/client-registration-quality";
-
-function ClientCadastroBar({ clientId }: { clientId: string }) {
-  const { data } = useQuery<{
-    registrationQuality: ClientRegistrationQuality;
-    lastPurchaseDate: string | null;
-  }>({
-    queryKey: ["/api/clients", clientId],
-    queryFn: async () => {
-      const res = await fetch(`/api/clients/${clientId}`);
-      if (!res.ok) throw new Error("Erro ao carregar cliente");
-      return res.json();
-    },
-    staleTime: 60_000,
-  });
-  if (!data?.registrationQuality) return null;
-
-  const lastPurchaseLabel = data.lastPurchaseDate
-    ? format(new Date(data.lastPurchaseDate), "dd/MM/yyyy", { locale: ptBR })
-    : null;
-
-  return (
-    <div className="hidden sm:flex items-center gap-2 shrink-0">
-      {/* Qualidade de cadastro */}
-      <div className="flex items-center gap-1.5 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-2 py-1">
-        <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
-          Cadastro
-        </span>
-        <RegistrationQualityBar quality={data.registrationQuality} />
-      </div>
-
-      {/* Última compra */}
-      <div className="flex items-center gap-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-2 py-1">
-        <span className="text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 shrink-0">
-          Últ. compra
-        </span>
-        <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
-          {lastPurchaseLabel ?? "—"}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 interface Channel {
   id: number;
@@ -4312,8 +4267,6 @@ function ConversationMessages({
   // listClientsForChat). Então basta usar client.contactName.
   const displayName = client.clientName ?? client.contactName ?? client.phone;
 
-  const showChannelSelect = isAdminOrGerente && channels.length > 0;
-
   // Nome a exibir na badge por mensagem (quem enviou) num diálogo interno. NÃO
   // dá para usar o canal cru da mensagem (whatsapp_messages.channel_id): em
   // diálogo canal↔canal o mesmo wa_message_id dispara webhook nas DUAS contas e
@@ -4336,107 +4289,6 @@ function ConversationMessages({
             client.contactName === peerSideName
             ? ownerSideName
             : peerSideName;
-
-  // O canal da conversa é imutável (telefone + canal = identidade da conversa) e
-  // o backend sempre envia por ele, ignorando qualquer override. Por isso o
-  // seletor é apenas informativo (disabled): trocar o canal aqui não mudaria por
-  // onde a mensagem sai e daria a falsa impressão de ter trocado.
-  const ChannelSelect = () => (
-    <Select
-      value={selectedChannelId != null ? String(selectedChannelId) : ""}
-      disabled
-    >
-      <SelectTrigger className="h-8 text-xs w-full border-slate-200 dark:border-slate-700">
-        <SelectValue placeholder="Selecionar canal…">
-          {selectedChannelId != null &&
-            (() => {
-              const ch = channels.find((c) => c.id === selectedChannelId);
-              if (!ch) return "Selecionar canal…";
-              const isConnected =
-                ch.provider === "cloud_api" ||
-                ch.connectionStatus === "connected";
-              return (
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <span
-                    className={cn(
-                      "shrink-0 h-2 w-2 rounded-full",
-                      isConnected
-                        ? "bg-green-500"
-                        : ch.connectionStatus === "connecting"
-                          ? "bg-amber-400 animate-pulse"
-                          : "bg-slate-300 dark:bg-slate-600",
-                    )}
-                  />
-                  <span className="truncate">
-                    {ch.name}
-                    {ch.displayPhone ? ` · ${ch.displayPhone}` : ""}
-                  </span>
-                </span>
-              );
-            })()}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent>
-        {channels.map((ch) => {
-          const isConnected =
-            ch.provider === "cloud_api" || ch.connectionStatus === "connected";
-          const isConnecting =
-            ch.provider === "evolution" && ch.connectionStatus === "connecting";
-          const isDisabled =
-            ch.provider === "evolution" && ch.connectionStatus !== "connected";
-          return (
-            <SelectItem
-              key={ch.id}
-              value={String(ch.id)}
-              disabled={isDisabled}
-              className={cn(isDisabled && "opacity-50 cursor-not-allowed")}
-            >
-              <span className="flex items-center gap-2 w-full min-w-0">
-                <span
-                  className={cn(
-                    "shrink-0 h-2 w-2 rounded-full",
-                    isConnected
-                      ? "bg-green-500"
-                      : isConnecting
-                        ? "bg-amber-400 animate-pulse"
-                        : "bg-slate-300 dark:bg-slate-600",
-                  )}
-                />
-                <span className="flex flex-col min-w-0">
-                  <span className="truncate font-medium text-xs leading-tight">
-                    {ch.name}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] leading-tight",
-                      isConnected
-                        ? "text-green-600 dark:text-green-400"
-                        : isConnecting
-                          ? "text-amber-500"
-                          : "text-slate-400 dark:text-slate-500",
-                    )}
-                  >
-                    {isConnected
-                      ? (ch.displayPhone ?? "Conectado")
-                      : isConnecting
-                        ? "Conectando…"
-                        : "Desconectado"}
-                  </span>
-                </span>
-                {isConnected ? (
-                  <Wifi className="h-3 w-3 text-green-500 shrink-0 ml-auto" />
-                ) : isConnecting ? (
-                  <Radio className="h-3 w-3 text-amber-400 shrink-0 ml-auto" />
-                ) : (
-                  <WifiOff className="h-3 w-3 text-slate-400 dark:text-slate-500 shrink-0 ml-auto" />
-                )}
-              </span>
-            </SelectItem>
-          );
-        })}
-      </SelectContent>
-    </Select>
-  );
 
   return (
     <div className="flex flex-col h-full">
@@ -4465,25 +4317,10 @@ function ConversationMessages({
               <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate leading-tight">
                 {displayName}
               </p>
-              {client.whatsappOptOut && (
-                <span
-                  title="Cliente não recebe mensagens de marketing"
-                  className="inline-flex items-center gap-1 shrink-0 rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:border-rose-800/70 dark:bg-rose-500/10 dark:text-rose-300"
-                >
-                  <BellOff className="h-2.5 w-2.5" />
-                  Não recebe marketing
-                </span>
-              )}
             </div>
-            {(client.clientName || client.contactName) && (
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
-                <Phone className="h-3 w-3 shrink-0" />
-                <span className="truncate">{client.phone}</span>
-              </p>
-            )}
             {((client.tags && client.tags.length > 0) ||
               (client.whatsappTags && client.whatsappTags.length > 0)) && (
-              <div className="flex flex-wrap gap-1 mt-0.5 hidden sm:flex">
+              <div className="flex flex-wrap gap-1 mt-0.5">
                 {client.tags?.map((tag) => (
                   <span
                     key={tag.id}
@@ -4498,24 +4335,6 @@ function ConversationMessages({
               </div>
             )}
           </div>
-
-          {/* Card de qualidade de cadastro — visível quando há clientId */}
-          {client.clientId && (
-            <ClientCadastroBar clientId={client.clientId} />
-          )}
-
-          {/* Canal select — visível apenas em sm+ no header principal */}
-          {showChannelSelect && (
-            <div className="hidden sm:flex items-center gap-2 shrink-0 min-w-0 max-w-[200px]">
-              <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                Canal:
-              </span>
-              <div className="min-w-0 flex-1">
-                <ChannelSelect />
-              </div>
-            </div>
-          )}
-
 
           {/* Detalhes do contato — não faz sentido em diálogo interno canal↔canal,
               onde o outro lado é um atendente nosso, não um contato do CRM. */}
@@ -4583,62 +4402,10 @@ function ConversationMessages({
           )}
         </div>
 
-        {/* Linha secundária: canal select em mobile */}
-        {showChannelSelect && (
-          <div className="sm:hidden px-2 pb-2 flex items-center gap-2">
-            <span className="text-[11px] text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
-              Canal:
-            </span>
-            <div className="flex-1 min-w-0">
-              <ChannelSelect />
-            </div>
-          </div>
-        )}
-
-
-        {/* Setor + canal desta conversa: sempre visível (não só admin/gerente),
-            para não depender da faixa "meus canais" da barra lateral — que é
-            sobre os canais do usuário logado, não necessariamente o desta
-            conversa (ex.: transferida por setor, canal de outro atendente). */}
-        {(client.sectorId || client.channelName) && (
+        {/* Setor é o único metadado adicional mantido no header. */}
+        {client.sectorId && (
           <div className="px-2 sm:px-4 pb-2 flex items-center gap-2 flex-wrap">
-            {client.sectorId && (
-              <SectorBadge name={client.sectorName} color={client.sectorColor} />
-            )}
-            {client.channelName &&
-              (() => {
-                const connected =
-                  client.channelProvider === "cloud_api" ||
-                  client.channelConnectionStatus === "connected";
-                return (
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                    <span
-                      className={cn(
-                        "h-1.5 w-1.5 rounded-full shrink-0",
-                        connected ? "bg-green-500" : "bg-amber-500",
-                      )}
-                    />
-                    Canal desta conversa:{" "}
-                    <span className="font-medium text-slate-700 dark:text-slate-300">
-                      {client.channelName}
-                    </span>
-                    {client.channelDisplayPhone && ` (${client.channelDisplayPhone})`}
-                    {!connected && (
-                      <span className="text-amber-600 dark:text-amber-400 font-medium">
-                        · Desconectado
-                      </span>
-                    )}
-                    {connected && capabilities && !capabilities.deviceEcho && (
-                      <span
-                        className="text-slate-400"
-                        title="Ações feitas no aplicativo móvel só aparecem quando a Meta habilita Coexistence/echo para este número."
-                      >
-                        · ações do dispositivo condicionais à Meta
-                      </span>
-                    )}
-                  </span>
-                );
-              })()}
+            <SectorBadge name={client.sectorName} color={client.sectorColor} />
           </div>
         )}
       </div>
