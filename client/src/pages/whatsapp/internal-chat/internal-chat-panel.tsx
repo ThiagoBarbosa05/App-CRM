@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
+import { extractPastedImage, normalizeChatImage } from "@/lib/paste-image";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -146,7 +146,7 @@ export function InternalChatPanel({ onExit, initialConversationId, onInitialCons
     if (!image) return;
     e.preventDefault();
     try {
-      await uploadAndSend(await normalizePastedImage(image));
+      await uploadAndSend(await normalizeChatImage(image));
     } catch (err) {
       console.error("[internal-chat] falha ao colar imagem:", err);
       toast({

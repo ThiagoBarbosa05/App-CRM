@@ -54,7 +54,7 @@ import {
   resolveSenderChannelId,
 } from "@/lib/wa-conversation-sender";
 import { findDisconnectedOwnEvolutionChannel } from "@/lib/wa-own-channel-alert";
-import { extractPastedImage, normalizePastedImage } from "@/lib/paste-image";
+import { extractPastedImage, normalizeChatImage } from "@/lib/paste-image";
 import { setOnWaConversationsPage } from "@/lib/wa-active-conversation";
 import {
   getAutomationEventPreview,
@@ -4069,13 +4069,26 @@ function ConversationMessages({
   }, []);
 
   const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
       e.target.value = "";
-      attachFile(file);
+      try {
+        attachFile(
+          file.type.startsWith("image/")
+            ? await normalizeChatImage(file)
+            : file,
+        );
+      } catch (err) {
+        console.error("[conversations] falha ao preparar imagem anexada:", err);
+        toast({
+          title: "Não foi possível anexar a imagem",
+          description: "Converta o arquivo para PNG ou JPEG e tente novamente.",
+          variant: "destructive",
+        });
+      }
     },
-    [attachFile],
+    [attachFile, toast],
   );
 
   // Ctrl+V de um screenshot vira anexo pendente, com o mesmo preview e legenda
@@ -4088,7 +4101,7 @@ function ConversationMessages({
       if (!image) return;
       e.preventDefault();
       try {
-        attachFile(await normalizePastedImage(image));
+        attachFile(await normalizeChatImage(image));
       } catch (err) {
         console.error("[conversations] falha ao colar imagem:", err);
         toast({
@@ -5557,7 +5570,7 @@ function ConversationMessages({
               ref={fileInputRef}
               type="file"
               className="hidden"
-              accept="image/jpeg,image/png,video/mp4,video/3gpp,audio/mpeg,audio/ogg,audio/aac,audio/mp4,application/pdf,.docx,.xlsx,.xls,.csv,.pptx,text/plain"
+              accept="image/jpeg,image/png,image/webp,video/mp4,video/3gpp,audio/mpeg,audio/ogg,audio/aac,audio/mp4,application/pdf,.docx,.xlsx,.xls,.csv,.pptx,text/plain"
               onChange={handleFileChange}
             />
             <input

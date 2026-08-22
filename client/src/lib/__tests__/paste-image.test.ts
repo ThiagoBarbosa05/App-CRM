@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import {
   extractPastedImage,
-  normalizePastedImage,
+  normalizeChatImage,
   pastedImageName,
   type PastedClipboard,
 } from "@/lib/paste-image";
@@ -60,18 +60,22 @@ describe("pastedImageName", () => {
   });
 });
 
-describe("normalizePastedImage", () => {
+describe("normalizeChatImage", () => {
   const now = new Date(2026, 7, 4, 9, 5, 3);
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("renomeia PNG com nome genérico do navegador", async () => {
-    const result = await normalizePastedImage(fakeFile("image.png", "image/png"), now);
+    const result = await normalizeChatImage(fakeFile("image.png", "image/png"), now);
 
     expect(result.name).toBe("screenshot-2026-08-04-090503.png");
     expect(result.type).toBe("image/png");
   });
 
   it("usa extensão jpg para JPEG colado", async () => {
-    const result = await normalizePastedImage(fakeFile("", "image/jpeg"), now);
+    const result = await normalizeChatImage(fakeFile("", "image/jpeg"), now);
 
     expect(result.name).toBe("screenshot-2026-08-04-090503.jpg");
   });
@@ -79,6 +83,45 @@ describe("normalizePastedImage", () => {
   it("preserva o nome de um arquivo copiado do explorador", async () => {
     const original = fakeFile("orcamento-final.png", "image/png");
 
-    expect(await normalizePastedImage(original, now)).toBe(original);
+    expect(await normalizeChatImage(original, now)).toBe(original);
+  });
+
+  it("converte WEBP anexado em PNG com nome coerente", async () => {
+    const close = vi.fn();
+    const drawImage = vi.fn();
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 10, height: 20, close })));
+    vi.stubGlobal("document", {
+      createElement: vi.fn(() => ({
+        width: 0,
+        height: 0,
+        getContext: () => ({ drawImage }),
+        toBlob: (callback: (blob: Blob | null) => void) => callback(new Blob(["png"], { type: "image/png" })),
+      })),
+    });
+
+    const result = await normalizeChatImage(fakeFile("foto.webp", "image/webp"), now);
+
+    expect(result.name).toBe("foto.png");
+    expect(result.type).toBe("image/png");
+    expect(drawImage).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  it("propaga falha quando o canvas não consegue gerar o PNG", async () => {
+    const close = vi.fn();
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 10, height: 20, close })));
+    vi.stubGlobal("document", {
+      createElement: vi.fn(() => ({
+        width: 0,
+        height: 0,
+        getContext: () => ({ drawImage: vi.fn() }),
+        toBlob: (callback: (blob: Blob | null) => void) => callback(null),
+      })),
+    });
+
+    await expect(
+      normalizeChatImage(fakeFile("foto.webp", "image/webp"), now),
+    ).rejects.toThrow("Falha ao converter a imagem para PNG");
+    expect(close).toHaveBeenCalledOnce();
   });
 });

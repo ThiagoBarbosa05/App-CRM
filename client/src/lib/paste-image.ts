@@ -27,8 +27,8 @@ const GENERIC_NAMES = new Set([
   "blob",
 ]);
 
-// O backend mapeia image/webp para FIGURINHA (ALLOWED_MEDIA_TYPES em
-// whatsapp-conversations.service.ts), então só estes dois podem passar direto:
+// O backend do WhatsApp reserva image/webp para FIGURINHA. Por isso, imagens
+// comuns vindas do clipboard ou do clipe só passam direto nestes formatos;
 // qualquer outro formato é reencodado em PNG antes de virar anexo.
 const PASSTHROUGH_TYPES = new Set(["image/png", "image/jpeg"]);
 
@@ -60,11 +60,17 @@ function isGenericName(name: string): boolean {
   return GENERIC_NAMES.has(name.trim().toLowerCase());
 }
 
+function convertedPngName(fileName: string, now: Date): string {
+  if (isGenericName(fileName)) return pastedImageName("png", now);
+  const baseName = fileName.replace(/\.[^.]+$/, "");
+  return `${baseName}.png`;
+}
+
 /**
- * Garante um formato que o WhatsApp renderiza como imagem e um nome legível.
- * Arquivos colados do explorador de arquivos mantêm o nome original.
+ * Garante um formato que os chats renderizam como imagem e um nome legível.
+ * JPEG/PNG com nome próprio permanecem inalterados; outros formatos viram PNG.
  */
-export async function normalizePastedImage(
+export async function normalizeChatImage(
   file: File,
   now: Date = new Date(),
 ): Promise<File> {
@@ -90,9 +96,9 @@ async function toPng(file: File, now: Date): Promise<File> {
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/png"),
     );
-    if (!blob) throw new Error("Falha ao converter a imagem colada para PNG");
+    if (!blob) throw new Error("Falha ao converter a imagem para PNG");
 
-    return new File([blob], pastedImageName("png", now), { type: "image/png" });
+    return new File([blob], convertedPngName(file.name, now), { type: "image/png" });
   } finally {
     bitmap.close();
   }
