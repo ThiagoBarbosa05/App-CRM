@@ -48,6 +48,14 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+  deleteRecoverableMediaDraft,
+  getRecoverableMediaDraft,
+  isRecoverableMediaUploading,
+  saveRecoverableMediaDraft,
+  sendRecoverableMedia,
+  subscribeRecoverableMediaState,
+} from "@/lib/recoverable-media-send";
 import { useWhatsappErrorToast } from "@/hooks/use-whatsapp-error-toast";
 import {
   canSendFromChannel,
@@ -3197,6 +3205,7 @@ function ConversationMessages({
   // seletor. Vai ao backend como ?asChannelId= na LEITURA (perspectiva do lado)
   // e como channelId no ENVIO (a mensagem "assina" pelo canal daquele lado).
   const viewAsChannelId = client.perspectiveChannelId ?? null;
+  const audioDraftKey = `${conversationKey}:${viewAsChannelId ?? "default"}`;
   // Canal pelo qual o envio deve "assinar". Numa caixa interna desdobrada é o
   // lado desta caixa; para atendente comum, espelha a inferência do backend
   // (peer sem acesso ao dono envia como peer). O channelId só é enviado como
@@ -3215,7 +3224,16 @@ function ConversationMessages({
     blob: Blob;
     url: string;
     file: File;
-  } | null>(null);
+  } | null>(() =>
+    getRecoverableMediaDraft<{
+      blob: Blob;
+      url: string;
+      file: File;
+    }>(audioDraftKey) ?? null,
+  );
+  const [isAudioDraftUploading, setIsAudioDraftUploading] = useState(() =>
+    isRecoverableMediaUploading(audioDraftKey),
+  );
   const [pendingMedia, setPendingMedia] = useState<{
     file: File;
     url: string;
@@ -4355,7 +4373,9 @@ function ConversationMessages({
           type: mimeType,
         });
         const url = URL.createObjectURL(blob);
-        setPendingAudio({ blob, url, file });
+        const audioDraft = { blob, url, file };
+        saveRecoverableMediaDraft(audioDraftKey, audioDraft);
+        setPendingAudio(audioDraft);
         recordingChunksRef.current = [];
       };
 
@@ -4373,7 +4393,39 @@ function ConversationMessages({
         variant: "destructive",
       });
     }
-  }, [toast]);
+  }, [audioDraftKey, toast]);
+
+  useEffect(
+    () =>
+      subscribeRecoverableMediaState(audioDraftKey, () => {
+        setPendingAudio(
+          getRecoverableMediaDraft<{
+            blob: Blob;
+            url: string;
+            file: File;
+          }>(audioDraftKey) ?? null,
+        );
+        setIsAudioDraftUploading(isRecoverableMediaUploading(audioDraftKey));
+      }),
+    [audioDraftKey],
+  );
+
+  const sendPendingAudio = useCallback(async () => {
+    if (!pendingAudio || isUploading || isAudioDraftUploading) return;
+    const audioToSend = pendingAudio;
+
+    await sendRecoverableMedia({
+      key: audioDraftKey,
+      send: () => sendMedia(audioToSend.file),
+      clearMedia: () => {
+        deleteRecoverableMediaDraft(audioDraftKey);
+        URL.revokeObjectURL(audioToSend.url);
+        setPendingAudio((current) =>
+          current?.url === audioToSend.url ? null : current,
+        );
+      },
+    });
+  }, [audioDraftKey, isAudioDraftUploading, isUploading, pendingAudio, sendMedia]);
 
   // Canal atualmente em uso na conversa. Só é possível enviar mensagens/disparar
   // bots quando há um canal selecionado E ele está conectado (cloud_api é sempre
@@ -5533,26 +5585,25 @@ function ConversationMessages({
             </div>
             <button
               onClick={() => {
+                if (isAudioDraftUploading) return;
+                deleteRecoverableMediaDraft(audioDraftKey);
                 URL.revokeObjectURL(pendingAudio.url);
                 setPendingAudio(null);
               }}
+              disabled={isUploading || isAudioDraftUploading}
               className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800"
               title="Descartar áudio"
             >
               <X className="h-4 w-4" />
             </button>
             <Button
-              onClick={() => {
-                sendMedia(pendingAudio.file);
-                URL.revokeObjectURL(pendingAudio.url);
-                setPendingAudio(null);
-              }}
-              disabled={isUploading}
+              onClick={() => void sendPendingAudio()}
+              disabled={isUploading || isAudioDraftUploading}
               size="icon"
               className="shrink-0 h-10 w-10 bg-green-500 hover:bg-green-600"
               title="Enviar áudio"
             >
-              {isUploading ? (
+              {isUploading || isAudioDraftUploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Check className="h-4 w-4" />
