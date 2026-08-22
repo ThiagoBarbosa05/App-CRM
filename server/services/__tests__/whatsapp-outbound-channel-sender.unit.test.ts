@@ -7,6 +7,7 @@ vi.mock("../../db", () => ({ db: { select: vi.fn() } }));
 vi.mock("../../lib/sse-hub", () => ({
   publishConversationEvent: () => {},
   publishSseEvent: () => {},
+  registerConversationAccessChecker: () => {},
   revokeStaleConversationAccess: async () => {},
 }));
 vi.mock("../../integrations/evolution", () => ({

@@ -796,8 +796,17 @@ router.get("/conversations/:clientId/capabilities", async (req, res) => {
     if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
     const conversationId = await resolveConversationId(req.params.clientId);
     if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+    const parsedQuery = z.object({
+      channelId: z.coerce.number().int().positive().optional(),
+    }).safeParse(req.query);
+    if (!parsedQuery.success) {
+      return res.status(400).json({ errors: parsedQuery.error.flatten() });
+    }
     const capabilities = await getConversationCapabilities(
-      conversationId, user.userId, user.role,
+      conversationId,
+      user.userId,
+      user.role,
+      parsedQuery.data.channelId,
     );
     if (!capabilities) return res.status(404).json({ message: "Canal não encontrado" });
     res.json(capabilities);

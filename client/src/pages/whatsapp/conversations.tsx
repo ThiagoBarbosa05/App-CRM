@@ -3239,11 +3239,19 @@ function ConversationMessages({
     forward: boolean;
     deviceEcho: boolean;
     provider: "cloud_api" | "evolution";
+    unavailableReason: string | null;
   }>({
-    queryKey: ["/api/whatsapp/conversations", conversationKey, "capabilities"],
+    queryKey: [
+      "/api/whatsapp/conversations",
+      conversationKey,
+      "capabilities",
+      sendAsChannelId,
+    ],
     queryFn: async () => {
+      const params = new URLSearchParams();
+      if (sendAsChannelId != null) params.set("channelId", String(sendAsChannelId));
       const response = await fetch(
-        `/api/whatsapp/conversations/${conversationKey}/capabilities`,
+        `/api/whatsapp/conversations/${conversationKey}/capabilities?${params}`,
       );
       if (!response.ok) throw new Error("Falha ao consultar capacidades");
       return response.json();
@@ -3473,6 +3481,13 @@ function ConversationMessages({
   };
 
   const sendSavedSticker = async (mediaId: string) => {
+    if (capabilities?.sticker !== true) {
+      toast({
+        title: capabilities?.unavailableReason ?? "Figurinhas indisponíveis neste canal",
+        variant: "destructive",
+      });
+      return;
+    }
     setStickerPickerOpen(false);
     setIsUploading(true);
     try {
@@ -4224,7 +4239,7 @@ function ConversationMessages({
         ) {
           body.channelId = sendAsChannelId;
         }
-        await fetch(
+        const response = await fetch(
           `/api/whatsapp/conversations/${conversationKey}/messages/${messageId}/reaction`,
           {
             method: "POST",
@@ -4232,11 +4247,21 @@ function ConversationMessages({
             body: JSON.stringify(body),
           },
         );
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null) as {
+            detail?: string;
+            message?: string;
+          } | null;
+          throw new Error(payload?.detail ?? payload?.message ?? "Erro ao reagir à mensagem");
+        }
         queryClient.invalidateQueries({
           queryKey: ["/api/whatsapp/conversations", conversationKey],
         });
-      } catch {
-        toast({ title: "Erro ao reagir à mensagem", variant: "destructive" });
+      } catch (error) {
+        toast({
+          title: error instanceof Error ? error.message : "Erro ao reagir à mensagem",
+          variant: "destructive",
+        });
       }
     },
     [conversationKey, queryClient, sendAsChannelId, toast, userRole],
@@ -5026,13 +5051,13 @@ function ConversationMessages({
                         >
                           <button
                             onClick={() => setReplyingTo(msg)}
-                            disabled={capabilities?.reply === false}
+                            disabled={capabilities?.reply !== true}
                             className={cn(
                               "h-7 w-7 rounded-full flex items-center justify-center",
                               "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
                               "text-slate-500 dark:text-slate-400",
                             )}
-                            title="Responder"
+                            title={capabilities?.reply === true ? "Responder" : capabilities?.unavailableReason ?? "Resposta indisponível"}
                           >
                             <Reply className="h-3.5 w-3.5" />
                           </button>
@@ -5041,13 +5066,13 @@ function ConversationMessages({
                               setForwardingMessage(msg);
                               setForwardTargetIds(new Set());
                             }}
-                            disabled={capabilities?.forward === false}
+                            disabled={capabilities?.forward !== true}
                             className={cn(
                               "h-7 w-7 rounded-full flex items-center justify-center",
                               "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
                               "text-slate-500 dark:text-slate-400 disabled:opacity-40",
                             )}
-                            title="Encaminhar"
+                            title={capabilities?.forward === true ? "Encaminhar" : capabilities?.unavailableReason ?? "Encaminhamento indisponível"}
                           >
                             <Forward className="h-3.5 w-3.5" />
                           </button>
@@ -5077,15 +5102,15 @@ function ConversationMessages({
                           >
                             <PopoverTrigger asChild>
                               <button
-                                disabled={capabilities?.reaction === false}
+                                disabled={capabilities?.reaction !== true}
                                 className={cn(
                                   "h-7 w-7 rounded-full flex items-center justify-center",
                                   "bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600",
                                   "text-slate-500 dark:text-slate-400",
                                 )}
                                 title={
-                                  capabilities?.reaction === false
-                                    ? "Reações indisponíveis neste canal"
+                                  capabilities?.reaction !== true
+                                    ? capabilities?.unavailableReason ?? "Reações indisponíveis neste canal"
                                     : "Reagir"
                                 }
                               >
@@ -5681,9 +5706,14 @@ function ConversationMessages({
                   >
                     <PopoverTrigger asChild>
                       <button
-                        disabled={isUploading || windowClosed || pendingMedia != null}
+                        disabled={
+                          isUploading ||
+                          windowClosed ||
+                          pendingMedia != null ||
+                          capabilities?.sticker !== true
+                        }
                         className="h-9 w-9 rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-colors disabled:opacity-50"
-                        title="Figurinhas"
+                        title={capabilities?.sticker === true ? "Figurinhas" : capabilities?.unavailableReason ?? "Figurinhas indisponíveis neste canal"}
                       >
                         <Sticker className="h-4 w-4" />
                       </button>

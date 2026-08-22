@@ -32,6 +32,11 @@ import {
 import { getChannelById, resolveChannelForConversation, resolveChannelById, getActiveChannelIdByUserId, listChannelIdsForUser, getDefaultSectorIdForChannel, getChannelByPhone, getChannelIdentityById, isSameChannelPhone } from "./whatsapp-channels.service";
 import type { ResolvedChannel, ChannelIdentity } from "./whatsapp-channels.service";
 import { getWhatsappMediaType } from "@shared/whatsapp-media";
+import {
+  getWhatsappConversationCapabilities as buildConversationCapabilities,
+  validateWhatsappMediaForProvider,
+  type WhatsappConversationCapabilities,
+} from "@shared/whatsapp-conversation-capabilities";
 import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
@@ -2182,6 +2187,19 @@ export async function sendConversationMessage(
   try {
     let waMessageId: string | null = null;
 
+    // A UI otimista pressupõe que falhas HTTP após o aceite da requisição
+    // possuem uma linha `failed` para aparecer no histórico e permitir retry.
+    // Por isso a guarda de reply roda depois da persistência inicial.
+    if (replyToMessageId) {
+      const capabilities = await getCapabilitiesForResolvedChannel(
+        resolvedChannel,
+        resolved.channelId,
+      );
+      if (!capabilities.reply) {
+        throw new Error(capabilities.unavailableReason ?? "Respostas indisponíveis neste canal");
+      }
+    }
+
     if (resolvedChannel?.provider === "evolution") {
       const evoResult = await evoSendText(
         resolvedChannel.evolutionInstanceName,
@@ -2580,6 +2598,28 @@ export async function sendConversationMedia(
   }
   const resolvedChannel = resolved.channel;
 
+  const mediaCompatibility = validateWhatsappMediaForProvider({
+    provider: resolvedChannel.provider,
+    mimeType: effectiveMime,
+    size: effectiveBuffer.length,
+  });
+  if (!mediaCompatibility.supported) {
+    throw new Error(mediaCompatibility.reason ?? "Arquivo incompatível com o canal");
+  }
+
+  if (replyToMessageId || mediaCompatibility.mediaType === "sticker") {
+    const capabilities = await getCapabilitiesForResolvedChannel(
+      resolvedChannel,
+      resolved.channelId,
+    );
+    if (replyToMessageId && !capabilities.reply) {
+      throw new Error(capabilities.unavailableReason ?? "Respostas indisponíveis neste canal");
+    }
+    if (mediaCompatibility.mediaType === "sticker" && !capabilities.sticker) {
+      throw new Error(capabilities.unavailableReason ?? "Figurinhas indisponíveis neste canal");
+    }
+  }
+
   console.log(`[sendConversationMedia] provider=${resolvedChannel.provider}`);
 
   let waMessageId: string | null = null;
@@ -2742,6 +2782,18 @@ export async function forwardConversationMessage(
       if (!(await isConversationAccessibleToUser(targetConversationId, userId, userRole))) {
         throw new Error("TARGET_NOT_ACCESSIBLE");
       }
+      const targetChannel = await resolveOutboundChannelForSender(
+        targetConversationId,
+        userId,
+      );
+      if (!targetChannel) throw new Error("CHANNEL_NOT_AVAILABLE");
+      const targetCapabilities = await getCapabilitiesForResolvedChannel(
+        targetChannel.channel,
+        targetChannel.channelId,
+      );
+      if (!targetCapabilities.forward) {
+        throw new Error(targetCapabilities.unavailableReason ?? "Encaminhamento indisponível neste canal");
+      }
       const sent = file
         ? await sendConversationMedia(
             targetConversationId, file, userId, userRole, undefined, source.caption ?? undefined,
@@ -2773,31 +2825,37 @@ export async function getConversationCapabilities(
   conversationId: string,
   userId: string,
   userRole: string,
-): Promise<{
-  reply: boolean;
-  reaction: boolean;
-  sticker: boolean;
-  forward: boolean;
-  deviceEcho: boolean;
-  provider: "cloud_api" | "evolution";
-} | null> {
+  channelId?: number,
+): Promise<WhatsappConversationCapabilities | null> {
   if (!(await isConversationAccessibleToUser(conversationId, userId, userRole))) return null;
-  const resolved = await resolveOutboundChannelForSender(conversationId, userId);
+  const actAsChannelId =
+    userRole === "admin" || userRole === "gerente" ? channelId : undefined;
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId, actAsChannelId);
   if (!resolved) return null;
-  const provider = resolved.channel.provider === "evolution" ? "evolution" : "cloud_api";
+  return getCapabilitiesForResolvedChannel(resolved.channel, resolved.channelId);
+}
+
+async function getCapabilitiesForResolvedChannel(
+  channel: ResolvedChannel,
+  channelId: number,
+): Promise<WhatsappConversationCapabilities> {
   const [channelConfig] = await db
-    .select({ deviceEchoEnabled: whatsappChannels.deviceEchoEnabled })
+    .select({
+      deviceEchoEnabled: whatsappChannels.deviceEchoEnabled,
+      isActive: whatsappChannels.isActive,
+      connectionStatus: whatsappChannels.connectionStatus,
+    })
     .from(whatsappChannels)
-    .where(eq(whatsappChannels.id, resolved.channelId))
+    .where(eq(whatsappChannels.id, channelId))
     .limit(1);
-  return {
-    reply: true,
-    reaction: true,
-    sticker: true,
-    forward: true,
-    deviceEcho: provider === "evolution" || channelConfig?.deviceEchoEnabled === true,
-    provider,
-  };
+
+  return buildConversationCapabilities({
+    provider: channel.provider,
+    configured: channelConfig?.isActive === true,
+    connected:
+      channel.provider === "cloud_api" || channelConfig?.connectionStatus === "connected",
+    deviceEchoEnabled: channelConfig?.deviceEchoEnabled === true,
+  });
 }
 
 export async function retryFailedMessage(
@@ -3566,6 +3624,14 @@ export async function sendConversationReaction(
     );
   }
   const resolvedChannel = resolved.channel;
+
+  const capabilities = await getCapabilitiesForResolvedChannel(
+    resolvedChannel,
+    resolved.channelId,
+  );
+  if (!capabilities.reaction) {
+    throw new Error(capabilities.unavailableReason ?? "Reações indisponíveis neste canal");
+  }
 
   // Destino é o do lado que está reagindo, não conv.phone: conv.phone é o
   // número do PEER (ver canonicalInternalPair), então reagir pelo lado peer
