@@ -53,11 +53,11 @@ Chamadas externas não são transacionais; por isso, cancelamento imediato é ne
 
 **Correção necessária:** registrar `cancelRequestedAt`, distinguir solicitação de cancelamento de cancelamento efetivo e contabilizar mensagens em voo. A interface deve informar que mensagens já entregues ao provedor não podem ser recuperadas. -->
 
-### 5. P1 — Falha de entrega posterior contradiz estado e contadores
+<!-- ### 5. P1 — Falha de entrega posterior contradiz estado e contadores
 
 Depois que uma campanha é finalizada, um webhook pode mudar uma mensagem de `sent` para `failed` em [`whatsapp-campaign-status.service.ts`](../server/services/whatsapp-campaign-status.service.ts). O serviço atualiza apenas a mensagem e não reconcilia `whatsapp_campaigns.status`, `sentMessages`, `failedMessages` ou `completedAt`.
 
-**Correção necessária:** adotar formalmente a semântica de que `completed` significa “processamento concluído”, enquanto entrega e falha são métricas mutáveis. Recalcular os agregados da campanha na mesma transação do webhook e manter `completedAt` como fim do processamento, sem reabrir automaticamente a fila.
+**Correção necessária:** adotar formalmente a semântica de que `completed` significa “processamento concluído”, enquanto entrega e falha são métricas mutáveis. Recalcular os agregados da campanha na mesma transação do webhook e manter `completedAt` como fim do processamento, sem reabrir automaticamente a fila. -->
 
 ### 6. P2 — Retry mantém contadores antigos até o próximo dispatcher
 

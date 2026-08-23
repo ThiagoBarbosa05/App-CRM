@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { whatsappCampaignMessages, whatsappMessages } from "@shared/schema";
+import { whatsappCampaignMessages, whatsappCampaigns, whatsappMessages } from "@shared/schema";
 
 // applyCampaignDeliveryStatus faz até duas consultas de SELECT em sequência
 // (match direto em whatsapp_campaign_messages; se vazio, fallback via FK em
@@ -7,13 +7,20 @@ import { whatsappCampaignMessages, whatsappMessages } from "@shared/schema";
 // pelo id encontrado) seguidas de um UPDATE condicional. Mockamos `db` com
 // filas de resposta por tabela (uma entrada por chamada, na ordem em que
 // `select().from(table)` é invocado) e capturamos os argumentos do UPDATE.
-const { selectMock, updateMock, setMock } = vi.hoisted(() => ({
+const { selectMock, updateMock, setMock, transactionMock } = vi.hoisted(() => ({
   selectMock: vi.fn(),
   updateMock: vi.fn(),
   setMock: vi.fn(),
+  transactionMock: vi.fn(),
 }));
 
-vi.mock("../../db", () => ({ db: { select: selectMock, update: updateMock } }));
+vi.mock("../../db", () => ({
+  db: {
+    select: selectMock,
+    update: updateMock,
+    transaction: transactionMock,
+  },
+}));
 
 import { applyCampaignDeliveryStatus, STATUS_RANK } from "../whatsapp-campaign-status.service";
 
@@ -49,23 +56,40 @@ function baseCampaignMessage(overrides: Partial<CampaignMessageRow> = {}): Campa
 
 // Fila de respostas por tabela: cada chamada a select().from(table) consome o
 // próximo array da fila daquela tabela (na ordem em que foi enfileirado).
-function mockSelectQueues(queues: { campaignMessages?: unknown[][]; messages?: unknown[][] }) {
+function mockSelectQueues(queues: {
+  campaignMessages?: unknown[][];
+  messages?: unknown[][];
+  statusCounts?: Array<{ status: string; count: number }>;
+}) {
   const campaignQueue = [...(queues.campaignMessages ?? [])];
   const messagesQueue = [...(queues.messages ?? [])];
+  let lastCampaignMessage: unknown[] = [];
 
-  selectMock.mockImplementation(() => ({
+  selectMock.mockImplementation((fields?: Record<string, unknown>) => ({
     from: (table: unknown) => ({
-      where: () => ({
-        limit: () => {
+      where: () => {
+        const limit = () => {
+          if (table === whatsappCampaigns) {
+            return Promise.resolve([{ id: "camp-1" }]);
+          }
           if (table === whatsappCampaignMessages) {
-            return Promise.resolve(campaignQueue.shift() ?? []);
+            const result = campaignQueue.shift() ?? lastCampaignMessage;
+            if (result.length > 0) lastCampaignMessage = result;
+            return Promise.resolve(result);
           }
           if (table === whatsappMessages) {
             return Promise.resolve(messagesQueue.shift() ?? []);
           }
           throw new Error(`select inesperado em tabela desconhecida: ${String(table)}`);
-        },
-      }),
+        };
+        return {
+          limit,
+          for: () => ({ limit }),
+          groupBy: () => Promise.resolve(
+            fields && "count" in fields ? queues.statusCounts ?? [] : [],
+          ),
+        };
+      },
     }),
   }));
 }
@@ -75,6 +99,10 @@ describe("applyCampaignDeliveryStatus", () => {
     selectMock.mockReset();
     updateMock.mockReset();
     setMock.mockReset();
+    transactionMock.mockReset();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<void>) =>
+      callback({ select: selectMock, update: updateMock }),
+    );
     setMock.mockReturnValue({ where: () => Promise.resolve(undefined) });
     updateMock.mockReturnValue({ set: setMock });
   });
@@ -144,10 +172,10 @@ describe("applyCampaignDeliveryStatus", () => {
     expect(setMock).toHaveBeenCalledWith(
       expect.objectContaining({ status: "failed", errorMessage: "Número inválido" }),
     );
-    // O serviço não importa nem chama releaseImpact/whatsappCampaignImpacts —
-    // a única tabela tocada por update é whatsapp_campaign_messages.
-    expect(updateMock).toHaveBeenCalledTimes(1);
+    // O segundo UPDATE reconcilia whatsapp_campaigns; nenhum impact é alterado.
+    expect(updateMock).toHaveBeenCalledTimes(2);
     expect(updateMock).toHaveBeenCalledWith(whatsappCampaignMessages);
+    expect(updateMock).toHaveBeenCalledWith(whatsappCampaigns);
   });
 
   it("failed sem errorMessage explícito usa fallback padrão", async () => {
@@ -158,6 +186,33 @@ describe("applyCampaignDeliveryStatus", () => {
     expect(setMock).toHaveBeenCalledWith(
       expect.objectContaining({ errorMessage: "Falha reportada pelo canal" }),
     );
+  });
+
+  it("falha tardia reconcilia os agregados da campanha em uma transação sem reabrir o processamento", async () => {
+    mockSelectQueues({
+      campaignMessages: [[baseCampaignMessage({ status: "sent" })]],
+      statusCounts: [{ status: "failed", count: 1 }],
+    });
+
+    await applyCampaignDeliveryStatus("wamid-1", "failed", {
+      eventAt: new Date("2026-08-04T11:00:00Z"),
+      errorMessage: "Número inválido",
+    });
+
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduledMessages: 0,
+        sentMessages: 0,
+        failedMessages: 1,
+      }),
+    );
+
+    const campaignAggregateUpdate = setMock.mock.calls.find(([values]) =>
+      Object.prototype.hasOwnProperty.call(values, "sentMessages"),
+    )?.[0];
+    expect(campaignAggregateUpdate).not.toHaveProperty("status");
+    expect(campaignAggregateUpdate).not.toHaveProperty("completedAt");
   });
 
   it("estado terminal failed: nenhum novo status é aplicado", async () => {

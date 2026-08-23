@@ -1,6 +1,10 @@
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { db } from "../db";
-import { whatsappCampaignMessages, whatsappMessages } from "@shared/schema";
+import {
+  whatsappCampaignMessages,
+  whatsappCampaigns,
+  whatsappMessages,
+} from "@shared/schema";
 
 // Ordem das transições de status (não permite regredir: read não volta a delivered).
 // Compartilhado entre o webhook da Meta (Cloud API) e os eventos do Baileys/Evolution —
@@ -41,43 +45,79 @@ export async function applyCampaignDeliveryStatus(
   }
   if (!msg) return;
 
-  // Estado terminal: já falhou definitivamente ou a campanha foi cancelada — nenhum
-  // evento de status posterior deve reabrir/alterar o registro.
-  if (msg.status === "failed" || msg.status === "cancelled") return;
+  await db.transaction(async (tx) => {
+    // Serializa webhooks da mesma campanha. Sem este lock, dois eventos para
+    // mensagens diferentes podem calcular agregados concorrentes e o último
+    // UPDATE sobrescrever uma contagem mais recente. Campanhas distintas não
+    // se bloqueiam entre si.
+    const [campaign] = await tx
+      .select({ id: whatsappCampaigns.id })
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.id, msg.campaignId))
+      .for("update")
+      .limit(1);
+    if (!campaign) return;
 
-  if (status === "failed") {
-    // NÃO chama releaseImpact aqui. A mensagem efetivamente SAIU (foi enviada e
-    // depois falhou na entrega, reportado pelo canal via webhook/evento) — é
-    // diferente de uma falha de ENVIO (ver handleSendFailure em
-    // whatsapp-campaign.service.ts, que sim libera o impact porque a mensagem
-    // nunca saiu). Liberar o impact aqui reabriria a janela de dedupe para um
-    // conteúdo que já foi de fato entregue ao destinatário (ainda que com erro
-    // de entrega reportado depois) — deixar reserved/sent como está preserva a
-    // proteção contra reenvio duplicado do mesmo conteúdo.
-    await db
-      .update(whatsappCampaignMessages)
+    // A mensagem pode ter mudado enquanto esta transação aguardava o lock.
+    const [currentMessage] = await tx
+      .select()
+      .from(whatsappCampaignMessages)
+      .where(eq(whatsappCampaignMessages.id, msg.id))
+      .limit(1);
+    if (!currentMessage) return;
+
+    // Estado terminal: já falhou definitivamente ou a campanha foi cancelada —
+    // nenhum evento posterior deve reabrir/alterar o registro.
+    if (currentMessage.status === "failed" || currentMessage.status === "cancelled") return;
+
+    if (status === "failed") {
+      // NÃO libera o impact: a mensagem saiu e a falha foi reportada depois.
+      await tx
+        .update(whatsappCampaignMessages)
+        .set({
+          status: "failed",
+          errorMessage: opts.errorMessage ?? "Falha reportada pelo canal",
+          updatedAt: opts.eventAt,
+        })
+        .where(eq(whatsappCampaignMessages.id, currentMessage.id));
+    } else {
+      const currentRank = STATUS_RANK[currentMessage.status] ?? 0;
+      const nextRank = STATUS_RANK[status] ?? 0;
+      if (nextRank <= currentRank) return;
+
+      await tx
+        .update(whatsappCampaignMessages)
+        .set({
+          status,
+          ...(status === "delivered" ? { deliveredAt: opts.eventAt } : {}),
+          ...(status === "read" ? { readAt: opts.eventAt } : {}),
+          updatedAt: opts.eventAt,
+        })
+        .where(eq(whatsappCampaignMessages.id, currentMessage.id));
+    }
+
+    const statusCounts = await tx
+      .select({ status: whatsappCampaignMessages.status, count: count() })
+      .from(whatsappCampaignMessages)
+      .where(eq(whatsappCampaignMessages.campaignId, currentMessage.campaignId))
+      .groupBy(whatsappCampaignMessages.status);
+    const countByStatus = Object.fromEntries(
+      statusCounts.map((row) => [row.status, Number(row.count)]),
+    );
+
+    await tx
+      .update(whatsappCampaigns)
       .set({
-        status: "failed",
-        errorMessage: opts.errorMessage ?? "Falha reportada pelo canal",
-        updatedAt: opts.eventAt,
+        scheduledMessages: countByStatus.scheduled ?? 0,
+        sentMessages:
+          (countByStatus.sent ?? 0) +
+          (countByStatus.delivered ?? 0) +
+          (countByStatus.read ?? 0),
+        failedMessages: countByStatus.failed ?? 0,
+        updatedAt: new Date(),
       })
-      .where(eq(whatsappCampaignMessages.id, msg.id));
-    return;
-  }
-
-  const currentRank = STATUS_RANK[msg.status] ?? 0;
-  const nextRank = STATUS_RANK[status] ?? 0;
-  if (nextRank <= currentRank) return;
-
-  await db
-    .update(whatsappCampaignMessages)
-    .set({
-      status,
-      ...(status === "delivered" ? { deliveredAt: opts.eventAt } : {}),
-      ...(status === "read" ? { readAt: opts.eventAt } : {}),
-      updatedAt: opts.eventAt,
-    })
-    .where(eq(whatsappCampaignMessages.id, msg.id));
+      .where(eq(whatsappCampaigns.id, currentMessage.campaignId));
+  });
 }
 
 async function findCampaignMessageByDirectMatch(
