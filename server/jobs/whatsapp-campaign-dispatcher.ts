@@ -1,20 +1,29 @@
 import cron from "node-cron";
-import { db, pool } from "server/db";
-import { campaigns, whatsappCampaigns, whatsappCampaignMessages } from "@shared/schema";
-import { and, eq, count, getTableColumns, inArray, lte } from "drizzle-orm";
+import { db } from "server/db";
+import { whatsappCampaigns, whatsappCampaignMessages } from "@shared/schema";
+import { and, eq, count, inArray, lte } from "drizzle-orm";
 import { executeCampaign } from "../services/whatsapp-campaign.service";
 import { decideFinalization } from "../services/whatsapp-campaign-finalize";
 import { classifyDispatchFailure } from "../services/whatsapp-errors";
 import { failCampaign } from "../services/whatsapp-campaign-failure";
+import {
+  claimNextWhatsappCampaignBatch,
+  recoverExpiredWhatsappCampaignClaims,
+  releaseWhatsappCampaignClaim,
+} from "../services/whatsapp-campaign-claim.service";
+import { runClaimedCampaignPool } from "../services/whatsapp-campaign-dispatch-pool";
 
 // Mensagens processadas por tick, por campanha. O `wa_message_delay_ms` controla
 // o intervalo entre envios dentro de executeCampaign (rate-limit da Meta).
 const BATCH_SIZE = 25;
 
-// Chave arbitrária e estável para o advisory lock do Postgres — garante que
-// só uma instância do servidor processe um tick por vez, mesmo com múltiplos
-// processos/containers rodando o mesmo cron em produção.
-const WA_DISPATCH_LOCK_KEY = 727_100_001;
+const DEFAULT_CONCURRENCY = 4;
+const DEFAULT_LEASE_TIMEOUT_MS = 10 * 60 * 1000;
+
+function positiveIntegerEnv(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
 
 const SENT_LIKE = ["sent", "delivered", "read"] as const;
 
@@ -113,65 +122,80 @@ async function runTick(): Promise<void> {
         ),
       );
 
-    // Processa apenas campanhas em andamento (pausadas/canceladas ficam de fora).
-    // innerJoin com `campaigns` exclui linhas órfãs de whatsapp_campaigns sem
-    // linha correspondente (ex: legado do Umbler Talk) — sem isso o dispatcher
-    // ficaria tentando (e falhando) disparar a mesma campanha órfã a cada tick,
-    // para sempre. Não filtramos por campaigns.deletedAt: uma campanha
-    // soft-deletada em voo deve continuar até finalizar normalmente.
-    const active = await db
-      .select(getTableColumns(whatsappCampaigns))
-      .from(whatsappCampaigns)
-      .innerJoin(campaigns, eq(campaigns.id, whatsappCampaigns.id))
-      .where(eq(whatsappCampaigns.status, "in_progress"));
+    const leaseTimeoutMs = positiveIntegerEnv(
+      "WA_CAMPAIGN_LEASE_TIMEOUT_MS",
+      DEFAULT_LEASE_TIMEOUT_MS,
+    );
+    const recovered = await recoverExpiredWhatsappCampaignClaims(db, { leaseTimeoutMs });
+    if (recovered.rescheduled > 0 || recovered.cancelled > 0) {
+      console.warn(
+        `[wa-campaign-dispatcher] leases recuperados: reagendados=${recovered.rescheduled} cancelados=${recovered.cancelled}`,
+      );
+    }
 
-    if (active.length === 0) return;
-
-    for (const camp of active) {
-      try {
-        const result = await executeCampaign(camp.id, { limit: BATCH_SIZE });
-        // Se o loop de envio percebeu que a campanha não está mais
-        // "in_progress" (pausada/cancelada no meio do batch), pula o
-        // finalize — recalcular/gravar contadores nela agora seria incorreto.
-        if (!result.halted) {
-          await finalizeIfDone(camp.id);
-        }
-        if (result.sent > 0 || result.failed > 0) {
-          console.log(
-            `[wa-campaign-dispatcher] ${camp.title} | ok=${result.sent} fail=${result.failed} skip=${result.skipped}`,
-          );
-        }
-      } catch (err) {
-        // Falha estrutural (canal desconectado, bot/template removido, campanha
-        // sem conteúdo): retentar no próximo tick não resolve. Antes só logava,
-        // e a campanha ficava presa em "in_progress" refazendo a mesma falha a
-        // cada minuto, sem nada visível para o operador. Agora ela é encerrada
-        // como `failed` com o motivo gravado nas mensagens pendentes, e o
-        // caminho de recuperação é o "Reenviar falhas" depois da correção.
-        const verdict = classifyDispatchFailure(err);
-
-        if (verdict.permanent) {
-          const detail = err instanceof Error ? err.message : String(err);
-          console.warn(
-            `[wa-campaign-dispatcher] campanha ${camp.id} encerrada por falha estrutural [${verdict.code}]: ${detail}`,
-          );
-          try {
-            await failCampaign(camp.id, verdict.code, detail);
-          } catch (failErr) {
-            console.error(
-              `[wa-campaign-dispatcher] não foi possível encerrar a campanha ${camp.id}:`,
-              failErr,
+    const concurrency = positiveIntegerEnv(
+      "WA_CAMPAIGN_CHANNEL_CONCURRENCY",
+      DEFAULT_CONCURRENCY,
+    );
+    await runClaimedCampaignPool({
+      concurrency,
+      claim: ({ excludedChannelIds }) =>
+        claimNextWhatsappCampaignBatch(db, {
+          limit: BATCH_SIZE,
+          excludedChannelIds,
+        }),
+      process: async (campaignId, messageIds) => {
+        try {
+          const result = await executeCampaign(campaignId, {
+            claimedMessageIds: messageIds,
+          });
+          // Pausa/cancelamento pode interromper o loop no meio do lote. Somente
+          // mensagens que ainda estiverem `sending` são devolvidas à fila.
+          await releaseWhatsappCampaignClaim(db, messageIds);
+          // Se o loop de envio percebeu que a campanha não está mais
+          // "in_progress" (pausada/cancelada no meio do batch), pula o
+          // finalize — recalcular/gravar contadores nela agora seria incorreto.
+          if (!result.halted) {
+            await finalizeIfDone(campaignId);
+          }
+          if (result.sent > 0 || result.failed > 0) {
+            console.log(
+              `[wa-campaign-dispatcher] ${campaignId} | ok=${result.sent} fail=${result.failed} skip=${result.skipped}`,
             );
           }
-        } else {
-          // Transitório (rede, banco): deve mesmo ser retentado no próximo tick.
-          console.error(
-            `[wa-campaign-dispatcher] erro na campanha ${camp.id}:`,
-            err,
-          );
+        } catch (err) {
+          await releaseWhatsappCampaignClaim(db, messageIds);
+          // Falha estrutural (canal desconectado, bot/template removido, campanha
+          // sem conteúdo): retentar no próximo tick não resolve. Antes só logava,
+          // e a campanha ficava presa em "in_progress" refazendo a mesma falha a
+          // cada minuto, sem nada visível para o operador. Agora ela é encerrada
+          // como `failed` com o motivo gravado nas mensagens pendentes, e o
+          // caminho de recuperação é o "Reenviar falhas" depois da correção.
+          const verdict = classifyDispatchFailure(err);
+
+          if (verdict.permanent) {
+            const detail = err instanceof Error ? err.message : String(err);
+            console.warn(
+              `[wa-campaign-dispatcher] campanha ${campaignId} encerrada por falha estrutural [${verdict.code}]: ${detail}`,
+            );
+            try {
+              await failCampaign(campaignId, verdict.code, detail);
+            } catch (failErr) {
+              console.error(
+                `[wa-campaign-dispatcher] não foi possível encerrar a campanha ${campaignId}:`,
+                failErr,
+              );
+            }
+          } else {
+            // Transitório (rede, banco): deve mesmo ser retentado no próximo tick.
+            console.error(
+              `[wa-campaign-dispatcher] erro na campanha ${campaignId}:`,
+              err,
+            );
+          }
         }
-      }
-    }
+      },
+    });
   } catch (e) {
     console.error("[wa-campaign-dispatcher] tick error:", e);
   }
@@ -182,25 +206,7 @@ cron.schedule("*/1 * * * *", async () => {
   if (running) return; // já rodando neste processo — evita sobreposição local
   running = true;
   try {
-    // Advisory lock do Postgres: se outra instância do servidor já está
-    // processando este tick, pg_try_advisory_lock retorna false imediatamente
-    // (não bloqueia) e esta instância pula o tick, evitando que duas
-    // instâncias enviem a mesma mensagem em paralelo.
-    const client = await pool.connect();
-    try {
-      const { rows } = await client.query(
-        "SELECT pg_try_advisory_lock($1) AS locked",
-        [WA_DISPATCH_LOCK_KEY],
-      );
-      if (!rows[0]?.locked) return;
-      try {
-        await runTick();
-      } finally {
-        await client.query("SELECT pg_advisory_unlock($1)", [WA_DISPATCH_LOCK_KEY]);
-      }
-    } finally {
-      client.release();
-    }
+    await runTick();
   } finally {
     running = false;
   }

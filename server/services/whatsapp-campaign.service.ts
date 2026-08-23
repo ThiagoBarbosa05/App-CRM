@@ -416,7 +416,7 @@ export async function requeueFailedMessages(
 
 export async function executeCampaign(
   campaignId: string,
-  opts?: { limit?: number },
+  opts?: { limit?: number; claimedMessageIds?: string[] },
 ): Promise<{
   sent: number;
   failed: number;
@@ -453,23 +453,33 @@ export async function executeCampaign(
     throw new CampaignConfigError(`Campanha ${campaignId} não possui template ou bot configurado`);
   }
 
+  const claimedMessageIds = opts?.claimedMessageIds;
   const now0 = new Date();
   const pendingQuery = db
     .select()
     .from(whatsappCampaignMessages)
     .where(
-      and(
-        eq(whatsappCampaignMessages.campaignId, campaignId),
-        eq(whatsappCampaignMessages.status, "scheduled"),
-        or(
-          isNull(whatsappCampaignMessages.nextAttemptAt),
-          lte(whatsappCampaignMessages.nextAttemptAt, now0),
-        ),
-      ),
+      claimedMessageIds
+        ? and(
+            eq(whatsappCampaignMessages.campaignId, campaignId),
+            eq(whatsappCampaignMessages.status, "sending"),
+            inArray(whatsappCampaignMessages.id, claimedMessageIds),
+          )
+        : and(
+            eq(whatsappCampaignMessages.campaignId, campaignId),
+            eq(whatsappCampaignMessages.status, "scheduled"),
+            or(
+              isNull(whatsappCampaignMessages.nextAttemptAt),
+              lte(whatsappCampaignMessages.nextAttemptAt, now0),
+            ),
+          ),
     );
 
-  const pendingMessages =
-    opts?.limit && opts.limit > 0
+  const pendingMessages = claimedMessageIds
+    ? claimedMessageIds.length === 0
+      ? []
+      : await pendingQuery
+    : opts?.limit && opts.limit > 0
       ? await pendingQuery.limit(opts.limit)
       : await pendingQuery;
 
@@ -575,7 +585,7 @@ export async function executeCampaign(
         failed++;
         continue;
       }
-      if (!(await claimMessageForSending(msg.id))) {
+      if (!claimedMessageIds && !(await claimMessageForSending(msg.id))) {
         halted = true;
         break;
       }
@@ -786,7 +796,7 @@ export async function executeCampaign(
         continue;
       }
 
-      if (!(await claimMessageForSending(msg.id))) {
+      if (!claimedMessageIds && !(await claimMessageForSending(msg.id))) {
         halted = true;
         break;
       }

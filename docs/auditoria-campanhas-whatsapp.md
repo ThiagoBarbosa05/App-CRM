@@ -58,20 +58,20 @@ Chamadas externas não são transacionais; por isso, cancelamento imediato é ne
 Depois que uma campanha é finalizada, um webhook pode mudar uma mensagem de `sent` para `failed` em [`whatsapp-campaign-status.service.ts`](../server/services/whatsapp-campaign-status.service.ts). O serviço atualiza apenas a mensagem e não reconcilia `whatsapp_campaigns.status`, `sentMessages`, `failedMessages` ou `completedAt`.
 
 **Correção necessária:** adotar formalmente a semântica de que `completed` significa “processamento concluído”, enquanto entrega e falha são métricas mutáveis. Recalcular os agregados da campanha na mesma transação do webhook e manter `completedAt` como fim do processamento, sem reabrir automaticamente a fila. -->
-
+<!--
 ### 6. P2 — Retry mantém contadores antigos até o próximo dispatcher
 
 O retry muda a campanha para `in_progress` e limpa `completedAt`, mas preserva contadores antigos até o próximo tick ou finalização.
 
-**Correção necessária:** recalcular `scheduledMessages`, `sentMessages` e `failedMessages` na mesma transação do retry, depois de validar e restaurar os impacts.
+**Correção necessária:** recalcular `scheduledMessages`, `sentMessages` e `failedMessages` na mesma transação do retry, depois de validar e restaurar os impacts. -->
 
-### 7. P1 — Um lock global serializa todas as campanhas
+<!-- ### 7. P1 — Um lock global serializa todas as campanhas
 
 O cron mantém um único advisory lock durante todo o `runTick`, incluindo chamadas externas e delays, em [`whatsapp-campaign-dispatcher.ts`](../server/jobs/whatsapp-campaign-dispatcher.ts).
 
 Isso impede duplicidade entre instâncias, mas uma campanha lenta atrasa todas as outras, ocupa uma conexão do pool e limita o throughput global.
 
-**Correção necessária:** substituir o lock global por claim/lease atômico por mensagem ou campanha, usando `FOR UPDATE SKIP LOCKED`. Permitir concorrência limitada e configurável por canal, sem processar a mesma mensagem em duas instâncias.
+**Correção necessária:** substituir o lock global por claim/lease atômico por mensagem ou campanha, usando `FOR UPDATE SKIP LOCKED`. Permitir concorrência limitada e configurável por canal, sem processar a mesma mensagem em duas instâncias. -->
 
 ### 8. P1 — Preview faz uma consulta de dedupe por contato
 
