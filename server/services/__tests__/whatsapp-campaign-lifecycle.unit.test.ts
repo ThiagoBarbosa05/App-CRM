@@ -30,7 +30,11 @@ import { transitionWhatsappCampaign } from "../whatsapp-campaign-lifecycle.servi
 
 type CampaignStatus = "created" | "in_progress" | "paused" | "completed" | "failed" | "cancelled";
 
-function makeTransaction(currentStatus?: CampaignStatus, startDate: Date | null = null) {
+function makeTransaction(
+  currentStatus?: CampaignStatus,
+  startDate: Date | null = null,
+  inFlightMessages = 0,
+) {
   const returningByTable = new Map<unknown, unknown[]>([
     [whatsappCampaigns, [{ id: "campaign-1" }]],
     [whatsappCampaignMessages, [{ id: "message-1" }, { id: "message-2" }]],
@@ -39,13 +43,17 @@ function makeTransaction(currentStatus?: CampaignStatus, startDate: Date | null 
   const writes: Array<{ table: unknown; values: Record<string, unknown> }> = [];
 
   const tx = {
-    select: vi.fn(() => ({
+    select: vi.fn((fields?: Record<string, unknown>) => ({
       from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          for: vi.fn().mockResolvedValue(
-            currentStatus ? [{ id: "campaign-1", status: currentStatus, startDate }] : [],
-          ),
-        })),
+        where: vi.fn(() =>
+          fields && "inFlightMessages" in fields
+            ? Promise.resolve([{ inFlightMessages }])
+            : {
+                for: vi.fn().mockResolvedValue(
+                  currentStatus ? [{ id: "campaign-1", status: currentStatus, startDate }] : [],
+                ),
+              },
+        ),
       })),
     })),
     update: vi.fn((table: unknown) => ({
@@ -138,6 +146,7 @@ describe("transitionWhatsappCampaign", () => {
       campaignId: "campaign-1",
       status: "cancelled",
       cancelledMessages: 2,
+      inFlightMessages: 0,
     });
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(writes.map(({ table }) => table)).toEqual([
@@ -145,5 +154,26 @@ describe("transitionWhatsappCampaign", () => {
       whatsappCampaignImpacts,
       whatsappCampaigns,
     ]);
+  });
+
+  it("registra a solicitação e mantém a campanha em andamento enquanto há mensagem em voo", async () => {
+    const { writes } = makeTransaction("in_progress", null, 1);
+
+    const result = await transitionWhatsappCampaign("campaign-1", "cancel");
+
+    expect(result).toMatchObject({
+      campaignId: "campaign-1",
+      status: "in_progress",
+      cancelledMessages: 2,
+      inFlightMessages: 1,
+    });
+    expect(writes.at(-1)).toMatchObject({
+      table: whatsappCampaigns,
+      values: {
+        status: "in_progress",
+        cancelRequestedAt: expect.any(Date),
+        completedAt: null,
+      },
+    });
   });
 });

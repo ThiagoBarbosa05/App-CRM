@@ -4024,6 +4024,10 @@ export const whatsappCampaigns = pgTable("whatsapp_campaigns", {
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
   completedAt: timestamp("completed_at"),
+  // Instante em que o operador pediu o cancelamento. Enquanto houver uma
+  // mensagem `sending`, a campanha continua em andamento, mas nenhum novo
+  // envio pode começar.
+  cancelRequestedAt: timestamp("cancel_requested_at"),
   botId: text("bot_id").notNull(),
   botTriggerName: text("bot_trigger_name").notNull(),
   channelId: text("channel_id").notNull(),
@@ -4065,8 +4069,9 @@ export const whatsappCampaignMessages = pgTable(
     phoneNormalized: text("phone_normalized"),
     contentFingerprint: text("content_fingerprint"),
     status: text("status", {
-      // scheduled→sent (API aceitou)→delivered→read; failed/cancelled são terminais.
-      enum: ["scheduled", "sent", "delivered", "read", "failed", "cancelled", "suppressed"],
+      // scheduled→sending (chamada externa)→sent (API aceitou)→delivered→read;
+      // failed/cancelled são terminais.
+      enum: ["scheduled", "sending", "sent", "delivered", "read", "failed", "cancelled", "suppressed"],
     })
       .notNull()
       .default("scheduled"),

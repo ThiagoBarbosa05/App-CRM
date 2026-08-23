@@ -5,12 +5,15 @@ import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappBots } 
 // real. O objetivo deste teste é só a lógica de "halt": se a campanha sair de
 // "in_progress" (pause/cancel) entre uma mensagem e outra do batch, o loop
 // deve parar (break) e retornar halted: true, sem processar o resto.
-const { selectMock, updateMock } = vi.hoisted(() => ({
+const { selectMock, updateMock, transactionMock } = vi.hoisted(() => ({
   selectMock: vi.fn(),
   updateMock: vi.fn(),
+  transactionMock: vi.fn(),
 }));
 
-vi.mock("../../db", () => ({ db: { select: selectMock, update: updateMock } }));
+vi.mock("../../db", () => ({
+  db: { select: selectMock, update: updateMock, transaction: transactionMock },
+}));
 
 // Dependências externas ao envio — mockadas para isolar a lógica de halt do
 // resto do fluxo (envio real de bot, persistência de conversa, etc.), como no
@@ -65,13 +68,37 @@ function makeQueryResult<T>(rows: T[]): Promise<T[]> & { limit: (n: number) => P
 
 describe("executeCampaign — para no meio do batch quando a campanha é pausada/cancelada", () => {
   let haltedCallCount: number;
+  let messageStatusWrites: string[];
 
   beforeEach(() => {
     haltedCallCount = 0;
+    messageStatusWrites = [];
     updateMock.mockReset();
-    updateMock.mockReturnValue({
-      set: () => ({ where: () => Promise.resolve() }),
-    });
+    const makeWriteResult = () => {
+      const result = Promise.resolve([{ id: "msg-1" }]) as Promise<Array<{ id: string }>> & {
+        returning: () => Promise<Array<{ id: string }>>;
+      };
+      result.returning = () => Promise.resolve([{ id: "msg-1" }]);
+      return result;
+    };
+    updateMock.mockImplementation((table: unknown) => ({
+      set: (values: Record<string, unknown>) => {
+        if (table === whatsappCampaignMessages && typeof values.status === "string") {
+          messageStatusWrites.push(values.status);
+        }
+        return { where: makeWriteResult };
+      },
+    }));
+    transactionMock.mockReset();
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+      callback({
+        select: () => ({
+          from: () => ({
+            where: () => ({ for: () => Promise.resolve([{ cancelRequestedAt: null }]) }),
+          }),
+        }),
+      }),
+    );
 
     selectMock.mockReset();
     selectMock.mockImplementation((cols?: Record<string, unknown>) => ({
@@ -79,13 +106,16 @@ describe("executeCampaign — para no meio do batch quando a campanha é pausada
         where: () => {
           if (table === whatsappCampaigns) {
             const isStatusOnlySelect =
-              !!cols && Object.keys(cols).length === 1 && "status" in cols;
+              !!cols && "status" in cols;
             if (isStatusOnlySelect) {
               // isCampaignHalted: primeira chamada "in_progress" (segue),
               // segunda chamada "paused" (operador pausou no meio do batch).
               const status = haltedCallCount === 0 ? "in_progress" : "paused";
               haltedCallCount++;
-              return makeQueryResult([{ status }]);
+              return makeQueryResult([{ status, cancelRequestedAt: null }]);
+            }
+            if (cols && "cancelRequestedAt" in cols) {
+              return makeQueryResult([{ cancelRequestedAt: null }]);
             }
             // campaignLog (postSendWhatsappTagId / audienceSelector)
             return makeQueryResult([
@@ -145,6 +175,7 @@ describe("executeCampaign — para no meio do batch quando a campanha é pausada
     // corpo do loop); a 2ª nunca chegou a ser tocada porque o halt-check
     // parou o loop antes dela.
     expect(result.sent + result.failed + result.skipped).toBe(1);
+    expect(messageStatusWrites[0]).toBe("sending");
     // 2 chamadas ao isCampaignHalted: uma antes de cada mensagem até o break.
     expect(haltedCallCount).toBe(2);
   });

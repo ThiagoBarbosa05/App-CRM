@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 
 import {
   whatsappCampaignImpacts,
@@ -15,6 +15,7 @@ export interface WhatsappCampaignTransitionResult {
   campaignId: string;
   status: CampaignStatus;
   cancelledMessages?: number;
+  inFlightMessages?: number;
 }
 
 const ALLOWED_SOURCE_STATUSES: Record<WhatsappCampaignAction, readonly CampaignStatus[]> = {
@@ -44,6 +45,7 @@ export async function transitionWhatsappCampaign(
         id: whatsappCampaigns.id,
         status: whatsappCampaigns.status,
         startDate: whatsappCampaigns.startDate,
+        cancelRequestedAt: whatsappCampaigns.cancelRequestedAt,
       })
       .from(whatsappCampaigns)
       .where(eq(whatsappCampaigns.id, campaignId))
@@ -54,6 +56,12 @@ export async function transitionWhatsappCampaign(
     }
 
     if (!ALLOWED_SOURCE_STATUSES[action].includes(campaign.status)) {
+      throw waError("CAMPAIGN_INVALID_TRANSITION", {
+        details: { campaignId, action, currentStatus: campaign.status },
+      });
+    }
+
+    if (campaign.cancelRequestedAt) {
       throw waError("CAMPAIGN_INVALID_TRANSITION", {
         details: { campaignId, action, currentStatus: campaign.status },
       });
@@ -100,17 +108,35 @@ export async function transitionWhatsappCampaign(
         .returning({ id: whatsappCampaignImpacts.id });
     }
 
+    const [{ inFlightMessages }] = await tx
+      .select({ inFlightMessages: count() })
+      .from(whatsappCampaignMessages)
+      .where(
+        and(
+          eq(whatsappCampaignMessages.campaignId, campaignId),
+          eq(whatsappCampaignMessages.status, "sending"),
+        ),
+      );
+    const inFlightCount = Number(inFlightMessages);
+    const effectiveStatus: CampaignStatus = inFlightCount > 0 ? "in_progress" : "cancelled";
+
     const [updated] = await tx
       .update(whatsappCampaigns)
-      .set({ status: "cancelled", completedAt: now, updatedAt: now })
+      .set({
+        status: effectiveStatus,
+        cancelRequestedAt: now,
+        completedAt: inFlightCount > 0 ? null : now,
+        updatedAt: now,
+      })
       .where(eq(whatsappCampaigns.id, campaignId))
       .returning({ id: whatsappCampaigns.id });
 
     if (!updated) throw waError("CAMPAIGN_NOT_FOUND");
     return {
       campaignId,
-      status: "cancelled",
+      status: effectiveStatus,
       cancelledMessages: cancelledMessages.length,
+      inFlightMessages: inFlightCount,
     };
   });
 }

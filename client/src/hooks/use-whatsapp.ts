@@ -16,6 +16,7 @@ export interface WhatsappCampaign {
   startDate: string;
   endDate?: string;
   completedAt?: string;
+  cancelRequestedAt?: string | null;
   createdAt: string;
   createdByName?: string | null;
   botName?: string | null;
@@ -28,7 +29,7 @@ export interface WhatsappCampaignMessage {
   contactId?: string | null;
   contactName: string;
   phoneNumber: string;
-  status: "scheduled" | "sent" | "delivered" | "read" | "failed" | "cancelled" | "suppressed";
+  status: "scheduled" | "sending" | "sent" | "delivered" | "read" | "failed" | "cancelled" | "suppressed";
   scheduledAt: string;
   sentAt?: string;
   deliveredAt?: string;
@@ -53,6 +54,7 @@ export interface WhatsappCampaignStats {
     read: number;
     failed: number;
     pending: number;
+    inFlight: number;
     cancelled: number;
     suppressed: number;
     tagsApplied: number;
@@ -461,7 +463,10 @@ export function useRetryFailedCampaign() {
   });
 }
 
-function useCampaignControl(action: "pause" | "resume" | "cancel", successTitle: string) {
+function useCampaignControl(
+  action: "pause" | "resume" | "cancel",
+  successTitle: string | ((data: { inFlightMessages?: number }) => string),
+) {
   const { toast } = useToast();
   const showError = useWhatsappErrorToast();
   return useMutation({
@@ -469,8 +474,8 @@ function useCampaignControl(action: "pause" | "resume" | "cancel", successTitle:
       const res = await apiRequest("POST", `/api/whatsapp/campaigns/${campaignId}/${action}`);
       return res.json();
     },
-    onSuccess: (_data, campaignId) => {
-      toast({ title: successTitle });
+    onSuccess: (data: { inFlightMessages?: number }, campaignId) => {
+      toast({ title: typeof successTitle === "function" ? successTitle(data) : successTitle });
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
@@ -483,7 +488,13 @@ function useCampaignControl(action: "pause" | "resume" | "cancel", successTitle:
 
 export const usePauseCampaign = () => useCampaignControl("pause", "Campanha pausada");
 export const useResumeCampaign = () => useCampaignControl("resume", "Campanha retomada");
-export const useCancelCampaign = () => useCampaignControl("cancel", "Campanha cancelada");
+export const useCancelCampaign = () => useCampaignControl(
+  "cancel",
+  ({ inFlightMessages }) =>
+    inFlightMessages && inFlightMessages > 0
+      ? `Cancelamento solicitado · ${inFlightMessages} mensagem(ns) em voo`
+      : "Campanha cancelada",
+);
 
 // Fonte única do hook de bots (envia o header x-user-id). Reexportado aqui por
 // conveniência para quem já importa de "use-whatsapp".

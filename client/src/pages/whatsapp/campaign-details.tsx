@@ -93,6 +93,7 @@ const MSG_STATUS_CONFIG: Record<
   { label: string; icon: React.ElementType; className: string }
 > = {
   scheduled: { label: "Na fila", icon: Clock, className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  sending: { label: "Em envio", icon: Send, className: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300" },
   sent: { label: "Enviado", icon: CheckCircle, className: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
   delivered: { label: "Entregue", icon: CheckCheck, className: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300" },
   read: { label: "Lido", icon: Eye, className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
@@ -104,6 +105,7 @@ const MSG_STATUS_CONFIG: Record<
 const STATUS_FILTER_OPTIONS: { value: WhatsappCampaignMessage["status"] | "all"; label: string }[] = [
   { value: "all", label: "Todos os status" },
   { value: "scheduled", label: "Na fila" },
+  { value: "sending", label: "Em envio" },
   { value: "sent", label: "Enviado" },
   { value: "delivered", label: "Entregue" },
   { value: "read", label: "Lido" },
@@ -263,8 +265,9 @@ export default function WhatsAppCampaignDetails() {
       : 0;
 
   const pendingMessages =
-    stats?.pending ??
-    (campaign.messages?.filter((m) => m.status === "scheduled").length ?? 0);
+    stats
+      ? stats.pending + stats.inFlight
+      : (campaign.messages?.filter((m) => m.status === "scheduled" || m.status === "sending").length ?? 0);
 
   const totalMessages = stats?.total ?? campaign.messages?.length ?? 0;
   const executedCount = Math.max(totalMessages - pendingMessages - cancelledCount, 0);
@@ -397,7 +400,7 @@ export default function WhatsAppCampaignDetails() {
               </AlertDialogContent>
             </AlertDialog>
           )}
-          {(campaign.status === "in_progress" || campaign.status === "created") && (
+          {!campaign.cancelRequestedAt && (campaign.status === "in_progress" || campaign.status === "created") && (
             <Button
               variant="outline"
               size="sm"
@@ -409,7 +412,7 @@ export default function WhatsAppCampaignDetails() {
               <span className="hidden sm:inline">Pausar</span>
             </Button>
           )}
-          {campaign.status === "paused" && (
+          {!campaign.cancelRequestedAt && campaign.status === "paused" && (
             <Button
               variant="outline"
               size="sm"
@@ -421,7 +424,7 @@ export default function WhatsAppCampaignDetails() {
               <span className="hidden sm:inline">Retomar</span>
             </Button>
           )}
-          {["in_progress", "created", "paused"].includes(campaign.status) && (
+          {!campaign.cancelRequestedAt && ["in_progress", "created", "paused"].includes(campaign.status) && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive">
@@ -451,6 +454,21 @@ export default function WhatsAppCampaignDetails() {
           )}
         </PageHeader.Actions>
       </PageHeader>
+
+      {campaign.cancelRequestedAt && campaign.status !== "cancelled" ? (
+        <Card className="border-amber-300 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/30">
+          <CardContent className="flex items-start gap-3 py-4 text-sm text-amber-950 dark:text-amber-100">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-semibold">Cancelamento solicitado</p>
+              <p className="mt-1 text-amber-800 dark:text-amber-200">
+                A fila foi interrompida. {stats?.inFlight ?? 0} mensagem(ns) já estavam em envio;
+                mensagens aceitas pelo provedor não podem ser recuperadas.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Detalhes do envio */}
       <Card>

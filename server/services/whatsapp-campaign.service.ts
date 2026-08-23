@@ -1,6 +1,6 @@
 import { db } from "server/db";
 import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappCampaignImpacts, whatsappCampaignRetryAudits, whatsappTemplates, whatsappBots, whatsappChannels, whatsappMessages, clients } from "@shared/schema";
-import { eq, and, or, isNull, lte, inArray, sql } from "drizzle-orm";
+import { eq, and, or, isNull, isNotNull, lte, inArray, count, sql } from "drizzle-orm";
 import { sendTemplateMessage } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 import { classifySendError, computeBackoffMs } from "./whatsapp-campaign-retry";
@@ -64,9 +64,14 @@ async function handleSendFailure(
   // (corpo de erro da Meta, mensagem do gateway) para o "Ver detalhe técnico".
   const { code, detail } = describeSendError(err);
   const isRetryable = classifySendError(err) === "retryable";
+  const [campaign] = await db
+    .select({ cancelRequestedAt: whatsappCampaigns.cancelRequestedAt })
+    .from(whatsappCampaigns)
+    .where(eq(whatsappCampaigns.id, msg.campaignId));
+  const cancellationRequested = Boolean(campaign?.cancelRequestedAt);
   const nextAttempts = (msg.attempts ?? 0) + 1;
 
-  if (isRetryable && nextAttempts < MAX_SEND_ATTEMPTS) {
+  if (!cancellationRequested && isRetryable && nextAttempts < MAX_SEND_ATTEMPTS) {
     await db
       .update(whatsappCampaignMessages)
       .set({
@@ -134,10 +139,88 @@ async function completeSuccessfulImpact(
  */
 async function isCampaignHalted(campaignId: string): Promise<boolean> {
   const [row] = await db
-    .select({ status: whatsappCampaigns.status })
+    .select({
+      status: whatsappCampaigns.status,
+      cancelRequestedAt: whatsappCampaigns.cancelRequestedAt,
+    })
     .from(whatsappCampaigns)
     .where(eq(whatsappCampaigns.id, campaignId));
-  return row?.status !== "in_progress";
+  return row?.status !== "in_progress" || row.cancelRequestedAt !== null;
+}
+
+/** Reserva a mensagem imediatamente antes da fronteira externa. */
+async function claimMessageForSending(messageId: string): Promise<boolean> {
+  const [claimed] = await db
+    .update(whatsappCampaignMessages)
+    .set({ status: "sending", updatedAt: new Date() })
+    .where(
+      and(
+        eq(whatsappCampaignMessages.id, messageId),
+        eq(whatsappCampaignMessages.status, "scheduled"),
+      ),
+    )
+    .returning({ id: whatsappCampaignMessages.id });
+  return Boolean(claimed);
+}
+
+/** Efetiva o cancelamento quando a última chamada externa em voo termina. */
+async function finalizeRequestedCancellation(campaignId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [campaign] = await tx
+      .select({ cancelRequestedAt: whatsappCampaigns.cancelRequestedAt })
+      .from(whatsappCampaigns)
+      .where(eq(whatsappCampaigns.id, campaignId))
+      .for("update");
+
+    if (!campaign?.cancelRequestedAt) return;
+
+    // Uma resposta transitória pode ter recolocado a mensagem em `scheduled`
+    // depois que a transação original de cancelamento varreu a fila. Fecha
+    // essa janela antes de verificar se ainda há chamadas externas em voo.
+    const cancelledMessages = await tx
+      .update(whatsappCampaignMessages)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(
+        and(
+          eq(whatsappCampaignMessages.campaignId, campaignId),
+          eq(whatsappCampaignMessages.status, "scheduled"),
+        ),
+      )
+      .returning({ id: whatsappCampaignMessages.id });
+    if (cancelledMessages.length > 0) {
+      await tx
+        .update(whatsappCampaignImpacts)
+        .set({ status: "cancelled", updatedAt: new Date() })
+        .where(
+          inArray(
+            whatsappCampaignImpacts.campaignMessageId,
+            cancelledMessages.map(({ id }) => id),
+          ),
+        );
+    }
+
+    const [{ inFlightMessages }] = await tx
+      .select({ inFlightMessages: count() })
+      .from(whatsappCampaignMessages)
+      .where(
+        and(
+          eq(whatsappCampaignMessages.campaignId, campaignId),
+          eq(whatsappCampaignMessages.status, "sending"),
+        ),
+      );
+    if (Number(inFlightMessages) > 0) return;
+
+    const now = new Date();
+    await tx
+      .update(whatsappCampaigns)
+      .set({ status: "cancelled", completedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(whatsappCampaigns.id, campaignId),
+          isNotNull(whatsappCampaigns.cancelRequestedAt),
+        ),
+      );
+  });
 }
 
 async function suppressIfAudienceChanged(
@@ -492,6 +575,10 @@ export async function executeCampaign(
         failed++;
         continue;
       }
+      if (!(await claimMessageForSending(msg.id))) {
+        halted = true;
+        break;
+      }
       try {
         if (!campaign.waChannelId) {
           throw waError("CAMPAIGN_NO_CHANNEL", {
@@ -607,6 +694,8 @@ export async function executeCampaign(
         const outcome = await handleSendFailure(msg, err);
         if (outcome === "retried") retried++; else failed++;
         console.error(`[WaCampaign] Bot ✗ (${outcome}) ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}):`, err instanceof Error ? err.message : err);
+      } finally {
+        await finalizeRequestedCancellation(campaignId);
       }
       if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     }
@@ -697,14 +786,18 @@ export async function executeCampaign(
         continue;
       }
 
-      let clientRow: typeof clients.$inferSelect | undefined;
-      if (msg.contactId) {
-        [clientRow] = await db.select().from(clients).where(eq(clients.id, msg.contactId));
+      if (!(await claimMessageForSending(msg.id))) {
+        halted = true;
+        break;
       }
-      const clientVars = buildClientVariables(clientRow ?? null, phoneE164);
-      const components = buildTemplateComponents(campaign, clientVars);
 
       try {
+        let clientRow: typeof clients.$inferSelect | undefined;
+        if (msg.contactId) {
+          [clientRow] = await db.select().from(clients).where(eq(clients.id, msg.contactId));
+        }
+        const clientVars = buildClientVariables(clientRow ?? null, phoneE164);
+        const components = buildTemplateComponents(campaign, clientVars);
         const result = await sendTemplateMessage(
           phoneE164,
           template.name,
@@ -746,6 +839,8 @@ export async function executeCampaign(
         const outcome = await handleSendFailure(msg, err);
         if (outcome === "retried") retried++; else failed++;
         console.error(`[WaCampaign] ✗ (${outcome}) ${msg.contactName} (${maskPhoneForLog(msg.phoneNumber)}):`, err instanceof Error ? err.message : err);
+      } finally {
+        await finalizeRequestedCancellation(campaignId);
       }
       if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
     }

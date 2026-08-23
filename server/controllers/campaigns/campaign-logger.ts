@@ -179,6 +179,7 @@ export async function getCampaignStats(campaignId: string): Promise<{
   read: number;
   failed: number;
   pending: number;
+  inFlight: number;
   cancelled: number;
   suppressed: number;
   tagsApplied: number;
@@ -203,6 +204,7 @@ export async function getCampaignStats(campaignId: string): Promise<{
       read: messages.filter((m) => m.status === "read").length,
       failed: messages.filter((m) => m.status === "failed").length,
       pending: messages.filter((m) => m.status === "scheduled").length,
+      inFlight: messages.filter((m) => m.status === "sending").length,
       cancelled: messages.filter((m) => m.status === "cancelled").length,
       suppressed: messages.filter((m) => m.status === "suppressed").length,
       tagsApplied: messages.filter((m) => m.tagApplicationStatus === "applied").length,

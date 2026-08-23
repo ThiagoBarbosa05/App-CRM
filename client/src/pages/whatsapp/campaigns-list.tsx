@@ -41,6 +41,19 @@ const STATUS_CONFIG: Record<
   cancelled:   { label: "Cancelada",     icon: AlertCircle,  className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",          dotColor: "bg-slate-400" },
 };
 
+const CANCELLING_CONFIG = {
+  label: "Cancelando",
+  icon: Clock,
+  className: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  dotColor: "bg-amber-400",
+};
+
+function getCampaignStatusConfig(campaign: WhatsappCampaign) {
+  return campaign.cancelRequestedAt && campaign.status !== "cancelled"
+    ? CANCELLING_CONFIG
+    : STATUS_CONFIG[campaign.status];
+}
+
 function formatDate(dateStr: string) {
   try {
     return format(new Date(dateStr), "dd/MM/yy HH:mm", { locale: ptBR });
@@ -73,7 +86,7 @@ function CampaignCard({
   campaign: WhatsappCampaign;
   onClick: () => void;
 }) {
-  const cfg = STATUS_CONFIG[campaign.status];
+  const cfg = getCampaignStatusConfig(campaign);
   const StatusIcon = cfg.icon;
   return (
     <button
@@ -345,7 +358,7 @@ export default function WhatsAppCampaignsList() {
                 )}
 
                 {!isLoading && campaigns.map((campaign) => {
-                  const cfg = STATUS_CONFIG[campaign.status];
+                  const cfg = getCampaignStatusConfig(campaign);
                   const StatusIcon = cfg.icon;
                   return (
                     <TableRow

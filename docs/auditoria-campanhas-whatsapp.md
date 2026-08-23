@@ -39,19 +39,19 @@ O cancelamento aceita qualquer estado, não verifica se a campanha existe e alte
 
 **Correção necessária:** implementar uma máquina de estados explícita, executar cada ação em uma transação e usar `.returning()`. Retornar `404` para campanha inexistente e `409` para transição inválida. Estados terminais não devem aceitar pausa, retomada ou novo cancelamento silenciosamente. -->
 
-### 3. P1 — Retomar campanha futura ignora o agendamento original
+<!-- ### 3. P1 — Retomar campanha futura ignora o agendamento original
 
 Uma campanha futura pode ser pausada enquanto está `created`, mas a retomada sempre define `in_progress`, independentemente de `startDate`, em [`whatsapp.routes.ts`](../server/routes/whatsapp.routes.ts).
 
-**Correção necessária:** ao retomar, definir `created` quando `startDate > now` e `in_progress` somente quando o horário já venceu. Cobrir a decisão e a resposta HTTP com testes de rota e serviço.
+**Correção necessária:** ao retomar, definir `created` quando `startDate > now` e `in_progress` somente quando o horário já venceu. Cobrir a decisão e a resposta HTTP com testes de rota e serviço. -->
 
-### 4. P1 — Cancelamento não interrompe mensagem já em voo
+<!-- ### 4. P1 — Cancelamento não interrompe mensagem já em voo
 
 O executor verifica o estado antes de cada destinatário, mas o cancelamento pode ocorrer depois dessa verificação e antes da resposta do provedor. A mensagem ainda pode ser aceita e marcada como enviada.
 
 Chamadas externas não são transacionais; por isso, cancelamento imediato é necessariamente best effort.
 
-**Correção necessária:** registrar `cancelRequestedAt`, distinguir solicitação de cancelamento de cancelamento efetivo e contabilizar mensagens em voo. A interface deve informar que mensagens já entregues ao provedor não podem ser recuperadas.
+**Correção necessária:** registrar `cancelRequestedAt`, distinguir solicitação de cancelamento de cancelamento efetivo e contabilizar mensagens em voo. A interface deve informar que mensagens já entregues ao provedor não podem ser recuperadas. -->
 
 ### 5. P1 — Falha de entrega posterior contradiz estado e contadores
 
