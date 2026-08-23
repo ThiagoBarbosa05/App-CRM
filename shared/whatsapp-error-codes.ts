@@ -28,6 +28,7 @@ export type WhatsappErrorCode =
   | "AUDIENCE_EMPTY_NO_VALID_PHONE"
   | "CAMPAIGN_ALREADY_RUNNING"
   | "CAMPAIGN_ALREADY_FINISHED"
+  | "CAMPAIGN_INVALID_TRANSITION"
   | "CAMPAIGN_ALL_DUPLICATE"
   | "CAMPAIGN_REQUEUE_BLOCKED"
   // envio por destinatário
@@ -150,6 +151,12 @@ export const WHATSAPP_ERRORS: Record<WhatsappErrorCode, WhatsappErrorInfo> = {
   CAMPAIGN_ALREADY_FINISHED: {
     message: "Esta campanha já foi finalizada.",
     hint: 'Para reenviar apenas quem falhou, use "Reenviar falhas" na tela da campanha.',
+    httpStatus: 409,
+    scope: "campaign",
+  },
+  CAMPAIGN_INVALID_TRANSITION: {
+    message: "A campanha não pode executar esta ação no estado atual.",
+    hint: "Atualize a campanha para consultar o estado mais recente.",
     httpStatus: 409,
     scope: "campaign",
   },

@@ -39,6 +39,7 @@ import {
 } from "../services/whatsapp-campaign-audience.service";
 import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
 import { requeueFailedMessages } from "../services/whatsapp-campaign.service";
+import { transitionWhatsappCampaign } from "../services/whatsapp-campaign-lifecycle.service";
 import { createAtomicWhatsappCampaign } from "../services/whatsapp-campaign-creation.service";
 import { respondWhatsappError, waError } from "../services/whatsapp-errors";
 import { requireAdminOrGerente } from "../middleware/validation";
@@ -336,16 +337,8 @@ router.post("/campaigns/:id/retry-tags", async (req, res) => {
 
 router.post("/campaigns/:id/pause", async (req, res) => {
   try {
-    await db
-      .update(whatsappCampaigns)
-      .set({ status: "paused", updatedAt: new Date() })
-      .where(
-        and(
-          eq(whatsappCampaigns.id, req.params.id),
-          inArray(whatsappCampaigns.status, ["in_progress", "created"]),
-        ),
-      );
-    res.json({ campaignId: req.params.id, status: "paused" });
+    const result = await transitionWhatsappCampaign(req.params.id, "pause");
+    return res.json(result);
   } catch (e) {
     return respondWhatsappError(res, e, "[WA campaigns pause]");
   }
@@ -353,49 +346,17 @@ router.post("/campaigns/:id/pause", async (req, res) => {
 
 router.post("/campaigns/:id/resume", async (req, res) => {
   try {
-    await db
-      .update(whatsappCampaigns)
-      .set({ status: "in_progress", updatedAt: new Date() })
-      .where(
-        and(
-          eq(whatsappCampaigns.id, req.params.id),
-          eq(whatsappCampaigns.status, "paused"),
-        ),
-      );
-    res.json({ campaignId: req.params.id, status: "in_progress" });
+    const result = await transitionWhatsappCampaign(req.params.id, "resume");
+    return res.json(result);
   } catch (e) {
     return respondWhatsappError(res, e, "[WA campaigns resume]");
   }
 });
 
 router.post("/campaigns/:id/cancel", async (req, res) => {
-  const campaignId = req.params.id;
   try {
-    // Cancela as mensagens ainda na fila e a campanha.
-    const cancelled = await db
-      .update(whatsappCampaignMessages)
-      .set({ status: "cancelled", updatedAt: new Date() })
-      .where(
-        and(
-          eq(whatsappCampaignMessages.campaignId, campaignId),
-          eq(whatsappCampaignMessages.status, "scheduled"),
-        ),
-      )
-      .returning({ id: whatsappCampaignMessages.id });
-
-    if (cancelled.length > 0) {
-      await db
-        .update(whatsappCampaignImpacts)
-        .set({ status: "cancelled", updatedAt: new Date() })
-        .where(inArray(whatsappCampaignImpacts.campaignMessageId, cancelled.map((item) => item.id)));
-    }
-
-    await db
-      .update(whatsappCampaigns)
-      .set({ status: "cancelled", completedAt: new Date(), updatedAt: new Date() })
-      .where(eq(whatsappCampaigns.id, campaignId));
-
-    res.json({ campaignId, cancelledMessages: cancelled.length });
+    const result = await transitionWhatsappCampaign(req.params.id, "cancel");
+    return res.json(result);
   } catch (e) {
     return respondWhatsappError(res, e, "[WA campaigns cancel]");
   }

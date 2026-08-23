@@ -11,12 +11,17 @@ import { createRouteTestApp, createMockAuthMiddleware } from "../../test/create-
 // é testada separadamente em whatsapp-campaign.unit.test.ts.
 vi.mock("../../db", () => ({ db: {}, pool: {} }));
 
-const { requeueFailedMessagesMock } = vi.hoisted(() => ({
+const { requeueFailedMessagesMock, transitionWhatsappCampaignMock } = vi.hoisted(() => ({
   requeueFailedMessagesMock: vi.fn(),
+  transitionWhatsappCampaignMock: vi.fn(),
 }));
 
 vi.mock("../../services/whatsapp-campaign.service", () => ({
   requeueFailedMessages: requeueFailedMessagesMock,
+}));
+
+vi.mock("../../services/whatsapp-campaign-lifecycle.service", () => ({
+  transitionWhatsappCampaign: transitionWhatsappCampaignMock,
 }));
 
 vi.mock("../../controllers/campaigns/campaign-logger", () => ({
@@ -64,6 +69,7 @@ vi.mock("../../integrations/whatsapp", () => ({
 
 import whatsappRouter from "../whatsapp.routes";
 import { CampaignRequeueBlockedError } from "../../services/whatsapp-campaign-errors";
+import { waError } from "../../services/whatsapp-errors";
 
 function makeApp(role: "admin" | "gerente" | "vendedor" = "admin") {
   return createRouteTestApp({
@@ -76,6 +82,7 @@ function makeApp(role: "admin" | "gerente" | "vendedor" = "admin") {
 describe("POST /campaigns/:id/retry-failed", () => {
   beforeEach(() => {
     requeueFailedMessagesMock.mockReset();
+    transitionWhatsappCampaignMock.mockReset();
   });
 
   it("200 com { campaignId, requeued } quando a função de serviço reenfileira mensagens", async () => {
@@ -221,5 +228,76 @@ describe("POST /campaigns/:id/retry-failed", () => {
     expect(res.status).toBe(500);
     expect(res.body.code).toBe("UNEXPECTED");
     expect(JSON.stringify(res.body)).not.toContain("duplicate key");
+  });
+});
+
+describe("transições manuais de campanha", () => {
+  beforeEach(() => {
+    transitionWhatsappCampaignMock.mockReset();
+  });
+
+  it.each([
+    ["pause", "paused"],
+    ["resume", "in_progress"],
+  ] as const)("delega %s ao serviço e devolve o estado confirmado", async (action, status) => {
+    transitionWhatsappCampaignMock.mockResolvedValue({ campaignId: "camp-1", status });
+
+    const res = await request(makeApp())
+      .post(`/api/whatsapp/campaigns/camp-1/${action}`)
+      .send();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ campaignId: "camp-1", status });
+    expect(transitionWhatsappCampaignMock).toHaveBeenCalledWith("camp-1", action);
+  });
+
+  it("devolve a quantidade de mensagens efetivamente canceladas", async () => {
+    transitionWhatsappCampaignMock.mockResolvedValue({
+      campaignId: "camp-1",
+      status: "cancelled",
+      cancelledMessages: 2,
+    });
+
+    const res = await request(makeApp())
+      .post("/api/whatsapp/campaigns/camp-1/cancel")
+      .send();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      campaignId: "camp-1",
+      status: "cancelled",
+      cancelledMessages: 2,
+    });
+    expect(transitionWhatsappCampaignMock).toHaveBeenCalledWith("camp-1", "cancel");
+  });
+
+  it("retorna 404 quando a campanha não existe", async () => {
+    transitionWhatsappCampaignMock.mockRejectedValue(waError("CAMPAIGN_NOT_FOUND"));
+
+    const res = await request(makeApp())
+      .post("/api/whatsapp/campaigns/missing/pause")
+      .send();
+
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("CAMPAIGN_NOT_FOUND");
+  });
+
+  it("retorna 409 quando o estado atual não aceita a ação", async () => {
+    transitionWhatsappCampaignMock.mockRejectedValue(
+      waError("CAMPAIGN_INVALID_TRANSITION", {
+        details: { currentStatus: "completed", action: "cancel" },
+      }),
+    );
+
+    const res = await request(makeApp())
+      .post("/api/whatsapp/campaigns/camp-1/cancel")
+      .send();
+
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({
+      code: "CAMPAIGN_INVALID_TRANSITION",
+      currentStatus: "completed",
+      action: "cancel",
+    });
   });
 });
