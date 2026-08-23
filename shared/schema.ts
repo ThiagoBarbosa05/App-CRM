@@ -4126,6 +4126,30 @@ export const whatsappCampaignImpacts = pgTable(
   ],
 );
 
+export const whatsappCampaignRetryAudits = pgTable(
+  "whatsapp_campaign_retry_audits",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    campaignId: varchar("campaign_id")
+      .references(() => whatsappCampaigns.id, { onDelete: "cascade" })
+      .notNull(),
+    actorId: varchar("actor_id").references(() => users.id).notNull(),
+    overrideDedupe: boolean("override_dedupe").notNull().default(false),
+    reason: text("reason"),
+    requeuedMessages: integer("requeued_messages").notNull(),
+    conflicts: jsonb("conflicts").$type<Array<{
+      campaignId: string;
+      campaignMessageId: string;
+      conflictingCampaignId: string;
+      conflictingCampaignMessageId: string;
+      phoneMasked: string;
+      scheduledFor: string;
+    }>>().notNull().default(sql`'[]'::jsonb`),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("wa_campaign_retry_audits_campaign_idx").on(t.campaignId, t.createdAt)],
+);
+
 // Schemas de inserção
 export const insertWhatsappCampaignSchema = createInsertSchema(whatsappCampaigns);
 export const insertWhatsappCampaignMessageSchema = createInsertSchema(
@@ -4140,6 +4164,7 @@ export type InsertWhatsappCampaignMessage = z.infer<
   typeof insertWhatsappCampaignMessageSchema
 >;
 export type WhatsappCampaignImpact = typeof whatsappCampaignImpacts.$inferSelect;
+export type WhatsappCampaignRetryAudit = typeof whatsappCampaignRetryAudits.$inferSelect;
 
 // Relações
 export const whatsappCampaignsRelations = relations(

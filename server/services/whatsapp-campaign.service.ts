@@ -1,6 +1,6 @@
 import { db } from "server/db";
-import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappCampaignImpacts, whatsappTemplates, whatsappBots, whatsappChannels, whatsappMessages, clients } from "@shared/schema";
-import { eq, and, or, isNull, lte, inArray } from "drizzle-orm";
+import { campaigns, whatsappCampaigns, whatsappCampaignMessages, whatsappCampaignImpacts, whatsappCampaignRetryAudits, whatsappTemplates, whatsappBots, whatsappChannels, whatsappMessages, clients } from "@shared/schema";
+import { eq, and, or, isNull, lte, inArray, sql } from "drizzle-orm";
 import { sendTemplateMessage } from "../integrations/whatsapp";
 import { getWhatsappSettingsRaw } from "./whatsapp-settings.service";
 import { classifySendError, computeBackoffMs } from "./whatsapp-campaign-retry";
@@ -12,6 +12,7 @@ import type { ResolvedChannel } from "./whatsapp-channels.service";
 import { getPublicR2Url } from "../lib/r2";
 import {
   applyCampaignTag,
+  findConflict,
   markImpactSent,
   releaseImpact,
 } from "./whatsapp-campaign-dedupe.service";
@@ -165,7 +166,12 @@ async function suppressIfAudienceChanged(
  */
 export async function requeueFailedMessages(
   campaignId: string,
-): Promise<{ requeued: number }> {
+  options: {
+    actorId: string;
+    overrideDedupe: boolean;
+    reason?: string;
+  },
+): Promise<{ requeued: number; conflicts: number }> {
   return db.transaction(async (tx) => {
     const requeuedMessages = await tx
       .update(whatsappCampaignMessages)
@@ -182,40 +188,25 @@ export async function requeueFailedMessages(
           eq(whatsappCampaignMessages.status, "failed"),
         ),
       )
-      .returning({ id: whatsappCampaignMessages.id });
+      .returning({
+        id: whatsappCampaignMessages.id,
+        phoneNormalized: whatsappCampaignMessages.phoneNormalized,
+        contentFingerprint: whatsappCampaignMessages.contentFingerprint,
+      });
 
     const requeuedIds = requeuedMessages.map((m) => m.id);
-
-    if (requeuedIds.length > 0) {
-      // Restaura reserved sem re-rodar findConflict: retry é uma decisão
-      // explícita do operador (ele já sabe que aquele conteúdo/telefone teve
-      // uma falha e está pedindo pra tentar de novo), então não faz sentido
-      // bloquear o próprio retry por dedupe contra a mensagem que está sendo
-      // reenviada. A linha do impact já existe — releaseImpact fez um UPDATE
-      // (não delete) quando a mensagem falhou — então aqui também é UPDATE.
-      await tx
-        .update(whatsappCampaignImpacts)
-        .set({ status: "reserved", scheduledFor: new Date(), sentAt: null, updatedAt: new Date() })
-        .where(
-          and(
-            inArray(whatsappCampaignImpacts.campaignMessageId, requeuedIds),
-            eq(whatsappCampaignImpacts.status, "released"),
-          ),
-        );
-    }
+    let conflictCount = 0;
 
     if (requeuedIds.length === 0) {
-      return { requeued: 0 };
+      return { requeued: 0, conflicts: 0 };
     }
 
     const [campaign] = await tx
-      .select({ status: whatsappCampaigns.status })
+      .select({ status: whatsappCampaigns.status, dedupeWindowHours: whatsappCampaigns.dedupeWindowHours })
       .from(whatsappCampaigns)
       .where(eq(whatsappCampaigns.id, campaignId));
 
     if (!campaign) {
-      // Lançar aqui reverte (ROLLBACK) os UPDATEs de mensagens/impacts já
-      // feitos nesta mesma transação — nada é persistido quando bloqueado.
       throw new CampaignRequeueBlockedError(
         `Campanha ${campaignId} não encontrada.`,
         "not_found",
@@ -223,8 +214,6 @@ export async function requeueFailedMessages(
     }
 
     if (!REQUEUE_ALLOWED_STATUSES.includes(campaign.status as typeof REQUEUE_ALLOWED_STATUSES[number])) {
-      // Lançar aqui reverte (ROLLBACK) os UPDATEs de mensagens/impacts já
-      // feitos nesta mesma transação — nada é persistido quando bloqueado.
       throw new CampaignRequeueBlockedError(
         campaign.status === "cancelled"
           ? "Campanha cancelada não pode ser reprocessada."
@@ -233,12 +222,112 @@ export async function requeueFailedMessages(
       );
     }
 
+    if (requeuedIds.length > 0) {
+      // O mesmo advisory lock da reserva inicial fecha a corrida entre esta
+      // revalidação e campanhas concorrentes para telefone + conteúdo.
+      const retryAt = new Date();
+      const conflicts: Array<{
+        campaignId: string;
+        campaignMessageId: string;
+        conflictingCampaignId: string;
+        conflictingCampaignMessageId: string;
+        phoneMasked: string;
+        scheduledFor: string;
+      }> = [];
+
+      for (const message of requeuedMessages) {
+        if (!message.phoneNormalized || !message.contentFingerprint) continue;
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${message.phoneNormalized}), hashtext(${message.contentFingerprint}))`);
+        const conflict = await findConflict(
+          tx,
+          message.phoneNormalized,
+          message.contentFingerprint,
+          retryAt,
+          campaign.dedupeWindowHours,
+        );
+        if (conflict && conflict.campaignMessageId !== message.id) {
+          conflicts.push({
+            campaignId,
+            campaignMessageId: message.id,
+            conflictingCampaignId: conflict.campaignId,
+            conflictingCampaignMessageId: conflict.campaignMessageId,
+            phoneMasked: conflict.phoneMasked,
+            scheduledFor: conflict.scheduledFor.toISOString(),
+          });
+        }
+      }
+
+      if (conflicts.length > 0 && !options.overrideDedupe) {
+        throw new CampaignRequeueBlockedError(
+          `${conflicts.length} mensagem(ns) possuem conflito de deduplicação. Confirme o override e informe o motivo para continuar.`,
+          "dedupe_conflict",
+          { conflicts },
+        );
+      }
+      conflictCount = conflicts.length;
+
+      const restoredImpacts = await tx
+        .update(whatsappCampaignImpacts)
+        .set({ status: "reserved", scheduledFor: retryAt, sentAt: null, updatedAt: retryAt })
+        .where(
+          and(
+            inArray(whatsappCampaignImpacts.campaignMessageId, requeuedIds),
+            eq(whatsappCampaignImpacts.status, "released"),
+          ),
+        )
+        .returning({ campaignMessageId: whatsappCampaignImpacts.campaignMessageId });
+
+      const restoredIds = new Set(restoredImpacts.map((impact) => impact.campaignMessageId));
+      const missingMessages = requeuedMessages.filter((message) => !restoredIds.has(message.id));
+      const invalidMissing = missingMessages.filter(
+        (message) => !message.phoneNormalized || !message.contentFingerprint,
+      );
+      if (invalidMissing.length > 0) {
+        throw new CampaignRequeueBlockedError(
+          `Não foi possível restaurar a reserva de deduplicação de ${invalidMissing.length} mensagem(ns).`,
+          "dedupe_reservation_invalid",
+        );
+      }
+
+      let recreatedImpacts: Array<{ campaignMessageId: string }> = [];
+      if (missingMessages.length > 0) {
+        recreatedImpacts = await tx
+          .insert(whatsappCampaignImpacts)
+          .values(missingMessages.map((message) => ({
+            phoneNormalized: message.phoneNormalized!,
+            contentFingerprint: message.contentFingerprint!,
+            campaignId,
+            campaignMessageId: message.id,
+            scheduledFor: retryAt,
+            status: "reserved" as const,
+          })))
+          .onConflictDoNothing()
+          .returning({ campaignMessageId: whatsappCampaignImpacts.campaignMessageId });
+      }
+
+      if (restoredImpacts.length + recreatedImpacts.length !== requeuedIds.length) {
+        throw new CampaignRequeueBlockedError(
+          `Não foi possível restaurar a reserva de deduplicação de ${requeuedIds.length - restoredImpacts.length - recreatedImpacts.length} mensagem(ns).`,
+          "dedupe_reservation_invalid",
+        );
+      }
+
+      await tx.insert(whatsappCampaignRetryAudits).values({
+        campaignId,
+        actorId: options.actorId,
+        overrideDedupe: options.overrideDedupe,
+        reason: options.overrideDedupe ? options.reason : null,
+        requeuedMessages: requeuedIds.length,
+        conflicts,
+      });
+    }
+
     await tx
       .update(whatsappCampaigns)
       .set({ status: "in_progress", completedAt: null, updatedAt: new Date() })
       .where(eq(whatsappCampaigns.id, campaignId));
 
-    return { requeued: requeuedIds.length };
+    return { requeued: requeuedIds.length, conflicts: conflictCount };
   });
 }
 

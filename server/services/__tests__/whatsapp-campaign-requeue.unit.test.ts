@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { whatsappCampaigns, whatsappCampaignImpacts, whatsappCampaignMessages } from "@shared/schema";
+import { whatsappCampaigns, whatsappCampaignImpacts, whatsappCampaignMessages, whatsappCampaignRetryAudits } from "@shared/schema";
 
 // requeueFailedMessages roda inteiro dentro de db.transaction(async (tx) =>
 // {...}). Mockamos db.transaction para chamar o callback com um `tx` falso
@@ -72,11 +72,19 @@ import { CampaignRequeueBlockedError } from "../whatsapp-campaign-errors";
 type TxStub = {
   update: ReturnType<typeof vi.fn>;
   select: ReturnType<typeof vi.fn>;
+  insert: ReturnType<typeof vi.fn>;
+  execute: ReturnType<typeof vi.fn>;
 };
 
 function makeTx(opts: {
-  messageReturningRows: Array<{ id: string }>;
+  messageReturningRows: Array<{
+    id: string;
+    phoneNormalized?: string | null;
+    contentFingerprint?: string | null;
+  }>;
   campaignStatus: string | null;
+  restoredImpactRows?: Array<{ campaignMessageId: string }>;
+  recreatedImpactRows?: Array<{ campaignMessageId: string }>;
 }) {
   const updateCalls: unknown[] = [];
 
@@ -84,7 +92,10 @@ function makeTx(opts: {
   const messageWhereMock = vi.fn().mockReturnValue({ returning: messageReturningMock });
   const messageSetMock = vi.fn().mockReturnValue({ where: messageWhereMock });
 
-  const impactWhereMock = vi.fn().mockResolvedValue(undefined);
+  const impactReturningMock = vi.fn().mockResolvedValue(
+    opts.restoredImpactRows ?? opts.messageReturningRows.map(({ id }) => ({ campaignMessageId: id })),
+  );
+  const impactWhereMock = vi.fn().mockReturnValue({ returning: impactReturningMock });
   const impactSetMock = vi.fn().mockReturnValue({ where: impactWhereMock });
 
   const campaignUpdateWhereMock = vi.fn().mockResolvedValue(undefined);
@@ -100,22 +111,39 @@ function makeTx(opts: {
 
   const selectWhereMock = vi
     .fn()
-    .mockResolvedValue(opts.campaignStatus === null ? [] : [{ status: opts.campaignStatus }]);
+    .mockResolvedValue(opts.campaignStatus === null ? [] : [{ status: opts.campaignStatus, dedupeWindowHours: 24 }]);
   const selectMock = vi.fn().mockReturnValue({ from: () => ({ where: selectWhereMock }) });
 
+  const impactInsertReturningMock = vi.fn().mockResolvedValue(opts.recreatedImpactRows ?? []);
+  const impactInsertValuesMock = vi.fn().mockReturnValue({
+    onConflictDoNothing: () => ({ returning: impactInsertReturningMock }),
+  });
+  const auditInsertValuesMock = vi.fn().mockResolvedValue(undefined);
+  const insertMock = vi.fn((table: unknown) => {
+    if (table === whatsappCampaignImpacts) return { values: impactInsertValuesMock };
+    if (table === whatsappCampaignRetryAudits) return { values: auditInsertValuesMock };
+    throw new Error(`insert inesperado em tabela desconhecida: ${String(table)}`);
+  });
+  const executeMock = vi.fn().mockResolvedValue(undefined);
+
   return {
-    tx: { update: updateMock, select: selectMock } as TxStub,
+    tx: { update: updateMock, select: selectMock, insert: insertMock, execute: executeMock } as TxStub,
     updateCalls,
     messageSetMock,
     messageWhereMock,
     impactSetMock,
     impactWhereMock,
+    impactReturningMock,
     campaignSetMock,
     campaignUpdateWhereMock,
     selectMock,
     selectWhereMock,
+    impactInsertValuesMock,
+    auditInsertValuesMock,
   };
 }
+
+const RETRY_OPTIONS = { actorId: "user-1", overrideDedupe: false } as const;
 
 describe("requeueFailedMessages", () => {
   beforeEach(() => {
@@ -125,6 +153,20 @@ describe("requeueFailedMessages", () => {
     vi.mocked(eq).mockClear();
   });
 
+  it("aborta quando nem toda mensagem reenfileirada recupera uma reserva de dedupe", async () => {
+    const { tx, campaignSetMock } = makeTx({
+      messageReturningRows: [{ id: "msg-1" }, { id: "msg-2" }],
+      restoredImpactRows: [{ campaignMessageId: "msg-1" }],
+      campaignStatus: "failed",
+    });
+    transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
+
+    await expect(requeueFailedMessages("camp-1", RETRY_OPTIONS)).rejects.toThrow(
+      "Não foi possível restaurar a reserva de deduplicação de 1 mensagem(ns).",
+    );
+    expect(campaignSetMock).not.toHaveBeenCalled();
+  });
+
   it("reseta status/errorMessage/attempts/nextAttemptAt nas mensagens failed e restaura os impacts released→reserved", async () => {
     const { tx, messageSetMock, impactSetMock, campaignSetMock, updateCalls } = makeTx({
       messageReturningRows: [{ id: "msg-1" }, { id: "msg-2" }],
@@ -132,9 +174,9 @@ describe("requeueFailedMessages", () => {
     });
     transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-    const result = await requeueFailedMessages("camp-1");
+    const result = await requeueFailedMessages("camp-1", RETRY_OPTIONS);
 
-    expect(result).toEqual({ requeued: 2 });
+    expect(result).toEqual({ requeued: 2, conflicts: 0 });
 
     expect(messageSetMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -180,9 +222,93 @@ describe("requeueFailedMessages", () => {
     });
     transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-    await requeueFailedMessages("camp-1");
+    await requeueFailedMessages("camp-1", RETRY_OPTIONS);
 
     expect(findConflictMock).not.toHaveBeenCalled();
+  });
+
+  it("recria um impact ausente com os dados persistidos na mensagem", async () => {
+    const { tx, impactInsertValuesMock } = makeTx({
+      messageReturningRows: [{
+        id: "msg-1",
+        phoneNormalized: "5511999999999",
+        contentFingerprint: "fingerprint-1",
+      }],
+      restoredImpactRows: [],
+      recreatedImpactRows: [{ campaignMessageId: "msg-1" }],
+      campaignStatus: "failed",
+    });
+    transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
+
+    const result = await requeueFailedMessages("camp-1", RETRY_OPTIONS);
+
+    expect(result).toEqual({ requeued: 1, conflicts: 0 });
+    expect(impactInsertValuesMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        campaignId: "camp-1",
+        campaignMessageId: "msg-1",
+        phoneNormalized: "5511999999999",
+        contentFingerprint: "fingerprint-1",
+        status: "reserved",
+      }),
+    ]);
+  });
+
+  it("bloqueia conflito externo sem override e o expõe para confirmação", async () => {
+    const { tx, auditInsertValuesMock } = makeTx({
+      messageReturningRows: [{
+        id: "msg-1",
+        phoneNormalized: "5511999999999",
+        contentFingerprint: "fingerprint-1",
+      }],
+      campaignStatus: "failed",
+    });
+    findConflictMock.mockResolvedValue({
+      campaignId: "camp-conflitante",
+      campaignMessageId: "msg-conflitante",
+      phoneMasked: "*********9999",
+      scheduledFor: new Date("2026-08-23T12:00:00.000Z"),
+    });
+    transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
+
+    await expect(requeueFailedMessages("camp-1", RETRY_OPTIONS)).rejects.toMatchObject({
+      campaignStatus: "dedupe_conflict",
+      details: { conflicts: [expect.objectContaining({ conflictingCampaignId: "camp-conflitante" })] },
+    });
+    expect(auditInsertValuesMock).not.toHaveBeenCalled();
+  });
+
+  it("override explícito prossegue e audita operador, motivo e conflitos", async () => {
+    const { tx, auditInsertValuesMock } = makeTx({
+      messageReturningRows: [{
+        id: "msg-1",
+        phoneNormalized: "5511999999999",
+        contentFingerprint: "fingerprint-1",
+      }],
+      campaignStatus: "failed",
+    });
+    findConflictMock.mockResolvedValue({
+      campaignId: "camp-conflitante",
+      campaignMessageId: "msg-conflitante",
+      phoneMasked: "*********9999",
+      scheduledFor: new Date("2026-08-23T12:00:00.000Z"),
+    });
+    transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
+
+    const result = await requeueFailedMessages("camp-1", {
+      actorId: "user-1",
+      overrideDedupe: true,
+      reason: "Cliente autorizou o reenvio",
+    });
+
+    expect(result).toEqual({ requeued: 1, conflicts: 1 });
+    expect(auditInsertValuesMock).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: "user-1",
+      overrideDedupe: true,
+      reason: "Cliente autorizou o reenvio",
+      requeuedMessages: 1,
+      conflicts: [expect.objectContaining({ conflictingCampaignMessageId: "msg-conflitante" })],
+    }));
   });
 
   it("campanha cancelled: lança CampaignRequeueBlockedError e NÃO chega a fazer o UPDATE de status da campanha", async () => {
@@ -192,8 +318,8 @@ describe("requeueFailedMessages", () => {
     });
     transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-    await expect(requeueFailedMessages("camp-1")).rejects.toThrow(CampaignRequeueBlockedError);
-    await expect(requeueFailedMessages("camp-1")).rejects.toThrow(
+    await expect(requeueFailedMessages("camp-1", RETRY_OPTIONS)).rejects.toThrow(CampaignRequeueBlockedError);
+    await expect(requeueFailedMessages("camp-1", RETRY_OPTIONS)).rejects.toThrow(
       "Campanha cancelada não pode ser reprocessada.",
     );
 
@@ -215,7 +341,7 @@ describe("requeueFailedMessages", () => {
     });
     transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-    await expect(requeueFailedMessages("camp-1")).rejects.toThrow(
+    await expect(requeueFailedMessages("camp-1", RETRY_OPTIONS)).rejects.toThrow(
       "Campanha no estado atual (paused) não pode ser reprocessada.",
     );
   });
@@ -227,7 +353,7 @@ describe("requeueFailedMessages", () => {
     });
     transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-    await expect(requeueFailedMessages("camp-1")).rejects.toThrow(
+    await expect(requeueFailedMessages("camp-1", RETRY_OPTIONS)).rejects.toThrow(
       "Campanha no estado atual (created) não pode ser reprocessada.",
     );
   });
@@ -239,9 +365,9 @@ describe("requeueFailedMessages", () => {
     });
     transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-    const result = await requeueFailedMessages("camp-1");
+    const result = await requeueFailedMessages("camp-1", RETRY_OPTIONS);
 
-    expect(result).toEqual({ requeued: 0 });
+    expect(result).toEqual({ requeued: 0, conflicts: 0 });
     expect(impactSetMock).not.toHaveBeenCalled();
     expect(campaignSetMock).not.toHaveBeenCalled();
     expect(updateCalls).toEqual([whatsappCampaignMessages]);
@@ -257,10 +383,10 @@ describe("requeueFailedMessages", () => {
     });
     transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-    await expect(requeueFailedMessages("camp-inexistente")).rejects.toThrow(
+    await expect(requeueFailedMessages("camp-inexistente", RETRY_OPTIONS)).rejects.toThrow(
       CampaignRequeueBlockedError,
     );
-    await expect(requeueFailedMessages("camp-inexistente")).rejects.toThrow(
+    await expect(requeueFailedMessages("camp-inexistente", RETRY_OPTIONS)).rejects.toThrow(
       "Campanha camp-inexistente não encontrada.",
     );
 
@@ -276,9 +402,9 @@ describe("requeueFailedMessages", () => {
       });
       transactionMock.mockImplementation(async (fn: (tx: TxStub) => unknown) => fn(tx));
 
-      const result = await requeueFailedMessages("camp-1");
+      const result = await requeueFailedMessages("camp-1", RETRY_OPTIONS);
 
-      expect(result).toEqual({ requeued: 1 });
+      expect(result).toEqual({ requeued: 1, conflicts: 0 });
       expect(campaignSetMock).toHaveBeenCalledWith(
         expect.objectContaining({ status: "in_progress" }),
       );

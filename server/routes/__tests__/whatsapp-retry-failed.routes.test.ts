@@ -87,7 +87,34 @@ describe("POST /campaigns/:id/retry-failed", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ campaignId: "camp-1", requeued: 3 });
-    expect(requeueFailedMessagesMock).toHaveBeenCalledWith("camp-1");
+    expect(requeueFailedMessagesMock).toHaveBeenCalledWith("camp-1", {
+      actorId: "u1",
+      overrideDedupe: false,
+    });
+  });
+
+  it("repassa override explícito com usuário e motivo auditável", async () => {
+    requeueFailedMessagesMock.mockResolvedValue({ requeued: 1, conflicts: 1 });
+
+    const res = await request(makeApp())
+      .post("/api/whatsapp/campaigns/camp-1/retry-failed")
+      .send({ overrideDedupe: true, reason: "Cliente autorizou novo envio após corrigirmos o canal" });
+
+    expect(res.status).toBe(200);
+    expect(requeueFailedMessagesMock).toHaveBeenCalledWith("camp-1", {
+      actorId: "u1",
+      overrideDedupe: true,
+      reason: "Cliente autorizou novo envio após corrigirmos o canal",
+    });
+  });
+
+  it("rejeita override sem motivo antes de abrir a transação", async () => {
+    const res = await request(makeApp())
+      .post("/api/whatsapp/campaigns/camp-1/retry-failed")
+      .send({ overrideDedupe: true, reason: "curto" });
+
+    expect(res.status).toBe(400);
+    expect(requeueFailedMessagesMock).not.toHaveBeenCalled();
   });
 
   it("permite que gerente controle campanhas", async () => {

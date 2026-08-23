@@ -29,6 +29,9 @@ import { PageHeader } from "@/components/page-header";
 import { CampaignMessageError } from "@/components/whatsapp/campaign-message-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -188,6 +191,9 @@ export default function WhatsAppCampaignDetails() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<WhatsappCampaignMessage["status"] | "all">("all");
+  const [retryDialogOpen, setRetryDialogOpen] = useState(false);
+  const [overrideDedupe, setOverrideDedupe] = useState(false);
+  const [retryReason, setRetryReason] = useState("");
 
   const stats = statsData?.stats;
   const botStats = botStatsData?.stats;
@@ -317,17 +323,79 @@ export default function WhatsAppCampaignDetails() {
             </Button>
           )}
           {failedCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              disabled={retryMutation.isPending}
-              onClick={() => id && retryMutation.mutate(id)}
-            >
-              <RotateCcw className={`h-3.5 w-3.5 ${retryMutation.isPending ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Reprocessar</span>
-              <span>({failedCount})</span>
-            </Button>
+            <AlertDialog open={retryDialogOpen} onOpenChange={setRetryDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={retryMutation.isPending}
+                >
+                  <RotateCcw className={`h-3.5 w-3.5 ${retryMutation.isPending ? "animate-spin" : ""}`} />
+                  <span className="hidden sm:inline">Reprocessar</span>
+                  <span>({failedCount})</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reprocessar mensagens com falha</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    As reservas de deduplicação serão validadas antes de qualquer
+                    mensagem voltar para a fila. Se houver conflito, o envio será bloqueado.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div className="flex items-start gap-2.5">
+                    <Checkbox
+                      id="override-dedupe"
+                      checked={overrideDedupe}
+                      onCheckedChange={(checked) => setOverrideDedupe(checked === true)}
+                    />
+                    <Label htmlFor="override-dedupe" className="leading-5">
+                      Ignorar conflitos de deduplicação encontrados
+                    </Label>
+                  </div>
+                  {overrideDedupe ? (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="retry-reason">Motivo do override</Label>
+                      <Textarea
+                        id="retry-reason"
+                        value={retryReason}
+                        onChange={(event) => setRetryReason(event.target.value)}
+                        placeholder="Explique por que este reenvio duplicado foi autorizado"
+                        maxLength={500}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        O operador, o motivo, a data e os conflitos serão registrados.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={retryMutation.isPending || (overrideDedupe && retryReason.trim().length < 10)}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (!id) return;
+                      retryMutation.mutate({
+                        campaignId: id,
+                        overrideDedupe,
+                        ...(overrideDedupe ? { reason: retryReason.trim() } : {}),
+                      }, {
+                        onSuccess: () => {
+                          setRetryDialogOpen(false);
+                          setOverrideDedupe(false);
+                          setRetryReason("");
+                        },
+                      });
+                    }}
+                  >
+                    Reprocessar {failedCount} mensagem(ns)
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
           {(campaign.status === "in_progress" || campaign.status === "created") && (
             <Button

@@ -210,7 +210,11 @@ export function toWhatsappErrorResponse(error: unknown): {
     );
   }
   if (error instanceof CampaignRequeueBlockedError) {
-    return asTyped("CAMPAIGN_REQUEUE_BLOCKED", 409, error.message);
+    const response = asTyped("CAMPAIGN_REQUEUE_BLOCKED", 409, error.message);
+    return {
+      ...response,
+      body: { ...response.body, ...(error.details ?? {}) },
+    };
   }
   if (error instanceof CampaignConfigError) {
     return asTyped("CAMPAIGN_NO_CONTENT", 400, error.message);

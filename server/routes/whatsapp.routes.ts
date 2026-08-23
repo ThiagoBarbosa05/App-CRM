@@ -270,9 +270,26 @@ router.post("/campaigns", async (req, res) => {
 
 router.post("/campaigns/:id/retry-failed", async (req, res) => {
   const campaignId = req.params.id;
+  const parsed = z.object({
+    overrideDedupe: z.boolean().default(false),
+    reason: z.string().trim().max(500).optional(),
+  }).superRefine((value, context) => {
+    if (value.overrideDedupe && (!value.reason || value.reason.length < 10)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reason"],
+        message: "Informe um motivo com pelo menos 10 caracteres para ignorar conflitos.",
+      });
+    }
+  }).safeParse(req.body ?? {});
+  if (!parsed.success) {
+    return res.status(400).json({ message: "Parâmetros inválidos", errors: parsed.error.errors });
+  }
   try {
-    const { requeued } = await requeueFailedMessages(campaignId);
-    res.json({ campaignId, requeued });
+    const result = await requeueFailedMessages(campaignId, parsed.data.overrideDedupe
+      ? { actorId: req.user!.userId, overrideDedupe: true, reason: parsed.data.reason! }
+      : { actorId: req.user!.userId, overrideDedupe: false });
+    res.json({ campaignId, ...result });
   } catch (e) {
     return respondWhatsappError(res, e, "[WA campaigns retry-failed]");
   }

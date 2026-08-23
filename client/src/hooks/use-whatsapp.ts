@@ -434,18 +434,26 @@ export function useRetryFailedCampaign() {
   const { toast } = useToast();
   const showError = useWhatsappErrorToast();
   return useMutation({
-    mutationFn: async (campaignId: string) => {
-      const res = await apiRequest("POST", `/api/whatsapp/campaigns/${campaignId}/retry-failed`);
-      return res.json() as Promise<{ campaignId: string; requeued: number }>;
+    mutationFn: async (input: {
+      campaignId: string;
+      overrideDedupe: boolean;
+      reason?: string;
+    }) => {
+      const res = await apiRequest(
+        "POST",
+        `/api/whatsapp/campaigns/${input.campaignId}/retry-failed`,
+        { overrideDedupe: input.overrideDedupe, reason: input.reason },
+      );
+      return res.json() as Promise<{ campaignId: string; requeued: number; conflicts: number }>;
     },
-    onSuccess: (data, campaignId) => {
+    onSuccess: (data, input) => {
       toast({
         title: data.requeued > 0
           ? `${data.requeued} mensagem(ns) reenfileirada(s)`
           : "Nenhuma falha para reprocessar",
       });
-      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId] });
-      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", campaignId, "stats"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", input.campaignId] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "campaigns", input.campaignId, "stats"] });
     },
     onError: (error: Error) => {
       showError(error, "Não foi possível reprocessar as falhas.");
