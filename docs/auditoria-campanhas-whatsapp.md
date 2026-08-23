@@ -31,13 +31,13 @@ Também ignora conflitos criados por outras campanhas depois da falha. O overrid
 
 **Correção necessária:** antes de reenfileirar, validar a relação um-para-um entre mensagem e impact. Recriar impacts ausentes de forma segura ou abortar a transação. Tornar o override de dedupe uma decisão explícita, registrada com usuário, data, motivo e conflitos encontrados. -->
 
-### 2. P1 — Pausar, retomar e cancelar podem retornar sucesso sem alteração
+<!-- ### 2. P1 — Pausar, retomar e cancelar podem retornar sucesso sem alteração
 
 Pausa e retomada não verificam linhas afetadas em [`whatsapp.routes.ts`](../server/routes/whatsapp.routes.ts). Um ID inexistente ou uma transição inválida ainda pode retornar `200` e gerar toast positivo.
 
 O cancelamento aceita qualquer estado, não verifica se a campanha existe e altera mensagens, impacts e campanha sem uma transação única.
 
-**Correção necessária:** implementar uma máquina de estados explícita, executar cada ação em uma transação e usar `.returning()`. Retornar `404` para campanha inexistente e `409` para transição inválida. Estados terminais não devem aceitar pausa, retomada ou novo cancelamento silenciosamente.
+**Correção necessária:** implementar uma máquina de estados explícita, executar cada ação em uma transação e usar `.returning()`. Retornar `404` para campanha inexistente e `409` para transição inválida. Estados terminais não devem aceitar pausa, retomada ou novo cancelamento silenciosamente. -->
 
 ### 3. P1 — Retomar campanha futura ignora o agendamento original
 

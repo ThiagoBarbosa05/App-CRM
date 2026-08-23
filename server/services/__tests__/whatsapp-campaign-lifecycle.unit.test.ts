@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   whatsappCampaignImpacts,
@@ -30,7 +30,7 @@ import { transitionWhatsappCampaign } from "../whatsapp-campaign-lifecycle.servi
 
 type CampaignStatus = "created" | "in_progress" | "paused" | "completed" | "failed" | "cancelled";
 
-function makeTransaction(currentStatus?: CampaignStatus) {
+function makeTransaction(currentStatus?: CampaignStatus, startDate: Date | null = null) {
   const returningByTable = new Map<unknown, unknown[]>([
     [whatsappCampaigns, [{ id: "campaign-1" }]],
     [whatsappCampaignMessages, [{ id: "message-1" }, { id: "message-2" }]],
@@ -43,7 +43,7 @@ function makeTransaction(currentStatus?: CampaignStatus) {
       from: vi.fn(() => ({
         where: vi.fn(() => ({
           for: vi.fn().mockResolvedValue(
-            currentStatus ? [{ id: "campaign-1", status: currentStatus }] : [],
+            currentStatus ? [{ id: "campaign-1", status: currentStatus, startDate }] : [],
           ),
         })),
       })),
@@ -67,6 +67,10 @@ function makeTransaction(currentStatus?: CampaignStatus) {
 describe("transitionWhatsappCampaign", () => {
   beforeEach(() => {
     transactionMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("falha com CAMPAIGN_NOT_FOUND sem executar updates quando o id não existe", async () => {
@@ -97,6 +101,32 @@ describe("transitionWhatsappCampaign", () => {
     expect(result).toEqual({ campaignId: "campaign-1", status: "paused" });
     expect(writes).toHaveLength(1);
     expect(writes[0]).toMatchObject({ table: whatsappCampaigns, values: { status: "paused" } });
+  });
+
+  it("retoma como created quando o agendamento original ainda está no futuro", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-23T12:00:00.000Z"));
+    const { writes } = makeTransaction("paused", new Date("2026-08-23T13:00:00.000Z"));
+
+    const result = await transitionWhatsappCampaign("campaign-1", "resume");
+
+    expect(result).toEqual({ campaignId: "campaign-1", status: "created" });
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ table: whatsappCampaigns, values: { status: "created" } });
+  });
+
+  it.each([
+    new Date("2026-08-23T12:00:00.000Z"),
+    new Date("2026-08-23T11:59:59.999Z"),
+  ])("retoma como in_progress quando o agendamento já venceu (%s)", async (startDate) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-23T12:00:00.000Z"));
+    const { writes } = makeTransaction("paused", startDate);
+
+    const result = await transitionWhatsappCampaign("campaign-1", "resume");
+
+    expect(result).toEqual({ campaignId: "campaign-1", status: "in_progress" });
+    expect(writes[0]).toMatchObject({ table: whatsappCampaigns, values: { status: "in_progress" } });
   });
 
   it("cancela campanha, mensagens agendadas e impacts na mesma transação", async () => {

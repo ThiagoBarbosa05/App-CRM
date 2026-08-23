@@ -40,7 +40,11 @@ export async function transitionWhatsappCampaign(
 ): Promise<WhatsappCampaignTransitionResult> {
   return db.transaction(async (tx) => {
     const [campaign] = await tx
-      .select({ id: whatsappCampaigns.id, status: whatsappCampaigns.status })
+      .select({
+        id: whatsappCampaigns.id,
+        status: whatsappCampaigns.status,
+        startDate: whatsappCampaigns.startDate,
+      })
       .from(whatsappCampaigns)
       .where(eq(whatsappCampaigns.id, campaignId))
       .for("update");
@@ -56,7 +60,10 @@ export async function transitionWhatsappCampaign(
     }
 
     const now = new Date();
-    const targetStatus = TARGET_STATUS[action];
+    const targetStatus =
+      action === "resume" && campaign.startDate && campaign.startDate > now
+        ? "created"
+        : TARGET_STATUS[action];
 
     if (action !== "cancel") {
       const [updated] = await tx

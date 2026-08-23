@@ -238,7 +238,7 @@ describe("transições manuais de campanha", () => {
 
   it.each([
     ["pause", "paused"],
-    ["resume", "in_progress"],
+    ["resume", "created"],
   ] as const)("delega %s ao serviço e devolve o estado confirmado", async (action, status) => {
     transitionWhatsappCampaignMock.mockResolvedValue({ campaignId: "camp-1", status });
 
