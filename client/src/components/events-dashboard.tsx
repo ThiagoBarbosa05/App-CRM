@@ -26,8 +26,18 @@ import {
   ClockIcon,
   ImageIcon,
   DownloadIcon,
+  FileTextIcon,
+  ExternalLinkIcon,
   Loader2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   formatCurrency,
@@ -75,6 +85,177 @@ function getPricingLabel(event: Pick<Event, "pricingType">): string {
   return event.pricingType === "total" ? "Valor total" : "Valor por pessoa";
 }
 
+function EventSummaryDialog({
+  event,
+  isOpen,
+  onClose,
+}: {
+  event: Event | null;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      {event && (
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950"
+          data-testid="dialog-event-summary"
+        >
+          <DialogHeader className="border-b border-slate-200 dark:border-slate-800 pb-5">
+            <div className="flex flex-wrap items-center gap-2 pr-8">
+              <DialogTitle className="text-xl sm:text-2xl">
+                {event.name}
+              </DialogTitle>
+              <Badge
+                className={
+                  EVENT_STATUS.find((status) => status.value === event.status)
+                    ?.color
+                }
+              >
+                {
+                  EVENT_STATUS.find((status) => status.value === event.status)
+                    ?.label
+                }
+              </Badge>
+              <Badge variant="outline">{event.category}</Badge>
+            </div>
+            <DialogDescription>
+              Resumo e informações principais do evento
+            </DialogDescription>
+          </DialogHeader>
+
+          {event.imageUrl && (
+            <div className="h-44 sm:h-56 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
+              <img
+                src={event.imageUrl}
+                alt={`Imagem de ${event.name}`}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50/70 dark:bg-blue-950/30 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                <CalendarIcon className="h-4 w-4" />
+                Data do evento
+              </div>
+              <p className="mt-2 font-medium text-slate-900 dark:text-slate-100">
+                {formatEventDateTime(event.eventDate)}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-green-100 dark:border-green-900/40 bg-green-50/70 dark:bg-green-950/30 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">
+                <MapPinIcon className="h-4 w-4" />
+                Local
+              </div>
+              <p className="mt-2 font-medium text-slate-900 dark:text-slate-100 break-words">
+                {event.location}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/70 dark:bg-purple-950/30 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-purple-700 dark:text-purple-300">
+                <UsersIcon className="h-4 w-4" />
+                Participantes
+              </div>
+              <p className="mt-2 font-medium text-slate-900 dark:text-slate-100">
+                {event.participantCount} participante(s)
+                {event.maxCapacity ? ` de ${event.maxCapacity}` : ""}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-emerald-100 dark:border-emerald-900/40 bg-emerald-50/70 dark:bg-emerald-950/30 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                <ClockIcon className="h-4 w-4" />
+                {getPricingLabel(event)}
+              </div>
+              <p className="mt-2 font-medium text-slate-900 dark:text-slate-100">
+                {formatCurrency(getEventValue(event))}
+              </p>
+            </div>
+          </div>
+
+          {event.registrationDeadline && (
+            <div className="rounded-xl border border-orange-200 dark:border-orange-900/50 bg-orange-50 dark:bg-orange-950/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-orange-800 dark:text-orange-300">
+                Prazo de inscrição
+              </p>
+              <p className="mt-1 text-sm text-orange-900 dark:text-orange-200">
+                {formatEventDateTime(event.registrationDeadline)}
+              </p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <section>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                O que foi o evento
+              </h3>
+              {event.description ? (
+                <div
+                  className="rich-text-content text-sm leading-relaxed text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 p-4"
+                  dangerouslySetInnerHTML={{ __html: event.description }}
+                />
+              ) : (
+                <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                  Nenhuma descrição foi cadastrada para este evento.
+                </p>
+              )}
+            </section>
+
+            {event.notes && (
+              <section>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                  Observações
+                </h3>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 p-4">
+                  {event.notes}
+                </p>
+              </section>
+            )}
+
+            {event.attachments && event.attachments.length > 0 && (
+              <section>
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                  <FileTextIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                  Arquivos do evento
+                </h3>
+                <div className="space-y-2">
+                  {event.attachments.map((attachment) => (
+                    <a
+                      key={attachment.id ?? attachment.fileUrl}
+                      href={`${baseS3Url}${attachment.fileUrl}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:border-purple-300 hover:text-purple-700 dark:hover:border-purple-700 dark:hover:text-purple-300 transition-colors"
+                    >
+                      <span className="truncate">{attachment.fileName}</span>
+                      <ExternalLinkIcon className="h-4 w-4 shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              Fechar resumo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      )}
+    </Dialog>
+  );
+}
+
 const EVENT_STATUS = [
   {
     value: "planejado",
@@ -112,6 +293,7 @@ export default function EventsDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeMode, setActiveMode] = useState<EventsMode>("upcoming");
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const upcomingQuery = useInfiniteQuery({
     queryKey: ["/api/events", "upcoming"],
@@ -989,7 +1171,31 @@ export default function EventsDashboard() {
                 return (
                   <div
                     key={event.id}
-                    className="group relative bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-md overflow-hidden hover:border-gray-300 dark:hover:border-slate-700 hover:shadow-md transition-all duration-200 ease-in-out"
+                     role="button"
+                     tabIndex={0}
+                     aria-label={`Ver resumo do evento ${event.name}`}
+                     onClick={(clickEvent) => {
+                       const target = clickEvent.target as HTMLElement;
+                       if (
+                         target.closest(
+                           "button, a, input, textarea, select, [role='button']",
+                         )
+                       ) {
+                         return;
+                       }
+                       setSelectedEvent(event);
+                     }}
+                     onKeyDown={(keyEvent) => {
+                       if (
+                         keyEvent.target === keyEvent.currentTarget &&
+                         (keyEvent.key === "Enter" || keyEvent.key === " ")
+                       ) {
+                         keyEvent.preventDefault();
+                         setSelectedEvent(event);
+                       }
+                     }}
+                     className="group relative cursor-pointer bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-md overflow-hidden hover:border-purple-300 dark:hover:border-purple-700 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 transition-all duration-200 ease-in-out"
+                     data-testid={`event-card-${event.id}`}
                   >
                     {/* Indicador de urgência lateral */}
                     <div
@@ -1294,7 +1500,7 @@ export default function EventsDashboard() {
                           className="w-full hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:border-purple-200 dark:hover:border-purple-700 hover:text-purple-700 dark:hover:text-purple-300 transition-colors font-medium"
                         >
                           <CalendarIcon className="h-4 w-4 mr-2" />
-                          Ver Detalhes do Evento
+                           Imprimir participantes
                         </Button>
                       </div>
                     </div>
@@ -1321,6 +1527,11 @@ export default function EventsDashboard() {
           )}
         </CardContent>
       </Card>
+      <EventSummaryDialog
+        event={selectedEvent}
+        isOpen={Boolean(selectedEvent)}
+        onClose={() => setSelectedEvent(null)}
+      />
     </div>
   );
 }
