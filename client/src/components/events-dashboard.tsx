@@ -1178,7 +1178,7 @@ export default function EventsDashboard() {
                        const target = clickEvent.target as HTMLElement;
                        if (
                          target.closest(
-                           "button, a, input, textarea, select, [role='button']",
+                           "button, a, input, textarea, select",
                          )
                        ) {
                          return;
