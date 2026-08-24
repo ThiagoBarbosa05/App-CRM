@@ -59,6 +59,7 @@ import {
   Link2Icon,
   GlobeIcon,
   ClipboardCopyIcon,
+  FileTextIcon,
 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -123,6 +124,10 @@ interface EventFormData {
   wineRevenue: string;
   imageUrl?: string | null;
   attachments: EventAttachment[];
+}
+
+function isPdfAttachment(attachment: Pick<EventAttachment, "fileName">) {
+  return attachment.fileName.toLowerCase().endsWith(".pdf");
 }
 
 const EVENT_CATEGORIES = [
@@ -476,6 +481,17 @@ export default function EventsManagement() {
     setFormData((prev) => ({ ...prev, imageUrl: null }));
   };
 
+  const handleCategoryChange = (category: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      category,
+      attachments:
+        category === "EXTERNO"
+          ? prev.attachments
+          : prev.attachments.filter((attachment) => !isPdfAttachment(attachment)),
+    }));
+  };
+
   // Função para upload de arquivo
   const handleFileUpload = async (file: File) => {
     try {
@@ -503,7 +519,7 @@ export default function EventsManagement() {
       console.error("Erro no upload:", error);
       toast({
         title: "Erro",
-        description: "Erro ao fazer upload da imagem",
+        description: "Erro ao fazer upload do arquivo",
         variant: "destructive",
       });
       throw error;
@@ -519,21 +535,29 @@ export default function EventsManagement() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo de arquivo (apenas imagens)
-    if (!file.type.startsWith("image/")) {
+    const isImage = file.type.toLowerCase().startsWith("image/");
+    const isPdf =
+      file.type.toLowerCase() === "application/pdf" ||
+      file.name.toLowerCase().endsWith(".pdf");
+    const allowsPdf = formData.category === "EXTERNO";
+
+    // PDFs só fazem sentido como material de apoio de eventos externos.
+    if (!isImage && !(allowsPdf && isPdf)) {
       toast({
         title: "Erro",
-        description: "Por favor, selecione apenas arquivos de imagem",
+        description: allowsPdf
+          ? "Selecione uma imagem ou um arquivo PDF"
+          : "Para esta categoria, selecione apenas arquivos de imagem",
         variant: "destructive",
       });
       return;
     }
 
-    // Validar tamanho (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validar tamanho (máximo 15MB, igual ao limite do upload de eventos)
+    if (file.size > 15 * 1024 * 1024) {
       toast({
         title: "Erro",
-        description: "A imagem deve ter no máximo 5MB",
+        description: "O arquivo deve ter no máximo 15MB",
         variant: "destructive",
       });
       return;
@@ -1759,16 +1783,28 @@ export default function EventsManagement() {
                                       key={index}
                                       className="w-7 h-7 flex-shrink-0 rounded-md border border-slate-200 dark:border-slate-600 overflow-hidden bg-slate-100 dark:bg-slate-700"
                                     >
-                                      <img
-                                        src={`${baseS3Url}${attachment.fileUrl}`}
-                                        alt={attachment.fileName}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                          (
-                                            e.target as HTMLImageElement
-                                          ).style.display = "none";
-                                        }}
-                                      />
+                                      {isPdfAttachment(attachment) ? (
+                                        <a
+                                          href={`${baseS3Url}${attachment.fileUrl}`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="flex h-full w-full items-center justify-center text-red-500 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                          title={`Abrir ${attachment.fileName}`}
+                                        >
+                                          <FileTextIcon className="h-4 w-4" />
+                                        </a>
+                                      ) : (
+                                        <img
+                                          src={`${baseS3Url}${attachment.fileUrl}`}
+                                          alt={attachment.fileName}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            (
+                                              e.target as HTMLImageElement
+                                            ).style.display = "none";
+                                          }}
+                                        />
+                                      )}
                                     </div>
                                   ))}
                                 {event.attachments.length > 4 && (
@@ -2015,12 +2051,7 @@ export default function EventsManagement() {
                         </Label>
                         <Select
                           value={formData.category}
-                          onValueChange={(value) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              category: value,
-                            }))
-                          }
+                          onValueChange={handleCategoryChange}
                         >
                           <SelectTrigger className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500">
                             <SelectValue />
@@ -2368,23 +2399,30 @@ export default function EventsManagement() {
                     </div>
                   </div>
 
-                  {/* Seção de Upload de Imagens */}
+                  {/* Seção de Upload de Imagens e documentos externos */}
                   <div className="space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                           <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
-                          Imagens do Evento
+                          {formData.category === "EXTERNO"
+                            ? "Arquivos do Evento"
+                            : "Imagens do Evento"}
                         </h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                          Adicione imagens para ilustrar seu evento (máx. 5MB
-                          cada)
+                          {formData.category === "EXTERNO"
+                            ? "Guarde a carta de vinhos, orçamento negociado e outros materiais (PDF ou imagem, máx. 15MB cada)"
+                            : "Adicione imagens para ilustrar seu evento (máx. 15MB cada)"}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <input
                           type="file"
-                          accept="image/*"
+                          accept={
+                            formData.category === "EXTERNO"
+                              ? "image/*,application/pdf"
+                              : "image/*"
+                          }
                           onChange={handleAddAttachment}
                           disabled={isUploading}
                           className="hidden"
@@ -2403,7 +2441,11 @@ export default function EventsManagement() {
                           ) : (
                             <UploadIcon className="h-4 w-4" />
                           )}
-                          {isUploading ? "Carregando..." : "Adicionar Imagem"}
+                          {isUploading
+                            ? "Carregando..."
+                            : formData.category === "EXTERNO"
+                              ? "Adicionar Arquivo"
+                              : "Adicionar Imagem"}
                         </label>
                       </div>
                     </div>
@@ -2417,24 +2459,41 @@ export default function EventsManagement() {
                             className="relative group border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-800 hover:shadow-md transition-shadow"
                           >
                             <div className="aspect-video bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center">
-                              <img
-                                src={`${baseS3Url}${attachment.fileUrl}`}
-                                alt={attachment.fileName}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = "none";
-                                  target.nextElementSibling?.classList.remove(
-                                    "hidden",
-                                  );
-                                }}
-                              />
-                              <div className="hidden flex-col items-center justify-center text-slate-500 dark:text-slate-400 p-4">
-                                <ImageIcon className="h-8 w-8 mb-2" />
-                                <span className="text-xs text-center">
-                                  {attachment.fileName}
-                                </span>
-                              </div>
+                              {isPdfAttachment(attachment) ? (
+                                <a
+                                  href={`${baseS3Url}${attachment.fileUrl}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex h-full w-full flex-col items-center justify-center gap-2 p-4 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                  title={`Abrir ${attachment.fileName}`}
+                                >
+                                  <FileTextIcon className="h-10 w-10" />
+                                  <span className="max-w-full truncate text-xs font-medium">
+                                    PDF
+                                  </span>
+                                </a>
+                              ) : (
+                                <img
+                                  src={`${baseS3Url}${attachment.fileUrl}`}
+                                  alt={attachment.fileName}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = "none";
+                                    target.nextElementSibling?.classList.remove(
+                                      "hidden",
+                                    );
+                                  }}
+                                />
+                              )}
+                              {!isPdfAttachment(attachment) && (
+                                <div className="hidden flex-col items-center justify-center text-slate-500 dark:text-slate-400 p-4">
+                                  <ImageIcon className="h-8 w-8 mb-2" />
+                                  <span className="text-xs text-center">
+                                    {attachment.fileName}
+                                  </span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Overlay com ações */}
@@ -2444,7 +2503,7 @@ export default function EventsManagement() {
                                 onClick={() => handleRemoveAttachment(index)}
                                 disabled={removingAttachments.includes(index)}
                                 className="opacity-0 group-hover:opacity-100 bg-red-500 hover:bg-red-600 disabled:bg-red-400 disabled:cursor-not-allowed text-white p-2 rounded-full transition-all duration-200 transform scale-90 group-hover:scale-100 shadow-lg"
-                                title="Remover imagem"
+                                 title="Remover arquivo"
                               >
                                 {removingAttachments.includes(index) ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -2473,11 +2532,16 @@ export default function EventsManagement() {
                       <div className="text-center py-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg hover:border-orange-300 dark:hover:border-orange-600 transition-colors">
                         <ImageIcon className="h-16 w-16 mx-auto text-slate-400 mb-4" />
                         <p className="text-base font-medium text-slate-500 dark:text-slate-400 mb-2">
-                          Nenhuma imagem adicionada
+                           {formData.category === "EXTERNO"
+                             ? "Nenhum arquivo adicionado"
+                             : "Nenhuma imagem adicionada"}
                         </p>
                         <p className="text-sm text-slate-400 dark:text-slate-500">
-                          Clique em "Adicionar Imagem" para incluir fotos do
-                          evento
+                           Clique em "
+                           {formData.category === "EXTERNO"
+                             ? "Adicionar Arquivo"
+                             : "Adicionar Imagem"}
+                           " para incluir material do evento
                         </p>
                       </div>
                     )}
