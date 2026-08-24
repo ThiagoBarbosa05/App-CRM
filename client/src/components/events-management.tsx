@@ -2034,19 +2034,20 @@ export default function EventsManagement() {
                         </div>
 
                         {/* ── RECEITA (admin only) ── */}
-                        {user?.role === "admin" &&
-                          (() => {
-                            const eventRev =
-                              parseFloat(
-                                String((event as any).eventRevenue ?? 0),
-                              ) || getConfirmedEventRevenue(event);
-                            const wineRev =
-                              parseFloat(event.wineRevenue || "0") || 0;
-                            const totalRev = eventRev + wineRev;
-                            const potential = getPotentialEventRevenue(event);
-                            const hasWine = wineRev > 0;
-                            return (
-                               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+                          {user?.role === "admin" &&
+                            (() => {
+                              const eventRev =
+                                parseFloat(
+                                  String((event as any).eventRevenue ?? 0),
+                                ) || getConfirmedEventRevenue(event);
+                              const wineRev =
+                                parseFloat(event.wineRevenue || "0") || 0;
+                              const totalRev = eventRev + wineRev;
+                              const potential = getPotentialEventRevenue(event);
+                              const hasWine = wineRev > 0;
+                              return (
+                                <div className="flex flex-wrap gap-2">
                                  <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 dark:border-emerald-800/40 dark:bg-emerald-900/20">
                                   <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-500 uppercase tracking-wide">
                                     Receita Evento
@@ -2085,14 +2086,75 @@ export default function EventsManagement() {
                                     </p>
                                   </div>
                                 ) : null}
-                              </div>
-                            );
-                          })()}
+                                </div>
+                              );
+                            })()}
 
-                        {/* ── RODAPÉ: thumbnails + ações ── */}
-                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-700/60">
+                          {/* Botões de ação */}
+                          <div className="order-1 flex flex-wrap items-center justify-end gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setParticipantsEvent(event)}
+                              className="h-8 gap-1.5 rounded-lg border-orange-200 text-xs text-orange-600 hover:border-orange-300 hover:bg-orange-50 dark:border-orange-800/60 dark:hover:bg-orange-900/20"
+                            >
+                              <UserCheckIcon className="h-3.5 w-3.5" />
+                              Participantes
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/clientes?eventId=${event.id}`)}
+                              className="h-8 gap-1.5 rounded-lg border-indigo-200 text-xs text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:border-indigo-800/60 dark:hover:bg-indigo-900/20"
+                            >
+                              <UsersIcon className="h-3.5 w-3.5" />
+                              Ver clientes
+                            </Button>
+                            {(user?.role === "admin" ||
+                              user?.role === "gerente") && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => openLandingPageModal(event)}
+                                  title="Landing Page"
+                                  className={`h-8 w-8 rounded-lg p-0 ${
+                                    event.landingPageHtmlKey
+                                      ? "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20"
+                                      : "text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700"
+                                  }`}
+                                >
+                                  <GlobeIcon className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(event)}
+                                  title="Editar evento"
+                                  className="h-8 w-8 rounded-lg p-0 text-blue-500 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20"
+                                >
+                                  <EditIcon className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                            {user?.role === "admin" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEventToDelete(event)}
+                                title="Excluir evento"
+                                className="h-8 w-8 rounded-lg p-0 text-red-500 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ── RODAPÉ: thumbnails ── */}
+                         <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-2 dark:border-slate-700/60">
                           {/* Thumbnails */}
-                          <div className="flex items-center gap-1.5">
+                           <div className="flex items-center gap-1.5">
                             {event.attachments &&
                             event.attachments.length > 0 ? (
                               <>
@@ -2138,68 +2200,6 @@ export default function EventsManagement() {
                             )}
                           </div>
 
-                          {/* Botões de ação */}
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setParticipantsEvent(event)}
-                              className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 dark:border-orange-800/60 dark:hover:bg-orange-900/20 gap-1.5 h-8 text-xs rounded-lg"
-                            >
-                              <UserCheckIcon className="h-3.5 w-3.5" />
-                              Participantes
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/clientes?eventId=${event.id}`)}
-                              className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 dark:border-indigo-800/60 dark:hover:bg-indigo-900/20 gap-1.5 h-8 text-xs rounded-lg"
-                            >
-                              <UsersIcon className="h-3.5 w-3.5" />
-                              Ver clientes
-                            </Button>
-                            {(user?.role === "admin" ||
-                              user?.role === "gerente") && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openLandingPageModal(event)}
-                                  title="Landing Page"
-                                  className={`h-8 w-8 p-0 rounded-lg ${
-                                    event.landingPageHtmlKey
-                                      ? "text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                                      : "text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                  }`}
-                                >
-                                  <GlobeIcon className="h-4 w-4" />
-                                </Button>
-                                {(user?.role === "admin" ||
-                                  user?.role === "gerente") && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEdit(event)}
-                                    title="Editar evento"
-                                    className="h-8 w-8 p-0 rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                  >
-                                    <EditIcon className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                {user?.role === "admin" && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setEventToDelete(event)}
-                                    title="Excluir evento"
-                                    className="h-8 w-8 p-0 rounded-lg text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </div>
                         </div>
                       </div>
                     </div>
