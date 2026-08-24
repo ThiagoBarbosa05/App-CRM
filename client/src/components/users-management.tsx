@@ -167,6 +167,8 @@ export default function UsersManagement() {
         return "default";
       case "vendedor":
         return "secondary";
+      case "eventos":
+        return "default";
       default:
         return "outline";
     }
@@ -180,6 +182,8 @@ export default function UsersManagement() {
         return "Gerente";
       case "vendedor":
         return "Vendedor";
+      case "eventos":
+        return "Eventos";
       default:
         return role;
     }

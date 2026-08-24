@@ -116,7 +116,8 @@ export default function UserFormModal({
   }, [user, form]);
 
   const watchedRole = form.watch("role");
-  const showAccessScope = isEditing && watchedRole === "vendedor";
+  const showAccessScope =
+    isEditing && (watchedRole === "vendedor" || watchedRole === "eventos");
   const showPdvUnit = watchedRole === "garcom";
 
   const { data: pdvUnits = [] } = useQuery<PdvUnit[]>({
@@ -297,6 +298,7 @@ export default function UserFormModal({
                       <SelectItem value="admin">Administrador</SelectItem>
                       <SelectItem value="gerente">Gerente</SelectItem>
                       <SelectItem value="vendedor">Vendedor</SelectItem>
+                      <SelectItem value="eventos">Eventos</SelectItem>
                       <SelectItem value="garcom">Garçom</SelectItem>
                     </SelectContent>
                   </Select>

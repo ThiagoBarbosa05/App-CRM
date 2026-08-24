@@ -12,6 +12,11 @@ export interface JwtPayload {
   userId: string;
   role: string;
   email: string;
+  /**
+   * Permite manter o perfil Eventos com a mesma base operacional de Vendedor
+   * no backend, sem perder a identificação do acesso extra ao módulo.
+   */
+  eventAccess?: boolean;
 }
 
 export function signToken(payload: JwtPayload): string {

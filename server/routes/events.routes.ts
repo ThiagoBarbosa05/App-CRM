@@ -24,6 +24,7 @@ import {
   isIsoDate,
 } from "../services/events-report.service";
 import { buildEventsReportPdf } from "../lib/events-report-pdf";
+import { hasEventsModuleAccess } from "@shared/roles";
 
 const LP_PUBLIC_DOMAIN = "https://eventos.grandcrub2b.com";
 
@@ -77,15 +78,46 @@ function isExternalEvent(category: string | null | undefined): boolean {
 
 function canManageEvent(
   event: { createdBy: string },
-  user: { userId: string; role?: string } | undefined,
+  user:
+    | { userId: string; role?: string; eventAccess?: boolean }
+    | undefined,
 ): boolean {
   if (!user) return false;
   return (
     user.role === "admin" ||
     user.role === "administrador" ||
+    user.eventAccess === true ||
     event.createdBy === user.userId
   );
 }
+
+function canAccessEvents(
+  user:
+    | { role?: string; eventAccess?: boolean }
+    | undefined,
+): boolean {
+  return hasEventsModuleAccess(user?.role, user?.eventAccess);
+}
+
+function getEventsStorageRole(
+  user:
+    | { role?: string; eventAccess?: boolean }
+    | undefined,
+): string | undefined {
+  // Quem possui o perfil Eventos pode consultar todos os eventos do módulo,
+  // sem alterar os filtros de carteira de vendedor nos demais módulos.
+  return user?.eventAccess ? "admin" : user?.role;
+}
+
+eventsRouter.use((req, res, next) => {
+  if (!canAccessEvents(req.user)) {
+    return res.status(403).json({
+      message: "Sem permissão para acessar Eventos",
+      code: "FORBIDDEN",
+    });
+  }
+  return next();
+});
 
 async function validateResponsibleContacts(
   clientIds: string[],
@@ -229,7 +261,7 @@ eventsRouter.get("/client/:clientId", async (req, res) => {
 eventsRouter.get("/", async (req, res) => {
   try {
     const userId = req.user?.userId;
-    const userRole = req.user?.role;
+    const userRole = getEventsStorageRole(req.user);
     const mode = req.query.mode;
 
     if (mode === "upcoming" || mode === "past") {
@@ -505,6 +537,15 @@ eventsRouter.put("/:id", async (req, res) => {
 
 eventsRouter.delete("/:id", async (req, res) => {
   try {
+    if (
+      req.user?.role !== "admin" &&
+      req.user?.role !== "administrador"
+    ) {
+      return res.status(403).json({
+        message: "Sem permissão para excluir este evento",
+        code: "FORBIDDEN",
+      });
+    }
     const { id } = req.params;
     const success = await storage.deleteEvent(id);
     if (!success) {

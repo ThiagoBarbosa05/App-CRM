@@ -51,6 +51,7 @@ import RestaurantMesasPage from "@/pages/restaurant-pdv/mesas";
 import RestaurantComandaPage from "@/pages/restaurant-pdv/comanda";
 import RestaurantPdvHub from "@/pages/restaurant-pdv/hub";
 import AdminPanel from "@/pages/restaurant-pdv/admin-panel";
+import { hasEventsModuleAccess, isSellerRole } from "@shared/roles";
 
 const WhatsAppCampaignsList = lazyWithReload("whatsapp-campaigns", () =>
   import("@/pages/whatsapp/campaigns-list"),
@@ -115,7 +116,7 @@ function WhatsAppSection() {
   const [location] = useLocation();
 
   if (
-    user?.role === "vendedor" &&
+    isSellerRole(user?.role) &&
     !VENDEDOR_ALLOWED_WHATSAPP_PATHS.some(
       (path) => location === path || location.startsWith(path + "/"),
     )
@@ -259,7 +260,7 @@ function Router() {
       <Route
         path="/whatsapp/bots/:id/editor"
         component={() =>
-          user.role === "vendedor" ? (
+          isSellerRole(user.role) ? (
             <Redirect to="/whatsapp/conversas" />
           ) : (
             <WhatsAppBotEditor />
@@ -337,11 +338,15 @@ function Router() {
       />
       <Route
         path="/eventos"
-        component={() => (
-          <MainLayout>
-            <EventsPage />
-          </MainLayout>
-        )}
+        component={() =>
+          !hasEventsModuleAccess(user.role) ? (
+            <Redirect to="/dashboard" />
+          ) : (
+            <MainLayout>
+              <EventsPage />
+            </MainLayout>
+          )
+        }
       />
       <Route
         path="/tarefas"

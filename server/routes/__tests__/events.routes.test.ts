@@ -2,7 +2,10 @@ import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { eventsRouter } from "../events.routes";
-import { createRouteTestApp } from "../../test/create-route-test-app";
+import {
+  createMockAuthMiddleware,
+  createRouteTestApp,
+} from "../../test/create-route-test-app";
 
 const {
   getEventsMock,
@@ -132,6 +135,50 @@ describe("eventsRouter", () => {
 
     expect(getEventsMock).toHaveBeenCalledWith("test-user-id", "admin");
     expect(response.status).toBe(200);
+  });
+
+  it("blocks a vendedor without Eventos access", async () => {
+    const app = createRouteTestApp({
+      router: eventsRouter,
+      basePath: "/events",
+      middlewares: [createMockAuthMiddleware({ role: "vendedor" })],
+    });
+
+    const response = await request(app).get("/events");
+
+    expect(response.status).toBe(403);
+    expect(getEventsMock).not.toHaveBeenCalled();
+  });
+
+  it("allows the Eventos profile to list every event", async () => {
+    getEventsMock.mockResolvedValue([{ id: "event-1" }]);
+    const app = createRouteTestApp({
+      router: eventsRouter,
+      basePath: "/events",
+      middlewares: [
+        createMockAuthMiddleware({ role: "vendedor", eventAccess: true }),
+      ],
+    });
+
+    const response = await request(app).get("/events");
+
+    expect(response.status).toBe(200);
+    expect(getEventsMock).toHaveBeenCalledWith("test-user-id", "admin");
+  });
+
+  it("keeps event deletion restricted to administrators", async () => {
+    const app = createRouteTestApp({
+      router: eventsRouter,
+      basePath: "/events",
+      middlewares: [
+        createMockAuthMiddleware({ role: "vendedor", eventAccess: true }),
+      ],
+    });
+
+    const response = await request(app).delete("/events/event-1");
+
+    expect(response.status).toBe(403);
+    expect(deleteEventMock).not.toHaveBeenCalled();
   });
 
   it("returns plain array when mode is not provided (backward compat)", async () => {

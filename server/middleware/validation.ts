@@ -148,7 +148,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     });
   }
   try {
-    req.user = verifyToken(token);
+    const tokenUser = verifyToken(token);
+    // Eventos é um perfil de vendedor com acesso adicional ao módulo de
+    // eventos. Normalizamos o papel operacional para reaproveitar os filtros
+    // de carteira já aplicados para vendedores nas demais rotas.
+    req.user =
+      tokenUser.role === "eventos"
+        ? { ...tokenUser, role: "vendedor", eventAccess: true }
+        : tokenUser;
     next();
   } catch {
     return res.status(401).json({

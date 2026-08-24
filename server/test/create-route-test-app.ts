@@ -29,6 +29,7 @@ export const createMockAuthMiddleware = (
       userId: overrides.userId ?? "test-user-id",
       role: overrides.role ?? "admin",
       email: overrides.email ?? "test@example.com",
+      eventAccess: overrides.eventAccess,
     };
     // As rotas do PDV resolvem a unidade num middleware que consulta o banco
     // (`resolvePdvUnit`). Injetar aqui é o que mantém o project `unit` sem

@@ -432,6 +432,10 @@ const quillFormats = [
 
 export default function EventsManagement() {
   const { user } = useAuth();
+  const canCreateOrEditEvents =
+    user?.role === "admin" ||
+    user?.role === "gerente" ||
+    user?.role === "eventos";
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
@@ -1611,7 +1615,7 @@ export default function EventsManagement() {
                 Análises
               </button>
             </div>
-            {user?.role === "admin" && (
+            {canCreateOrEditEvents && (
               <Button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 shadow-sm hover:shadow-md transition-all duration-200 w-full sm:w-auto flex-1 sm:flex-none"
@@ -1804,7 +1808,7 @@ export default function EventsManagement() {
                   </p>
                   {!searchTerm &&
                   statusFilter === "all" &&
-                  user?.role === "admin" ? (
+                  canCreateOrEditEvents ? (
                     <Button
                       onClick={() => setIsCreateModalOpen(true)}
                       className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white"
@@ -1824,7 +1828,7 @@ export default function EventsManagement() {
                       >
                         Limpar filtros
                       </Button>
-                      {user?.role === "admin" && (
+                      {canCreateOrEditEvents && (
                         <Button
                           onClick={() => setIsCreateModalOpen(true)}
                           className="bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white w-full sm:w-auto"
@@ -2110,8 +2114,7 @@ export default function EventsManagement() {
                               <UsersIcon className="h-3.5 w-3.5" />
                               Ver clientes
                             </Button>
-                            {(user?.role === "admin" ||
-                              user?.role === "gerente") && (
+                            {canCreateOrEditEvents && (
                               <>
                                 <Button
                                   variant="ghost"
