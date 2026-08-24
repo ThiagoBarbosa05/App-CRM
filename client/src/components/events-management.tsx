@@ -874,7 +874,20 @@ export default function EventsManagement() {
     isLoading,
     isFetching,
   } = useQuery<Event[]>({
-    queryKey: ["/api/events"],
+    // A lista é autorizada por usuário. Incluímos o id na chave para não
+    // reaproveitar a carteira de uma sessão anterior no mesmo navegador.
+    queryKey: ["/api/events", "list", user?.id],
+    queryFn: async () => {
+      const response = await fetch("/api/events", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error("Não foi possível carregar os eventos");
+      }
+      return response.json();
+    },
+    enabled: Boolean(user?.id),
   });
 
   const { data: responsibleSearchResults = [], isFetching: isSearchingContacts } =

@@ -284,7 +284,10 @@ async function fetchEventsPage(
 ): Promise<EventsPage> {
   const params = new URLSearchParams({ mode, limit: "9" });
   if (cursor) params.set("cursor", cursor);
-  const res = await fetch(`/api/events?${params}`, { credentials: "include" });
+  const res = await fetch(`/api/events?${params}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error(`Erro ao buscar eventos: ${res.status}`);
   return res.json();
 }
@@ -296,17 +299,19 @@ export default function EventsDashboard() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const upcomingQuery = useInfiniteQuery({
-    queryKey: ["/api/events", "upcoming"],
+    queryKey: ["/api/events", "upcoming", user?.id],
     queryFn: ({ pageParam }) => fetchEventsPage("upcoming", pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
+    enabled: Boolean(user?.id),
   });
 
   const pastQuery = useInfiniteQuery({
-    queryKey: ["/api/events", "past"],
+    queryKey: ["/api/events", "past", user?.id],
     queryFn: ({ pageParam }) => fetchEventsPage("past", pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
+    enabled: Boolean(user?.id),
   });
 
   const activeQuery = activeMode === "upcoming" ? upcomingQuery : pastQuery;

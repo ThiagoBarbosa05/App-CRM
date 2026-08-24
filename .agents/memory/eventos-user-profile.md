@@ -23,3 +23,12 @@ application schema, so they otherwise reject the new profile at save time.
 
 **How to apply:** Include the database constraint change in the environment's
 schema migration before enabling a new profile in the user form.
+
+Event lists are authorization-sensitive and must never reuse a cached response
+across a login, logout, or profile change.
+
+**Why:** A seller's empty list can remain in the browser cache after that same
+user receives Events access, hiding events that the backend correctly returns.
+
+**How to apply:** Scope client-side event query caches by authenticated user and
+serve event listings with a private no-store cache policy.

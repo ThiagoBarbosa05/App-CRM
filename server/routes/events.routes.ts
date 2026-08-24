@@ -260,6 +260,9 @@ eventsRouter.get("/client/:clientId", async (req, res) => {
 
 eventsRouter.get("/", async (req, res) => {
   try {
+    // A listagem depende do perfil autenticado. Sem esta diretiva, o navegador
+    // pode reutilizar a lista de outra sessão após uma troca de usuário/perfil.
+    res.set("Cache-Control", "private, no-store, max-age=0");
     const userId = req.user?.userId;
     const userRole = getEventsStorageRole(req.user);
     const mode = req.query.mode;
