@@ -3102,6 +3102,17 @@ export const events = pgTable(
       precision: 10,
       scale: 2,
     }).notNull(),
+    pricingType: text("pricing_type", {
+      enum: ["per_person", "total"],
+    })
+      .notNull()
+      .default("per_person"),
+    eventValue: decimal("event_value", {
+      precision: 10,
+      scale: 2,
+    })
+      .notNull()
+      .default("0.00"),
     maxCapacity: integer("max_capacity"),
     category: text("category").notNull().default("Geral"),
     status: text("status", {
@@ -3253,6 +3264,8 @@ export const insertEventSchema = createInsertSchema(events)
     location: z.string().default("A definir"),
     eventDate: z.coerce.date().default(() => new Date()),
     pricePerPerson: z.string().default("0"),
+    pricingType: z.enum(["per_person", "total"]).default("per_person"),
+    eventValue: z.string().default("0"),
     category: z.string().default("Geral"),
     status: z
       .enum(["planejado", "ativo", "finalizado", "cancelado"])

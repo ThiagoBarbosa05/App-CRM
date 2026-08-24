@@ -58,6 +58,112 @@ const s3 = new S3Client({
 
 export const eventsRouter = Router();
 
+const EVENT_PRICING_TYPES = ["per_person", "total"] as const;
+
+function normalizePricingData(
+  eventData: Record<string, unknown>,
+  currentEvent?: {
+    pricingType?: string | null;
+    eventValue?: string | null;
+    pricePerPerson?: string | null;
+  } | null,
+  options: { requireExplicitValue?: boolean } = {},
+): string | null {
+  const pricingType =
+    eventData.pricingType ??
+    currentEvent?.pricingType ??
+    "per_person";
+
+  if (
+    typeof pricingType !== "string" ||
+    !EVENT_PRICING_TYPES.includes(
+      pricingType as (typeof EVENT_PRICING_TYPES)[number],
+    )
+  ) {
+    return "Tipo de valor do evento inválido";
+  }
+
+  const hasSubmittedValue =
+    eventData.eventValue !== undefined || eventData.pricePerPerson !== undefined;
+  if (options.requireExplicitValue && !hasSubmittedValue) {
+    return "O valor do evento é obrigatório";
+  }
+
+  const rawValue =
+    eventData.eventValue ??
+    eventData.pricePerPerson ??
+    currentEvent?.eventValue ??
+    currentEvent?.pricePerPerson ??
+    "0";
+  const valueText =
+    typeof rawValue === "string" || typeof rawValue === "number"
+      ? String(rawValue).trim()
+      : "";
+
+  if (options.requireExplicitValue && valueText === "") {
+    return "O valor do evento é obrigatório";
+  }
+
+  if (
+    valueText === "" ||
+    !/^\d+(?:\.\d{1,2})?$/.test(valueText) ||
+    Number(valueText) > 99_999_999.99
+  ) {
+    return "O valor do evento deve ser um número maior ou igual a zero";
+  }
+  const value = Number(valueText);
+
+  // Durante a transição, o campo legado continua sincronizado para não quebrar
+  // integrações e relatórios que ainda dependem de price_per_person.
+  eventData.pricingType = pricingType;
+  eventData.eventValue = value.toFixed(2);
+  eventData.pricePerPerson = value.toFixed(2);
+  return null;
+}
+
+function validateEventDates(
+  eventData: {
+    category?: string | null;
+    eventDate?: Date;
+    registrationDeadline?: Date | null;
+  },
+  currentEvent?: {
+    category?: string | null;
+    eventDate: Date;
+    registrationDeadline?: Date | null;
+  } | null,
+  options: { enforcePastDate?: boolean } = {},
+): string | null {
+  const category = eventData.category ?? currentEvent?.category ?? "Geral";
+  const eventDate = eventData.eventDate ?? currentEvent?.eventDate;
+  const registrationDeadline =
+    eventData.registrationDeadline === undefined
+      ? currentEvent?.registrationDeadline
+      : eventData.registrationDeadline;
+
+  if (!eventDate || Number.isNaN(eventDate.getTime())) {
+    return "Data do evento é obrigatória";
+  }
+
+  const isExternal = category.trim().toUpperCase() === "EXTERNO";
+  if (
+    options.enforcePastDate !== false &&
+    !isExternal &&
+    eventDate < startOfTodayInSaoPaulo()
+  ) {
+    return "A data do evento não pode ser no passado para esta categoria";
+  }
+
+  if (
+    registrationDeadline &&
+    registrationDeadline.getTime() > eventDate.getTime()
+  ) {
+    return "O prazo de inscrição não pode ser após a data do evento";
+  }
+
+  return null;
+}
+
 eventsRouter.get("/client/:clientId", async (req, res) => {
   try {
     const { clientId } = req.params;
@@ -154,13 +260,11 @@ eventsRouter.post("/", async (req, res) => {
     if (!eventData.location || !eventData.location.trim()) {
       return res.status(400).json({ message: "Local do evento é obrigatório" });
     }
-    if (
-      !eventData.pricePerPerson ||
-      isNaN(parseFloat(eventData.pricePerPerson))
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Valor por pessoa deve ser um número válido" });
+    const pricingError = normalizePricingData(eventData, undefined, {
+      requireExplicitValue: true,
+    });
+    if (pricingError) {
+      return res.status(400).json({ message: pricingError });
     }
 
     if (typeof eventData.eventDate === "string") {
@@ -183,6 +287,10 @@ eventsRouter.post("/", async (req, res) => {
 
     const { attachments, ...eventDataOnly } = eventData;
     const validatedData = insertEventSchema.parse(eventDataOnly);
+    const dateError = validateEventDates(validatedData);
+    if (dateError) {
+      return res.status(400).json({ message: dateError });
+    }
     const event = await storage.createEvent(validatedData);
 
     if (attachments && Array.isArray(attachments) && attachments.length > 0) {
@@ -219,7 +327,11 @@ eventsRouter.put("/:id", async (req, res) => {
       return res.status(404).json({ message: "Evento não encontrado" });
     }
 
-    const eventData = { ...req.body };
+    const eventData: Record<string, unknown> = { ...req.body };
+    const pricingError = normalizePricingData(eventData, currentEvent);
+    if (pricingError) {
+      return res.status(400).json({ message: pricingError });
+    }
     if (eventData.eventDate && typeof eventData.eventDate === "string") {
       eventData.eventDate = new Date(eventData.eventDate + ":00-03:00");
     }
@@ -239,6 +351,14 @@ eventsRouter.put("/:id", async (req, res) => {
     }
     const { attachments, ...eventDataOnly } = eventData;
     const validatedData = insertEventSchema.partial().parse(eventDataOnly);
+    const dateError = validateEventDates(validatedData, currentEvent, {
+      enforcePastDate:
+        validatedData.eventDate !== undefined ||
+        validatedData.category !== undefined,
+    });
+    if (dateError) {
+      return res.status(400).json({ message: dateError });
+    }
 
     const nextEventDate = validatedData.eventDate;
     const isChangingFinalizedEventDate =
@@ -466,13 +586,29 @@ eventsRouter.get("/analytics", async (req, res) => {
         FROM events ev
         LEFT JOIN (
           SELECT
-            DATE_TRUNC('month', e.event_date) as month_key,
-            SUM(CASE WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
-                     ELSE ep.number_of_participants::numeric * e.price_per_person::numeric END) as event_revenue
-          FROM events e
-          JOIN event_participants ep ON ep.event_id = e.id
-          WHERE e.status != 'cancelado' AND ep.status IN ('pago','pagar_na_hora')
-          GROUP BY DATE_TRUNC('month', e.event_date)
+            month_key,
+            SUM(event_revenue) as event_revenue
+          FROM (
+            SELECT
+              DATE_TRUNC('month', e.event_date) as month_key,
+              CASE
+                WHEN e.pricing_type = 'total' THEN
+                  CASE WHEN COUNT(ep.id) FILTER (
+                    WHERE ep.status IN ('pago','pagar_na_hora')
+                  ) > 0 THEN e.event_value::numeric ELSE 0 END
+                ELSE COALESCE(SUM(
+                  CASE WHEN ep.status IN ('pago','pagar_na_hora') THEN
+                    CASE WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
+                    ELSE ep.number_of_participants::numeric * e.event_value::numeric END
+                  ELSE 0 END
+                ), 0)
+              END as event_revenue
+            FROM events e
+            LEFT JOIN event_participants ep ON ep.event_id = e.id
+            WHERE e.status != 'cancelado'
+            GROUP BY e.id, e.event_date, e.pricing_type, e.event_value
+          ) event_totals
+          GROUP BY month_key
         ) ep_rev ON DATE_TRUNC('month', ev.event_date) = ep_rev.month_key
         WHERE ev.status != 'cancelado'
         GROUP BY DATE_TRUNC('month', ev.event_date), ep_rev.event_revenue

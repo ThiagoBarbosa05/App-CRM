@@ -89,6 +89,8 @@ interface Event {
   registrationDeadline: string | null;
   location: string;
   pricePerPerson: string;
+  pricingType?: "per_person" | "total";
+  eventValue?: string | null;
   maxCapacity: number | null;
   category: string;
   status: "planejado" | "ativo" | "finalizado" | "cancelado";
@@ -112,7 +114,8 @@ interface EventFormData {
   eventDate: string;
   registrationDeadline: string;
   location: string;
-  pricePerPerson: string;
+  pricingType: "per_person" | "total";
+  eventValue: string;
   maxCapacity: string;
   category: string;
   status: string;
@@ -130,7 +133,53 @@ const EVENT_CATEGORIES = [
   "Workshop",
   "Networking",
   "Confraternização",
+  "EXTERNO",
 ];
+
+const EVENT_PRICING_TYPES = [
+  {
+    value: "per_person" as const,
+    label: "Valor por pessoa",
+    fieldLabel: "Valor por pessoa (R$)",
+    description: "Multiplica o valor pela quantidade de participantes.",
+  },
+  {
+    value: "total" as const,
+    label: "Valor total do evento",
+    fieldLabel: "Valor total do evento (R$)",
+    description: "Valor global do evento, sem multiplicar por participantes.",
+  },
+];
+
+function getPricingType(event: Pick<Event, "pricingType">): "per_person" | "total" {
+  return event.pricingType === "total" ? "total" : "per_person";
+}
+
+function getEventValue(event: Pick<Event, "eventValue" | "pricePerPerson">): number {
+  return parseFloat(event.eventValue ?? event.pricePerPerson) || 0;
+}
+
+function getPricingLabel(event: Pick<Event, "pricingType">): string {
+  return getPricingType(event) === "total" ? "Valor total" : "Valor por pessoa";
+}
+
+function getConfirmedEventRevenue(event: Event): number {
+  const value = getEventValue(event);
+  if (getPricingType(event) === "total") {
+    return event.paidParticipants > 0 ? value : 0;
+  }
+  return event.paidParticipants * value;
+}
+
+function getPotentialEventRevenue(event: Event): number {
+  const value = getEventValue(event);
+  if (getPricingType(event) === "total") {
+    return event.paidParticipants === 0 && event.pendingParticipants > 0
+      ? value
+      : 0;
+  }
+  return event.pendingParticipants * value;
+}
 
 const EVENT_STATUS = [
   {
@@ -191,7 +240,8 @@ export default function EventsManagement() {
     eventDate: "",
     registrationDeadline: "",
     location: "",
-    pricePerPerson: "",
+    pricingType: "per_person",
+    eventValue: "",
     maxCapacity: "",
     category: "Geral",
     status: "planejado",
@@ -620,7 +670,8 @@ export default function EventsManagement() {
       try {
         const eventData = {
           ...data,
-          pricePerPerson: data.pricePerPerson,
+          pricePerPerson: data.eventValue,
+          eventValue: data.eventValue,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
           eventDate: data.eventDate, // Enviar como string datetime-local
           registrationDeadline: data.registrationDeadline || null,
@@ -729,7 +780,8 @@ export default function EventsManagement() {
         },
         body: JSON.stringify({
           ...data,
-          pricePerPerson: data.pricePerPerson,
+          pricePerPerson: data.eventValue,
+          eventValue: data.eventValue,
           maxCapacity: data.maxCapacity ? parseInt(data.maxCapacity) : null,
           eventDate: data.eventDate,
           registrationDeadline: data.registrationDeadline || null,
@@ -801,7 +853,8 @@ export default function EventsManagement() {
       eventDate: "",
       registrationDeadline: "",
       location: "",
-      pricePerPerson: "",
+      pricingType: "per_person",
+      eventValue: "",
       maxCapacity: "",
       category: "Geral",
       status: "planejado",
@@ -863,11 +916,14 @@ export default function EventsManagement() {
 
     if (
       !skipDetailValidation &&
-      (!formData.pricePerPerson || parseFloat(formData.pricePerPerson) < 0)
+      (!formData.eventValue || parseFloat(formData.eventValue) < 0)
     ) {
       toast({
         title: "Erro",
-        description: "Valor por pessoa deve ser um número válido",
+        description:
+          formData.pricingType === "total"
+            ? "Valor total do evento deve ser um número válido"
+            : "Valor por pessoa deve ser um número válido",
         variant: "destructive",
       });
       return;
@@ -883,11 +939,16 @@ export default function EventsManagement() {
       const nowInBrasilia = new Date(
         now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }),
       );
+      nowInBrasilia.setHours(0, 0, 0, 0);
 
-      if (eventDate < nowInBrasilia) {
+      if (
+        formData.category !== "EXTERNO" &&
+        eventDate < nowInBrasilia
+      ) {
         toast({
           title: "Erro",
-          description: "A data do evento não pode ser no passado",
+          description:
+            "A data do evento não pode ser no passado para esta categoria",
           variant: "destructive",
         });
         return;
@@ -926,7 +987,7 @@ export default function EventsManagement() {
             : "Novo Evento"),
         location: formData.location.trim() || "A definir",
         eventDate: formData.eventDate || defaultDateStr,
-        pricePerPerson: formData.pricePerPerson || "0",
+        eventValue: formData.eventValue || "0",
         category: formData.category || "Geral",
       });
     } else {
@@ -947,7 +1008,8 @@ export default function EventsManagement() {
         ? convertUTCToLocalDatetime(event.registrationDeadline)
         : "",
       location: event.location,
-      pricePerPerson: event.pricePerPerson,
+      pricingType: getPricingType(event),
+      eventValue: String(event.eventValue ?? event.pricePerPerson),
       maxCapacity: event.maxCapacity?.toString() || "",
       category: event.category,
       imageUrl: event.imageUrl || null,
@@ -1161,7 +1223,7 @@ export default function EventsManagement() {
       </div>
       <div>
         <div class="info-item">
-          <span class="info-label">Valor por Pessoa:</span> ${formatCurrency(parseFloat(event.pricePerPerson))}
+          <span class="info-label">${getPricingLabel(event)}:</span> ${formatCurrency(getEventValue(event))}
         </div>
         <div class="info-item">
           <span class="info-label">Capacidade:</span> ${event.maxCapacity ? `${event.participantCount}/${event.maxCapacity}` : event.participantCount}
@@ -1329,13 +1391,12 @@ export default function EventsManagement() {
                 !isLoading &&
                 filteredEvents.length > 0 &&
                 (() => {
-                  const price = (e: Event) => parseFloat(e.pricePerPerson) || 0;
                   const confirmed = filteredEvents.reduce(
-                    (acc, e) => acc + e.paidParticipants * price(e),
+                    (acc, e) => acc + getConfirmedEventRevenue(e),
                     0,
                   );
                   const potential = filteredEvents.reduce(
-                    (acc, e) => acc + e.pendingParticipants * price(e),
+                    (acc, e) => acc + getPotentialEventRevenue(e),
                     0,
                   );
                   const totalPeople = filteredEvents.reduce(
@@ -1557,10 +1618,10 @@ export default function EventsManagement() {
                               </span>
                               <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
                                 <CircleDollarSignIcon className="h-3.5 w-3.5 text-orange-400" />
-                                {formatCurrency(
-                                  parseFloat(event.pricePerPerson),
-                                )}{" "}
-                                / pessoa
+                                {formatCurrency(getEventValue(event))}{" "}
+                                {getPricingType(event) === "total"
+                                  ? "total"
+                                  : "/ pessoa"}
                               </span>
                             </div>
                             {event.landingPageHtmlKey && event.slug && (
@@ -1631,16 +1692,14 @@ export default function EventsManagement() {
                         {/* ── RECEITA (admin only) ── */}
                         {user?.role === "admin" &&
                           (() => {
-                            const price = parseFloat(event.pricePerPerson) || 0;
                             const eventRev =
                               parseFloat(
                                 String((event as any).eventRevenue ?? 0),
-                              ) || (event as any).paidParticipants * price;
+                              ) || getConfirmedEventRevenue(event);
                             const wineRev =
                               parseFloat(event.wineRevenue || "0") || 0;
                             const totalRev = eventRev + wineRev;
-                            const potential =
-                              (event as any).pendingParticipants * price;
+                            const potential = getPotentialEventRevenue(event);
                             const hasWine = wineRev > 0;
                             return (
                               <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -2107,6 +2166,11 @@ export default function EventsManagement() {
                           required
                           className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
                         />
+                        {formData.category === "EXTERNO" && (
+                          <p className="text-xs text-amber-700 dark:text-amber-400">
+                            Eventos externos podem ser registrados com data passada.
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label
@@ -2160,30 +2224,73 @@ export default function EventsManagement() {
                       Configurações
                     </h3>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="space-y-2">
                         <Label
-                          htmlFor="pricePerPerson"
+                          htmlFor="pricingType"
+                          className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                        >
+                          Tipo de valor
+                        </Label>
+                        <Select
+                          value={formData.pricingType}
+                          onValueChange={(value) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              pricingType: value as EventFormData["pricingType"],
+                            }))
+                          }
+                        >
+                          <SelectTrigger
+                            id="pricingType"
+                            className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {EVENT_PRICING_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="eventValue"
                           className="text-sm font-medium text-slate-700 dark:text-slate-300 required"
                         >
-                          Valor por Pessoa (R$) *
+                          {
+                            EVENT_PRICING_TYPES.find(
+                              (type) => type.value === formData.pricingType,
+                            )?.fieldLabel
+                          }{" "}
+                          *
                         </Label>
                         <Input
-                          id="pricePerPerson"
+                          id="eventValue"
                           type="number"
                           step="0.01"
                           min="0"
-                          value={formData.pricePerPerson}
+                          value={formData.eventValue}
                           onChange={(e) =>
                             setFormData((prev) => ({
                               ...prev,
-                              pricePerPerson: e.target.value,
+                              eventValue: e.target.value,
                             }))
                           }
                           required
                           placeholder="150.00"
                           className="border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
                         />
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {
+                            EVENT_PRICING_TYPES.find(
+                              (type) => type.value === formData.pricingType,
+                            )?.description
+                          }
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <Label

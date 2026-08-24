@@ -48,6 +48,7 @@ import { migrateCategoryGoals } from "./jobs/migrate-category-goals";
 import { migratePdvSettings } from "./jobs/migrate-pdv-settings";
 import { migrateOrderClient } from "./jobs/migrate-order-client";
 import { migrateQuotes } from "./jobs/migrate-quotes";
+import { migrateEventPricing } from "./jobs/migrate-event-pricing";
 import { redactPii } from "./lib/log-redaction";
 import { UsersService } from "./services/users.service";
 // import "./jobs/umbler-sync-scheduler";
@@ -186,6 +187,7 @@ app.use((req, res, next) => {
       return res.status(500).send("<h1>Erro ao carregar a página</h1>");
     }
   });
+  await migrateEventPricing();
   const server = await registerRoutes(app);
   seedCountries().catch((err) =>
     console.error("[Seed] seedCountries falhou:", err),

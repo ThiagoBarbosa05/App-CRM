@@ -695,6 +695,8 @@ export interface IStorage {
         location: string;
         category: string;
         pricePerPerson: string;
+        pricingType: "per_person" | "total";
+        eventValue: string;
       };
     }>
   >;
@@ -5988,6 +5990,8 @@ export class DatabaseStorage implements IStorage {
           registrationDeadline: events.registrationDeadline,
           location: events.location,
           pricePerPerson: events.pricePerPerson,
+          pricingType: events.pricingType,
+          eventValue: events.eventValue,
           maxCapacity: events.maxCapacity,
           category: events.category,
           status: events.status,
@@ -6012,12 +6016,21 @@ export class DatabaseStorage implements IStorage {
             AND ep.status IN ('pago', 'pagar_na_hora')
           )`,
           eventRevenue: sql<number>`(
-            SELECT COALESCE(SUM(
+            SELECT COALESCE(
               CASE
-                WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
-                ELSE ep.number_of_participants::numeric * "events"."price_per_person"::numeric
-              END
-            ), 0)
+                WHEN "events"."pricing_type" = 'total' THEN
+                  CASE WHEN COUNT(ep.id) FILTER (
+                    WHERE ep.status IN ('pago', 'pagar_na_hora')
+                  ) > 0 THEN "events"."event_value"::numeric ELSE 0 END
+                ELSE SUM(
+                  CASE
+                    WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
+                    ELSE ep.number_of_participants::numeric * "events"."event_value"::numeric
+                  END
+                )
+              END,
+              0
+            )
             FROM event_participants ep
             WHERE ep.event_id = "events"."id"
             AND ep.status IN ('pago', 'pagar_na_hora')
@@ -6111,6 +6124,8 @@ export class DatabaseStorage implements IStorage {
           registrationDeadline: events.registrationDeadline,
           location: events.location,
           pricePerPerson: events.pricePerPerson,
+          pricingType: events.pricingType,
+          eventValue: events.eventValue,
           maxCapacity: events.maxCapacity,
           category: events.category,
           status: events.status,
@@ -6135,12 +6150,21 @@ export class DatabaseStorage implements IStorage {
             AND ep.status IN ('pago', 'pagar_na_hora')
           )`,
           eventRevenue: sql<number>`(
-            SELECT COALESCE(SUM(
+            SELECT COALESCE(
               CASE
-                WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
-                ELSE ep.number_of_participants::numeric * "events"."price_per_person"::numeric
-              END
-            ), 0)
+                WHEN "events"."pricing_type" = 'total' THEN
+                  CASE WHEN COUNT(ep.id) FILTER (
+                    WHERE ep.status IN ('pago', 'pagar_na_hora')
+                  ) > 0 THEN "events"."event_value"::numeric ELSE 0 END
+                ELSE SUM(
+                  CASE
+                    WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
+                    ELSE ep.number_of_participants::numeric * "events"."event_value"::numeric
+                  END
+                )
+              END,
+              0
+            )
             FROM event_participants ep
             WHERE ep.event_id = "events"."id"
             AND ep.status IN ('pago', 'pagar_na_hora')
@@ -6393,6 +6417,8 @@ export class DatabaseStorage implements IStorage {
           eventLocation: events.location,
           eventCategory: events.category,
           eventPrice: events.pricePerPerson,
+          eventPricingType: events.pricingType,
+          eventValue: events.eventValue,
         })
         .from(eventParticipants)
         .innerJoin(events, eq(eventParticipants.eventId, events.id))
@@ -6413,6 +6439,8 @@ export class DatabaseStorage implements IStorage {
           location: row.eventLocation,
           category: row.eventCategory,
           pricePerPerson: row.eventPrice,
+          pricingType: row.eventPricingType,
+          eventValue: row.eventValue,
         },
       }));
     } catch (error) {

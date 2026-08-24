@@ -33,6 +33,8 @@ export function ClientEventsTab({ clientId }: ClientEventsTabProps) {
       location: string;
       category: string;
       pricePerPerson: string;
+        pricingType?: "per_person" | "total";
+        eventValue?: string | null;
     };
   }>>({
     queryKey: ["/api/events/client", clientId],
@@ -103,7 +105,18 @@ export function ClientEventsTab({ clientId }: ClientEventsTabProps) {
       {/* Event list */}
       <div className="space-y-3">
         {clientEvents.map((item) => {
-          const statusConfig = STATUS_CONFIG[item.status] ?? { label: item.status, className: "" };
+          const eventValue = parseFloat(
+            item.event.eventValue ?? item.event.pricePerPerson,
+          ) || 0;
+          const isTotalValue = item.event.pricingType === "total";
+          const registrationValue = isTotalValue
+            ? eventValue
+            : eventValue * item.numberOfParticipants;
+          const statusConfig = STATUS_CONFIG[item.status] ?? {
+            label: item.status,
+            className: "",
+          };
+
           return (
             <div
               key={item.participantId}
@@ -168,10 +181,12 @@ export function ClientEventsTab({ clientId }: ClientEventsTabProps) {
 
                 <div className="text-right shrink-0">
                   <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    {formatCurrency(parseFloat(item.event.pricePerPerson) * item.numberOfParticipants)}
+                    {formatCurrency(registrationValue)}
                   </p>
                   <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                    {item.numberOfParticipants} × {formatCurrency(parseFloat(item.event.pricePerPerson))}
+                    {isTotalValue
+                      ? "Valor total do evento"
+                      : `${item.numberOfParticipants} × ${formatCurrency(eventValue)}`}
                   </p>
                 </div>
               </div>

@@ -175,7 +175,7 @@ describe("eventsRouter", () => {
       .post("/events")
       .send({
         name: "Evento",
-        eventDate: "2026-04-11T18:00",
+        eventDate: "2099-04-11T18:00",
         location: "Local",
         pricePerPerson: "10.00",
         attachments: [{ fileName: "a.jpg", fileUrl: "a.jpg" }],
@@ -184,6 +184,92 @@ describe("eventsRouter", () => {
     expect(createEventMock).toHaveBeenCalledTimes(1);
     expect(addEventAttachmentMock).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(201);
+  });
+
+  it("allows creating a past external event with total value", async () => {
+    createEventMock.mockResolvedValue({ id: "event-1" });
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app)
+      .post("/events")
+      .send({
+        name: "Feira parceira",
+        eventDate: "2020-04-11T18:00",
+        location: "Centro de eventos",
+        category: "EXTERNO",
+        pricingType: "total",
+        eventValue: "2500.00",
+      });
+
+    expect(response.status).toBe(201);
+    expect(createEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "EXTERNO",
+        pricingType: "total",
+        eventValue: "2500.00",
+        pricePerPerson: "2500.00",
+      }),
+    );
+  });
+
+  it("rejects a past event unless it is external", async () => {
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app)
+      .post("/events")
+      .send({
+        name: "Degustação antiga",
+        eventDate: "2020-04-11T18:00",
+        location: "Loja",
+        category: "Degustação",
+        pricingType: "per_person",
+        eventValue: "150.00",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("não pode ser no passado");
+    expect(createEventMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a deadline after the event date", async () => {
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app)
+      .post("/events")
+      .send({
+        name: "Workshop",
+        eventDate: "2099-04-11T18:00",
+        registrationDeadline: "2099-04-12T18:00",
+        location: "Loja",
+        pricingType: "per_person",
+        eventValue: "150.00",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("prazo de inscrição");
+    expect(createEventMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects omitted, blank, or invalid event pricing", async () => {
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+    const eventData = {
+      name: "Workshop",
+      eventDate: "2099-04-11T18:00",
+      location: "Loja",
+    };
+
+    for (const pricing of [
+      {},
+      { eventValue: " " },
+      { pricingType: "unknown", eventValue: "10.00" },
+    ]) {
+      const response = await request(app)
+        .post("/events")
+        .send({ ...eventData, ...pricing });
+
+      expect(response.status).toBe(400);
+    }
+    expect(createEventMock).not.toHaveBeenCalled();
   });
 
   it("rejects rescheduling a finalized event without reopening it", async () => {

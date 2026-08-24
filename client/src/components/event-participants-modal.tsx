@@ -81,6 +81,8 @@ interface Event {
   location: string;
   maxCapacity: number | null;
   pricePerPerson?: string | null;
+  pricingType?: "per_person" | "total";
+  eventValue?: string | null;
   category?: string;
   status?: string;
 }
@@ -703,7 +705,7 @@ export default function EventParticipantsModal({
 
   <div class="info-grid">
     <div class="info-row"><strong>Data:</strong> ${formatDate(event.eventDate)}</div>
-    ${event.pricePerPerson ? `<div class="info-row"><strong>Valor por Pessoa:</strong> ${formatCurrency(parseFloat(event.pricePerPerson))}</div>` : "<div></div>"}
+    ${(event.eventValue ?? event.pricePerPerson) ? `<div class="info-row"><strong>${event.pricingType === "total" ? "Valor Total" : "Valor por Pessoa"}:</strong> ${formatCurrency(parseFloat(event.eventValue ?? event.pricePerPerson ?? "0"))}</div>` : "<div></div>"}
     <div class="info-row"><strong>Local:</strong> ${escapeHtml(event.location)}</div>
     ${event.maxCapacity ? `<div class="info-row"><strong>Capacidade:</strong> ${totalParticipants} / ${event.maxCapacity}</div>` : "<div></div>"}
     ${event.category ? `<div class="info-row"><strong>Categoria:</strong> ${escapeHtml(event.category)}</div>` : "<div></div>"}
@@ -748,6 +750,27 @@ export default function EventParticipantsModal({
     let totalPago = 0;
     let totalPendente = 0;
     let totalGeral = 0;
+    const isTotalEvent = event.pricingType === "total";
+    const configuredValue =
+      parseFloat(event.eventValue ?? event.pricePerPerson ?? "0") || 0;
+    const totalValueRowIndex = participants.findIndex(
+      (participant) => participant.status !== "cancelado",
+    );
+    const hasPaidTotal = participants.some(
+      (participant) =>
+        participant.status === "pago" || participant.status === "convidado",
+    );
+    const hasPendingTotal = participants.some(
+      (participant) =>
+        participant.status === "pendente" ||
+        participant.status === "pagar_na_hora",
+    );
+
+    if (isTotalEvent && totalValueRowIndex >= 0) {
+      totalGeral = configuredValue;
+      if (hasPaidTotal) totalPago = configuredValue;
+      else if (hasPendingTotal) totalPendente = configuredValue;
+    }
 
     const logoUrl = `${window.location.origin}/logo-grand-cru-red%20(1).webp`;
 
@@ -759,11 +782,20 @@ export default function EventParticipantsModal({
     const rows = participants
       .map((p, i) => {
         const qty = p.numberOfParticipants || 1;
-        const total = p.customPrice ? parseFloat(p.customPrice) : 0;
-        if (p.status === "pago" || p.status === "convidado") totalPago += total;
-        else if (p.status === "pendente" || p.status === "pagar_na_hora")
-          totalPendente += total;
-        if (p.status !== "cancelado") totalGeral += total;
+        const total = isTotalEvent
+          ? i === totalValueRowIndex
+            ? configuredValue
+            : 0
+          : p.customPrice
+            ? parseFloat(p.customPrice)
+            : configuredValue * qty;
+        if (!isTotalEvent) {
+          if (p.status === "pago" || p.status === "convidado")
+            totalPago += total;
+          else if (p.status === "pendente" || p.status === "pagar_na_hora")
+            totalPendente += total;
+          if (p.status !== "cancelado") totalGeral += total;
+        }
         const paymentDateStr = p.paymentDate
           ? new Date(p.paymentDate).toLocaleDateString("pt-BR", {
               timeZone: "UTC",

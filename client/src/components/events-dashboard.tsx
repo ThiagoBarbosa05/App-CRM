@@ -53,6 +53,8 @@ interface Event {
   registrationDeadline: string | null;
   location: string;
   pricePerPerson: string;
+  pricingType?: "per_person" | "total";
+  eventValue?: string | null;
   maxCapacity: number | null;
   category: string;
   status: "planejado" | "ativo" | "finalizado" | "cancelado";
@@ -63,6 +65,14 @@ interface Event {
   creatorName: string;
   participantCount: number;
   attachments?: EventAttachment[];
+}
+
+function getEventValue(event: Pick<Event, "eventValue" | "pricePerPerson">): number {
+  return parseFloat(event.eventValue ?? event.pricePerPerson) || 0;
+}
+
+function getPricingLabel(event: Pick<Event, "pricingType">): string {
+  return event.pricingType === "total" ? "Valor total" : "Valor por pessoa";
 }
 
 const EVENT_STATUS = [
@@ -619,8 +629,8 @@ export default function EventsDashboard() {
       </div>
       <div>
         <div class="info-item">
-          <span class="info-label">Valor por Pessoa:</span> ${formatCurrency(
-            parseFloat(event.pricePerPerson),
+          <span class="info-label">${getPricingLabel(event)}:</span> ${formatCurrency(
+            getEventValue(event),
           )}
         </div>
         <div class="info-item">
@@ -1119,7 +1129,10 @@ export default function EventsDashboard() {
                           </div>
                           <div className="flex-1">
                             <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                              {formatCurrency(parseFloat(event.pricePerPerson))}
+                              {formatCurrency(getEventValue(event))}
+                              <span className="ml-1 text-xs font-normal text-gray-500 dark:text-slate-400">
+                                {event.pricingType === "total" ? "total" : "/ pessoa"}
+                              </span>
                             </div>
                           </div>
                         </div>

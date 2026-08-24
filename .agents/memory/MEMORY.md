@@ -3,3 +3,4 @@
 - [Zernio Inbox architecture](zernio-inbox-architecture.md) — conversas/mensagens já persistem em DB local (zernio-store.ts), não é live-fetch da API Zernio; db:push trava em prompt interativo não relacionado, usar SQL direto.
 - [Multi-step automation reminder ladders](automation-rules-multi-step.md) — model each ladder step as its own automationRules row (same trigger, differing triggerParams), not a schema change.
 - [PDV multi-unit architecture](pdv-multi-unit.md) — pdv_units table isolates settings/tables/menu/cash per CNPJ; header X-PDV-Unit-Id carries context for admin/gerente; garçom's unit resolved from DB; localStorage key pdvCurrentUnitId.
+- [Event pricing migration](event-pricing-migration.md) — Price schema backfill runs before event routes accept traffic, preserving legacy per-person records.
