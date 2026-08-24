@@ -40,6 +40,7 @@ describe("validateWhatsappMediaForProvider", () => {
       provider: "cloud_api",
       mimeType: "image/webp",
       size: 500 * 1024 + 1,
+      sticker: { animated: true, width: 512, height: 512 },
     })).toEqual({
       supported: false,
       mediaType: "sticker",
@@ -64,7 +65,43 @@ describe("validateWhatsappMediaForProvider", () => {
       provider: "evolution",
       mimeType: "image/webp",
       size: 700 * 1024,
+      sticker: { animated: true, width: 512, height: 512 },
     })).toEqual({ supported: true, mediaType: "sticker", reason: null });
+  });
+
+  it("aplica o limite menor para figurinha estática na Cloud API", () => {
+    expect(validateWhatsappMediaForProvider({
+      provider: "cloud_api",
+      mimeType: "image/webp",
+      size: 100 * 1024 + 1,
+      sticker: { animated: false, width: 512, height: 512 },
+    })).toEqual({
+      supported: false,
+      mediaType: "sticker",
+      reason: "Figurinhas devem ter no máximo 100 KB",
+    });
+  });
+
+  it("aceita figurinha animada 512 × 512 dentro de 500 KB na Cloud API", () => {
+    expect(validateWhatsappMediaForProvider({
+      provider: "cloud_api",
+      mimeType: "image/webp",
+      size: 500 * 1024,
+      sticker: { animated: true, width: 512, height: 512 },
+    })).toEqual({ supported: true, mediaType: "sticker", reason: null });
+  });
+
+  it("rejeita figurinha com dimensões diferentes de 512 × 512", () => {
+    expect(validateWhatsappMediaForProvider({
+      provider: "cloud_api",
+      mimeType: "image/webp",
+      size: 10 * 1024,
+      sticker: { animated: true, width: 256, height: 512 },
+    })).toEqual({
+      supported: false,
+      mediaType: "sticker",
+      reason: "Figurinhas devem ter exatamente 512 × 512 pixels",
+    });
   });
 
   it("aceita documento compatível dentro do limite da aplicação", () => {

@@ -2103,7 +2103,7 @@ function MessageContent({
   if (msg.type === "unsupported") {
     return (
       <p className="px-3.5 py-2.5 text-sm italic opacity-60">
-        🎭 Figurinha animada não suportada
+        Tipo de mensagem não suportado
       </p>
     );
   }

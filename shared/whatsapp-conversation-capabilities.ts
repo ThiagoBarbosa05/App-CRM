@@ -19,6 +19,12 @@ interface CapabilityContext {
   deviceEchoEnabled?: boolean;
 }
 
+export interface WhatsappStickerMetadata {
+  animated: boolean;
+  width: number;
+  height: number;
+}
+
 const PROVIDER_FEATURES: Record<
   WhatsappConversationProvider,
   Pick<WhatsappConversationCapabilities, "reply" | "reaction" | "sticker" | "forward">
@@ -61,6 +67,7 @@ export function validateWhatsappMediaForProvider(input: {
   provider: WhatsappConversationProvider;
   mimeType: string;
   size: number;
+  sticker?: WhatsappStickerMetadata;
 }): { supported: boolean; mediaType: WhatsappMediaType | null; reason: string | null } {
   const mediaType = getWhatsappMediaType(input.mimeType) ?? null;
   if (!mediaType) {
@@ -71,7 +78,29 @@ export function validateWhatsappMediaForProvider(input: {
     };
   }
 
-  const stickerLimitBytes = STICKER_LIMIT_BYTES_BY_PROVIDER[input.provider];
+  if (mediaType === "sticker" && !input.sticker) {
+    return {
+      supported: false,
+      mediaType,
+      reason: "Não foi possível validar a figurinha WebP",
+    };
+  }
+
+  if (
+    mediaType === "sticker" &&
+    input.sticker &&
+    (input.sticker.width !== 512 || input.sticker.height !== 512)
+  ) {
+    return {
+      supported: false,
+      mediaType,
+      reason: "Figurinhas devem ter exatamente 512 × 512 pixels",
+    };
+  }
+
+  const stickerLimitBytes = input.provider === "cloud_api" && input.sticker?.animated === false
+    ? 100 * 1024
+    : STICKER_LIMIT_BYTES_BY_PROVIDER[input.provider];
   if (mediaType === "sticker" && input.size > stickerLimitBytes) {
     return {
       supported: false,

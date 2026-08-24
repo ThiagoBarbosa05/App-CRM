@@ -41,6 +41,7 @@ import {
   getConversationCapabilities,
   searchConversationMessages,
   getConversationMessageContext,
+  WhatsappMediaInputError,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
@@ -94,6 +95,9 @@ router.post("/conversations/:clientId/messages/media", upload.single("file"), as
     res.json(result);
   } catch (err) {
     console.error("[WA Conversations] Erro ao enviar mídia:", err);
+    if (err instanceof WhatsappMediaInputError) {
+      return res.status(400).json({ message: err.message });
+    }
     res.status(500).json({ message: "Erro ao enviar arquivo", detail: err instanceof Error ? err.message : String(err) });
   }
 });

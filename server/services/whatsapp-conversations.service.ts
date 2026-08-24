@@ -41,11 +41,19 @@ import { listSectorIdsForUser } from "./whatsapp-sectors.service";
 import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
 import { SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES } from "../lib/whatsapp-message-status";
+import { inspectWebpSticker } from "../lib/webp-sticker";
 
 // Reexportado do util compartilhado para não quebrar imports existentes
 // (whatsapp-opt-out.service.ts, bot-session-history.controller.ts).
 import { normalizePhone, canonicalPhone, phoneVariants } from "../lib/phone";
 export { normalizePhone };
+
+export class WhatsappMediaInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WhatsappMediaInputError";
+  }
+}
 
 // Escopo de visibilidade de um vendedor sobre conversas de WhatsApp: conversas
 // atribuídas a ele e conversas da fila de setor (setor = fila; transferir
@@ -2551,6 +2559,13 @@ export async function sendConversationMedia(
   const mediaType = getWhatsappMediaType(effectiveMime);
   if (!mediaType) throw new Error(`Tipo de arquivo não suportado: ${effectiveMime}`);
 
+  let stickerMetadata: { animated: boolean; width: number; height: number } | undefined;
+  if (mediaType === "sticker") {
+    const inspection = inspectWebpSticker(effectiveBuffer);
+    if (!inspection.valid) throw new WhatsappMediaInputError(inspection.reason);
+    stickerMetadata = inspection.metadata;
+  }
+
   console.log(`[sendConversationMedia] mediaType resolvido: ${mediaType}`);
 
   const whereConditions: ReturnType<typeof eq>[] = [
@@ -2602,9 +2617,12 @@ export async function sendConversationMedia(
     provider: resolvedChannel.provider,
     mimeType: effectiveMime,
     size: effectiveBuffer.length,
+    sticker: stickerMetadata,
   });
   if (!mediaCompatibility.supported) {
-    throw new Error(mediaCompatibility.reason ?? "Arquivo incompatível com o canal");
+    throw new WhatsappMediaInputError(
+      mediaCompatibility.reason ?? "Arquivo incompatível com o canal",
+    );
   }
 
   if (replyToMessageId || mediaCompatibility.mediaType === "sticker") {

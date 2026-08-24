@@ -32,6 +32,7 @@ import {
   registerWhatsappCloudWebhookDispatcher,
   type WhatsappCloudWebhookPayload,
 } from "../services/whatsapp-cloud-webhook-inbox.service";
+import { normalizeWhatsappIncomingMessage } from "@shared/whatsapp-incoming-message";
 
 const router = Router();
 
@@ -315,12 +316,9 @@ async function handleIncomingMessage(
     message.interactive?.list_reply?.id ??
     message.button?.payload ??
     null;
-  const mediaObj = message.image ?? message.audio ?? message.video ?? message.document ?? message.sticker;
-
-  // WhatsApp envia type "unsupported" para stickers animados e outros formatos.
-  // Quando há dados de sticker no payload, normaliza o tipo.
-  const effectiveType =
-    message.type === "unsupported" && message.sticker ? "sticker" : message.type;
+  const normalizedMessage = normalizeWhatsappIncomingMessage(message);
+  const mediaObj = normalizedMessage.media;
+  const effectiveType = normalizedMessage.type;
 
   console.log(
     `[WA Webhook] Mensagem recebida de ${message.from} (${metadata.display_phone_number}): ${text || `[${message.type}]`}`,
