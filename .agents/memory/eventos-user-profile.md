@@ -32,3 +32,13 @@ user receives Events access, hiding events that the backend correctly returns.
 
 **How to apply:** Scope client-side event query caches by authenticated user and
 serve event listings with a private no-store cache policy.
+
+Development and published database schemas are independent for the user role
+constraint.
+
+**Why:** Development can accept a new profile while the published database still
+rejects it until the platform's publish-time schema diff is applied.
+
+**How to apply:** Declare the role check in the schema source of truth, validate
+it in development, then publish to migrate the production database; never apply
+DDL directly to production.

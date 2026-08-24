@@ -31,30 +31,39 @@ export const sessions = pgTable("sessions", {
 });
 
 // Tabela de usuários do sistema
-export const users = pgTable("users", {
-  id: varchar("id")
-    .primaryKey()
-    .default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  role: text("role", {
-    enum: ["admin", "gerente", "vendedor", "eventos", "garcom"],
-  })
-    .notNull()
-    .default("vendedor"),
-  isActive: text("is_active").notNull().default("true"),
-  blingVendedorId: text("bling_vendedor_id"),
-  blingVendedorName: text("bling_vendedor_name"),
-  umblerMemberId: text("umbler_member_id"),
-  umblerMemberName: text("umbler_member_name"),
-  // Chave do objeto no R2 (ex.: "avatars/<userId>/<uuid>"). A URL pública não é
-  // persistida — deriva-se de getPublicR2Url(). Ver server/lib/user-serializer.ts.
-  avatarStorageKey: text("avatar_storage_key"),
-  pdvUnitId: varchar("pdv_unit_id"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    password: text("password").notNull(),
+    role: text("role", {
+      enum: ["admin", "gerente", "vendedor", "eventos", "garcom"],
+    })
+      .notNull()
+      .default("vendedor"),
+    isActive: text("is_active").notNull().default("true"),
+    blingVendedorId: text("bling_vendedor_id"),
+    blingVendedorName: text("bling_vendedor_name"),
+    umblerMemberId: text("umbler_member_id"),
+    umblerMemberName: text("umbler_member_name"),
+    // Chave do objeto no R2 (ex.: "avatars/<userId>/<uuid>"). A URL pública não é
+    // persistida — deriva-se de getPublicR2Url(). Ver server/lib/user-serializer.ts.
+    avatarStorageKey: text("avatar_storage_key"),
+    pdvUnitId: varchar("pdv_unit_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    check(
+      "users_role_check",
+      sql`${table.role} IN ('admin', 'gerente', 'vendedor', 'eventos', 'garcom')`,
+    ),
+  ],
+);
 
 // Tabela de funis de vendas
 export const salesFunnels = pgTable("sales_funnels", {
