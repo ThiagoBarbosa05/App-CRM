@@ -1876,7 +1876,7 @@ export default function EventsManagement() {
                         }`}
                       >
                         {event.imageUrl && (
-                          <div className="p-3 sm:p-4 sm:pr-0">
+                          <div className="p-2 sm:p-3 sm:pr-0">
                             <div className="aspect-[16/9] w-full overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-slate-700 dark:ring-slate-600">
                               <img
                                 src={event.imageUrl}
@@ -1888,12 +1888,12 @@ export default function EventsManagement() {
                         )}
 
                         <div
-                          className={`min-w-0 p-4 sm:p-5 ${
+                          className={`min-w-0 p-3 sm:p-4 ${
                             event.imageUrl ? "sm:pl-4" : ""
                           }`}
                         >
                           {/* ── HEADER ── */}
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(165px,220px)] md:gap-6">
+                          <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_minmax(165px,220px)] md:gap-4">
                             <div className="min-w-0">
                               <span className="text-xs font-semibold uppercase tracking-wider text-orange-500 dark:text-orange-400">
                                 {event.category}
@@ -2000,7 +2000,7 @@ export default function EventsManagement() {
                           </div>
 
                         {/* ── PARTICIPANTES ── */}
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                         <div className="mt-2 flex flex-wrap items-center gap-2">
                           <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/60 rounded-full px-2.5 py-1">
                             <UsersIcon className="h-3.5 w-3.5" />
                             <span>
@@ -2046,41 +2046,41 @@ export default function EventsManagement() {
                             const potential = getPotentialEventRevenue(event);
                             const hasWine = wineRev > 0;
                             return (
-                              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/40 rounded-lg px-3 py-2">
+                               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                 <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 dark:border-emerald-800/40 dark:bg-emerald-900/20">
                                   <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-500 uppercase tracking-wide">
                                     Receita Evento
                                   </p>
-                                  <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                                   <p className="mt-0.5 text-sm font-bold text-emerald-700 dark:text-emerald-400">
                                     {formatCurrency(eventRev)}
                                   </p>
                                 </div>
                                 {hasWine ? (
-                                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/40 rounded-lg px-3 py-2">
+                                   <div className="rounded-lg border border-purple-100 bg-purple-50 px-2.5 py-1.5 dark:border-purple-800/40 dark:bg-purple-900/20">
                                     <p className="text-[10px] font-medium text-purple-600 dark:text-purple-500 uppercase tracking-wide">
                                       Venda Vinho
                                     </p>
-                                    <p className="text-sm font-bold text-purple-700 dark:text-purple-400 mt-0.5">
+                                     <p className="mt-0.5 text-sm font-bold text-purple-700 dark:text-purple-400">
                                       {formatCurrency(wineRev)}
                                     </p>
                                   </div>
                                 ) : null}
                                 {hasWine ? (
-                                  <div className="bg-slate-900 dark:bg-slate-100/10 border border-slate-700 dark:border-slate-600 rounded-lg px-3 py-2">
+                                   <div className="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 dark:border-slate-600 dark:bg-slate-100/10">
                                     <p className="text-[10px] font-medium text-slate-300 dark:text-slate-400 uppercase tracking-wide">
                                       Receita Total
                                     </p>
-                                    <p className="text-sm font-bold text-white dark:text-slate-100 mt-0.5">
+                                     <p className="mt-0.5 text-sm font-bold text-white dark:text-slate-100">
                                       {formatCurrency(totalRev)}
                                     </p>
                                   </div>
                                 ) : null}
                                 {potential > 0 ? (
-                                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/40 rounded-lg px-3 py-2">
+                                   <div className="rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 dark:border-amber-800/40 dark:bg-amber-900/20">
                                     <p className="text-[10px] font-medium text-amber-600 dark:text-amber-500 uppercase tracking-wide">
                                       Potencial
                                     </p>
-                                    <p className="text-sm font-bold text-amber-700 dark:text-amber-400 mt-0.5">
+                                     <p className="mt-0.5 text-sm font-bold text-amber-700 dark:text-amber-400">
                                       {formatCurrency(potential)}
                                     </p>
                                   </div>
@@ -2090,7 +2090,7 @@ export default function EventsManagement() {
                           })()}
 
                         {/* ── RODAPÉ: thumbnails + ações ── */}
-                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-2">
+                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2 dark:border-slate-700/60">
                           {/* Thumbnails */}
                           <div className="flex items-center gap-1.5">
                             {event.attachments &&
