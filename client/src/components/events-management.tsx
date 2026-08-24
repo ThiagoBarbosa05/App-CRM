@@ -180,19 +180,19 @@ function getPricingLabel(event: Pick<Event, "pricingType">): string {
 }
 
 function getConfirmedEventRevenue(event: Event): number {
+  if (event.status === "cancelado") return 0;
   const value = getEventValue(event);
   if (getPricingType(event) === "total") {
-    return event.paidParticipants > 0 ? value : 0;
+    return value;
   }
   return event.paidParticipants * value;
 }
 
 function getPotentialEventRevenue(event: Event): number {
+  if (event.status === "cancelado") return 0;
   const value = getEventValue(event);
   if (getPricingType(event) === "total") {
-    return event.paidParticipants === 0 && event.pendingParticipants > 0
-      ? value
-      : 0;
+    return 0;
   }
   return event.pendingParticipants * value;
 }

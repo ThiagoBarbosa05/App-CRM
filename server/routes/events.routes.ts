@@ -744,9 +744,7 @@ eventsRouter.get("/analytics", async (req, res) => {
               DATE_TRUNC('month', e.event_date) as month_key,
               CASE
                 WHEN e.pricing_type = 'total' THEN
-                  CASE WHEN COUNT(ep.id) FILTER (
-                    WHERE ep.status IN ('pago','pagar_na_hora')
-                  ) > 0 THEN e.event_value::numeric ELSE 0 END
+                  e.event_value::numeric
                 ELSE COALESCE(SUM(
                   CASE WHEN ep.status IN ('pago','pagar_na_hora') THEN
                     CASE WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric

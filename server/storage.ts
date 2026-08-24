@@ -6058,10 +6058,9 @@ export class DatabaseStorage implements IStorage {
           eventRevenue: sql<number>`(
             SELECT COALESCE(
               CASE
+                WHEN "events"."status" = 'cancelado' THEN 0
                 WHEN "events"."pricing_type" = 'total' THEN
-                  CASE WHEN COUNT(ep.id) FILTER (
-                    WHERE ep.status IN ('pago', 'pagar_na_hora')
-                  ) > 0 THEN "events"."event_value"::numeric ELSE 0 END
+                  "events"."event_value"::numeric
                 ELSE SUM(
                   CASE
                     WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
@@ -6196,10 +6195,9 @@ export class DatabaseStorage implements IStorage {
           eventRevenue: sql<number>`(
             SELECT COALESCE(
               CASE
+                WHEN "events"."status" = 'cancelado' THEN 0
                 WHEN "events"."pricing_type" = 'total' THEN
-                  CASE WHEN COUNT(ep.id) FILTER (
-                    WHERE ep.status IN ('pago', 'pagar_na_hora')
-                  ) > 0 THEN "events"."event_value"::numeric ELSE 0 END
+                  "events"."event_value"::numeric
                 ELSE SUM(
                   CASE
                     WHEN ep.custom_price IS NOT NULL THEN ep.custom_price::numeric
