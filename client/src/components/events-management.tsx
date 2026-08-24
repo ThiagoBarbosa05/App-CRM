@@ -1890,7 +1890,7 @@ export default function EventsManagement() {
                                   {event.name}
                                 </h3>
                               </div>
-                              <div className="flex-shrink-0 mt-0.5 flex items-center gap-1.5">
+                              <div className="flex-shrink-0 mt-0.5 flex flex-col items-end gap-1.5">
                                 {event.landingPageHtmlKey && (
                                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                                     <GlobeIcon className="h-3 w-3" />
@@ -1898,6 +1898,38 @@ export default function EventsManagement() {
                                   </span>
                                 )}
                                 {getStatusBadge(event.status)}
+                                {event.category === "EXTERNO" &&
+                                  event.responsibleContacts &&
+                                  event.responsibleContacts.length > 0 && (
+                                    <div className="flex max-w-[240px] flex-wrap justify-end gap-1">
+                                      {event.responsibleContacts
+                                        .slice(0, 3)
+                                        .map((contact) => (
+                                          <Link
+                                            key={contact.id}
+                                            href={`/clientes/${contact.id}`}
+                                            onClick={(clickEvent) =>
+                                              clickEvent.stopPropagation()
+                                            }
+                                            title={`Abrir ficha de ${contact.name}`}
+                                            className="inline-flex max-w-[145px] items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-medium text-orange-800 transition-colors hover:border-orange-400 hover:bg-orange-100 dark:border-orange-800/60 dark:bg-orange-950/30 dark:text-orange-200 dark:hover:bg-orange-900/50"
+                                          >
+                                            <UserCheckIcon className="h-3 w-3 shrink-0" />
+                                            <span className="truncate">
+                                              {contact.name}
+                                            </span>
+                                          </Link>
+                                        ))}
+                                      {event.responsibleContacts.length > 3 && (
+                                        <span
+                                          className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500 dark:bg-slate-700/70 dark:text-slate-300"
+                                          title={`${event.responsibleContacts.length - 3} contato(s) adicional(is) vinculado(s)`}
+                                        >
+                                          +{event.responsibleContacts.length - 3}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
                               </div>
                             </div>
 
