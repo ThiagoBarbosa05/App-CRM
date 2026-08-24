@@ -1871,13 +1871,13 @@ export default function EventsManagement() {
                       <div
                         className={`flex-1 min-w-0 ${
                           event.imageUrl
-                            ? "grid grid-cols-1 sm:grid-cols-[220px_minmax(0,1fr)]"
+                            ? "grid grid-cols-1 sm:grid-cols-[280px_minmax(0,1fr)]"
                             : ""
                         }`}
                       >
                         {event.imageUrl && (
                           <div className="p-3 sm:p-4 sm:pr-0">
-                            <div className="h-full min-h-[150px] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-slate-700 dark:ring-slate-600">
+                            <div className="aspect-[16/9] w-full overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-slate-700 dark:ring-slate-600">
                               <img
                                 src={event.imageUrl}
                                 alt={event.name}
