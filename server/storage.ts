@@ -108,6 +108,7 @@ import {
   events,
   eventParticipants,
   eventAttachments,
+  eventResponsibleContacts,
   messageJobsLogs,
   type InsertEvent,
   type Event,
@@ -678,8 +679,47 @@ export interface IStorage {
   getEventById(eventId: string): Promise<Event | null>;
   getEventBySlug(slug: string): Promise<Event | null>;
   createEvent(eventData: InsertEvent): Promise<Event>;
+  createEventWithResponsibleContacts(
+    eventData: InsertEvent,
+    clientIds: string[],
+    access: { userId: string; userRole?: string },
+  ): Promise<{
+    event: Event;
+    responsibleContacts: Array<{
+      id: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+    }>;
+  }>;
   updateEvent(eventId: string, eventData: Partial<InsertEvent>): Promise<Event>;
+  updateEventWithResponsibleContacts(
+    eventId: string,
+    eventData: Partial<InsertEvent>,
+    clientIds: string[] | undefined,
+    access: { userId: string; userRole?: string },
+  ): Promise<{
+    event: Event;
+    responsibleContacts: Array<{
+      id: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+    }>;
+  }>;
   deleteEvent(eventId: string): Promise<boolean>;
+  getEventResponsibleContacts(eventId: string): Promise<
+    Array<{ id: string; name: string; phone: string | null; email: string | null }>
+  >;
+  validateEventResponsibleContactIds(
+    clientIds: string[],
+    userId: string,
+    userRole?: string,
+  ): Promise<boolean>;
+  replaceEventResponsibleContacts(
+    eventId: string,
+    clientIds: string[],
+  ): Promise<Array<{ id: string; name: string; phone: string | null; email: string | null }>>;
   getEventParticipants(eventId: string): Promise<EventParticipant[]>;
   getClientEvents(clientId: string): Promise<
     Array<{
@@ -6085,17 +6125,21 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Para cada evento, buscar seus anexos
-      const eventsWithAttachments = await Promise.all(
+      const eventsWithDetails = await Promise.all(
         eventsResult.map(async (event) => {
-          const attachments = await this.getEventAttachments(event.id);
+          const [attachments, responsibleContacts] = await Promise.all([
+            this.getEventAttachments(event.id),
+            this.getEventResponsibleContacts(event.id),
+          ]);
           return {
             ...event,
             attachments,
+            responsibleContacts,
           };
         }),
       );
 
-      return eventsWithAttachments;
+      return eventsWithDetails;
     } catch (error) {
       console.error("Error fetching events:", error);
       throw error;
@@ -6257,14 +6301,17 @@ export class DatabaseStorage implements IStorage {
             })
           : null;
 
-      const eventsWithAttachments = await Promise.all(
+      const eventsWithDetails = await Promise.all(
         pageRows.map(async (event) => {
-          const attachments = await this.getEventAttachments(event.id);
-          return { ...event, attachments };
+          const [attachments, responsibleContacts] = await Promise.all([
+            this.getEventAttachments(event.id),
+            this.getEventResponsibleContacts(event.id),
+          ]);
+          return { ...event, attachments, responsibleContacts };
         }),
       );
 
-      return { events: eventsWithAttachments, nextCursor };
+      return { events: eventsWithDetails, nextCursor };
     } catch (error) {
       console.error("Error fetching paginated events:", error);
       throw error;
@@ -6312,6 +6359,56 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async createEventWithResponsibleContacts(
+    eventData: InsertEvent,
+    clientIds: string[],
+    access: { userId: string; userRole?: string },
+  ): Promise<{
+    event: Event;
+    responsibleContacts: Array<{
+      id: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+    }>;
+  }> {
+    const uniqueClientIds = [...new Set(clientIds)];
+    return this.db.transaction(async (tx) => {
+      const contactsAreValid = await this.validateEventResponsibleContactIds(
+        uniqueClientIds,
+        access.userId,
+        access.userRole,
+      );
+      if (!contactsAreValid) {
+        throw new Error("Um ou mais responsáveis não foram encontrados");
+      }
+
+      const [event] = await tx.insert(events).values(eventData).returning();
+      if (uniqueClientIds.length > 0) {
+        await tx.insert(eventResponsibleContacts).values(
+          uniqueClientIds.map((clientId) => ({ eventId: event.id, clientId })),
+        );
+      }
+
+      const responsibleContacts = await tx
+        .select({
+          id: clients.id,
+          name: clients.name,
+          phone: clients.phone,
+          email: clients.email,
+        })
+        .from(eventResponsibleContacts)
+        .innerJoin(
+          clients,
+          eq(eventResponsibleContacts.clientId, clients.id),
+        )
+        .where(eq(eventResponsibleContacts.eventId, event.id))
+        .orderBy(asc(clients.name));
+
+      return { event, responsibleContacts };
+    });
+  }
+
   async updateEvent(
     eventId: string,
     eventData: Partial<InsertEvent>,
@@ -6327,6 +6424,76 @@ export class DatabaseStorage implements IStorage {
       console.error("Error updating event:", error);
       throw error;
     }
+  }
+
+  async updateEventWithResponsibleContacts(
+    eventId: string,
+    eventData: Partial<InsertEvent>,
+    clientIds: string[] | undefined,
+    access: { userId: string; userRole?: string },
+  ): Promise<{
+    event: Event;
+    responsibleContacts: Array<{
+      id: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+    }>;
+  }> {
+    const uniqueClientIds = clientIds ? [...new Set(clientIds)] : undefined;
+    return this.db.transaction(async (tx) => {
+      // UPDATE bloqueia a linha até o commit. Assim, a categoria final e os
+      // vínculos são decididos juntos, sem permitir responsáveis em um evento
+      // que outro request acabou de tornar não externo.
+      const [event] = await tx
+        .update(events)
+        .set({ ...eventData, updatedAt: new Date() })
+        .where(eq(events.id, eventId))
+        .returning();
+      if (!event) {
+        throw new Error("Evento não encontrado");
+      }
+
+      const isExternal = event.category.trim().toUpperCase() === "EXTERNO";
+      const shouldReplaceContacts = uniqueClientIds !== undefined || !isExternal;
+      if (shouldReplaceContacts) {
+        const finalClientIds = isExternal ? uniqueClientIds ?? [] : [];
+        const contactsAreValid = await this.validateEventResponsibleContactIds(
+          finalClientIds,
+          access.userId,
+          access.userRole,
+        );
+        if (!contactsAreValid) {
+          throw new Error("Um ou mais responsáveis não foram encontrados");
+        }
+
+        await tx
+          .delete(eventResponsibleContacts)
+          .where(eq(eventResponsibleContacts.eventId, eventId));
+        if (finalClientIds.length > 0) {
+          await tx.insert(eventResponsibleContacts).values(
+            finalClientIds.map((clientId) => ({ eventId, clientId })),
+          );
+        }
+      }
+
+      const responsibleContacts = await tx
+        .select({
+          id: clients.id,
+          name: clients.name,
+          phone: clients.phone,
+          email: clients.email,
+        })
+        .from(eventResponsibleContacts)
+        .innerJoin(
+          clients,
+          eq(eventResponsibleContacts.clientId, clients.id),
+        )
+        .where(eq(eventResponsibleContacts.eventId, eventId))
+        .orderBy(asc(clients.name));
+
+      return { event, responsibleContacts };
+    });
   }
 
   async deleteEvent(eventId: string): Promise<boolean> {
@@ -6349,6 +6516,82 @@ export class DatabaseStorage implements IStorage {
       console.error("Error deleting event:", error);
       throw error;
     }
+  }
+
+  async getEventResponsibleContacts(eventId: string): Promise<
+    Array<{ id: string; name: string; phone: string | null; email: string | null }>
+  > {
+    return this.db
+      .select({
+        id: clients.id,
+        name: clients.name,
+        phone: clients.phone,
+        email: clients.email,
+      })
+      .from(eventResponsibleContacts)
+      .innerJoin(
+        clients,
+        eq(eventResponsibleContacts.clientId, clients.id),
+      )
+      .where(eq(eventResponsibleContacts.eventId, eventId))
+      .orderBy(asc(clients.name));
+  }
+
+  async validateEventResponsibleContactIds(
+    clientIds: string[],
+    userId: string,
+    userRole?: string,
+  ): Promise<boolean> {
+    const uniqueClientIds = [...new Set(clientIds)];
+    if (uniqueClientIds.length === 0) return true;
+    const isAdmin = userRole === "admin" || userRole === "administrador";
+    if (!isAdmin && !userId) return false;
+
+    const matches = await this.db
+      .select({ id: clients.id })
+      .from(clients)
+      .where(
+        isAdmin
+          ? inArray(clients.id, uniqueClientIds)
+          : and(
+              inArray(clients.id, uniqueClientIds),
+              eq(clients.responsavelId, userId),
+            ),
+      );
+    return matches.length === uniqueClientIds.length;
+  }
+
+  async replaceEventResponsibleContacts(
+    eventId: string,
+    clientIds: string[],
+  ): Promise<
+    Array<{ id: string; name: string; phone: string | null; email: string | null }>
+  > {
+    const uniqueClientIds = [...new Set(clientIds)];
+
+    await this.db.transaction(async (tx) => {
+      if (uniqueClientIds.length > 0) {
+        const matches = await tx
+          .select({ id: clients.id })
+          .from(clients)
+          .where(inArray(clients.id, uniqueClientIds));
+        if (matches.length !== uniqueClientIds.length) {
+          throw new Error("Um ou mais responsáveis não foram encontrados");
+        }
+      }
+
+      await tx
+        .delete(eventResponsibleContacts)
+        .where(eq(eventResponsibleContacts.eventId, eventId));
+
+      if (uniqueClientIds.length > 0) {
+        await tx.insert(eventResponsibleContacts).values(
+          uniqueClientIds.map((clientId) => ({ eventId, clientId })),
+        );
+      }
+    });
+
+    return this.getEventResponsibleContacts(eventId);
   }
 
   async getEventParticipants(eventId: string): Promise<EventParticipant[]> {

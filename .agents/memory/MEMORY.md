@@ -4,3 +4,4 @@
 - [Multi-step automation reminder ladders](automation-rules-multi-step.md) — model each ladder step as its own automationRules row (same trigger, differing triggerParams), not a schema change.
 - [PDV multi-unit architecture](pdv-multi-unit.md) — pdv_units table isolates settings/tables/menu/cash per CNPJ; header X-PDV-Unit-Id carries context for admin/gerente; garçom's unit resolved from DB; localStorage key pdvCurrentUnitId.
 - [Event pricing migration](event-pricing-migration.md) — Price schema backfill runs before event routes accept traffic, preserving legacy per-person records.
+- [TypeScript validation limits](typescript-validation-limits.md) — Full-project tsc exceeds this workspace’s available time/memory; use build plus targeted tests until its footprint is reduced.

@@ -51,6 +51,8 @@ interface ClientFormModalProps {
    * conversa do WhatsApp). Não coloca o modal em modo de edição.
    */
   initialValues?: Partial<Client>;
+  /** Chamado após criar um contato, antes de fechar o modal. */
+  onClientCreated?: (client: Client) => void;
 }
 
 interface BlingSellerMapping {
@@ -96,6 +98,7 @@ export default function ClientFormModal({
   onOpenChange,
   client,
   initialValues,
+  onClientCreated,
 }: ClientFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -487,6 +490,7 @@ export default function ClientFormModal({
         });
       }
 
+      onClientCreated?.((data.client ?? data) as Client);
       onOpenChange(false);
       form.reset();
     },

@@ -9,8 +9,10 @@ const {
   getEventsPaginatedMock,
   getEventByIdMock,
   createEventMock,
+  createEventWithResponsibleContactsMock,
   addEventAttachmentMock,
   updateEventMock,
+  updateEventWithResponsibleContactsMock,
   deleteEventMock,
   getEventParticipantsMock,
   addEventParticipantMock,
@@ -19,14 +21,19 @@ const {
   getEventAttachmentsMock,
   deleteEventAttachmentMock,
   deleteEventAttachmentsByEventIdMock,
+  getEventResponsibleContactsMock,
+  validateEventResponsibleContactIdsMock,
+  replaceEventResponsibleContactsMock,
   s3SendMock,
 } = vi.hoisted(() => ({
   getEventsMock: vi.fn(),
   getEventsPaginatedMock: vi.fn(),
   getEventByIdMock: vi.fn(),
   createEventMock: vi.fn(),
+  createEventWithResponsibleContactsMock: vi.fn(),
   addEventAttachmentMock: vi.fn(),
   updateEventMock: vi.fn(),
+  updateEventWithResponsibleContactsMock: vi.fn(),
   deleteEventMock: vi.fn(),
   getEventParticipantsMock: vi.fn(),
   addEventParticipantMock: vi.fn(),
@@ -35,6 +42,9 @@ const {
   getEventAttachmentsMock: vi.fn(),
   deleteEventAttachmentMock: vi.fn(),
   deleteEventAttachmentsByEventIdMock: vi.fn(),
+  getEventResponsibleContactsMock: vi.fn(),
+  validateEventResponsibleContactIdsMock: vi.fn(),
+  replaceEventResponsibleContactsMock: vi.fn(),
   s3SendMock: vi.fn(),
 }));
 
@@ -44,8 +54,10 @@ vi.mock("../../storage", () => ({
     getEventsPaginated: getEventsPaginatedMock,
     getEventById: getEventByIdMock,
     createEvent: createEventMock,
+    createEventWithResponsibleContacts: createEventWithResponsibleContactsMock,
     addEventAttachment: addEventAttachmentMock,
     updateEvent: updateEventMock,
+    updateEventWithResponsibleContacts: updateEventWithResponsibleContactsMock,
     deleteEvent: deleteEventMock,
     getEventParticipants: getEventParticipantsMock,
     addEventParticipant: addEventParticipantMock,
@@ -54,6 +66,9 @@ vi.mock("../../storage", () => ({
     getEventAttachments: getEventAttachmentsMock,
     deleteEventAttachment: deleteEventAttachmentMock,
     deleteEventAttachmentsByEventId: deleteEventAttachmentsByEventIdMock,
+    getEventResponsibleContacts: getEventResponsibleContactsMock,
+    validateEventResponsibleContactIds: validateEventResponsibleContactIdsMock,
+    replaceEventResponsibleContacts: replaceEventResponsibleContactsMock,
   },
 }));
 
@@ -71,8 +86,10 @@ describe("eventsRouter", () => {
     getEventsPaginatedMock.mockReset();
     getEventByIdMock.mockReset();
     createEventMock.mockReset();
+    createEventWithResponsibleContactsMock.mockReset();
     addEventAttachmentMock.mockReset();
     updateEventMock.mockReset();
+    updateEventWithResponsibleContactsMock.mockReset();
     deleteEventMock.mockReset();
     getEventParticipantsMock.mockReset();
     addEventParticipantMock.mockReset();
@@ -81,6 +98,9 @@ describe("eventsRouter", () => {
     getEventAttachmentsMock.mockReset();
     deleteEventAttachmentMock.mockReset();
     deleteEventAttachmentsByEventIdMock.mockReset();
+    getEventResponsibleContactsMock.mockReset();
+    validateEventResponsibleContactIdsMock.mockReset();
+    replaceEventResponsibleContactsMock.mockReset();
     s3SendMock.mockReset();
   });
 
@@ -168,7 +188,10 @@ describe("eventsRouter", () => {
   });
 
   it("creates event with attachments and createdBy from jwt", async () => {
-    createEventMock.mockResolvedValue({ id: "event-1" });
+    createEventWithResponsibleContactsMock.mockResolvedValue({
+      event: { id: "event-1" },
+      responsibleContacts: [],
+    });
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
 
     const response = await request(app)
@@ -181,13 +204,16 @@ describe("eventsRouter", () => {
         attachments: [{ fileName: "a.jpg", fileUrl: "a.jpg" }],
       });
 
-    expect(createEventMock).toHaveBeenCalledTimes(1);
+    expect(createEventWithResponsibleContactsMock).toHaveBeenCalledTimes(1);
     expect(addEventAttachmentMock).toHaveBeenCalledTimes(1);
     expect(response.status).toBe(201);
   });
 
   it("allows creating a past external event with total value", async () => {
-    createEventMock.mockResolvedValue({ id: "event-1" });
+    createEventWithResponsibleContactsMock.mockResolvedValue({
+      event: { id: "event-1" },
+      responsibleContacts: [],
+    });
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
 
     const response = await request(app)
@@ -202,14 +228,139 @@ describe("eventsRouter", () => {
       });
 
     expect(response.status).toBe(201);
-    expect(createEventMock).toHaveBeenCalledWith(
+    expect(createEventWithResponsibleContactsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         category: "EXTERNO",
         pricingType: "total",
         eventValue: "2500.00",
         pricePerPerson: "2500.00",
       }),
+      [],
+      expect.any(Object),
     );
+  });
+
+  it("creates an external event with multiple responsible contacts", async () => {
+    createEventWithResponsibleContactsMock.mockResolvedValue({
+      event: { id: "event-1" },
+      responsibleContacts: [
+        { id: "client-1", name: "Ana" },
+        { id: "client-2", name: "Bruno" },
+      ],
+    });
+    validateEventResponsibleContactIdsMock.mockResolvedValue(true);
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app)
+      .post("/events")
+      .send({
+        name: "Feira parceira",
+        eventDate: "2020-04-11T18:00",
+        location: "Centro de eventos",
+        category: "EXTERNO",
+        pricingType: "total",
+        eventValue: "2500.00",
+        responsibleContactIds: ["client-1", "client-2"],
+      });
+
+    expect(response.status).toBe(201);
+    expect(validateEventResponsibleContactIdsMock).toHaveBeenCalledWith(
+      ["client-1", "client-2"],
+      "test-user-id",
+      "admin",
+    );
+    expect(createEventWithResponsibleContactsMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      ["client-1", "client-2"],
+      expect.objectContaining({ userId: "test-user-id" }),
+    );
+    expect(response.body.responsibleContacts).toHaveLength(2);
+  });
+
+  it("rejects responsible contacts on non-external events", async () => {
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+    const response = await request(app)
+      .post("/events")
+      .send({
+        name: "Degustação",
+        eventDate: "2099-04-11T18:00",
+        location: "Loja",
+        pricingType: "per_person",
+        eventValue: "150.00",
+        responsibleContactIds: ["client-1"],
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toContain("apenas a eventos externos");
+    expect(createEventWithResponsibleContactsMock).not.toHaveBeenCalled();
+  });
+
+  it("replaces and removes responsible contacts when editing an external event", async () => {
+    getEventByIdMock.mockResolvedValue({
+      id: "event-1",
+      category: "EXTERNO",
+      status: "planejado",
+      eventDate: new Date("2099-04-11T18:00:00.000Z"),
+    });
+    updateEventWithResponsibleContactsMock.mockResolvedValue({
+      event: { id: "event-1" },
+      responsibleContacts: [],
+    });
+    validateEventResponsibleContactIdsMock.mockResolvedValue(true);
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app)
+      .put("/events/event-1")
+      .send({ responsibleContactIds: [] });
+
+    expect(response.status).toBe(200);
+    expect(updateEventWithResponsibleContactsMock).toHaveBeenCalledWith(
+      "event-1",
+      expect.any(Object),
+      [],
+      expect.objectContaining({ userId: "test-user-id" }),
+    );
+  });
+
+  it("clears contacts when an external event changes category", async () => {
+    getEventByIdMock.mockResolvedValue({
+      id: "event-1",
+      category: "EXTERNO",
+      status: "planejado",
+      eventDate: new Date("2099-04-11T18:00:00.000Z"),
+    });
+    updateEventWithResponsibleContactsMock.mockResolvedValue({
+      event: { id: "event-1", category: "Geral" },
+      responsibleContacts: [],
+    });
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app)
+      .put("/events/event-1")
+      .send({ category: "Geral" });
+
+    expect(response.status).toBe(200);
+    expect(updateEventWithResponsibleContactsMock).toHaveBeenCalledWith(
+      "event-1",
+      expect.any(Object),
+      [],
+      expect.objectContaining({ userId: "test-user-id" }),
+    );
+  });
+
+  it("returns current responsible contacts through the dedicated endpoint", async () => {
+    getEventByIdMock.mockResolvedValue({ id: "event-1", category: "EXTERNO" });
+    getEventResponsibleContactsMock.mockResolvedValue([
+      { id: "client-1", name: "Ana", phone: "11999999999", email: null },
+    ]);
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app).get("/events/event-1/responsibles");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([
+      { id: "client-1", name: "Ana", phone: "11999999999", email: null },
+    ]);
   });
 
   it("rejects a past event unless it is external", async () => {
@@ -228,7 +379,7 @@ describe("eventsRouter", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.message).toContain("não pode ser no passado");
-    expect(createEventMock).not.toHaveBeenCalled();
+    expect(createEventWithResponsibleContactsMock).not.toHaveBeenCalled();
   });
 
   it("rejects a deadline after the event date", async () => {
@@ -287,7 +438,7 @@ describe("eventsRouter", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.message).toContain("Planejado ou Ativo");
-    expect(updateEventMock).not.toHaveBeenCalled();
+    expect(updateEventWithResponsibleContactsMock).not.toHaveBeenCalled();
   });
 
   it("allows explicitly reopening a rescheduled finalized event", async () => {
@@ -296,7 +447,10 @@ describe("eventsRouter", () => {
       status: "finalizado",
       eventDate: new Date("2026-08-10T21:00:00.000Z"),
     });
-    updateEventMock.mockResolvedValue({ id: "event-1", status: "planejado" });
+    updateEventWithResponsibleContactsMock.mockResolvedValue({
+      event: { id: "event-1", status: "planejado" },
+      responsibleContacts: [],
+    });
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
 
     const response = await request(app).put("/events/event-1").send({
@@ -305,9 +459,11 @@ describe("eventsRouter", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(updateEventMock).toHaveBeenCalledWith(
+    expect(updateEventWithResponsibleContactsMock).toHaveBeenCalledWith(
       "event-1",
       expect.objectContaining({ status: "planejado" }),
+      [],
+      expect.objectContaining({ userId: "test-user-id" }),
     );
   });
 
@@ -320,7 +476,7 @@ describe("eventsRouter", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(updateEventMock).not.toHaveBeenCalled();
+    expect(updateEventWithResponsibleContactsMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 for DELETE /events/:id when missing", async () => {

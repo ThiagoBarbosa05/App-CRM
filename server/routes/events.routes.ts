@@ -59,6 +59,50 @@ const s3 = new S3Client({
 export const eventsRouter = Router();
 
 const EVENT_PRICING_TYPES = ["per_person", "total"] as const;
+const responsibleContactIdsSchema = z
+  .array(z.string().trim().min(1))
+  .max(50)
+  .refine((ids) => new Set(ids).size === ids.length, {
+    message: "Um responsável não pode ser vinculado mais de uma vez",
+  });
+
+function isExternalEvent(category: string | null | undefined): boolean {
+  return category?.trim().toUpperCase() === "EXTERNO";
+}
+
+function canManageEvent(
+  event: { createdBy: string },
+  user: { userId: string; role?: string } | undefined,
+): boolean {
+  if (!user) return false;
+  return (
+    user.role === "admin" ||
+    user.role === "administrador" ||
+    event.createdBy === user.userId
+  );
+}
+
+async function validateResponsibleContacts(
+  clientIds: string[],
+  category: string | null | undefined,
+  userId: string,
+  userRole?: string,
+): Promise<string | null> {
+  if (clientIds.length > 0 && !isExternalEvent(category)) {
+    return "Responsáveis podem ser vinculados apenas a eventos externos";
+  }
+  if (
+    clientIds.length > 0 &&
+    !(await storage.validateEventResponsibleContactIds(
+      clientIds,
+      userId,
+      userRole,
+    ))
+  ) {
+    return "Um ou mais responsáveis não foram encontrados";
+  }
+  return null;
+}
 
 function normalizePricingData(
   eventData: Record<string, unknown>,
@@ -285,13 +329,30 @@ eventsRouter.post("/", async (req, res) => {
       eventData.maxCapacity = null;
     }
 
-    const { attachments, ...eventDataOnly } = eventData;
+    const { attachments, responsibleContactIds, ...eventDataOnly } = eventData;
+    const parsedResponsibleContactIds = responsibleContactIdsSchema.parse(
+      responsibleContactIds ?? [],
+    );
     const validatedData = insertEventSchema.parse(eventDataOnly);
     const dateError = validateEventDates(validatedData);
     if (dateError) {
       return res.status(400).json({ message: dateError });
     }
-    const event = await storage.createEvent(validatedData);
+    const responsibleContactsError = await validateResponsibleContacts(
+      parsedResponsibleContactIds,
+      validatedData.category,
+      userId,
+      req.user?.role,
+    );
+    if (responsibleContactsError) {
+      return res.status(400).json({ message: responsibleContactsError });
+    }
+    const { event, responsibleContacts } =
+      await storage.createEventWithResponsibleContacts(
+        validatedData,
+        parsedResponsibleContactIds,
+        { userId, userRole: req.user?.role },
+      );
 
     if (attachments && Array.isArray(attachments) && attachments.length > 0) {
       for (const attachment of attachments) {
@@ -305,7 +366,7 @@ eventsRouter.post("/", async (req, res) => {
       }
     }
 
-    return res.status(201).json(event);
+    return res.status(201).json({ ...event, responsibleContacts });
   } catch (error) {
     if (error instanceof z.ZodError) {
       const validationError = fromZodError(error);
@@ -325,6 +386,9 @@ eventsRouter.put("/:id", async (req, res) => {
     const currentEvent = await storage.getEventById(id);
     if (!currentEvent) {
       return res.status(404).json({ message: "Evento não encontrado" });
+    }
+    if (!canManageEvent(currentEvent, req.user)) {
+      return res.status(403).json({ message: "Sem permissão para editar este evento" });
     }
 
     const eventData: Record<string, unknown> = { ...req.body };
@@ -349,7 +413,11 @@ eventsRouter.put("/:id", async (req, res) => {
     if (eventData.maxCapacity === "" || eventData.maxCapacity === undefined) {
       eventData.maxCapacity = null;
     }
-    const { attachments, ...eventDataOnly } = eventData;
+    const { attachments, responsibleContactIds, ...eventDataOnly } = eventData;
+    const parsedResponsibleContactIds =
+      responsibleContactIds === undefined
+        ? undefined
+        : responsibleContactIdsSchema.parse(responsibleContactIds);
     const validatedData = insertEventSchema.partial().parse(eventDataOnly);
     const dateError = validateEventDates(validatedData, currentEvent, {
       enforcePastDate:
@@ -358,6 +426,22 @@ eventsRouter.put("/:id", async (req, res) => {
     });
     if (dateError) {
       return res.status(400).json({ message: dateError });
+    }
+    const nextCategory = validatedData.category ?? currentEvent.category;
+    const shouldClearResponsibleContacts = !isExternalEvent(nextCategory);
+    const nextResponsibleContactIds = shouldClearResponsibleContacts
+      ? []
+      : parsedResponsibleContactIds;
+    if (nextResponsibleContactIds !== undefined) {
+      const responsibleContactsError = await validateResponsibleContacts(
+        nextResponsibleContactIds,
+        nextCategory,
+        req.user!.userId,
+        req.user?.role,
+      );
+      if (responsibleContactsError) {
+        return res.status(400).json({ message: responsibleContactsError });
+      }
     }
 
     const nextEventDate = validatedData.eventDate;
@@ -378,7 +462,12 @@ eventsRouter.put("/:id", async (req, res) => {
       });
     }
 
-    const event = await storage.updateEvent(id, validatedData);
+    const result = await storage.updateEventWithResponsibleContacts(
+      id,
+      validatedData,
+      nextResponsibleContactIds,
+      { userId: req.user!.userId, userRole: req.user?.role },
+    );
 
     if (attachments !== undefined) {
       await storage.deleteEventAttachmentsByEventId(id);
@@ -395,7 +484,10 @@ eventsRouter.put("/:id", async (req, res) => {
       }
     }
 
-    return res.json(event);
+    return res.json({
+      ...result.event,
+      responsibleContacts: result.responsibleContacts,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       const validationError = fromZodError(error);
@@ -417,6 +509,65 @@ eventsRouter.delete("/:id", async (req, res) => {
   } catch (error) {
     console.error("Error deleting event:", error);
     return res.status(500).json({ message: "Erro ao excluir evento" });
+  }
+});
+
+eventsRouter.get("/:id/responsibles", async (req, res) => {
+  try {
+    const event = await storage.getEventById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: "Evento não encontrado" });
+    }
+    if (!canManageEvent(event, req.user)) {
+      return res.status(403).json({ message: "Sem permissão para ver este evento" });
+    }
+    return res.json(await storage.getEventResponsibleContacts(event.id));
+  } catch (error) {
+    console.error("Error fetching event responsible contacts:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao buscar responsáveis do evento" });
+  }
+});
+
+eventsRouter.put("/:id/responsibles", async (req, res) => {
+  try {
+    const event = await storage.getEventById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: "Evento não encontrado" });
+    }
+    if (!canManageEvent(event, req.user)) {
+      return res.status(403).json({ message: "Sem permissão para editar este evento" });
+    }
+    const clientIds = responsibleContactIdsSchema.parse(
+      req.body.responsibleContactIds,
+    );
+    const validationError = await validateResponsibleContacts(
+      clientIds,
+      event.category,
+      req.user!.userId,
+      req.user?.role,
+    );
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
+    }
+    const result = await storage.updateEventWithResponsibleContacts(
+      event.id,
+      {},
+      clientIds,
+      { userId: req.user!.userId, userRole: req.user?.role },
+    );
+    return res.json(result.responsibleContacts);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        message: fromZodError(error).toString(),
+      });
+    }
+    console.error("Error updating event responsible contacts:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao atualizar responsáveis do evento" });
   }
 });
 

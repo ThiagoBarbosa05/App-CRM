@@ -3150,6 +3150,32 @@ export const eventAttachments = pgTable("event_attachments", {
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
 });
 
+// Contatos responsáveis por eventos externos. Esta relação não representa
+// participação ou inscrição no evento: um mesmo contato pode responder por
+// vários eventos e cada evento pode ter mais de um responsável.
+export const eventResponsibleContacts = pgTable(
+  "event_responsible_contacts",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    eventId: varchar("event_id")
+      .references(() => events.id, { onDelete: "cascade" })
+      .notNull(),
+    clientId: varchar("client_id")
+      .references(() => clients.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("event_responsible_contacts_event_client_unique").on(
+      table.eventId,
+      table.clientId,
+    ),
+    index("event_responsible_contacts_client_id_idx").on(table.clientId),
+  ],
+);
+
 // Tabela de participantes dos eventos
 export const eventParticipants = pgTable("event_participants", {
   id: varchar("id")
@@ -3211,6 +3237,7 @@ export const eventsRelations = relations(events, ({ one, many }) => ({
   participants: many(eventParticipants),
   guests: many(eventGuests),
   attachments: many(eventAttachments),
+  responsibleContacts: many(eventResponsibleContacts),
 }));
 
 export const eventAttachmentsRelations = relations(
@@ -3219,6 +3246,20 @@ export const eventAttachmentsRelations = relations(
     event: one(events, {
       fields: [eventAttachments.eventId],
       references: [events.id],
+    }),
+  }),
+);
+
+export const eventResponsibleContactsRelations = relations(
+  eventResponsibleContacts,
+  ({ one }) => ({
+    event: one(events, {
+      fields: [eventResponsibleContacts.eventId],
+      references: [events.id],
+    }),
+    client: one(clients, {
+      fields: [eventResponsibleContacts.clientId],
+      references: [clients.id],
     }),
   }),
 );
@@ -3306,6 +3347,8 @@ export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type Event = typeof events.$inferSelect;
 export type InsertEventAttachment = z.infer<typeof insertEventAttachmentSchema>;
 export type EventAttachment = typeof eventAttachments.$inferSelect;
+export type EventResponsibleContact =
+  typeof eventResponsibleContacts.$inferSelect;
 export type InsertEventParticipant = z.infer<
   typeof insertEventParticipantSchema
 >;

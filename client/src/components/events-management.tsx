@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const LP_BASE_URL = "https://eventos.grandcrub2b.com";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -73,6 +73,7 @@ import {
 } from "@/lib/utils";
 import EventParticipantsModal from "@/components/event-participants-modal";
 import EventsAnalytics from "@/components/events-analytics";
+import ClientFormModal from "@/components/client-form-modal";
 
 interface EventAttachment {
   id?: string;
@@ -80,6 +81,13 @@ interface EventAttachment {
   fileName: string;
   fileUrl: string;
   uploadedAt?: string;
+}
+
+interface ResponsibleContact {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
 }
 
 interface Event {
@@ -108,6 +116,7 @@ interface Event {
   paidParticipants: number;
   pendingParticipants: number;
   attachments?: EventAttachment[];
+  responsibleContacts?: ResponsibleContact[];
 }
 
 interface EventFormData {
@@ -125,6 +134,7 @@ interface EventFormData {
   wineRevenue: string;
   imageUrl?: string | null;
   attachments: EventAttachment[];
+  responsibleContacts: ResponsibleContact[];
 }
 
 function isPdfAttachment(attachment: Pick<EventAttachment, "fileName">) {
@@ -307,6 +317,38 @@ function EventSummaryDialog({
             </div>
           )}
 
+          {event.category === "EXTERNO" &&
+            event.responsibleContacts &&
+            event.responsibleContacts.length > 0 && (
+              <section>
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                  <UserCheckIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                  Responsáveis pelo evento
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {event.responsibleContacts.map((contact) => (
+                    <Link
+                      key={contact.id}
+                      href={`/clientes/${contact.id}`}
+                      className="rounded-lg border border-orange-200 dark:border-orange-900/60 bg-orange-50 dark:bg-orange-950/20 px-3 py-2"
+                      title={`Abrir ficha de ${contact.name}`}
+                    >
+                      <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {contact.name}
+                      </p>
+                      {(contact.phone || contact.email) && (
+                        <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+                          {[contact.phone, contact.email]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
           <section>
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">
               O que foi o evento
@@ -404,6 +446,9 @@ export default function EventsManagement() {
     null,
   );
   const [summaryEvent, setSummaryEvent] = useState<Event | null>(null);
+  const [isCreateResponsibleModalOpen, setIsCreateResponsibleModalOpen] =
+    useState(false);
+  const [responsibleSearch, setResponsibleSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -422,6 +467,7 @@ export default function EventsManagement() {
     wineRevenue: "",
     imageUrl: null,
     attachments: [],
+    responsibleContacts: [],
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -650,9 +696,14 @@ export default function EventsManagement() {
   };
 
   const handleCategoryChange = (category: string) => {
+    if (category !== "EXTERNO") {
+      setResponsibleSearch("");
+    }
     setFormData((prev) => ({
       ...prev,
       category,
+      responsibleContacts:
+        category === "EXTERNO" ? prev.responsibleContacts : [],
       attachments:
         category === "EXTERNO"
           ? prev.attachments
@@ -822,6 +873,33 @@ export default function EventsManagement() {
     queryKey: ["/api/events"],
   });
 
+  const { data: responsibleSearchResults = [], isFetching: isSearchingContacts } =
+    useQuery<ResponsibleContact[]>({
+      queryKey: ["/api/clients", "event-responsibles", responsibleSearch],
+      queryFn: async () => {
+        const params = new URLSearchParams({
+          search: responsibleSearch.trim(),
+          page: "1",
+          pageSize: "10",
+        });
+        const response = await fetch(`/api/clients?${params}`);
+        if (!response.ok) {
+          throw new Error("Não foi possível buscar contatos");
+        }
+        const payload = await response.json();
+        const data = Array.isArray(payload) ? payload : payload.data ?? [];
+        return data.map((client: ResponsibleContact) => ({
+          id: client.id,
+          name: client.name,
+          phone: client.phone ?? null,
+          email: client.email ?? null,
+        }));
+      },
+      enabled:
+        formData.category === "EXTERNO" &&
+        responsibleSearch.trim().length >= 2,
+    });
+
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
       const matchesSearch =
@@ -868,6 +946,9 @@ export default function EventsManagement() {
           eventDate: data.eventDate, // Enviar como string datetime-local
           registrationDeadline: data.registrationDeadline || null,
           attachments: data.attachments, // Incluir attachments
+          responsibleContactIds: data.responsibleContacts.map(
+            (contact) => contact.id,
+          ),
           createdBy: user?.id,
         };
 
@@ -978,6 +1059,9 @@ export default function EventsManagement() {
           eventDate: data.eventDate,
           registrationDeadline: data.registrationDeadline || null,
           attachments: data.attachments,
+          responsibleContactIds: data.responsibleContacts.map(
+            (contact) => contact.id,
+          ),
         }),
         credentials: "include",
       });
@@ -1054,6 +1138,7 @@ export default function EventsManagement() {
       wineRevenue: "",
       imageUrl: null,
       attachments: [],
+      responsibleContacts: [],
     });
     setRemovingAttachments([]);
     setLandingPageSlug("");
@@ -1209,6 +1294,7 @@ export default function EventsManagement() {
       notes: event.notes || "",
       wineRevenue: event.wineRevenue || "",
       attachments: event.attachments || [],
+      responsibleContacts: event.responsibleContacts || [],
     });
   };
 
@@ -2141,6 +2227,31 @@ export default function EventsManagement() {
         isOpen={Boolean(summaryEvent)}
         onClose={() => setSummaryEvent(null)}
       />
+      <ClientFormModal
+        open={isCreateResponsibleModalOpen}
+        onOpenChange={setIsCreateResponsibleModalOpen}
+        onClientCreated={(client) => {
+          const contact: ResponsibleContact = {
+            id: client.id,
+            name: client.name,
+            phone: client.phone ?? null,
+            email: client.email ?? null,
+          };
+          setFormData((prev) => ({
+            ...prev,
+            responsibleContacts: prev.responsibleContacts.some(
+              (selected) => selected.id === contact.id,
+            )
+              ? prev.responsibleContacts
+              : [...prev.responsibleContacts, contact],
+          }));
+          setResponsibleSearch("");
+          toast({
+            title: "Responsável vinculado",
+            description: `${contact.name} foi adicionado ao evento.`,
+          });
+        }}
+      />
 
       {/* Modal de Criação/Edição */}
       <Dialog
@@ -2264,6 +2375,146 @@ export default function EventsManagement() {
                       </div>
                     </div>
                   </div>
+
+                  {formData.category === "EXTERNO" && (
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                            <div className="h-2 w-2 bg-orange-500 rounded-full" />
+                            Responsáveis pelo Evento
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            Vincule um ou mais contatos já cadastrados no CRM.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsCreateResponsibleModalOpen(true)}
+                          className="border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-950/30"
+                        >
+                          <PlusIcon className="mr-1.5 h-4 w-4" />
+                          Novo contato
+                        </Button>
+                      </div>
+
+                      <div>
+                        <Label
+                          htmlFor="event-responsible-search"
+                          className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                        >
+                          Buscar contato
+                        </Label>
+                        <div className="relative mt-2">
+                          <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <Input
+                            id="event-responsible-search"
+                            value={responsibleSearch}
+                            onChange={(event) =>
+                              setResponsibleSearch(event.target.value)
+                            }
+                            placeholder="Nome, telefone ou e-mail"
+                            className="pl-9 border-slate-300 focus:border-orange-400 focus:ring-orange-400 dark:border-slate-600 dark:focus:border-orange-500 bg-white dark:bg-slate-800"
+                          />
+                          {isSearchingContacts && (
+                            <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-orange-500" />
+                          )}
+                        </div>
+
+                        {responsibleSearch.trim().length >= 2 && (
+                          <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                            {responsibleSearchResults.filter(
+                              (contact) =>
+                                !formData.responsibleContacts.some(
+                                  (selected) => selected.id === contact.id,
+                                ),
+                            ).length > 0 ? (
+                              responsibleSearchResults
+                                .filter(
+                                  (contact) =>
+                                    !formData.responsibleContacts.some(
+                                      (selected) =>
+                                        selected.id === contact.id,
+                                    ),
+                                )
+                                .map((contact) => (
+                                  <button
+                                    key={contact.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        responsibleContacts: [
+                                          ...prev.responsibleContacts,
+                                          contact,
+                                        ],
+                                      }));
+                                      setResponsibleSearch("");
+                                    }}
+                                    className="flex w-full flex-col gap-0.5 border-b border-slate-100 px-3 py-2.5 text-left last:border-b-0 hover:bg-orange-50 dark:border-slate-700 dark:hover:bg-orange-950/20"
+                                  >
+                                    <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                                      {contact.name}
+                                    </span>
+                                    {(contact.phone || contact.email) && (
+                                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                                        {[contact.phone, contact.email]
+                                          .filter(Boolean)
+                                          .join(" · ")}
+                                      </span>
+                                    )}
+                                  </button>
+                                ))
+                            ) : (
+                              <p className="px-3 py-3 text-sm text-slate-500 dark:text-slate-400">
+                                {isSearchingContacts
+                                  ? "Buscando contatos..."
+                                  : "Nenhum contato disponível para vincular."}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {formData.responsibleContacts.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 rounded-lg border border-orange-100 bg-orange-50/50 p-3 dark:border-orange-900/40 dark:bg-orange-950/10">
+                          {formData.responsibleContacts.map((contact) => (
+                            <Badge
+                              key={contact.id}
+                              variant="secondary"
+                              className="gap-1.5 bg-white py-1.5 pl-2.5 text-slate-700 shadow-sm dark:bg-slate-800 dark:text-slate-200"
+                            >
+                              <span>{contact.name}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    responsibleContacts:
+                                      prev.responsibleContacts.filter(
+                                        (selected) =>
+                                          selected.id !== contact.id,
+                                      ),
+                                  }))
+                                }
+                                aria-label={`Remover ${contact.name}`}
+                                className="rounded-sm text-slate-400 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                              >
+                                <XIcon className="h-3.5 w-3.5" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-500 dark:border-slate-600 dark:text-slate-400">
+                          Nenhum responsável vinculado. Pesquise um contato ou
+                          cadastre um novo.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Imagem do Evento */}
                   <div className="space-y-4">
