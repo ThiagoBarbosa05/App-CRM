@@ -1868,124 +1868,136 @@ export default function EventsManagement() {
                       {/* Acento lateral esquerdo */}
                       <div className="w-1 flex-shrink-0 bg-gradient-to-b from-orange-500 to-amber-400" />
 
-                      <div className="flex-1 p-4 sm:p-5 min-w-0">
-                        {/* ── HEADER ── */}
-                        <div className="flex items-start gap-3">
-                          {event.imageUrl && (
-                            <div className="w-28 sm:w-36 flex-shrink-0 rounded-lg overflow-hidden ring-1 ring-slate-200 dark:ring-slate-600">
+                      <div
+                        className={`flex-1 min-w-0 ${
+                          event.imageUrl
+                            ? "grid grid-cols-1 sm:grid-cols-[220px_minmax(0,1fr)]"
+                            : ""
+                        }`}
+                      >
+                        {event.imageUrl && (
+                          <div className="p-3 sm:p-4 sm:pr-0">
+                            <div className="h-full min-h-[150px] overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200 dark:bg-slate-700 dark:ring-slate-600">
                               <img
                                 src={event.imageUrl}
                                 alt={event.name}
-                                className="w-full h-auto block group-hover:scale-105 transition-transform duration-300"
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                               />
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <span className="text-xs font-semibold text-orange-500 dark:text-orange-400 uppercase tracking-wider">
-                                  {event.category}
+                          </div>
+                        )}
+
+                        <div
+                          className={`min-w-0 p-4 sm:p-5 ${
+                            event.imageUrl ? "sm:pl-4" : ""
+                          }`}
+                        >
+                          {/* ── HEADER ── */}
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(165px,220px)] md:gap-6">
+                            <div className="min-w-0">
+                              <span className="text-xs font-semibold uppercase tracking-wider text-orange-500 dark:text-orange-400">
+                                {event.category}
+                              </span>
+                              <h3 className="mt-0.5 truncate text-base font-bold leading-tight text-slate-900 dark:text-white sm:text-lg">
+                                {event.name}
+                              </h3>
+
+                              {/* Chips de info */}
+                              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                                <span className="flex items-center gap-1">
+                                  <CalendarIcon className="h-3.5 w-3.5 text-orange-400" />
+                                  {formatEventDateTime(event.eventDate)}
                                 </span>
-                                <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg leading-tight mt-0.5 truncate">
-                                  {event.name}
-                                </h3>
-                              </div>
-                              <div className="flex-shrink-0 mt-0.5 flex flex-col items-end gap-1.5">
-                                {event.landingPageHtmlKey && (
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                    <GlobeIcon className="h-3 w-3" />
-                                    LP
+                                <span className="flex items-center gap-1 truncate">
+                                  <MapPinIcon className="h-3.5 w-3.5 flex-shrink-0 text-orange-400" />
+                                  <span className="truncate" title={event.location}>
+                                    {event.location}
                                   </span>
-                                )}
-                                {getStatusBadge(event.status)}
-                                {event.category === "EXTERNO" &&
-                                  event.responsibleContacts &&
-                                  event.responsibleContacts.length > 0 && (
-                                    <div className="flex max-w-[240px] flex-wrap justify-end gap-1">
-                                      {event.responsibleContacts
-                                        .slice(0, 3)
-                                        .map((contact) => (
-                                          <Link
-                                            key={contact.id}
-                                            href={`/clientes/${contact.id}`}
-                                            onClick={(clickEvent) =>
-                                              clickEvent.stopPropagation()
-                                            }
-                                            title={`Abrir ficha de ${contact.name}`}
-                                            className="inline-flex max-w-[145px] items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-medium text-orange-800 transition-colors hover:border-orange-400 hover:bg-orange-100 dark:border-orange-800/60 dark:bg-orange-950/30 dark:text-orange-200 dark:hover:bg-orange-900/50"
-                                          >
-                                            <UserCheckIcon className="h-3 w-3 shrink-0" />
-                                            <span className="truncate">
-                                              {contact.name}
-                                            </span>
-                                          </Link>
-                                        ))}
-                                      {event.responsibleContacts.length > 3 && (
-                                        <span
-                                          className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500 dark:bg-slate-700/70 dark:text-slate-300"
-                                          title={`${event.responsibleContacts.length - 3} contato(s) adicional(is) vinculado(s)`}
-                                        >
-                                          +{event.responsibleContacts.length - 3}
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
+                                </span>
+                                <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                                  <CircleDollarSignIcon className="h-3.5 w-3.5 text-orange-400" />
+                                  {formatCurrency(getEventValue(event))}{" "}
+                                  {getPricingType(event) === "total"
+                                    ? "total"
+                                    : "/ pessoa"}
+                                </span>
                               </div>
+
+                              {event.landingPageHtmlKey && event.slug && (
+                                <div className="mt-1.5 flex items-center gap-1.5">
+                                  <GlobeIcon className="h-3 w-3 flex-shrink-0 text-emerald-500" />
+                                  <a
+                                    href={`${LP_BASE_URL}/${event.slug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="truncate font-mono text-xs text-emerald-600 hover:underline dark:text-emerald-400"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {LP_BASE_URL}/{event.slug}
+                                  </a>
+                                  <button
+                                    type="button"
+                                    title="Copiar URL"
+                                    className="flex-shrink-0 text-slate-400 transition-colors hover:text-emerald-600"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigator.clipboard.writeText(
+                                        `${LP_BASE_URL}/${event.slug}`,
+                                      );
+                                      toast({ title: "URL copiada!" });
+                                    }}
+                                  >
+                                    <ClipboardCopyIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
 
-                            {/* Chips de info */}
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-slate-500 dark:text-slate-400">
-                              <span className="flex items-center gap-1">
-                                <CalendarIcon className="h-3.5 w-3.5 text-orange-400" />
-                                {formatEventDateTime(event.eventDate)}
-                              </span>
-                              <span className="flex items-center gap-1 truncate">
-                                <MapPinIcon className="h-3.5 w-3.5 text-orange-400 flex-shrink-0" />
-                                <span
-                                  className="truncate"
-                                  title={event.location}
-                                >
-                                  {event.location}
+                            <div className="flex flex-wrap content-start items-start justify-start gap-1.5 md:justify-end">
+                              {event.landingPageHtmlKey && (
+                                <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                  <GlobeIcon className="h-3 w-3" />
+                                  LP
                                 </span>
-                              </span>
-                              <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-                                <CircleDollarSignIcon className="h-3.5 w-3.5 text-orange-400" />
-                                {formatCurrency(getEventValue(event))}{" "}
-                                {getPricingType(event) === "total"
-                                  ? "total"
-                                  : "/ pessoa"}
-                              </span>
+                              )}
+                              {getStatusBadge(event.status)}
+                              {event.category === "EXTERNO" &&
+                                event.responsibleContacts &&
+                                event.responsibleContacts.length > 0 && (
+                                  <div className="flex w-full flex-wrap justify-start gap-1 md:justify-end">
+                                    <span className="w-full text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                                      Responsáveis
+                                    </span>
+                                    {event.responsibleContacts
+                                      .slice(0, 3)
+                                      .map((contact) => (
+                                        <Link
+                                          key={contact.id}
+                                          href={`/clientes/${contact.id}`}
+                                          onClick={(clickEvent) =>
+                                            clickEvent.stopPropagation()
+                                          }
+                                          title={`Abrir ficha de ${contact.name}`}
+                                          className="inline-flex max-w-[145px] items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-1 text-[11px] font-medium text-orange-800 transition-colors hover:border-orange-400 hover:bg-orange-100 dark:border-orange-800/60 dark:bg-orange-950/30 dark:text-orange-200 dark:hover:bg-orange-900/50"
+                                        >
+                                          <UserCheckIcon className="h-3 w-3 shrink-0" />
+                                          <span className="truncate">
+                                            {contact.name}
+                                          </span>
+                                        </Link>
+                                      ))}
+                                    {event.responsibleContacts.length > 3 && (
+                                      <span
+                                        className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500 dark:bg-slate-700/70 dark:text-slate-300"
+                                        title={`${event.responsibleContacts.length - 3} contato(s) adicional(is) vinculado(s)`}
+                                      >
+                                        +{event.responsibleContacts.length - 3}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                             </div>
-                            {event.landingPageHtmlKey && event.slug && (
-                              <div className="flex items-center gap-1.5 mt-1.5">
-                                <GlobeIcon className="h-3 w-3 text-emerald-500 flex-shrink-0" />
-                                <a
-                                  href={`${LP_BASE_URL}/${event.slug}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs font-mono text-emerald-600 dark:text-emerald-400 hover:underline truncate"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {LP_BASE_URL}/{event.slug}
-                                </a>
-                                <button
-                                  type="button"
-                                  title="Copiar URL"
-                                  className="flex-shrink-0 text-slate-400 hover:text-emerald-600 transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigator.clipboard.writeText(
-                                      `${LP_BASE_URL}/${event.slug}`,
-                                    );
-                                    toast({ title: "URL copiada!" });
-                                  }}
-                                >
-                                  <ClipboardCopyIcon className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            )}
                           </div>
-                        </div>
 
                         {/* ── PARTICIPANTES ── */}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -2191,6 +2203,7 @@ export default function EventsManagement() {
                         </div>
                       </div>
                     </div>
+                  </div>
                   ))}
 
                   {/* Paginação moderna */}
