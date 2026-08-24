@@ -19,6 +19,11 @@ import { invalidateCachedPage } from "../lib/landing-page-cache";
 import { optimizeHtml } from "../lib/html-optimizer";
 import { nanoid } from "nanoid";
 import { startOfTodayInSaoPaulo } from "@shared/sao-paulo-date";
+import {
+  getEventsReport,
+  isIsoDate,
+} from "../services/events-report.service";
+import { buildEventsReportPdf } from "../lib/events-report-pdf";
 
 const LP_PUBLIC_DOMAIN = "https://eventos.grandcrub2b.com";
 
@@ -847,6 +852,87 @@ eventsRouter.get("/analytics", async (req, res) => {
     return res
       .status(500)
       .json({ message: "Erro ao buscar análises de eventos" });
+  }
+});
+
+// ─── Relatório de eventos por período ──────────────────────────────────────────
+
+/** Teto do intervalo: acima disso o PDF passa de centenas de páginas. */
+const MAX_REPORT_DAYS = 366 * 2;
+
+const reportRangeSchema = z
+  .object({
+    from: z.string().refine(isIsoDate, "Data inicial inválida"),
+    to: z.string().refine(isIsoDate, "Data final inválida"),
+  })
+  .refine((v) => v.from <= v.to, {
+    message: "A data inicial não pode ser posterior à data final",
+  })
+  .refine(
+    (v) =>
+      (Date.parse(`${v.to}T00:00:00Z`) - Date.parse(`${v.from}T00:00:00Z`)) /
+        86_400_000 <=
+      MAX_REPORT_DAYS,
+    { message: "O período do relatório não pode passar de 2 anos" },
+  );
+
+function parseReportRange(query: unknown):
+  | { ok: true; from: string; to: string }
+  | { ok: false; message: string } {
+  const parsed = reportRangeSchema.safeParse(query);
+  if (!parsed.success) {
+    return { ok: false, message: fromZodError(parsed.error).toString() };
+  }
+  return { ok: true, ...parsed.data };
+}
+
+// GET /api/events/report?from=YYYY-MM-DD&to=YYYY-MM-DD — dados consolidados
+eventsRouter.get("/report", async (req, res) => {
+  const range = parseReportRange(req.query);
+  if (!range.ok) {
+    return res.status(400).json({ message: range.message });
+  }
+  try {
+    return res.json(
+      await getEventsReport(range.from, range.to, {
+        userId: req.user?.userId,
+        userRole: req.user?.role,
+      }),
+    );
+  } catch (error) {
+    console.error("Error building events report:", error);
+    return res
+      .status(500)
+      .json({ message: "Erro ao gerar relatório de eventos" });
+  }
+});
+
+// GET /api/events/report/pdf?from=YYYY-MM-DD&to=YYYY-MM-DD — mesmo dado em PDF
+eventsRouter.get("/report/pdf", async (req, res) => {
+  const range = parseReportRange(req.query);
+  if (!range.ok) {
+    return res.status(400).json({ message: range.message });
+  }
+  try {
+    // Busca antes de abrir o stream: depois do primeiro byte não dá mais para
+    // devolver um 500 em JSON.
+    const data = await getEventsReport(range.from, range.to, {
+      userId: req.user?.userId,
+      userRole: req.user?.role,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="relatorio-eventos-${range.from}_${range.to}.pdf"`,
+    );
+    buildEventsReportPdf(data, res);
+    return;
+  } catch (error) {
+    console.error("Error building events report PDF:", error);
+    if (res.headersSent) return res.end();
+    return res
+      .status(500)
+      .json({ message: "Erro ao gerar relatório de eventos em PDF" });
   }
 });
 

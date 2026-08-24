@@ -24,6 +24,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import EventsMonthlyReport from "@/components/events-monthly-report";
 import { formatCurrency } from "@/lib/utils";
 
 interface AnalyticsData {
@@ -108,6 +109,20 @@ function ClickableYAxisTick({ x, y, payload, clients, onNavigate }: any) {
 }
 
 export default function EventsAnalytics() {
+  return (
+    <div className="space-y-6">
+      <EventsMonthlyReport />
+      <AnalyticsCharts />
+    </div>
+  );
+}
+
+/**
+ * Gráficos consolidados de todo o histórico. Fica separado do setor mensal para
+ * que uma falha em `/api/events/analytics` não derrube a listagem do mês nem o
+ * botão de relatório.
+ */
+function AnalyticsCharts() {
   const [, navigate] = useLocation();
   const { data, isLoading, isError } = useQuery<AnalyticsData>({
     queryKey: ["/api/events/analytics"],

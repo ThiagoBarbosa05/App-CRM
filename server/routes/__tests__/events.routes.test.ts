@@ -48,6 +48,25 @@ const {
   s3SendMock: vi.fn(),
 }));
 
+const { getEventsReportMock } = vi.hoisted(() => ({
+  getEventsReportMock: vi.fn(),
+}));
+
+// Sem isto o `importOriginal` abaixo carrega o serviço de verdade, que abre o
+// pool do Neon só para o teste de rota.
+vi.mock("../../db", () => ({
+  db: { execute: vi.fn() },
+  pool: { connect: vi.fn() },
+}));
+
+// Só a consulta é dublada: `isIsoDate` continua o de verdade porque as rotas o
+// usam para validar o período, e é isso que estes testes exercitam.
+vi.mock("../../services/events-report.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../services/events-report.service")>();
+  return { ...actual, getEventsReport: getEventsReportMock };
+});
+
 vi.mock("../../storage", () => ({
   storage: {
     getEvents: getEventsMock,
@@ -102,6 +121,7 @@ describe("eventsRouter", () => {
     validateEventResponsibleContactIdsMock.mockReset();
     replaceEventResponsibleContactsMock.mockReset();
     s3SendMock.mockReset();
+    getEventsReportMock.mockReset();
   });
 
   it("keeps GET /events with user filtering from jwt", async () => {
@@ -500,5 +520,125 @@ describe("eventsRouter", () => {
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
     const response = await request(app).post("/events/event-1/attachments").send({});
     expect(response.status).toBe(400);
+  });
+
+  describe("relatório por período", () => {
+    const emptyReport = {
+      from: "2026-08-01",
+      to: "2026-08-31",
+      events: [],
+      totals: {
+        eventCount: 0,
+        cancelledCount: 0,
+        participantCount: 0,
+        attendedCount: 0,
+        eventRevenue: 0,
+        wineRevenue: 0,
+        totalRevenue: 0,
+        avgOccupancyPct: null,
+      },
+    };
+
+    it("GET /events/report devolve os dados do período", async () => {
+      getEventsReportMock.mockResolvedValue(emptyReport);
+      const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+      const response = await request(app).get(
+        "/events/report?from=2026-08-01&to=2026-08-31",
+      );
+
+      expect(getEventsReportMock).toHaveBeenCalledWith(
+        "2026-08-01",
+        "2026-08-31",
+        { userId: "test-user-id", userRole: "admin" },
+      );
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(emptyReport);
+    });
+
+    it("GET /events/report exige from e to", async () => {
+      const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+      const response = await request(app).get("/events/report");
+
+      expect(response.status).toBe(400);
+      expect(getEventsReportMock).not.toHaveBeenCalled();
+    });
+
+    it("GET /events/report recusa data inicial depois da final", async () => {
+      const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+      const response = await request(app).get(
+        "/events/report?from=2026-08-31&to=2026-08-01",
+      );
+
+      expect(response.status).toBe(400);
+      expect(getEventsReportMock).not.toHaveBeenCalled();
+    });
+
+    it("GET /events/report recusa período maior que 2 anos", async () => {
+      const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+      const response = await request(app).get(
+        "/events/report?from=2020-01-01&to=2026-01-01",
+      );
+
+      expect(response.status).toBe(400);
+      expect(getEventsReportMock).not.toHaveBeenCalled();
+    });
+
+    it("GET /events/report/pdf devolve um PDF anexado", async () => {
+      getEventsReportMock.mockResolvedValue({
+        ...emptyReport,
+        events: [
+          {
+            id: "event-1",
+            name: "Degustação de Bordeaux",
+            date: "2026-08-14",
+            time: "19:30",
+            location: "Loja Jardins",
+            category: "Geral",
+            status: "finalizado",
+            statusLabel: "Finalizado",
+            pricingType: "per_person",
+            eventValue: 150,
+            maxCapacity: 20,
+            participantCount: 15,
+            attendedCount: 13,
+            occupancyPct: 75,
+            eventRevenue: 2250,
+            wineRevenue: 800,
+            totalRevenue: 3050,
+          },
+        ],
+        totals: { ...emptyReport.totals, eventCount: 1, totalRevenue: 3050 },
+      });
+      const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+      const response = await request(app)
+        .get("/events/report/pdf?from=2026-08-01&to=2026-08-31")
+        .buffer()
+        .parse((res, callback) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk: Buffer) => chunks.push(chunk));
+          res.on("end", () => callback(null, Buffer.concat(chunks)));
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.headers["content-type"]).toBe("application/pdf");
+      expect(response.headers["content-disposition"]).toContain(
+        "relatorio-eventos-2026-08-01_2026-08-31.pdf",
+      );
+      expect(response.body.subarray(0, 4).toString()).toBe("%PDF");
+    });
+
+    it("GET /events/report/pdf valida o período antes de consultar", async () => {
+      const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+      const response = await request(app).get("/events/report/pdf?from=ontem");
+
+      expect(response.status).toBe(400);
+      expect(getEventsReportMock).not.toHaveBeenCalled();
+    });
   });
 });
