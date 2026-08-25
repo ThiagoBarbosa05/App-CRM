@@ -67,7 +67,9 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { getSellerWhatsappEntryRoute } from "@/lib/whatsapp-entry-route";
 import type { WhatsappSector } from "@shared/schema";
+import { Redirect } from "wouter";
 
 interface User {
   id: string;
@@ -1240,7 +1242,7 @@ export default function WhatsAppChannelsPage() {
   const { user } = useAuth();
   const isVendedor = user?.role === "vendedor";
 
-  const { data: qrAccess } = useQuery<{ channelIds: number[] }>({
+  const { data: qrAccess, isLoading: qrAccessLoading } = useQuery<{ channelIds: number[] }>({
     queryKey: ["/api/users", user?.id, "whatsapp-qr-access"],
     queryFn: async () => {
       const res = await fetch(`/api/users/${user!.id}/whatsapp-qr-access`);
@@ -1319,7 +1321,14 @@ export default function WhatsAppChannelsPage() {
     ? channels.filter((c) => c.userId === user.id || qrAccessChannelIds.has(c.id))
     : channels;
 
-  if (channelsLoading) return <PageSkeleton />;
+  if (channelsLoading || (isVendedor && qrAccessLoading)) return <PageSkeleton />;
+
+  if (
+    isVendedor &&
+    getSellerWhatsappEntryRoute(myChannels) === "/whatsapp/conversas"
+  ) {
+    return <Redirect to="/whatsapp/conversas" />;
+  }
 
   if (isVendedor) {
     return (

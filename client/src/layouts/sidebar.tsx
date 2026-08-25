@@ -5,7 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
+import type { WhatsappChannel } from "@/hooks/use-whatsapp";
 import { cn, userInitials } from "@/lib/utils";
+import { getSellerWhatsappEntryRoute } from "@/lib/whatsapp-entry-route";
+import { useQuery } from "@tanstack/react-query";
 import {
   Calculator,
   Camera,
@@ -163,6 +166,17 @@ export function AppSidebar({
   onToggleCollapse,
 }: AppSidebarProps) {
   const { user, logout } = useAuth();
+  const isSeller = user?.role === "vendedor";
+  const { data: sellerWhatsappChannels = [] } = useQuery<WhatsappChannel[]>({
+    queryKey: ["/api/whatsapp/channels/mine"],
+    queryFn: async () => {
+      const response = await fetch("/api/whatsapp/channels/mine");
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: isSeller,
+  });
+  const sellerWhatsappEntryRoute = getSellerWhatsappEntryRoute(sellerWhatsappChannels);
   const [location] = useLocation();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -282,14 +296,18 @@ export function AppSidebar({
           )
             return null;
 
+          const href =
+            isSeller && item.href === "/whatsapp/canais"
+              ? sellerWhatsappEntryRoute
+              : item.href;
           const isActive =
-            location === item.href ||
+            location === href ||
             location.startsWith(
-              item.activeBasePath ? item.activeBasePath : `${item.href}/`,
+              item.activeBasePath ? item.activeBasePath : `${href}/`,
             );
 
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={href}>
               <button
                 onClick={closeMobileMenu}
                 title={collapsed ? item.label : undefined}
