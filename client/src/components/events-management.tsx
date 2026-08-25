@@ -1227,28 +1227,6 @@ export default function EventsManagement() {
       ? new Date(formData.eventDate + ":00-03:00")
       : new Date();
 
-    // Validar se a data do evento não é no passado (apenas na criação, com campos preenchidos)
-    if (!editingEvent && !skipDetailValidation) {
-      const now = new Date();
-      const nowInBrasilia = new Date(
-        now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }),
-      );
-      nowInBrasilia.setHours(0, 0, 0, 0);
-
-      if (
-        formData.category !== "EXTERNO" &&
-        eventDate < nowInBrasilia
-      ) {
-        toast({
-          title: "Erro",
-          description:
-            "A data do evento não pode ser no passado para esta categoria",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
     // Validar se o prazo de inscrição não é após a data do evento
     if (formData.registrationDeadline) {
       const deadline = new Date(formData.registrationDeadline + ":00-03:00");

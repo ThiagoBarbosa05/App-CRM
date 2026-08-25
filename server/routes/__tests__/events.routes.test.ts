@@ -430,7 +430,11 @@ describe("eventsRouter", () => {
     ]);
   });
 
-  it("rejects a past event unless it is external", async () => {
+  it("allows creating a past event for any category", async () => {
+    createEventWithResponsibleContactsMock.mockResolvedValue({
+      event: { id: "event-1" },
+      responsibleContacts: [],
+    });
     const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
 
     const response = await request(app)
@@ -444,9 +448,41 @@ describe("eventsRouter", () => {
         eventValue: "150.00",
       });
 
-    expect(response.status).toBe(400);
-    expect(response.body.message).toContain("não pode ser no passado");
-    expect(createEventWithResponsibleContactsMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(201);
+    expect(createEventWithResponsibleContactsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "Degustação",
+        eventDate: expect.any(Date),
+      }),
+      [],
+      expect.any(Object),
+    );
+  });
+
+  it("allows updating an event to a past date", async () => {
+    getEventByIdMock.mockResolvedValue({
+      id: "event-1",
+      category: "Degustação",
+      status: "planejado",
+      eventDate: new Date("2099-04-11T18:00:00.000Z"),
+    });
+    updateEventWithResponsibleContactsMock.mockResolvedValue({
+      event: { id: "event-1", eventDate: new Date("2020-04-11T21:00:00.000Z") },
+      responsibleContacts: [],
+    });
+    const app = createRouteTestApp({ router: eventsRouter, basePath: "/events" });
+
+    const response = await request(app)
+      .put("/events/event-1")
+      .send({ eventDate: "2020-04-11T18:00" });
+
+    expect(response.status).toBe(200);
+    expect(updateEventWithResponsibleContactsMock).toHaveBeenCalledWith(
+      "event-1",
+      expect.objectContaining({ eventDate: expect.any(Date) }),
+      [],
+      expect.objectContaining({ userId: "test-user-id" }),
+    );
   });
 
   it("rejects a deadline after the event date", async () => {

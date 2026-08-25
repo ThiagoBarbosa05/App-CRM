@@ -213,9 +213,7 @@ function validateEventDates(
     eventDate: Date;
     registrationDeadline?: Date | null;
   } | null,
-  options: { enforcePastDate?: boolean } = {},
 ): string | null {
-  const category = eventData.category ?? currentEvent?.category ?? "Geral";
   const eventDate = eventData.eventDate ?? currentEvent?.eventDate;
   const registrationDeadline =
     eventData.registrationDeadline === undefined
@@ -224,15 +222,6 @@ function validateEventDates(
 
   if (!eventDate || Number.isNaN(eventDate.getTime())) {
     return "Data do evento é obrigatória";
-  }
-
-  const isExternal = category.trim().toUpperCase() === "EXTERNO";
-  if (
-    options.enforcePastDate !== false &&
-    !isExternal &&
-    eventDate < startOfTodayInSaoPaulo()
-  ) {
-    return "A data do evento não pode ser no passado para esta categoria";
   }
 
   if (
@@ -459,11 +448,7 @@ eventsRouter.put("/:id", async (req, res) => {
         ? undefined
         : responsibleContactIdsSchema.parse(responsibleContactIds);
     const validatedData = insertEventSchema.partial().parse(eventDataOnly);
-    const dateError = validateEventDates(validatedData, currentEvent, {
-      enforcePastDate:
-        validatedData.eventDate !== undefined ||
-        validatedData.category !== undefined,
-    });
+    const dateError = validateEventDates(validatedData, currentEvent);
     if (dateError) {
       return res.status(400).json({ message: dateError });
     }
