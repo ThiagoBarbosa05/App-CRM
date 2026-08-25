@@ -198,6 +198,7 @@ export interface ChatClient {
   lastMessageContent?: string | null;
   lastMessageDirection?: "inbound" | "outbound" | null;
   lastMessageType?: string | null;
+  lastMessageIsReply?: boolean;
   unreadCount?: number | null;
   channelId?: number | null;
   channelName?: string | null;
@@ -1518,9 +1519,9 @@ function ClientListItem({
 
           {/* Linha 2: última mensagem */}
           {client.lastMessageContent ? (
-            <p
+            <div
               className={cn(
-                "text-xs leading-5 truncate mt-0.5",
+                "text-xs leading-5 truncate mt-0.5 flex items-center min-w-0",
                 hasUnread && !selected
                   ? "text-slate-700 dark:text-slate-200 font-medium"
                   : "text-slate-600 dark:text-slate-400",
@@ -1529,12 +1530,18 @@ function ClientListItem({
             >
               {client.lastMessageDirection === "outbound" &&
                 client.lastMessageType !== "system" && (
-                  <span className="text-slate-500 dark:text-slate-500 font-medium mr-0.5">
+                  <span className="text-slate-500 dark:text-slate-500 font-medium mr-1 shrink-0">
                     Você:
                   </span>
-                )}{" "}
-              {client.lastMessageContent}
-            </p>
+                )}
+              {client.lastMessageIsReply && (
+                <Reply
+                  className="h-3 w-3 mr-1 shrink-0 text-primary/70"
+                  aria-label="Resposta"
+                />
+              )}
+              <span className="truncate">{client.lastMessageContent}</span>
+            </div>
           ) : (
             <p className="text-xs leading-5 mt-0.5 text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
               <Phone className="h-3 w-3 shrink-0" />
@@ -5242,28 +5249,31 @@ function ConversationMessages({
                           msg.replyToContent !== undefined ? (
                             <div
                               className={cn(
-                                "rounded-lg px-2.5 py-1.5 mb-2 border-l-[3px]",
+                                "rounded-lg px-2.5 py-2 mb-2 border-l-[3px] min-w-0",
                                 isMedia ? "mx-3.5 mt-2.5" : "",
                                 isOutbound
-                                  ? "bg-primary-foreground/10 border-primary-foreground/50"
+                                  ? "bg-black/10 border-primary-foreground/60"
                                   : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
                               )}
                             >
                               <p
                                 className={cn(
-                                  "text-[11px] font-semibold mb-0.5",
+                                  "text-[11px] font-semibold mb-1 flex items-center gap-1",
                                   isOutbound
                                     ? "text-primary-foreground/80"
                                     : "text-slate-600 dark:text-slate-300",
                                 )}
                               >
-                                {msg.replyToDirection === "outbound"
-                                  ? "Você"
-                                  : (client.clientName ?? client.contactName ?? client.phone)}
+                                <Reply className="h-3 w-3 shrink-0" />
+                                <span>
+                                  Em resposta a {msg.replyToDirection === "outbound"
+                                    ? "você"
+                                    : (client.clientName ?? client.contactName ?? client.phone)}
+                                </span>
                               </p>
                               <p
                                 className={cn(
-                                  "text-xs truncate",
+                                  "text-xs leading-4 line-clamp-2 whitespace-pre-line break-words",
                                   isOutbound
                                     ? "text-primary-foreground/70"
                                     : "text-slate-500 dark:text-slate-400",

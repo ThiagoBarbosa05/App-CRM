@@ -42,6 +42,7 @@ import { remuxWebmOpusToOgg } from "../lib/webm-opus-to-ogg";
 import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
 import { SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES } from "../lib/whatsapp-message-status";
 import { inspectWebpSticker } from "../lib/webp-sticker";
+import { normalizeWhatsappReplyPresentation } from "@shared/whatsapp-flattened-reply";
 
 // Reexportado do util compartilhado para não quebrar imports existentes
 // (whatsapp-opt-out.service.ts, bot-session-history.controller.ts).
@@ -1311,6 +1312,10 @@ export async function listClientsForChat(
         `.as("last_content"),
         lastDirection: whatsappMessages.direction,
         lastType: whatsappMessages.type,
+        lastReplyToMessageId: whatsappMessages.replyToMessageId,
+        lastReplyToContent: whatsappMessages.replyToContentSnapshot,
+        lastReplyToType: whatsappMessages.replyToTypeSnapshot,
+        lastReplyToDirection: whatsappMessages.replyToDirectionSnapshot,
       })
       .from(whatsappMessages)
       .orderBy(whatsappMessages.conversationId, desc(effectiveAt)),
@@ -1534,6 +1539,10 @@ export async function listClientsForChat(
       lastMessageContent: lastMsgSub.lastContent,
       lastMessageDirection: lastMsgSub.lastDirection,
       lastMessageType: lastMsgSub.lastType,
+      lastReplyToMessageId: lastMsgSub.lastReplyToMessageId,
+      lastReplyToContent: lastMsgSub.lastReplyToContent,
+      lastReplyToType: lastMsgSub.lastReplyToType,
+      lastReplyToDirection: lastMsgSub.lastReplyToDirection,
       unreadCount: sql<number>`coalesce(${unreadSub.unreadCount}, 0)`,
       channelId: whatsappConversations.channelId,
       channelName: whatsappChannels.name,
@@ -1729,8 +1738,25 @@ export async function listClientsForChat(
   // contagem de não-lidas relativa ao leitor).
   return {
     items: pageRows.flatMap((row) => {
+      const {
+        lastReplyToMessageId,
+        lastReplyToContent,
+        lastReplyToType,
+        lastReplyToDirection,
+        ...publicRow
+      } = row;
+      const normalizeLastMessage = (
+        direction: "inbound" | "outbound" | null,
+      ) => normalizeWhatsappReplyPresentation({
+        content: row.lastMessageContent,
+        direction: direction ?? "inbound",
+        replyToMessageId: lastReplyToMessageId,
+        replyToContent: lastReplyToContent,
+        replyToType: lastReplyToType,
+        replyToDirection: lastReplyToDirection,
+      });
       const base = {
-        ...row,
+        ...publicRow,
         perspectiveChannelId: null as number | null,
         tags: row.clientId ? (tagsByClient.get(row.clientId) ?? []) : [],
         whatsappTags: row.clientId ? (whatsappTagsByClient.get(row.clientId) ?? []) : [],
@@ -1747,13 +1773,17 @@ export async function listClientsForChat(
           perspectiveStatus: "open" | "closed",
         ) => {
           const viewerIsPeer = viewerIsPeerSide(row, [perspectiveChannelId]);
+          const lastMessageDirection = row.lastMessageDirection
+            ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
+            : row.lastMessageDirection;
+          const lastMessage = normalizeLastMessage(lastMessageDirection);
           return {
             ...base,
             perspectiveChannelId,
             contactName: internalPeerLabel(row, [perspectiveChannelId]) ?? row.contactName,
-            lastMessageDirection: row.lastMessageDirection
-              ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
-              : row.lastMessageDirection,
+            lastMessageDirection,
+            lastMessageContent: lastMessage.content,
+            lastMessageIsReply: lastMessage.isReply,
             unreadCount,
             status: perspectiveStatus,
           };
@@ -1766,6 +1796,10 @@ export async function listClientsForChat(
 
       // Demais casos: um item, perspectiva derivada do leitor logado (como hoje).
       const viewerIsPeer = viewerIsPeerSide(row, viewerChannelIds);
+      const lastMessageDirection = row.lastMessageDirection
+        ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
+        : row.lastMessageDirection;
+      const lastMessage = normalizeLastMessage(lastMessageDirection);
       return [
         {
           ...base,
@@ -1776,9 +1810,9 @@ export async function listClientsForChat(
                 ? row.peerPerspectiveStatus
                 : row.ownerPerspectiveStatus,
           contactName: internalPeerLabel(row, viewerChannelIds) ?? row.contactName,
-          lastMessageDirection: row.lastMessageDirection
-            ? directionForViewer(row.lastMessageDirection, viewerIsPeer)
-            : row.lastMessageDirection,
+          lastMessageDirection,
+          lastMessageContent: lastMessage.content,
+          lastMessageIsReply: lastMessage.isReply,
         },
       ];
     }),
@@ -1970,15 +2004,26 @@ export async function getConversation(
       replyToDirectionSnapshot,
       ...message
     } = m;
+    const direction = directionForViewer(m.direction as "inbound" | "outbound", viewerIsPeer);
     const replyDirection = m.replyToDirection ?? replyToDirectionSnapshot;
-    return {
-      ...message,
+    const normalizedReply = normalizeWhatsappReplyPresentation({
+      content: m.content,
+      direction,
+      replyToMessageId: m.replyToMessageId,
       replyToContent: m.replyToContent ?? replyToContentSnapshot,
       replyToType: m.replyToType ?? replyToTypeSnapshot,
-      direction: directionForViewer(m.direction as "inbound" | "outbound", viewerIsPeer),
       replyToDirection: replyDirection
         ? directionForViewer(replyDirection as "inbound" | "outbound", viewerIsPeer)
         : null,
+    });
+    return {
+      ...message,
+      content: normalizedReply.content,
+      replyToMessageId: normalizedReply.replyToMessageId,
+      replyToContent: normalizedReply.replyToContent,
+      replyToType: normalizedReply.replyToType,
+      direction,
+      replyToDirection: normalizedReply.replyToDirection,
       reactions: (reactionsByMessage.get(m.id) ?? []).map((r) => ({
         ...r,
         direction: directionForViewer(r.direction, viewerIsPeer),

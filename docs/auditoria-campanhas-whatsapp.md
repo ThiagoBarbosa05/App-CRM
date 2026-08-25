@@ -73,13 +73,13 @@ Isso impede duplicidade entre instâncias, mas uma campanha lenta atrasa todas a
 
 **Correção necessária:** substituir o lock global por claim/lease atômico por mensagem ou campanha, usando `FOR UPDATE SKIP LOCKED`. Permitir concorrência limitada e configurável por canal, sem processar a mesma mensagem em duas instâncias. -->
 
-### 8. P1 — Preview faz uma consulta de dedupe por contato
+<!-- ### 8. P1 — Preview faz uma consulta de dedupe por contato
 
 O preview chama `findConflict()` sequencialmente para cada cliente em [`whatsapp.routes.ts`](../server/routes/whatsapp.routes.ts). Audiências grandes podem produzir milhares de consultas e timeout.
 
 O trabalho de audiência, fingerprint e dedupe ainda é repetido na criação.
 
-**Correção necessária:** consultar conflitos em lote por CTE ou tabela temporária. Quando possível, reutilizar na criação um preview persistido e versionado, revalidando apenas alterações concorrentes antes do commit.
+**Correção necessária:** consultar conflitos em lote por CTE ou tabela temporária. Quando possível, reutilizar na criação um preview persistido e versionado, revalidando apenas alterações concorrentes antes do commit. -->
 
 ### 9. P2 — Enfileiramento continua serial
 

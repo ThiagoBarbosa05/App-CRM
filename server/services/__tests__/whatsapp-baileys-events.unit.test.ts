@@ -135,6 +135,40 @@ describe("eventos de interação do dispositivo", () => {
       _fromMe: true,
     }));
   });
+
+  it("normaliza uma resposta achatada enviada pelo dispositivo", async () => {
+    const flattenedText = "_Em resposta à: De R$ 1.399,90 por R$ 839.9..._:\n\n5 grfs";
+
+    await handleMessagesUpsert("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: true,
+        id: "resposta-achatada-1",
+      },
+      message: {
+        extendedTextMessage: {
+          text: flattenedText,
+          contextInfo: {
+            isForwarded: false,
+            forwardingScore: 0,
+          },
+        },
+      },
+      messageTimestamp: 1_700_000_000,
+    });
+
+    expect(saveInboundMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      content: "5 grfs",
+      replyToContentSnapshot: "De R$ 1.399,90 por R$ 839.9...",
+      replyToTypeSnapshot: "text",
+      replyToDirectionSnapshot: "inbound",
+      rawPayload: expect.objectContaining({
+        message: expect.objectContaining({
+          extendedTextMessage: expect.objectContaining({ text: flattenedText }),
+        }),
+      }),
+    }));
+  });
 });
 
 describe("extractQuotedMessageSnapshot", () => {

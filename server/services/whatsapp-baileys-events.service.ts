@@ -17,6 +17,7 @@ import {
   type ChannelConnectionStatus,
 } from "./baileys/connection-status.service";
 import { applyCampaignDeliveryStatus } from "./whatsapp-campaign-status.service";
+import { parseWhatsappFlattenedReply } from "@shared/whatsapp-flattened-reply";
 
 export function extractQuotedMessageSnapshot(message: Record<string, unknown> | undefined): {
   content: string | null;
@@ -142,6 +143,13 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     ((msgContent.extendedTextMessage as Record<string, unknown> | undefined)?.text as string | undefined) ??
     (contentNode?.caption as string | undefined) ??
     null;
+  const flattenedReply = quotedSnapshot ? null : parseWhatsappFlattenedReply(text);
+  const effectiveQuotedContent = quotedSnapshot?.content ?? flattenedReply?.quotedContent;
+  const effectiveQuotedType = quotedSnapshot?.type ?? (flattenedReply ? "text" : undefined);
+  const effectiveQuotedDirection = quotedDirection ?? (flattenedReply
+    ? fromMe ? "inbound" : "outbound"
+    : undefined);
+  const effectiveText = flattenedReply?.content ?? text;
 
   // Tipo de mensagem
   let type = "text";
@@ -154,7 +162,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   // Ignora mensagens de protocolo/sync (distribuição de chaves, app-state, etc.)
   // que o WhatsApp envia em rajada ao parear via QR — elas serializam vazias e
   // seriam salvas como "[text]" em massa.
-  if (!text && type === "text" && !msg._baileysMedia) return;
+  if (!effectiveText && type === "text" && !msg._baileysMedia) return;
 
   const timestamp = msg.messageTimestamp
     ? String(msg.messageTimestamp)
@@ -162,16 +170,16 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
 
   const inboundResult = await saveInboundMessage({
     phone,
-    content: text,
+    content: effectiveText,
     type,
     waMessageId,
     timestamp,
     channelId: channel.id,
     rawPayload: msg as Record<string, unknown>,
     replyToWaMessageId: contextInfo?.stanzaId,
-    replyToContentSnapshot: quotedSnapshot?.content,
-    replyToTypeSnapshot: quotedSnapshot?.type,
-    replyToDirectionSnapshot: quotedDirection,
+    replyToContentSnapshot: effectiveQuotedContent,
+    replyToTypeSnapshot: effectiveQuotedType,
+    replyToDirectionSnapshot: effectiveQuotedDirection,
     isForwarded: contextInfo?.isForwarded === true || (contextInfo?.forwardingScore ?? 0) > 0,
     providerMetadata: contextInfo
       ? {
