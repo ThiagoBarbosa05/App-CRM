@@ -3304,6 +3304,155 @@ export const eventGuestsRelations = relations(eventGuests, ({ one }) => ({
   }),
 }));
 
+// Orçamentos próprios do módulo Eventos. Eles não reutilizam a tabela
+// `quotes`, que continua dedicada aos orçamentos de vinhos.
+export const eventBudgets = pgTable(
+  "event_budgets",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    eventId: varchar("event_id").references(() => events.id, {
+      onDelete: "set null",
+    }),
+    title: text("title").notNull().default("Novo orçamento"),
+    clientName: text("client_name"),
+    status: text("status", {
+      enum: ["rascunho", "aprovado", "arquivado"],
+    })
+      .notNull()
+      .default("rascunho"),
+    participants: integer("participants").notNull().default(1),
+    plannedCost: decimal("planned_cost", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0.00"),
+    plannedPrice: decimal("planned_price", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0.00"),
+    targetMargin: decimal("target_margin", { precision: 5, scale: 2 })
+      .notNull()
+      .default("40.00"),
+    actualParticipants: integer("actual_participants"),
+    revenueOverride: decimal("revenue_override", {
+      precision: 12,
+      scale: 2,
+    }),
+    proposalText: text("proposal_text"),
+    calculatorData: jsonb("calculator_data").$type<Record<string, unknown>>().notNull().default({}),
+    approvedAt: timestamp("approved_at"),
+    approvedBy: varchar("approved_by").references(() => users.id),
+    createdBy: varchar("created_by")
+      .references(() => users.id)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("event_budgets_event_id_idx").on(table.eventId),
+    index("event_budgets_created_by_idx").on(table.createdBy),
+  ],
+);
+
+export const eventCostEntries = pgTable(
+  "event_cost_entries",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    budgetId: varchar("budget_id")
+      .references(() => eventBudgets.id, { onDelete: "cascade" })
+      .notNull(),
+    category: text("category").notNull().default("outros"),
+    spentOn: date("spent_on"),
+    supplier: text("supplier"),
+    description: text("description").notNull().default("Novo lançamento"),
+    quantity: decimal("quantity", { precision: 12, scale: 3 })
+      .notNull()
+      .default("1"),
+    unit: text("unit").notNull().default("un"),
+    unitValue: decimal("unit_value", { precision: 12, scale: 2 })
+      .notNull()
+      .default("0.00"),
+    isPaid: boolean("is_paid").notNull().default(false),
+    notes: text("notes"),
+    createdBy: varchar("created_by")
+      .references(() => users.id)
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("event_cost_entries_budget_id_idx").on(table.budgetId),
+    index("event_cost_entries_category_idx").on(table.category),
+  ],
+);
+
+export const eventBudgetsRelations = relations(eventBudgets, ({ one, many }) => ({
+  event: one(events, {
+    fields: [eventBudgets.eventId],
+    references: [events.id],
+  }),
+  creator: one(users, {
+    fields: [eventBudgets.createdBy],
+    references: [users.id],
+  }),
+  approver: one(users, {
+    fields: [eventBudgets.approvedBy],
+    references: [users.id],
+  }),
+  costs: many(eventCostEntries),
+}));
+
+export const eventCostEntriesRelations = relations(eventCostEntries, ({ one }) => ({
+  budget: one(eventBudgets, {
+    fields: [eventCostEntries.budgetId],
+    references: [eventBudgets.id],
+  }),
+  creator: one(users, {
+    fields: [eventCostEntries.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const insertEventBudgetSchema = createInsertSchema(eventBudgets)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+    approvedAt: true,
+  })
+  .extend({
+    title: z.string().trim().min(1).default("Novo orçamento"),
+    clientName: z.string().nullable().optional(),
+    status: z.enum(["rascunho", "aprovado", "arquivado"]).default("rascunho"),
+    participants: z.coerce.number().int().min(1).default(1),
+    plannedCost: z.coerce.string().default("0"),
+    plannedPrice: z.coerce.string().default("0"),
+    targetMargin: z.coerce.string().default("40"),
+    actualParticipants: z.coerce.number().int().min(1).nullable().optional(),
+    revenueOverride: z.coerce.string().nullable().optional(),
+    proposalText: z.string().nullable().optional(),
+    calculatorData: z.record(z.unknown()).default({}),
+  });
+
+export const insertEventCostEntrySchema = createInsertSchema(eventCostEntries)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    category: z.string().trim().min(1).default("outros"),
+    spentOn: z.string().nullable().optional(),
+    supplier: z.string().nullable().optional(),
+    description: z.string().trim().min(1).default("Novo lançamento"),
+    quantity: z.coerce.string().default("1"),
+    unit: z.string().trim().min(1).default("un"),
+    unitValue: z.coerce.string().default("0"),
+    isPaid: z.coerce.boolean().default(false),
+    notes: z.string().nullable().optional(),
+  });
+
 // Schemas de inserção para eventos
 export const insertEventSchema = createInsertSchema(events)
   .omit({
@@ -3364,6 +3513,10 @@ export type InsertEventParticipant = z.infer<
   typeof insertEventParticipantSchema
 >;
 export type EventParticipant = typeof eventParticipants.$inferSelect;
+export type EventBudget = typeof eventBudgets.$inferSelect;
+export type InsertEventBudget = z.infer<typeof insertEventBudgetSchema>;
+export type EventCostEntry = typeof eventCostEntries.$inferSelect;
+export type InsertEventCostEntry = z.infer<typeof insertEventCostEntrySchema>;
 
 // Interface com relacionamentos
 export interface EventWithDetails extends Event {

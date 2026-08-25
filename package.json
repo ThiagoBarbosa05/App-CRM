@@ -21,6 +21,7 @@
     "db:apply-whatsapp-message-search": "node scripts/add-whatsapp-message-search-indexes.mjs",
     "db:apply-event-pricing": "tsx scripts/add-event-pricing-fields.ts",
     "db:apply-event-responsibles": "tsx scripts/add-event-responsible-contacts.ts",
+    "db:apply-event-budgets": "tsx scripts/add-event-budget-tables.ts",
     "baileys:sessions:reset": "tsx scripts/reset-baileys-sessions.ts",
     "sync:umbler": "tsx server/jobs/umbler-sync.worker.ts",
     "maintain:bling-tokens": "tsx server/jobs/bling-token-maintenance.worker.ts"

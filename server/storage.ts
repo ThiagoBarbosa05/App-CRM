@@ -109,6 +109,8 @@ import {
   eventParticipants,
   eventAttachments,
   eventResponsibleContacts,
+  eventBudgets,
+  eventCostEntries,
   messageJobsLogs,
   type InsertEvent,
   type Event,
@@ -116,6 +118,10 @@ import {
   type EventParticipant,
   type InsertEventAttachment,
   type EventAttachment,
+  type EventBudget,
+  type InsertEventBudget,
+  type EventCostEntry,
+  type InsertEventCostEntry,
   type InsertMarkerGoal,
   type MarkerGoal,
   type InsertMarkerWeeklyResult,
@@ -756,6 +762,27 @@ export interface IStorage {
   ): Promise<EventAttachment>;
   deleteEventAttachment(attachmentId: string): Promise<boolean>;
   deleteEventAttachmentsByEventId(eventId: string): Promise<boolean>;
+
+  // Event budget and actual cost methods
+  getEventBudgets(
+    userId?: string,
+    userRole?: string,
+    eventId?: string,
+  ): Promise<EventBudget[]>;
+  getEventBudgetById(id: string): Promise<EventBudget | undefined>;
+  createEventBudget(data: InsertEventBudget): Promise<EventBudget>;
+  updateEventBudget(
+    id: string,
+    data: Partial<InsertEventBudget>,
+  ): Promise<EventBudget | undefined>;
+  approveEventBudget(id: string, userId: string): Promise<EventBudget | undefined>;
+  getEventCostEntries(budgetId: string): Promise<EventCostEntry[]>;
+  createEventCostEntry(data: InsertEventCostEntry): Promise<EventCostEntry>;
+  updateEventCostEntry(
+    id: string,
+    data: Partial<InsertEventCostEntry>,
+  ): Promise<EventCostEntry | undefined>;
+  deleteEventCostEntry(id: string): Promise<boolean>;
 
   // Task File Folders
   getTaskFileFolders(): Promise<(TaskFileFolder & { fileCount: number })[]>;
@@ -6844,6 +6871,105 @@ export class DatabaseStorage implements IStorage {
       console.error("Error deleting event attachments by event id:", error);
       throw error;
     }
+  }
+
+  async getEventBudgets(
+    userId?: string,
+    userRole?: string,
+    eventId?: string,
+  ): Promise<EventBudget[]> {
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (eventId) conditions.push(eq(eventBudgets.eventId, eventId));
+    const canSeeAll =
+      userRole === "admin" || userRole === "administrador";
+    if (!canSeeAll && userId) {
+      conditions.push(eq(eventBudgets.createdBy, userId));
+    }
+    return this.db
+      .select()
+      .from(eventBudgets)
+      .where(conditions.length ? and(...conditions) : undefined)
+      .orderBy(desc(eventBudgets.updatedAt));
+  }
+
+  async getEventBudgetById(id: string): Promise<EventBudget | undefined> {
+    const [budget] = await this.db
+      .select()
+      .from(eventBudgets)
+      .where(eq(eventBudgets.id, id))
+      .limit(1);
+    return budget;
+  }
+
+  async createEventBudget(data: InsertEventBudget): Promise<EventBudget> {
+    const [budget] = await this.db.insert(eventBudgets).values(data).returning();
+    return budget;
+  }
+
+  async updateEventBudget(
+    id: string,
+    data: Partial<InsertEventBudget>,
+  ): Promise<EventBudget | undefined> {
+    const [budget] = await this.db
+      .update(eventBudgets)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(eventBudgets.id, id))
+      .returning();
+    return budget;
+  }
+
+  async approveEventBudget(
+    id: string,
+    userId: string,
+  ): Promise<EventBudget | undefined> {
+    const [budget] = await this.db
+      .update(eventBudgets)
+      .set({
+        status: "aprovado",
+        approvedAt: new Date(),
+        approvedBy: userId,
+        updatedAt: new Date(),
+      })
+      .where(eq(eventBudgets.id, id))
+      .returning();
+    return budget;
+  }
+
+  async getEventCostEntries(budgetId: string): Promise<EventCostEntry[]> {
+    return this.db
+      .select()
+      .from(eventCostEntries)
+      .where(eq(eventCostEntries.budgetId, budgetId))
+      .orderBy(desc(eventCostEntries.spentOn), desc(eventCostEntries.createdAt));
+  }
+
+  async createEventCostEntry(
+    data: InsertEventCostEntry,
+  ): Promise<EventCostEntry> {
+    const [entry] = await this.db
+      .insert(eventCostEntries)
+      .values(data)
+      .returning();
+    return entry;
+  }
+
+  async updateEventCostEntry(
+    id: string,
+    data: Partial<InsertEventCostEntry>,
+  ): Promise<EventCostEntry | undefined> {
+    const [entry] = await this.db
+      .update(eventCostEntries)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(eventCostEntries.id, id))
+      .returning();
+    return entry;
+  }
+
+  async deleteEventCostEntry(id: string): Promise<boolean> {
+    const result = await this.db
+      .delete(eventCostEntries)
+      .where(eq(eventCostEntries.id, id));
+    return (result.rowCount ?? 0) > 0;
   }
 
   // Deal Questions Management

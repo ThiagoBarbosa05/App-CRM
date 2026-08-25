@@ -71,6 +71,13 @@ const navItems: NavItem[] = [
     label: "Eventos",
     roles: ["admin", "administrador", "gerente", "eventos"],
   },
+  {
+    href: "/eventos/orcamentos",
+    icon: FileText,
+    label: "Orçamentos de Eventos",
+    roles: ["admin", "administrador", "gerente", "eventos"],
+    activeBasePath: "/eventos/orcamentos",
+  },
   { href: "/tarefas", icon: CheckSquare, label: "Tarefas" },
   {
     href: "/funil",

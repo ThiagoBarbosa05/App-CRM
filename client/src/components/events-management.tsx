@@ -1628,6 +1628,14 @@ export default function EventsManagement() {
                 Análises
               </button>
             </div>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/eventos/orcamentos")}
+              className="w-full sm:w-auto"
+            >
+              <CircleDollarSignIcon className="h-4 w-4 mr-2" />
+              Orçamentos e custos
+            </Button>
             {canCreateOrEditEvents && (
               <Button
                 onClick={() => setIsCreateModalOpen(true)}
@@ -2126,6 +2134,17 @@ export default function EventsManagement() {
                             >
                               <UsersIcon className="h-3.5 w-3.5" />
                               Ver clientes
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                navigate(`/eventos/orcamentos?eventId=${event.id}`)
+                              }
+                              className="h-8 gap-1.5 rounded-lg border-rose-200 text-xs text-rose-700 hover:border-rose-300 hover:bg-rose-50 dark:border-rose-900/60 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                            >
+                              <CircleDollarSignIcon className="h-3.5 w-3.5" />
+                              Orçar evento
                             </Button>
                             {canCreateOrEditEvents && (
                               <>

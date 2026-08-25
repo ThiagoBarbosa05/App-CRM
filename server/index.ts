@@ -50,6 +50,7 @@ import { migrateOrderClient } from "./jobs/migrate-order-client";
 import { migrateQuotes } from "./jobs/migrate-quotes";
 import { migrateEventPricing } from "./jobs/migrate-event-pricing";
 import { migrateEventResponsibleContacts } from "./jobs/migrate-event-responsible-contacts";
+import { migrateEventBudgets } from "./jobs/migrate-event-budgets";
 import { redactPii } from "./lib/log-redaction";
 import { UsersService } from "./services/users.service";
 // import "./jobs/umbler-sync-scheduler";
@@ -190,6 +191,7 @@ app.use((req, res, next) => {
   });
   await migrateEventPricing();
   await migrateEventResponsibleContacts();
+  await migrateEventBudgets();
   const server = await registerRoutes(app);
   seedCountries().catch((err) =>
     console.error("[Seed] seedCountries falhou:", err),

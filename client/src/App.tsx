@@ -38,6 +38,7 @@ import DuplicatesPage from "./pages/duplicates";
 import ClientsRegistrationQualityPage from "./pages/clients-registration-quality";
 import CalculadoraVinho from "./pages/calculadora-vinho";
 import EventsPage from "./pages/events";
+import EventBudgetsPage from "./pages/event-budgets";
 import TarefasPage from "./pages/tarefas";
 import MarketingGastosPage from "./pages/marketing-gastos";
 import OrcamentosPage from "./pages/orcamentos";
@@ -335,6 +336,18 @@ function Router() {
             <ProductProfilePage />
           </MainLayout>
         )}
+      />
+      <Route
+        path="/eventos/orcamentos"
+        component={() =>
+          !hasEventsModuleAccess(user.role) ? (
+            <Redirect to="/dashboard" />
+          ) : (
+            <MainLayout>
+              <EventBudgetsPage />
+            </MainLayout>
+          )
+        }
       />
       <Route
         path="/eventos"
