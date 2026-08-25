@@ -126,6 +126,7 @@ import {
   Calendar as CalendarIcon,
   Forward,
   Smartphone,
+  MoreVertical,
 } from "lucide-react";
 import {
   Popover,
@@ -135,8 +136,13 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -4609,6 +4615,8 @@ function ConversationMessages({
   // listClientsForChat). Então basta usar client.contactName.
   const displayName = client.clientName ?? client.contactName ?? client.phone;
   const orderedHeaderTags = getOrderedClientTags(client);
+  const linkedClientId = client.clientId;
+  const currentWhatsappTagIds = client.whatsappTags?.map((tag) => tag.id) ?? [];
 
   // Nome a exibir na badge por mensagem (quem enviou) num diálogo interno. NÃO
   // dá para usar o canal cru da mensagem (whatsapp_messages.channel_id): em
@@ -4664,10 +4672,105 @@ function ConversationMessages({
             <CompactContactTags tags={orderedHeaderTags} />
           </div>
 
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9 shrink-0 md:hidden"
+                title="Mais opções"
+                aria-label="Mais opções da conversa"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 md:hidden">
+              <DropdownMenuItem
+                onSelect={() => {
+                  setMessageSearchOpen(true);
+                  requestAnimationFrame(() => searchInputRef.current?.focus());
+                }}
+              >
+                <Search />
+                Buscar na conversa
+              </DropdownMenuItem>
+
+              {!client.peerChannelId && (
+                <DropdownMenuItem onSelect={() => setContactDetailsOpen(true)}>
+                  <User />
+                  Detalhes do contato
+                </DropdownMenuItem>
+              )}
+
+              {linkedClientId && canManageTags && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Tag />
+                    Editar etiquetas
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="max-h-64 w-60 overflow-y-auto">
+                    {availableWhatsappTags.length === 0 ? (
+                      <DropdownMenuItem disabled>
+                        Nenhuma etiqueta disponível
+                      </DropdownMenuItem>
+                    ) : (
+                      availableWhatsappTags.map((tag) => {
+                        const checked = currentWhatsappTagIds.includes(tag.id);
+
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={tag.id}
+                            checked={checked}
+                            onSelect={(event) => event.preventDefault()}
+                            onCheckedChange={() => {
+                              const nextTagIds = checked
+                                ? currentWhatsappTagIds.filter((id) => id !== tag.id)
+                                : [...currentWhatsappTagIds, tag.id];
+                              onWhatsappTagsChange(linkedClientId, nextTagIds);
+                            }}
+                          >
+                            <span className="truncate">{tag.name}</span>
+                          </DropdownMenuCheckboxItem>
+                        );
+                      })
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+
+              <DropdownMenuSeparator />
+
+              {isAdminOrGerente && (
+                <DropdownMenuItem onSelect={() => setTransferSheetOpen(true)}>
+                  <ArrowRightLeft />
+                  Transferir conversa
+                </DropdownMenuItem>
+              )}
+
+              {client.status === "closed" ? (
+                <DropdownMenuItem
+                  disabled={reopenConversationMutation.isPending}
+                  onSelect={() => reopenConversationMutation.mutate()}
+                >
+                  <RotateCcw />
+                  Reabrir conversa
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                  onSelect={() => setCloseConfirmOpen(true)}
+                >
+                  <Lock />
+                  Encerrar conversa
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button
             variant={messageSearchOpen ? "secondary" : "outline"}
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="hidden h-8 w-8 shrink-0 md:inline-flex"
             title="Buscar nesta conversa"
             aria-label="Buscar nesta conversa"
             onClick={() => {
@@ -4684,8 +4787,9 @@ function ConversationMessages({
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 shrink-0"
+              className="hidden h-8 w-8 shrink-0 md:inline-flex"
               title="Ver detalhes do contato"
+              aria-label="Ver detalhes do contato"
               onClick={() => setContactDetailsOpen(true)}
             >
               <User className="h-3.5 w-3.5" />
@@ -4694,13 +4798,15 @@ function ConversationMessages({
 
           {/* Editar etiquetas */}
           {client.clientId && canManageTags && (
-            <WhatsappTagsEditPopover
-              clientId={client.clientId}
-              currentTags={client.whatsappTags ?? []}
-              availableTags={availableWhatsappTags}
-              onTagsChange={onWhatsappTagsChange}
-              triggerClassName="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 opacity-100"
-            />
+            <div className="hidden md:block">
+              <WhatsappTagsEditPopover
+                clientId={client.clientId}
+                currentTags={client.whatsappTags ?? []}
+                availableTags={availableWhatsappTags}
+                onTagsChange={onWhatsappTagsChange}
+                triggerClassName="h-8 w-8 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-700 opacity-100"
+              />
+            </div>
           )}
 
           {/* Transferir */}
@@ -4708,7 +4814,7 @@ function ConversationMessages({
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 shrink-0 sm:h-7 sm:w-auto sm:px-2.5 sm:gap-1.5 text-xs"
+              className="hidden h-8 w-8 shrink-0 text-xs sm:h-7 sm:w-auto sm:gap-1.5 sm:px-2.5 md:inline-flex"
               title="Transferir conversa"
               onClick={() => setTransferSheetOpen(true)}
             >
@@ -4722,7 +4828,7 @@ function ConversationMessages({
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 shrink-0 sm:h-7 sm:w-auto sm:px-2.5 sm:gap-1.5 text-xs"
+              className="hidden h-8 w-8 shrink-0 text-xs sm:h-7 sm:w-auto sm:gap-1.5 sm:px-2.5 md:inline-flex"
               title="Reabrir conversa"
               disabled={reopenConversationMutation.isPending}
               onClick={() => reopenConversationMutation.mutate()}
@@ -4734,7 +4840,7 @@ function ConversationMessages({
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 shrink-0 sm:h-7 sm:w-auto sm:px-2.5 sm:gap-1.5 text-xs"
+              className="hidden h-8 w-8 shrink-0 text-xs sm:h-7 sm:w-auto sm:gap-1.5 sm:px-2.5 md:inline-flex"
               title="Encerrar conversa"
               onClick={() => setCloseConfirmOpen(true)}
             >
