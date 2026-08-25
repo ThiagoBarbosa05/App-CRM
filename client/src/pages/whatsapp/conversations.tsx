@@ -1780,11 +1780,10 @@ function TemplateBubble({
         </div>
       )}
       {imageUrl && (
-        <img
+        <ConversationImage
           src={imageUrl}
-          alt="header"
-          className="w-full object-cover"
-          style={{ maxHeight: 200 }}
+          alt="Imagem do template"
+          className="mt-2"
         />
       )}
       {videoUrl && (
@@ -1904,6 +1903,52 @@ function AutomationEventBubble({
   );
 }
 
+function ConversationImage({
+  src,
+  alt,
+  className,
+  onError,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  onError?: () => void;
+}) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    setIsLoaded(false);
+  }, [src]);
+
+  return (
+    <div
+      className={cn(
+        "relative aspect-[4/3] w-full overflow-hidden bg-slate-100/90 dark:bg-slate-950/35",
+        className,
+      )}
+      aria-busy={!isLoaded}
+    >
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+          <Loader2 className="h-5 w-5 animate-spin text-slate-400/70" />
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        className={cn(
+          "absolute inset-0 h-full w-full object-contain transition-opacity duration-200",
+          isLoaded ? "opacity-100" : "opacity-0",
+        )}
+        onLoad={() => setIsLoaded(true)}
+        onError={onError}
+      />
+    </div>
+  );
+}
+
 function MessageContent({
   msg,
   isOutbound,
@@ -1974,14 +2019,13 @@ function MessageContent({
         <div>
           {mediaUrl && !mediaError ? (
             <div
-              className="relative group cursor-zoom-in"
+              className="group relative w-[min(18rem,68vw)] max-w-full cursor-zoom-in"
               onClick={() => setLightboxOpen(true)}
             >
-              <img
+              <ConversationImage
                 src={mediaUrl}
                 alt={msg.caption ?? "imagem"}
-                className="max-w-full rounded-t-2xl object-cover"
-                style={{ maxHeight: 300 }}
+                className="rounded-t-2xl"
                 onError={() => setMediaError(true)}
               />
               <div className="absolute inset-0 rounded-t-2xl bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
@@ -5546,11 +5590,10 @@ function ConversationMessages({
                 <div key={lm.localId} className="flex w-full justify-end">
                   <div className="max-w-[82%] sm:max-w-[70%] rounded-2xl shadow-sm overflow-hidden rounded-tr-[4px] bg-primary/60 text-primary-foreground">
                     {lm.media.kind === "image" && (
-                      <img
+                      <ConversationImage
                         src={lm.media.url}
                         alt={lm.content || "imagem"}
-                        className="max-w-full object-cover"
-                        style={{ maxHeight: 300 }}
+                        className="w-[min(18rem,68vw)] max-w-full"
                       />
                     )}
                     {lm.media.kind === "video" && (
