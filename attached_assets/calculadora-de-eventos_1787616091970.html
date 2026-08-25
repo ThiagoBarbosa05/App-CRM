@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Eventos — Grand Cru Rio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600;6..96,700&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sal:#EDEEE9;
+    --superficie:#F8F8F4;
+    --tinta:#1E1C1A;
+    --neutro:#6E6A61;
+    --linha:#D9D9D1;
+    --bordo:#5A1A2B;
+    --bordo-claro:#7E2438;
+    --casca:#C9A227;
+    --miolo:#D9C9A8;
+    --oliva:#6B7A5A;
+    --alerta:#A63A1E;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--sal);
+    color:var(--tinta);
+    font-family:'Archivo',system-ui,-apple-system,sans-serif;
+    font-size:15px;
+    line-height:1.45;
+  }
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+  /* ---------- cabeçalho ---------- */
+  header{
+    background:var(--bordo);
+    color:#F3EDE4;
+    padding:26px 24px 22px;
+    border-bottom:3px solid var(--casca);
+  }
+  .header-inner{max-width:1180px;margin:0 auto}
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--casca);margin-bottom:10px;
+  }
+  h1{
+    font-family:'Bodoni Moda',Georgia,serif;
+    font-weight:600;
+    font-size:clamp(30px,5vw,46px);
+    line-height:1.02;
+    letter-spacing:-.01em;
+  }
+  h1 em{font-style:italic;color:var(--miolo)}
+  .sub{margin-top:8px;font-size:14px;color:#E0CFCF;max-width:52ch}
+
+  /* ---------- layout ---------- */
+  main{
+    max-width:1180px;margin:0 auto;padding:26px 24px 120px;
+    display:grid;grid-template-columns:1fr 380px;gap:26px;align-items:start;
+  }
+  @media(max-width:900px){
+    main{grid-template-columns:1fr;padding:20px 16px 130px;gap:18px}
+  }
+
+  section.painel{
+    background:var(--superficie);
+    border:1px solid var(--linha);
+    padding:20px;
+    margin-bottom:18px;
+  }
+  .painel-titulo{
+    display:flex;align-items:baseline;gap:10px;
+    padding-bottom:12px;margin-bottom:16px;
+    border-bottom:1px solid var(--linha);
+  }
+  .painel-titulo h2{
+    font-family:'Bodoni Moda',Georgia,serif;
+    font-weight:600;font-size:20px;letter-spacing:-.01em;
+  }
+  .painel-titulo .dica{
+    font-size:12px;color:var(--neutro);margin-left:auto;text-align:right;
+  }
+
+  label.campo{display:block;margin-bottom:14px}
+  label.campo > span{
+    display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--neutro);margin-bottom:6px;font-weight:600;
+  }
+  input[type=number],input[type=text],select{
+    width:100%;padding:9px 11px;
+    border:1px solid var(--linha);border-radius:0;
+    background:#fff;color:var(--tinta);
+    font-family:'IBM Plex Mono',monospace;font-size:15px;
+  }
+  input:focus,select:focus,button:focus-visible{
+    outline:2px solid var(--bordo);outline-offset:1px;
+  }
+  .grade{display:grid;gap:0 14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:560px){.g3{grid-template-columns:1fr 1fr}}
+
+  /* segmentos de escolha */
+  .opcoes{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .opcoes button{
+    flex:1 1 auto;min-width:88px;padding:9px 8px;cursor:pointer;
+    background:#fff;border:1px solid var(--linha);
+    font-family:'Archivo',sans-serif;font-size:13px;font-weight:500;color:var(--tinta);
+    transition:background .12s,border-color .12s;
+  }
+  .opcoes button:hover{border-color:var(--bordo-claro)}
+  .opcoes button[aria-pressed=true]{
+    background:var(--bordo);border-color:var(--bordo);color:#F3EDE4;
+  }
+  .opcoes button small{display:block;font-size:10.5px;opacity:.7;margin-top:2px;font-weight:400}
+
+  /* ---------- assinatura: a tábua ---------- */
+  .tabua-topo{display:flex;align-items:flex-end;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+  .peso-total{font-family:'IBM Plex Mono',monospace;font-size:40px;font-weight:500;line-height:1;letter-spacing:-.03em}
+  .peso-total span{font-size:16px;color:var(--neutro)}
+  .peso-legenda{font-size:12px;color:var(--neutro);padding-bottom:5px}
+  .barra{
+    display:flex;height:46px;width:100%;overflow:hidden;
+    border:1px solid var(--tinta);
+  }
+  .barra div{transition:flex-grow .25s ease}
+  .fatia-queijos{background:var(--casca)}
+  .fatia-frios{background:var(--bordo-claro)}
+  .fatia-paes{background:var(--miolo)}
+  .fatia-acomp{background:var(--oliva)}
+  .legenda{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+  @media(max-width:560px){.legenda{grid-template-columns:1fr 1fr}}
+  .legenda div{border-top:2px solid;padding-top:7px}
+  .legenda .l-queijos{border-color:var(--casca)}
+  .legenda .l-frios{border-color:var(--bordo-claro)}
+  .legenda .l-paes{border-color:var(--miolo)}
+  .legenda .l-acomp{border-color:var(--oliva)}
+  .legenda dt{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--neutro);font-weight:600}
+  .legenda dd{font-family:'IBM Plex Mono',monospace;font-size:19px;margin-top:2px}
+  .legenda dd small{font-size:11px;color:var(--neutro);display:block;font-family:'Archivo',sans-serif;margin-top:1px}
+
+  /* ---------- tabelas ---------- */
+  table{width:100%;border-collapse:collapse}
+  th{
+    font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--neutro);
+    text-align:left;font-weight:600;padding:0 0 7px;border-bottom:1px solid var(--linha);
+  }
+  th.num,td.num{text-align:right}
+  td{padding:7px 0;border-bottom:1px solid var(--linha);font-size:14px;vertical-align:middle}
+  td input{width:96px;padding:5px 7px;font-size:14px;text-align:right}
+  tr:last-child td{border-bottom:none}
+  .celula-valor{font-family:'IBM Plex Mono',monospace}
+
+  /* ---------- listas expansíveis ---------- */
+  .botao-linha{
+    display:flex;align-items:center;gap:7px;width:100%;
+    background:none;border:none;padding:0;cursor:pointer;text-align:left;
+    font-family:'Archivo',sans-serif;font-size:14px;color:var(--tinta);
+  }
+  .botao-linha:hover{color:var(--bordo)}
+  .botao-linha .seta{
+    display:inline-block;font-size:10px;color:var(--neutro);
+    transition:transform .15s;
+  }
+  .botao-linha[aria-expanded=true] .seta{transform:rotate(90deg)}
+  .botao-linha .resumo{
+    display:block;font-size:11.5px;color:var(--neutro);margin-top:1px;
+  }
+  .linha-lista td{background:rgba(90,26,43,.03)}
+  .caixa-lista{padding:14px 0 4px}
+  .item-lista{
+    display:grid;grid-template-columns:1fr 74px 96px 84px 26px;
+    gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--linha);
+  }
+  .item-lista:last-of-type{border-bottom:none}
+  .item-lista .nome{font-size:13.5px}
+  .item-lista .nome small{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--neutro)}
+  .item-lista input{padding:5px 7px;font-size:13.5px;text-align:right;width:100%}
+  .item-lista .sub{font-family:'IBM Plex Mono',monospace;font-size:13.5px;text-align:right}
+  .item-lista .remover{
+    background:none;border:none;cursor:pointer;color:var(--neutro);font-size:16px;line-height:1;padding:2px;
+  }
+  .item-lista .remover:hover{color:var(--alerta)}
+  .cabecalho-item{
+    display:grid;grid-template-columns:1fr 74px 96px 84px 26px;gap:8px;
+    font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--neutro);
+    font-weight:600;padding-bottom:5px;border-bottom:1px solid var(--linha);
+  }
+  .cabecalho-item span:not(:first-child){text-align:right}
+  @media(max-width:620px){
+    .item-lista,.cabecalho-item{grid-template-columns:1fr 62px 78px 26px}
+    .item-lista .sub,.cabecalho-item span:nth-child(4){display:none}
+  }
+  .nova-linha{display:flex;gap:8px;margin-top:12px}
+  .nova-linha input{flex:1;font-family:'Archivo',sans-serif;font-size:13.5px}
+  .nova-linha button{
+    padding:6px 14px;cursor:pointer;background:#fff;border:1px solid var(--tinta);
+    font-family:'Archivo',sans-serif;font-size:13px;font-weight:600;color:var(--tinta);
+  }
+  .nova-linha button:hover{background:var(--tinta);color:#fff}
+
+  /* ---------- preço ---------- */
+  .slider-linha{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  input[type=range]{flex:1;accent-color:var(--bordo)}
+  .valor-margem{font-family:'IBM Plex Mono',monospace;font-size:22px;min-width:74px;text-align:right}
+
+  /* ---------- ficha ---------- */
+  .ficha{position:sticky;top:20px}
+  @media(max-width:900px){.ficha{position:static}}
+  .ficha-corpo{background:var(--bordo);color:#F3EDE4;padding:22px;border-bottom:3px solid var(--casca)}
+  .ficha-corpo .eyebrow{margin-bottom:14px}
+  .linha-valor{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(243,237,228,.18)}
+  .linha-valor span:first-child{font-size:13px;color:#E0CFCF}
+  .linha-valor span:last-child{font-family:'IBM Plex Mono',monospace;font-size:15px}
+  .destaque{margin-top:16px;padding-top:14px;border-top:2px solid var(--casca)}
+  .destaque .rotulo{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--casca);font-weight:600}
+  .destaque .numero{font-family:'IBM Plex Mono',monospace;font-size:36px;line-height:1.1;margin-top:4px;letter-spacing:-.03em}
+  .destaque .por-pessoa{font-size:13px;color:#E0CFCF;margin-top:2px}
+  .aviso{
+    margin-top:14px;padding:9px 11px;background:var(--alerta);color:#fff;
+    font-size:12.5px;line-height:1.35;
+  }
+  .acoes{display:grid;gap:8px;margin-top:14px}
+  .btn{
+    padding:11px;cursor:pointer;font-family:'Archivo',sans-serif;font-size:13.5px;font-weight:600;
+    border:1px solid var(--tinta);background:var(--tinta);color:#F8F8F4;text-align:center;
+  }
+  .btn:hover{background:#000}
+  .btn.secundario{background:transparent;color:var(--tinta)}
+  .btn.secundario:hover{background:rgba(0,0,0,.05)}
+  .btn.fantasma{border:none;background:none;color:var(--neutro);font-size:12px;font-weight:500;text-decoration:underline;padding:4px;cursor:pointer;font-family:'Archivo',sans-serif}
+
+  .lista-compras li{
+    display:flex;justify-content:space-between;gap:10px;padding:7px 0;
+    border-bottom:1px solid var(--linha);font-size:14px;list-style:none;
+  }
+  .lista-compras li:last-child{border-bottom:none}
+  .lista-compras b{font-family:'IBM Plex Mono',monospace;font-weight:500;white-space:nowrap}
+
+  textarea{
+    width:100%;min-height:280px;padding:12px;border:1px solid var(--linha);
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.55;
+    background:#fff;color:var(--tinta);resize:vertical;
+  }
+
+  /* ---------- barra fixa mobile ---------- */
+  .barra-mobile{
+    display:none;position:fixed;bottom:0;left:0;right:0;z-index:20;
+    background:var(--bordo);color:#F3EDE4;padding:11px 16px;
+    border-top:2px solid var(--casca);
+    justify-content:space-between;align-items:center;gap:12px;
+  }
+  @media(max-width:900px){.barra-mobile{display:flex}}
+  .barra-mobile .m-preco{font-family:'IBM Plex Mono',monospace;font-size:21px;line-height:1.1}
+  .barra-mobile .m-rot{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--casca)}
+  .barra-mobile .m-pp{font-size:12px;color:#E0CFCF}
+
+  .rodape{max-width:1180px;margin:0 auto;padding:0 24px 40px;font-size:12px;color:var(--neutro)}
+  .toast{
+    position:fixed;bottom:88px;left:50%;transform:translateX(-50%);
+    background:var(--tinta);color:#F8F8F4;padding:10px 18px;font-size:13px;z-index:50;
+    opacity:0;pointer-events:none;transition:opacity .2s;
+  }
+  .toast.on{opacity:1}
+
+  /* ---------- documento para PDF ---------- */
+  #documento{display:none}
+  @media print{
+    @page{size:A4;margin:0}
+    body{background:#fff}
+    body > *:not(#documento){display:none !important}
+    #documento{
+      display:block;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact;
+      color:#1E1C1A;font-size:10.5pt;line-height:1.45;
+    }
+  }
+  #documento .folha{padding:0 0 16mm}
+  #documento .quebra{page-break-before:always}
+  #documento .faixa{
+    background:var(--bordo);color:#F3EDE4;padding:16mm 16mm 12mm;
+    border-bottom:2.5mm solid var(--casca);
+    display:flex;justify-content:space-between;align-items:flex-end;gap:10mm;
+  }
+  #documento .faixa .marca{font-family:'IBM Plex Mono',monospace;font-size:8pt;letter-spacing:.24em;color:var(--casca);margin-bottom:3mm}
+  #documento .faixa h1{font-family:'Bodoni Moda',serif;font-size:24pt;line-height:1.05;font-weight:600}
+  #documento .faixa .data{font-family:'IBM Plex Mono',monospace;font-size:8.5pt;text-align:right;color:#E0CFCF;white-space:nowrap}
+  #documento .corpo{padding:0 16mm}
+  #documento .cliente{
+    font-family:'Bodoni Moda',serif;font-size:15pt;font-weight:600;
+    padding:9mm 0 2mm;
+  }
+  #documento .meta{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:6mm;
+    padding:5mm 0;border-top:.4mm solid var(--linha);border-bottom:.4mm solid var(--linha);
+  }
+  #documento .meta dt{font-size:7pt;letter-spacing:.16em;text-transform:uppercase;color:var(--neutro);font-weight:600}
+  #documento .meta dd{font-family:'IBM Plex Mono',monospace;font-size:12pt;margin-top:1mm}
+  #documento h2{
+    font-family:'IBM Plex Mono',monospace;font-size:8pt;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--bordo);margin:9mm 0 3mm;font-weight:600;
+  }
+  #documento table{width:100%;border-collapse:collapse}
+  #documento td{padding:2.6mm 0;border-bottom:.3mm solid var(--linha);vertical-align:top}
+  #documento tr:last-child td{border-bottom:none}
+  #documento td.qtd{
+    text-align:right;font-family:'IBM Plex Mono',monospace;width:42%;padding-left:8mm;
+  }
+  #documento .investimento{
+    margin-top:8mm;padding:7mm;background:var(--sal);border-left:2.5mm solid var(--casca);
+    display:flex;justify-content:space-between;align-items:flex-end;gap:8mm;
+  }
+  #documento .investimento .rotulo{font-size:7pt;letter-spacing:.18em;text-transform:uppercase;color:var(--neutro);font-weight:600}
+  #documento .investimento .total{font-family:'IBM Plex Mono',monospace;font-size:22pt;line-height:1.1;margin-top:1mm;letter-spacing:-.02em}
+  #documento .investimento .pp{font-family:'IBM Plex Mono',monospace;font-size:11pt;text-align:right;white-space:nowrap}
+  #documento .condicoes{margin-top:8mm;font-size:8.5pt;color:#4A463F}
+  #documento .condicoes li{margin-bottom:1.8mm;margin-left:4mm}
+  #documento .rodape-doc{
+    margin-top:12mm;padding-top:4mm;border-top:.4mm solid var(--linha);
+    font-family:'IBM Plex Mono',monospace;font-size:7.5pt;letter-spacing:.1em;color:var(--neutro);
+    display:flex;justify-content:space-between;
+  }
+  #documento .interna h1{font-size:16pt}
+  #documento .interna .faixa{background:var(--tinta);border-bottom-color:var(--neutro);padding:12mm 16mm 9mm}
+  #documento .interna .faixa .marca{color:#BFBAB0}
+  #documento .interna td.valor{text-align:right;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+  #documento .interna tr.total td{border-top:.6mm solid var(--tinta);border-bottom:none;font-weight:700;padding-top:3mm}
+
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="eyebrow">Grand Cru Rio · Eventos</div>
+    <h1>Calculadora de <em>eventos</em></h1>
+    <p class="sub">Queijos, frios e vinhos. Ajuste o evento, confira o peso da tábua e feche o preço com a margem que você quer.</p>
+  </div>
+</header>
+
+<main>
+  <div class="coluna-esquerda">
+
+    <!-- 1. EVENTO -->
+    <section class="painel">
+      <div class="painel-titulo"><h2>O evento</h2></div>
+
+      <div class="grade g2">
+        <label class="campo"><span>Convidados</span>
+          <input type="number" id="convidados" min="1" step="1" value="100"></label>
+        <label class="campo"><span>Duração</span>
+          <select id="duracao">
+            <option value="2">2 horas</option>
+            <option value="3" selected>3 horas</option>
+            <option value="4">4 horas</option>
+            <option value="5">5 horas ou mais</option>
+          </select></label>
+      </div>
+
+      <label class="campo" style="margin-bottom:6px"><span>Formato</span></label>
+      <div class="opcoes" id="formato">
+        <button data-v="coquetel" aria-pressed="true">Coquetel<small>estação de apoio</small></button>
+        <button data-v="entrada" aria-pressed="false">Entrada<small>abre o jantar</small></button>
+        <button data-v="principal" aria-pressed="false">Principal<small>a tábua é a refeição</small></button>
+      </div>
+
+      <label class="campo" style="margin-bottom:6px"><span>Seleção</span></label>
+      <div class="opcoes" id="nivel">
+        <button data-v="essencial" aria-pressed="false">Essencial<small>4 queijos · 3 frios</small></button>
+        <button data-v="premium" aria-pressed="true">Premium<small>6 queijos · 4 frios</small></button>
+        <button data-v="icone" aria-pressed="false">Ícone<small>8 queijos · 5 frios</small></button>
+      </div>
+
+      <label class="campo" style="margin-bottom:6px"><span>Vinho por convidado</span></label>
+      <div class="opcoes" id="vinhos">
+        <button data-v="0.5" aria-pressed="false">0,5 grf<small>só a harmonização</small></button>
+        <button data-v="0.8" aria-pressed="true">0,8 grf<small>coquetel padrão</small></button>
+        <button data-v="1" aria-pressed="false">1 grf<small>jantar completo</small></button>
+        <button data-v="1.2" aria-pressed="false">1,2 grf<small>público que bebe bem</small></button>
+      </div>
+
+      <label class="campo" style="margin-bottom:0"><span>Cliente ou nome do evento (opcional)</span>
+        <input type="text" id="cliente" placeholder="Ex.: Iate Clube do Rio de Janeiro" style="font-family:'Archivo',sans-serif"></label>
+    </section>
+
+    <!-- 2. A TÁBUA -->
+    <section class="painel">
+      <div class="painel-titulo">
+        <h2>A tábua</h2>
+        <div class="dica" id="dica-variedades"></div>
+      </div>
+
+      <div class="tabua-topo">
+        <div class="peso-total mono" id="peso-total">0 <span>kg</span></div>
+        <div class="peso-legenda" id="peso-por-pessoa"></div>
+      </div>
+
+      <div class="barra" role="img" aria-label="Composição da tábua por peso">
+        <div class="fatia-queijos" id="f-queijos" style="flex-grow:4"></div>
+        <div class="fatia-frios" id="f-frios" style="flex-grow:3"></div>
+        <div class="fatia-paes" id="f-paes" style="flex-grow:2"></div>
+        <div class="fatia-acomp" id="f-acomp" style="flex-grow:2"></div>
+      </div>
+
+      <dl class="legenda">
+        <div class="l-queijos"><dt>Queijos</dt><dd id="kg-queijos">—<small id="pp-queijos"></small></dd></div>
+        <div class="l-frios"><dt>Frios</dt><dd id="kg-frios">—<small id="pp-frios"></small></dd></div>
+        <div class="l-paes"><dt>Pães</dt><dd id="kg-paes">—<small id="pp-paes"></small></dd></div>
+        <div class="l-acomp"><dt>Acompanha</dt><dd id="kg-acomp">—<small id="pp-acomp"></small></dd></div>
+      </dl>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--linha);display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <div>
+          <dt style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--neutro);font-weight:600">Vinho</dt>
+          <div class="mono" style="font-size:19px" id="garrafas">—</div>
+        </div>
+        <div style="font-size:12px;color:var(--neutro);text-align:right" id="dica-vinho"></div>
+      </div>
+    </section>
+
+    <!-- 3. INSUMOS -->
+    <section class="painel">
+      <div class="painel-titulo">
+        <h2>Custo dos insumos</h2>
+        <div class="dica">Seus preços ficam salvos</div>
+      </div>
+      <table>
+        <thead><tr><th>Item</th><th class="num">Quantidade</th><th class="num">Preço unitário</th><th class="num">Custo</th></tr></thead>
+        <tbody>
+          <tr><td>Queijos</td><td class="num celula-valor" id="q-queijos">—</td>
+            <td class="num"><input type="number" id="p-queijos" min="0" step="1"></td>
+            <td class="num celula-valor" id="c-queijos">—</td></tr>
+          <tr><td>Frios e embutidos</td><td class="num celula-valor" id="q-frios">—</td>
+            <td class="num"><input type="number" id="p-frios" min="0" step="1"></td>
+            <td class="num celula-valor" id="c-frios">—</td></tr>
+          <tr><td>Pães, torradas e grissini</td><td class="num celula-valor" id="q-paes">—</td>
+            <td class="num"><input type="number" id="p-paes" min="0" step="1"></td>
+            <td class="num celula-valor" id="c-paes">—</td></tr>
+          <tr><td>Geleias, mel, castanhas, frutas</td><td class="num celula-valor" id="q-acomp">—</td>
+            <td class="num"><input type="number" id="p-acomp" min="0" step="1"></td>
+            <td class="num celula-valor" id="c-acomp">—</td></tr>
+          <tr><td>Vinho</td><td class="num celula-valor" id="q-vinho">—</td>
+            <td class="num"><input type="number" id="p-vinho" min="0" step="1"></td>
+            <td class="num celula-valor" id="c-vinho">—</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:12px;color:var(--neutro);margin-top:10px">Preços em R$ por quilo, exceto vinho (por garrafa). Trocar a seleção carrega a faixa de preço daquele nível.</p>
+    </section>
+
+    <!-- 4. OPERAÇÃO -->
+    <section class="painel">
+      <div class="painel-titulo"><h2>Operação</h2></div>
+      <table>
+        <thead><tr><th>Item</th><th class="num">Quantidade</th><th class="num">Valor</th><th class="num">Custo</th></tr></thead>
+        <tbody>
+          <tr class="linha-lista">
+            <td><button class="botao-linha" id="btn-equipe" aria-expanded="false" aria-controls="painel-equipe">
+              <span class="seta" aria-hidden="true">▶</span>
+              <span>Equipe<span class="resumo" id="resumo-equipe"></span></span>
+            </button></td>
+            <td class="num celula-valor" id="q-equipe">—</td>
+            <td class="num celula-valor" id="media-equipe">—</td>
+            <td class="num celula-valor" id="c-equipe">—</td></tr>
+          <tr class="linha-lista" id="painel-equipe" hidden><td colspan="4">
+            <div class="caixa-lista">
+              <div class="cabecalho-item"><span>Função</span><span>Pessoas</span><span>Diária</span><span>Custo</span><span></span></div>
+              <div id="lista-funcoes"></div>
+              <div class="nova-linha">
+                <input type="text" id="nome-funcao" placeholder="Outra função — barman, copeira, maître" aria-label="Nome da nova função">
+                <button id="btn-add-funcao">Adicionar</button>
+              </div>
+            </div>
+          </td></tr>
+          <tr class="linha-lista">
+            <td><button class="botao-linha" id="btn-materiais" aria-expanded="false" aria-controls="painel-materiais">
+              <span class="seta" aria-hidden="true">▶</span>
+              <span>Materiais<span class="resumo" id="resumo-materiais"></span></span>
+            </button></td>
+            <td class="num celula-valor" id="q-materiais">—</td>
+            <td class="num celula-valor" id="media-materiais">—</td>
+            <td class="num celula-valor" id="c-materiais">—</td></tr>
+          <tr class="linha-lista" id="painel-materiais" hidden><td colspan="4">
+            <div class="caixa-lista">
+              <div class="cabecalho-item"><span>Material</span><span>Peças</span><span>Unitário</span><span>Custo</span><span></span></div>
+              <div id="lista-materiais"></div>
+              <div class="nova-linha">
+                <input type="text" id="nome-material" placeholder="Outro material — tábuas, toalhas, réchaud" aria-label="Nome do novo material">
+                <button id="btn-add-material">Adicionar</button>
+              </div>
+            </div>
+          </td></tr>
+          <tr><td>Descartáveis e decoração</td><td class="num celula-valor" id="q-descart">—</td>
+            <td class="num"><input type="number" id="p-descart" min="0" step="1"></td>
+            <td class="num celula-valor" id="c-descart">—</td></tr>
+          <tr><td>Transporte e montagem</td><td class="num celula-valor">evento</td>
+            <td class="num"><input type="number" id="p-transporte" min="0" step="10"></td>
+            <td class="num celula-valor" id="c-transporte">—</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:12px;color:var(--neutro);margin-top:10px" id="dica-equipe"></p>
+    </section>
+
+    <!-- 5. PREÇO -->
+    <section class="painel">
+      <div class="painel-titulo"><h2>Preço</h2><div class="dica">Margem sobre o preço de venda</div></div>
+
+      <label class="campo" style="margin-bottom:8px"><span>Margem alvo</span></label>
+      <div class="slider-linha">
+        <input type="range" id="margem" min="0" max="80" step="1" value="40" aria-label="Margem alvo em porcentagem">
+        <div class="valor-margem mono" id="margem-valor">40%</div>
+      </div>
+
+      <div class="grade g2" style="margin-top:16px">
+        <label class="campo"><span>Preço fechado (opcional)</span>
+          <input type="number" id="preco-manual" min="0" step="10" placeholder="calculado"></label>
+        <label class="campo"><span>Margem mínima aceitável</span>
+          <input type="number" id="margem-minima" min="0" max="90" step="1"></label>
+      </div>
+      <button class="btn fantasma" id="btn-auto">Voltar ao preço calculado</button>
+    </section>
+
+    <!-- 6. PROPOSTA -->
+    <section class="painel">
+      <div class="painel-titulo"><h2>Texto da proposta</h2></div>
+      <textarea id="proposta" spellcheck="false" aria-label="Texto da proposta"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn" id="btn-copiar-proposta" style="flex:1">Copiar proposta</button>
+        <button class="btn secundario" id="btn-regerar" style="flex:1">Gerar de novo</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- FICHA -->
+  <aside class="ficha">
+    <div class="ficha-corpo">
+      <div class="eyebrow">Ficha do orçamento</div>
+      <div class="linha-valor"><span>Insumos</span><span id="v-insumos">—</span></div>
+      <div class="linha-valor"><span>Operação</span><span id="v-operacao">—</span></div>
+      <div class="linha-valor"><span>Custo total</span><span id="v-custo">—</span></div>
+      <div class="linha-valor"><span>Margem</span><span id="v-margem">—</span></div>
+
+      <div class="destaque">
+        <div class="rotulo">Preço de venda</div>
+        <div class="numero" id="v-preco">—</div>
+        <div class="por-pessoa" id="v-por-pessoa">—</div>
+      </div>
+      <div class="aviso" id="aviso" hidden></div>
+    </div>
+
+    <div class="acoes">
+      <button class="btn" id="btn-pdf">Gerar proposta em PDF</button>
+      <button class="btn secundario" id="btn-copiar-lista">Copiar lista de compras</button>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--neutro);cursor:pointer;padding:2px">
+        <input type="checkbox" id="folha-interna" style="width:auto;accent-color:var(--bordo)">
+        Anexar folha de custos (uso interno)
+      </label>
+    </div>
+
+    <section class="painel" style="margin-top:18px">
+      <div class="painel-titulo"><h2>Lista de compras</h2></div>
+      <ul class="lista-compras" id="lista-compras"></ul>
+    </section>
+
+    <button class="btn fantasma" id="btn-restaurar" style="width:100%">Restaurar preços padrão</button>
+  </aside>
+</main>
+
+<div class="rodape">
+  Consumo estimado a partir de médias de evento. Confira sempre a lista de compras com o estoque antes de fechar.
+</div>
+
+<div class="barra-mobile">
+  <div>
+    <div class="m-rot">Preço de venda</div>
+    <div class="m-preco" id="m-preco">—</div>
+  </div>
+  <div class="m-pp" id="m-pp" style="text-align:right"></div>
+</div>
+
+<div id="documento" aria-hidden="true"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------- padrões ---------- */
+  var PADRAO = {
+    precos: {
+      essencial: {queijos:95,  frios:90,  vinho:65},
+      premium:   {queijos:145, frios:130, vinho:110},
+      icone:     {queijos:210, frios:180, vinho:190}
+    },
+    paes: 38,
+    acomp: 75,
+    funcoes: [
+      {id:'garcom',     nome:'Garçom',              plural:'garçons',              valor:220, auto:0.04},
+      {id:'sommelier',  nome:'Sommelier',           plural:'sommeliers',           valor:600, auto:null, padrao:1},
+      {id:'cozinheiro', nome:'Cozinheiro',          plural:'cozinheiros',          valor:400, auto:null},
+      {id:'ajudante',   nome:'Ajudante de cozinha', plural:'ajudantes de cozinha', valor:250, auto:null}
+    ],
+    materiais: [
+      {id:'tacas',    nome:'Taças',           plural:'taças',            valor:4,   auto:1.2},
+      {id:'pratos',   nome:'Pratos',          plural:'pratos',           valor:3,   auto:1},
+      {id:'talheres', nome:'Talheres',        plural:'jogos de talher',  singular:'jogo de talher', valor:3, auto:1},
+      {id:'arranjo',  nome:'Arranjo de mesa', plural:'arranjos de mesa', valor:280, auto:null, padrao:1}
+    ],
+    descart: 6,
+    transporte: 180,
+    margemMinima: 30
+  };
+
+  var FORMATOS = {
+    coquetel:  {rotulo:'Coquetel',  queijo:70,  frios:50,  paes:45, acomp:40},
+    entrada:   {rotulo:'Entrada',   queijo:100, frios:70,  paes:55, acomp:45},
+    principal: {rotulo:'Principal', queijo:160, frios:110, paes:75, acomp:60}
+  };
+  var DURACAO_MULT = {2:0.9, 3:1, 4:1.15, 5:1.3};
+  var NIVEIS = {
+    essencial:{rotulo:'Essencial', queijos:4, frios:3},
+    premium:  {rotulo:'Premium',   queijos:6, frios:4},
+    icone:    {rotulo:'Ícone',     queijos:8, frios:5}
+  };
+
+  var LISTAS = [
+    {chave:'equipe', cfg:'funcoes', el:'lista-funcoes', btn:'btn-equipe', painel:'painel-equipe',
+     campoNome:'nome-funcao', btnAdd:'btn-add-funcao', valorPadrao:200,
+     unidade:['pessoa','pessoas'], dicaAuto:'segue os convidados'},
+    {chave:'materiais', cfg:'materiais', el:'lista-materiais', btn:'btn-materiais', painel:'painel-materiais',
+     campoNome:'nome-material', btnAdd:'btn-add-material', valorPadrao:10,
+     unidade:['peça','peças'], dicaAuto:'segue os convidados'}
+  ];
+
+  var cfg = JSON.parse(JSON.stringify(PADRAO));
+  var estado = {
+    formato:'coquetel',
+    nivel:'premium',
+    vinho:0.8,
+    margem:40,
+    precoManual:null,
+    qtd:{equipe:{}, materiais:{}},
+    manual:{equipe:{}, materiais:{}},
+    propostaEditada:false
+  };
+  var calc = {};
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  function brl(v){
+    return 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  function brlCurto(v){
+    return 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  }
+  function kg(v){
+    return v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' kg';
+  }
+
+  /* ---------- persistência ---------- */
+  var CHAVE = 'gc-tabua-config-v2';
+
+  function salvar(){
+    var texto = JSON.stringify(cfg);
+    if(window.storage){
+      try{ window.storage.set(CHAVE, texto); return; }catch(e){}
+    }
+    try{ window.localStorage.setItem(CHAVE, texto); }catch(e){}
+  }
+
+  function carregar(){
+    var ler = window.storage
+      ? window.storage.get(CHAVE).then(function(r){ return r && r.value; })
+      : Promise.resolve(window.localStorage ? window.localStorage.getItem(CHAVE) : null);
+
+    return ler.then(function(texto){
+      if(!texto) return;
+      var salvos = JSON.parse(texto);
+        cfg.paes = salvos.paes != null ? salvos.paes : cfg.paes;
+        cfg.acomp = salvos.acomp != null ? salvos.acomp : cfg.acomp;
+        ['funcoes','materiais'].forEach(function(k){
+          if(Array.isArray(salvos[k]) && salvos[k].length){
+            cfg[k] = salvos[k].filter(function(it){
+              return it && it.id && it.nome;
+            }).map(function(it){
+              return {id:it.id, nome:it.nome, plural:it.plural, singular:it.singular,
+                      valor:Number(it.valor) || 0, auto:it.auto || null, padrao:it.padrao};
+            });
+          }
+        });
+        cfg.descart = salvos.descart != null ? salvos.descart : cfg.descart;
+        cfg.transporte = salvos.transporte != null ? salvos.transporte : cfg.transporte;
+        cfg.margemMinima = salvos.margemMinima != null ? salvos.margemMinima : cfg.margemMinima;
+        if(salvos.precos){
+          for(var n in cfg.precos){
+            if(salvos.precos[n]){
+              cfg.precos[n].queijos = salvos.precos[n].queijos != null ? salvos.precos[n].queijos : cfg.precos[n].queijos;
+              cfg.precos[n].frios   = salvos.precos[n].frios   != null ? salvos.precos[n].frios   : cfg.precos[n].frios;
+              cfg.precos[n].vinho   = salvos.precos[n].vinho   != null ? salvos.precos[n].vinho   : cfg.precos[n].vinho;
+            }
+          }
+        }
+    }).catch(function(){ /* primeira vez, sem nada salvo */ });
+  }
+
+  /* ---------- listas de equipe e materiais ---------- */
+  function calcularLista(lista, pessoas){
+    var qtds = estado.qtd[lista.chave], manuais = estado.manual[lista.chave];
+    var custo = 0, total = 0, detalhe = [];
+    cfg[lista.cfg].forEach(function(it){
+      var q = qtds[it.id];
+      if(q === undefined || (it.auto && !manuais[it.id])){
+        q = it.auto ? Math.max(1, Math.ceil(pessoas * it.auto)) : (it.padrao || 0);
+      }
+      q = Math.max(0, parseInt(q,10) || 0);
+      qtds[it.id] = q;
+      custo += q * it.valor;
+      total += q;
+      if(q > 0) detalhe.push({
+        nome:it.nome,
+        singular:it.singular || it.nome,
+        plural:it.plural || (/s$/i.test(it.nome) ? it.nome : it.nome + 's'),
+        qtd:q, custo:q*it.valor
+      });
+    });
+    return {custo:custo, total:total, detalhe:detalhe};
+  }
+
+  function textoDetalhe(detalhe, separador){
+    if(!detalhe.length) return '';
+    return detalhe.map(function(d){
+      return d.qtd + ' ' + (d.qtd === 1 ? d.singular.toLowerCase() : d.plural.toLowerCase());
+    }).join(separador);
+  }
+
+  /* ---------- cálculo ---------- */
+  function calcular(){
+    var pessoas = Math.max(1, parseInt($('convidados').value,10) || 1);
+    var horas = $('duracao').value;
+    var mult = DURACAO_MULT[horas] || 1;
+    var f = FORMATOS[estado.formato];
+    var nivel = estado.nivel;
+    var precoNivel = cfg.precos[nivel];
+
+    var pesos = {
+      queijos: pessoas * f.queijo * mult / 1000,
+      frios:   pessoas * f.frios  * mult / 1000,
+      paes:    pessoas * f.paes   * mult / 1000,
+      acomp:   pessoas * f.acomp  * mult / 1000
+    };
+    var garrafas = Math.ceil(pessoas * estado.vinho);
+
+    var custos = {
+      queijos: pesos.queijos * precoNivel.queijos,
+      frios:   pesos.frios   * precoNivel.frios,
+      paes:    pesos.paes    * cfg.paes,
+      acomp:   pesos.acomp   * cfg.acomp,
+      vinho:   garrafas * precoNivel.vinho
+    };
+    var insumos = custos.queijos + custos.frios + custos.paes + custos.acomp + custos.vinho;
+
+    var equipe = calcularLista(LISTAS[0], pessoas);
+    var materiais = calcularLista(LISTAS[1], pessoas);
+
+    var op = {
+      equipe: equipe.custo,
+      materiais: materiais.custo,
+      descart: pessoas * cfg.descart,
+      transporte: cfg.transporte
+    };
+    var operacao = op.equipe + op.materiais + op.descart + op.transporte;
+    var custo = insumos + operacao;
+
+    var preco, margemReal;
+    if(estado.precoManual != null && estado.precoManual > 0){
+      preco = estado.precoManual;
+      margemReal = preco > 0 ? (preco - custo)/preco*100 : 0;
+    } else {
+      var m = Math.min(estado.margem, 95)/100;
+      preco = custo/(1-m);
+      margemReal = estado.margem;
+    }
+
+    calc = {
+      pessoas:pessoas, horas:horas, formato:f, nivel:NIVEIS[nivel], nivelId:nivel,
+      pesos:pesos, garrafas:garrafas, custos:custos, insumos:insumos,
+      op:op, operacao:operacao, custo:custo, preco:preco, margemReal:margemReal,
+      porPessoa:preco/pessoas, equipe:equipe, materiais:materiais
+    };
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    calcular();
+    var c = calc;
+
+    // tábua
+    var total = c.pesos.queijos + c.pesos.frios + c.pesos.paes + c.pesos.acomp;
+    $('peso-total').innerHTML = total.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' <span>kg de tábua</span>';
+    $('peso-por-pessoa').textContent = Math.round(total*1000/c.pessoas) + ' g por convidado · ' + c.formato.rotulo.toLowerCase() + ' de ' + c.horas + 'h';
+    $('dica-variedades').textContent = c.nivel.queijos + ' queijos e ' + c.nivel.frios + ' frios sugeridos';
+
+    ['queijos','frios','paes','acomp'].forEach(function(k){
+      $('f-'+k).style.flexGrow = c.pesos[k];
+      $('kg-'+k).firstChild.nodeValue = kg(c.pesos[k]);
+      $('pp-'+k).textContent = Math.round(c.pesos[k]*1000/c.pessoas) + ' g/pessoa';
+    });
+
+    $('garrafas').textContent = c.garrafas + (c.garrafas === 1 ? ' garrafa' : ' garrafas');
+    $('dica-vinho').textContent = estado.vinho.toLocaleString('pt-BR') + ' garrafa por convidado · cerca de ' +
+      Math.round(estado.vinho*750/150) + ' taças de 150 ml';
+
+    // insumos
+    $('q-queijos').textContent = kg(c.pesos.queijos);
+    $('q-frios').textContent   = kg(c.pesos.frios);
+    $('q-paes').textContent    = kg(c.pesos.paes);
+    $('q-acomp').textContent   = kg(c.pesos.acomp);
+    $('q-vinho').textContent   = c.garrafas + ' un';
+    $('c-queijos').textContent = brlCurto(c.custos.queijos);
+    $('c-frios').textContent   = brlCurto(c.custos.frios);
+    $('c-paes').textContent    = brlCurto(c.custos.paes);
+    $('c-acomp').textContent   = brlCurto(c.custos.acomp);
+    $('c-vinho').textContent   = brlCurto(c.custos.vinho);
+
+    // operação
+    $('q-descart').textContent   = c.pessoas + ' pessoas';
+    $('c-descart').textContent   = brlCurto(c.op.descart);
+    $('c-transporte').textContent= brlCurto(c.op.transporte);
+    $('dica-equipe').textContent = 'Clique em Equipe ou Materiais para abrir a lista e ajustar quantidades e valores.';
+
+    LISTAS.forEach(function(lista){
+      var r = c[lista.chave], vazio = lista.chave === 'equipe' ? 'nenhuma função escalada' : 'nenhum material incluído';
+      $('c-' + lista.chave).textContent = brlCurto(r.custo);
+      $('q-' + lista.chave).textContent = r.total ? r.total + ' ' + lista.unidade[r.total === 1 ? 0 : 1] : '—';
+      $('media-' + lista.chave).textContent = r.total ? brlCurto(r.custo/r.total) + ' méd' : '—';
+      $('resumo-' + lista.chave).textContent = r.detalhe.length ? textoDetalhe(r.detalhe, ' · ') : vazio;
+      sincronizarLista(lista);
+    });
+
+    // ficha
+    $('v-insumos').textContent  = brlCurto(c.insumos);
+    $('v-operacao').textContent = brlCurto(c.operacao);
+    $('v-custo').textContent    = brlCurto(c.custo);
+    $('v-margem').textContent   = brlCurto(c.preco - c.custo) + '  (' + Math.round(c.margemReal) + '%)';
+    $('v-preco').textContent    = brl(c.preco);
+    $('v-por-pessoa').textContent = brl(c.porPessoa) + ' por convidado';
+    $('m-preco').textContent    = brlCurto(c.preco);
+    $('m-pp').textContent       = brlCurto(c.porPessoa) + '/pessoa';
+
+    var aviso = $('aviso');
+    if(c.margemReal < cfg.margemMinima){
+      aviso.hidden = false;
+      aviso.textContent = 'Margem de ' + Math.round(c.margemReal) + '% abaixo do mínimo de ' + cfg.margemMinima + '%. Para chegar lá, o preço precisa ser ' + brlCurto(c.custo/(1-cfg.margemMinima/100)) + '.';
+    } else { aviso.hidden = true; }
+
+    $('margem-valor').textContent = Math.round(c.margemReal) + '%';
+    $('btn-auto').style.display = estado.precoManual != null ? 'block' : 'none';
+
+    // lista de compras
+    var itens = [
+      ['Queijos — ' + c.nivel.queijos + ' variedades', kg(c.pesos.queijos)],
+      ['Frios e embutidos — ' + c.nivel.frios + ' variedades', kg(c.pesos.frios)],
+      ['Pães, torradas e grissini', kg(c.pesos.paes)],
+      ['Geleias, mel, castanhas e frutas secas', kg(c.pesos.acomp)],
+      ['Vinho', c.garrafas + ' garrafas']
+    ].concat(
+      c.equipe.detalhe.map(function(d){ return [d.nome, d.qtd + (d.qtd === 1 ? ' pessoa' : ' pessoas')]; }),
+      c.materiais.detalhe.map(function(d){ return [d.nome, d.qtd + (d.qtd === 1 ? ' peça' : ' peças')]; })
+    );
+    $('lista-compras').innerHTML = itens.map(function(i){
+      return '<li><span>' + esc(i[0]) + '</span><b>' + esc(i[1]) + '</b></li>';
+    }).join('');
+
+    if(!estado.propostaEditada) $('proposta').value = montarProposta();
+  }
+
+  /* ---------- equipe ---------- */
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(ch){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];
+    });
+  }
+
+  function montarLista(lista){
+    var unitario = lista.chave === 'equipe' ? 'Diária' : 'Valor unitário';
+    var contagem = lista.chave === 'equipe' ? 'Pessoas' : 'Peças';
+    $(lista.el).innerHTML = cfg[lista.cfg].map(function(it){
+      var n = esc(it.nome);
+      return '<div class="item-lista" data-id="' + it.id + '">' +
+        '<div class="nome">' + n + (it.auto ? '<small>' + lista.dicaAuto + '</small>' : '') + '</div>' +
+        '<input type="number" class="qtd" min="0" step="1" aria-label="' + contagem + ' — ' + n + '">' +
+        '<input type="number" class="valor" min="0" step="1" aria-label="' + unitario + ' — ' + n + '">' +
+        '<div class="sub"></div>' +
+        '<button class="remover" aria-label="Remover ' + n + '">×</button>' +
+      '</div>';
+    }).join('');
+    sincronizarLista(lista);
+  }
+
+  function sincronizarLista(lista){
+    Array.prototype.forEach.call($(lista.el).children, function(linha){
+      var it = acharItem(lista, linha.dataset.id);
+      if(!it) return;
+      var q = estado.qtd[lista.chave][it.id] || 0;
+      var iq = linha.querySelector('.qtd'), iv = linha.querySelector('.valor');
+      if(document.activeElement !== iq) iq.value = q;
+      if(document.activeElement !== iv) iv.value = it.valor;
+      linha.querySelector('.sub').textContent = q ? brlCurto(q * it.valor) : '—';
+    });
+  }
+
+  function acharItem(lista, id){
+    var arr = cfg[lista.cfg];
+    for(var i=0;i<arr.length;i++){ if(arr[i].id === id) return arr[i]; }
+    return null;
+  }
+
+  /* ---------- documento para PDF ---------- */
+  function dataPorExtenso(d){
+    var meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    return d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
+  }
+
+  function montarDocumento(){
+    var c = calc;
+    var cliente = $('cliente').value.trim();
+    var hoje = new Date();
+    var validade = new Date(hoje.getTime() + 15*86400000);
+
+    var incluso = [
+      ['Seleção de ' + c.nivel.queijos + ' queijos artesanais e maturados', kg(c.pesos.queijos)],
+      [c.nivel.frios + ' frios e embutidos curados', kg(c.pesos.frios)],
+      ['Pães artesanais, torradas e grissini', kg(c.pesos.paes)],
+      ['Geleias, mel, castanhas e frutas secas', kg(c.pesos.acomp)],
+      ['Vinhos harmonizados com a seleção', c.garrafas + ' garrafas']
+    ];
+    if(c.equipe.detalhe.length) incluso.push(['Equipe dedicada durante todo o evento', textoDetalhe(c.equipe.detalhe, ', ')]);
+    if(c.materiais.detalhe.length) incluso.push(['Taças, louças e ambientação da mesa', textoDetalhe(c.materiais.detalhe, ', ')]);
+    incluso.push(['Montagem e desmontagem da estação', 'incluso']);
+
+    var html =
+      '<div class="folha">' +
+        '<div class="faixa">' +
+          '<div><div class="marca">GRAND CRU RIO</div>' +
+          '<h1>Estação de queijos,<br>frios e vinhos</h1></div>' +
+          '<div class="data">Orçamento<br>' + hoje.toLocaleDateString('pt-BR') + '</div>' +
+        '</div>' +
+        '<div class="corpo">' +
+          (cliente ? '<div class="cliente">' + esc(cliente) + '</div>' : '<div class="cliente">Proposta de evento</div>') +
+          '<dl class="meta">' +
+            '<div><dt>Convidados</dt><dd>' + c.pessoas + '</dd></div>' +
+            '<div><dt>Duração</dt><dd>' + c.horas + 'h</dd></div>' +
+            '<div><dt>Formato</dt><dd style="font-size:11pt">' + c.formato.rotulo + '</dd></div>' +
+            '<div><dt>Seleção</dt><dd style="font-size:11pt">' + c.nivel.rotulo + '</dd></div>' +
+          '</dl>' +
+
+          '<h2>O que está incluído</h2>' +
+          '<table>' + incluso.map(function(i){
+            return '<tr><td>' + esc(i[0]) + '</td><td class="qtd">' + esc(i[1]) + '</td></tr>';
+          }).join('') + '</table>' +
+
+          '<div class="investimento">' +
+            '<div><div class="rotulo">Investimento total</div>' +
+            '<div class="total">' + brl(c.preco) + '</div></div>' +
+            '<div class="pp">' + brl(c.porPessoa) + '<br><span style="font-size:7.5pt;color:var(--neutro)">POR CONVIDADO</span></div>' +
+          '</div>' +
+
+          '<h2>Condições</h2>' +
+          '<ul class="condicoes">' +
+            '<li>Proposta válida até ' + dataPorExtenso(validade) + '.</li>' +
+            '<li>Confirmação com 50% de sinal; saldo até a véspera do evento.</li>' +
+            '<li>Quantidades dimensionadas para ' + c.pessoas + ' convidados. Alterações no número devem ser informadas com até 5 dias de antecedência.</li>' +
+            '<li>Valores incluem montagem, atendimento e desmontagem no município do Rio de Janeiro.</li>' +
+          '</ul>' +
+
+          '<div class="rodape-doc"><span>GRAND CRU RIO · EVENTOS</span><span>' + hoje.toLocaleDateString('pt-BR') + '</span></div>' +
+        '</div>' +
+      '</div>';
+
+    if($('folha-interna').checked) html += documentoInterno(hoje);
+    $('documento').innerHTML = html;
+  }
+
+  function documentoInterno(hoje){
+    var c = calc;
+    var linhas = [
+      ['Queijos — ' + kg(c.pesos.queijos), c.custos.queijos],
+      ['Frios e embutidos — ' + kg(c.pesos.frios), c.custos.frios],
+      ['Pães e torradas — ' + kg(c.pesos.paes), c.custos.paes],
+      ['Acompanhamentos — ' + kg(c.pesos.acomp), c.custos.acomp],
+      ['Vinho — ' + c.garrafas + ' garrafas', c.custos.vinho]
+    ];
+    c.equipe.detalhe.forEach(function(d){ linhas.push([d.qtd + ' × ' + d.nome, d.custo]); });
+    c.materiais.detalhe.forEach(function(d){ linhas.push([d.qtd + ' × ' + d.nome, d.custo]); });
+    linhas.push(['Descartáveis e decoração', c.op.descart]);
+    linhas.push(['Transporte e montagem', c.op.transporte]);
+
+    return '<div class="folha quebra interna">' +
+      '<div class="faixa"><div><div class="marca">USO INTERNO — NÃO ENVIAR AO CLIENTE</div>' +
+      '<h1>Folha de custos</h1></div>' +
+      '<div class="data">' + c.pessoas + ' convidados<br>' + hoje.toLocaleDateString('pt-BR') + '</div></div>' +
+      '<div class="corpo"><h2>Composição do custo</h2><table>' +
+        linhas.map(function(l){
+          return '<tr><td>' + esc(l[0]) + '</td><td class="valor">' + brl(l[1]) + '</td></tr>';
+        }).join('') +
+        '<tr class="total"><td>Custo total</td><td class="valor">' + brl(c.custo) + '</td></tr>' +
+        '<tr><td>Preço de venda</td><td class="valor">' + brl(c.preco) + '</td></tr>' +
+        '<tr class="total"><td>Margem — ' + Math.round(c.margemReal) + '%</td><td class="valor">' + brl(c.preco - c.custo) + '</td></tr>' +
+      '</table>' +
+      '<div class="rodape-doc"><span>GRAND CRU RIO · CONTROLE INTERNO</span><span>CUSTO POR CONVIDADO ' + brl(c.custo/c.pessoas) + '</span></div>' +
+      '</div></div>';
+  }
+
+  function montarProposta(){
+    var c = calc;
+    var cliente = $('cliente').value.trim();
+    var L = [];
+    L.push('GRAND CRU RIO — ESTAÇÃO DE QUEIJOS, FRIOS E VINHOS');
+    if(cliente) L.push(cliente);
+    L.push('');
+    L.push(c.pessoas + ' convidados · ' + c.horas + ' horas · formato ' + c.formato.rotulo.toLowerCase() + ' · seleção ' + c.nivel.rotulo);
+    L.push('');
+    L.push('O QUE ESTÁ INCLUÍDO');
+    L.push('· Seleção de ' + c.nivel.queijos + ' queijos — ' + kg(c.pesos.queijos));
+    L.push('· ' + c.nivel.frios + ' frios e embutidos curados — ' + kg(c.pesos.frios));
+    L.push('· Pães artesanais, torradas e grissini — ' + kg(c.pesos.paes));
+    L.push('· Geleias, mel, castanhas e frutas secas — ' + kg(c.pesos.acomp));
+    L.push('· ' + c.garrafas + ' garrafas de vinho harmonizadas com a seleção — ' + estado.vinho.toLocaleString('pt-BR') + ' por convidado');
+    if(c.equipe.detalhe.length){
+      L.push('· Equipe durante todo o evento: ' + textoDetalhe(c.equipe.detalhe, ', '));
+    }
+    if(c.materiais.detalhe.length){
+      L.push('· Materiais: ' + textoDetalhe(c.materiais.detalhe, ', '));
+    }
+    L.push('· Montagem e desmontagem da estação');
+    L.push('');
+    L.push('INVESTIMENTO');
+    L.push(brl(c.preco) + ' — ' + brl(c.porPessoa) + ' por convidado');
+    L.push('');
+    L.push('Proposta válida por 15 dias. Confirmação com 50% de sinal e o restante até a véspera do evento.');
+    return L.join('\n');
+  }
+
+  function textoLista(){
+    var c = calc;
+    return ['LISTA DE COMPRAS — ' + c.pessoas + ' convidados · ' + c.nivel.rotulo,
+      'Queijos: ' + kg(c.pesos.queijos) + ' (' + c.nivel.queijos + ' variedades)',
+      'Frios e embutidos: ' + kg(c.pesos.frios) + ' (' + c.nivel.frios + ' variedades)',
+      'Pães, torradas e grissini: ' + kg(c.pesos.paes),
+      'Geleias, mel, castanhas e frutas secas: ' + kg(c.pesos.acomp),
+      'Vinho: ' + c.garrafas + ' garrafas',
+      'Equipe: ' + (c.equipe.detalhe.length ? textoDetalhe(c.equipe.detalhe, ', ') : 'a definir'),
+      'Materiais: ' + (c.materiais.detalhe.length ? textoDetalhe(c.materiais.detalhe, ', ') : 'a definir')
+    ].join('\n');
+  }
+
+  /* ---------- campos de preço ---------- */
+  function preencherPrecos(){
+    var p = cfg.precos[estado.nivel];
+    $('p-queijos').value = p.queijos;
+    $('p-frios').value   = p.frios;
+    $('p-vinho').value   = p.vinho;
+    $('p-paes').value    = cfg.paes;
+    $('p-acomp').value   = cfg.acomp;
+    $('p-descart').value    = cfg.descart;
+    $('p-transporte').value = cfg.transporte;
+    $('margem-minima').value = cfg.margemMinima;
+  }
+
+  function lerPrecos(){
+    var num = function(id){ var v = parseFloat($(id).value); return isNaN(v) || v < 0 ? 0 : v; };
+    var p = cfg.precos[estado.nivel];
+    p.queijos = num('p-queijos');
+    p.frios   = num('p-frios');
+    p.vinho   = num('p-vinho');
+    cfg.paes = num('p-paes');
+    cfg.acomp = num('p-acomp');
+    cfg.descart = num('p-descart');
+    cfg.transporte = num('p-transporte');
+    var mm = parseFloat($('margem-minima').value);
+    cfg.margemMinima = isNaN(mm) ? 0 : mm;
+    salvar();
+  }
+
+  /* ---------- eventos ---------- */
+  function grupo(id, chave){
+    $(id).addEventListener('click', function(e){
+      var b = e.target.closest('button');
+      if(!b) return;
+      estado[chave] = chave === 'vinho' ? parseFloat(b.dataset.v) : b.dataset.v;
+      Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){
+        x.setAttribute('aria-pressed', String(x === b));
+      });
+      if(chave === 'nivel') preencherPrecos();
+      estado.propostaEditada = false;
+      render();
+    });
+  }
+  grupo('formato','formato');
+  grupo('nivel','nivel');
+  grupo('vinhos','vinho');
+
+  ['convidados','duracao','cliente'].forEach(function(id){
+    $(id).addEventListener('input', function(){ estado.propostaEditada = false; render(); });
+  });
+
+  LISTAS.forEach(function(lista){
+    $(lista.btn).addEventListener('click', function(){
+      var aberto = this.getAttribute('aria-expanded') === 'true';
+      this.setAttribute('aria-expanded', String(!aberto));
+      $(lista.painel).hidden = aberto;
+    });
+
+    $(lista.el).addEventListener('input', function(e){
+      var linha = e.target.closest('.item-lista');
+      if(!linha) return;
+      var it = acharItem(lista, linha.dataset.id);
+      if(!it) return;
+      if(e.target.classList.contains('qtd')){
+        estado.qtd[lista.chave][it.id] = Math.max(0, parseInt(e.target.value,10) || 0);
+        estado.manual[lista.chave][it.id] = true;
+      } else {
+        var v = parseFloat(e.target.value);
+        it.valor = isNaN(v) || v < 0 ? 0 : v;
+        salvar();
+      }
+      estado.propostaEditada = false;
+      render();
+    });
+
+    $(lista.el).addEventListener('click', function(e){
+      var b = e.target.closest('.remover');
+      if(!b) return;
+      var id = b.closest('.item-lista').dataset.id;
+      cfg[lista.cfg] = cfg[lista.cfg].filter(function(x){ return x.id !== id; });
+      delete estado.qtd[lista.chave][id];
+      delete estado.manual[lista.chave][id];
+      salvar(); montarLista(lista); render();
+    });
+
+    function adicionar(){
+      var nome = $(lista.campoNome).value.trim();
+      if(!nome) return;
+      var id = 'x' + Date.now();
+      cfg[lista.cfg].push({id:id, nome:nome, valor:lista.valorPadrao, auto:null});
+      estado.qtd[lista.chave][id] = 1;
+      estado.manual[lista.chave][id] = true;
+      $(lista.campoNome).value = '';
+      salvar(); montarLista(lista); render();
+      aviso(nome + ' foi adicionado');
+    }
+    $(lista.btnAdd).addEventListener('click', adicionar);
+    $(lista.campoNome).addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); adicionar(); }
+    });
+  });
+
+  ['p-queijos','p-frios','p-paes','p-acomp','p-vinho','p-descart','p-transporte','margem-minima']
+    .forEach(function(id){
+      $(id).addEventListener('input', function(){ lerPrecos(); render(); });
+    });
+
+  $('margem').addEventListener('input', function(){
+    estado.margem = parseFloat(this.value);
+    estado.precoManual = null;
+    $('preco-manual').value = '';
+    estado.propostaEditada = false;
+    render();
+  });
+
+  $('preco-manual').addEventListener('input', function(){
+    var v = parseFloat(this.value);
+    estado.precoManual = (isNaN(v) || v <= 0) ? null : v;
+    estado.propostaEditada = false;
+    render();
+  });
+
+  $('btn-auto').addEventListener('click', function(){
+    estado.precoManual = null;
+    $('preco-manual').value = '';
+    render();
+  });
+
+  $('proposta').addEventListener('input', function(){ estado.propostaEditada = true; });
+  $('btn-regerar').addEventListener('click', function(){
+    estado.propostaEditada = false;
+    $('proposta').value = montarProposta();
+    aviso('Proposta gerada de novo');
+  });
+
+  function copiar(texto, msg){
+    var ok = function(){ aviso(msg); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(texto).then(ok, function(){ fallback(texto, ok); });
+    } else { fallback(texto, ok); }
+  }
+  function fallback(texto, ok){
+    var t = document.createElement('textarea');
+    t.value = texto; t.style.position='fixed'; t.style.opacity='0';
+    document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); ok(); }
+    catch(e){ aviso('Não deu para copiar. Selecione o texto e copie manualmente.'); }
+    document.body.removeChild(t);
+  }
+
+  var timer;
+  function aviso(msg){
+    var t = $('toast');
+    t.textContent = msg; t.classList.add('on');
+    clearTimeout(timer);
+    timer = setTimeout(function(){ t.classList.remove('on'); }, 2200);
+  }
+
+  $('btn-copiar-proposta').addEventListener('click', function(){ copiar($('proposta').value, 'Proposta copiada'); });
+  $('btn-copiar-lista').addEventListener('click', function(){ copiar(textoLista(), 'Lista copiada'); });
+  $('btn-pdf').addEventListener('click', function(){
+    montarDocumento();
+    window.print();
+  });
+  $('folha-interna').addEventListener('change', function(){
+    if(this.checked) aviso('A folha de custos entra como segunda página');
+  });
+
+  function montarTodas(){
+    LISTAS.forEach(montarLista);
+  }
+
+  $('btn-restaurar').addEventListener('click', function(){
+    cfg = JSON.parse(JSON.stringify(PADRAO));
+    estado.qtd = {equipe:{}, materiais:{}};
+    estado.manual = {equipe:{}, materiais:{}};
+    preencherPrecos(); montarTodas(); salvar(); render();
+    aviso('Valores padrão restaurados');
+  });
+
+  /* ---------- início ---------- */
+  preencherPrecos();
+  montarTodas();
+  render();
+  carregar().then(function(){ preencherPrecos(); montarTodas(); render(); });
+})();
+</script>
+</body>
+</html>
