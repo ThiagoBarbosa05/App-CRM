@@ -50,6 +50,7 @@ import { ClientTelemarketingTab } from "@/components/clients/client-telemarketin
 import { ClientReferralsTab } from "@/components/clients/client-referrals-tab";
 import { ClientQuotesTab } from "@/components/clients/client-quotes-tab";
 import ClientFormModal from "@/components/client-form-modal";
+import DealFormModal from "@/components/deal-form-modal";
 import { useAuth } from "@/hooks/useAuth";
 import {
   DropdownMenu,
@@ -134,6 +135,13 @@ export default function ClientProfilePage() {
   const [activeTab, setActiveTab] = useState("info");
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [showCreateDealModal, setShowCreateDealModal] = useState(false);
+  const [selectedFunnelId, setSelectedFunnelId] = useState<string>("");
+
+  const handleCreateDeal = (funnelId: string) => {
+    setSelectedFunnelId(funnelId);
+    setShowCreateDealModal(true);
+  };
   const { toast } = useToast();
 
   const deleteClientMutation = useMutation({
@@ -675,7 +683,7 @@ export default function ClientProfilePage() {
                     clientId={client.id}
                     clientName={client.name}
                     isOpen={activeTab === "negocio"}
-                    onCreateDeal={() => {}}
+                    onCreateDeal={handleCreateDeal}
                   />
                 )}
 
@@ -727,6 +735,21 @@ export default function ClientProfilePage() {
             if (!open) refetch();
           }}
           client={client}
+        />
+      )}
+
+      {showCreateDealModal && (
+        <DealFormModal
+          open={showCreateDealModal}
+          onOpenChange={(open) => {
+            setShowCreateDealModal(open);
+            if (!open) {
+              setSelectedFunnelId("");
+            }
+          }}
+          funnelId={selectedFunnelId}
+          deal={undefined}
+          initialClientId={client.id}
         />
       )}
 
