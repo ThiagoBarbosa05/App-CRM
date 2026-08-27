@@ -1,6 +1,8 @@
 import React from "react";
 import { useLocation } from "wouter";
-import { DealWithClient } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { DealWithClient, type ClientInteractionWithUser } from "@shared/schema";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,16 +22,31 @@ import {
   TrendingUp,
   Target,
   MoreVertical,
+  Users,
+  MapPin,
+  StickyNote,
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+const interactionTypeIcons: Record<string, React.ElementType> = {
+  telemarketing: Phone,
+  email: Mail,
+  meeting: Users,
+  whatsapp: MessageSquare,
+  visit: MapPin,
+  note: StickyNote,
+  other: Clock,
+};
 
 interface DealCardProps {
   deal: DealWithClient;
@@ -108,6 +125,36 @@ export default function DealCard({
     const totalStages = 5;
     return (stageOrder / totalStages) * 100;
   };
+
+  const interactionTarget = deal.clientId
+    ? { id: deal.clientId, type: "client" as const }
+    : deal.companyId
+      ? { id: deal.companyId, type: "company" as const }
+      : null;
+
+  const { data: recentInteractions = [], isLoading: isLoadingInteractions } =
+    useQuery<ClientInteractionWithUser[]>({
+      queryKey: [
+        "interactions",
+        interactionTarget?.type,
+        interactionTarget?.id,
+      ],
+      queryFn: async () => {
+        const endpoint =
+          interactionTarget!.type === "client"
+            ? `/api/clients/${interactionTarget!.id}/interactions`
+            : `/api/companies/${interactionTarget!.id}/interactions`;
+        const response = await apiRequest("GET", endpoint);
+        return response.json();
+      },
+      enabled: !!interactionTarget,
+    });
+
+  const lastInteractions = [...recentInteractions]
+    .sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    )
+    .slice(0, 3);
 
   return (
     <Card
@@ -465,24 +512,52 @@ export default function DealCard({
           </div>
         )}
 
-        {/* Última Interação */}
+        {/* Últimas Interações */}
         <div className="p-3 sm:p-4 border rounded-lg bg-gray-50 dark:bg-gray-900/50 dark:border-gray-700 border-gray-200">
-          <div className="flex items-center justify-between text-xs sm:text-sm mb-2">
-            <div className="flex items-center gap-2">
-              <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100 dark:bg-green-900">
-                <Clock className="h-3 w-3 text-green-600 dark:text-green-400" />
-              </div>
-              <span className="font-medium text-gray-900 dark:text-gray-100">
-                Última interação
-              </span>
+          <div className="flex items-center gap-2 mb-3 text-xs sm:text-sm">
+            <div className="flex h-4 w-4 items-center justify-center rounded bg-green-100 dark:bg-green-900">
+              <Clock className="h-3 w-3 text-green-600 dark:text-green-400" />
             </div>
-            <span className="text-gray-500 text-xs dark:text-gray-400">
-              Há 2 dias
+            <span className="font-medium text-gray-900 dark:text-gray-100">
+              Últimas interações
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 pl-6">
-            Ligação realizada - Cliente interessado
-          </p>
+
+          {isLoadingInteractions ? (
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 pl-6">
+              Carregando...
+            </p>
+          ) : lastInteractions.length === 0 ? (
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 pl-6">
+              Nenhuma interação registrada ainda.
+            </p>
+          ) : (
+            <div className="space-y-2.5 pl-6">
+              {lastInteractions.map((interaction) => {
+                const Icon =
+                  interactionTypeIcons[interaction.type] || Clock;
+                return (
+                  <div
+                    key={interaction.id}
+                    className="flex items-start justify-between gap-2"
+                  >
+                    <div className="flex items-start gap-2 min-w-0">
+                      <Icon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 truncate">
+                        {interaction.subject || interaction.description}
+                      </p>
+                    </div>
+                    <span className="text-gray-500 text-xs dark:text-gray-400 whitespace-nowrap flex-shrink-0">
+                      {formatDistanceToNow(new Date(interaction.date), {
+                        addSuffix: true,
+                        locale: ptBR,
+                      })}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Ações Rápidas */}
