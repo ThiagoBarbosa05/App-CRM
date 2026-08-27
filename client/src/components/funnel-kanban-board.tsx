@@ -311,56 +311,48 @@ export default function FunnelKanbanBoard({
     <>
       <div className="flex flex-col gap-4">
         {/* Header — fora do scroll horizontal para não expandir com as colunas */}
-        <div className="bg-card border border-border rounded-2xl shadow-sm relative overflow-hidden">
-          {/* Bloco superior: identidade do funil (unificado com a navegação) */}
-          <div className="px-5 sm:px-6 py-5">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-              <div className="flex items-center gap-4 min-w-0 w-full flex-1">
-                {onBack && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onBack}
-                    className="h-10 w-10 text-slate-500 hover:text-primary hover:bg-accent rounded-xl flex-shrink-0"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                  </Button>
+        <div className="bg-card border border-border rounded-2xl shadow-sm relative overflow-hidden px-5 sm:px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              {onBack && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onBack}
+                  className="h-10 w-10 text-slate-500 hover:text-primary hover:bg-accent rounded-xl flex-shrink-0"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              )}
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-accent text-primary flex-shrink-0 shadow-inner">
+                <GitBranch className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex items-baseline gap-x-3 gap-y-0 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate">
+                  {funnel.name}
+                </h1>
+                <Badge
+                  variant={funnel.isActive === "true" ? "default" : "secondary"}
+                  className={`${
+                    funnel.isActive === "true"
+                      ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800"
+                      : "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+                  }`}
+                >
+                  {funnel.isActive === "true" ? "Ativo" : "Inativo"}
+                </Badge>
+                <p className="hidden lg:block text-slate-500 dark:text-slate-400 text-sm truncate">
+                  Board Kanban - Gerencie seus deals e oportunidades
+                </p>
+                {hasActiveFilters && (
+                  <span className="text-xs bg-blue-100 dark:bg-slate-800 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full w-fit">
+                    {totalDeals} {totalDeals === 1 ? "negócio" : "negócios"}{" "}
+                    encontrados
+                  </span>
                 )}
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-primary flex-shrink-0 shadow-inner">
-                  <GitBranch className="h-6 w-6" />
-                </div>
-                <div className="min-w-0">
-                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
-                    {funnel.name}
-                    <Badge
-                      variant={funnel.isActive === "true" ? "default" : "secondary"}
-                      className={`ml-3 align-middle ${
-                        funnel.isActive === "true"
-                          ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800"
-                          : "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
-                      }`}
-                    >
-                      {funnel.isActive === "true" ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </h1>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 line-clamp-2">
-                    Board Kanban - Gerencie seus deals e oportunidades
-                  </p>
-                </div>
               </div>
             </div>
-          </div>
-
-          {/* Bloco inferior: contagem + ações (filtros / novo deal) */}
-          <div className="border-t border-border px-5 sm:px-6 py-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              {hasActiveFilters && (
-                <span className="text-xs bg-blue-100 dark:bg-slate-800 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full w-fit">
-                  {totalDeals} {totalDeals === 1 ? "negócio" : "negócios"}{" "}
-                  encontrados
-                </span>
-              )}
-              <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -532,7 +524,6 @@ export default function FunnelKanbanBoard({
                   funnelId={funnelId}
                 />
               </Dialog>
-              </div>
             </div>
           </div>
         </div>
