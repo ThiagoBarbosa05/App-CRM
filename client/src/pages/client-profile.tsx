@@ -750,6 +750,7 @@ export default function ClientProfilePage() {
           funnelId={selectedFunnelId}
           deal={undefined}
           initialClientId={client.id}
+          initialClientName={client.name}
         />
       )}
 

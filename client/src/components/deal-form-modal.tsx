@@ -44,6 +44,7 @@ interface DealFormModalProps {
   deal?: DealWithClient;
   funnelId?: string;
   initialClientId?: string;
+  initialClientName?: string;
 }
 
 const createDealSchema = z
@@ -84,6 +85,7 @@ export default function DealFormModal({
   deal,
   funnelId,
   initialClientId,
+  initialClientName,
 }: DealFormModalProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,7 +96,9 @@ export default function DealFormModal({
   const [companySearch, setCompanySearch] = useState("");
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
-  const [selectedClientName, setSelectedClientName] = useState("");
+  const [selectedClientName, setSelectedClientName] = useState(
+    !deal && initialClientId ? initialClientName || "" : ""
+  );
   const [selectedCompanyName, setSelectedCompanyName] = useState("");
 
   const { data: clients } = useQuery({
@@ -156,7 +160,7 @@ export default function DealFormModal({
         : deal?.companyId
         ? "company"
         : "client",
-      title: deal?.title || "",
+      title: deal?.title || (!deal ? initialClientName || "" : ""),
       clientId: deal?.clientId || initialClientId || "",
       companyId: deal?.companyId || "",
       value: deal?.value || "",
