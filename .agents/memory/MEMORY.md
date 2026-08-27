@@ -6,3 +6,5 @@
 - [Event pricing migration](event-pricing-migration.md) — Price schema backfill runs before event routes accept traffic, preserving legacy per-person records.
 - [TypeScript validation limits](typescript-validation-limits.md) — Full-project tsc exceeds this workspace’s available time/memory; use build plus targeted tests until its footprint is reduced.
 - [Eventos user profile](eventos-user-profile.md) — Perfil Eventos herda o escopo operacional de vendedor e recebe acesso de consulta/criação/edição ao módulo, sem exclusão.
+- [Este projeto é publicado](deployed-app-debugging.md) — app tem deploy autoscale ativo em produção; se o usuário disser "ainda não vejo a mudança" após um fix confirmado no dev, checar getDeploymentInfo antes de seguir depurando.
+</content>
