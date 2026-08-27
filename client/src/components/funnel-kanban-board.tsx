@@ -20,6 +20,7 @@ import DealFormModal from "./deal-form-modal";
 import ClientFormModal from "./client-form-modal";
 import DealDetailsModal from "./deal-details-modal";
 import CompanyDetailsModal from "./company-details-modal";
+import InteractionFormModal from "./interaction-form-modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -86,6 +87,9 @@ export default function FunnelKanbanBoard({
     DealWithClient["company"] | null
   >(null);
   const [selectedDeal, setSelectedDeal] = useState<DealWithClient | null>(null);
+  const [interactionDeal, setInteractionDeal] = useState<DealWithClient | null>(
+    null
+  );
   const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
   // Estados dos filtros
@@ -780,7 +784,21 @@ export default function FunnelKanbanBoard({
           setSelectedDeal(null);
           setSelectedCompany(company);
         }}
+        onAddInteraction={(deal) => setInteractionDeal(deal)}
       />
+      {interactionDeal && (
+        <InteractionFormModal
+          open={!!interactionDeal}
+          onOpenChange={(open) => {
+            if (!open) setInteractionDeal(null);
+          }}
+          target={
+            interactionDeal.clientId
+              ? { id: interactionDeal.clientId, type: "client" }
+              : { id: interactionDeal.companyId as string, type: "company" }
+          }
+        />
+      )}
       <AlertDialog
         open={!!deletingDeal}
         onOpenChange={() => setDeletingDeal(null)}
