@@ -1,4 +1,6 @@
 import { useState, useRef } from "react";
+import { useLocation } from "wouter";
+import { FaWhatsapp } from "react-icons/fa";
 import {
   User,
   Phone,
@@ -92,6 +94,26 @@ const QUICK_FILL_CONFIG: Record<QuickFillField, { label: string; inputType: stri
 
 export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  async function handleWhatsAppClient() {
+    if (!client.phone) return;
+    try {
+      const response = await apiRequest("POST", "/api/whatsapp/conversations/start", {
+        clientId: client.id,
+      });
+      const data = await response.json();
+      navigate(`/whatsapp/conversas?conversationId=${data.conversationId}`);
+    } catch (error) {
+      toast({
+        title: "Erro ao iniciar conversa",
+        description:
+          error instanceof Error ? error.message : "Não foi possível abrir o WhatsApp.",
+        variant: "destructive",
+      });
+    }
+  }
+
   const [cpfVerify, setCpfVerify] = useState<{
     status: "idle" | "loading" | "success" | "error";
     mapped?: { name?: string; birthday?: string; sexo?: "M" | "F"; email?: string };
@@ -370,6 +392,7 @@ export function ClientInfoTab({ client, onEdit, onClose }: ClientInfoTabProps) {
               missing={!client.phone}
               copyValue={client.phone ?? undefined}
               onFill={() => openQuickFill("phone")}
+              onWhatsApp={client.phone ? handleWhatsAppClient : undefined}
             />
             {/* CPF / CNPJ tile com botão Assertiva */}
             <div
@@ -888,6 +911,7 @@ function InfoTile({
   missing = false,
   copyValue,
   onFill,
+  onWhatsApp,
 }: {
   icon: typeof User;
   accent: TileAccent;
@@ -898,6 +922,7 @@ function InfoTile({
   missing?: boolean;
   copyValue?: string;
   onFill?: () => void;
+  onWhatsApp?: () => void;
 }) {
   const styles = tileAccentStyles[accent];
   const { toast } = useToast();
@@ -950,16 +975,31 @@ function InfoTile({
             <p className={cn("text-[11px] font-black uppercase tracking-[0.18em]", missing ? "text-red-400 dark:text-red-500" : "text-slate-400 dark:text-slate-500")}>
               {label}
             </p>
-            {copyValue && !missing && (
-              <button
-                type="button"
-                onClick={handleCopy}
-                title={`Copiar ${label.toLowerCase()}`}
-                className="shrink-0 rounded-md p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
-              >
-                <Copy className="h-3 w-3" />
-              </button>
-            )}
+            <div className="flex shrink-0 items-center gap-1">
+              {onWhatsApp && !missing && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onWhatsApp();
+                  }}
+                  title="Iniciar conversa no WhatsApp"
+                  className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white transition-colors hover:bg-green-600"
+                >
+                  <FaWhatsapp className="h-3 w-3" />
+                </button>
+              )}
+              {copyValue && !missing && (
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  title={`Copiar ${label.toLowerCase()}`}
+                  className="rounded-md p-1 text-slate-300 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                >
+                  <Copy className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
           {href && !missing ? (
             <Tooltip>
