@@ -271,18 +271,25 @@ export default function ClientProfilePage() {
         .toUpperCase()
     : "";
 
-  const whatsappUrl = (() => {
-    if (!client?.phone) return null;
-    const digits = client.phone.replace(/\D/g, "");
-    if (!digits) return null;
-    // Prefixa o DDI 55 apenas quando ainda não está presente. Números locais
-    // têm 10-11 dígitos (DDD + número); com DDI passam a 12-13. O check de
-    // comprimento evita duplicar o "55" e não confunde o DDD 55 (RS) com o
-    // código do país.
-    const withCountry =
-      digits.length >= 12 && digits.startsWith("55") ? digits : `55${digits}`;
-    return `https://wa.me/${withCountry}`;
-  })();
+  const hasWhatsappPhone = Boolean(client?.phone && client.phone.replace(/\D/g, ""));
+
+  async function handleWhatsAppClient() {
+    if (!client?.phone) return;
+    try {
+      const response = await apiRequest("POST", "/api/whatsapp/conversations/start", {
+        clientId: client.id,
+      });
+      const data = await response.json();
+      navigate(`/whatsapp/conversas?conversationId=${data.conversationId}`);
+    } catch (error) {
+      toast({
+        title: "Erro ao iniciar conversa",
+        description:
+          error instanceof Error ? error.message : "Não foi possível abrir o WhatsApp.",
+        variant: "destructive",
+      });
+    }
+  }
 
   // ── Conversas do Zernio Inbox vinculadas a este cliente (ex: Instagram) ────
   const { data: zernioConvsData } = useQuery<{ data: { id: string; platform: string }[] }>({
@@ -484,17 +491,15 @@ export default function ClientProfilePage() {
 
         {/* Ações rápidas */}
         <PageHeader.Actions className="flex-wrap justify-start lg:justify-end lg:shrink-0">
-          {whatsappUrl && (
+          {hasWhatsappPhone && (
             <Button
               variant="outline"
               size="sm"
+              onClick={handleWhatsAppClient}
               className="gap-1.5 text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:border-emerald-300 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-900/20 font-medium w-full sm:w-auto"
-              asChild
             >
-              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
-                <FaWhatsapp className="h-4 w-4" />
-                WhatsApp
-              </a>
+              <FaWhatsapp className="h-4 w-4" />
+              WhatsApp
             </Button>
           )}
           {instagramConversation && (
