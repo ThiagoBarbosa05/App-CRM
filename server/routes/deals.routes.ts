@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getDealsController } from "../controllers/deals/get-deals.controller";
 import { getDealByIdController } from "../controllers/deals/get-deal-by-id.controller";
+import { getDealsSummaryController } from "../controllers/deals/get-deals-summary.controller";
 import { createDealController } from "../controllers/deals/post-deal.controller";
 import { createBulkDealsController } from "../controllers/deals/post-bulk-deals.controller";
 import { createBulkDealsClientsController } from "../controllers/deals/post-bulk-deals-clients.controller";
@@ -18,8 +19,14 @@ export const dealsRouter = Router();
  * @description Busca todos os deals com dados relacionados (clientes, empresas, usuários, estágios, funis)
  * @access Private (requer autenticação)
  * @queryParams {string} [funnelId] - ID do funil para filtrar deals específicos
- * @queryParams {string} [userId] - ID do usuário (usado para controle de acesso)
- * @queryParams {string} [userRole] - Role do usuário (admin/vendedor para controle de acesso)
+ * @queryParams {string} [search] - Busca em título e observações
+ * @queryParams {string} [assignedTo] - ID do responsável
+ * @queryParams {number} [valueMin] - Valor mínimo do negócio
+ * @queryParams {number} [valueMax] - Valor máximo do negócio
+ * @queryParams {string} [dateFrom] - Data inicial (YYYY-MM-DD)
+ * @queryParams {string} [dateTo] - Data final (YYYY-MM-DD, inclusiva)
+ * @queryParams {number} [perStageLimit] - Máximo de deals por estágio (sem limite se omitido)
+ * @notes Controle de acesso (userId/role) vem do token, não da query string
  * @returns {Array} Lista completa de deals com estrutura hierárquica
  * @example Response:
  * [
@@ -76,6 +83,16 @@ export const dealsRouter = Router();
  *   - Filtro por funnelId limita resultados ao funil específico
  */
 dealsRouter.get("/", getDealsController);
+
+/**
+ * @route GET /api/deals/summary
+ * @description Contagem e valor total de deals por estágio, com os mesmos
+ * filtros da listagem e sem o limite por estágio. Precisa ser registrada
+ * antes de "/:id", senão "summary" seria tratado como um ID de deal.
+ * @access Private (requer autenticação)
+ * @returns {Array} [{ stageId, count, totalValue }]
+ */
+dealsRouter.get("/summary", getDealsSummaryController);
 
 /**
  * @route GET /api/deals/:id

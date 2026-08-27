@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { SalesFunnelWithStages } from "@shared/schema";
 import { useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,31 +33,6 @@ import {
 import { FunnelsHeader } from "./funnels/funnels-header";
 import { FunnelsGrid } from "./funnels/funnels-grid";
 
-export interface SalesFunnel {
-  id: string;
-  name: string;
-  description?: string;
-  isActive: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-  stages: FunnelStage[];
-  creator: {
-    id: string;
-    name: string;
-    email: string;
-  };
-}
-
-interface FunnelStage {
-  id: string;
-  funnelId: string;
-  name: string;
-  order: number;
-  color: string;
-  createdAt: Date;
-}
-
 export default function FunnelsManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -65,33 +41,31 @@ export default function FunnelsManagement() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
-  const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnel | null>(
+  const [selectedFunnel, setSelectedFunnel] = useState<SalesFunnelWithStages | null>(
     null,
   );
   const [viewMode, setViewMode] = useState<"list" | "kanban" | "stages">(
     "list",
   );
-  const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
+  const [editingFunnel, setEditingFunnel] = useState<SalesFunnelWithStages | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [funnelToDelete, setFunnelToDelete] = useState<SalesFunnel | null>(null);
+  const [funnelToDelete, setFunnelToDelete] = useState<SalesFunnelWithStages | null>(null);
   const [initialDealId, setInitialDealId] = useState<string | null>(null);
 
-  const { data: funnels, isLoading } = useQuery({
+  const { data: funnels, isLoading } = useQuery<SalesFunnelWithStages[]>({
     queryKey: ["/api/funnels"],
   });
 
   // Abre diretamente o funil e o negócio indicados via query string
   // (ex.: vindo do card "Negócios Ativos" no perfil do cliente)
   useEffect(() => {
-    if (!funnels || !Array.isArray(funnels)) return;
+    if (!funnels) return;
     const params = new URLSearchParams(search);
     const funnelId = params.get("funnelId");
     const dealId = params.get("dealId");
     if (!funnelId) return;
 
-    const targetFunnel = (funnels as SalesFunnel[]).find(
-      (f) => f.id === funnelId,
-    );
+    const targetFunnel = funnels.find((f) => f.id === funnelId);
     if (targetFunnel) {
       setSelectedFunnel(targetFunnel);
       setViewMode("kanban");
@@ -202,17 +176,19 @@ export default function FunnelsManagement() {
 
   return (
     <div className="space-y-8">
-      <FunnelsHeader
-        viewMode={viewMode}
-        selectedFunnelName={selectedFunnel?.name || editingFunnel?.name}
-        isActive={(selectedFunnel || editingFunnel)?.isActive === "true"}
-        onBackToList={handleBackToList}
-        onNewFunnelClick={() => setIsCreateModalOpen(true)}
-      />
+      {viewMode !== "kanban" && (
+        <FunnelsHeader
+          viewMode={viewMode}
+          selectedFunnelName={selectedFunnel?.name || editingFunnel?.name}
+          isActive={(selectedFunnel || editingFunnel)?.isActive === "true"}
+          onBackToList={handleBackToList}
+          onNewFunnelClick={() => setIsCreateModalOpen(true)}
+        />
+      )}
 
       {viewMode === "list" && (
         <FunnelsGrid
-          funnels={funnels || []}
+          funnels={funnels ?? []}
           currentUser={user}
           onViewBoard={(funnel) => {
             setSelectedFunnel(funnel);
@@ -237,11 +213,12 @@ export default function FunnelsManagement() {
           funnel={selectedFunnel}
           initialDealId={initialDealId}
           onInitialDealHandled={() => setInitialDealId(null)}
+          onBack={handleBackToList}
         />
       )}
 
       {viewMode === "stages" && editingFunnel && (
-        <FunnelStagesManager funnel={editingFunnel as any} />
+        <FunnelStagesManager funnel={editingFunnel} />
       )}
 
       {/* Modals */}

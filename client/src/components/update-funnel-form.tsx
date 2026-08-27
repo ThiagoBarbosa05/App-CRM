@@ -6,7 +6,7 @@ import { DialogClose } from "./ui/dialog";
 import { useForm } from "react-hook-form";
 import { InsertSalesFunnel, insertSalesFunnelSchema } from "@shared/schema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { SalesFunnel } from "./funnels-management";
+import type { SalesFunnelWithStages as SalesFunnel } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -40,7 +40,7 @@ export function UpdateFunnelForm({
   const updateFunnelMutation = useMutation({
     mutationFn: async (funnelData: {
       name: string;
-      description?: string;
+      description?: string | null;
       funnelId: string;
     }) => {
       const response = await fetch(`/api/funnels/${funnelData.funnelId}`, {

@@ -10,7 +10,38 @@ import {
   type DealWithClient,
   type InsertDeal,
 } from "../../shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, ilike, sql, desc, type SQL } from "drizzle-orm";
+
+/**
+ * Filtros aceitos na listagem de deals. Todos opcionais: sem nenhum deles a
+ * consulta devolve o comportamento antigo (todos os deals visíveis).
+ */
+export interface DealsQueryFilters {
+  funnelId?: string;
+  userId?: string;
+  userRole?: string;
+  search?: string;
+  valueMin?: number;
+  valueMax?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  assignedTo?: string;
+  /**
+   * Máximo de negócios carregados por estágio. O board é um kanban: um limite
+   * global truncaria colunas inteiras, então o corte é por coluna.
+   */
+  perStageLimit?: number;
+}
+
+/**
+ * Contagem e soma de valores por estágio, para os totais do cabeçalho de cada
+ * coluna continuarem corretos mesmo quando a lista vem truncada.
+ */
+export interface DealsStageSummary {
+  stageId: string;
+  count: number;
+  totalValue: string;
+}
 
 /**
  * Repository responsável pelo acesso a dados dos deals (negócios)
@@ -28,13 +59,88 @@ export class DealsRepository {
    * @param userRole - Role do usuário para controle de acesso (opcional)
    * @returns Promise<DealWithClient[]> - Lista de deals com dados relacionados
    */
+  private buildDealsConditions(filters: DealsQueryFilters): SQL[] {
+    const conditions: SQL[] = [];
+    const {
+      funnelId,
+      userId,
+      userRole,
+      search,
+      valueMin,
+      valueMax,
+      dateFrom,
+      dateTo,
+      assignedTo,
+    } = filters;
+
+    if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
+
+    // Vendedor só enxerga a própria carteira
+    if (userRole === "vendedor" && userId) {
+      conditions.push(eq(deals.assignedTo, userId));
+    }
+
+    if (assignedTo) conditions.push(eq(deals.assignedTo, assignedTo));
+
+    if (search) {
+      const term = `%${search}%`;
+      const searchCondition = or(
+        ilike(deals.title, term),
+        ilike(deals.notes, term)
+      );
+      if (searchCondition) conditions.push(searchCondition);
+    }
+
+    if (valueMin !== undefined) {
+      conditions.push(sql`${deals.value} >= ${valueMin}`);
+    }
+
+    if (valueMax !== undefined) {
+      conditions.push(sql`${deals.value} <= ${valueMax}`);
+    }
+
+    if (dateFrom) {
+      conditions.push(sql`${deals.createdAt} >= ${dateFrom}`);
+    }
+
+    // dateTo é uma data (YYYY-MM-DD) e o filtro é inclusivo: pega o dia inteiro
+    if (dateTo) {
+      conditions.push(
+        sql`${deals.createdAt} < (${dateTo}::date + interval '1 day')`
+      );
+    }
+
+    return conditions;
+  }
+
   async getDealsWithClients(
-    funnelId?: string,
-    userId?: string,
-    userRole?: string
+    filters: DealsQueryFilters = {}
   ): Promise<DealWithClient[]> {
-    // Usar uma única query com JOINs para otimizar performance
-    let query = this.db
+    const conditions = this.buildDealsConditions(filters);
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const { perStageLimit } = filters;
+
+    // Com limite por estágio, primeiro numera os deals dentro de cada coluna
+    // e só então busca os relacionamentos dos que entram no corte — evita
+    // trazer (e fazer JOIN de) o funil inteiro para exibir 100 cards.
+    let idFilter: SQL | undefined;
+    if (perStageLimit !== undefined) {
+      const ranked = this.db
+        .select({
+          id: deals.id,
+          rowNumber:
+            sql<number>`row_number() over (partition by ${deals.stageId} order by ${deals.createdAt} desc)`.as(
+              "row_number"
+            ),
+        })
+        .from(deals)
+        .where(where)
+        .as("ranked");
+
+      idFilter = sql`${deals.id} in (select ${ranked.id} from ${ranked} where ${ranked.rowNumber} <= ${perStageLimit})`;
+    }
+
+    const results = await this.db
       .select({
         deal: deals,
         client: clients,
@@ -48,22 +154,11 @@ export class DealsRepository {
       .leftJoin(companies, eq(deals.companyId, companies.id))
       .leftJoin(users, eq(deals.assignedTo, users.id))
       .leftJoin(funnelStages, eq(deals.stageId, funnelStages.id))
-      .leftJoin(salesFunnels, eq(deals.funnelId, salesFunnels.id));
+      .leftJoin(salesFunnels, eq(deals.funnelId, salesFunnels.id))
+      .where(idFilter ? and(where, idFilter) : where)
+      .orderBy(desc(deals.createdAt));
 
-    // Aplicar condições de filtro
-    const conditions = [];
-    if (funnelId) conditions.push(eq(deals.funnelId, funnelId));
-    if (userRole === "vendedor" && userId)
-      conditions.push(eq(deals.assignedTo, userId));
-
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
-    }
-
-    const results = await query.orderBy(deals.createdAt);
-
-    // Mapear resultados para o formato esperado
-    const dealsWithClients: DealWithClient[] = results.reverse().map((row) => ({
+    return results.map((row) => ({
       ...row.deal,
       client: row.client,
       company: row.company,
@@ -71,8 +166,30 @@ export class DealsRepository {
       stage: row.stage,
       funnel: row.funnel,
     }));
+  }
 
-    return dealsWithClients;
+  /**
+   * Agrega contagem e valor total por estágio, respeitando os mesmos filtros
+   * da listagem (mas ignorando o limite por estágio).
+   * @param filters - Filtros da consulta
+   * @returns Promise<DealsStageSummary[]>
+   */
+  async getDealsSummaryByStage(
+    filters: DealsQueryFilters = {}
+  ): Promise<DealsStageSummary[]> {
+    const conditions = this.buildDealsConditions(filters);
+
+    const rows = await this.db
+      .select({
+        stageId: deals.stageId,
+        count: sql<number>`count(*)::int`,
+        totalValue: sql<string>`coalesce(sum(${deals.value}), 0)::text`,
+      })
+      .from(deals)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(deals.stageId);
+
+    return rows;
   }
 
   /**

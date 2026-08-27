@@ -1,10 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
-import { useEffect, useState } from "react";
-import { DealWithClient } from "@shared/schema";
+import { useEffect, useMemo, useState } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
+import type { DealWithClient, SalesFunnelWithStages, User } from "@shared/schema";
+
+/** Máximo de cards carregados por coluna; os totais vêm agregados do banco. */
+const DEALS_PER_STAGE_LIMIT = 100;
+
+interface DealsStageSummary {
+  stageId: string;
+  count: number;
+  totalValue: string;
+}
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Plus, Users, Phone } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Edit, Trash2, Plus, Users, Phone, ArrowLeft, GitBranch } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import {
   Select,
@@ -42,29 +52,12 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Search, FilterX, Filter } from "lucide-react";
 
-interface SalesFunnel {
-  id: string;
-  name: string;
-  description?: string;
-  isActive: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-  stages: FunnelStage[];
-  creator: {
-    id: string;
-    name: string;
-    email: string;
-  };
-}
-
-import { FunnelStage } from "@shared/schema";
-
 interface FunnelKanbanBoardProps {
   funnelId: string;
-  funnel: SalesFunnel;
+  funnel: SalesFunnelWithStages;
   initialDealId?: string | null;
   onInitialDealHandled?: () => void;
+  onBack?: () => void;
 }
 
 export default function FunnelKanbanBoard({
@@ -72,6 +65,7 @@ export default function FunnelKanbanBoard({
   funnel,
   initialDealId,
   onInitialDealHandled,
+  onBack,
 }: FunnelKanbanBoardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -90,7 +84,6 @@ export default function FunnelKanbanBoard({
   const [interactionDeal, setInteractionDeal] = useState<DealWithClient | null>(
     null
   );
-  const [selectedUserId, setSelectedUserId] = useState<string>("all");
 
   // Estados dos filtros
   const [filters, setFilters] = useState({
@@ -128,60 +121,72 @@ export default function FunnelKanbanBoard({
     navigate(`/clientes/${deal.client.id}?tab=whatsapp`);
   };
 
+  // Filtros vão para o backend (com debounce para não disparar uma requisição
+  // por tecla). O controle de acesso por responsável sai do token — não
+  // adianta (nem é aceito) mandar userId/userRole na query string.
+  const debouncedFilters = useDebounce(filters, 400);
+
+  const dealsQueryString = useMemo(() => {
+    const params = new URLSearchParams({
+      funnelId,
+      perStageLimit: String(DEALS_PER_STAGE_LIMIT),
+    });
+    if (debouncedFilters.search) params.set("search", debouncedFilters.search);
+    if (debouncedFilters.valueMin)
+      params.set("valueMin", debouncedFilters.valueMin);
+    if (debouncedFilters.valueMax)
+      params.set("valueMax", debouncedFilters.valueMax);
+    if (debouncedFilters.assignedUser && debouncedFilters.assignedUser !== "all")
+      params.set("assignedTo", debouncedFilters.assignedUser);
+    if (debouncedFilters.dateFrom)
+      params.set("dateFrom", debouncedFilters.dateFrom);
+    if (debouncedFilters.dateTo) params.set("dateTo", debouncedFilters.dateTo);
+    return params.toString();
+  }, [funnelId, debouncedFilters]);
+
+  const dealsQueryKey = ["/api/deals", dealsQueryString];
+
   const {
     data: deals = [],
     isLoading,
     error,
-  } = useQuery({
-    queryKey: ["/api/deals", funnelId],
+  } = useQuery<DealWithClient[]>({
+    queryKey: dealsQueryKey,
     queryFn: async () => {
-      console.log("🚀 INICIANDO QUERY DEALS para funil:", funnelId);
-      try {
-        // Get user data from localStorage for the query
-        const userData = localStorage.getItem("user");
-        if (userData) {
-          const user = JSON.parse(userData);
-          console.log("👤 USER DATA:", user.id, user.role);
-          const response = await apiRequest(
-            "GET",
-            `/api/deals?userId=${user.id}&userRole=${user.role}&funnelId=${funnelId}`,
-          );
-          const data = await response.json();
-          console.log(
-            "🎯 DEALS CARREGADOS (com user):",
-            data.length,
-            "deals para funil",
-            funnelId,
-          );
-          return data;
-        }
-        console.log("⚠️ SEM USER DATA - usando query básica");
-        const response = await apiRequest(
-          "GET",
-          `/api/deals?funnelId=${funnelId}`,
-        );
-        const data = await response.json();
-        console.log(
-          "🎯 DEALS CARREGADOS (sem user):",
-          data.length,
-          "deals para funil",
-          funnelId,
-        );
-        return data;
-      } catch (error) {
-        console.error("❌ ERRO NA QUERY DEALS:", error);
-        throw error;
-      }
+      const response = await apiRequest("GET", `/api/deals?${dealsQueryString}`);
+      return response.json();
     },
   });
 
-  console.log(deals);
+  // Contagem e soma por coluna vêm agregadas do banco: o cabeçalho continua
+  // correto mesmo quando a lista de cards é truncada pelo limite por estágio.
+  const { data: stageSummaries = [] } = useQuery<DealsStageSummary[]>({
+    queryKey: ["/api/deals/summary", dealsQueryString],
+    queryFn: async () => {
+      const response = await apiRequest(
+        "GET",
+        `/api/deals/summary?${dealsQueryString}`,
+      );
+      return response.json();
+    },
+  });
+
+  const summaryByStage = useMemo(() => {
+    const map = new Map<string, DealsStageSummary>();
+    for (const summary of stageSummaries) map.set(summary.stageId, summary);
+    return map;
+  }, [stageSummaries]);
+
+  const totalDeals = useMemo(
+    () => stageSummaries.reduce((sum, summary) => sum + summary.count, 0),
+    [stageSummaries],
+  );
 
   // Busca diretamente o negócio indicado por initialDealId (ex.: vindo do
   // perfil do cliente). Usa o endpoint de deal único, que não aplica o
   // filtro por responsável da listagem do board — assim o modal abre com
   // o negócio certo mesmo que ele não seja atribuído ao usuário logado.
-  const { data: initialDeal } = useQuery({
+  const { data: initialDeal } = useQuery<DealWithClient>({
     queryKey: ["/api/deals", "byId", initialDealId],
     queryFn: async () => {
       const response = await apiRequest("GET", `/api/deals/${initialDealId}`);
@@ -200,58 +205,9 @@ export default function FunnelKanbanBoard({
     console.error("❌ ERRO NA QUERY:", error);
   }
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
-
-  const { data: companiesResponse } = useQuery({
-    queryKey: ["/api/companies"],
-  });
-
-  const companies = companiesResponse?.data || [];
-
-  // Função para filtrar deals
-  const filteredDeals = deals.filter((deal: any) => {
-    const matchesSearch =
-      !filters.search ||
-      deal.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-      deal.description?.toLowerCase().includes(filters.search.toLowerCase());
-
-    const matchesValueMin =
-      !filters.valueMin ||
-      parseFloat(deal.value) >= parseFloat(filters.valueMin);
-
-    const matchesValueMax =
-      !filters.valueMax ||
-      parseFloat(deal.value) <= parseFloat(filters.valueMax);
-
-    const matchesUser =
-      !filters.assignedUser ||
-      filters.assignedUser === "" ||
-      filters.assignedUser === "all" ||
-      deal.assignedTo === filters.assignedUser;
-
-    const matchesDateFrom =
-      !filters.dateFrom ||
-      new Date(deal.createdAt) >= new Date(filters.dateFrom);
-
-    const matchesDateTo =
-      !filters.dateTo || new Date(deal.createdAt) <= new Date(filters.dateTo);
-
-    return (
-      matchesSearch &&
-      matchesValueMin &&
-      matchesValueMax &&
-      matchesUser &&
-      matchesDateFrom &&
-      matchesDateTo
-    );
-  });
-
-  // Debug: log dos deals filtrados
-  console.log("🔍 FILTROS APLICADOS:", filters);
-  console.log("📊 DEALS ANTES FILTRO:", deals.length);
-  console.log("📊 DEALS APÓS FILTRO:", filteredDeals.length);
 
   // Função para limpar filtros
   const clearFilters = () => {
@@ -265,26 +221,44 @@ export default function FunnelKanbanBoard({
     });
   };
 
-  // Verificar se há filtros ativos
-  const hasActiveFilters = Object.values(filters).some((value) => value !== "");
+  // Verificar se há filtros ativos ("all" no responsável equivale a sem filtro)
+  const hasActiveFilters = Object.entries(filters).some(
+    ([key, value]) =>
+      value !== "" && !(key === "assignedUser" && value === "all"),
+  );
 
   const updateDealMutation = useMutation({
     mutationFn: async ({ id, stageId }: { id: string; stageId: string }) => {
       await apiRequest("PUT", `/api/deals/${id}`, { stageId });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/deals", funnelId] });
-      toast({
-        title: "Deal atualizado",
-        description: "O estágio do deal foi alterado com sucesso.",
-      });
+    // Move o card na hora do drop e desfaz se o backend recusar — sem isso
+    // o negócio só troca de coluna depois do round-trip da API.
+    onMutate: async ({ id, stageId }) => {
+      await queryClient.cancelQueries({ queryKey: dealsQueryKey });
+      const previousDeals =
+        queryClient.getQueryData<DealWithClient[]>(dealsQueryKey);
+
+      queryClient.setQueryData<DealWithClient[]>(dealsQueryKey, (old) =>
+        (old ?? []).map((deal) =>
+          deal.id === id ? { ...deal, stageId } : deal,
+        ),
+      );
+
+      return { previousDeals };
     },
-    onError: () => {
+    onError: (_error, _variables, context) => {
+      if (context?.previousDeals) {
+        queryClient.setQueryData(dealsQueryKey, context.previousDeals);
+      }
       toast({
         title: "Erro",
-        description: "Não foi possível atualizar o deal.",
+        description: "Não foi possível mover o negócio. A alteração foi desfeita.",
         variant: "destructive",
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["/api/deals/summary"] });
     },
   });
 
@@ -293,7 +267,8 @@ export default function FunnelKanbanBoard({
       await apiRequest("DELETE", `/api/deals/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/deals", funnelId] });
+      queryClient.invalidateQueries({ queryKey: dealsQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["/api/deals/summary"] });
       toast({
         title: "Deal excluído",
         description: "O deal foi excluído com sucesso.",
@@ -307,27 +282,6 @@ export default function FunnelKanbanBoard({
       });
     },
   });
-
-  // Buscar usuários para o filtro
-  const { data: usersFromApi = [] } = useQuery<any[]>({
-    queryKey: ["/api/users"],
-  });
-
-  const getDealsForStage = (stageId: string) => {
-    if (!deals || !Array.isArray(deals)) return [];
-    let filteredDeals = deals.filter(
-      (deal: DealWithClient) => deal.stageId === stageId,
-    );
-
-    // Aplicar filtro por responsável se selecionado
-    if (selectedUserId && selectedUserId !== "all") {
-      filteredDeals = filteredDeals.filter(
-        (deal: DealWithClient) => deal.assignedTo === selectedUserId,
-      );
-    }
-
-    return filteredDeals;
-  };
 
   const handleDragStart = (deal: DealWithClient) => {
     setDraggedDeal(deal);
@@ -357,29 +311,56 @@ export default function FunnelKanbanBoard({
     <>
       <div className="flex flex-col gap-4">
         {/* Header — fora do scroll horizontal para não expandir com as colunas */}
-        <div className="bg-white dark:bg-slate-950 dark:border-slate-700 rounded-lg p-4 sm:p-6 border border-gray-200 shadow-sm">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-md bg-blue-100 dark:bg-slate-800 flex-shrink-0">
-                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400  " />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-slate-100 truncate">
-                  Pipeline de Vendas
-                </h3>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
-                  <p className="text-gray-600 dark:text-slate-400 text-xs sm:text-sm">
-                    Gerencie seus negócios através do funil
+        <div className="bg-card border border-border rounded-2xl shadow-sm relative overflow-hidden">
+          {/* Bloco superior: identidade do funil (unificado com a navegação) */}
+          <div className="px-5 sm:px-6 py-5">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+              <div className="flex items-center gap-4 min-w-0 w-full flex-1">
+                {onBack && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onBack}
+                    className="h-10 w-10 text-slate-500 hover:text-primary hover:bg-accent rounded-xl flex-shrink-0"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </Button>
+                )}
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-primary flex-shrink-0 shadow-inner">
+                  <GitBranch className="h-6 w-6" />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
+                    {funnel.name}
+                    <Badge
+                      variant={funnel.isActive === "true" ? "default" : "secondary"}
+                      className={`ml-3 align-middle ${
+                        funnel.isActive === "true"
+                          ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800"
+                          : "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700"
+                      }`}
+                    >
+                      {funnel.isActive === "true" ? "Ativo" : "Inativo"}
+                    </Badge>
+                  </h1>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1 line-clamp-2">
+                    Board Kanban - Gerencie seus deals e oportunidades
                   </p>
-                  {hasActiveFilters && (
-                    <span className="text-xs bg-blue-100 dark:bg-slate-800 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full w-fit">
-                      {filteredDeals.length} de {deals.length} deals
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+          </div>
+
+          {/* Bloco inferior: contagem + ações (filtros / novo deal) */}
+          <div className="border-t border-border px-5 sm:px-6 py-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {hasActiveFilters && (
+                <span className="text-xs bg-blue-100 dark:bg-slate-800 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full w-fit">
+                  {totalDeals} {totalDeals === 1 ? "negócio" : "negócios"}{" "}
+                  encontrados
+                </span>
+              )}
+              <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
               <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -487,12 +468,11 @@ export default function FunnelKanbanBoard({
                             <SelectItem value="all">
                               Todos os usuários
                             </SelectItem>
-                            {Array.isArray(users) &&
-                              users.map((user: any) => (
-                                <SelectItem key={user.id} value={user.id}>
-                                  {user.name}
-                                </SelectItem>
-                              ))}
+                            {users.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -552,6 +532,7 @@ export default function FunnelKanbanBoard({
                   funnelId={funnelId}
                 />
               </Dialog>
+              </div>
             </div>
           </div>
         </div>
@@ -565,19 +546,20 @@ export default function FunnelKanbanBoard({
             }}
           >
             {funnel.stages?.map((stage) => {
-              const stageDeals = filteredDeals.filter(
-                (deal: any) => deal.stageId === stage.id,
+              const stageDeals = deals.filter(
+                (deal) => deal.stageId === stage.id,
               );
-              const totalValue = stageDeals.reduce(
-                (sum: number, deal: any) => sum + parseFloat(deal.value || "0"),
-                0,
-              );
-
-              console.log(
-                `🏁 ESTÁGIO "${stage.name}" (${stage.id}):`,
-                stageDeals.length,
-                "deals",
-              );
+              // Totais agregados no banco; o fallback cobre o intervalo em que
+              // o resumo ainda não chegou.
+              const summary = summaryByStage.get(stage.id);
+              const stageCount = summary?.count ?? stageDeals.length;
+              const totalValue = summary
+                ? parseFloat(summary.totalValue)
+                : stageDeals.reduce(
+                    (sum, deal) => sum + parseFloat(deal.value || "0"),
+                    0,
+                  );
+              const hasHiddenDeals = stageCount > stageDeals.length;
 
               return (
                 <div
@@ -599,7 +581,7 @@ export default function FunnelKanbanBoard({
                       </h3>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <span className="bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-400 text-xs px-2 py-1 rounded-full font-medium shadow-sm">
-                          {stageDeals.length}
+                          {stageCount}
                         </span>
                         <span className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs px-2 py-1 rounded-full font-medium hidden sm:inline">
                           {formatCurrency(totalValue)}
@@ -618,7 +600,7 @@ export default function FunnelKanbanBoard({
                     style={{ maxHeight: "calc(100vh - 300px)" }}
                   >
                     <div className="space-y-3">
-                      {stageDeals.map((deal: DealWithClient) => (
+                      {stageDeals.map((deal) => (
                         <div
                           key={deal.id}
                           draggable
@@ -717,6 +699,13 @@ export default function FunnelKanbanBoard({
                           </div>
                         </div>
                       ))}
+
+                      {hasHiddenDeals && (
+                        <p className="text-xs text-gray-400 dark:text-slate-400 text-center pt-1">
+                          Mostrando {stageDeals.length} de {stageCount} — refine
+                          os filtros para ver os demais
+                        </p>
+                      )}
 
                       {stageDeals.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-8 sm:py-12 text-center px-2">

@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { SalesFunnel } from "../funnels-management";
+import type { SalesFunnelWithStages as SalesFunnel } from "@shared/schema";
 
 interface FunnelCardProps {
   funnel: SalesFunnel;

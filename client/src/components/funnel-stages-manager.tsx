@@ -31,34 +31,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-interface SalesFunnel {
-  id: string;
-  name: string;
-  description?: string;
-  isActive: string;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-  stages: FunnelStage[];
-  creator: {
-    id: string;
-    name: string;
-    email: string;
-  };
-}
-
-interface FunnelStage {
-  id: string;
-  funnelId: string;
-  name: string;
-  order: number;
-  color: string;
-  createdAt: string;
-}
+import type { FunnelStage, SalesFunnelWithStages } from "@shared/schema";
 
 interface FunnelStagesManagerProps {
-  funnel: SalesFunnel;
+  funnel: SalesFunnelWithStages;
 }
 
 const defaultColors = [

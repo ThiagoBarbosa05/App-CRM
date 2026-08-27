@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { FunnelCard } from "./funnel-card";
-import { SalesFunnel } from "../funnels-management";
+import type { SalesFunnelWithStages as SalesFunnel } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { GitBranch, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";

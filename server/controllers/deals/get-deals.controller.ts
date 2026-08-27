@@ -12,8 +12,7 @@ import { dealsService } from "../../services/deals.service";
  * @route GET /api/deals
  * @access Private (requer autenticação)
  * @queryParams {string} [funnelId] - ID do funil para filtrar deals específicos
- * @queryParams {string} [userId] - ID do usuário (usado para controle de acesso)
- * @queryParams {string} [userRole] - Role do usuário (admin/vendedor para controle de acesso)
+ * @notes Controle de acesso (userId/role) vem do token, não da query string
  *
  * @returns {Array} - Lista de deals com dados relacionados:
  *   - Deal properties: id, title, value, stageId, funnelId, clientId, companyId, assignedTo, status, notes, createdAt, updatedAt
@@ -25,7 +24,7 @@ import { dealsService } from "../../services/deals.service";
  *
  * @example
  * GET /api/deals
- * GET /api/deals?funnelId=funnel-123&userId=user-456&userRole=vendedor
+ * GET /api/deals?funnelId=funnel-123
  *
  * Response:
  * [

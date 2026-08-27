@@ -1,4 +1,8 @@
-import { dealsRepository } from "../repositories/deals.repository";
+import {
+  dealsRepository,
+  type DealsQueryFilters,
+  type DealsStageSummary,
+} from "../repositories/deals.repository";
 import {
   updateDealSchema,
   type DealWithClient,
@@ -9,11 +13,15 @@ import {
 /**
  * Interface para parâmetros de busca de deals
  */
-export interface GetDealsParams {
-  funnelId?: string;
-  userId?: string;
-  userRole?: string;
-}
+export type GetDealsParams = DealsQueryFilters;
+
+/**
+ * Limite sugerido de negócios por coluna do kanban. Não é aplicado por padrão:
+ * quem quiser a lista truncada pede `perStageLimit` explicitamente, para que
+ * consumidores que somam valores (dashboards) não recebam dados cortados sem
+ * saber. Os totais do board vêm do endpoint de resumo, que ignora o limite.
+ */
+export const DEFAULT_DEALS_PER_STAGE_LIMIT = 100;
 
 /**
  * Interface para parâmetros de atualização de deal
@@ -99,15 +107,8 @@ export class DealsService {
    * @returns Promise<DealWithClient[]> - Lista de deals com dados relacionados
    */
   async getDeals(params: GetDealsParams): Promise<DealWithClient[]> {
-    const { funnelId, userId, userRole } = params;
-
     try {
-      const deals = await this.dealsRepository.getDealsWithClients(
-        funnelId,
-        userId,
-        userRole
-      );
-      return deals;
+      return await this.dealsRepository.getDealsWithClients(params);
     } catch (error) {
       if (error instanceof Error) {
         throw error;
@@ -138,15 +139,51 @@ export class DealsService {
    * @returns GetDealsParams - Parâmetros processados
    */
   processGetDealsParams(req: any): GetDealsParams {
-    const userId = (req.query.userId as string) || req.user?.userId;
-    const userRole = req.user?.role;
-    const funnelId = req.query.funnelId;
+    // userId e role vêm sempre do token: aceitar `userId` da query permitiria
+    // a um vendedor listar a carteira de outro passando o id alheio na URL.
+    const query = req.query ?? {};
+
+    const parseNumber = (value: unknown): number | undefined => {
+      if (value === undefined || value === null || value === "") return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+
+    const parseString = (value: unknown): string | undefined => {
+      if (typeof value !== "string") return undefined;
+      const trimmed = value.trim();
+      return trimmed === "" || trimmed === "all" ? undefined : trimmed;
+    };
 
     return {
-      funnelId,
-      userId,
-      userRole,
+      userId: req.user?.userId,
+      userRole: req.user?.role,
+      funnelId: parseString(query.funnelId),
+      search: parseString(query.search),
+      assignedTo: parseString(query.assignedTo),
+      valueMin: parseNumber(query.valueMin),
+      valueMax: parseNumber(query.valueMax),
+      dateFrom: parseString(query.dateFrom),
+      dateTo: parseString(query.dateTo),
+      perStageLimit: parseNumber(query.perStageLimit),
     };
+  }
+
+  /**
+   * Contagem e soma por estágio, usando os mesmos filtros da listagem.
+   * Alimenta os totais do cabeçalho das colunas do kanban.
+   * @param params - Filtros da consulta
+   * @returns Promise<DealsStageSummary[]>
+   */
+  async getDealsSummary(params: GetDealsParams): Promise<DealsStageSummary[]> {
+    try {
+      return await this.dealsRepository.getDealsSummaryByStage(params);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Erro ao buscar resumo dos deals");
+    }
   }
 
   /**
