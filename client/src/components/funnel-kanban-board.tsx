@@ -4,7 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useState } from "react";
 import { DealWithClient } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, Plus, Users } from "lucide-react";
+import { Edit, Trash2, Plus, Users, Phone } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import {
   Select,
   SelectContent,
@@ -93,6 +94,31 @@ export default function FunnelKanbanBoard({
     dateTo: "",
   });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  const formatPhone = (phone: string) => {
+    if (!phone) return "";
+    let d = phone.replace(/\D/g, "");
+    if ((d.length === 13 || d.length === 12) && d.startsWith("55")) d = d.slice(2);
+    if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+    if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return phone;
+  };
+
+  const handleCallClient = (e: React.MouseEvent, deal: DealWithClient) => {
+    e.stopPropagation();
+    if (!deal.client?.phone) return;
+    navigate(
+      `/telemarketing?tab=dialer&clientId=${deal.client.id}&phone=${encodeURIComponent(
+        deal.client.phone,
+      )}&clientName=${encodeURIComponent(deal.client.name)}`,
+    );
+  };
+
+  const handleWhatsAppClient = (e: React.MouseEvent, deal: DealWithClient) => {
+    e.stopPropagation();
+    if (!deal.client) return;
+    navigate(`/clientes/${deal.client.id}?tab=whatsapp`);
+  };
 
   const {
     data: deals = [],
@@ -604,6 +630,38 @@ export default function FunnelKanbanBoard({
                           </div>
 
                           <div className="space-y-2">
+                            {(deal.client || deal.company) && (
+                              <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 border-l-3 border-green-400 dark:border-green-600">
+                                <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">
+                                  Cliente:
+                                </p>
+                                <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
+                                  {deal.client?.name || deal.company?.nomeFantasia}
+                                </p>
+                                {deal.client?.phone && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Phone className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleCallClient(e, deal)}
+                                      title="Ligar pelo Telemarketing"
+                                      className="text-xs text-gray-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline truncate transition-colors"
+                                    >
+                                      {formatPhone(deal.client.phone)}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleWhatsAppClient(e, deal)}
+                                      title="Abrir conversa no WhatsApp"
+                                      className="flex h-4 w-4 items-center justify-center rounded-full bg-green-500 hover:bg-green-600 transition-colors flex-shrink-0"
+                                    >
+                                      <FaWhatsapp className="h-2.5 w-2.5 text-white" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 border-l-3 border-blue-400 dark:border-blue-600">
                               <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">
                                 Responsável:
