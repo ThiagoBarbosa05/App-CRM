@@ -153,6 +153,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useWhatsappSettings } from "@/hooks/use-whatsapp";
 import { BOT_SHORTCUT_ICONS, parseBotShortcuts } from "@/lib/bot-shortcut-icons";
+import { resolveWhatsappContactName } from "@/lib/whatsapp-contact-name";
 
 interface Channel {
   id: number;
@@ -199,6 +200,7 @@ export interface ChatClient {
   phone: string;
   clientName: string | null;
   contactName?: string | null;
+  customContactName?: string | null;
   contactPhotoUrl?: string | null;
   lastMessageAt?: string | null;
   lastMessageContent?: string | null;
@@ -1451,7 +1453,7 @@ function ClientListItem({
   canManageTags: boolean;
 }) {
   const hasUnread = (client.unreadCount ?? 0) > 0;
-  const displayName = client.clientName ?? client.contactName ?? client.phone;
+  const displayName = resolveWhatsappContactName(client);
   const [mostRecentTag, ...olderTags] = getOrderedClientTags(client);
 
   return (
@@ -1473,7 +1475,7 @@ function ClientListItem({
         {/* Avatar — mt-0.5 alinha visualmente com o nome */}
         <div className="relative shrink-0 mt-0.5">
           <ContactAvatar
-            name={client.clientName ?? client.contactName}
+            name={client.clientName ?? client.customContactName ?? client.contactName}
             phone={client.phone}
             photoUrl={client.clientName ? null : client.contactPhotoUrl}
             className={cn(
@@ -3346,6 +3348,38 @@ function ConversationMessages({
 
   const { toast } = useToast();
   const showWhatsappError = useWhatsappErrorToast();
+  const [contactNameDialogOpen, setContactNameDialogOpen] = useState(false);
+  const [contactNameDraft, setContactNameDraft] = useState(client.customContactName ?? "");
+
+  const updateContactNameMutation = useMutation({
+    mutationFn: async (name: string | null) => {
+      const response = await fetch(`/api/whatsapp/conversations/${client.conversationId}/contact-name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: "Erro ao alterar nome" }));
+        throw new Error(error.message ?? "Erro ao alterar nome");
+      }
+      return response.json() as Promise<{ customContactName: string | null }>;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations-list"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/conversations", conversationKey] }),
+      ]);
+      setContactNameDialogOpen(false);
+      toast({ title: "Nome do contato atualizado" });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Não foi possível alterar o nome",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Pré-carrega arquivo de anexo passado pelo componente pai (ex.: PDF do orçamento).
   // O PDF chega de forma assíncrona, então o efeito observa a prop initialFile.
@@ -4657,7 +4691,7 @@ function ConversationMessages({
   // O rótulo do contato já vem resolvido pela perspectiva deste item (o backend
   // calcula contactName por lado ao desdobrar o diálogo interno, ver
   // listClientsForChat). Então basta usar client.contactName.
-  const displayName = client.clientName ?? client.contactName ?? client.phone;
+  const displayName = resolveWhatsappContactName(client);
   const orderedHeaderTags = getOrderedClientTags(client);
   const linkedClientId = client.clientId;
   const currentWhatsappTagIds = client.whatsappTags?.map((tag) => tag.id) ?? [];
@@ -4687,6 +4721,52 @@ function ConversationMessages({
 
   return (
     <div className="flex flex-col h-full">
+      <Dialog open={contactNameDialogOpen} onOpenChange={setContactNameDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nome do contato</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              updateContactNameMutation.mutate(contactNameDraft.trim() || null);
+            }}
+          >
+            <div className="space-y-1.5">
+              <label htmlFor="custom-contact-name" className="text-sm font-medium">
+                Nome exibido nesta conversa
+              </label>
+              <Input
+                id="custom-contact-name"
+                value={contactNameDraft}
+                onChange={(event) => setContactNameDraft(event.target.value)}
+                maxLength={120}
+                autoFocus
+                placeholder={client.contactName ?? client.phone}
+              />
+              <p className="text-xs text-muted-foreground">
+                Esse nome vale apenas para esta conversa e não altera o cadastro de clientes.
+              </p>
+            </div>
+            <div className="flex justify-between gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!client.customContactName || updateContactNameMutation.isPending}
+                onClick={() => updateContactNameMutation.mutate(null)}
+              >
+                Restaurar nome do WhatsApp
+              </Button>
+              <Button type="submit" disabled={updateContactNameMutation.isPending}>
+                {updateContactNameMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
         {/* Linha principal */}
@@ -4701,7 +4781,7 @@ function ConversationMessages({
           </Button>
 
           <ContactAvatar
-            name={client.clientName ?? client.contactName}
+            name={client.clientName ?? client.customContactName ?? client.contactName}
             phone={client.phone}
             photoUrl={client.clientName ? null : client.contactPhotoUrl}
             className="h-9 w-9 text-xs font-bold shadow-sm shrink-0"
@@ -4712,6 +4792,22 @@ function ConversationMessages({
               <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate leading-tight">
                 {displayName}
               </p>
+              {!client.clientId && !client.peerChannelId && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  title="Alterar nome deste contato"
+                  aria-label="Alterar nome deste contato"
+                  onClick={() => {
+                    setContactNameDraft(client.customContactName ?? "");
+                    setContactNameDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
             <CompactContactTags tags={orderedHeaderTags} />
           </div>
@@ -5418,7 +5514,7 @@ function ConversationMessages({
                                 <span>
                                   Em resposta a {msg.replyToDirection === "outbound"
                                     ? "você"
-                                    : (client.clientName ?? client.contactName ?? client.phone)}
+                                    : resolveWhatsappContactName(client)}
                                 </span>
                               </p>
                               <p
@@ -5716,7 +5812,7 @@ function ConversationMessages({
               <p className="text-[11px] font-semibold text-primary mb-0.5">
                 {replyingTo.direction === "outbound"
                   ? "Você"
-                  : (client.clientName ?? client.contactName ?? client.phone)}
+                  : resolveWhatsappContactName(client)}
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                 {replySnippet(replyingTo.content, replyingTo.type)}
@@ -6338,7 +6434,7 @@ function ConversationMessages({
                     </span>
                     <span className="min-w-0">
                       <span className="block text-sm font-medium truncate">
-                        {target.clientName ?? target.contactName ?? target.phone}
+                        {resolveWhatsappContactName(target)}
                       </span>
                       <span className="block text-xs text-slate-400 truncate">
                         {target.channelName ?? target.phone}

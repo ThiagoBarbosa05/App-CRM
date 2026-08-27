@@ -22,6 +22,7 @@ const {
   reopenConversationMock,
   searchConversationMessagesMock,
   getConversationMessageContextMock,
+  updateConversationCustomContactNameMock,
 } = vi.hoisted(
   () => ({
     resolveConversationIdMock: vi.fn(),
@@ -31,6 +32,7 @@ const {
     reopenConversationMock: vi.fn(),
     searchConversationMessagesMock: vi.fn(),
     getConversationMessageContextMock: vi.fn(),
+    updateConversationCustomContactNameMock: vi.fn(),
   }),
 );
 
@@ -60,6 +62,7 @@ vi.mock("../../services/whatsapp-conversations.service", () => ({
   reopenConversation: reopenConversationMock,
   searchConversationMessages: searchConversationMessagesMock,
   getConversationMessageContext: getConversationMessageContextMock,
+  updateConversationCustomContactName: updateConversationCustomContactNameMock,
   isClientAccessibleToUser: vi.fn(),
   setContactWhatsappTags: vi.fn(),
   listWhatsappTagsForFilter: vi.fn(),
@@ -84,6 +87,53 @@ function makeApp(role = "admin") {
     middlewares: [createMockAuthMiddleware({ userId: "u1", role })],
   });
 }
+
+describe("PATCH /conversations/:conversationId/contact-name", () => {
+  beforeEach(() => {
+    resolveConversationIdMock.mockReset();
+    isConversationAccessibleToUserMock.mockReset();
+    updateConversationCustomContactNameMock.mockReset();
+  });
+
+  it("normaliza e salva o nome personalizado da conversa acessível", async () => {
+    resolveConversationIdMock.mockResolvedValue("c1");
+    isConversationAccessibleToUserMock.mockResolvedValue(true);
+    updateConversationCustomContactNameMock.mockResolvedValue({ id: "c1", customContactName: "Dona Maria" });
+
+    const response = await request(makeApp("vendedor"))
+      .patch("/api/whatsapp/conversations/c1/contact-name")
+      .send({ name: "  Dona Maria  " });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ id: "c1", customContactName: "Dona Maria" });
+    expect(updateConversationCustomContactNameMock).toHaveBeenCalledWith("c1", "Dona Maria");
+  });
+
+  it("remove o nome personalizado quando recebe texto vazio", async () => {
+    resolveConversationIdMock.mockResolvedValue("c1");
+    isConversationAccessibleToUserMock.mockResolvedValue(true);
+    updateConversationCustomContactNameMock.mockResolvedValue({ id: "c1", customContactName: null });
+
+    const response = await request(makeApp())
+      .patch("/api/whatsapp/conversations/c1/contact-name")
+      .send({ name: "   " });
+
+    expect(response.status).toBe(200);
+    expect(updateConversationCustomContactNameMock).toHaveBeenCalledWith("c1", null);
+  });
+
+  it("nega alteração quando o atendente não pode acessar a conversa", async () => {
+    resolveConversationIdMock.mockResolvedValue("c1");
+    isConversationAccessibleToUserMock.mockResolvedValue(false);
+
+    const response = await request(makeApp("vendedor"))
+      .patch("/api/whatsapp/conversations/c1/contact-name")
+      .send({ name: "Apelido" });
+
+    expect(response.status).toBe(403);
+    expect(updateConversationCustomContactNameMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("POST /conversations/:clientId/read", () => {
   beforeEach(() => {

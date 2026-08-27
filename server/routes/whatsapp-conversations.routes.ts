@@ -42,6 +42,7 @@ import {
   searchConversationMessages,
   getConversationMessageContext,
   WhatsappMediaInputError,
+  updateConversationCustomContactName,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
@@ -253,6 +254,37 @@ router.get("/conversations/:clientId", async (req, res) => {
     res.json(result);
   } catch {
     res.status(500).json({ message: "Erro ao buscar conversa" });
+  }
+});
+
+const customContactNameSchema = z.object({
+  name: z.string().trim().max(120).nullable(),
+});
+
+router.patch("/conversations/:conversationId/contact-name", async (req, res) => {
+  try {
+    const user = (req as { user?: { userId?: string; role?: string } }).user;
+    if (!user?.userId) return res.status(401).json({ message: "Não autenticado" });
+
+    const parsed = customContactNameSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const conversationId = await resolveConversationId(req.params.conversationId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+
+    const accessible = await isConversationAccessibleToUser(conversationId, user.userId, user.role ?? "");
+    if (!accessible) return res.status(403).json({ message: "Acesso negado a esta conversa" });
+
+    const normalizedName = parsed.data.name?.trim() || null;
+    const updated = await updateConversationCustomContactName(conversationId, normalizedName);
+    if (!updated) {
+      return res.status(400).json({ message: "O nome de conversas entre canais não pode ser alterado" });
+    }
+
+    return res.json(updated);
+  } catch (error) {
+    console.error("[WA Conversations] Erro ao alterar nome do contato:", error);
+    return res.status(500).json({ message: "Erro ao alterar nome do contato" });
   }
 });
 

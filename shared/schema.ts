@@ -5659,6 +5659,9 @@ export const whatsappConversations = pgTable("whatsapp_conversations", {
   // diferentes.
   phoneNormalized: text("phone_normalized"),
   contactName: text("contact_name"),
+  // Nome definido manualmente para esta conversa/canal. Tem prioridade de
+  // exibição sobre o pushName, mas não altera o cadastro global de clientes.
+  customContactName: text("custom_contact_name"),
   contactPhotoUrl: text("contact_photo_url"),
   channelId: integer("channel_id").references(() => whatsappChannels.id),
   // Preenchido quando `phone` é o número de OUTRO canal nosso — diálogo interno

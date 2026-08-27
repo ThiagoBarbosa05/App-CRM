@@ -612,6 +612,25 @@ export async function findOrCreateConversation(phone: string, channelId?: number
   }
 }
 
+export async function updateConversationCustomContactName(
+  conversationId: string,
+  customContactName: string | null,
+) {
+  const [updated] = await db
+    .update(whatsappConversations)
+    .set({ customContactName, updatedAt: new Date() })
+    .where(and(
+      eq(whatsappConversations.id, conversationId),
+      isNull(whatsappConversations.peerChannelId),
+    ))
+    .returning({
+      id: whatsappConversations.id,
+      customContactName: whatsappConversations.customContactName,
+    });
+
+  return updated ?? null;
+}
+
 /**
  * Preenche o setor de uma conversa a partir do setor padrão do canal — só
  * quando ela ainda não tem setor nenhum (WHERE sectorId IS NULL protege contra
@@ -1534,6 +1553,7 @@ export async function listClientsForChat(
       phone: whatsappConversations.phone,
       clientName: clients.name,
       contactName: whatsappConversations.contactName,
+      customContactName: whatsappConversations.customContactName,
       contactPhotoUrl: whatsappConversations.contactPhotoUrl,
       lastMessageAt: lastMsgSub.lastAt,
       lastMessageContent: lastMsgSub.lastContent,
@@ -1856,6 +1876,7 @@ export async function getConversation(
       clientId: whatsappConversations.clientId,
       phone: whatsappConversations.phone,
       contactName: whatsappConversations.contactName,
+      customContactName: whatsappConversations.customContactName,
       contactPhotoUrl: whatsappConversations.contactPhotoUrl,
       lastInboundAt,
       channelId: whatsappConversations.channelId,

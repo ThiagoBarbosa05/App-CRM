@@ -22,6 +22,7 @@ import { formatPhone, formatCpf, formatDate } from "@/lib/utils";
 import type { Client } from "@shared/schema";
 import type { ClientRegistrationQuality } from "@shared/client-registration-quality";
 import { RegistrationQualityBar } from "@/components/clients/registration-quality-bar";
+import { resolveWhatsappContactName } from "@/lib/whatsapp-contact-name";
 import {
   ContactAvatar,
   WhatsappTagBadge,
@@ -44,7 +45,7 @@ export function ContactDetailsSheet({
   open,
   onOpenChange,
 }: ContactDetailsSheetProps) {
-  const displayName = client.clientName ?? client.contactName ?? client.phone;
+  const displayName = resolveWhatsappContactName(client);
   const hasTags =
     (client.tags && client.tags.length > 0) ||
     (client.whatsappTags && client.whatsappTags.length > 0);
@@ -71,7 +72,7 @@ export function ContactDetailsSheet({
           {/* Cabeçalho do contato */}
           <div className="flex items-center gap-3">
             <ContactAvatar
-              name={client.clientName ?? client.contactName}
+              name={client.clientName ?? client.customContactName ?? client.contactName}
               phone={client.phone}
               photoUrl={client.clientName ? null : client.contactPhotoUrl}
               className="h-14 w-14 text-lg font-bold shadow-sm shrink-0"
