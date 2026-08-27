@@ -21,6 +21,7 @@ import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, sendReaction as evoSendReaction, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
+import { shouldFetchWhatsappContactPhoto } from "@shared/whatsapp-contact-photo";
 import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
 import {
@@ -3487,26 +3488,31 @@ export async function saveInboundMessage(data: {
     await logConversationStartedMessage(conv.id);
   }
 
-  // Enriquece conversas de contatos ainda sem cliente vinculado com nome/foto
-  // do WhatsApp — só se aplica quando não há clientId (a UI usa clients.name
-  // como fonte de verdade quando há cliente casado) e quando o outro lado não é
-  // um canal nosso (aí o nome exibido vem de peerChannelId, ver
-  // listClientsForChat).
-  if (!conv.clientId && !conv.peerChannelId) {
+  // Enriquece conversas comuns com os dados disponíveis no WhatsApp. O nome
+  // continua subordinado ao cadastro do cliente, mas a foto também é útil em
+  // conversas vinculadas. Conversas antigas sem foto são preenchidas
+  // gradualmente quando recebem uma nova mensagem pelo canal QR/Baileys.
+  if (!conv.peerChannelId) {
     const updates: Partial<typeof whatsappConversations.$inferInsert> = {};
 
     // pushName só reflete o contato de verdade em mensagens inbound. Em
     // outbound (eco fromMe, ex.: vendedor respondendo direto pelo celular em
     // vez do CRM), o Baileys manda o pushName da PRÓPRIA conta conectada, e
     // usá-lo aqui sobrescreveria o nome do cliente pelo nome do canal.
-    if (direction === "inbound" && data.pushName && data.pushName !== (conv as { contactName?: string | null }).contactName) {
+    if (!conv.clientId && direction === "inbound" && data.pushName && data.pushName !== (conv as { contactName?: string | null }).contactName) {
       updates.contactName = data.pushName;
     }
 
-    // Foto só é buscada na criação da conversa — evita round-trip de rede ao
-    // socket Baileys a cada mensagem do mesmo contato desconhecido.
-    if (isBrandNew && data.instanceName) {
-      const photoUrl = await fetchProfilePictureUrl(data.instanceName, data.phone).catch(() => null);
+    // Uma URL já salva evita round-trips nas mensagens seguintes. A decisão
+    // independe de clientId para que clientes cadastrados também tenham avatar.
+    const profileInstanceName = data.instanceName;
+    if (profileInstanceName && shouldFetchWhatsappContactPhoto({
+      direction,
+      instanceName: profileInstanceName,
+      peerChannelId: conv.peerChannelId,
+      contactPhotoUrl: conv.contactPhotoUrl,
+    })) {
+      const photoUrl = await fetchProfilePictureUrl(profileInstanceName, data.phone).catch(() => null);
       if (photoUrl) updates.contactPhotoUrl = photoUrl;
     }
 

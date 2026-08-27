@@ -154,6 +154,7 @@ import {
 import { useWhatsappSettings } from "@/hooks/use-whatsapp";
 import { BOT_SHORTCUT_ICONS, parseBotShortcuts } from "@/lib/bot-shortcut-icons";
 import { resolveWhatsappContactName } from "@/lib/whatsapp-contact-name";
+import { resolveWhatsappContactPhotoUrl } from "@shared/whatsapp-contact-photo";
 
 interface Channel {
   id: number;
@@ -1477,7 +1478,7 @@ function ClientListItem({
           <ContactAvatar
             name={client.clientName ?? client.customContactName ?? client.contactName}
             phone={client.phone}
-            photoUrl={client.clientName ? null : client.contactPhotoUrl}
+            photoUrl={resolveWhatsappContactPhotoUrl(client)}
             className={cn(
               "h-11 w-11 text-sm shadow-sm ring-2 transition-shadow",
               selected ? "ring-primary/40" : "ring-white dark:ring-slate-900",
@@ -4783,7 +4784,7 @@ function ConversationMessages({
           <ContactAvatar
             name={client.clientName ?? client.customContactName ?? client.contactName}
             phone={client.phone}
-            photoUrl={client.clientName ? null : client.contactPhotoUrl}
+            photoUrl={resolveWhatsappContactPhotoUrl(client)}
             className="h-9 w-9 text-xs font-bold shadow-sm shrink-0"
           />
 
