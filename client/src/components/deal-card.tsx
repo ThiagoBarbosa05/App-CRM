@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocation } from "wouter";
 import { DealWithClient } from "@shared/schema";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   Target,
   MoreVertical,
 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
@@ -50,6 +52,24 @@ export default function DealCard({
   onMoveToNextStage,
   className,
 }: DealCardProps) {
+  const [, navigate] = useLocation();
+
+  const handleCallClient = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!deal.client?.phone) return;
+    navigate(
+      `/telemarketing?tab=dialer&clientId=${deal.client.id}&phone=${encodeURIComponent(
+        deal.client.phone,
+      )}&clientName=${encodeURIComponent(deal.client.name)}`,
+    );
+  };
+
+  const handleWhatsAppClient = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!deal.client) return;
+    navigate(`/clientes/${deal.client.id}?tab=whatsapp`);
+  };
+
   const formatPhone = (phone: string) => {
     if (!phone) return "";
     let d = phone.replace(/\D/g, "");
@@ -292,9 +312,22 @@ export default function DealCard({
                     <div className="flex h-3 w-3 items-center justify-center rounded bg-green-100 dark:bg-green-900 flex-shrink-0">
                       <Phone className="h-2 w-2 text-green-600 dark:text-green-400" />
                     </div>
-                    <span className="truncate">
+                    <button
+                      type="button"
+                      onClick={handleCallClient}
+                      title="Ligar pelo Telemarketing"
+                      className="truncate text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
+                    >
                       {formatPhone(deal.client.phone)}
-                    </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleWhatsAppClient}
+                      title="Abrir conversa no WhatsApp"
+                      className="flex h-4 w-4 items-center justify-center rounded-full bg-green-500 hover:bg-green-600 transition-colors flex-shrink-0"
+                    >
+                      <FaWhatsapp className="h-2.5 w-2.5 text-white" />
+                    </button>
                   </div>
                 )}
                 {deal.client.email && (
