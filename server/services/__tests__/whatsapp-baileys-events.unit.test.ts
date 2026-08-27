@@ -169,6 +169,36 @@ describe("eventos de interação do dispositivo", () => {
       }),
     }));
   });
+
+  it("persiste a legenda de uma imagem enviada pelo dispositivo no campo caption", async () => {
+    await handleMessagesUpsert("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: true,
+        id: "imagem-com-legenda-1",
+      },
+      message: {
+        imageMessage: {
+          caption: "Foto do produto",
+          mimetype: "image/jpeg",
+        },
+      },
+      messageTimestamp: 1_700_000_000,
+      _baileysMedia: {
+        storageKey: "whatsapp/imagem-com-legenda-1.jpg",
+        mimeType: "image/jpeg",
+        filename: null,
+        size: 12_345,
+      },
+    });
+
+    expect(saveInboundMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: "image",
+      content: null,
+      caption: "Foto do produto",
+      _fromMe: true,
+    }));
+  });
 });
 
 describe("extractQuotedMessageSnapshot", () => {

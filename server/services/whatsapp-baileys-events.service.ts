@@ -159,6 +159,11 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   else if (msgContent.documentMessage) type = "document";
   else if (msgContent.stickerMessage) type = "sticker";
 
+  const caption = ["image", "video", "document"].includes(type)
+    ? (contentNode?.caption as string | undefined)
+    : undefined;
+  const persistedContent = caption === undefined ? effectiveText : null;
+
   // Ignora mensagens de protocolo/sync (distribuição de chaves, app-state, etc.)
   // que o WhatsApp envia em rajada ao parear via QR — elas serializam vazias e
   // seriam salvas como "[text]" em massa.
@@ -170,7 +175,8 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
 
   const inboundResult = await saveInboundMessage({
     phone,
-    content: effectiveText,
+    content: persistedContent,
+    caption,
     type,
     waMessageId,
     timestamp,
