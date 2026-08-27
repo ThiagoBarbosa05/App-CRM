@@ -10,12 +10,14 @@ interface ClientFunnelsTabProps {
   clientName: string;
   isOpen: boolean;
   onCreateDeal: (funnelId: string) => void;
+  onViewDeal: (dealId: string, funnelId: string) => void;
 }
 
 interface FunnelSummary {
   id: string;
   name: string;
   description?: string | null;
+  dealId?: string;
 }
 
 export function ClientFunnelsTab({
@@ -23,6 +25,7 @@ export function ClientFunnelsTab({
   clientName,
   isOpen,
   onCreateDeal,
+  onViewDeal,
 }: ClientFunnelsTabProps) {
   const { data: clientFunnels = [] } = useQuery<FunnelSummary[]>({
     queryKey: [`/api/clients/${clientId}/funnels`],
@@ -105,8 +108,12 @@ export function ClientFunnelsTab({
                   key={`active-funnel-${funnel.id}`}
                   funnel={funnel}
                   variant="active"
-                  ctaLabel="Adicionar ao funil"
-                  onClick={() => onCreateDeal(funnel.id)}
+                  ctaLabel="Ver detalhes do negócio"
+                  onClick={() =>
+                    funnel.dealId
+                      ? onViewDeal(funnel.dealId, funnel.id)
+                      : onCreateDeal(funnel.id)
+                  }
                 />
               ))}
             </div>
@@ -233,6 +240,65 @@ function FunnelActionCard({
     },
   }[variant];
 
+  if (variant === "active") {
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        className={cn(
+          "cursor-pointer rounded-[24px] border p-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_38px_-24px_rgba(79,70,229,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+          styles.wrapper,
+        )}
+      >
+        <div className="flex items-start gap-4">
+          <div
+            className={cn(
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl",
+              styles.iconWrap,
+            )}
+          >
+            <GitBranch className={cn("h-5 w-5", styles.icon)} />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
+                  styles.badge,
+                )}
+              >
+                Em andamento
+              </Badge>
+            </div>
+
+            <p className="text-base font-black text-slate-900 dark:text-white">
+              {funnel.name}
+            </p>
+
+            <p className="mt-2 min-h-[40px] text-sm text-slate-500 dark:text-slate-400">
+              {funnel.description || "Funil pronto para receber um novo negócio deste cliente."}
+            </p>
+
+            <div className="mt-5 flex items-center gap-2 text-sm font-bold text-indigo-700 dark:text-indigo-300">
+              <Sparkles className="h-4 w-4" />
+              {ctaLabel}
+              <ArrowRight className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -259,7 +325,7 @@ function FunnelActionCard({
                 styles.badge,
               )}
             >
-              {variant === "active" ? "Em andamento" : "Disponível"}
+              Disponível
             </Badge>
           </div>
 
@@ -278,11 +344,7 @@ function FunnelActionCard({
               styles.button,
             )}
           >
-            {variant === "active" ? (
-              <Sparkles className="mr-2 h-4 w-4" />
-            ) : (
-              <PlusCircle className="mr-2 h-4 w-4" />
-            )}
+            <PlusCircle className="mr-2 h-4 w-4" />
             {ctaLabel}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>

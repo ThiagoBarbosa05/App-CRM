@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { apiRequest } from "@/lib/queryClient";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DealWithClient } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash2, Plus, Users, Phone } from "lucide-react";
@@ -62,11 +62,15 @@ import { FunnelStage } from "@shared/schema";
 interface FunnelKanbanBoardProps {
   funnelId: string;
   funnel: SalesFunnel;
+  initialDealId?: string | null;
+  onInitialDealHandled?: () => void;
 }
 
 export default function FunnelKanbanBoard({
   funnelId,
   funnel,
+  initialDealId,
+  onInitialDealHandled,
 }: FunnelKanbanBoardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -168,6 +172,25 @@ export default function FunnelKanbanBoard({
   });
 
   console.log(deals);
+
+  // Busca diretamente o negócio indicado por initialDealId (ex.: vindo do
+  // perfil do cliente). Usa o endpoint de deal único, que não aplica o
+  // filtro por responsável da listagem do board — assim o modal abre com
+  // o negócio certo mesmo que ele não seja atribuído ao usuário logado.
+  const { data: initialDeal } = useQuery({
+    queryKey: ["/api/deals", "byId", initialDealId],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/deals/${initialDealId}`);
+      return response.json();
+    },
+    enabled: !!initialDealId,
+  });
+
+  useEffect(() => {
+    if (!initialDealId || !initialDeal) return;
+    setSelectedDeal(initialDeal);
+    onInitialDealHandled?.();
+  }, [initialDealId, initialDeal, onInitialDealHandled]);
 
   if (error) {
     console.error("❌ ERRO NA QUERY:", error);

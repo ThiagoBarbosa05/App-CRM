@@ -142,6 +142,10 @@ export default function ClientProfilePage() {
     setSelectedFunnelId(funnelId);
     setShowCreateDealModal(true);
   };
+
+  const handleViewDeal = (dealId: string, funnelId: string) => {
+    navigate(`/funil?funnelId=${funnelId}&dealId=${dealId}`);
+  };
   const { toast } = useToast();
 
   const deleteClientMutation = useMutation({
@@ -684,6 +688,7 @@ export default function ClientProfilePage() {
                     clientName={client.name}
                     isOpen={activeTab === "negocio"}
                     onCreateDeal={handleCreateDeal}
+                    onViewDeal={handleViewDeal}
                   />
                 )}
 

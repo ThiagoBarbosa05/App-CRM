@@ -76,6 +76,44 @@ export class DealsRepository {
   }
 
   /**
+   * Busca um único deal (com dados relacionados) pelo ID, sem aplicar
+   * filtro de visibilidade por role/usuário. Útil para abrir os detalhes
+   * de um negócio específico já conhecido (ex.: vindo do perfil do cliente),
+   * independentemente de quem é o responsável pelo negócio.
+   * @param id - ID do deal
+   * @returns Promise<DealWithClient | undefined>
+   */
+  async getDealWithClientById(id: string): Promise<DealWithClient | undefined> {
+    const [row] = await this.db
+      .select({
+        deal: deals,
+        client: clients,
+        company: companies,
+        assignedUser: users,
+        stage: funnelStages,
+        funnel: salesFunnels,
+      })
+      .from(deals)
+      .leftJoin(clients, eq(deals.clientId, clients.id))
+      .leftJoin(companies, eq(deals.companyId, companies.id))
+      .leftJoin(users, eq(deals.assignedTo, users.id))
+      .leftJoin(funnelStages, eq(deals.stageId, funnelStages.id))
+      .leftJoin(salesFunnels, eq(deals.funnelId, salesFunnels.id))
+      .where(eq(deals.id, id));
+
+    if (!row) return undefined;
+
+    return {
+      ...row.deal,
+      client: row.client,
+      company: row.company,
+      assignedUser: row.assignedUser,
+      stage: row.stage,
+      funnel: row.funnel,
+    };
+  }
+
+  /**
    * Atualiza um deal existente
    * @param id - ID do deal a ser atualizado
    * @param updateData - Dados parciais para atualização

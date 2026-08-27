@@ -117,6 +117,22 @@ export class DealsService {
   }
 
   /**
+   * Busca um único deal (com dados relacionados) pelo ID, sem filtro de
+   * visibilidade por role. Usado para abrir os detalhes de um negócio
+   * específico já conhecido (ex.: a partir do perfil do cliente).
+   */
+  async getDealById(dealId: string): Promise<DealWithClient | undefined> {
+    try {
+      return await this.dealsRepository.getDealWithClientById(dealId);
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Erro ao buscar deal");
+    }
+  }
+
+  /**
    * Processa parâmetros da requisição para busca de deals
    * @param req - Objeto de requisição
    * @returns GetDealsParams - Parâmetros processados

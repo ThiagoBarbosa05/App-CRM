@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getDealsController } from "../controllers/deals/get-deals.controller";
+import { getDealByIdController } from "../controllers/deals/get-deal-by-id.controller";
 import { createDealController } from "../controllers/deals/post-deal.controller";
 import { createBulkDealsController } from "../controllers/deals/post-bulk-deals.controller";
 import { createBulkDealsClientsController } from "../controllers/deals/post-bulk-deals-clients.controller";
@@ -75,6 +76,16 @@ export const dealsRouter = Router();
  *   - Filtro por funnelId limita resultados ao funil específico
  */
 dealsRouter.get("/", getDealsController);
+
+/**
+ * @route GET /api/deals/:id
+ * @description Busca um único deal pelo ID, com dados relacionados, sem
+ * aplicar o filtro de visibilidade por role usado na listagem geral.
+ * @access Private (requer autenticação)
+ * @pathParams {string} id - ID do deal
+ * @returns {object} Deal com dados relacionados, ou 404 se não encontrado
+ */
+dealsRouter.get("/:id", getDealByIdController);
 
 /**
  * @route POST /api/deals

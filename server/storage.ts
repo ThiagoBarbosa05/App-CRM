@@ -620,7 +620,9 @@ export interface IStorage {
   getDashboardStats(userId: string): Promise<any>;
 
   // Client Funnels methods
-  getClientFunnels(clientId: string): Promise<SalesFunnel[]>;
+  getClientFunnels(
+    clientId: string,
+  ): Promise<(SalesFunnel & { dealId: string })[]>;
   getCompanyInteractions(
     companyId: string,
   ): Promise<ClientInteractionWithUser[]>;
@@ -5160,9 +5162,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Get funnels where client has deals
-  async getClientFunnels(clientId: string): Promise<SalesFunnel[]> {
-    const clientFunnels = await this.db
-      .selectDistinct({
+  async getClientFunnels(
+    clientId: string,
+  ): Promise<(SalesFunnel & { dealId: string })[]> {
+    const clientFunnelDeals = await this.db
+      .select({
         id: salesFunnels.id,
         name: salesFunnels.name,
         description: salesFunnels.description,
@@ -5170,11 +5174,23 @@ export class DatabaseStorage implements IStorage {
         createdBy: salesFunnels.createdBy,
         createdAt: salesFunnels.createdAt,
         updatedAt: salesFunnels.updatedAt,
+        dealId: deals.id,
+        dealCreatedAt: deals.createdAt,
       })
       .from(salesFunnels)
       .innerJoin(deals, eq(deals.funnelId, salesFunnels.id))
       .where(eq(deals.clientId, clientId))
-      .orderBy(salesFunnels.name);
+      .orderBy(salesFunnels.name, desc(deals.createdAt));
+
+    // Mantém apenas o negócio mais recente por funil
+    const seenFunnels = new Set<string>();
+    const clientFunnels: (SalesFunnel & { dealId: string })[] = [];
+    for (const row of clientFunnelDeals) {
+      if (seenFunnels.has(row.id)) continue;
+      seenFunnels.add(row.id);
+      const { dealCreatedAt, ...funnel } = row;
+      clientFunnels.push(funnel);
+    }
 
     return clientFunnels;
   }

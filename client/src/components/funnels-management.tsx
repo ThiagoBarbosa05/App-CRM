@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -60,6 +61,7 @@ export default function FunnelsManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const search = useSearch();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newFunnelName, setNewFunnelName] = useState("");
   const [newFunnelDescription, setNewFunnelDescription] = useState("");
@@ -72,10 +74,30 @@ export default function FunnelsManagement() {
   const [editingFunnel, setEditingFunnel] = useState<SalesFunnel | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [funnelToDelete, setFunnelToDelete] = useState<SalesFunnel | null>(null);
+  const [initialDealId, setInitialDealId] = useState<string | null>(null);
 
   const { data: funnels, isLoading } = useQuery({
     queryKey: ["/api/funnels"],
   });
+
+  // Abre diretamente o funil e o negócio indicados via query string
+  // (ex.: vindo do card "Negócios Ativos" no perfil do cliente)
+  useEffect(() => {
+    if (!funnels || !Array.isArray(funnels)) return;
+    const params = new URLSearchParams(search);
+    const funnelId = params.get("funnelId");
+    const dealId = params.get("dealId");
+    if (!funnelId) return;
+
+    const targetFunnel = (funnels as SalesFunnel[]).find(
+      (f) => f.id === funnelId,
+    );
+    if (targetFunnel) {
+      setSelectedFunnel(targetFunnel);
+      setViewMode("kanban");
+      setInitialDealId(dealId);
+    }
+  }, [funnels, search]);
 
   const createFunnelMutation = useMutation({
     mutationFn: async (funnelData: {
@@ -213,6 +235,8 @@ export default function FunnelsManagement() {
         <FunnelKanbanBoard
           funnelId={selectedFunnel.id}
           funnel={selectedFunnel}
+          initialDealId={initialDealId}
+          onInitialDealHandled={() => setInitialDealId(null)}
         />
       )}
 
