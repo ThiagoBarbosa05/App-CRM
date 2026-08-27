@@ -1,0 +1,403 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #f8fafc; font-family: "Inter", system-ui, -apple-system, sans-serif; color: #0f172a; -webkit-font-smoothing: antialiased; }
+    a { color: #8b1a2c; text-decoration: none; }
+    a:hover { color: #6b1428; }
+    h1, h2, h3 { font-family: "Outfit", "Segoe UI", system-ui, sans-serif; letter-spacing: -0.02em; margin: 0; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; background: #f8fafc; overflow: hidden">
+
+  <!-- ============ CABEÇALHO ============ -->
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); position: relative; overflow: hidden">
+    <div style="position: absolute; top: -120px; right: -60px; width: 260px; height: 260px; background: rgba(139,26,44,0.05); border-radius: 999px; filter: blur(48px); pointer-events: none"></div>
+
+    <div style="position: relative; display: flex; align-items: center; gap: 16px; padding: 16px 20px 14px 20px">
+      <button style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: transparent; border-radius: 12px; color: #64748b; cursor: pointer; flex-shrink: 0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>
+      </button>
+
+      <div style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 14px; background: #eaf0f6; color: #8b1a2c; flex-shrink: 0">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg>
+      </div>
+
+      <div style="min-width: 0; flex-grow: 1">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <h1 style="font-size: 22px; font-weight: 700; color: #0f172a">Funil Principal — B2C</h1>
+          <span style="display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; background: #dcfce7; color: #15803d; font-size: 11px; font-weight: 600; letter-spacing: 0.02em">
+            <span style="width: 5px; height: 5px; border-radius: 999px; background: #16a34a"></span>Ativo
+          </span>
+        </div>
+        <p style="margin: 3px 0 0 0; font-size: 13px; color: #64748b">5 etapas · atualizado há 4 minutos</p>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0">
+        <button style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 1px solid #e2e8f0; background: #ffffff; border-radius: 12px; font-family: inherit; font-size: 13px; font-weight: 500; color: #334155; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"></path><path d="M7 12h10"></path><path d="M10 18h4"></path></svg>
+          Filtros
+        </button>
+        <button style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px; border: none; background: #8b1a2c; border-radius: 12px; font-family: inherit; font-size: 13px; font-weight: 600; color: #faf7f5; cursor: pointer; box-shadow: 0 1px 2px rgba(139,26,44,0.24)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          Novo negócio
+        </button>
+      </div>
+    </div>
+
+    <!-- resumo + filtros ativos -->
+    <div style="position: relative; display: flex; align-items: center; gap: 28px; padding: 12px 20px; border-top: 1px solid #f1f5f9">
+      <div style="display: flex; align-items: baseline; gap: 8px">
+        <span style="font-size: 11px; font-weight: 600; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase">Em negociação</span>
+        <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #0f172a">R$ 284.500</span>
+      </div>
+      <div style="width: 1px; height: 24px; background: #e2e8f0"></div>
+      <div style="display: flex; align-items: baseline; gap: 8px">
+        <span style="font-size: 11px; font-weight: 600; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase">Negócios</span>
+        <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #0f172a">38</span>
+      </div>
+      <div style="width: 1px; height: 24px; background: #e2e8f0"></div>
+      <div style="display: flex; align-items: baseline; gap: 8px">
+        <span style="font-size: 11px; font-weight: 600; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase">Ticket médio</span>
+        <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #0f172a">R$ 7.487</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px; margin-left: auto">
+        <span style="display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 6px 0 11px; border-radius: 999px; background: #fdf6f7; border: 1px solid #f4cdd3; color: #6b1428; font-size: 12px; font-weight: 500">
+          Responsável: Marina Alves
+          <span style="display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 999px; background: #f4cdd3; color: #6b1428">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </span>
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 6px 0 11px; border-radius: 999px; background: #fdf6f7; border: 1px solid #f4cdd3; color: #6b1428; font-size: 12px; font-weight: 500">
+          Acima de R$ 5.000
+          <span style="display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 999px; background: #f4cdd3; color: #6b1428">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </span>
+        </span>
+        <button style="height: 28px; padding: 0 10px; border: none; background: transparent; border-radius: 999px; font-family: inherit; font-size: 12px; font-weight: 500; color: #64748b; cursor: pointer">Limpar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ BOARD ============ -->
+  <div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0">
+
+    <!-- COLUNA 1 — Prospecção -->
+    <div style="display: flex; flex-direction: column; width: 264px; flex-shrink: 0; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden">
+      <div style="height: 3px; background: #94a3b8; flex-shrink: 0"></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px 12px; flex-shrink: 0">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #0f172a; flex-grow: 1">Prospecção</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px; background: #ffffff; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; color: #475569">14</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #475569">R$ 86.200</span>
+          <div style="flex-grow: 1; height: 3px; border-radius: 999px; background: #e2e8f0; overflow: hidden">
+            <div style="width: 30%; height: 100%; background: #94a3b8; border-radius: 999px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px 12px; overflow: hidden">
+
+        <!-- card padrão -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: flex-start; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25; flex-grow: 1">Restaurante Vinha Rossi</span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">6.400</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">MA</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Marina Alves</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #94a3b8; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              3d
+            </span>
+          </div>
+        </div>
+
+        <!-- card com contato -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Adega do Porto</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">3.180</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">RC</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Rafael Costa</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #94a3b8; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              6d
+            </span>
+          </div>
+        </div>
+
+        <!-- card com nota -->
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Bistrô Quinta Real</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">11.900</span>
+          </div>
+          <p style="margin: 0; padding-left: 9px; border-left: 2px solid #e8a4af; font-size: 12px; line-height: 1.45; color: #64748b">Pediu proposta com rótulos portugueses até sexta.</p>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">MA</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Marina Alves</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #94a3b8; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              9d
+            </span>
+          </div>
+        </div>
+
+        <p style="margin: 2px 0 0 0; text-align: center; font-size: 11px; color: #94a3b8">Mostrando 3 de 14</p>
+      </div>
+    </div>
+
+    <!-- COLUNA 2 — Contato feito (card em hover, com ações) -->
+    <div style="display: flex; flex-direction: column; width: 264px; flex-shrink: 0; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden">
+      <div style="height: 3px; background: #d97285; flex-shrink: 0"></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px 12px; flex-shrink: 0">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #0f172a; flex-grow: 1">Contato feito</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px; background: #ffffff; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; color: #475569">9</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #475569">R$ 61.300</span>
+          <div style="flex-grow: 1; height: 3px; border-radius: 999px; background: #e2e8f0; overflow: hidden">
+            <div style="width: 22%; height: 100%; background: #d97285; border-radius: 999px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px 12px; overflow: hidden">
+
+        <!-- card em hover: ações à mostra -->
+        <div style="background: #ffffff; border: 1px solid #e8a4af; border-radius: 12px; padding: 12px; box-shadow: 0 6px 16px rgba(139,26,44,0.10); display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: flex-start; gap: 8px">
+            <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25; flex-grow: 1">Enoteca Bella Vista</span>
+            <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0">
+              <span style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; background: #f8fafc; color: #64748b">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+              </span>
+              <span style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 7px; background: #f8fafc; color: #64748b">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+              </span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">9.750</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">RC</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Rafael Costa</span>
+            <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0">
+              <span style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: #f1f5f9; color: #475569">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"></path></svg>
+              </span>
+              <span style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: #16a34a; color: #ffffff">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.9-4.45 9.9-9.91C21.95 6.45 17.5 2 12.04 2Zm5.8 14.16c-.24.68-1.4 1.3-1.94 1.35-.5.05-.98.23-3.3-.69-2.78-1.1-4.55-3.94-4.69-4.12-.14-.18-1.13-1.5-1.13-2.86s.71-2.03.97-2.31c.25-.28.55-.35.73-.35h.52c.17 0 .4-.06.62.48.24.57.8 1.98.87 2.12.07.14.12.3.02.49-.1.18-.15.29-.29.45-.14.16-.3.36-.43.48-.14.14-.29.29-.13.57.17.28.74 1.22 1.59 1.98 1.09.97 2.01 1.27 2.29 1.41.28.14.45.12.61-.07.17-.19.7-.82.89-1.1.19-.28.38-.23.63-.14.26.09 1.65.78 1.93.92.28.14.47.21.54.33.07.11.07.65-.17 1.33Z"></path></svg>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Mercearia São Vicente</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">4.220</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">MA</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Marina Alves</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #94a3b8; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              4d
+            </span>
+          </div>
+        </div>
+
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Hotel Serra Douro</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">18.400</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">JP</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Júlia Pires</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #b45309; background: #fef3c7; padding: 2px 6px; border-radius: 999px; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              21d
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUNA 3 — Proposta enviada (alvo de drop) -->
+    <div style="display: flex; flex-direction: column; width: 264px; flex-shrink: 0; background: #fdf6f7; border: 1.5px dashed #d97285; border-radius: 14px; overflow: hidden">
+      <div style="height: 3px; background: #c04060; flex-shrink: 0"></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px 12px; flex-shrink: 0">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #0f172a; flex-grow: 1">Proposta enviada</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px; background: #ffffff; border: 1px solid #f4cdd3; font-size: 11px; font-weight: 600; color: #6b1428">7</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #475569">R$ 74.900</span>
+          <div style="flex-grow: 1; height: 3px; border-radius: 999px; background: #f4cdd3; overflow: hidden">
+            <div style="width: 26%; height: 100%; background: #c04060; border-radius: 999px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px 12px; overflow: hidden">
+        <!-- placeholder de destino -->
+        <div style="height: 96px; border: 1.5px dashed #d97285; border-radius: 12px; background: rgba(255,255,255,0.55); display: flex; align-items: center; justify-content: center">
+          <span style="font-size: 12px; font-weight: 500; color: #8b1a2c">Soltar aqui</span>
+        </div>
+
+        <div style="background: #ffffff; border: 1px solid #f4cdd3; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Grupo Terroir</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">27.500</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">JP</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Júlia Pires</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #94a3b8; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              2d
+            </span>
+          </div>
+        </div>
+
+        <div style="background: #ffffff; border: 1px solid #f4cdd3; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Cantina Dom Aurélio</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">8.900</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">RC</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Rafael Costa</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #94a3b8; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              5d
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUNA 4 — Negociação -->
+    <div style="display: flex; flex-direction: column; width: 264px; flex-shrink: 0; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden">
+      <div style="height: 3px; background: #8b1a2c; flex-shrink: 0"></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px 12px; flex-shrink: 0">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #0f172a; flex-grow: 1">Negociação</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px; background: #ffffff; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; color: #475569">5</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #475569">R$ 42.100</span>
+          <div style="flex-grow: 1; height: 3px; border-radius: 999px; background: #e2e8f0; overflow: hidden">
+            <div style="width: 15%; height: 100%; background: #8b1a2c; border-radius: 999px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px 12px; overflow: hidden">
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Casa Malbec Jardins</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">15.600</span>
+          </div>
+          <p style="margin: 0; padding-left: 9px; border-left: 2px solid #e8a4af; font-size: 12px; line-height: 1.45; color: #64748b">Aguardando aprovação do sócio para fechar 3 caixas.</p>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">MA</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Marina Alves</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #94a3b8; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              7d
+            </span>
+          </div>
+        </div>
+
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Empório Vinhedos SP</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">12.300</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">JP</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Júlia Pires</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #94a3b8; flex-shrink: 0">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+              11d
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUNA 5 — Ganho (vazia) -->
+    <div style="display: flex; flex-direction: column; width: 264px; flex-shrink: 0; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden">
+      <div style="height: 3px; background: #16a34a; flex-shrink: 0"></div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px 12px; flex-shrink: 0">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #0f172a; flex-grow: 1">Ganho</span>
+          <span style="display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px; background: #ffffff; border: 1px solid #e2e8f0; font-size: 11px; font-weight: 600; color: #475569">3</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <span style="font-size: 13px; font-weight: 600; color: #475569">R$ 20.000</span>
+          <div style="flex-grow: 1; height: 3px; border-radius: 999px; background: #e2e8f0; overflow: hidden">
+            <div style="width: 7%; height: 100%; background: #16a34a; border-radius: 999px"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px 12px; overflow: hidden">
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); display: flex; flex-direction: column; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.25">Trattoria Bacco</span>
+          <div style="display: flex; align-items: baseline; gap: 6px">
+            <span style="font-size: 11px; font-weight: 500; color: #94a3b8">R$</span>
+            <span style="font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; font-size: 19px; font-weight: 700; color: #0f172a; letter-spacing: -0.01em">9.400</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 999px; background: #eaf0f6; color: #475569; font-size: 10px; font-weight: 600; flex-shrink: 0">RC</span>
+            <span style="font-size: 12px; color: #64748b; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Rafael Costa</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: #15803d; background: #dcfce7; padding: 2px 7px; border-radius: 999px; flex-shrink: 0">Fechado</span>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 28px 16px; border: 1.5px dashed #cbd5e1; border-radius: 12px">
+          <span style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; background: #e2e8f0; color: #94a3b8">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          </span>
+          <span style="font-size: 12px; font-weight: 500; color: #64748b; text-align: center">Arraste um negócio<br>ou crie um novo</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

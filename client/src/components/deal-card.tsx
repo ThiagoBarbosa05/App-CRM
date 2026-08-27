@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
 import {
   Edit,
   Trash2,
@@ -70,6 +71,7 @@ export default function DealCard({
   className,
 }: DealCardProps) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
 
   const handleCallClient = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -81,10 +83,23 @@ export default function DealCard({
     );
   };
 
-  const handleWhatsAppClient = (e: React.MouseEvent) => {
+  const handleWhatsAppClient = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!deal.client) return;
-    navigate(`/clientes/${deal.client.id}?tab=whatsapp`);
+    try {
+      const response = await apiRequest("POST", "/api/whatsapp/conversations/start", {
+        clientId: deal.client.id,
+      });
+      const data = await response.json();
+      navigate(`/whatsapp/conversas?conversationId=${data.conversationId}`);
+    } catch (error) {
+      toast({
+        title: "Erro ao iniciar conversa",
+        description:
+          error instanceof Error ? error.message : "Não foi possível abrir o WhatsApp.",
+        variant: "destructive",
+      });
+    }
   };
 
   const formatPhone = (phone: string) => {

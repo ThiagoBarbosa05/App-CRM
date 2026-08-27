@@ -1,0 +1,55 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "Board Kanban",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900
+    },
+    {
+      "file": "Mobile.dc.html",
+      "title": "Board no celular",
+      "x": 1560,
+      "y": 0,
+      "w": 390,
+      "h": 844
+    },
+    {
+      "file": "ListaFunis.dc.html",
+      "title": "Lista de funis",
+      "x": 0,
+      "y": 1060,
+      "w": 1440,
+      "h": 900
+    },
+    {
+      "file": "CardNegocio.dc.html",
+      "title": "Card de negócio — antes e depois",
+      "x": 1560,
+      "y": 1060,
+      "w": 900,
+      "h": 720
+    }
+  ],
+  "annotations": [
+    {
+      "id": "resumo",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "Funil de Vendas — proposta de apresentação\n\nMesmos dados, mesma estrutura de telas. O que muda é hierarquia e marca: o azul solto vira o vinho #8b1a2c do sistema, a cor da etapa passa a identificar a coluna, e o card encolhe pela metade."
+    },
+    {
+      "id": "nota-board",
+      "x": 0,
+      "y": 940,
+      "w": 420,
+      "text": "A coluna \"Proposta enviada\" está no estado de arraste — hoje não existe retorno visual nenhum ao soltar um card."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}
