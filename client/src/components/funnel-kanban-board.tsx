@@ -597,11 +597,11 @@ export default function FunnelKanbanBoard({
                           draggable
                           onDragStart={() => handleDragStart(deal)}
                           onClick={() => setSelectedDeal(deal)}
-                          className="kanban-card bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-3 sm:p-4 shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
+                          className="kanban-card bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-2.5 shadow-sm cursor-pointer hover:shadow-md hover:border-blue-300 transition-all duration-200 group active:scale-95"
                         >
-                          <div className="flex items-start justify-between mb-3 gap-2">
+                          <div className="flex items-start justify-between mb-1.5 gap-2">
                             <h4 className="font-semibold text-gray-900 dark:text-slate-100 text-sm leading-tight flex-1 min-w-0">
-                              <span className="line-clamp-2">{deal.title}</span>
+                              <span className="line-clamp-1">{deal.title}</span>
                             </h4>
                             <div className="deal-actions flex sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
                               <Button
@@ -629,63 +629,60 @@ export default function FunnelKanbanBoard({
                             </div>
                           </div>
 
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             {(deal.client || deal.company) && (
-                              <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 border-l-3 border-green-400 dark:border-green-600">
-                                <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">
+                              <div className="flex items-center gap-1 text-xs min-w-0">
+                                <span className="text-gray-400 dark:text-slate-500 flex-shrink-0">
                                   Cliente:
-                                </p>
-                                <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
+                                </span>
+                                <span className="font-medium text-gray-900 dark:text-slate-100 truncate">
                                   {deal.client?.name || deal.company?.nomeFantasia}
-                                </p>
+                                </span>
                                 {deal.client?.phone && (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Phone className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                  <>
                                     <button
                                       type="button"
                                       onClick={(e) => handleCallClient(e, deal)}
                                       title="Ligar pelo Telemarketing"
-                                      className="text-xs text-gray-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:underline truncate transition-colors"
+                                      className="flex-shrink-0 text-gray-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     >
-                                      {formatPhone(deal.client.phone)}
+                                      <Phone className="h-3 w-3" />
                                     </button>
                                     <button
                                       type="button"
                                       onClick={(e) => handleWhatsAppClient(e, deal)}
                                       title="Abrir conversa no WhatsApp"
-                                      className="flex h-4 w-4 items-center justify-center rounded-full bg-green-500 hover:bg-green-600 transition-colors flex-shrink-0"
+                                      className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-green-500 hover:bg-green-600 transition-colors flex-shrink-0"
                                     >
-                                      <FaWhatsapp className="h-2.5 w-2.5 text-white" />
+                                      <FaWhatsapp className="h-2 w-2 text-white" />
                                     </button>
-                                  </div>
+                                  </>
                                 )}
                               </div>
                             )}
 
-                            <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-2 border-l-3 border-blue-400 dark:border-blue-600">
-                              <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">
-                                Responsável:
-                              </p>
-                              <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
+                            <div className="flex items-center gap-1 text-xs min-w-0">
+                              <span className="text-gray-400 dark:text-slate-500 flex-shrink-0">
+                                Resp.:
+                              </span>
+                              <span className="font-medium text-gray-900 dark:text-slate-100 truncate">
                                 {deal.assignedUser?.name || "Não atribuído"}
-                              </p>
+                              </span>
                             </div>
 
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                              <p className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
+                            <div className="flex items-center justify-between gap-2 pt-0.5">
+                              <p className="text-sm font-bold text-green-600 dark:text-green-400">
                                 {formatCurrency(parseFloat(deal.value))}
                               </p>
-                              <span className="text-xs text-gray-400 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 px-2 py-1 rounded-full w-fit">
+                              <span className="text-[11px] text-gray-400 dark:text-slate-400">
                                 {formatDate(deal.createdAt.toString())}
                               </span>
                             </div>
 
                             {deal.notes && (
-                              <div className="bg-yellow-50 dark:bg-yellow-900 border-l-3 border-yellow-400 dark:border-yellow-600 p-2 rounded-r-lg">
-                                <p className="text-xs text-gray-700 dark:text-yellow-300 line-clamp-3 sm:line-clamp-2">
-                                  {deal.notes}
-                                </p>
-                              </div>
+                              <p className="text-xs text-gray-500 dark:text-yellow-300 italic line-clamp-1 pt-0.5">
+                                {deal.notes}
+                              </p>
                             )}
                           </div>
                         </div>
