@@ -20,7 +20,7 @@ import {
 import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt, type SQL, type SQLWrapper } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer, markMessageAsRead } from "../integrations/whatsapp";
-import { sendText as evoSendText, sendMedia as evoSendMedia, sendReaction as evoSendReaction, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
+import { sendText as evoSendText, sendMedia as evoSendMedia, sendReaction as evoSendReaction, sendLocation as evoSendLocation, sendContacts as evoSendContacts, sendPoll as evoSendPoll, publishPresence as evoPublishPresence, markMessagesRead as evoMarkMessagesRead, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
 import { shouldFetchWhatsappContactPhoto } from "@shared/whatsapp-contact-photo";
 import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject } from "../lib/r2";
 import { getTemplateMedia, fetchMetaTemplates } from "./whatsapp-templates.service";
@@ -44,6 +44,7 @@ import { Cursor, clampLimit, encodeCursor } from "../lib/cursor-pagination";
 import { SENT_CONFIRMATION_ALLOWED_CURRENT_STATUSES } from "../lib/whatsapp-message-status";
 import { inspectWebpSticker } from "../lib/webp-sticker";
 import { normalizeWhatsappReplyPresentation } from "@shared/whatsapp-flattened-reply";
+import { baileysGateway } from "../integrations/baileys-gateway";
 
 // Reexportado do util compartilhado para não quebrar imports existentes
 // (whatsapp-opt-out.service.ts, bot-session-history.controller.ts).
@@ -3001,12 +3002,21 @@ async function getCapabilitiesForResolvedChannel(
     .where(eq(whatsappChannels.id, channelId))
     .limit(1);
 
+  const gatewayFeatures = channel.provider === "evolution"
+    ? await baileysGateway.getCapabilities()
+        .then((result) => result.contractVersion >= 2 ? result.features : undefined)
+        .catch((error: unknown) => {
+          console.warn("[WA Conversations] Gateway sem negociação de capacidades v2:", error instanceof Error ? error.message : error);
+          return undefined;
+        })
+    : undefined;
   return buildConversationCapabilities({
     provider: channel.provider,
     configured: channelConfig?.isActive === true,
     connected:
       channel.provider === "cloud_api" || channelConfig?.connectionStatus === "connected",
     deviceEchoEnabled: channelConfig?.deviceEchoEnabled === true,
+    gatewayFeatures,
   });
 }
 
@@ -4081,7 +4091,7 @@ export async function markConversationRead(
     console.error("[WA Conversations] Falha ao resolver canal para recibo remoto:", error);
     return null;
   });
-  if (!channel || channel.provider !== "cloud_api") return { local: true, remote: "skipped" };
+  if (!channel) return { local: true, remote: "skipped" };
 
   const [lastInbound] = await db
     .select({ waMessageId: whatsappMessages.waMessageId })
@@ -4097,10 +4107,18 @@ export async function markConversationRead(
   if (!lastInbound?.waMessageId) return { local: true, remote: "skipped" };
 
   try {
-    await markMessageAsRead(lastInbound.waMessageId, {
-      phoneNumberId: channel.phoneNumberId,
-      accessToken: channel.accessToken,
-    });
+    if (channel.provider === "cloud_api") {
+      await markMessageAsRead(lastInbound.waMessageId, {
+        phoneNumberId: channel.phoneNumberId,
+        accessToken: channel.accessToken,
+      });
+    } else {
+      await evoMarkMessagesRead(channel.evolutionInstanceName, [{
+        remoteJid: normalizeToJid((await db.select({ phone: whatsappConversations.phone }).from(whatsappConversations).where(eq(whatsappConversations.id, conversationId)).limit(1))[0]?.phone ?? ""),
+        fromMe: false,
+        id: lastInbound.waMessageId,
+      }]);
+    }
     return { local: true, remote: "sent" };
   } catch (error) {
     // A leitura local já foi persistida; indisponibilidade do provedor não pode
@@ -4108,4 +4126,61 @@ export async function markConversationRead(
     console.error("[WA Conversations] Falha ao enviar recibo remoto Cloud API:", error);
     return { local: true, remote: "failed" };
   }
+}
+
+export type ConversationRichMessageInput =
+  | { type: "location"; latitude: number; longitude: number; name?: string; address?: string }
+  | { type: "contacts"; contacts: Array<{ displayName: string; vcard: string }> }
+  | { type: "poll"; name: string; values: string[]; selectableCount?: number };
+
+export async function sendConversationRichMessage(
+  conversationId: string, input: ConversationRichMessageInput, userId: string, userRole: string, channelId?: number,
+) {
+  if (!(await isConversationAccessibleToUser(conversationId, userId, userRole))) return null;
+  const actAsChannelId = userRole === "admin" || userRole === "gerente" ? channelId : undefined;
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId, actAsChannelId);
+  if (!resolved || resolved.channel.provider !== "evolution") throw new Error("Este formato está disponível somente em canais QR compatíveis");
+  const capabilities = await getCapabilitiesForResolvedChannel(resolved.channel, resolved.channelId);
+  if (!capabilities.send[input.type]) throw new Error("O Baileys Gateway conectado não oferece este recurso");
+  const [conversation] = await db.select({ phone: whatsappConversations.phone }).from(whatsappConversations).where(eq(whatsappConversations.id, conversationId)).limit(1);
+  if (!conversation) return null;
+  const displayContent = input.type === "location" ? input.name ?? input.address ?? "Localização"
+    : input.type === "contacts" ? `${input.contacts.length} contato(s)` : input.name;
+  const [saved] = await db.insert(whatsappMessages).values({
+    conversationId, channelId: resolved.channelId, direction: resolved.direction,
+    type: input.type, content: displayContent, providerMetadata: input,
+    origin: "crm", status: "pending", sentByUserId: userId, sentAt: new Date(),
+  }).returning();
+  if (!saved) throw new Error("Não foi possível criar a mensagem pendente");
+  try {
+    const idempotencyKey = `message-${saved.id}`;
+    const sent = input.type === "location"
+      ? await evoSendLocation(resolved.channel.evolutionInstanceName, conversation.phone, input, idempotencyKey)
+      : input.type === "contacts"
+        ? await evoSendContacts(resolved.channel.evolutionInstanceName, conversation.phone, input.contacts, idempotencyKey)
+        : await evoSendPoll(resolved.channel.evolutionInstanceName, conversation.phone, input, idempotencyKey);
+    await db.update(whatsappMessages).set({ status: "sent", waMessageId: sent.key.id }).where(eq(whatsappMessages.id, saved.id));
+    saved.status = "sent";
+    saved.waMessageId = sent.key.id;
+  } catch (error) {
+    await db.update(whatsappMessages).set({ status: "failed" }).where(eq(whatsappMessages.id, saved.id));
+    throw error;
+  }
+  await db.update(whatsappConversations).set({ lastMessageAt: new Date(), updatedAt: new Date() }).where(eq(whatsappConversations.id, conversationId));
+  publishConversationEvent(conversationId, "new_message", {});
+  return saved;
+}
+
+export async function publishConversationPresence(
+  conversationId: string, presence: "available" | "unavailable" | "composing" | "recording" | "paused", userId: string, userRole: string, channelId?: number,
+): Promise<{ success: true } | null> {
+  if (!(await isConversationAccessibleToUser(conversationId, userId, userRole))) return null;
+  const resolved = await resolveOutboundChannelForSender(conversationId, userId, userRole === "admin" || userRole === "gerente" ? channelId : undefined);
+  if (!resolved || resolved.channel.provider !== "evolution") throw new Error("Presença disponível somente em canais QR compatíveis");
+  const capabilities = await getCapabilitiesForResolvedChannel(resolved.channel, resolved.channelId);
+  if (!capabilities.presence) throw new Error("O Baileys Gateway conectado não oferece presença");
+  const [conversation] = await db.select({ phone: whatsappConversations.phone }).from(whatsappConversations).where(eq(whatsappConversations.id, conversationId)).limit(1);
+  if (!conversation) return null;
+  await evoPublishPresence(resolved.channel.evolutionInstanceName, conversation.phone, presence);
+  return { success: true };
 }

@@ -27,6 +27,10 @@ interface CapabilityContext {
   configured: boolean;
   connected: boolean;
   deviceEchoEnabled?: boolean;
+  gatewayFeatures?: Partial<{
+    location: boolean; contacts: boolean; polls: boolean; remoteRead: boolean;
+    presence: boolean; historySync: boolean; messageDelete: boolean;
+  }>;
 }
 
 export interface WhatsappStickerMetadata {
@@ -85,7 +89,23 @@ export function getWhatsappConversationCapabilities(
       ? "Canal desconectado"
       : null;
   const available = unavailableReason === null;
-  const providerFeatures = PROVIDER_FEATURES[context.provider];
+  const baseProviderFeatures = PROVIDER_FEATURES[context.provider];
+  const negotiated = context.provider === "evolution" ? context.gatewayFeatures : undefined;
+  const sendTypes = context.provider === "evolution"
+    ? BAILEYS_SEND_TYPES.filter((type) =>
+        type === "location" ? negotiated?.location === true
+          : type === "contacts" ? negotiated?.contacts === true
+            : type === "poll" ? negotiated?.polls === true
+              : true)
+    : CLOUD_API_SEND_TYPES;
+  const providerFeatures: ProviderFeatures = context.provider === "evolution" ? {
+    ...baseProviderFeatures,
+    remoteRead: negotiated?.remoteRead === true,
+    presence: negotiated?.presence === true,
+    historySync: negotiated?.historySync === true,
+    delete: negotiated?.messageDelete === true,
+    send: messageTypeCapabilities(sendTypes),
+  } : baseProviderFeatures;
   const unavailableMessageTypes = messageTypeCapabilities([]);
 
   return {

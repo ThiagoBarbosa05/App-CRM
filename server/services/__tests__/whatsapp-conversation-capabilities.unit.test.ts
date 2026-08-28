@@ -43,6 +43,7 @@ describe("getWhatsappConversationCapabilities", () => {
       provider: "evolution",
       configured: true,
       connected: true,
+      gatewayFeatures: { location: true, contacts: true, polls: true, remoteRead: true, presence: true, historySync: true, messageDelete: true },
     });
 
     expect(cloudApi.send).toMatchObject({
@@ -70,10 +71,16 @@ describe("getWhatsappConversationCapabilities", () => {
       remoteRead: true,
       presence: true,
       edit: false,
-      delete: false,
+      delete: true,
       historySync: true,
     });
     expect(baileys.receive.poll).toBe(true);
+  });
+
+  it("não anuncia recursos do contrato v2 quando o gateway não os negociou", () => {
+    const capabilities = getWhatsappConversationCapabilities({ provider: "evolution", configured: true, connected: true });
+    expect(capabilities.send).toMatchObject({ location: false, contacts: false, poll: false });
+    expect(capabilities).toMatchObject({ remoteRead: false, presence: false, historySync: false });
   });
 
   it("desabilita capacidades detalhadas quando o canal não está disponível", () => {

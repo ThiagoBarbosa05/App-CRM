@@ -44,6 +44,8 @@ import {
   WhatsappMediaInputError,
   WhatsappCustomerWindowClosedError,
   updateConversationCustomContactName,
+  sendConversationRichMessage,
+  publishConversationPresence,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
 import { analyzeBotCompatibility } from "../services/whatsapp-bot-compatibility.service";
@@ -264,6 +266,47 @@ router.get("/conversations/:clientId", async (req, res) => {
     res.json(result);
   } catch {
     res.status(500).json({ message: "Erro ao buscar conversa" });
+  }
+});
+
+const richMessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("location"), latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), name: z.string().max(255).optional(), address: z.string().max(1024).optional(), channelId: z.number().int().positive().optional() }),
+  z.object({ type: z.literal("contacts"), contacts: z.array(z.object({ displayName: z.string().min(1).max(255), vcard: z.string().min(1).max(65_536) })).min(1).max(50), channelId: z.number().int().positive().optional() }),
+  z.object({ type: z.literal("poll"), name: z.string().min(1).max(255), values: z.array(z.string().min(1).max(100)).min(2).max(12), selectableCount: z.number().int().min(1).optional(), channelId: z.number().int().positive().optional() }),
+]);
+
+router.post("/conversations/:clientId/messages/rich", async (req, res) => {
+  try {
+    const user = (req as { user?: { userId?: string; role?: string } }).user;
+    if (!user?.userId || !user.role) return res.status(401).json({ message: "Não autenticado" });
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+    const parsed = richMessageSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Mensagem rica inválida", issues: parsed.error.issues });
+    const { channelId, ...input } = parsed.data;
+    const result = await sendConversationRichMessage(conversationId, input, user.userId, user.role, channelId);
+    if (!result) return res.status(404).json({ message: "Conversa não encontrada" });
+    res.json(result);
+  } catch (error) {
+    console.error("[WA Conversations] Erro ao enviar mensagem rica:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Erro ao enviar mensagem" });
+  }
+});
+
+router.post("/conversations/:clientId/presence", async (req, res) => {
+  try {
+    const user = (req as { user?: { userId?: string; role?: string } }).user;
+    if (!user?.userId || !user.role) return res.status(401).json({ message: "Não autenticado" });
+    const conversationId = await resolveConversationId(req.params.clientId);
+    if (!conversationId) return res.status(404).json({ message: "Conversa não encontrada" });
+    const parsed = z.object({ presence: z.enum(["available", "unavailable", "composing", "recording", "paused"]), channelId: z.number().int().positive().optional() }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: "Presença inválida", issues: parsed.error.issues });
+    const result = await publishConversationPresence(conversationId, parsed.data.presence, user.userId, user.role, parsed.data.channelId);
+    if (!result) return res.status(404).json({ message: "Conversa não encontrada" });
+    res.json(result);
+  } catch (error) {
+    console.error("[WA Conversations] Erro ao publicar presença:", error);
+    res.status(500).json({ message: error instanceof Error ? error.message : "Erro ao publicar presença" });
   }
 });
 

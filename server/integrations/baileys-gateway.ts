@@ -40,6 +40,14 @@ export interface GatewaySendResult {
   key: { remoteJid: string; fromMe: boolean; id: string };
   status: string;
 }
+export interface GatewayCapabilities {
+  contractVersion: number;
+  features: {
+    location: boolean; contacts: boolean; polls: boolean; remoteRead: boolean;
+    presence: boolean; historySync: boolean; messageDelete: boolean;
+    messageReceipts: boolean; ptt: boolean;
+  };
+}
 
 export type GatewayErrorCode =
   | "not_configured"
@@ -158,6 +166,9 @@ function instancePath(instanceName: string): string {
 }
 
 export const baileysGateway = {
+  getCapabilities(): Promise<GatewayCapabilities> {
+    return gatewayRequest("/v1/capabilities", {}, 10_000);
+  },
   createInstance(instanceName: string): Promise<GatewayInstance> {
     return gatewayRequest("/v1/instances", {
       method: "POST",
@@ -216,6 +227,7 @@ export const baileysGateway = {
       filename?: string;
       mimetype?: string;
       quotedMsgId?: string;
+      ptt?: boolean;
     },
     idempotencyKey: string,
   ): Promise<GatewaySendResult> {
@@ -236,6 +248,21 @@ export const baileysGateway = {
       headers: { "Idempotency-Key": idempotencyKey },
       body: JSON.stringify(body),
     });
+  },
+  sendLocation(instanceName: string, body: { to: string; latitude: number; longitude: number; name?: string; address?: string }, idempotencyKey: string): Promise<GatewaySendResult> {
+    return gatewayRequest(`${instancePath(instanceName)}/messages/location`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(body) });
+  },
+  sendContacts(instanceName: string, body: { to: string; contacts: Array<{ displayName: string; vcard: string }> }, idempotencyKey: string): Promise<GatewaySendResult> {
+    return gatewayRequest(`${instancePath(instanceName)}/messages/contacts`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(body) });
+  },
+  sendPoll(instanceName: string, body: { to: string; name: string; values: string[]; selectableCount?: number }, idempotencyKey: string): Promise<GatewaySendResult> {
+    return gatewayRequest(`${instancePath(instanceName)}/messages/poll`, { method: "POST", headers: { "Idempotency-Key": idempotencyKey }, body: JSON.stringify(body) });
+  },
+  readMessages(instanceName: string, messages: Array<{ remoteJid: string; fromMe: boolean; id: string; participant?: string }>): Promise<{ success: true }> {
+    return gatewayRequest(`${instancePath(instanceName)}/messages/read`, { method: "POST", body: JSON.stringify({ messages }) });
+  },
+  sendPresence(instanceName: string, to: string, presence: "available" | "unavailable" | "composing" | "recording" | "paused"): Promise<{ success: true }> {
+    return gatewayRequest(`${instancePath(instanceName)}/presence`, { method: "POST", body: JSON.stringify({ to, presence }) });
   },
 
   async getProfilePicture(

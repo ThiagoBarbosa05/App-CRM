@@ -437,7 +437,7 @@ export async function handleMessagesDelete(data: unknown): Promise<void> {
     if (!key.id) continue;
     const updated = await db
       .update(whatsappMessages)
-      .set({ type: "deleted", content: null, caption: null })
+      .set({ type: "deleted", content: null, caption: null, deletedAt: new Date() })
       .where(eq(whatsappMessages.waMessageId, key.id))
       .returning({ id: whatsappMessages.id, conversationId: whatsappMessages.conversationId })
       .catch((err): Array<{ id: string; conversationId: string }> => {
@@ -475,7 +475,7 @@ export async function handleMessageEdit(waMessageId: string, editedMessage: Reco
   const content = caption === null ? text : null;
   const updated = await db
     .update(whatsappMessages)
-    .set({ type, content, caption })
+    .set({ type, content, caption, editedAt: new Date() })
     .where(eq(whatsappMessages.waMessageId, waMessageId))
     .returning({ id: whatsappMessages.id, conversationId: whatsappMessages.conversationId })
     .catch((err): Array<{ id: string; conversationId: string }> => {
@@ -532,6 +532,13 @@ export async function handlePresenceUpdate(instanceName: string, data: unknown):
   }
 }
 
+/** Histórico chega limitado pelo gateway e reutiliza o handler idempotente de upsert. */
+export async function handleMessagingHistory(instanceName: string, data: unknown): Promise<void> {
+  const event = data as { messages?: unknown[] };
+  if (!Array.isArray(event.messages)) return;
+  for (const message of event.messages) await handleMessagesUpsert(instanceName, message);
+}
+
 // ── messages.update ────────────────────────────────────────────────────────────
 
 // Erro 463 do Baileys ("account restricted or missing tctoken") — WhatsApp
@@ -551,9 +558,11 @@ export async function handleMessagesUpdate(data: unknown) {
   for (const update of updates) {
     const u = update as {
       key?: { id?: string };
-      update?: { status?: string; messageStubParameters?: unknown };
+      update?: { status?: string; messageStubParameters?: unknown; message?: Record<string, unknown>; editedMessage?: Record<string, unknown>; pollUpdates?: unknown };
     };
     const waMessageId = u.key?.id;
+    const edited = u.update?.editedMessage ?? u.update?.message;
+    if (waMessageId && edited) await handleMessageEdit(waMessageId, edited);
     const status = u.update?.status?.toLowerCase();
     if (!waMessageId || !status) continue;
 

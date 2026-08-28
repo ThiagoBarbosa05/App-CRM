@@ -165,6 +165,7 @@ export async function sendMedia(
     delay?: number;
     idempotencyKey?: string;
     quotedMsgId?: string;
+    ptt?: boolean;
   },
 ): Promise<EvolutionMediaResult> {
   await requireGatewayChannel(instanceName);
@@ -180,9 +181,35 @@ export async function sendMedia(
       caption: opts.caption,
       mimetype: opts.mimetype,
       quotedMsgId: opts.quotedMsgId,
+      ptt: opts.ptt,
     },
     opts.idempotencyKey ?? `crm-${randomUUID()}`,
   );
+}
+
+export async function sendLocation(instanceName: string, to: string, location: { latitude: number; longitude: number; name?: string; address?: string }, idempotencyKey?: string): Promise<EvolutionSendResult> {
+  await requireGatewayChannel(instanceName); await assertGatewayConnected(instanceName);
+  return baileysGateway.sendLocation(instanceName, { to, ...location }, idempotencyKey ?? `crm-${randomUUID()}`);
+}
+
+export async function sendContacts(instanceName: string, to: string, contacts: Array<{ displayName: string; vcard: string }>, idempotencyKey?: string): Promise<EvolutionSendResult> {
+  await requireGatewayChannel(instanceName); await assertGatewayConnected(instanceName);
+  return baileysGateway.sendContacts(instanceName, { to, contacts }, idempotencyKey ?? `crm-${randomUUID()}`);
+}
+
+export async function sendPoll(instanceName: string, to: string, poll: { name: string; values: string[]; selectableCount?: number }, idempotencyKey?: string): Promise<EvolutionSendResult> {
+  await requireGatewayChannel(instanceName); await assertGatewayConnected(instanceName);
+  return baileysGateway.sendPoll(instanceName, { to, ...poll }, idempotencyKey ?? `crm-${randomUUID()}`);
+}
+
+export async function markMessagesRead(instanceName: string, messages: Array<{ remoteJid: string; fromMe: boolean; id: string; participant?: string }>): Promise<void> {
+  await requireGatewayChannel(instanceName); await assertGatewayConnected(instanceName);
+  await baileysGateway.readMessages(instanceName, messages);
+}
+
+export async function publishPresence(instanceName: string, to: string, presence: "available" | "unavailable" | "composing" | "recording" | "paused"): Promise<void> {
+  await requireGatewayChannel(instanceName); await assertGatewayConnected(instanceName);
+  await baileysGateway.sendPresence(instanceName, to, presence);
 }
 
 export async function sendReaction(
