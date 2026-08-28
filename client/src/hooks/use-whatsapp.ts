@@ -136,8 +136,10 @@ export interface WhatsappSettings {
   wa_access_token: string;
   wa_waba_id: string;
   wa_app_id: string;
+  wa_app_secret: string;
   wa_webhook_verify_token: string;
   wa_api_version: string;
+  wa_api_version_warning?: string;
   wa_enabled: string;
   wa_message_delay_ms: string;
   wa_bot_shortcut_ids?: string;

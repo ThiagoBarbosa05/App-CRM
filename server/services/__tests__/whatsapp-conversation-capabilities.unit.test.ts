@@ -32,6 +32,63 @@ describe("getWhatsappConversationCapabilities", () => {
       unavailableReason: null,
     });
   });
+
+  it("diferencia mensagens ricas e recursos remotos entre Cloud API e Baileys", () => {
+    const cloudApi = getWhatsappConversationCapabilities({
+      provider: "cloud_api",
+      configured: true,
+      connected: true,
+    });
+    const baileys = getWhatsappConversationCapabilities({
+      provider: "evolution",
+      configured: true,
+      connected: true,
+    });
+
+    expect(cloudApi.send).toMatchObject({
+      location: true,
+      contacts: true,
+      poll: false,
+      deleted: false,
+      interactive: false,
+    });
+    expect(cloudApi).toMatchObject({
+      remoteRead: true,
+      presence: false,
+      edit: false,
+      delete: false,
+      historySync: false,
+    });
+    expect(baileys.send).toMatchObject({
+      location: true,
+      contacts: true,
+      poll: true,
+      deleted: false,
+      interactive: false,
+    });
+    expect(baileys).toMatchObject({
+      remoteRead: true,
+      presence: true,
+      edit: false,
+      delete: false,
+      historySync: true,
+    });
+    expect(baileys.receive.poll).toBe(true);
+  });
+
+  it("desabilita capacidades detalhadas quando o canal não está disponível", () => {
+    const capabilities = getWhatsappConversationCapabilities({
+      provider: "evolution",
+      configured: true,
+      connected: false,
+    });
+
+    expect(capabilities.send.location).toBe(false);
+    expect(capabilities.receive.contacts).toBe(false);
+    expect(capabilities.remoteRead).toBe(false);
+    expect(capabilities.presence).toBe(false);
+    expect(capabilities.historySync).toBe(false);
+  });
 });
 
 describe("validateWhatsappMediaForProvider", () => {

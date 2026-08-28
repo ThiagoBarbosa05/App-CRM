@@ -1,15 +1,18 @@
 import request from "supertest";
+import crypto from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createRouteTestApp } from "../../test/create-route-test-app";
 
 const {
   enqueueWhatsappCloudWebhookMock,
+  getWhatsappSettingsRawMock,
   getChannelByPhoneNumberIdMock,
   isSameChannelPhoneMock,
   registerWhatsappCloudWebhookDispatcherMock,
   saveInboundMessageMock,
 } = vi.hoisted(() => ({
   enqueueWhatsappCloudWebhookMock: vi.fn(),
+  getWhatsappSettingsRawMock: vi.fn(),
   getChannelByPhoneNumberIdMock: vi.fn(),
   isSameChannelPhoneMock: vi.fn(),
   registerWhatsappCloudWebhookDispatcherMock: vi.fn(),
@@ -22,7 +25,7 @@ vi.mock("../../services/whatsapp-cloud-webhook-inbox.service", () => ({
 }));
 vi.mock("../../db", () => ({ db: {} }));
 vi.mock("../../services/whatsapp-settings.service", () => ({
-  getWhatsappSettingsRaw: vi.fn(), upsertWhatsappSetting: vi.fn(),
+  getWhatsappSettingsRaw: getWhatsappSettingsRawMock, upsertWhatsappSetting: vi.fn(),
 }));
 vi.mock("../../services/whatsapp-campaign-status.service", () => ({
   applyCampaignDeliveryStatus: vi.fn(), STATUS_RANK: {},
@@ -51,9 +54,20 @@ vi.mock("../../services/whatsapp-opt-out.service", () => ({
 
 import whatsappWebhookRouter from "../whatsapp-webhook.routes";
 
+const APP_SECRET = "test-app-secret";
+
+function signWebhookPayload(payload: Record<string, unknown>): { body: string; signature: string } {
+  const body = JSON.stringify(payload);
+  return {
+    body,
+    signature: `sha256=${crypto.createHmac("sha256", APP_SECRET).update(body).digest("hex")}`,
+  };
+}
+
 describe("POST /webhook — inbox durável da Cloud API", () => {
   beforeEach(() => {
     enqueueWhatsappCloudWebhookMock.mockReset();
+    getWhatsappSettingsRawMock.mockReset().mockResolvedValue({ wa_app_secret: APP_SECRET });
     getChannelByPhoneNumberIdMock.mockReset();
     isSameChannelPhoneMock.mockReset();
     saveInboundMessageMock.mockReset();
@@ -71,9 +85,14 @@ describe("POST /webhook — inbox durável da Cloud API", () => {
   it("só confirma a Meta depois de persistir o payload", async () => {
     enqueueWhatsappCloudWebhookMock.mockResolvedValue("created");
     const payload = { object: "whatsapp_business_account", entry: [] };
-    const app = createRouteTestApp({ router: whatsappWebhookRouter, basePath: "/api/whatsapp" });
+    const { body, signature } = signWebhookPayload(payload);
+    const app = createRouteTestApp({ router: whatsappWebhookRouter, basePath: "/api/whatsapp", rawBody: true });
 
-    const response = await request(app).post("/api/whatsapp/webhook").send(payload);
+    const response = await request(app)
+      .post("/api/whatsapp/webhook")
+      .set("Content-Type", "application/json")
+      .set("X-Hub-Signature-256", signature)
+      .send(body);
 
     expect(response.status).toBe(202);
     expect(enqueueWhatsappCloudWebhookMock).toHaveBeenCalledWith(payload);
@@ -81,14 +100,48 @@ describe("POST /webhook — inbox durável da Cloud API", () => {
 
   it("não confirma o webhook quando a persistência falha", async () => {
     enqueueWhatsappCloudWebhookMock.mockRejectedValue(new Error("database unavailable"));
-    const app = createRouteTestApp({ router: whatsappWebhookRouter, basePath: "/api/whatsapp" });
+    const payload = { object: "whatsapp_business_account", entry: [] };
+    const { body, signature } = signWebhookPayload(payload);
+    const app = createRouteTestApp({ router: whatsappWebhookRouter, basePath: "/api/whatsapp", rawBody: true });
 
     const response = await request(app)
       .post("/api/whatsapp/webhook")
-      .send({ object: "whatsapp_business_account", entry: [] });
+      .set("Content-Type", "application/json")
+      .set("X-Hub-Signature-256", signature)
+      .send(body);
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({ message: "Falha ao persistir evento" });
+  });
+
+  it("rejeita uma assinatura inválida antes de enfileirar o payload", async () => {
+    const payload = { object: "whatsapp_business_account", entry: [] };
+    const app = createRouteTestApp({ router: whatsappWebhookRouter, basePath: "/api/whatsapp", rawBody: true });
+
+    const response = await request(app)
+      .post("/api/whatsapp/webhook")
+      .set("Content-Type", "application/json")
+      .set("X-Hub-Signature-256", "sha256=invalid")
+      .send(JSON.stringify(payload));
+
+    expect(response.status).toBe(401);
+    expect(enqueueWhatsappCloudWebhookMock).not.toHaveBeenCalled();
+  });
+
+  it("rejeita o webhook quando o App Secret não está configurado", async () => {
+    getWhatsappSettingsRawMock.mockResolvedValue({});
+    const payload = { object: "whatsapp_business_account", entry: [] };
+    const { body, signature } = signWebhookPayload(payload);
+    const app = createRouteTestApp({ router: whatsappWebhookRouter, basePath: "/api/whatsapp", rawBody: true });
+
+    const response = await request(app)
+      .post("/api/whatsapp/webhook")
+      .set("Content-Type", "application/json")
+      .set("X-Hub-Signature-256", signature)
+      .send(body);
+
+    expect(response.status).toBe(503);
+    expect(enqueueWhatsappCloudWebhookMock).not.toHaveBeenCalled();
   });
 
   it("processa mensagens do mesmo payload em ordem, sem iniciar a próxima antes da persistência anterior", async () => {

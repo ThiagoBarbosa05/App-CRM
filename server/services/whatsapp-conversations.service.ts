@@ -19,7 +19,7 @@ import {
 } from "../../shared/schema";
 import { eq, and, ilike, or, desc, sql, asc, inArray, isNotNull, isNull, ne, gte, lt, type SQL, type SQLWrapper } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer } from "../integrations/whatsapp";
+import { sendTextMessage, sendTemplateMessage, uploadMedia, sendMediaMessage, sendReaction, downloadMediaToBuffer, markMessageAsRead } from "../integrations/whatsapp";
 import { sendText as evoSendText, sendMedia as evoSendMedia, sendReaction as evoSendReaction, normalizeToJid, fetchProfilePictureUrl } from "../integrations/evolution";
 import { shouldFetchWhatsappContactPhoto } from "@shared/whatsapp-contact-photo";
 import { uploadWhatsappMedia, getPublicR2Url, getWhatsappMediaObject } from "../lib/r2";
@@ -611,6 +611,51 @@ export async function findOrCreateConversation(phone: string, channelId?: number
     }
     throw err;
   }
+}
+
+export class WhatsappCustomerWindowClosedError extends Error {
+  readonly code = "WHATSAPP_CUSTOMER_WINDOW_CLOSED";
+  readonly httpStatus = 409;
+
+  constructor() {
+    super("A janela de atendimento de 24 horas do WhatsApp foi encerrada");
+    this.name = "WhatsappCustomerWindowClosedError";
+  }
+}
+
+const CLOUD_API_CUSTOMER_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** A Cloud API só permite texto e mídia livres até 24h após o último inbound. */
+export function assertCloudApiCustomerWindowOpen(
+  provider: ResolvedChannel["provider"],
+  lastInboundAt: Date | null,
+  now: Date = new Date(),
+): void {
+  if (provider !== "cloud_api") return;
+  if (!lastInboundAt || now.getTime() - lastInboundAt.getTime() >= CLOUD_API_CUSTOMER_WINDOW_MS) {
+    throw new WhatsappCustomerWindowClosedError();
+  }
+}
+
+async function getLastInboundAtForChannel(
+  conversationId: string,
+  channelId: number,
+): Promise<Date | null> {
+  const [message] = await db
+    .select({
+      sentAt: whatsappMessages.sentAt,
+      createdAt: whatsappMessages.createdAt,
+    })
+    .from(whatsappMessages)
+    .where(and(
+      eq(whatsappMessages.conversationId, conversationId),
+      eq(whatsappMessages.channelId, channelId),
+      eq(whatsappMessages.direction, "inbound"),
+    ))
+    .orderBy(desc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`))
+    .limit(1);
+
+  return message ? message.sentAt ?? message.createdAt : null;
 }
 
 export async function updateConversationCustomContactName(
@@ -2040,6 +2085,14 @@ export async function getConversation(
     });
     return {
       ...message,
+      // Rich inbound payloads are stored provider-independently under this
+      // metadata key. Keep the original metadata intact for provider-specific
+      // diagnostics while exposing a stable field to the chat UI.
+      structuredContent:
+        (m.providerMetadata && typeof m.providerMetadata === "object" && !Array.isArray(m.providerMetadata)
+          ? (m.providerMetadata as Record<string, unknown>).structuredContent ?? null
+          : null),
+      deliveryState: m.status ?? "pending",
       content: normalizedReply.content,
       replyToMessageId: normalizedReply.replyToMessageId,
       replyToContent: normalizedReply.replyToContent,
@@ -2236,6 +2289,13 @@ export async function sendConversationMessage(
     );
   }
   const resolvedChannel = resolved.channel;
+
+  assertCloudApiCustomerWindowOpen(
+    resolvedChannel.provider,
+    resolvedChannel.provider === "cloud_api"
+      ? await getLastInboundAtForChannel(conversationId, resolved.channelId)
+      : null,
+  );
 
   // Persiste a mensagem imediatamente como "failed" — atualiza para "sent" se a API responder ok
   const [savedMessage] = await db
@@ -2679,6 +2739,13 @@ export async function sendConversationMedia(
     );
   }
   const resolvedChannel = resolved.channel;
+
+  assertCloudApiCustomerWindowOpen(
+    resolvedChannel.provider,
+    resolvedChannel.provider === "cloud_api"
+      ? await getLastInboundAtForChannel(conversationId, resolved.channelId)
+      : null,
+  );
 
   const mediaCompatibility = validateWhatsappMediaForProvider({
     provider: resolvedChannel.provider,
@@ -3949,8 +4016,9 @@ export async function markConversationRead(
   userId: string,
   conversationId: string,
   opts: { userRole?: string; asChannelId?: number } = {},
-) {
+): Promise<{ local: true; remote: "sent" | "skipped" | "failed" }> {
   let perspectiveChannelId: number | null = null;
+  let conversationChannelId: number | null = null;
   if (opts.asChannelId != null && opts.userRole) {
     const [row] = await db
       .select({
@@ -3962,7 +4030,17 @@ export async function markConversationRead(
       .limit(1);
     if (row) {
       perspectiveChannelId = resolvePerspectiveOverride(opts.userRole, row, opts.asChannelId);
+      conversationChannelId = row.channelId;
     }
+  }
+
+  if (conversationChannelId == null) {
+    const [conversation] = await db
+      .select({ channelId: whatsappConversations.channelId })
+      .from(whatsappConversations)
+      .where(eq(whatsappConversations.id, conversationId))
+      .limit(1);
+    conversationChannelId = conversation?.channelId ?? null;
   }
 
   const lastReadAt = new Date();
@@ -3981,19 +4059,53 @@ export async function markConversationRead(
         targetWhere: sql`perspective_channel_id IS NULL`,
         set: { lastReadAt },
       });
-    return;
+  } else {
+    await db
+      .insert(whatsappConversationReads)
+      .values({ userId, conversationId, perspectiveChannelId, lastReadAt })
+      .onConflictDoUpdate({
+        target: [
+          whatsappConversationReads.userId,
+          whatsappConversationReads.conversationId,
+          whatsappConversationReads.perspectiveChannelId,
+        ],
+        targetWhere: sql`perspective_channel_id IS NOT NULL`,
+        set: { lastReadAt },
+      });
   }
 
-  await db
-    .insert(whatsappConversationReads)
-    .values({ userId, conversationId, perspectiveChannelId, lastReadAt })
-    .onConflictDoUpdate({
-      target: [
-        whatsappConversationReads.userId,
-        whatsappConversationReads.conversationId,
-        whatsappConversationReads.perspectiveChannelId,
-      ],
-      targetWhere: sql`perspective_channel_id IS NOT NULL`,
-      set: { lastReadAt },
+  const remoteChannelId = perspectiveChannelId ?? conversationChannelId;
+  if (remoteChannelId == null) return { local: true, remote: "skipped" };
+
+  const channel = await resolveChannelById(remoteChannelId).catch((error: unknown) => {
+    console.error("[WA Conversations] Falha ao resolver canal para recibo remoto:", error);
+    return null;
+  });
+  if (!channel || channel.provider !== "cloud_api") return { local: true, remote: "skipped" };
+
+  const [lastInbound] = await db
+    .select({ waMessageId: whatsappMessages.waMessageId })
+    .from(whatsappMessages)
+    .where(and(
+      eq(whatsappMessages.conversationId, conversationId),
+      eq(whatsappMessages.channelId, remoteChannelId),
+      eq(whatsappMessages.direction, "inbound"),
+      isNotNull(whatsappMessages.waMessageId),
+    ))
+    .orderBy(desc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`))
+    .limit(1);
+  if (!lastInbound?.waMessageId) return { local: true, remote: "skipped" };
+
+  try {
+    await markMessageAsRead(lastInbound.waMessageId, {
+      phoneNumberId: channel.phoneNumberId,
+      accessToken: channel.accessToken,
     });
+    return { local: true, remote: "sent" };
+  } catch (error) {
+    // A leitura local já foi persistida; indisponibilidade do provedor não pode
+    // fazer a interface parecer não lida nem impedir o atendente de seguir.
+    console.error("[WA Conversations] Falha ao enviar recibo remoto Cloud API:", error);
+    return { local: true, remote: "failed" };
+  }
 }

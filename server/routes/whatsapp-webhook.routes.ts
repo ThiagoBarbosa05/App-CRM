@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { whatsappFlows, whatsappMessages } from "@shared/schema";
@@ -36,6 +37,31 @@ import { normalizeWhatsappIncomingMessage } from "@shared/whatsapp-incoming-mess
 
 const router = Router();
 
+/**
+ * Confere a assinatura da Meta sobre os bytes recebidos, antes de interpretar
+ * o JSON. Comparar o corpo reserializado aceitaria payloads que não foram os
+ * efetivamente assinados; por isso `rawBody` é preenchido pelo parser global.
+ */
+export function verifyWhatsappWebhookSignature(
+  rawBody: Buffer | undefined,
+  signatureHeader: string | undefined,
+  appSecret: string,
+): boolean {
+  if (!rawBody || !signatureHeader) return false;
+  if (!signatureHeader.startsWith("sha256=")) return false;
+
+  const received = signatureHeader.slice("sha256=".length);
+  if (!/^[a-f0-9]{64}$/i.test(received)) return false;
+
+  const expected = crypto
+    .createHmac("sha256", appSecret)
+    .update(rawBody)
+    .digest("hex");
+  const expectedBuffer = Buffer.from(expected, "hex");
+  const receivedBuffer = Buffer.from(received, "hex");
+  return receivedBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
+}
+
 // GET — verificação inicial do webhook pelo Meta
 router.get("/webhook", async (req: Request, res: Response) => {
   const mode = req.query["hub.mode"];
@@ -54,6 +80,21 @@ router.get("/webhook", async (req: Request, res: Response) => {
 
 // POST — receber notificações de status e mensagens
 router.post("/webhook", async (req: Request, res: Response) => {
+  const raw = await getWhatsappSettingsRaw();
+  const appSecret = raw["wa_app_secret"] || process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret) {
+    console.error("[WA Webhook] App Secret não configurado — webhook rejeitado");
+    res.status(503).json({ message: "Webhook do WhatsApp não configurado" });
+    return;
+  }
+
+  const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+  if (!verifyWhatsappWebhookSignature(rawBody, req.get("X-Hub-Signature-256") ?? undefined, appSecret)) {
+    console.warn("[WA Webhook] Assinatura X-Hub-Signature-256 ausente ou inválida");
+    res.sendStatus(401);
+    return;
+  }
+
   const body = req.body;
 
   if (body.object !== "whatsapp_business_account") {
@@ -276,6 +317,9 @@ type IncomingMessage = {
   video?: { id: string; mime_type: string; sha256?: string; caption?: string };
   document?: { id: string; mime_type: string; filename?: string; caption?: string };
   sticker?: { id: string; mime_type: string };
+  location?: { latitude: number; longitude: number; name?: string; address?: string; url?: string };
+  contacts?: Array<Record<string, unknown>>;
+  poll?: { name: string; options: Array<{ id?: string; name: string }>; selectableOptionsCount?: number };
   reaction?: { message_id: string; emoji: string };
   button?: { payload?: string; text?: string };
   interactive?: {
@@ -356,6 +400,9 @@ async function handleIncomingMessage(
     timestamp: message.timestamp,
     caption: (message.image?.caption ?? message.video?.caption ?? message.document?.caption) || undefined,
     rawPayload: message,
+    providerMetadata: normalizedMessage.structuredContent
+      ? { structuredContent: normalizedMessage.structuredContent }
+      : undefined,
     channelId: channel?.id ?? null,
     // A Cloud API só entrega mensagens recebidas — quem enviou é sempre o
     // contato do outro lado.

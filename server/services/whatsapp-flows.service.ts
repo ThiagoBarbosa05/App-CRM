@@ -7,7 +7,7 @@ async function getMetaAuthHeaders() {
   const raw = await getWhatsappSettingsRaw();
   const accessToken = raw["wa_access_token"];
   const wabaId = raw["wa_waba_id"];
-  const apiVersion = raw["wa_api_version"] || "v21.0";
+  const apiVersion = raw["wa_api_version"] || "v26.0";
   if (!accessToken || !wabaId) throw new Error("WhatsApp não configurado: wa_access_token e wa_waba_id são obrigatórios");
   return { accessToken, wabaId, apiVersion };
 }

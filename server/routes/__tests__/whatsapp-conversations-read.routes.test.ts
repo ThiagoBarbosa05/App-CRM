@@ -23,8 +23,15 @@ const {
   searchConversationMessagesMock,
   getConversationMessageContextMock,
   updateConversationCustomContactNameMock,
+  sendConversationMessageMock,
+  WhatsappCustomerWindowClosedErrorMock,
 } = vi.hoisted(
-  () => ({
+  () => {
+    class WhatsappCustomerWindowClosedErrorMock extends Error {
+      readonly code = "WHATSAPP_CUSTOMER_WINDOW_CLOSED";
+      readonly httpStatus = 409;
+    }
+    return {
     resolveConversationIdMock: vi.fn(),
     isConversationAccessibleToUserMock: vi.fn(),
     markConversationReadMock: vi.fn(),
@@ -33,7 +40,10 @@ const {
     searchConversationMessagesMock: vi.fn(),
     getConversationMessageContextMock: vi.fn(),
     updateConversationCustomContactNameMock: vi.fn(),
-  }),
+    sendConversationMessageMock: vi.fn(),
+    WhatsappCustomerWindowClosedErrorMock,
+    };
+  },
 );
 
 vi.mock("../../services/whatsapp-conversations.service", () => ({
@@ -43,7 +53,7 @@ vi.mock("../../services/whatsapp-conversations.service", () => ({
   // Demais exports usados pelo módulo de rotas — não exercidos por estes testes.
   listClientsForChat: vi.fn(),
   getConversation: vi.fn(),
-  sendConversationMessage: vi.fn(),
+  sendConversationMessage: sendConversationMessageMock,
   sendConversationMedia: vi.fn(),
   sendConversationTemplate: vi.fn(),
   sendConversationReaction: vi.fn(),
@@ -63,6 +73,7 @@ vi.mock("../../services/whatsapp-conversations.service", () => ({
   searchConversationMessages: searchConversationMessagesMock,
   getConversationMessageContext: getConversationMessageContextMock,
   updateConversationCustomContactName: updateConversationCustomContactNameMock,
+  WhatsappCustomerWindowClosedError: WhatsappCustomerWindowClosedErrorMock,
   isClientAccessibleToUser: vi.fn(),
   setContactWhatsappTags: vi.fn(),
   listWhatsappTagsForFilter: vi.fn(),
@@ -146,11 +157,13 @@ describe("POST /conversations/:clientId/read", () => {
   });
 
   it("repassa asChannelId e o papel do usuário para markConversationRead", async () => {
+    markConversationReadMock.mockResolvedValue({ local: true, remote: "sent" });
     const res = await request(makeApp("admin"))
       .post("/api/whatsapp/conversations/c1/read")
       .send({ asChannelId: 12 });
 
     expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, local: true, remote: "sent" });
     expect(markConversationReadMock).toHaveBeenCalledWith("u1", "c1", {
       userRole: "admin",
       asChannelId: 12,
@@ -219,6 +232,29 @@ describe("POST /conversations/:clientId/read", () => {
 
     expect(res.status).toBe(403);
     expect(markConversationReadMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /conversations/:clientId/messages", () => {
+  beforeEach(() => {
+    resolveConversationIdMock.mockReset().mockResolvedValue("c1");
+    isConversationAccessibleToUserMock.mockReset().mockResolvedValue(true);
+    sendConversationMessageMock.mockReset();
+  });
+
+  it("expõe um erro tipado sem detalhe técnico quando a janela Cloud API terminou", async () => {
+    sendConversationMessageMock.mockRejectedValue(new WhatsappCustomerWindowClosedErrorMock());
+
+    const response = await request(makeApp())
+      .post("/api/whatsapp/conversations/c1/messages")
+      .send({ message: "Olá" });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({
+      code: "WHATSAPP_CUSTOMER_WINDOW_CLOSED",
+      message: "A janela de atendimento de 24 horas foi encerrada",
+      hint: "Envie um template aprovado para retomar a conversa.",
+    });
   });
 });
 

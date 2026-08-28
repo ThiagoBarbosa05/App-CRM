@@ -96,7 +96,7 @@ O **Webhook Verify Token** é um texto **definido por você** (não gerado pela 
    - No campo **"Token de verificação"**, insira **o mesmo valor** escolhido no passo 1
    - No campo **"URL de callback"**, insira a URL do seu servidor:
      ```
-     https://seu-dominio.com/api/webhooks/whatsapp
+     https://seu-dominio.com/api/whatsapp/webhook
      ```
    - Clique em **"Verificar e salvar"**
 4. A Meta fará uma requisição GET para a URL de callback passando o token — se os valores coincidirem, o webhook será ativado
@@ -105,17 +105,23 @@ O **Webhook Verify Token** é um texto **definido por você** (não gerado pela 
 
 ---
 
-### 5. Versão da API
+### 5. App Secret (assinatura do webhook)
 
-A **versão da API** determina qual versão da Graph API será usada nas chamadas. O padrão atual é **`v20.0`**.
+Copie o **App Secret** em **Meta Developer Portal → seu app → Configurações → Básico** e salve-o no campo **App Secret** do CRM. Ele é usado somente no servidor para validar `X-Hub-Signature-256` sobre cada POST do webhook e nunca é devolvido pela API de configurações.
+
+---
+
+### 6. Versão da API
+
+A **versão da API** determina qual versão da Graph API será usada nas chamadas. O padrão atual é **`v26.0`**.
 
 - Consulte as versões disponíveis em: [developers.facebook.com/docs/graph-api/changelog](https://developers.facebook.com/docs/graph-api/changelog)
-- Recomendação: mantenha `v20.0` ou atualize conforme o Meta lançar novas versões estáveis
+- Recomendação: mantenha `v26.0` ou atualize conforme o Meta lançar novas versões estáveis
 - Versões antigas são descontinuadas periodicamente (geralmente após 2 anos)
 
 ---
 
-### 6. Delay entre mensagens
+### 7. Delay entre mensagens
 
 O **delay** (em milissegundos) é um intervalo interno aplicado entre cada mensagem enviada em campanhas em massa. Não é uma configuração da Meta.
 
@@ -167,6 +173,7 @@ Para verificar: **Developer Portal → seu app → Análise do aplicativo → Pe
 | Phone Number ID      | Developer Portal → WhatsApp → API Setup → seção "De"                                           |
 | Access Token         | Developer Portal → API Setup (temporário) ou Business Suite → Usuários do Sistema (permanente) |
 | WABA ID              | Developer Portal → WhatsApp → API Setup → "WhatsApp Business Account"                          |
+| App Secret           | Developer Portal → seu app → Configurações → Básico                                              |
 | Webhook Verify Token | Você define — deve ser o mesmo configurado no webhook do Developer Portal                      |
-| Versão da API        | Manter `v20.0` (padrão)                                                                        |
+| Versão da API        | Manter `v26.0` (padrão)                                                                        |
 | Delay                | Manter `1000` ms (padrão)                                                                      |

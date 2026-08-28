@@ -1,6 +1,9 @@
 import { getWhatsappMediaType, type WhatsappMediaType } from "./whatsapp-media";
+import { WHATSAPP_MESSAGE_TYPES, type WhatsappMessageType } from "./whatsapp-incoming-message";
 
 export type WhatsappConversationProvider = "cloud_api" | "evolution";
+
+export type WhatsappMessageTypeCapabilities = Record<WhatsappMessageType, boolean>;
 
 export interface WhatsappConversationCapabilities {
   reply: boolean;
@@ -8,6 +11,13 @@ export interface WhatsappConversationCapabilities {
   sticker: boolean;
   forward: boolean;
   deviceEcho: boolean;
+  remoteRead: boolean;
+  presence: boolean;
+  edit: boolean;
+  delete: boolean;
+  historySync: boolean;
+  send: WhatsappMessageTypeCapabilities;
+  receive: WhatsappMessageTypeCapabilities;
   provider: WhatsappConversationProvider;
   unavailableReason: string | null;
 }
@@ -25,12 +35,45 @@ export interface WhatsappStickerMetadata {
   height: number;
 }
 
-const PROVIDER_FEATURES: Record<
-  WhatsappConversationProvider,
-  Pick<WhatsappConversationCapabilities, "reply" | "reaction" | "sticker" | "forward">
-> = {
-  cloud_api: { reply: true, reaction: true, sticker: true, forward: true },
-  evolution: { reply: true, reaction: true, sticker: true, forward: true },
+interface ProviderFeatures extends Pick<
+  WhatsappConversationCapabilities,
+  "reply" | "reaction" | "sticker" | "forward" | "remoteRead" | "presence" | "edit" | "delete" | "historySync" | "send" | "receive"
+> {}
+
+function messageTypeCapabilities(
+  supported: readonly WhatsappMessageType[],
+): WhatsappMessageTypeCapabilities {
+  return Object.fromEntries(
+    WHATSAPP_MESSAGE_TYPES.map((type) => [type, supported.includes(type)]),
+  ) as WhatsappMessageTypeCapabilities;
+}
+
+const CLOUD_API_SEND_TYPES: readonly WhatsappMessageType[] = [
+  "text", "image", "video", "audio", "document", "sticker", "location", "contacts", "template",
+];
+const CLOUD_API_RECEIVE_TYPES: readonly WhatsappMessageType[] = [
+  "text", "image", "video", "audio", "document", "sticker", "location", "contacts", "interactive", "template", "unsupported", "system",
+];
+const BAILEYS_SEND_TYPES: readonly WhatsappMessageType[] = [
+  "text", "image", "video", "audio", "document", "sticker", "location", "contacts", "poll",
+];
+const BAILEYS_RECEIVE_TYPES: readonly WhatsappMessageType[] = [
+  "text", "image", "video", "audio", "document", "sticker", "location", "contacts", "poll", "interactive", "template", "deleted", "unsupported", "system",
+];
+
+const PROVIDER_FEATURES: Record<WhatsappConversationProvider, ProviderFeatures> = {
+  cloud_api: {
+    reply: true, reaction: true, sticker: true, forward: true,
+    remoteRead: true, presence: false, edit: false, delete: false, historySync: false,
+    send: messageTypeCapabilities(CLOUD_API_SEND_TYPES),
+    receive: messageTypeCapabilities(CLOUD_API_RECEIVE_TYPES),
+  },
+  evolution: {
+    reply: true, reaction: true, sticker: true, forward: true,
+    remoteRead: true, presence: true, edit: false, delete: false, historySync: true,
+    send: messageTypeCapabilities(BAILEYS_SEND_TYPES),
+    receive: messageTypeCapabilities(BAILEYS_RECEIVE_TYPES),
+  },
 };
 
 export function getWhatsappConversationCapabilities(
@@ -43,6 +86,7 @@ export function getWhatsappConversationCapabilities(
       : null;
   const available = unavailableReason === null;
   const providerFeatures = PROVIDER_FEATURES[context.provider];
+  const unavailableMessageTypes = messageTypeCapabilities([]);
 
   return {
     reply: available && providerFeatures.reply,
@@ -52,6 +96,13 @@ export function getWhatsappConversationCapabilities(
     deviceEcho:
       available &&
       (context.provider === "evolution" || context.deviceEchoEnabled === true),
+    remoteRead: available && providerFeatures.remoteRead,
+    presence: available && providerFeatures.presence,
+    edit: available && providerFeatures.edit,
+    delete: available && providerFeatures.delete,
+    historySync: available && providerFeatures.historySync,
+    send: available ? providerFeatures.send : unavailableMessageTypes,
+    receive: available ? providerFeatures.receive : unavailableMessageTypes,
     provider: context.provider,
     unavailableReason,
   };
@@ -109,11 +160,20 @@ export function validateWhatsappMediaForProvider(input: {
     };
   }
 
-  if (input.size > APP_MEDIA_LIMIT_BYTES) {
+  const providerLimit = input.provider === "cloud_api"
+    ? mediaType === "image"
+      ? 5 * 1024 * 1024
+      : mediaType === "video" || mediaType === "audio"
+        ? 16 * 1024 * 1024
+        : mediaType === "document"
+          ? 100 * 1024 * 1024
+          : APP_MEDIA_LIMIT_BYTES
+    : APP_MEDIA_LIMIT_BYTES;
+  if (input.size > providerLimit) {
     return {
       supported: false,
       mediaType,
-      reason: "Arquivos devem ter no máximo 16 MB",
+      reason: `Arquivos ${mediaType === "document" && input.provider === "cloud_api" ? "de documento " : ""}devem ter no máximo ${Math.round(providerLimit / (1024 * 1024))} MB`,
     };
   }
 

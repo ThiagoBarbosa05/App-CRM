@@ -54,6 +54,7 @@ vi.mock("../whatsapp-opt-out.service", () => ({
 }));
 vi.mock("../whatsapp-bot-engine.service", () => ({
   persistBotMessage: async () => {},
+  handleInboundBotMessage: async () => {},
 }));
 vi.mock("../baileys/connection-events.service", () => ({
   logChannelConnectionEvent: async () => {},
@@ -65,6 +66,7 @@ vi.mock("../baileys/connection-status.service", () => ({
 
 import {
   extractQuotedMessageSnapshot,
+  handleMessagesDelete,
   handleMessagesReaction,
   handleMessagesUpsert,
   handleMessagesUpdate,
@@ -199,6 +201,115 @@ describe("eventos de interação do dispositivo", () => {
       _fromMe: true,
     }));
   });
+
+  it("preserva uma localização recebida como conteúdo estruturado", async () => {
+    await handleMessagesUpsert("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: false,
+        id: "localizacao-1",
+      },
+      message: {
+        locationMessage: {
+          degreesLatitude: -22.9068,
+          degreesLongitude: -43.1729,
+          name: "Centro",
+          address: "Rio de Janeiro - RJ",
+        },
+      },
+      messageTimestamp: 1_700_000_000,
+    });
+
+    expect(saveInboundMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: "location",
+      content: "Centro",
+      providerMetadata: {
+        location: {
+          latitude: -22.9068,
+          longitude: -43.1729,
+          name: "Centro",
+          address: "Rio de Janeiro - RJ",
+        },
+        structuredContent: {
+          kind: "location",
+          latitude: -22.9068,
+          longitude: -43.1729,
+          name: "Centro",
+          address: "Rio de Janeiro - RJ",
+        },
+      },
+    }));
+  });
+
+  it("preserva cartões de contato recebidos como conteúdo estruturado", async () => {
+    await handleMessagesUpsert("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: false,
+        id: "contatos-1",
+      },
+      message: {
+        contactsArrayMessage: {
+          displayName: "Equipe comercial",
+          contacts: [{ displayName: "Ana", vcard: "BEGIN:VCARD\\nFN:Ana\\nEND:VCARD" }],
+        },
+      },
+      messageTimestamp: 1_700_000_000,
+    });
+
+    expect(saveInboundMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: "contacts",
+      content: "Equipe comercial",
+      providerMetadata: {
+        contacts: [{ displayName: "Ana", vcard: "BEGIN:VCARD\\nFN:Ana\\nEND:VCARD" }],
+        structuredContent: {
+          kind: "contacts",
+          contacts: [{
+            name: { formatted_name: "Ana" },
+            displayName: "Ana",
+            vcard: "BEGIN:VCARD\\nFN:Ana\\nEND:VCARD",
+          }],
+        },
+      },
+    }));
+  });
+
+  it("preserva enquete recebida e não a descarta como mensagem vazia", async () => {
+    await handleMessagesUpsert("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: false,
+        id: "enquete-1",
+      },
+      message: {
+        pollCreationMessage: {
+          name: "Qual horário?",
+          options: [{ optionName: "Manhã" }, { optionName: "Tarde" }],
+          selectableOptionsCount: 1,
+        },
+      },
+      messageTimestamp: 1_700_000_000,
+    });
+
+    expect(saveInboundMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: "poll",
+      content: "Qual horário?",
+      providerMetadata: {
+        poll: {
+          options: ["Manhã", "Tarde"],
+          selectableCount: 1,
+        },
+        structuredContent: {
+          kind: "poll",
+          poll: {
+            name: "Qual horário?",
+            options: [{ name: "Manhã" }, { name: "Tarde" }],
+            selectableOptionsCount: 1,
+          },
+        },
+      },
+    }));
+  });
 });
 
 describe("extractQuotedMessageSnapshot", () => {
@@ -232,6 +343,31 @@ describe("extractQuotedMessageSnapshot", () => {
   it("ignora payload sem conteúdo citado reconhecido", () => {
     expect(extractQuotedMessageSnapshot(undefined)).toBeNull();
     expect(extractQuotedMessageSnapshot({ protocolMessage: {} })).toBeNull();
+  });
+});
+
+describe("handleMessagesDelete", () => {
+  beforeEach(() => {
+    updateMock.mockReset();
+    setMock.mockReset();
+    setMock.mockReturnValue({
+      where: () => ({
+        returning: () => Promise.resolve([]),
+      }),
+    });
+    updateMock.mockReturnValue({ set: setMock });
+  });
+
+  it("marca a mensagem removida pelo WhatsApp sem apagar seu registro de auditoria", async () => {
+    await handleMessagesDelete({
+      keys: [{ id: "mensagem-removida", remoteJid: "5521888888888@s.whatsapp.net" }],
+    });
+
+    expect(setMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: "deleted",
+      content: null,
+      caption: null,
+    }));
   });
 });
 

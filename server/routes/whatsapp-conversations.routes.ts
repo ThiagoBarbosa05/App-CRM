@@ -42,6 +42,7 @@ import {
   searchConversationMessages,
   getConversationMessageContext,
   WhatsappMediaInputError,
+  WhatsappCustomerWindowClosedError,
   updateConversationCustomContactName,
 } from "../services/whatsapp-conversations.service";
 import { startBotSession, terminateActiveSessionForConversationClose } from "../services/whatsapp-bot-engine.service";
@@ -62,7 +63,9 @@ import { isWhatsappMediaMimeTypeSupported } from "@shared/whatsapp-media";
 
 const router = Router();
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 16 * 1024 * 1024 } });
+// O limite final é validado por provedor/tipo no service; o parser precisa
+// aceitar o máximo da Cloud API para documentos (100 MB).
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 router.post("/conversations/:clientId/messages/media", upload.single("file"), async (req, res) => {
   try {
@@ -96,6 +99,13 @@ router.post("/conversations/:clientId/messages/media", upload.single("file"), as
     res.json(result);
   } catch (err) {
     console.error("[WA Conversations] Erro ao enviar mídia:", err);
+    if (err instanceof WhatsappCustomerWindowClosedError) {
+      return res.status(409).json({
+        code: err.code,
+        message: "A janela de atendimento de 24 horas foi encerrada",
+        hint: "Envie um template aprovado para retomar a conversa.",
+      });
+    }
     if (err instanceof WhatsappMediaInputError) {
       return res.status(400).json({ message: err.message });
     }
@@ -401,8 +411,8 @@ router.post("/conversations/:clientId/read", async (req, res) => {
     const parsed = markReadSchema.safeParse(req.body ?? {});
     const asChannelId = parsed.success ? parsed.data.asChannelId : undefined;
 
-    await markConversationRead(user.userId, conversationId, { userRole: user.role, asChannelId });
-    res.json({ ok: true });
+    const result = await markConversationRead(user.userId, conversationId, { userRole: user.role, asChannelId });
+    res.json({ ok: true, ...result });
   } catch (err) {
     console.error("[WA Conversations] Erro ao marcar como lido:", err);
     res.status(500).json({ message: "Erro ao marcar como lido" });
@@ -500,6 +510,13 @@ router.post("/conversations/:clientId/messages", async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error(`[WA Conversations] Erro ao enviar mensagem:`, err);
+    if (err instanceof WhatsappCustomerWindowClosedError) {
+      return res.status(409).json({
+        code: err.code,
+        message: "A janela de atendimento de 24 horas foi encerrada",
+        hint: "Envie um template aprovado para retomar a conversa.",
+      });
+    }
     res.status(500).json({ message: "Erro ao enviar mensagem", detail: err instanceof Error ? err.message : String(err) });
   }
 });

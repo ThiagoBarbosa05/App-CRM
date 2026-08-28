@@ -35,7 +35,7 @@ export interface ChannelOverride {
 
 async function getConfig(channel?: ChannelOverride): Promise<WaConfig> {
   if (channel) {
-    const apiVersion = channel.apiVersion ?? "v21.0";
+    const apiVersion = channel.apiVersion ?? "v26.0";
     return {
       phoneNumberId: channel.phoneNumberId,
       accessToken: channel.accessToken,
@@ -47,7 +47,7 @@ async function getConfig(channel?: ChannelOverride): Promise<WaConfig> {
   const raw = await getWhatsappSettingsRaw();
   const phoneNumberId = raw["wa_phone_number_id"];
   const accessToken = raw["wa_access_token"];
-  const apiVersion = raw["wa_api_version"] || "v21.0";
+  const apiVersion = raw["wa_api_version"] || "v26.0";
 
   if (!phoneNumberId || !accessToken) {
     throw new Error("WhatsApp não configurado: wa_phone_number_id e wa_access_token são obrigatórios");
@@ -84,6 +84,24 @@ export async function sendTextMessage(to: string, text: string, channel?: Channe
   });
   if (!response.ok) throw new WhatsAppApiError(await response.text(), response.status);
   return response.json();
+}
+
+/** Confirma à Cloud API que a mensagem recebida foi lida no CRM. */
+export async function markMessageAsRead(
+  messageId: string,
+  channel?: ChannelOverride,
+): Promise<void> {
+  const cfg = await getConfig(channel);
+  const response = await fetch(`${cfg.baseUrl}/${cfg.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: authHeaders(cfg.accessToken),
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: messageId,
+    }),
+  });
+  if (!response.ok) throw new WhatsAppApiError(await response.text(), response.status);
 }
 
 export async function sendTemplateMessage(

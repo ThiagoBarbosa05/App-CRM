@@ -33,13 +33,14 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 const MASKED = "••••••••";
-const SENSITIVE_KEYS = ["wa_phone_number_id", "wa_access_token", "wa_waba_id", "wa_webhook_verify_token"] as const;
+const SENSITIVE_KEYS = ["wa_phone_number_id", "wa_access_token", "wa_waba_id", "wa_app_secret", "wa_webhook_verify_token"] as const;
 
 type SettingsForm = {
   wa_phone_number_id: string;
   wa_access_token: string;
   wa_waba_id: string;
   wa_app_id: string;
+  wa_app_secret: string;
   wa_webhook_verify_token: string;
   wa_api_version: string;
   wa_enabled: boolean;
@@ -254,8 +255,9 @@ export default function WhatsAppSettings() {
     wa_access_token: "",
     wa_waba_id: "",
     wa_app_id: "",
+    wa_app_secret: "",
     wa_webhook_verify_token: "",
-    wa_api_version: "v20.0",
+    wa_api_version: "v26.0",
     wa_enabled: false,
     wa_message_delay_ms: "1000",
   });
@@ -264,6 +266,7 @@ export default function WhatsAppSettings() {
     wa_phone_number_id: false,
     wa_access_token: false,
     wa_waba_id: false,
+    wa_app_secret: false,
     wa_webhook_verify_token: false,
   });
 
@@ -271,6 +274,7 @@ export default function WhatsAppSettings() {
     wa_phone_number_id: false,
     wa_access_token: false,
     wa_waba_id: false,
+    wa_app_secret: false,
     wa_webhook_verify_token: false,
   });
 
@@ -281,8 +285,9 @@ export default function WhatsAppSettings() {
         wa_access_token: settings.wa_access_token ?? "",
         wa_waba_id: settings.wa_waba_id ?? "",
         wa_app_id: settings.wa_app_id ?? "",
+        wa_app_secret: settings.wa_app_secret ?? "",
         wa_webhook_verify_token: settings.wa_webhook_verify_token ?? "",
-        wa_api_version: settings.wa_api_version ?? "v20.0",
+        wa_api_version: settings.wa_api_version ?? "v26.0",
         wa_enabled: settings.wa_enabled === "true",
         wa_message_delay_ms: settings.wa_message_delay_ms ?? "1000",
       });
@@ -320,6 +325,7 @@ export default function WhatsAppSettings() {
     { key: "wa_phone_number_id", label: "Phone Number ID", placeholder: "1234567890", icon: Phone },
     { key: "wa_access_token", label: "Access Token", placeholder: "EAAxxxxx...", icon: KeyRound },
     { key: "wa_waba_id", label: "WABA ID", placeholder: "987654321", icon: Settings2 },
+    { key: "wa_app_secret", label: "App Secret", placeholder: "seu-app-secret", icon: KeyRound },
     { key: "wa_webhook_verify_token", label: "Webhook Verify Token", placeholder: "meu-token-secreto", icon: ShieldCheck },
   ];
 
@@ -461,9 +467,14 @@ export default function WhatsAppSettings() {
                   id="api-version"
                   value={form.wa_api_version}
                   onChange={(e) => setForm((prev) => ({ ...prev, wa_api_version: e.target.value }))}
-                  placeholder="v20.0"
+                  placeholder="v26.0"
                   className="font-mono"
                 />
+                {settings?.wa_api_version_warning && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    {settings.wa_api_version_warning}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">

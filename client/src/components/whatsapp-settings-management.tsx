@@ -200,6 +200,7 @@ function CredentialsTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {sensitiveField("wa_phone_number_id", "Phone Number ID", "106540352242922")}
           {sensitiveField("wa_access_token", "Access Token", "EAAxxxxxx...")}
+          {sensitiveField("wa_app_secret", "App Secret", "seu_app_secret")}
           <div className="space-y-2">
             <Label htmlFor="wa_waba_id">WABA ID (Business Account ID)</Label>
             <Input
@@ -214,10 +215,15 @@ function CredentialsTab() {
             <Label htmlFor="wa_api_version">Versão da API</Label>
             <Input
               id="wa_api_version"
-              placeholder="v21.0"
-              value={currentValue("wa_api_version") || "v21.0"}
+              placeholder="v26.0"
+              value={currentValue("wa_api_version") || "v26.0"}
               onChange={(e) => onChange("wa_api_version", e.target.value)}
             />
+            {settings?.wa_api_version_warning && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                {settings.wa_api_version_warning}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="wa_message_delay_ms">Delay entre mensagens (ms)</Label>

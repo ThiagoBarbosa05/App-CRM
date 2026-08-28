@@ -19,6 +19,9 @@ import {
   handleMessagesUpsert,
   handleMessagesUpdate,
   handleMessagesReaction,
+  handleMessagesDelete,
+  handleMessageReceiptUpdates,
+  handlePresenceUpdate,
 } from "../whatsapp-baileys-events.service.js";
 import { pool } from "../../db.js";
 import { uploadWhatsappMedia } from "../../lib/r2.js";
@@ -244,6 +247,58 @@ function serializeMsgContent(msg: WAMessage): Record<string, unknown> {
     mimetype: m.stickerMessage.mimetype,
     contextInfo: serializeContext(m.stickerMessage.contextInfo),
   };
+  if (m.locationMessage) out.locationMessage = {
+    degreesLatitude: m.locationMessage.degreesLatitude ?? null,
+    degreesLongitude: m.locationMessage.degreesLongitude ?? null,
+    name: m.locationMessage.name ?? null,
+    address: m.locationMessage.address ?? null,
+    contextInfo: serializeContext(m.locationMessage.contextInfo),
+  };
+  if (m.liveLocationMessage) out.liveLocationMessage = {
+    degreesLatitude: m.liveLocationMessage.degreesLatitude ?? null,
+    degreesLongitude: m.liveLocationMessage.degreesLongitude ?? null,
+    name: m.liveLocationMessage.caption ?? null,
+    contextInfo: serializeContext(m.liveLocationMessage.contextInfo),
+  };
+  if (m.contactMessage) out.contactMessage = {
+    displayName: m.contactMessage.displayName ?? null,
+    vcard: m.contactMessage.vcard ?? null,
+    contextInfo: serializeContext(m.contactMessage.contextInfo),
+  };
+  if (m.contactsArrayMessage) out.contactsArrayMessage = {
+    displayName: m.contactsArrayMessage.displayName ?? null,
+    contacts: (m.contactsArrayMessage.contacts ?? []).map((contact) => ({
+      displayName: contact.displayName ?? null,
+      vcard: contact.vcard ?? null,
+    })),
+    contextInfo: serializeContext(m.contactsArrayMessage.contextInfo),
+  };
+  if (m.pollCreationMessage) out.pollCreationMessage = {
+    name: m.pollCreationMessage.name ?? null,
+    options: (m.pollCreationMessage.options ?? []).map((option) => ({ optionName: option.optionName ?? null })),
+    selectableOptionsCount: m.pollCreationMessage.selectableOptionsCount ?? 1,
+    contextInfo: serializeContext(m.pollCreationMessage.contextInfo),
+  };
+  if (m.pollUpdateMessage) out.pollUpdateMessage = {
+    pollCreationMessageKey: m.pollUpdateMessage.pollCreationMessageKey ?? null,
+    vote: {
+      selectedOptions: (m.pollUpdateMessage.vote?.selectedOptions ?? []).map((option) =>
+        Buffer.from(option).toString("base64"),
+      ),
+    },
+  };
+  if (m.protocolMessage) out.protocolMessage = {
+    type: m.protocolMessage.type ?? null,
+    key: m.protocolMessage.key ?? null,
+    ...(m.protocolMessage.editedMessage
+      ? {
+          editedMessage: serializeMsgContent({
+            key: msg.key,
+            message: m.protocolMessage.editedMessage,
+          } as WAMessage),
+        }
+      : {}),
+  };
   if (m.reactionMessage) out.reactionMessage = { key: m.reactionMessage.key, text: m.reactionMessage.text };
   return out;
 }
@@ -261,6 +316,30 @@ function detectMediaType(content: Record<string, unknown>): string | null {
 function detectFilename(content: Record<string, unknown>): string | null {
   const dm = content.documentMessage as Record<string, unknown> | undefined;
   return dm?.fileName as string ?? null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Busca sob demanda o conteúdo persistido exigido por retries e enquetes. */
+async function getPersistedMessageContent(key: { id?: string | null }): Promise<WAMessage["message"] | undefined> {
+  if (!key.id) return undefined;
+  try {
+    const { db } = await import("../../db.js");
+    const { whatsappMessages } = await import("../../../shared/schema.js");
+    const { eq } = await import("drizzle-orm");
+    const [row] = await db
+      .select({ rawPayload: whatsappMessages.rawPayload })
+      .from(whatsappMessages)
+      .where(eq(whatsappMessages.waMessageId, key.id))
+      .limit(1);
+    if (!isRecord(row?.rawPayload) || !isRecord(row.rawPayload.message)) return undefined;
+    return row.rawPayload.message as unknown as WAMessage["message"];
+  } catch (err) {
+    console.warn(`[Baileys] Não foi possível recuperar mensagem ${key.id} para retry:`, err);
+    return undefined;
+  }
 }
 
 // Mapeia o enum numérico do Baileys (proto.WebMessageInfo.Status) para string
@@ -372,8 +451,10 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
     // client string inválida/muito antiga
     browser: Browsers.macOS("Chrome"),
     generateHighQualityLinkPreview: false,
-    syncFullHistory: false,
-    getMessage: async () => undefined,
+    // Histórico é limitado ao que o WhatsApp disponibiliza; a persistência é
+    // idempotente por waMessageId e mantém apenas conversas 1:1.
+    syncFullHistory: true,
+    getMessage: getPersistedMessageContent,
   });
 
   sessions.set(instanceName, {
@@ -474,7 +555,6 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
   });
 
   sock.ev.on("messages.upsert", async ({ messages, type }: { messages: WAMessage[]; type: string }) => {
-    if (type !== "notify") return;
 
     // Auto-cura: uma mensagem chegando é prova inequívoca de que o socket está
     // vivo e autenticado. Se o status em memória/banco ainda não refletir isso
@@ -484,7 +564,7 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
     // sempre, mesmo recebendo mensagens normalmente — o reconcile job só
     // corrige o sentido oposto (marcado conectado, mas sem socket vivo).
     const currentSession = sessions.get(instanceName);
-    if (currentSession && currentSession.socket === sock && currentSession.status !== "connected") {
+    if (type === "notify" && currentSession && currentSession.socket === sock && currentSession.status !== "connected") {
       currentSession.status = "connected";
       currentSession.qrBase64 = null;
       currentSession.qrCode = null;
@@ -555,6 +635,19 @@ async function createSocket(instanceName: string, explicitLock?: PoolClient | nu
     for (const event of events) {
       await handleMessagesReaction(instanceName, event).catch(console.error);
     }
+  });
+
+  sock.ev.on("messages.delete", async (event) => {
+    if (!("keys" in event)) return;
+    await handleMessagesDelete(event).catch(console.error);
+  });
+
+  sock.ev.on("message-receipt.update", async (updates) => {
+    await handleMessageReceiptUpdates(updates).catch(console.error);
+  });
+
+  sock.ev.on("presence.update", async (event) => {
+    await handlePresenceUpdate(instanceName, event).catch(console.error);
   });
 }
 
@@ -779,7 +872,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
-interface EvolutionSendResultLike {
+export interface EvolutionSendResultLike {
   key: { remoteJid: string; fromMe: boolean; id: string };
   status: string;
 }
@@ -852,6 +945,117 @@ async function sendMediaLocal(
     },
     status: "sent",
   };
+}
+
+export interface BaileysLocationInput {
+  latitude: number;
+  longitude: number;
+  name?: string;
+  address?: string;
+}
+
+export interface BaileysContactInput {
+  displayName?: string;
+  vcard: string;
+}
+
+export interface BaileysPollInput {
+  name: string;
+  values: string[];
+  selectableCount?: number;
+}
+
+function toSendResult(result: WAMessage, jid: string): EvolutionSendResultLike {
+  if (!result.key) throw new Error("sendMessage não retornou key");
+  return {
+    key: {
+      remoteJid: result.key.remoteJid ?? jid,
+      fromMe: result.key.fromMe ?? true,
+      id: result.key.id ?? "",
+    },
+    status: "sent",
+  };
+}
+
+export async function sendLocation(
+  instanceName: string,
+  to: string,
+  location: BaileysLocationInput,
+): Promise<EvolutionSendResultLike> {
+  const session = sessions.get(instanceName);
+  if (!session?.socket) throw new Error(`Instância "${instanceName}" não encontrada ou desconectada`);
+  const jid = normalizeToJid(to);
+  const result = await session.socket.sendMessage(jid, {
+    location: {
+      degreesLatitude: location.latitude,
+      degreesLongitude: location.longitude,
+      ...(location.name ? { name: location.name } : {}),
+      ...(location.address ? { address: location.address } : {}),
+    },
+  });
+  return toSendResult(result, jid);
+}
+
+export async function sendContacts(
+  instanceName: string,
+  to: string,
+  contacts: BaileysContactInput[],
+  displayName?: string,
+): Promise<EvolutionSendResultLike> {
+  const session = sessions.get(instanceName);
+  if (!session?.socket) throw new Error(`Instância "${instanceName}" não encontrada ou desconectada`);
+  if (contacts.length === 0) throw new Error("Informe ao menos um contato");
+  const jid = normalizeToJid(to);
+  const result = await session.socket.sendMessage(jid, {
+    contacts: {
+      ...(displayName ? { displayName } : {}),
+      contacts,
+    },
+  });
+  return toSendResult(result, jid);
+}
+
+export async function sendPoll(
+  instanceName: string,
+  to: string,
+  poll: BaileysPollInput,
+): Promise<EvolutionSendResultLike> {
+  const session = sessions.get(instanceName);
+  if (!session?.socket) throw new Error(`Instância "${instanceName}" não encontrada ou desconectada`);
+  if (poll.values.length < 2) throw new Error("Uma enquete precisa de pelo menos duas opções");
+  const jid = normalizeToJid(to);
+  const result = await session.socket.sendMessage(jid, {
+    poll: {
+      name: poll.name,
+      values: poll.values,
+      selectableCount: poll.selectableCount ?? 1,
+    },
+  });
+  return toSendResult(result, jid);
+}
+
+/** Best effort: leitura local já pode ser salva mesmo que este envio falhe. */
+export async function readMessages(
+  instanceName: string,
+  to: string,
+  messageIds: string[],
+): Promise<void> {
+  const session = sessions.get(instanceName);
+  if (!session?.socket) throw new Error(`Instância "${instanceName}" não encontrada ou desconectada`);
+  const jid = normalizeToJid(to);
+  await session.socket.readMessages(
+    messageIds.filter(Boolean).map((id) => ({ remoteJid: jid, fromMe: false, id })),
+  );
+}
+
+export async function sendPresenceUpdate(
+  instanceName: string,
+  to: string,
+  presence: "available" | "unavailable" | "composing" | "recording" | "paused",
+): Promise<void> {
+  const session = sessions.get(instanceName);
+  if (!session?.socket) throw new Error(`Instância "${instanceName}" não encontrada ou desconectada`);
+  await session.socket.sendPresenceUpdate(presence, normalizeToJid(to));
 }
 
 export async function sendText(

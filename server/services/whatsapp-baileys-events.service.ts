@@ -50,6 +50,125 @@ export function extractQuotedMessageSnapshot(message: Record<string, unknown> | 
   return null;
 }
 
+type BaileysRichMessage = {
+  type: "location" | "contacts" | "poll";
+  content: string | null;
+  providerMetadata: Record<string, unknown>;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+/**
+ * Mantém dados ricos do Baileys estruturados no metadata. `content` é apenas
+ * uma prévia pesquisável; nunca é a única representação da mensagem.
+ */
+export function extractBaileysRichMessage(message: Record<string, unknown>): BaileysRichMessage | null {
+  const location = asRecord(message.locationMessage) ?? asRecord(message.liveLocationMessage);
+  if (location) {
+    const latitude = typeof location.degreesLatitude === "number" ? location.degreesLatitude : null;
+    const longitude = typeof location.degreesLongitude === "number" ? location.degreesLongitude : null;
+    const name = typeof location.name === "string" ? location.name : null;
+    const address = typeof location.address === "string" ? location.address : null;
+    return {
+      type: "location",
+      content: name ?? address,
+      providerMetadata: {
+        location: { latitude, longitude, name, address },
+        structuredContent: {
+          kind: "location",
+          latitude,
+          longitude,
+          ...(name ? { name } : {}),
+          ...(address ? { address } : {}),
+        },
+      },
+    };
+  }
+
+  const contactsArray = asRecord(message.contactsArrayMessage);
+  const singleContact = asRecord(message.contactMessage);
+  if (contactsArray || singleContact) {
+    const rawContacts = contactsArray?.contacts;
+    const contacts = Array.isArray(rawContacts)
+      ? rawContacts.map(asRecord).filter((contact): contact is Record<string, unknown> => contact !== undefined)
+      : singleContact ? [singleContact] : [];
+    const displayName = typeof contactsArray?.displayName === "string"
+      ? contactsArray.displayName
+      : typeof singleContact?.displayName === "string" ? singleContact.displayName : null;
+    return {
+      type: "contacts",
+      content: displayName,
+      providerMetadata: {
+        contacts,
+        structuredContent: {
+          kind: "contacts",
+          contacts: contacts.map((contact) => ({
+            ...(typeof contact.displayName === "string"
+              ? { name: { formatted_name: contact.displayName } }
+              : {}),
+            ...contact,
+          })),
+        },
+      },
+    };
+  }
+
+  const poll = asRecord(message.pollCreationMessage);
+  if (poll) {
+    const options = Array.isArray(poll.options)
+      ? poll.options
+          .map(asRecord)
+          .map((option) => typeof option?.optionName === "string" ? option.optionName : null)
+          .filter((option): option is string => option !== null)
+      : [];
+    const name = typeof poll.name === "string" ? poll.name : null;
+    const selectableCount = typeof poll.selectableOptionsCount === "number"
+      ? poll.selectableOptionsCount
+      : 1;
+    return {
+      type: "poll",
+      content: name,
+      providerMetadata: {
+        poll: { options, selectableCount },
+        structuredContent: {
+          kind: "poll",
+          poll: {
+            name: name ?? "",
+            options: options.map((option) => ({ name: option })),
+            selectableOptionsCount: selectableCount,
+          },
+        },
+      },
+    };
+  }
+
+  const pollUpdate = asRecord(message.pollUpdateMessage);
+  if (pollUpdate) {
+    const pollCreationMessageKey = asRecord(pollUpdate.pollCreationMessageKey);
+    const vote = asRecord(pollUpdate.vote);
+    return {
+      type: "poll",
+      content: "Voto em enquete",
+      providerMetadata: {
+        pollVote: {
+          pollMessageId: typeof pollCreationMessageKey?.id === "string" ? pollCreationMessageKey.id : null,
+          selectedOptions: Array.isArray(vote?.selectedOptions)
+            ? vote.selectedOptions.flatMap((option) => option instanceof Uint8Array
+                ? [Buffer.from(option).toString("base64")]
+                : typeof option === "string" ? [option] : [])
+            : [],
+        },
+      },
+    };
+  }
+
+  return null;
+}
+
 // Eventos do Baileys são processados in-process (sem webhook HTTP). Os nomes de
 // evento SSE e o shape dos payloads são preservados para não quebrar o frontend.
 
@@ -98,6 +217,17 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   }
 
   const msgContent = msg.message ?? {};
+  const protocol = asRecord(msgContent.protocolMessage);
+  const protocolKey = asRecord(protocol?.key);
+  if (protocol?.type === 0 && typeof protocolKey?.id === "string") {
+    await handleMessagesDelete({ keys: [{ id: protocolKey.id }] });
+    return;
+  }
+  if (protocol?.type === 14 && typeof protocolKey?.id === "string") {
+    const editedMessage = asRecord(protocol.editedMessage);
+    if (editedMessage) await handleMessageEdit(protocolKey.id, editedMessage);
+    return;
+  }
   const reaction = msgContent.reactionMessage as {
     key?: { id?: string };
     text?: string | null;
@@ -113,6 +243,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     return;
   }
 
+  const richMessage = extractBaileysRichMessage(msgContent);
   const contentNode = (
     (msgContent.extendedTextMessage ??
       msgContent.imageMessage ??
@@ -142,6 +273,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     (msgContent.conversation as string | undefined) ??
     ((msgContent.extendedTextMessage as Record<string, unknown> | undefined)?.text as string | undefined) ??
     (contentNode?.caption as string | undefined) ??
+    richMessage?.content ??
     null;
   const flattenedReply = quotedSnapshot ? null : parseWhatsappFlattenedReply(text);
   const effectiveQuotedContent = quotedSnapshot?.content ?? flattenedReply?.quotedContent;
@@ -158,6 +290,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   else if (msgContent.videoMessage) type = "video";
   else if (msgContent.documentMessage) type = "document";
   else if (msgContent.stickerMessage) type = "sticker";
+  else if (richMessage) type = richMessage.type;
 
   const caption = ["image", "video", "document"].includes(type)
     ? (contentNode?.caption as string | undefined)
@@ -187,9 +320,10 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     replyToTypeSnapshot: effectiveQuotedType,
     replyToDirectionSnapshot: effectiveQuotedDirection,
     isForwarded: contextInfo?.isForwarded === true || (contextInfo?.forwardingScore ?? 0) > 0,
-    providerMetadata: contextInfo
+    providerMetadata: contextInfo || richMessage
       ? {
-          forwardingScore: contextInfo.forwardingScore ?? 0,
+          ...(contextInfo ? { forwardingScore: contextInfo.forwardingScore ?? 0 } : {}),
+          ...(richMessage?.providerMetadata ?? {}),
         }
       : undefined,
     _fromMe: fromMe,
@@ -286,6 +420,116 @@ export async function handleMessagesReaction(instanceName: string, data: unknown
     channelId: channel.id,
     direction: event.reaction?.key?.fromMe ? "outbound" : "inbound",
   });
+}
+
+// ── messages.delete ────────────────────────────────────────────────────────────
+
+/** Mantém a linha para auditoria, mas remove o conteúdo que o WhatsApp revogou. */
+export async function handleMessagesDelete(data: unknown): Promise<void> {
+  const event = data as { keys?: Array<{ id?: string }> };
+  const keys = event.keys ?? [];
+  if (!Array.isArray(keys)) return;
+
+  const { db } = await import("../db");
+  const { whatsappMessages } = await import("../../shared/schema");
+  const { eq } = await import("drizzle-orm");
+  for (const key of keys) {
+    if (!key.id) continue;
+    const updated = await db
+      .update(whatsappMessages)
+      .set({ type: "deleted", content: null, caption: null })
+      .where(eq(whatsappMessages.waMessageId, key.id))
+      .returning({ id: whatsappMessages.id, conversationId: whatsappMessages.conversationId })
+      .catch((err): Array<{ id: string; conversationId: string }> => {
+        console.error("[Baileys Events] Erro ao marcar mensagem removida:", err);
+        return [];
+      });
+    for (const message of updated) {
+      publishConversationEvent(message.conversationId, "message_deleted", { messageId: message.id });
+    }
+  }
+}
+
+/** Aplica uma edição do protocolo Baileys à mensagem original, sem criar duplicata. */
+export async function handleMessageEdit(waMessageId: string, editedMessage: Record<string, unknown>): Promise<void> {
+  const rich = extractBaileysRichMessage(editedMessage);
+  const extended = asRecord(editedMessage.extendedTextMessage);
+  const image = asRecord(editedMessage.imageMessage);
+  const video = asRecord(editedMessage.videoMessage);
+  const document = asRecord(editedMessage.documentMessage);
+  const text = typeof editedMessage.conversation === "string"
+    ? editedMessage.conversation
+    : typeof extended?.text === "string" ? extended.text
+      : typeof image?.caption === "string" ? image.caption
+        : typeof video?.caption === "string" ? video.caption
+          : typeof document?.caption === "string" ? document.caption
+            : rich?.content ?? null;
+  if (text === null) return;
+
+  const { db } = await import("../db");
+  const { whatsappMessages } = await import("../../shared/schema");
+  const { eq } = await import("drizzle-orm");
+  const type = rich?.type
+    ?? (image ? "image" : video ? "video" : document ? "document" : "text");
+  const caption = image || video || document ? text : null;
+  const content = caption === null ? text : null;
+  const updated = await db
+    .update(whatsappMessages)
+    .set({ type, content, caption })
+    .where(eq(whatsappMessages.waMessageId, waMessageId))
+    .returning({ id: whatsappMessages.id, conversationId: whatsappMessages.conversationId })
+    .catch((err): Array<{ id: string; conversationId: string }> => {
+      console.error("[Baileys Events] Erro ao aplicar edição de mensagem:", err);
+      return [];
+    });
+  for (const message of updated) {
+    publishConversationEvent(message.conversationId, "message_edited", { messageId: message.id });
+  }
+}
+
+/** Converte recibos por usuário do Baileys no mesmo fluxo monotônico de status. */
+export async function handleMessageReceiptUpdates(data: unknown): Promise<void> {
+  const updates = Array.isArray(data) ? data : [data];
+  for (const update of updates) {
+    const item = update as {
+      key?: { id?: string };
+      receipt?: { readTimestamp?: unknown; playedTimestamp?: unknown; receiptTimestamp?: unknown };
+    };
+    const status = item.receipt?.playedTimestamp != null
+      ? "played"
+      : item.receipt?.readTimestamp != null
+        ? "read"
+        : item.receipt?.receiptTimestamp != null ? "delivery_ack" : null;
+    if (!item.key?.id || !status) continue;
+    await handleMessagesUpdate([{ key: item.key, update: { status } }]);
+  }
+}
+
+/** Presença é efêmera: entrega por SSE aos leitores autorizados, sem persistir. */
+export async function handlePresenceUpdate(instanceName: string, data: unknown): Promise<void> {
+  const event = data as {
+    id?: string;
+    presences?: Record<string, { lastKnownPresence?: string; lastSeen?: number }>;
+  };
+  if (!event.id || isIgnorableJid(event.id) || !event.presences) return;
+  const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
+  if (!channel) return;
+  const presences = Object.entries(event.presences)
+    .filter(([jid]) => !isIgnorableJid(jid))
+    .map(([jid, presence]) => ({
+      phone: jidToPhone(jid),
+      presence: presence.lastKnownPresence ?? "unavailable",
+      lastSeen: presence.lastSeen ?? null,
+    }));
+  if (presences.length === 0) return;
+  const recipients = await getSseTargetUserIds(channel);
+  for (const userId of recipients) {
+    publishSseEvent("baileys_presence_updated", {
+      channelId: channel.id,
+      phone: jidToPhone(event.id),
+      presences,
+    }, userId);
+  }
 }
 
 // ── messages.update ────────────────────────────────────────────────────────────

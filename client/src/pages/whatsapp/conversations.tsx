@@ -270,6 +270,7 @@ interface WaMessage {
   content: string | null;
   caption: string | null;
   status: string | null;
+  deliveryState?: "pending" | "sent" | "delivered" | "read" | "played" | "failed" | "deleted" | null;
   statusReason?: string | null;
   deliveredAt?: string | null;
   readAt?: string | null;
@@ -315,6 +316,18 @@ interface WaMessage {
   } | null;
   media: WaMedia | null;
   reactions?: { emoji: string; direction: "inbound" | "outbound" }[];
+  structuredContent?: {
+    kind: string;
+    latitude?: number;
+    longitude?: number;
+    name?: string;
+    address?: string;
+    contacts?: Array<{ name?: { formatted_name?: string; first_name?: string; last_name?: string }; phones?: Array<{ phone?: string }> }>;
+    poll?: { name: string; options: Array<{ id?: string; name: string }> };
+    reply?: { id: string; title: string; description?: string };
+    sourceType?: string;
+    reason?: string;
+  } | null;
 }
 
 interface LocalMessage {
@@ -1973,6 +1986,40 @@ function MessageContent({
     setMediaError(false);
     setRetryCount((n) => n + 1);
   };
+
+  const rich = msg.structuredContent;
+  if (rich?.kind === "location" && typeof rich.latitude === "number" && typeof rich.longitude === "number") {
+    const mapUrl = `https://www.google.com/maps?q=${rich.latitude},${rich.longitude}`;
+    return (
+      <a href={mapUrl} target="_blank" rel="noreferrer" className="block rounded-lg bg-black/5 px-3 py-2 hover:bg-black/10">
+        <span className="font-medium">📍 {rich.name ?? "Localização"}</span>
+        <span className="block text-xs opacity-70">{rich.address ?? `${rich.latitude}, ${rich.longitude}`}</span>
+        <span className="mt-1 block text-xs underline">Abrir no mapa</span>
+      </a>
+    );
+  }
+  if (rich?.kind === "contacts" && rich.contacts?.length) {
+    return (
+      <div className="space-y-2">
+        {rich.contacts.map((contact, index) => (
+          <div key={index} className="rounded-lg bg-black/5 px-3 py-2">
+            <div className="font-medium">👤 {contact.name?.formatted_name ?? contact.name?.first_name ?? "Contato"}</div>
+            {contact.phones?.map((phone, phoneIndex) => <div key={phoneIndex} className="text-xs opacity-70">{phone.phone}</div>)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (rich?.kind === "poll" && rich.poll) {
+    return (
+      <div className="rounded-lg bg-black/5 px-3 py-2">
+        <div className="font-medium">📊 {rich.poll.name}</div>
+        <ul className="mt-1 list-disc pl-5 text-sm">{rich.poll.options.map((option, index) => <li key={option.id ?? index}>{option.name}</li>)}</ul>
+      </div>
+    );
+  }
+  if (rich?.kind === "deleted") return <p className="text-sm italic opacity-60">🚫 Mensagem apagada</p>;
+  if (rich?.kind === "unsupported") return <p className="text-sm italic opacity-60">Tipo de mensagem não suportado{rich.sourceType ? ` (${rich.sourceType})` : ""}</p>;
 
   if (
     msg.type === "system" &&
