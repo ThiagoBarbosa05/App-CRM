@@ -16,6 +16,8 @@ export interface WhatsappConversationCapabilities {
   edit: boolean;
   delete: boolean;
   historySync: boolean;
+  ptt: boolean;
+  messageReceipts: boolean;
   send: WhatsappMessageTypeCapabilities;
   receive: WhatsappMessageTypeCapabilities;
   provider: WhatsappConversationProvider;
@@ -29,7 +31,7 @@ interface CapabilityContext {
   deviceEchoEnabled?: boolean;
   gatewayFeatures?: Partial<{
     location: boolean; contacts: boolean; polls: boolean; remoteRead: boolean;
-    presence: boolean; historySync: boolean; messageDelete: boolean;
+    presence: boolean; historySync: boolean; messageDelete: boolean; ptt: boolean; messageReceipts: boolean;
   }>;
 }
 
@@ -41,7 +43,7 @@ export interface WhatsappStickerMetadata {
 
 interface ProviderFeatures extends Pick<
   WhatsappConversationCapabilities,
-  "reply" | "reaction" | "sticker" | "forward" | "remoteRead" | "presence" | "edit" | "delete" | "historySync" | "send" | "receive"
+  "reply" | "reaction" | "sticker" | "forward" | "remoteRead" | "presence" | "edit" | "delete" | "historySync" | "ptt" | "messageReceipts" | "send" | "receive"
 > {}
 
 function messageTypeCapabilities(
@@ -69,12 +71,14 @@ const PROVIDER_FEATURES: Record<WhatsappConversationProvider, ProviderFeatures> 
   cloud_api: {
     reply: true, reaction: true, sticker: true, forward: true,
     remoteRead: true, presence: false, edit: false, delete: false, historySync: false,
+    ptt: false, messageReceipts: true,
     send: messageTypeCapabilities(CLOUD_API_SEND_TYPES),
     receive: messageTypeCapabilities(CLOUD_API_RECEIVE_TYPES),
   },
   evolution: {
     reply: true, reaction: true, sticker: true, forward: true,
     remoteRead: true, presence: true, edit: false, delete: false, historySync: true,
+    ptt: true, messageReceipts: true,
     send: messageTypeCapabilities(BAILEYS_SEND_TYPES),
     receive: messageTypeCapabilities(BAILEYS_RECEIVE_TYPES),
   },
@@ -103,6 +107,8 @@ export function getWhatsappConversationCapabilities(
     remoteRead: negotiated?.remoteRead === true,
     presence: negotiated?.presence === true,
     historySync: negotiated?.historySync === true,
+    ptt: negotiated?.ptt === true,
+    messageReceipts: negotiated?.messageReceipts === true,
     delete: negotiated?.messageDelete === true,
     send: messageTypeCapabilities(sendTypes),
   } : baseProviderFeatures;
@@ -121,6 +127,8 @@ export function getWhatsappConversationCapabilities(
     edit: available && providerFeatures.edit,
     delete: available && providerFeatures.delete,
     historySync: available && providerFeatures.historySync,
+    ptt: available && providerFeatures.ptt,
+    messageReceipts: available && providerFeatures.messageReceipts,
     send: available ? providerFeatures.send : unavailableMessageTypes,
     receive: available ? providerFeatures.receive : unavailableMessageTypes,
     provider: context.provider,

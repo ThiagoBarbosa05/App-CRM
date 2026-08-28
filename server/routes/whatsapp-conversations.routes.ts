@@ -85,6 +85,7 @@ router.post("/conversations/:clientId/messages/media", upload.single("file"), as
     const channelId = req.body.channelId ? Number(req.body.channelId) : undefined;
     const caption = typeof req.body.caption === "string" && req.body.caption.trim() ? req.body.caption.trim() : undefined;
     const replyToMessageId = typeof req.body.replyToMessageId === "string" ? req.body.replyToMessageId : undefined;
+    const ptt = req.body.ptt === true || req.body.ptt === "true";
 
     const result = await sendConversationMedia(
       conversationId,
@@ -94,6 +95,7 @@ router.post("/conversations/:clientId/messages/media", upload.single("file"), as
       channelId,
       caption,
       replyToMessageId,
+      ptt,
     );
 
     if (!result) return res.status(400).json({ message: "Não foi possível enviar o arquivo" });

@@ -2234,6 +2234,7 @@ export async function sendConversationMessage(
   userRole: string,
   channelId?: number,
   replyToMessageId?: string,
+  ptt = false,
 ) {
   const whereConditions: ReturnType<typeof eq>[] = [
     eq(whatsappConversations.id, conversationId),
@@ -2668,6 +2669,7 @@ export async function sendConversationMedia(
   channelId?: number,
   caption?: string,
   replyToMessageId?: string,
+  ptt = false,
 ) {
   console.log(`[sendConversationMedia] mimetype=${file.mimetype} size=${file.size} name=${file.originalname}`);
 
@@ -2828,6 +2830,7 @@ export async function sendConversationMedia(
           mimetype: effectiveMime,
           quotedMsgId: replyToWaMessageId ?? undefined,
           idempotencyKey: `message-${savedMessage.id}`,
+          ptt: mediaType === "audio" && ptt,
         },
       );
       waMessageId = evoResult?.key?.id ?? null;
@@ -4092,6 +4095,11 @@ export async function markConversationRead(
     return null;
   });
   if (!channel) return { local: true, remote: "skipped" };
+  const remoteResolved = await resolveOutboundChannelForSender(
+    conversationId,
+    userId,
+    opts.userRole === "admin" || opts.userRole === "gerente" ? remoteChannelId : undefined,
+  );
 
   const [lastInbound] = await db
     .select({ waMessageId: whatsappMessages.waMessageId })
@@ -4105,6 +4113,7 @@ export async function markConversationRead(
     .orderBy(desc(sql`COALESCE(${whatsappMessages.sentAt}, ${whatsappMessages.createdAt})`))
     .limit(1);
   if (!lastInbound?.waMessageId) return { local: true, remote: "skipped" };
+  if (channel.provider === "evolution" && !remoteResolved) return { local: true, remote: "skipped" };
 
   try {
     if (channel.provider === "cloud_api") {
@@ -4114,7 +4123,7 @@ export async function markConversationRead(
       });
     } else {
       await evoMarkMessagesRead(channel.evolutionInstanceName, [{
-        remoteJid: normalizeToJid((await db.select({ phone: whatsappConversations.phone }).from(whatsappConversations).where(eq(whatsappConversations.id, conversationId)).limit(1))[0]?.phone ?? ""),
+        remoteJid: normalizeToJid(remoteResolved?.targetPhone ?? ""),
         fromMe: false,
         id: lastInbound.waMessageId,
       }]);
@@ -4142,10 +4151,8 @@ export async function sendConversationRichMessage(
   if (!resolved || resolved.channel.provider !== "evolution") throw new Error("Este formato está disponível somente em canais QR compatíveis");
   const capabilities = await getCapabilitiesForResolvedChannel(resolved.channel, resolved.channelId);
   if (!capabilities.send[input.type]) throw new Error("O Baileys Gateway conectado não oferece este recurso");
-  const [conversation] = await db.select({ phone: whatsappConversations.phone }).from(whatsappConversations).where(eq(whatsappConversations.id, conversationId)).limit(1);
-  if (!conversation) return null;
-  const displayContent = input.type === "location" ? input.name ?? input.address ?? "Localização"
-    : input.type === "contacts" ? `${input.contacts.length} contato(s)` : input.name;
+  const displayContent = input.type === "location" ? input.name ?? input.address ?? null
+    : input.type === "contacts" ? (input.contacts.length === 1 ? input.contacts[0]?.displayName ?? "Contato" : `${input.contacts.length} contatos`) : input.name;
   const [saved] = await db.insert(whatsappMessages).values({
     conversationId, channelId: resolved.channelId, direction: resolved.direction,
     type: input.type, content: displayContent, providerMetadata: input,
@@ -4155,10 +4162,10 @@ export async function sendConversationRichMessage(
   try {
     const idempotencyKey = `message-${saved.id}`;
     const sent = input.type === "location"
-      ? await evoSendLocation(resolved.channel.evolutionInstanceName, conversation.phone, input, idempotencyKey)
+      ? await evoSendLocation(resolved.channel.evolutionInstanceName, resolved.targetPhone, input, idempotencyKey)
       : input.type === "contacts"
-        ? await evoSendContacts(resolved.channel.evolutionInstanceName, conversation.phone, input.contacts, idempotencyKey)
-        : await evoSendPoll(resolved.channel.evolutionInstanceName, conversation.phone, input, idempotencyKey);
+        ? await evoSendContacts(resolved.channel.evolutionInstanceName, resolved.targetPhone, input.contacts, idempotencyKey)
+        : await evoSendPoll(resolved.channel.evolutionInstanceName, resolved.targetPhone, input, idempotencyKey);
     await db.update(whatsappMessages).set({ status: "sent", waMessageId: sent.key.id }).where(eq(whatsappMessages.id, saved.id));
     saved.status = "sent";
     saved.waMessageId = sent.key.id;
@@ -4179,8 +4186,6 @@ export async function publishConversationPresence(
   if (!resolved || resolved.channel.provider !== "evolution") throw new Error("Presença disponível somente em canais QR compatíveis");
   const capabilities = await getCapabilitiesForResolvedChannel(resolved.channel, resolved.channelId);
   if (!capabilities.presence) throw new Error("O Baileys Gateway conectado não oferece presença");
-  const [conversation] = await db.select({ phone: whatsappConversations.phone }).from(whatsappConversations).where(eq(whatsappConversations.id, conversationId)).limit(1);
-  if (!conversation) return null;
-  await evoPublishPresence(resolved.channel.evolutionInstanceName, conversation.phone, presence);
+  await evoPublishPresence(resolved.channel.evolutionInstanceName, resolved.targetPhone, presence);
   return { success: true };
 }

@@ -117,7 +117,7 @@ export function extractBaileysRichMessage(message: Record<string, unknown>): Bai
     };
   }
 
-  const poll = asRecord(message.pollCreationMessage);
+  const poll = asRecord(message.pollCreationMessage) ?? asRecord(message.pollCreationMessageV2) ?? asRecord(message.pollCreationMessageV3);
   if (poll) {
     const options = Array.isArray(poll.options)
       ? poll.options
@@ -243,7 +243,18 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     return;
   }
 
-  const richMessage = extractBaileysRichMessage(msgContent);
+  const richMessage = extractBaileysRichMessage(msgContent) ?? (() => {
+    const unsupported = asRecord(msgContent.unsupportedMessage);
+    if (!unsupported) return null;
+    const keys = Array.isArray(unsupported.keys)
+      ? unsupported.keys.filter((key): key is string => typeof key === "string")
+      : [];
+    return {
+      type: "unsupported" as const,
+      content: `Formato não suportado${keys.length ? `: ${keys.join(", ")}` : ""}`,
+      providerMetadata: { unsupported },
+    };
+  })();
   const contentNode = (
     (msgContent.extendedTextMessage ??
       msgContent.imageMessage ??
@@ -452,6 +463,9 @@ export async function handleMessagesDelete(data: unknown): Promise<void> {
 
 /** Aplica uma edição do protocolo Baileys à mensagem original, sem criar duplicata. */
 export async function handleMessageEdit(waMessageId: string, editedMessage: Record<string, unknown>): Promise<void> {
+  const editedWrapper = asRecord(editedMessage.editedMessage);
+  const nestedEdited = asRecord(editedWrapper?.message);
+  if (nestedEdited) editedMessage = nestedEdited;
   const rich = extractBaileysRichMessage(editedMessage);
   const extended = asRecord(editedMessage.extendedTextMessage);
   const image = asRecord(editedMessage.imageMessage);
@@ -560,9 +574,20 @@ export async function handleMessagesUpdate(data: unknown) {
       key?: { id?: string };
       update?: { status?: string; messageStubParameters?: unknown; message?: Record<string, unknown>; editedMessage?: Record<string, unknown>; pollUpdates?: unknown };
     };
+    const { db } = await import("../db");
+    const { whatsappMessages } = await import("../../shared/schema");
+    const { and, eq, ne, sql } = await import("drizzle-orm");
     const waMessageId = u.key?.id;
     const edited = u.update?.editedMessage ?? u.update?.message;
     if (waMessageId && edited) await handleMessageEdit(waMessageId, edited);
+    if (waMessageId && u.update?.pollUpdates !== undefined) {
+      const updatedPoll = await db
+        .update(whatsappMessages)
+        .set({ providerMetadata: sql`COALESCE(${whatsappMessages.providerMetadata}, '{}'::jsonb) || jsonb_build_object('pollUpdates', ${JSON.stringify(u.update.pollUpdates)}::jsonb)` })
+        .where(eq(whatsappMessages.waMessageId, waMessageId))
+        .returning({ conversationId: whatsappMessages.conversationId });
+      for (const poll of updatedPoll) publishConversationEvent(poll.conversationId, "message_edited", { waMessageId });
+    }
     const status = u.update?.status?.toLowerCase();
     if (!waMessageId || !status) continue;
 
@@ -581,9 +606,6 @@ export async function handleMessagesUpdate(data: unknown) {
         ? "account_restricted"
         : undefined;
 
-    const { db } = await import("../db");
-    const { whatsappMessages } = await import("../../shared/schema");
-    const { and, eq, ne } = await import("drizzle-orm");
     const eventAt = new Date();
     const [updated] = await db
       .update(whatsappMessages)
