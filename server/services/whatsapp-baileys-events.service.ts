@@ -18,6 +18,7 @@ import {
 } from "./baileys/connection-status.service";
 import { applyCampaignDeliveryStatus } from "./whatsapp-campaign-status.service";
 import { parseWhatsappFlattenedReply } from "@shared/whatsapp-flattened-reply";
+import { auditStatus, normalizeGatewayMessageKey } from "./whatsapp-message-audit.service";
 
 export function extractQuotedMessageSnapshot(message: Record<string, unknown> | undefined): {
   content: string | null;
@@ -176,7 +177,7 @@ export function extractBaileysRichMessage(message: Record<string, unknown>): Bai
 
 export async function handleMessagesUpsert(instanceName: string, data: unknown) {
   const msg = data as {
-    key: { remoteJid: string; fromMe: boolean; id: string };
+    key: { remoteJid: string; remoteJidAlt?: string; participant?: string; participantAlt?: string; addressingMode?: string; fromMe: boolean; id: string };
     message?: Record<string, unknown>;
     messageType?: string;
     messageTimestamp?: number;
@@ -190,6 +191,10 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
   };
 
   const jid = msg.key?.remoteJid;
+  if (jid === "status@broadcast") {
+    await auditStatus(instanceName, data);
+    return;
+  }
   if (isIgnorableJid(jid)) return;
 
   const waMessageId = msg.key.id;

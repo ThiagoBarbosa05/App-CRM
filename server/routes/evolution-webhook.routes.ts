@@ -10,6 +10,7 @@ const router = Router();
 const envelopeSchema = z.object({
   event: z.enum([
     "messages.upsert",
+    "messages.decryption",
     "messages.update",
     "messages.reaction",
     "messages.delete",

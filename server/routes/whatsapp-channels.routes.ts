@@ -30,6 +30,7 @@ import {
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { listChannelConnectionEvents } from "../services/baileys/connection-events.service";
 import { isAdminOrGerente, requireAdminOrGerente } from "../middleware/validation";
+import { pool } from "../db";
 
 const router = Router();
 
@@ -169,6 +170,22 @@ router.get("/channels/:id", requireAdminOrGerente, async (req: Request, res: Res
   const channel = await getChannelById(id);
   if (!channel) { res.sendStatus(404); return; }
   res.json(channel);
+});
+
+router.get("/channels/:id/message-audit/:kind", requireAdminOrGerente, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const table = req.params.kind === "statuses" ? "whatsapp_status_audit" : req.params.kind === "decryption" ? "whatsapp_decryption_incidents" : null;
+  if (!Number.isInteger(id) || !table) { res.status(400).json({ message: "Auditoria inválida" }); return; }
+  try {
+    const channel = await getChannelById(id);
+    if (!channel) { res.sendStatus(404); return; }
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+    const result = await pool.query(`SELECT * FROM ${table} WHERE channel_id=$1 ORDER BY created_at DESC LIMIT $2`, [id, limit]);
+    res.json({ items: result.rows, limit });
+  } catch (error) {
+    console.error("[WhatsApp Audit] Falha ao listar:", error);
+    res.status(500).json({ message: "Erro ao consultar auditoria" });
+  }
 });
 
 // Consulta o status AO VIVO no gateway. O ramo Cloud API devolve dados da Meta

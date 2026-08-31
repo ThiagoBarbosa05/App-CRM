@@ -11,9 +11,10 @@ import {
   handlePresenceUpdate,
   handleMessagingHistory,
 } from "./whatsapp-baileys-events.service";
+import { auditDecryption } from "./whatsapp-message-audit.service";
 
 export interface GatewayWebhookEnvelope {
-  event: "messages.upsert" | "messages.update" | "messages.reaction" | "messages.delete" | "message-receipt.update" | "presence.update" | "messaging-history.set" | "connection.update" | "qrcode.updated";
+  event: "messages.upsert" | "messages.update" | "messages.reaction" | "messages.delete" | "message-receipt.update" | "presence.update" | "messaging-history.set" | "connection.update" | "qrcode.updated" | "messages.decryption";
   instance: string;
   data: unknown;
   /**
@@ -52,6 +53,9 @@ async function dispatch(envelope: GatewayWebhookEnvelope): Promise<void> {
   switch (envelope.event) {
     case "messages.upsert":
       await handleMessagesUpsert(envelope.instance, envelope.data);
+      return;
+    case "messages.decryption":
+      await auditDecryption(envelope.instance, envelope.data);
       return;
     case "messages.update":
       await handleMessagesUpdate(envelope.data);

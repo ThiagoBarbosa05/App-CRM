@@ -37,6 +37,7 @@ import { startResumeBotSessionsJob } from "./jobs/resume-bot-sessions.job";
 import { startTemplateTimeoutsJob } from "./jobs/template-timeouts.job";
 import { startUpdateExpiredEventsJob } from "./jobs/update-expired-events-scheduler";
 import { startGatewayWebhookInboxWorker } from "./services/baileys-gateway-webhook-inbox.service";
+import "./jobs/whatsapp-message-audit-retention.job";
 import { startWhatsappCloudWebhookInboxWorker } from "./services/whatsapp-cloud-webhook-inbox.service";
 import { assertGatewayConfiguration } from "./integrations/baileys-gateway";
 

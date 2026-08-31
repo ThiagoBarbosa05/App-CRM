@@ -17,6 +17,7 @@ import {
   jsonb,
   primaryKey,
   date,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -5496,6 +5497,16 @@ export const baileysGatewayWebhookInbox = pgTable(
 
 export type BaileysGatewayWebhookInbox =
   typeof baileysGatewayWebhookInbox.$inferSelect;
+
+export const whatsappStatusAudit = pgTable("whatsapp_status_audit", {
+  id: uuid("id").defaultRandom().primaryKey(), channelId: integer("channel_id").notNull(), instanceName: text("instance_name").notNull(), messageId: text("message_id").notNull(), remoteJid: text("remote_jid").notNull(), remoteJidAlt: text("remote_jid_alt"), participant: text("participant"), participantAlt: text("participant_alt"), addressingMode: text("addressing_mode"), fromMe: boolean("from_me").notNull(), authorPhone: text("author_phone"), authorLid: text("author_lid"), messageType: text("message_type").notNull(), messagePayload: jsonb("message_payload").notNull(), rawPayload: jsonb("raw_payload").notNull(), messageTimestamp: timestamp("message_timestamp", { withTimezone: true }), receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ identity: unique("whatsapp_status_audit_channel_message_key").on(t.channelId, t.messageId), channelReceived: index("whatsapp_status_audit_channel_received_idx").on(t.channelId, t.receivedAt), created: index("whatsapp_status_audit_created_idx").on(t.createdAt) }));
+export type WhatsappStatusAudit = typeof whatsappStatusAudit.$inferSelect;
+
+export const whatsappDecryptionIncidents = pgTable("whatsapp_decryption_incidents", {
+  id: uuid("id").defaultRandom().primaryKey(), channelId: integer("channel_id").notNull(), instanceName: text("instance_name").notNull(), remoteJid: text("remote_jid").notNull(), remoteJidAlt: text("remote_jid_alt"), participant: text("participant"), participantAlt: text("participant_alt"), addressingMode: text("addressing_mode"), fromMe: boolean("from_me").notNull(), messageId: text("message_id").notNull(), status: text("status").notNull(), reason: text("reason").notNull(), attempts: integer("attempts").notNull().default(0), retrying: boolean("retrying").notNull().default(false), firstReceivedAt: timestamp("first_received_at", { withTimezone: true }).defaultNow().notNull(), lastReceivedAt: timestamp("last_received_at", { withTimezone: true }).defaultNow().notNull(), deadlineAt: timestamp("deadline_at", { withTimezone: true }), resolvedAt: timestamp("resolved_at", { withTimezone: true }), gatewayPayload: jsonb("gateway_payload").notNull(), createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(), updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => ({ identity: unique("whatsapp_decryption_identity_key").on(t.instanceName, t.remoteJid, t.participant, t.messageId), channelStatus: index("whatsapp_decryption_channel_status_idx").on(t.channelId, t.status, t.lastReceivedAt), created: index("whatsapp_decryption_created_idx").on(t.createdAt) }));
+export type WhatsappDecryptionIncident = typeof whatsappDecryptionIncidents.$inferSelect;
 
 // Inbox durável dos webhooks da WhatsApp Cloud API. A Meta só recebe 2xx após
 // o payload inteiro estar no banco; o worker abaixo do servidor faz o
