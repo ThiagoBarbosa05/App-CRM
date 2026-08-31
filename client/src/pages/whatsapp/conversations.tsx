@@ -69,6 +69,7 @@ import {
   shouldRenderSystemPill,
 } from "@/lib/wa-message-preview";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
+import { navigateToWhatsappMessage } from "@/lib/wa-message-navigation";
 import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
 import { AttachFileDialog } from "@/components/media-library/attach-file-dialog";
@@ -3866,6 +3867,55 @@ function ConversationMessages({
     element?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [highlightedMessageId, messages]);
 
+  const focusMessage = useCallback((messageId: string) => {
+    setHighlightedMessageId(messageId);
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`wa-message-${messageId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, []);
+
+  const navigateToReplyReference = useCallback(async (messageId: string) => {
+    const result = await navigateToWhatsappMessage<MessagesPage>({
+      messageId,
+      isMessageLoaded: (candidateId) =>
+        messages.some((message) => message.id === candidateId),
+      loadMessageContext: async (candidateId) => {
+        const params = new URLSearchParams();
+        if (viewAsChannelId != null) {
+          params.set("asChannelId", String(viewAsChannelId));
+        }
+        const response = await fetch(
+          `/api/whatsapp/conversations/${conversationKey}/messages/${candidateId}/context?${params}`,
+        );
+        if (!response.ok) return null;
+
+        const context = await response.json();
+        return {
+          messages: context.messages ?? [],
+          nextCursor: context.nextCursor ?? null,
+          lastInboundAt: context.conversation?.lastInboundAt ?? null,
+        };
+      },
+      replaceHistory: (page) => {
+        queryClient.setQueryData(messagesQueryKey, {
+          pages: [page],
+          pageParams: [null],
+        });
+        setIsHistoryAnchored(true);
+      },
+      focusMessage,
+    });
+
+    if (result === "unavailable") {
+      toast({
+        title: "A mensagem original não está disponível",
+        variant: "destructive",
+      });
+    }
+  }, [conversationKey, focusMessage, messages, messagesQueryKey, queryClient, toast, viewAsChannelId]);
+
   // Reforço periódico: re-busca só a página mais recente, sem tocar nas
   // páginas antigas já carregadas via scroll (mesmo padrão da lista de
   // conversas, ver conversationsListQueryKey).
@@ -5541,13 +5591,25 @@ function ConversationMessages({
                           {/* Citação da mensagem respondida */}
                           {msg.replyToContent !== null &&
                           msg.replyToContent !== undefined ? (
-                            <div
+                            <button
+                              type="button"
+                              disabled={!msg.replyToMessageId}
+                              onClick={() => {
+                                if (msg.replyToMessageId) {
+                                  void navigateToReplyReference(msg.replyToMessageId);
+                                }
+                              }}
+                              aria-label={msg.replyToMessageId
+                                ? "Ir para a mensagem original"
+                                : undefined}
                               className={cn(
-                                "rounded-lg px-2.5 py-2 mb-2 border-l-[3px] min-w-0",
+                                "block w-full rounded-lg px-2.5 py-2 mb-2 border-l-[3px] min-w-0 text-left",
                                 isMedia ? "mx-3.5 mt-2.5" : "",
                                 isOutbound
                                   ? "bg-black/10 border-primary-foreground/60"
                                   : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
+                                msg.replyToMessageId &&
+                                  "cursor-pointer transition-colors hover:bg-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 disabled:cursor-default",
                               )}
                             >
                               <p
@@ -5578,7 +5640,7 @@ function ConversationMessages({
                                   msg.replyToType,
                                 )}
                               </p>
-                            </div>
+                            </button>
                           ) : msg.replyToMessageId ? (
                             <div
                               className={cn(
