@@ -69,6 +69,10 @@ import {
   shouldRenderSystemPill,
 } from "@/lib/wa-message-preview";
 import { refreshFirstPage, dedupById } from "@/lib/wa-chat-pagination";
+import {
+  getWhatsappChatAutoScrollBehavior,
+  isWhatsappChatNearBottom,
+} from "@/lib/wa-chat-scroll";
 import { navigateToWhatsappMessage } from "@/lib/wa-message-navigation";
 import { subscribeWaNotifications } from "@/lib/wa-notifications-stream";
 import { useInfiniteScrollSentinel } from "@/hooks/use-infinite-scroll-sentinel";
@@ -3393,6 +3397,7 @@ function ConversationMessages({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number | null>(null);
+  const isNearMessagesEndRef = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { toast } = useToast();
@@ -3975,10 +3980,18 @@ function ConversationMessages({
   const lastMessageId = messages[messages.length - 1]?.id ?? null;
   useEffect(() => {
     if (isLoading) return;
-    messagesEndRef.current?.scrollIntoView({
-      behavior: hasScrolledInitiallyRef.current ? "smooth" : "auto",
+
+    const behavior = getWhatsappChatAutoScrollBehavior({
+      hasScrolledInitially: hasScrolledInitiallyRef.current,
+      wasNearBottom: isNearMessagesEndRef.current,
     });
     hasScrolledInitiallyRef.current = true;
+    if (!behavior) return;
+
+    messagesEndRef.current?.scrollIntoView({
+      behavior,
+    });
+    isNearMessagesEndRef.current = true;
   }, [isLoading, lastMessageId, localMessages.length]);
 
   // Some localIds cuja troca (bolha local -> mensagem real) já foi disparada,
@@ -5234,6 +5247,9 @@ function ConversationMessages({
       {/* Messages area */}
       <div
         ref={messagesContainerRef}
+        onScroll={(event) => {
+          isNearMessagesEndRef.current = isWhatsappChatNearBottom(event.currentTarget);
+        }}
         className="flex-1 overflow-y-auto px-2 sm:px-4 py-3 space-y-1 bg-slate-50 dark:bg-slate-950/30"
       >
         {isLoading ? (
