@@ -144,6 +144,16 @@ describe("PATCH /conversations/:conversationId/contact-name", () => {
     expect(response.status).toBe(403);
     expect(updateConversationCustomContactNameMock).not.toHaveBeenCalled();
   });
+
+  it("rejeita nomes personalizados acima de 120 caracteres", async () => {
+    const response = await request(makeApp())
+      .patch("/api/whatsapp/conversations/c1/contact-name")
+      .send({ name: "a".repeat(121) });
+
+    expect(response.status).toBe(400);
+    expect(resolveConversationIdMock).not.toHaveBeenCalled();
+    expect(updateConversationCustomContactNameMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /conversations/:clientId/read", () => {

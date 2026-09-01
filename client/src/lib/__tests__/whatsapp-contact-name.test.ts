@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { resolveWhatsappContactName } from "../whatsapp-contact-name";
+import {
+  canEditWhatsappContactName,
+  resolveWhatsappContactName,
+} from "../whatsapp-contact-name";
 
 describe("resolveWhatsappContactName", () => {
-  it("prioriza o cliente cadastrado sobre os nomes da conversa", () => {
+  it("prioriza o apelido da conversa sobre o nome do cliente cadastrado", () => {
     expect(resolveWhatsappContactName({
       clientName: "Cliente CRM",
       customContactName: "Apelido",
       contactName: "Nome WhatsApp",
       phone: "5511999999999",
-    })).toBe("Cliente CRM");
+    })).toBe("Apelido");
   });
 
   it("prioriza o nome personalizado sobre o pushName do WhatsApp", () => {
@@ -33,5 +36,16 @@ describe("resolveWhatsappContactName", () => {
       contactName: null,
       phone: "5511999999999",
     })).toBe("5511999999999");
+  });
+});
+
+describe("canEditWhatsappContactName", () => {
+  it("permite editar contatos vinculados ou não ao CRM", () => {
+    expect(canEditWhatsappContactName({ peerChannelId: null })).toBe(true);
+    expect(canEditWhatsappContactName({ peerChannelId: undefined })).toBe(true);
+  });
+
+  it("impede editar o nome de conversas internas entre canais", () => {
+    expect(canEditWhatsappContactName({ peerChannelId: 42 })).toBe(false);
   });
 });

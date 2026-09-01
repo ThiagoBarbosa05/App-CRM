@@ -158,7 +158,10 @@ import {
 } from "@/components/ui/tooltip";
 import { useWhatsappSettings } from "@/hooks/use-whatsapp";
 import { BOT_SHORTCUT_ICONS, parseBotShortcuts } from "@/lib/bot-shortcut-icons";
-import { resolveWhatsappContactName } from "@/lib/whatsapp-contact-name";
+import {
+  canEditWhatsappContactName,
+  resolveWhatsappContactName,
+} from "@/lib/whatsapp-contact-name";
 import { resolveWhatsappContactPhotoUrl } from "@shared/whatsapp-contact-photo";
 
 interface Channel {
@@ -1494,7 +1497,7 @@ function ClientListItem({
         {/* Avatar — mt-0.5 alinha visualmente com o nome */}
         <div className="relative shrink-0 mt-0.5">
           <ContactAvatar
-            name={client.clientName ?? client.customContactName ?? client.contactName}
+            name={resolveWhatsappContactName(client)}
             phone={client.phone}
             photoUrl={resolveWhatsappContactPhotoUrl(client)}
             className={cn(
@@ -4854,10 +4857,10 @@ function ConversationMessages({
                 onChange={(event) => setContactNameDraft(event.target.value)}
                 maxLength={120}
                 autoFocus
-                placeholder={client.contactName ?? client.phone}
+                placeholder={client.clientName ?? client.contactName ?? client.phone}
               />
               <p className="text-xs text-muted-foreground">
-                Esse nome vale apenas para esta conversa e não altera o cadastro de clientes.
+                Esse apelido vale apenas para esta conversa e não altera o cadastro do cliente no CRM.
               </p>
             </div>
             <div className="flex justify-between gap-2">
@@ -4867,7 +4870,7 @@ function ConversationMessages({
                 disabled={!client.customContactName || updateContactNameMutation.isPending}
                 onClick={() => updateContactNameMutation.mutate(null)}
               >
-                Restaurar nome do WhatsApp
+                Restaurar nome original
               </Button>
               <Button type="submit" disabled={updateContactNameMutation.isPending}>
                 {updateContactNameMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -4892,7 +4895,7 @@ function ConversationMessages({
           </Button>
 
           <ContactAvatar
-            name={client.clientName ?? client.customContactName ?? client.contactName}
+            name={resolveWhatsappContactName(client)}
             phone={client.phone}
             photoUrl={resolveWhatsappContactPhotoUrl(client)}
             className="h-9 w-9 text-xs font-bold shadow-sm shrink-0"
@@ -4903,7 +4906,7 @@ function ConversationMessages({
               <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate leading-tight">
                 {displayName}
               </p>
-              {!client.clientId && !client.peerChannelId && (
+              {canEditWhatsappContactName(client) && (
                 <Button
                   type="button"
                   variant="ghost"

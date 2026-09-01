@@ -1452,7 +1452,9 @@ export async function listClientsForChat(
   if (search) {
     conditions.push(
       or(
+        ilike(whatsappConversations.customContactName, `%${search}%`),
         ilike(clients.name, `%${search}%`),
+        ilike(whatsappConversations.contactName, `%${search}%`),
         ilike(whatsappConversations.phone, `%${search}%`),
       ) as ReturnType<typeof eq>,
     );

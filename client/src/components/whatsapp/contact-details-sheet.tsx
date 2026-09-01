@@ -73,7 +73,7 @@ export function ContactDetailsSheet({
           {/* Cabeçalho do contato */}
           <div className="flex items-center gap-3">
             <ContactAvatar
-              name={client.clientName ?? client.customContactName ?? client.contactName}
+              name={displayName}
               phone={client.phone}
               photoUrl={resolveWhatsappContactPhotoUrl(client)}
               className="h-14 w-14 text-lg font-bold shadow-sm shrink-0"

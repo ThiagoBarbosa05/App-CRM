@@ -6,5 +6,11 @@ export interface WhatsappContactNameSource {
 }
 
 export function resolveWhatsappContactName(source: WhatsappContactNameSource): string {
-  return source.clientName ?? source.customContactName ?? source.contactName ?? source.phone;
+  return source.customContactName ?? source.clientName ?? source.contactName ?? source.phone;
+}
+
+export function canEditWhatsappContactName(source: {
+  peerChannelId?: number | null;
+}): boolean {
+  return source.peerChannelId == null;
 }
