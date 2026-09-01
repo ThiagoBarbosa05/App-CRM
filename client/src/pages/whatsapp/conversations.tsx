@@ -5582,14 +5582,17 @@ function ConversationMessages({
                             isFailed
                               ? "bg-red-100 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-800 dark:text-red-200 rounded-tr-[4px]"
                               : isOutbound
-                                ? "bg-primary text-primary-foreground rounded-tr-[4px]"
+                                ? "bg-[hsl(var(--chat-outgoing))] text-[hsl(var(--chat-outgoing-foreground))] rounded-tr-[4px]"
                                 : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 rounded-tl-[4px]",
                           )}
                         >
                           {(msg.isForwarded || msg.origin === "device") && (
                             <div
                               className={cn(
-                                "flex items-center gap-2 text-[10px] opacity-70",
+                                "flex items-center gap-2 text-[10px]",
+                                isOutbound
+                                  ? "text-[hsl(var(--chat-outgoing-muted))]"
+                                  : "opacity-70",
                                 isMedia ? "px-3.5 pt-2.5" : "mb-1.5",
                               )}
                             >
@@ -5625,17 +5628,17 @@ function ConversationMessages({
                                 "block w-full rounded-lg px-2.5 py-2 mb-2 border-l-[3px] min-w-0 text-left",
                                 isMedia ? "mx-3.5 mt-2.5" : "",
                                 isOutbound
-                                  ? "bg-black/10 border-primary-foreground/60"
+                                  ? "bg-[hsl(var(--chat-outgoing-quote))] border-[hsl(var(--chat-outgoing-quote-border))]"
                                   : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
                                 msg.replyToMessageId &&
-                                  "cursor-pointer transition-colors hover:bg-black/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 disabled:cursor-default",
+                                  "cursor-pointer transition-[filter] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 disabled:cursor-default",
                               )}
                             >
                               <p
                                 className={cn(
                                   "text-[11px] font-semibold mb-1 flex items-center gap-1",
                                   isOutbound
-                                    ? "text-primary-foreground/80"
+                                    ? "text-[hsl(var(--chat-outgoing-foreground))]"
                                     : "text-slate-600 dark:text-slate-300",
                                 )}
                               >
@@ -5650,7 +5653,7 @@ function ConversationMessages({
                                 className={cn(
                                   "text-xs leading-4 line-clamp-2 whitespace-pre-line break-words",
                                   isOutbound
-                                    ? "text-primary-foreground/70"
+                                    ? "text-[hsl(var(--chat-outgoing-muted))]"
                                     : "text-slate-500 dark:text-slate-400",
                                 )}
                               >
@@ -5666,7 +5669,7 @@ function ConversationMessages({
                                 "rounded-lg px-2.5 py-1.5 mb-2 border-l-[3px]",
                                 isMedia ? "mx-3.5 mt-2.5" : "",
                                 isOutbound
-                                  ? "bg-primary-foreground/10 border-primary-foreground/50"
+                                  ? "bg-[hsl(var(--chat-outgoing-quote))] border-[hsl(var(--chat-outgoing-quote-border))]"
                                   : "bg-slate-100 dark:bg-slate-700/50 border-slate-400 dark:border-slate-500",
                               )}
                             >
@@ -5674,7 +5677,7 @@ function ConversationMessages({
                                 className={cn(
                                   "text-xs italic",
                                   isOutbound
-                                    ? "text-primary-foreground/60"
+                                    ? "text-[hsl(var(--chat-outgoing-muted))]"
                                     : "text-slate-400 dark:text-slate-500",
                                 )}
                               >
@@ -5707,7 +5710,7 @@ function ConversationMessages({
                                 isFailed
                                   ? "text-red-400 dark:text-red-500"
                                   : isOutbound
-                                    ? "text-primary-foreground/70"
+                                    ? "text-[hsl(var(--chat-outgoing-muted))]"
                                     : "text-slate-400 dark:text-slate-500",
                               )}
                             >
@@ -5723,7 +5726,7 @@ function ConversationMessages({
                             ) : isOutbound ? (
                               receiptState === "sent" ? (
                                 <span title="Enviada ao WhatsApp" aria-label="Mensagem enviada">
-                                  <Check className="h-3 w-3 text-primary-foreground/60" />
+                                  <Check className="h-3 w-3 text-[hsl(var(--chat-outgoing-muted))]" />
                                 </span>
                               ) : (
                                 <span
@@ -5743,7 +5746,7 @@ function ConversationMessages({
                                       "h-3 w-3",
                                       receiptState === "read"
                                         ? "text-[#53bdeb]"
-                                        : "text-primary-foreground/65",
+                                        : "text-[hsl(var(--chat-outgoing-muted))]",
                                     )}
                                   />
                                 </span>
