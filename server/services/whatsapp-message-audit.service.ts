@@ -1,4 +1,5 @@
 import { db, pool } from "../db";
+import { sql } from "drizzle-orm";
 import { getChannelByEvolutionInstance } from "./whatsapp-channels.service";
 
 export type GatewayMessageKey = {
@@ -47,7 +48,24 @@ export async function auditStatus(instanceName: string, data: unknown): Promise<
   const key = normalizeGatewayMessageKey(input.key);
   const author = resolveStatusAuthor(key);
   const message = typeof input.message === "object" && input.message !== null ? input.message : {};
-  await db.execute({ sql: `INSERT INTO whatsapp_status_audit (channel_id, instance_name, message_id, remote_jid, remote_jid_alt, participant, participant_alt, addressing_mode, from_me, author_phone, author_lid, message_type, message_payload, raw_payload, message_timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,to_timestamp($15)) ON CONFLICT (channel_id, message_id) DO UPDATE SET updated_at=now(), raw_payload=EXCLUDED.raw_payload, message_payload=EXCLUDED.message_payload`, params: [channel.id, instanceName, key.id, key.remoteJid, key.remoteJidAlt ?? null, key.participant ?? null, key.participantAlt ?? null, key.addressingMode ?? null, key.fromMe, author.phone, author.lid, typeof input.messageType === "string" ? input.messageType : "unknown", JSON.stringify(message), JSON.stringify(data), typeof input.messageTimestamp === "number" ? input.messageTimestamp : null] } as never);
+  await db.execute(sql`
+    INSERT INTO whatsapp_status_audit (
+      channel_id, instance_name, message_id, remote_jid, remote_jid_alt,
+      participant, participant_alt, addressing_mode, from_me, author_phone,
+      author_lid, message_type, message_payload, raw_payload, message_timestamp
+    ) VALUES (
+      ${channel.id}, ${instanceName}, ${key.id}, ${key.remoteJid}, ${key.remoteJidAlt ?? null},
+      ${key.participant ?? null}, ${key.participantAlt ?? null}, ${key.addressingMode ?? null},
+      ${key.fromMe}, ${author.phone}, ${author.lid},
+      ${typeof input.messageType === "string" ? input.messageType : "unknown"},
+      ${JSON.stringify(message)}, ${JSON.stringify(data)},
+      to_timestamp(${typeof input.messageTimestamp === "number" ? input.messageTimestamp : null})
+    )
+    ON CONFLICT (channel_id, message_id) DO UPDATE SET
+      updated_at = now(),
+      raw_payload = EXCLUDED.raw_payload,
+      message_payload = EXCLUDED.message_payload
+  `);
 }
 
 export async function auditDecryption(instanceName: string, data: unknown): Promise<void> {
