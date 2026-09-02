@@ -1,4 +1,5 @@
 import { cashbackSettingsRepository } from "../repositories/cashback-settings.repository";
+import { dispatchCashbackEarnedAutomation } from "./cashback-automation.service";
 import type {
   CashbackSetting,
   InsertCashbackSetting,
@@ -108,6 +109,13 @@ class CashbackSettingsService {
 
     // Atualizar saldo do cliente
     await cashbackSettingsRepository.updateClientCashbackBalance(data.clientId);
+
+    dispatchCashbackEarnedAutomation(transaction).catch((error: unknown) => {
+      console.error(
+        "[CashbackSettingsService] Erro ao disparar automação de cashback ganho:",
+        error,
+      );
+    });
 
     return transaction;
   }

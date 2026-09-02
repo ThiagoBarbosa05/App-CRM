@@ -3,6 +3,7 @@
  */
 
 import { Router } from "express";
+import { requireAdmin } from "../middleware/validation";
 import {
   cancelAllExecutionsController,
   cancelExecutionController,
@@ -20,6 +21,7 @@ import {
 } from "server/controllers/automation-execution/get-executions.controller";
 
 const router = Router();
+router.use(requireAdmin);
 
 // === ROTAS DE CONSULTA ===
 

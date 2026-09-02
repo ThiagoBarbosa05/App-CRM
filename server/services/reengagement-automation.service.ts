@@ -4,10 +4,7 @@ import { eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { differenceInCalendarDays, format } from "date-fns";
 import { listActiveAutomationRulesByTrigger } from "./automation-rules.service";
-import {
-  dispatchAutomationRule,
-  hasSuccessfulDispatch,
-} from "./automation-send.service";
+import { dispatchAutomationRule } from "./automation-send.service";
 
 interface InactiveClientRow {
   client_id: string;
@@ -119,9 +116,6 @@ export async function runInactivityReengagement(
     );
     if (daysSincePurchase < inactivityDaysThreshold) continue;
 
-    const dedupeKey = `inactivity_reengagement:${rule.id}:${row.client_id}:${row.last_purchase_date}`;
-    if (await hasSuccessfulDispatch(dedupeKey)) continue;
-
     const [client] = await db
       .select()
       .from(clients)
@@ -134,13 +128,18 @@ export async function runInactivityReengagement(
       data_ultima_compra: formatDate(row.last_purchase_date),
     };
 
-    await dispatchAutomationRule({
+    const results = await dispatchAutomationRule({
       rule,
       clientId: client.id,
       to: { phone: client.phone, email: client.email },
       variables,
-      dedupeKey,
+      eventKey: `inactivity_reengagement:${rule.id}:${row.client_id}:${row.last_purchase_date}`,
     });
+
+    const successfulChannels = results.filter(
+      (result) => result.status === "success",
+    );
+    if (successfulChannels.length === 0) continue;
 
     await db
       .insert(reengagementProgress)
@@ -158,7 +157,7 @@ export async function runInactivityReengagement(
         },
       });
 
-    sent++;
+    sent += successfulChannels.length;
   }
 
   return { clientsChecked: inactiveClients.length, sent };

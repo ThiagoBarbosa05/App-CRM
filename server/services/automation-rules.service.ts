@@ -1,15 +1,18 @@
 import { db } from "server/db";
 import {
   automationRules,
+  automationDeliveries,
+  automationExecutionLog,
   type InsertAutomationRule,
   type AutomationRule,
 } from "@shared/schema";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, isNull } from "drizzle-orm";
 
 export async function listAutomationRules(): Promise<AutomationRule[]> {
   return db
     .select()
     .from(automationRules)
+    .where(isNull(automationRules.archivedAt))
     .orderBy(asc(automationRules.sortOrder), desc(automationRules.createdAt));
 }
 
@@ -74,5 +77,24 @@ export async function toggleAutomationRuleActive(
 }
 
 export async function deleteAutomationRule(id: string): Promise<void> {
+  const usage = await db
+    .select({ id: automationExecutionLog.id })
+    .from(automationExecutionLog)
+    .where(eq(automationExecutionLog.ruleId, id))
+    .limit(1);
+  const deliveryUsage = await db
+    .select({ id: automationDeliveries.id })
+    .from(automationDeliveries)
+    .where(eq(automationDeliveries.ruleId, id))
+    .limit(1);
+
+  if (usage.length > 0 || deliveryUsage.length > 0) {
+    await db
+      .update(automationRules)
+      .set({ isActive: false, archivedAt: new Date(), updatedAt: new Date() })
+      .where(eq(automationRules.id, id));
+    return;
+  }
+
   await db.delete(automationRules).where(eq(automationRules.id, id));
 }

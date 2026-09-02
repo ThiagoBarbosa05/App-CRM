@@ -45,7 +45,6 @@ export async function startCatchupController(
     console.error("[Start Catchup Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao iniciar catch-up",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -80,7 +79,6 @@ export async function stopCatchupController(
     console.error("[Stop Catchup Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao parar catch-up",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -105,7 +103,6 @@ export async function getCatchupStatusController(
     console.error("[Get Catchup Status Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao verificar status do catch-up",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -149,7 +146,6 @@ export async function executeFullCatchupController(
     console.error("[Execute Full Catchup Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao iniciar catch-up completo",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }

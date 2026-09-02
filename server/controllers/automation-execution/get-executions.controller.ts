@@ -27,7 +27,6 @@ export async function getExecutionsController(
     console.error("[Get Executions Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao buscar execuções",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -51,7 +50,6 @@ export async function getRunningExecutionsController(
     console.error("[Get Running Executions Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao buscar execuções em andamento",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -82,7 +80,6 @@ export async function getExecutionHistoryController(
     console.error("[Get Execution History Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao buscar histórico de execuções",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }

@@ -819,12 +819,14 @@ export const smsCampaignMessages = pgTable("sms_campaign_messages", {
     .references(() => clients.id, { onDelete: "cascade" })
     .notNull(),
   phone: text("phone").notNull(),
-  status: text("status", { enum: ["pending", "sent", "delivered", "failed"] })
+  normalizedPhone: text("normalized_phone"),
+  status: text("status", { enum: ["pending", "processing", "sent", "delivered", "failed", "unknown"] })
     .notNull()
     .default("pending"),
   twilioSid: text("twilio_sid"),
   errorMessage: text("error_message"),
   sentAt: timestamp("sent_at"),
+  claimedAt: timestamp("claimed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -6065,6 +6067,7 @@ export const messageTemplates = pgTable("message_templates", {
   subject: text("subject"), // apenas para e-mail
   body: text("body").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  archivedAt: timestamp("archived_at"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdBy: varchar("created_by")
     .references(() => users.id)
@@ -6097,6 +6100,7 @@ export const automationRules = pgTable("automation_rules", {
   emailEnabled: boolean("email_enabled").notNull().default(false),
   emailTemplateId: varchar("email_template_id").references(() => messageTemplates.id),
   isActive: boolean("is_active").notNull().default(true),
+  archivedAt: timestamp("archived_at"),
   sortOrder: integer("sort_order").notNull().default(0),
   createdBy: varchar("created_by")
     .references(() => users.id)
@@ -6145,6 +6149,52 @@ export const automationExecutionLog = pgTable(
 
 export type AutomationExecutionLog = typeof automationExecutionLog.$inferSelect;
 export type InsertAutomationExecutionLog = typeof automationExecutionLog.$inferInsert;
+
+// Reserva idempotente de cada entrega por evento de negócio + canal. Diferente
+// do log histórico, esta tabela é criada antes do envio ao provedor para que
+// duas instâncias não possam enviar a mesma mensagem simultaneamente.
+export const automationDeliveries = pgTable(
+  "automation_deliveries",
+  {
+    id: varchar("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    ruleId: varchar("rule_id")
+      .references(() => automationRules.id)
+      .notNull(),
+    clientId: varchar("client_id").references(() => clients.id, {
+      onDelete: "set null",
+    }),
+    channel: text("channel", { enum: ["sms", "email"] }).notNull(),
+    templateId: varchar("template_id").references(() => messageTemplates.id),
+    eventKey: text("event_key").notNull(),
+    recipient: text("recipient").notNull(),
+    status: text("status", {
+      enum: ["processing", "success", "failed", "unknown"],
+    })
+      .notNull()
+      .default("processing"),
+    attemptCount: integer("attempt_count").notNull().default(1),
+    providerMessageId: text("provider_message_id"),
+    errorMessage: text("error_message"),
+    claimedAt: timestamp("claimed_at").defaultNow().notNull(),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("automation_deliveries_event_channel_unique").on(
+      table.eventKey,
+      table.channel,
+    ),
+    index("automation_deliveries_rule_idx").on(table.ruleId),
+    index("automation_deliveries_client_idx").on(table.clientId),
+    index("automation_deliveries_status_idx").on(table.status),
+  ],
+);
+
+export type AutomationDelivery = typeof automationDeliveries.$inferSelect;
+export type AutomationDeliveryStatus = AutomationDelivery["status"];
 
 // Progresso da régua de reengajamento por inatividade: uma linha por cliente
 // guardando quantas tentativas já foram enviadas no ciclo de inatividade

@@ -9,10 +9,7 @@ import { addDays, startOfDay, format } from "date-fns";
 import {
   listActiveAutomationRulesByTrigger,
 } from "./automation-rules.service";
-import {
-  dispatchAutomationRule,
-  hasSuccessfulDispatch,
-} from "./automation-send.service";
+import { dispatchAutomationRule } from "./automation-send.service";
 
 function formatCurrency(value: string | number): string {
   const numeric = typeof value === "string" ? parseFloat(value) : value;
@@ -53,15 +50,12 @@ export async function dispatchCashbackEarnedAutomation(
     };
 
     for (const rule of rules) {
-      const dedupeKey = `cashback_earned:${rule.id}:${transaction.id}`;
-      if (await hasSuccessfulDispatch(dedupeKey)) continue;
-
       await dispatchAutomationRule({
         rule,
         clientId: client.id,
         to: { phone: client.phone, email: client.email },
         variables,
-        dedupeKey,
+        eventKey: `cashback_earned:${rule.id}:${transaction.id}`,
       });
     }
   } catch (error) {
@@ -117,23 +111,20 @@ export async function runCashbackExpiringReminders(
     transactionsChecked += rows.length;
 
     for (const { transaction, client } of rows) {
-      const dedupeKey = `cashback_expiring:${rule.id}:${transaction.id}`;
-      if (await hasSuccessfulDispatch(dedupeKey)) continue;
-
       const variables = {
         nome: client.name,
         valor: formatCurrency(transaction.cashbackAmount),
         data: formatDate(transaction.expiresAt),
       };
 
-      await dispatchAutomationRule({
+      const results = await dispatchAutomationRule({
         rule,
         clientId: client.id,
         to: { phone: client.phone, email: client.email },
         variables,
-        dedupeKey,
+        eventKey: `cashback_expiring:${rule.id}:${transaction.id}`,
       });
-      sent++;
+      sent += results.filter((result) => result.status === "success").length;
     }
   }
 

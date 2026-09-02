@@ -12,7 +12,7 @@ import {
 import { eq, and, desc, count, sql } from "drizzle-orm";
 import { sendSms, SmsApiError } from "../integrations/sms";
 import { resolveTargetClients, type MarketingTargetType } from "./marketing-targeting.service";
-import { getServerBaseUrl } from "../lib/twilio-config";
+import { getServerBaseUrl, toE164Brazil } from "../lib/twilio-config";
 
 function resolveCampaignMessage(template: string, clientName: string): string {
   const firstName = clientName ? clientName.split(" ")[0] : "";
@@ -165,20 +165,29 @@ export async function queueCampaignForSend(id: string, scheduledAt?: Date): Prom
     campaign.targetType as MarketingTargetType,
     campaign.targetCriteria,
   );
-  const recipients = targets.filter((c) => c.phone && c.phone.trim() !== "");
+  const recipientsByPhone = new Map(
+    targets
+      .filter((client) => client.phone && client.phone.trim() !== "")
+      .map((client) => [toE164Brazil(client.phone!), client]),
+  );
+  const recipients = Array.from(recipientsByPhone.entries()).map(
+    ([normalizedPhone, client]) => ({ client, normalizedPhone }),
+  );
 
   if (recipients.length === 0) {
     throw new Error("Nenhum destinatário com telefone cadastrado para os critérios selecionados");
   }
 
-  await db.insert(smsCampaignMessages).values(
-    recipients.map((c) => ({
+  await db
+    .insert(smsCampaignMessages)
+    .values(recipients.map(({ client, normalizedPhone }) => ({
       campaignId: id,
-      clientId: c.id,
-      phone: c.phone!,
+      clientId: client.id,
+      phone: client.phone!,
+      normalizedPhone,
       status: "pending" as const,
-    })),
-  );
+    })))
+    .onConflictDoNothing();
 
   const resolvedScheduledAt = scheduledAt ?? campaign.scheduledAt ?? new Date();
   const [updated] = await db
@@ -229,6 +238,18 @@ export async function executeCampaign(
 
   for (const recipient of pending) {
     try {
+      const [claim] = await db
+        .update(smsCampaignMessages)
+        .set({ status: "processing", claimedAt: new Date() })
+        .where(
+          and(
+            eq(smsCampaignMessages.id, recipient.id),
+            eq(smsCampaignMessages.status, "pending"),
+          ),
+        )
+        .returning({ id: smsCampaignMessages.id });
+      if (!claim) continue;
+
       const body = resolveCampaignMessage(campaign.message, recipient.clientName ?? "");
       const baseUrl = await getServerBaseUrl();
       const { sid } = await sendSms({
@@ -243,11 +264,14 @@ export async function executeCampaign(
       sent++;
     } catch (err) {
       const message = err instanceof SmsApiError ? err.message : err instanceof Error ? err.message : String(err);
+      const status = err instanceof SmsApiError && err.status === undefined
+        ? "unknown" as const
+        : "failed" as const;
       await db
         .update(smsCampaignMessages)
-        .set({ status: "failed", errorMessage: message })
+        .set({ status, errorMessage: message })
         .where(eq(smsCampaignMessages.id, recipient.id));
-      failed++;
+      if (status === "failed") failed++;
     }
   }
 

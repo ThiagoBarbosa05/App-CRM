@@ -47,7 +47,6 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   useAutomationRules,
@@ -100,7 +99,6 @@ export function AutomationRulesTab() {
   const toggleMutation = useToggleAutomationRule();
   const deleteMutation = useDeleteAutomationRule();
   const reorderMutation = useReorderAutomationRules();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -206,7 +204,9 @@ export function AutomationRulesTab() {
     }
     if (
       form.trigger === "cashback_expiring" &&
-      (!form.daysBeforeExpiry.trim() || Number(form.daysBeforeExpiry) < 0)
+      (!form.daysBeforeExpiry.trim() ||
+        !Number.isInteger(Number(form.daysBeforeExpiry)) ||
+        Number(form.daysBeforeExpiry) < 0)
     ) {
       toast({
         title: "Informe quantos dias antes do vencimento enviar o lembrete",
@@ -216,7 +216,9 @@ export function AutomationRulesTab() {
     }
     if (
       form.trigger === "inactivity_reengagement" &&
-      (!form.attemptNumber.trim() || Number(form.attemptNumber) < 1)
+      (!form.attemptNumber.trim() ||
+        !Number.isInteger(Number(form.attemptNumber)) ||
+        Number(form.attemptNumber) < 1)
     ) {
       toast({
         title: "Informe o número da tentativa (1, 2, 3...)",
@@ -226,7 +228,9 @@ export function AutomationRulesTab() {
     }
     if (
       form.trigger === "inactivity_reengagement" &&
-      (!form.inactivityDays.trim() || Number(form.inactivityDays) < 0)
+      (!form.inactivityDays.trim() ||
+        !Number.isInteger(Number(form.inactivityDays)) ||
+        Number(form.inactivityDays) < 0)
     ) {
       toast({
         title: "Informe quantos dias sem comprar disparam esta tentativa",
@@ -252,7 +256,6 @@ export function AutomationRulesTab() {
       emailEnabled: form.emailEnabled,
       emailTemplateId: form.emailEnabled ? form.emailTemplateId : null,
       isActive: form.isActive,
-      createdBy: user?.id,
     };
 
     try {
@@ -260,7 +263,7 @@ export function AutomationRulesTab() {
         await updateMutation.mutateAsync({ id: editingId, data: payload });
         toast({ title: "Regra atualizada com sucesso" });
       } else {
-        await createMutation.mutateAsync(payload as any);
+        await createMutation.mutateAsync(payload);
         toast({ title: "Regra criada com sucesso" });
       }
       setDialogOpen(false);

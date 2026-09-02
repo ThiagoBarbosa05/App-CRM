@@ -1,5 +1,8 @@
 import cron from "node-cron";
 import { runCashbackExpiringReminders } from "../services/cashback-automation.service";
+import { withAutomationJobLock } from "../services/automation-job-lock.service";
+
+const CASHBACK_EXPIRING_LOCK_KEY = 727_100_021;
 
 /**
  * Verifica diariamente as regras de automação ativas com gatilho
@@ -10,10 +13,13 @@ import { runCashbackExpiringReminders } from "../services/cashback-automation.se
 async function checkCashbackExpiringReminders(): Promise<void> {
   try {
     console.log("[Scheduler] Verificando lembretes de vencimento de cashback...");
-    const result = await runCashbackExpiringReminders();
-    console.log(
-      `[Scheduler] Lembretes de cashback: ${result.rulesChecked} regra(s) verificada(s), ${result.transactionsChecked} transação(ões) elegível(is), ${result.sent} disparo(s) enviado(s).`,
-    );
+    const ran = await withAutomationJobLock(CASHBACK_EXPIRING_LOCK_KEY, async () => {
+      const result = await runCashbackExpiringReminders();
+      console.log(
+        `[Scheduler] Lembretes de cashback: ${result.rulesChecked} regra(s) verificada(s), ${result.transactionsChecked} transação(ões) elegível(is), ${result.sent} disparo(s) enviado(s).`,
+      );
+    });
+    if (!ran) console.log("[Scheduler] Lembretes de cashback já estão em execução em outra instância.");
   } catch (error) {
     console.error(
       "[Scheduler] Erro ao verificar lembretes de vencimento de cashback:",

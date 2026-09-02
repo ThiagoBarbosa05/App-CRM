@@ -1,18 +1,35 @@
 import { db } from "server/db";
-import { automationExecutionLog, type AutomationRule } from "@shared/schema";
+import {
+  automationDeliveries,
+  automationExecutionLog,
+  type AutomationRule,
+} from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { sendSms, SmsApiError } from "../integrations/sms";
 import { sendEmail, EmailApiError } from "../integrations/email";
 import {
   getMessageTemplateById,
   renderTemplate,
 } from "./message-templates.service";
+import {
+  claimAutomationDelivery,
+  type AutomationDeliveryChannel,
+} from "./automation-delivery.service";
 
 interface DispatchParams {
   rule: AutomationRule;
   clientId: string | null;
   to: { phone?: string | null; email?: string | null };
   variables: Record<string, string | number>;
-  dedupeKey?: string;
+  eventKey: string;
+}
+
+export interface AutomationChannelDispatchResult {
+  channel: AutomationDeliveryChannel;
+  status: "success" | "failed" | "unknown" | "suppressed";
+  deliveryId: string | null;
+  providerMessageId: string | null;
+  errorMessage: string | null;
 }
 
 /**
@@ -25,31 +42,33 @@ export async function dispatchAutomationRule({
   clientId,
   to,
   variables,
-  dedupeKey,
-}: DispatchParams): Promise<void> {
+  eventKey,
+}: DispatchParams): Promise<AutomationChannelDispatchResult[]> {
+  const results: AutomationChannelDispatchResult[] = [];
   if (rule.smsEnabled && rule.smsTemplateId) {
-    await dispatchChannel({
+    results.push(await dispatchChannel({
       rule,
       channel: "sms",
       templateId: rule.smsTemplateId,
       clientId,
       variables,
-      dedupeKey,
+      eventKey,
       recipient: to.phone,
-    });
+    }));
   }
 
   if (rule.emailEnabled && rule.emailTemplateId) {
-    await dispatchChannel({
+    results.push(await dispatchChannel({
       rule,
       channel: "email",
       templateId: rule.emailTemplateId,
       clientId,
       variables,
-      dedupeKey,
+      eventKey,
       recipient: to.email,
-    });
+    }));
   }
+  return results;
 }
 
 async function dispatchChannel({
@@ -58,17 +77,18 @@ async function dispatchChannel({
   templateId,
   clientId,
   variables,
-  dedupeKey,
+  eventKey,
   recipient,
 }: {
   rule: AutomationRule;
-  channel: "sms" | "email";
+  channel: AutomationDeliveryChannel;
   templateId: string;
   clientId: string | null;
   variables: Record<string, string | number>;
-  dedupeKey?: string;
+  eventKey: string;
   recipient?: string | null;
-}): Promise<void> {
+}): Promise<AutomationChannelDispatchResult> {
+  let deliveryId: string | null = null;
   try {
     if (!recipient) {
       throw new Error(
@@ -84,6 +104,25 @@ async function dispatchChannel({
     }
 
     const body = renderTemplate(template.body, variables);
+
+    const claim = await claimAutomationDelivery(db, {
+      ruleId: rule.id,
+      clientId,
+      channel,
+      templateId,
+      eventKey,
+      recipient,
+    });
+    if (!claim) {
+      return {
+        channel,
+        status: "suppressed",
+        deliveryId: null,
+        providerMessageId: null,
+        errorMessage: null,
+      };
+    }
+    deliveryId = claim.id;
 
     let externalId: string | null = null;
     if (channel === "sms") {
@@ -104,13 +143,48 @@ async function dispatchChannel({
       templateId,
       status: "success",
       externalId,
-      dedupeKey,
+      dedupeKey: `${eventKey}:${channel}`,
     });
+    await db
+      .update(automationDeliveries)
+      .set({
+        status: "success",
+        providerMessageId: externalId,
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(automationDeliveries.id, claim.id));
+    return {
+      channel,
+      status: "success",
+      deliveryId: claim.id,
+      providerMessageId: externalId,
+      errorMessage: null,
+    };
   } catch (error) {
     const message =
       error instanceof SmsApiError || error instanceof EmailApiError || error instanceof Error
         ? error.message
         : String(error);
+
+    const status =
+      error instanceof SmsApiError || error instanceof EmailApiError
+        ? error.status === undefined
+          ? "unknown"
+          : "failed"
+        : "failed";
+
+    if (deliveryId) {
+      await db
+        .update(automationDeliveries)
+        .set({
+          status,
+          errorMessage: message,
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(automationDeliveries.id, deliveryId));
+    }
 
     await db.insert(automationExecutionLog).values({
       ruleId: rule.id,
@@ -119,8 +193,15 @@ async function dispatchChannel({
       templateId,
       status: "failed",
       errorMessage: message,
-      dedupeKey,
+      dedupeKey: `${eventKey}:${channel}`,
     });
+    return {
+      channel,
+      status,
+      deliveryId,
+      providerMessageId: null,
+      errorMessage: message,
+    };
   }
 }
 

@@ -29,8 +29,10 @@ import {
 } from "./client-lookup";
 import { cashbackSettingsService } from "./cashback-settings.service";
 import { cashbackSettingsRepository } from "../repositories/cashback-settings.repository";
-import { dispatchCashbackEarnedAutomation } from "./cashback-automation.service";
 import { resetReengagementProgress } from "./reengagement-automation.service";
+import {
+  decideBlingCashbackAction,
+} from "./bling-cashback-eligibility";
 
 /**
  * Interface para parâmetros de criação de pedido
@@ -189,6 +191,7 @@ export class BlingOrdersService {
           userId: metadata.userId,
           blingOrdersDbId: result.id,
           connectionId: connectionId ?? null,
+          previousSituationId: null,
         });
       } catch (error) {
         console.error(
@@ -339,6 +342,7 @@ export class BlingOrdersService {
           userId: metadata.userId,
           blingOrdersDbId: result.id,
           connectionId: connectionId ?? null,
+          previousSituationId: currentOrder.situationId,
         });
       } catch (error) {
         console.error(
@@ -823,9 +827,40 @@ export class BlingOrdersService {
     appClientId: string;
     order: SalesOrder;
     userId: string;
+    previousSituationId?: string | null;
   }): Promise<string> {
-    const { action, appClientId, order, userId } = params;
+    const { action, appClientId, order, userId, previousSituationId = null } = params;
     const invoiceNumber = order.numero.toString();
+
+    const [activeCashback] = await db
+      .select({ id: cashbackTransactions.id, cashbackAmount: cashbackTransactions.cashbackAmount })
+      .from(cashbackTransactions)
+      .where(
+        and(
+          eq(cashbackTransactions.clientId, appClientId),
+          eq(cashbackTransactions.invoiceNumber, invoiceNumber),
+          eq(cashbackTransactions.status, "approved"),
+        ),
+      )
+      .limit(1);
+
+    const cashbackAction = decideBlingCashbackAction(
+      previousSituationId,
+      order.situacao?.id ? String(order.situacao.id) : null,
+      Boolean(activeCashback),
+    );
+
+    if (cashbackAction === "none") return "0";
+    if (cashbackAction === "reuse") return activeCashback?.cashbackAmount ?? "0";
+
+    if (cashbackAction === "cancel") {
+      await db
+        .update(cashbackTransactions)
+        .set({ status: "cancelled" })
+        .where(eq(cashbackTransactions.id, activeCashback!.id));
+      await cashbackSettingsRepository.updateClientCashbackBalance(appClientId);
+      return "0";
+    }
 
     // Cancela sempre cashbacks não-cancelados para este cliente+pedido antes de criar
     // (idempotência: protege contra re-entrega Pub/Sub em create E handle de updates)
@@ -914,12 +949,6 @@ export class BlingOrdersService {
         processedBy: undefined,
       });
 
-      dispatchCashbackEarnedAutomation(transaction).catch((err) =>
-        console.error(
-          "[BlingOrdersService] Erro ao disparar automação de cashback ganho:",
-          err,
-        ),
-      );
     } catch (error) {
       console.error(
         "[BlingOrdersService] Erro ao criar transação de cashback:",
@@ -1059,8 +1088,16 @@ export class BlingOrdersService {
     userId: string;
     blingOrdersDbId: string;
     connectionId: string | null;
+    previousSituationId: string | null;
   }): Promise<void> {
-    const { action, order, userId, blingOrdersDbId, connectionId } = params;
+    const {
+      action,
+      order,
+      userId,
+      blingOrdersDbId,
+      connectionId,
+      previousSituationId,
+    } = params;
 
     // Somente Pessoa Física é elegível para vínculo com cliente do app
     if (order.contato.tipo !== "F") {
@@ -1183,6 +1220,7 @@ export class BlingOrdersService {
           appClientId: appClient.id,
           order,
           userId,
+          previousSituationId,
         });
       } catch (error) {
         console.error("[BlingOrdersService] Erro ao processar cashback:", error);

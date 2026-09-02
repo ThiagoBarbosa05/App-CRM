@@ -15,6 +15,9 @@ import { sendSms, SmsApiError } from "../integrations/sms";
 import { sendEmail, EmailApiError } from "../integrations/email";
 
 export const messageTemplatesRouter = Router();
+const messageTemplateRequestSchema = insertMessageTemplateSchema.omit({
+  createdBy: true,
+});
 
 const TEST_SEND_SAMPLE_VARIABLES: Record<string, string> = {
   nome: "Maria Silva",
@@ -54,10 +57,13 @@ messageTemplatesRouter.patch(
 
 messageTemplatesRouter.post(
   "/",
-  validateBody(insertMessageTemplateSchema),
+  validateBody(messageTemplateRequestSchema),
   async (req, res) => {
     try {
-      const created = await createMessageTemplate(req.body);
+      const created = await createMessageTemplate({
+        ...req.body,
+        createdBy: req.user!.userId,
+      });
       res.status(201).json(created);
     } catch (error) {
       console.error("Erro ao criar modelo de mensagem:", error);
@@ -68,7 +74,7 @@ messageTemplatesRouter.post(
 
 messageTemplatesRouter.put(
   "/:id",
-  validateBody(insertMessageTemplateSchema.partial()),
+  validateBody(messageTemplateRequestSchema.partial()),
   async (req, res) => {
     try {
       const updated = await updateMessageTemplate(req.params.id, req.body);

@@ -47,7 +47,6 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import {
   useMessageTemplates,
@@ -132,7 +131,6 @@ export function MessageTemplatesTab() {
   const updateMutation = useUpdateMessageTemplate();
   const deleteMutation = useDeleteMessageTemplate();
   const reorderMutation = useReorderMessageTemplates();
-  const { user } = useAuth();
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -258,7 +256,6 @@ export function MessageTemplatesTab() {
       subject: form.channel === "email" ? form.subject.trim() : null,
       body: form.body.trim(),
       isActive: form.isActive,
-      createdBy: user?.id,
     };
 
     try {
@@ -266,7 +263,7 @@ export function MessageTemplatesTab() {
         await updateMutation.mutateAsync({ id: editingId, data: payload });
         toast({ title: "Modelo atualizado com sucesso" });
       } else {
-        await createMutation.mutateAsync(payload as any);
+        await createMutation.mutateAsync(payload);
         toast({ title: "Modelo criado com sucesso" });
       }
       setDialogOpen(false);

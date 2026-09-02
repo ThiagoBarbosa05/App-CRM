@@ -10,6 +10,8 @@ import type {
 
 const TEMPLATES_KEY = ["/api/message-templates"];
 const RULES_KEY = ["/api/automation-rules"];
+type AutomationRuleRequest = Omit<InsertAutomationRule, "createdBy">;
+type MessageTemplateRequest = Omit<InsertMessageTemplate, "createdBy">;
 
 export function useMessageTemplates() {
   return useQuery<MessageTemplate[]>({ queryKey: TEMPLATES_KEY });
@@ -17,7 +19,7 @@ export function useMessageTemplates() {
 
 export function useCreateMessageTemplate() {
   return useMutation({
-    mutationFn: async (data: InsertMessageTemplate) => {
+    mutationFn: async (data: MessageTemplateRequest) => {
       const res = await apiRequest("POST", "/api/message-templates", data);
       return res.json();
     },
@@ -32,7 +34,7 @@ export function useUpdateMessageTemplate() {
       data,
     }: {
       id: string;
-      data: Partial<InsertMessageTemplate>;
+      data: Partial<MessageTemplateRequest>;
     }) => {
       const res = await apiRequest("PUT", `/api/message-templates/${id}`, data);
       return res.json();
@@ -80,7 +82,7 @@ export function useAutomationRules() {
 
 export function useCreateAutomationRule() {
   return useMutation({
-    mutationFn: async (data: InsertAutomationRule) => {
+    mutationFn: async (data: AutomationRuleRequest) => {
       const res = await apiRequest("POST", "/api/automation-rules", data);
       return res.json();
     },
@@ -95,7 +97,7 @@ export function useUpdateAutomationRule() {
       data,
     }: {
       id: string;
-      data: Partial<InsertAutomationRule>;
+      data: Partial<AutomationRuleRequest>;
     }) => {
       const res = await apiRequest("PUT", `/api/automation-rules/${id}`, data);
       return res.json();

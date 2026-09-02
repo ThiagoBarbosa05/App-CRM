@@ -37,7 +37,6 @@ export async function cancelExecutionController(
     console.error("[Cancel Execution Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao cancelar execução",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }
@@ -65,7 +64,6 @@ export async function cancelAllExecutionsController(
     console.error("[Cancel All Executions Controller] Erro:", error);
     res.status(500).json({
       message: "Erro ao cancelar execuções",
-      error: error instanceof Error ? error.message : String(error),
     });
   }
 }

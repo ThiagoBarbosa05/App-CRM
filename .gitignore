@@ -13,6 +13,7 @@ bling-control-0f37ef3dad78.json
 !migrations/0012_whatsapp_cloud_webhook_inbox.sql
 !migrations/0013_whatsapp_campaign_retry_audit.sql
 !migrations/0014_whatsapp_conversation_custom_contact_name.sql
+!migrations/0015_automation_delivery_manual.sql
 !migrations/0006_baileys_gateway.sql
 !migrations/0007_whatsapp_unified_messages.sql
 !migrations/0008_whatsapp_message_receipts.sql
