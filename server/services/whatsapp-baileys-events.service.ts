@@ -3,6 +3,8 @@ import { saveInboundMessage, saveInboundReaction } from "./whatsapp-conversation
 import { publishConversationEvent, publishSseEvent } from "../lib/sse-hub";
 import { jidToPhone, isIgnorableJid } from "./baileys/jid";
 import { sendText as evoSendText } from "../integrations/evolution";
+import { normalizeEvolutionQrData } from "../integrations/evolution-api";
+import { extractEvolutionSerializedConversation } from "../lib/evolution-message-content";
 import {
   optOutClientByPhone,
   optInClientByPhone,
@@ -182,6 +184,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     messageType?: string;
     messageTimestamp?: number;
     pushName?: string;
+    contextInfo?: Record<string, unknown>;
     _baileysMedia?: {
       storageKey: string;
       mimeType: string;
@@ -269,7 +272,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
       msgContent.documentMessage ??
       msgContent.stickerMessage) as Record<string, unknown> | undefined
   );
-  const contextInfo = contentNode?.contextInfo as {
+  const contextInfo = (contentNode?.contextInfo ?? msg.contextInfo) as {
     stanzaId?: string;
     participant?: string;
     quotedMessage?: Record<string, unknown>;
@@ -277,7 +280,7 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
     forwardingScore?: number;
   } | undefined;
   const quotedSnapshot = extractQuotedMessageSnapshot(contextInfo?.quotedMessage);
-  const quotedParticipantPhone = contextInfo?.participant
+  const quotedParticipantPhone = contextInfo?.participant && !contextInfo.participant.endsWith("@lid")
     ? jidToPhone(contextInfo.participant)
     : null;
   const quotedDirection: "inbound" | "outbound" | undefined = quotedSnapshot
@@ -285,8 +288,10 @@ export async function handleMessagesUpsert(instanceName: string, data: unknown) 
       ? isSameChannelPhone(channel.displayPhone, quotedParticipantPhone) ? "outbound" : "inbound"
       : fromMe ? "inbound" : "outbound"
     : undefined;
+  const conversation = msgContent.conversation as string | undefined;
   const text =
-    (msgContent.conversation as string | undefined) ??
+    extractEvolutionSerializedConversation(conversation) ??
+    conversation ??
     ((msgContent.extendedTextMessage as Record<string, unknown> | undefined)?.text as string | undefined) ??
     (contentNode?.caption as string | undefined) ??
     richMessage?.content ??
@@ -722,9 +727,7 @@ export async function handleQrcodeUpdated(
   data: unknown,
   occurredAt?: Date,
 ) {
-  const qrData = data as { qrcode?: { base64?: string; code?: string } };
-  const base64 = qrData.qrcode?.base64 ?? null;
-  const code = qrData.qrcode?.code ?? null;
+  const { base64, code } = normalizeEvolutionQrData(data);
 
   const channel = await getChannelByEvolutionInstance(instanceName).catch(() => null);
   if (!channel) return;

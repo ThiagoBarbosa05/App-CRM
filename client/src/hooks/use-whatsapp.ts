@@ -155,7 +155,12 @@ export interface WhatsappChannel {
   userId: string | null;
   isActive: boolean;
   evolutionInstanceName: string | null;
-  qrBackend: "gateway";
+  qrBackend: "gateway" | "evolution_api";
+  qrMigrationStatus: "idle" | "preparing" | "awaiting_qr" | "connecting" | "failed";
+  qrMigrationFrom: "gateway" | "evolution_api" | null;
+  qrMigrationTo: "gateway" | "evolution_api" | null;
+  qrMigrationError: string | null;
+  qrMigrationStartedAt: string | null;
   connectionStatus: string | null;
   /**
    * Última vez que o gateway CONFIRMOU este status. Nulo ou antigo significa
@@ -995,7 +1000,7 @@ export function useChannelStatus(id: number | null) {
 
 export interface EvolutionChannelLiveStatus {
   provider: "evolution";
-  qrBackend: "gateway";
+  qrBackend: "gateway" | "evolution_api";
   connectionStatus: string;
   observedState: string;
   observedStale: boolean;
@@ -1093,7 +1098,7 @@ export function useEvolutionConnect() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (channelId: number) => {
-      const res = await apiRequest("GET", `/api/whatsapp/channels/${channelId}/evolution/connect`);
+      const res = await apiRequest("POST", `/api/whatsapp/channels/${channelId}/evolution/connect`);
       return res.json() as Promise<EvolutionQrResult>;
     },
     onError: (error: Error) => {
@@ -1147,6 +1152,21 @@ export function useEvolutionLogout() {
     },
     onError: (error: Error) => {
       toast({ title: "Erro ao desconectar", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useSetEvolutionBackend() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ channelId, qrBackend }: { channelId: number; qrBackend: "gateway" | "evolution_api" }) => {
+      const res = await apiRequest("POST", `/api/whatsapp/channels/${channelId}/qr-migration`, { targetBackend: qrBackend });
+      const body = await res.json() as { channel: WhatsappChannel };
+      return body.channel;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "channels"] });
+      toast({ title: variables.qrBackend === "evolution_api" ? "Canal migrado para Evolution" : "Canal revertido para Baileys" });
     },
   });
 }

@@ -169,9 +169,12 @@ export function EvolutionChannelConnect({ channel, onStatusChange }: Props) {
       }
       // Sem base64: mantém "connecting" até o timeout acima ou um evento SSE
       // (evolution_qr_updated / evolution_connection_update) resolver o estado.
-    } catch {
+    } catch (error) {
       clearConnectTimeout();
       setStatus("disconnected");
+      setDisconnectReason(
+        error instanceof Error ? error.message : "Não foi possível gerar o QR Code.",
+      );
     }
   }, [connect, channel.id, clearConnectTimeout, queryClient, toast, updateChannelCache]);
 

@@ -57,6 +57,7 @@ import {
   type MetaPhoneNumber,
   type CreateWhatsappChannelPayload,
 } from "@/hooks/use-whatsapp";
+import { EvolutionMigrationDialog } from "@/components/evolution-migration-dialog";
 import {
   EvolutionChannelConnect,
   STATUS_LABEL,
@@ -861,6 +862,7 @@ function ChannelItem({
   onDelete,
   onVerify,
   onConnect,
+  onMigrate,
   readOnly = false,
 }: {
   ch: WhatsappChannel;
@@ -869,6 +871,7 @@ function ChannelItem({
   onDelete: () => void;
   onVerify: () => void;
   onConnect?: () => void;
+  onMigrate?: () => void;
   readOnly?: boolean;
 }) {
   const [showStatus, setShowStatus] = useState(false);
@@ -927,9 +930,10 @@ function ChannelItem({
             )}
             {ch.provider === "evolution" && (
               <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                Gateway dedicado
+                {ch.qrBackend === "evolution_api" ? "Evolution API" : "Baileys Gateway"}
               </Badge>
             )}
+            {ch.qrMigrationStatus && ch.qrMigrationStatus !== "idle" && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{ch.qrMigrationStatus === "failed" ? "Migração com falha" : ch.qrMigrationTo === "evolution_api" ? "Migrando para Evolution" : "Revertendo para Baileys"}</Badge>}
           </div>
 
           {/* Row 2: phone + user */}
@@ -966,6 +970,7 @@ function ChannelItem({
                   <QrCode className="h-3 w-3" />
                   {evoStatus === "connected" ? "Ver conexão" : "Conectar via QR"}
                 </Button>
+                {!readOnly && onMigrate && <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={onMigrate} disabled={ch.qrMigrationStatus !== "idle"}>{ch.qrBackend === "gateway" ? "Migrar" : "Reverter"}</Button>}
                 {/* Sem isto, "Conectado" é indistinguível de um cache que o
                     gateway não revalida há dias — exatamente o modo de falha
                     que fazia canais offline aparecerem como conectados. */}
@@ -1286,6 +1291,7 @@ export default function WhatsAppChannelsPage() {
   // `connectionStatus` no valor do clique, e o diálogo continuava exibindo o
   // status antigo mesmo depois de o SSE atualizar a lista.
   const [connectingChannelId, setConnectingChannelId] = useState<number | null>(null);
+  const [migrationChannelId, setMigrationChannelId] = useState<number | null>(null);
   const connectingChannel =
     connectingChannelId === null
       ? null
@@ -1486,7 +1492,8 @@ export default function WhatsAppChannelsPage() {
                     onEdit={() => { setEditingChannel(ch); setChannelDialogOpen(true); }}
                     onDelete={() => setDeletingChannelId(ch.id)}
                     onVerify={() => setVerifyingChannelId(ch.id)}
-                    onConnect={() => setConnectingChannelId(ch.id)}
+                      onConnect={() => setConnectingChannelId(ch.id)}
+                      onMigrate={() => setMigrationChannelId(ch.id)}
                   />
                 ))}
               </div>
@@ -1538,6 +1545,7 @@ export default function WhatsAppChannelsPage() {
         channel={connectingChannel}
         onOpenChange={(v) => { if (!v) setConnectingChannelId(null); }}
       />
+      <EvolutionMigrationDialog channel={channels.find((ch) => ch.id === migrationChannelId) ?? null} open={migrationChannelId !== null} onOpenChange={(open) => { if (!open) setMigrationChannelId(null); }} />
 
       <AlertDialog
         open={deletingChannelId !== null}

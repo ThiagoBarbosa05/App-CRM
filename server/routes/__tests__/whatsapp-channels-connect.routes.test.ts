@@ -16,11 +16,21 @@ const {
   applyChannelConnectionStatusMock,
   canUserReadChannelQrMock,
   connectInstanceMock,
+  evolutionConnectMock,
+  evolutionGetConnectionStateMock,
+  evolutionCreateInstanceMock,
+  evolutionDeleteInstanceMock,
+  createChannelMock,
 } = vi.hoisted(() => ({
   getChannelByIdMock: vi.fn(),
   applyChannelConnectionStatusMock: vi.fn(),
   canUserReadChannelQrMock: vi.fn(),
   connectInstanceMock: vi.fn(),
+  evolutionConnectMock: vi.fn(),
+  evolutionGetConnectionStateMock: vi.fn(),
+  evolutionCreateInstanceMock: vi.fn(),
+  evolutionDeleteInstanceMock: vi.fn(),
+  createChannelMock: vi.fn(),
 }));
 
 vi.mock("../../services/baileys/connection-status.service", () => ({
@@ -35,7 +45,7 @@ vi.mock("../../services/whatsapp-channels.service", () => ({
   listActiveChannels: vi.fn(),
   listAccessibleChannelsForUser: vi.fn(),
   listAttendantsWithChannel: vi.fn(),
-  createChannel: vi.fn(),
+  createChannel: createChannelMock,
   updateChannel: vi.fn(),
   deleteChannel: vi.fn(),
 }));
@@ -45,6 +55,19 @@ vi.mock("../../integrations/evolution", () => ({
   logoutInstance: vi.fn(),
   deleteInstance: vi.fn(),
 }));
+
+vi.mock("../../integrations/evolution-api", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../integrations/evolution-api")>();
+  return {
+    ...original,
+    evolutionApi: {
+      connect: evolutionConnectMock,
+      getConnectionState: evolutionGetConnectionStateMock,
+      createInstance: evolutionCreateInstanceMock,
+      deleteInstance: evolutionDeleteInstanceMock,
+    },
+  };
+});
 
 vi.mock("../../integrations/whatsapp", () => ({
   listWabaPhoneNumbers: vi.fn(),
@@ -68,6 +91,7 @@ vi.mock("../../middleware/validation", () => ({
 }));
 
 import channelsRouter from "../whatsapp-channels.routes";
+import { EvolutionApiError } from "../../integrations/evolution-api";
 
 function makeApp(role = "vendedor", userId = "u1") {
   return createRouteTestApp({
@@ -77,12 +101,17 @@ function makeApp(role = "vendedor", userId = "u1") {
   });
 }
 
-describe("GET /channels/:id/evolution/connect", () => {
+describe("POST /channels/:id/evolution/connect", () => {
   beforeEach(() => {
     getChannelByIdMock.mockReset();
     applyChannelConnectionStatusMock.mockReset();
     canUserReadChannelQrMock.mockReset();
     connectInstanceMock.mockReset();
+    evolutionConnectMock.mockReset();
+    evolutionGetConnectionStateMock.mockReset();
+    evolutionCreateInstanceMock.mockReset();
+    evolutionDeleteInstanceMock.mockReset();
+    createChannelMock.mockReset();
   });
 
   it("clique explícito força novo QR e marca 'connecting'", async () => {
@@ -95,7 +124,7 @@ describe("GET /channels/:id/evolution/connect", () => {
     connectInstanceMock.mockResolvedValue({ code: "QR123", base64: "data:image/png;base64,AAA" });
 
     const res = await request(makeApp())
-      .get("/api/whatsapp/channels/5/evolution/connect");
+      .post("/api/whatsapp/channels/5/evolution/connect");
 
     expect(res.status).toBe(200);
     expect(res.body.code).toBe("QR123");
@@ -117,9 +146,99 @@ describe("GET /channels/:id/evolution/connect", () => {
     canUserReadChannelQrMock.mockResolvedValue(false);
 
     const res = await request(makeApp("vendedor", "u1"))
-      .get("/api/whatsapp/channels/5/evolution/connect");
+      .post("/api/whatsapp/channels/5/evolution/connect");
 
     expect(res.status).toBe(403);
     expect(connectInstanceMock).not.toHaveBeenCalled();
+  });
+
+  it("marks connecting when Evolution returns a QR code without base64", async () => {
+    getChannelByIdMock.mockResolvedValue({
+      id: 5,
+      userId: "u1",
+      evolutionInstanceName: "meu-whats",
+      connectionStatus: "disconnected",
+    });
+    connectInstanceMock.mockResolvedValue({ code: "2@QR-ONLY", connectionStatus: "qr" });
+
+    const res = await request(makeApp())
+      .post("/api/whatsapp/channels/5/evolution/connect");
+
+    expect(res.status).toBe(200);
+    expect(applyChannelConnectionStatusMock).toHaveBeenCalledWith(
+      5,
+      "connecting",
+      expect.objectContaining({ logEvent: false }),
+    );
+  });
+
+  it("polls Evolution connection state without generating another QR", async () => {
+    getChannelByIdMock.mockResolvedValue({
+      id: 5,
+      userId: "u1",
+      evolutionInstanceName: "meu-whats",
+      qrBackend: "evolution_api",
+      connectionStatus: "connecting",
+    });
+    evolutionGetConnectionStateMock.mockResolvedValue({ instance: { state: "connecting" } });
+
+    const res = await request(makeApp()).get(
+      "/api/whatsapp/channels/5/evolution/qr",
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      code: "",
+      connectionStatus: "connecting",
+      observedState: "connecting",
+    });
+    expect(evolutionConnectMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /channels/evolution", () => {
+  beforeEach(() => {
+    evolutionCreateInstanceMock.mockReset();
+    evolutionDeleteInstanceMock.mockReset();
+    createChannelMock.mockReset();
+  });
+
+  it("rejects a name that cannot produce a valid instance slug", async () => {
+    const res = await request(makeApp("admin")).post(
+      "/api/whatsapp/channels/evolution",
+    ).send({ name: "🔥🔥" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/nome/i);
+    expect(evolutionCreateInstanceMock).not.toHaveBeenCalled();
+  });
+
+  it("removes the remote instance when CRM persistence fails", async () => {
+    evolutionCreateInstanceMock.mockResolvedValue({
+      instance: { instanceName: "canal-vendas", status: "created" },
+    });
+    createChannelMock.mockRejectedValue(new Error("database unavailable"));
+    evolutionDeleteInstanceMock.mockResolvedValue(undefined);
+
+    const res = await request(makeApp("admin")).post(
+      "/api/whatsapp/channels/evolution",
+    ).send({ name: "Canal Vendas" });
+
+    expect(res.status).toBe(500);
+    expect(evolutionDeleteInstanceMock).toHaveBeenCalledWith("canal-vendas");
+  });
+
+  it("returns conflict when Evolution reports an existing instance", async () => {
+    evolutionCreateInstanceMock.mockRejectedValue(
+      new EvolutionApiError("Instance already exists", "unexpected", 409),
+    );
+
+    const res = await request(makeApp("admin")).post(
+      "/api/whatsapp/channels/evolution",
+    ).send({ name: "Canal Vendas" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toMatch(/já existe/i);
+    expect(createChannelMock).not.toHaveBeenCalled();
   });
 });

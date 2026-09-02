@@ -2251,6 +2251,7 @@ export async function sendConversationMessage(
       id: whatsappConversations.id,
       phone: whatsappConversations.phone,
       clientId: whatsappConversations.clientId,
+      channelId: whatsappConversations.channelId,
     })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
@@ -2291,6 +2292,10 @@ export async function sendConversationMessage(
     throw new Error(
       "Conversa sem canal de envio configurado — não é possível enviar. Verifique o canal vinculado à conversa.",
     );
+  }
+  if (conv.channelId) {
+    const migration = await db.select({ status: whatsappChannels.qrMigrationStatus }).from(whatsappChannels).where(eq(whatsappChannels.id, conv.channelId)).limit(1);
+    if (migration[0]?.status && migration[0].status !== "idle") throw new Error("CHANNEL_MIGRATING: canal em migração; aguarde a conexão do novo backend");
   }
   const resolvedChannel = resolved.channel;
 
@@ -2709,7 +2714,7 @@ export async function sendConversationMedia(
   }
 
   const [conv] = await db
-    .select({ id: whatsappConversations.id, phone: whatsappConversations.phone, clientId: whatsappConversations.clientId })
+    .select({ id: whatsappConversations.id, phone: whatsappConversations.phone, clientId: whatsappConversations.clientId, channelId: whatsappConversations.channelId })
     .from(whatsappConversations)
     .leftJoin(clients, eq(whatsappConversations.clientId, clients.id))
     .where(and(...whereConditions))
@@ -2718,6 +2723,10 @@ export async function sendConversationMedia(
   if (!conv) {
     console.warn(`[sendConversationMedia] conversa não encontrada: ${conversationId}`);
     return null;
+  }
+  if (conv.channelId) {
+    const migration = await db.select({ status: whatsappChannels.qrMigrationStatus }).from(whatsappChannels).where(eq(whatsappChannels.id, conv.channelId)).limit(1);
+    if (migration[0]?.status && migration[0].status !== "idle") throw new Error("CHANNEL_MIGRATING: canal em migração; aguarde a conexão do novo backend");
   }
 
   console.log(`[sendConversationMedia] conversa: id=${conv.id} phone=${conv.phone}`);
@@ -3000,6 +3009,7 @@ async function getCapabilitiesForResolvedChannel(
   const [channelConfig] = await db
     .select({
       deviceEchoEnabled: whatsappChannels.deviceEchoEnabled,
+      qrBackend: whatsappChannels.qrBackend,
       isActive: whatsappChannels.isActive,
       connectionStatus: whatsappChannels.connectionStatus,
     })
@@ -3007,7 +3017,7 @@ async function getCapabilitiesForResolvedChannel(
     .where(eq(whatsappChannels.id, channelId))
     .limit(1);
 
-  const gatewayFeatures = channel.provider === "evolution"
+  const gatewayFeatures = channel.provider === "evolution" && channelConfig?.qrBackend === "gateway"
     ? await baileysGateway.getCapabilities()
         .then((result) => result.contractVersion >= 2 ? result.features : undefined)
         .catch((error: unknown) => {
@@ -3015,13 +3025,16 @@ async function getCapabilitiesForResolvedChannel(
           return undefined;
         })
     : undefined;
+  const evolutionFeatures = channel.provider === "evolution" && channelConfig?.qrBackend === "evolution_api"
+    ? { location: true, contacts: true, polls: true, remoteRead: true, presence: true, historySync: true, messageDelete: true, messageReceipts: true, ptt: true }
+    : gatewayFeatures;
   return buildConversationCapabilities({
     provider: channel.provider,
     configured: channelConfig?.isActive === true,
     connected:
       channel.provider === "cloud_api" || channelConfig?.connectionStatus === "connected",
     deviceEchoEnabled: channelConfig?.deviceEchoEnabled === true,
-    gatewayFeatures,
+    gatewayFeatures: evolutionFeatures,
   });
 }
 
@@ -3768,7 +3781,7 @@ export async function sendConversationReaction(
   if (!conv) return null;
 
   const [targetMsg] = await db
-    .select({ waMessageId: whatsappMessages.waMessageId })
+    .select({ waMessageId: whatsappMessages.waMessageId, direction: whatsappMessages.direction })
     .from(whatsappMessages)
     .where(
       and(
@@ -3815,6 +3828,7 @@ export async function sendConversationReaction(
       targetMsg.waMessageId,
       emoji,
       `reaction-${messageId}-${resolved.direction}`,
+      targetMsg.direction === "outbound",
     );
   } else {
     await sendReaction(resolved.targetPhone, targetMsg.waMessageId, emoji, {
@@ -4104,7 +4118,7 @@ export async function markConversationRead(
   );
 
   const [lastInbound] = await db
-    .select({ waMessageId: whatsappMessages.waMessageId })
+    .select({ waMessageId: whatsappMessages.waMessageId, direction: whatsappMessages.direction })
     .from(whatsappMessages)
     .where(and(
       eq(whatsappMessages.conversationId, conversationId),

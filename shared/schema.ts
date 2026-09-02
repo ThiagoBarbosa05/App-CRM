@@ -5443,7 +5443,12 @@ export const whatsappChannels = pgTable("whatsapp_channels", {
   isActive: boolean("is_active").notNull().default(true),
   evolutionInstanceName: text("evolution_instance_name").unique(),
   // Controla onde o socket dos canais QR roda durante a migração gradual.
-  qrBackend: text("qr_backend").$type<"gateway">().notNull().default("gateway"),
+  qrBackend: text("qr_backend").$type<"gateway" | "evolution_api">().notNull().default("gateway"),
+  qrMigrationStatus: text("qr_migration_status").$type<"idle" | "preparing" | "awaiting_qr" | "connecting" | "failed">().notNull().default("idle"),
+  qrMigrationFrom: text("qr_migration_from").$type<"gateway" | "evolution_api">(),
+  qrMigrationTo: text("qr_migration_to").$type<"gateway" | "evolution_api">(),
+  qrMigrationError: text("qr_migration_error"),
+  qrMigrationStartedAt: timestamp("qr_migration_started_at", { withTimezone: true }),
   connectionStatus: text("connection_status").default("disconnected"),
   // Instante do evento que produziu o connectionStatus atual. Serve de guarda de
   // ordem: os webhooks do gateway chegam fora de ordem, e sem isso um "close"
@@ -5533,6 +5538,31 @@ export const whatsappCloudWebhookInbox = pgTable(
 
 export type WhatsappCloudWebhookInbox =
   typeof whatsappCloudWebhookInbox.$inferSelect;
+
+// Inbox durável exclusiva da Evolution API. O pipeline legado do gateway
+// permanece em baileys_gateway_webhook_inbox para permitir rollback.
+export const evolutionWebhookInbox = pgTable(
+  "evolution_webhook_inbox",
+  {
+    eventId: varchar("event_id").primaryKey(),
+    eventName: text("event_name").notNull(),
+    instanceName: text("instance_name").notNull(),
+    channelId: integer("channel_id").references(() => whatsappChannels.id),
+    payload: jsonb("payload").notNull(),
+    status: text("status").$type<"pending" | "processing" | "processed" | "failed" | "ignored" | "dead_letter">().notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
+    lastError: text("last_error"),
+    receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow().notNull(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+  },
+  (t) => ({
+    pendingIdx: index("evolution_webhook_inbox_pending_idx").on(t.status, t.nextAttemptAt),
+    instanceReceivedIdx: index("evolution_webhook_inbox_instance_received_idx").on(t.instanceName, t.receivedAt),
+  }),
+);
+
+export type EvolutionWebhookInbox = typeof evolutionWebhookInbox.$inferSelect;
 
 // Histórico de conexão/desconexão dos canais Baileys (QR Code), com o motivo
 // (DisconnectReason) traduzido, para o vendedor acompanhar a estabilidade do canal.

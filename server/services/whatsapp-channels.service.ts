@@ -55,6 +55,11 @@ export async function listChannels() {
       provider: whatsappChannels.provider,
       evolutionInstanceName: whatsappChannels.evolutionInstanceName,
       qrBackend: whatsappChannels.qrBackend,
+      qrMigrationStatus: whatsappChannels.qrMigrationStatus,
+      qrMigrationFrom: whatsappChannels.qrMigrationFrom,
+      qrMigrationTo: whatsappChannels.qrMigrationTo,
+      qrMigrationError: whatsappChannels.qrMigrationError,
+      qrMigrationStartedAt: whatsappChannels.qrMigrationStartedAt,
       connectionStatus: whatsappChannels.connectionStatus,
       connectionCheckedAt: whatsappChannels.connectionCheckedAt,
       defaultSectorId: whatsappChannels.defaultSectorId,
@@ -195,6 +200,11 @@ export async function deleteChannel(id: number) {
         isActive: false,
         phoneNumberId: null,
         evolutionInstanceName: null,
+        qrMigrationStatus: "idle",
+        qrMigrationFrom: null,
+        qrMigrationTo: null,
+        qrMigrationError: null,
+        qrMigrationStartedAt: null,
       })
       .where(eq(whatsappChannels.id, id));
   });
@@ -213,7 +223,7 @@ export async function getChannelByUserId(userId: string): Promise<ChannelOverrid
 
 export async function listChannelsByUserId(userId: string) {
   return db
-    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, connectionCheckedAt: whatsappChannels.connectionCheckedAt, provider: whatsappChannels.provider, evolutionInstanceName: whatsappChannels.evolutionInstanceName, qrBackend: whatsappChannels.qrBackend, userId: whatsappChannels.userId, isActive: whatsappChannels.isActive, defaultSectorId: whatsappChannels.defaultSectorId, createdAt: whatsappChannels.createdAt })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, connectionCheckedAt: whatsappChannels.connectionCheckedAt, provider: whatsappChannels.provider, evolutionInstanceName: whatsappChannels.evolutionInstanceName, qrBackend: whatsappChannels.qrBackend, qrMigrationStatus: whatsappChannels.qrMigrationStatus, qrMigrationFrom: whatsappChannels.qrMigrationFrom, qrMigrationTo: whatsappChannels.qrMigrationTo, qrMigrationError: whatsappChannels.qrMigrationError, qrMigrationStartedAt: whatsappChannels.qrMigrationStartedAt, userId: whatsappChannels.userId, isActive: whatsappChannels.isActive, defaultSectorId: whatsappChannels.defaultSectorId, createdAt: whatsappChannels.createdAt })
     .from(whatsappChannels)
     .where(and(eq(whatsappChannels.userId, userId), eq(whatsappChannels.isActive, true)))
     .orderBy(whatsappChannels.createdAt);
@@ -238,7 +248,7 @@ export async function listAccessibleChannelsForUser(
   const ids = await listChannelIdsForUser(userId);
   if (ids.length === 0) return [];
   return db
-    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, connectionCheckedAt: whatsappChannels.connectionCheckedAt, provider: whatsappChannels.provider, userId: whatsappChannels.userId, evolutionInstanceName: whatsappChannels.evolutionInstanceName, qrBackend: whatsappChannels.qrBackend, isActive: whatsappChannels.isActive, defaultSectorId: whatsappChannels.defaultSectorId, createdAt: whatsappChannels.createdAt })
+    .select({ id: whatsappChannels.id, name: whatsappChannels.name, displayPhone: whatsappChannels.displayPhone, connectionStatus: whatsappChannels.connectionStatus, connectionCheckedAt: whatsappChannels.connectionCheckedAt, provider: whatsappChannels.provider, userId: whatsappChannels.userId, evolutionInstanceName: whatsappChannels.evolutionInstanceName, qrBackend: whatsappChannels.qrBackend, qrMigrationStatus: whatsappChannels.qrMigrationStatus, qrMigrationFrom: whatsappChannels.qrMigrationFrom, qrMigrationTo: whatsappChannels.qrMigrationTo, qrMigrationError: whatsappChannels.qrMigrationError, qrMigrationStartedAt: whatsappChannels.qrMigrationStartedAt, isActive: whatsappChannels.isActive, defaultSectorId: whatsappChannels.defaultSectorId, createdAt: whatsappChannels.createdAt })
     .from(whatsappChannels)
     .where(
       and(

@@ -138,6 +138,54 @@ describe("eventos de interação do dispositivo", () => {
     }));
   });
 
+  it("extrai o texto quando conversation contém uma mensagem serializada", async () => {
+    const serializedMessage = {
+      conversation: "T",
+      messageContextInfo: { threadId: [], messageSecret: { "0": 252 } },
+    };
+    await handleMessagesUpsert("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: false,
+        id: "texto-serializado-1",
+      },
+      message: { conversation: serializedMessage },
+      messageTimestamp: 1_700_000_000,
+    });
+
+    expect(saveInboundMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      content: "T",
+      rawPayload: expect.objectContaining({
+        message: { conversation: serializedMessage },
+      }),
+    }));
+  });
+
+  it("persiste a citação quando a Evolution envia contextInfo no nível externo", async () => {
+    await handleMessagesUpsert("canal-qr", {
+      key: {
+        remoteJid: "5521888888888@s.whatsapp.net",
+        fromMe: false,
+        id: "resposta-evolution-1",
+      },
+      message: { conversation: "Teste" },
+      contextInfo: {
+        stanzaId: "mensagem-original-evolution",
+        participant: "120813856518321@lid",
+        quotedMessage: { conversation: "oi" },
+      },
+      messageTimestamp: 1_700_000_000,
+    });
+
+    expect(saveInboundMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      content: "Teste",
+      replyToWaMessageId: "mensagem-original-evolution",
+      replyToContentSnapshot: "oi",
+      replyToTypeSnapshot: "text",
+      replyToDirectionSnapshot: "outbound",
+    }));
+  });
+
   it("normaliza uma resposta achatada enviada pelo dispositivo", async () => {
     const flattenedText = "_Em resposta à: De R$ 1.399,90 por R$ 839.9..._:\n\n5 grfs";
 

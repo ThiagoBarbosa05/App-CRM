@@ -19,6 +19,7 @@
     "db:apply-bling-multi-account": "node scripts/apply-bling-multi-account-index.mjs",
     "db:apply-pdv-bling-contact-resolution": "node scripts/add-pdv-bling-contact-resolution.mjs",
     "db:apply-whatsapp-message-search": "node scripts/add-whatsapp-message-search-indexes.mjs",
+    "db:repair-evolution-messages": "tsx scripts/repair-evolution-serialized-messages.ts",
     "db:apply-event-pricing": "tsx scripts/add-event-pricing-fields.ts",
     "db:apply-event-responsibles": "tsx scripts/add-event-responsible-contacts.ts",
     "db:apply-event-budgets": "tsx scripts/add-event-budget-tables.ts",

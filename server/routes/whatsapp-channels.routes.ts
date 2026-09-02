@@ -27,6 +27,7 @@ import {
   baileysGateway,
   BaileysGatewayError,
 } from "../integrations/baileys-gateway";
+import { evolutionApi, EvolutionApiError } from "../integrations/evolution-api";
 import { getWhatsappSettingsRaw } from "../services/whatsapp-settings.service";
 import { listChannelConnectionEvents } from "../services/baileys/connection-events.service";
 import { isAdminOrGerente, requireAdminOrGerente } from "../middleware/validation";
@@ -35,6 +36,11 @@ import { pool } from "../db";
 const router = Router();
 
 function sendGatewayError(res: Response, error: unknown): void {
+  if (error instanceof EvolutionApiError) {
+    const status = error.code === "not_found" ? 404 : error.code === "rate_limited" ? 429 : error.code === "unauthorized" ? 502 : error.code === "unavailable" ? 503 : 502;
+    res.status(status).json({ message: error.message, code: error.code });
+    return;
+  }
   if (!(error instanceof BaileysGatewayError)) {
     const message = error instanceof Error ? error.message : "Erro no Baileys Gateway";
     res.status(500).json({ message });
@@ -208,6 +214,13 @@ router.get("/channels/:id/status", async (req: Request, res: Response) => {
         res.status(400).json({ message: "Canal Evolution sem instância configurada" });
         return;
       }
+      if (channel.qrBackend === "evolution_api") {
+        const state = await evolutionApi.getConnectionState(channel.evolutionInstanceName);
+        const connectionStatus = state.instance.state === "open" ? "connected" : "disconnected";
+        if (connectionStatus !== channel.connectionStatus) await applyChannelConnectionStatus(id, connectionStatus, { source: "route", occurredAt: new Date() });
+        res.json({ provider: "evolution", qrBackend: "evolution_api", connectionStatus, observedState: state.instance.state, instanceState: state.instance.state });
+        return;
+      }
       if (channel.qrBackend !== "gateway") {
         res.status(409).json({ message: "Canal QR não configurado para o gateway" });
         return;
@@ -298,6 +311,7 @@ router.get("/channels/:id/connection-events", async (req: Request, res: Response
 // atendentes) via chamada direta à API.
 
 router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, res: Response) => {
+  let createdInstanceName: string | null = null;
   try {
     const { name, userId, displayPhone, defaultSectorId } = req.body as {
       name: string;
@@ -305,7 +319,7 @@ router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, r
       displayPhone?: string;
       defaultSectorId?: string | null;
     };
-    if (!name) { res.status(400).json({ error: "name é obrigatório" }); return; }
+    if (!name?.trim()) { res.status(400).json({ message: "Nome do canal é obrigatório" }); return; }
 
     // instanceName único baseado no nome (slug)
     const instanceName = name
@@ -314,24 +328,49 @@ router.post("/channels/evolution", requireAdminOrGerente, async (req: Request, r
       .replace(/^-|-$/g, "")
       .slice(0, 50);
 
+    if (!instanceName) {
+      res.status(400).json({ message: "O nome deve conter ao menos uma letra ou número" });
+      return;
+    }
+
     // Falha fechada: não cria um canal no CRM quando o gateway obrigatório
     // está indisponível ou sem configuração.
-    await baileysGateway.createInstance(instanceName);
+    await evolutionApi.createInstance(instanceName, process.env.EVOLUTION_WEBHOOK_URL);
+    createdInstanceName = instanceName;
     const channel = await createChannel({
       name,
       provider: "evolution",
       evolutionInstanceName: instanceName,
-      qrBackend: "gateway",
+      qrBackend: "evolution_api",
       connectionStatus: "disconnected",
       displayPhone,
       userId,
       isActive: true,
       defaultSectorId,
     });
+    createdInstanceName = null;
     res.status(201).json(channel);
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Erro ao criar canal Evolution";
-    res.status(500).json({ message });
+    if (createdInstanceName) {
+      await evolutionApi.deleteInstance(createdInstanceName).catch((cleanupError) => {
+        console.error(`[POST /whatsapp/channels/evolution] Falha ao remover instância órfã "${createdInstanceName}":`, cleanupError);
+      });
+    }
+    console.error("[POST /whatsapp/channels/evolution] Falha ao criar canal:", e);
+    const isConflict = e instanceof EvolutionApiError && e.status === 409;
+    const message = isConflict
+      ? "Já existe uma instância Evolution com esse nome"
+      : e instanceof Error
+        ? e.message
+        : "Erro ao criar canal Evolution";
+    const status = isConflict
+      ? 409
+      : e instanceof EvolutionApiError && e.code === "not_configured"
+        ? 503
+        : e instanceof EvolutionApiError && e.code === "unauthorized"
+          ? 502
+          : 500;
+    res.status(status).json({ message });
   }
 });
 
@@ -348,7 +387,7 @@ async function canConnectChannel(req: Request, channel: { id: number; userId: st
   return canUserReadChannelQr(user.userId, channel.id);
 }
 
-router.get("/channels/:id/evolution/connect", async (req: Request, res: Response) => {
+router.post("/channels/:id/evolution/connect", async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) { res.sendStatus(400); return; }
@@ -373,7 +412,7 @@ router.get("/channels/:id/evolution/connect", async (req: Request, res: Response
     // mensagens, deixando o canal preso em "desconectado" na UI.
     if (qrData.connectionStatus === "connected") {
       await applyChannelConnectionStatus(id, "connected", { source: "route", occurredAt: new Date() });
-    } else if (qrData.base64) {
+    } else if (qrData.base64 || qrData.code) {
       await applyChannelConnectionStatus(id, "connecting", {
         source: "route",
         occurredAt: new Date(),
@@ -394,6 +433,23 @@ router.get("/channels/:id/evolution/qr", async (req: Request, res: Response) => 
     if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
     if (!(await canConnectChannel(req, channel))) {
       res.status(403).json({ message: "Acesso negado" });
+      return;
+    }
+    if (channel.qrBackend === "evolution_api") {
+      const state = await evolutionApi.getConnectionState(channel.evolutionInstanceName);
+      const observedState = state.instance.state;
+      const connectionStatus = observedState === "open"
+        ? "connected"
+        : observedState === "connecting"
+          ? "connecting"
+          : "disconnected";
+      if (connectionStatus === "connected" && channel.connectionStatus !== "connected") {
+        await applyChannelConnectionStatus(id, "connected", {
+          source: "route",
+          occurredAt: new Date(),
+        });
+      }
+      res.json({ code: "", connectionStatus, observedState });
       return;
     }
     if (channel.qrBackend !== "gateway") {
@@ -446,21 +502,63 @@ router.patch("/channels/:id/evolution/backend", requireAdminOrGerente, async (re
   try {
     const id = Number(req.params.id);
     const { qrBackend } = req.body as { qrBackend?: string };
-    if (isNaN(id) || qrBackend !== "gateway") {
-      res.status(400).json({ message: 'Somente qrBackend "gateway" é permitido' });
+    if (isNaN(id) || (qrBackend !== "gateway" && qrBackend !== "evolution_api")) {
+      res.status(400).json({ message: 'qrBackend deve ser "gateway" ou "evolution_api"' });
       return;
     }
     const channel = await getChannelById(id);
     if (!channel?.evolutionInstanceName) { res.sendStatus(404); return; }
-    await baileysGateway.createInstance(channel.evolutionInstanceName);
+    if (qrBackend === "evolution_api") {
+      await evolutionApi.createInstance(channel.evolutionInstanceName, process.env.EVOLUTION_WEBHOOK_URL);
+    } else {
+      await baileysGateway.createInstance(channel.evolutionInstanceName);
+    }
     const updated = await updateChannel(id, {
-      qrBackend: "gateway",
+      qrBackend: qrBackend as "gateway" | "evolution_api",
+      qrMigrationStatus: "idle",
+      qrMigrationFrom: null,
+      qrMigrationTo: null,
+      qrMigrationError: null,
       connectionStatus: "disconnected",
     });
     res.json(updated);
   } catch (error) {
     sendGatewayError(res, error);
   }
+});
+
+router.post("/channels/:id/qr-migration", requireAdminOrGerente, async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  const target = req.body?.targetBackend as "gateway" | "evolution_api" | undefined;
+  if (!Number.isInteger(id) || (target !== "gateway" && target !== "evolution_api")) { res.status(400).json({ message: "targetBackend inválido" }); return; }
+  const channel = await getChannelById(id);
+  if (!channel?.evolutionInstanceName || channel.provider !== "evolution") { res.status(404).json({ message: "Canal QR não encontrado" }); return; }
+  if (channel.qrMigrationStatus && channel.qrMigrationStatus !== "idle") { res.status(409).json({ message: "Já existe uma migração em andamento" }); return; }
+  const source = channel.qrBackend;
+  if (source === target) { res.status(400).json({ message: "O canal já usa esse backend" }); return; }
+  try {
+    await updateChannel(id, { qrMigrationStatus: "preparing", qrMigrationFrom: source, qrMigrationTo: target, qrMigrationError: null, qrMigrationStartedAt: new Date() });
+    if (target === "evolution_api") await evolutionApi.createInstance(channel.evolutionInstanceName, process.env.EVOLUTION_WEBHOOK_URL);
+    else await baileysGateway.createInstance(channel.evolutionInstanceName);
+    if (source === "evolution_api") await evolutionApi.logout(channel.evolutionInstanceName).catch(() => undefined);
+    else await baileysGateway.logout(channel.evolutionInstanceName).catch(() => undefined);
+    const updated = await updateChannel(id, { qrBackend: target, qrMigrationStatus: "awaiting_qr", connectionStatus: "disconnected" });
+    res.status(202).json({ channel: updated, needsQr: true });
+  } catch (error) {
+    await updateChannel(id, { qrMigrationStatus: "idle", qrMigrationFrom: null, qrMigrationTo: null, qrMigrationError: error instanceof Error ? error.message : String(error) }).catch(() => undefined);
+    sendGatewayError(res, error);
+  }
+});
+
+router.post("/channels/:id/qr-migration/cancel", requireAdminOrGerente, async (req: Request, res: Response) => {
+  const id = Number(req.params.id); const channel = await getChannelById(id);
+  if (!Number.isInteger(id) || !channel?.evolutionInstanceName || !channel.qrMigrationFrom) { res.status(404).json({ message: "Migração não encontrada" }); return; }
+  const restore = channel.qrMigrationFrom;
+  if (channel.qrBackend === "evolution_api") await evolutionApi.logout(channel.evolutionInstanceName).catch(() => undefined);
+  else await baileysGateway.logout(channel.evolutionInstanceName).catch(() => undefined);
+  await (restore === "evolution_api" ? evolutionApi.createInstance(channel.evolutionInstanceName, process.env.EVOLUTION_WEBHOOK_URL) : baileysGateway.createInstance(channel.evolutionInstanceName));
+  const updated = await updateChannel(id, { qrBackend: restore, qrMigrationStatus: "idle", qrMigrationFrom: null, qrMigrationTo: null, qrMigrationError: null, connectionStatus: "disconnected" });
+  res.json({ channel: updated, needsQr: true });
 });
 
 router.post("/channels/:id/evolution/logout", async (req: Request, res: Response) => {

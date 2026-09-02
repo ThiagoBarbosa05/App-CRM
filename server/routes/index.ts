@@ -89,6 +89,7 @@ import segmentsRouter from "./segments.routes";
 import whatsappRouter from "./whatsapp-settings.routes";
 import whatsappWebhookRouter from "./whatsapp-webhook.routes";
 import evolutionWebhookRouter from "./evolution-webhook.routes";
+import evolutionV2WebhookRouter from "./evolution-v2-webhook.routes";
 import whatsappBotsRouter from "./whatsapp-bots.routes";
 import whatsappConversationsRouter from "./whatsapp-conversations.routes";
 import whatsappChannelsRouter from "./whatsapp-channels.routes";
@@ -145,6 +146,7 @@ apiRouter.use("/sendgrid", sendgridRouter);
 apiRouter.use("/whatsapp", whatsappWebhookRouter);
 // Webhook Evolution API — eventos de instâncias Baileys (QR, mensagens, status)
 apiRouter.use("/evolution", evolutionWebhookRouter);
+apiRouter.use("/evolution/v2", evolutionV2WebhookRouter);
 apiRouter.use("/calls", callsRouter);
 apiRouter.use("/elevenlabs", elevenLabsRouter);
 
