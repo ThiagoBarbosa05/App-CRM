@@ -1,7 +1,15 @@
 import { Request, Response } from "express";
 import { sql, eq, and, gte, lte, ilike, or, asc, desc } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "../../db";
-import { sales, clients, users } from "../../../shared/schema";
+import { sales, clients, users, blingOrders } from "../../../shared/schema";
+
+export function resolveSaleSellerName(
+  blingSellerName: string | null | undefined,
+  responsibleName: string | null | undefined,
+): string {
+  return blingSellerName?.trim() || responsibleName?.trim() || "Não informado";
+}
 
 interface SalesQuery {
   search?: string;
@@ -64,6 +72,8 @@ export async function getSalesHistoryController(req: Request, res: Response) {
 
     // Array para armazenar condições WHERE
     const whereConditions: any[] = [];
+    const responsibleUsers = alias(users, "responsible_users");
+    const displaySeller = sql<string>`coalesce(nullif(trim(${blingOrders.sellerName}), ''), ${responsibleUsers.name})`;
 
     // Filtro por busca (nome do cliente, CPF, telefone, vendedor ou nota fiscal)
     if (search && search.trim()) {
@@ -73,7 +83,7 @@ export async function getSalesHistoryController(req: Request, res: Response) {
           ilike(clients.name, searchTerm),
           ilike(clients.cpf, searchTerm),
           ilike(clients.phone, searchTerm),
-          ilike(users.name, searchTerm),
+          ilike(displaySeller, searchTerm),
           ilike(sales.invoiceNumber, searchTerm)
         )
       );
@@ -127,7 +137,7 @@ export async function getSalesHistoryController(req: Request, res: Response) {
         case "clientName":
           return clients.name;
         case "sellerName":
-          return users.name;
+          return displaySeller;
         case "createdAt":
           return sales.createdAt;
         default:
@@ -165,11 +175,14 @@ export async function getSalesHistoryController(req: Request, res: Response) {
         // Dados do usuário (vendedor)
         userId: users.id,
         userName: users.name,
-        userEmail: users.email,
+        responsibleName: responsibleUsers.name,
+        blingSellerName: blingOrders.sellerName,
       })
       .from(sales)
       .innerJoin(clients, eq(sales.clientId, clients.id))
       .leftJoin(users, eq(sales.userId, users.id))
+      .leftJoin(blingOrders, eq(sales.blingOrderId, blingOrders.id))
+      .leftJoin(responsibleUsers, eq(clients.responsavelId, responsibleUsers.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(orderDirection)
       .limit(limitNum)
@@ -185,6 +198,8 @@ export async function getSalesHistoryController(req: Request, res: Response) {
       .from(sales)
       .innerJoin(clients, eq(sales.clientId, clients.id))
       .leftJoin(users, eq(sales.userId, users.id))
+      .leftJoin(blingOrders, eq(sales.blingOrderId, blingOrders.id))
+      .leftJoin(responsibleUsers, eq(clients.responsavelId, responsibleUsers.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
 
     const [{ count }] = await countQuery;
@@ -201,6 +216,8 @@ export async function getSalesHistoryController(req: Request, res: Response) {
       .from(sales)
       .innerJoin(clients, eq(sales.clientId, clients.id))
       .leftJoin(users, eq(sales.userId, users.id))
+      .leftJoin(blingOrders, eq(sales.blingOrderId, blingOrders.id))
+      .leftJoin(responsibleUsers, eq(clients.responsavelId, responsibleUsers.id))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
 
     const [stats] = await statsQuery;
@@ -218,7 +235,7 @@ export async function getSalesHistoryController(req: Request, res: Response) {
       cashbackGenerated: item.cashbackGenerated,
       createdAt: item.createdAt,
       updatedAt: item.createdAt, // Usando createdAt como updatedAt por enquanto
-      sellerName: item.userName || "N/A",
+      sellerName: resolveSaleSellerName(item.blingSellerName, item.responsibleName),
     }));
 
     // Calcular paginação

@@ -65,7 +65,6 @@ export const createSaleController = async (req: Request, res: Response) => {
       grossValue,
       notes,
       invoiceNumber,
-      userId,
       useCashback = true,
     } = req.body;
 
@@ -123,7 +122,7 @@ export const createSaleController = async (req: Request, res: Response) => {
       cashbackGenerated,
       notes,
       invoiceNumber,
-      userId,
+      userId: req.user?.userId,
       useCashback,
     });
 

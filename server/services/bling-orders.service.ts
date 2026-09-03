@@ -970,8 +970,9 @@ export class BlingOrdersService {
     order: SalesOrder;
     userId: string;
     cashbackAmount: string;
+    blingOrderId: string;
   }): Promise<void> {
-    const { action, appClientId, order, userId, cashbackAmount } = params;
+    const { action, appClientId, order, userId, cashbackAmount, blingOrderId } = params;
     const invoiceNumber = order.numero.toString();
     const saleDate = new Date(`${order.data}T00:00:00-03:00`);
     const grossValue = order.total.toString();
@@ -986,6 +987,7 @@ export class BlingOrdersService {
           cashbackGenerated: cashbackAmount,
           invoiceNumber,
           userId: userId || null,
+          blingOrderId,
         });
       } else {
         // Tenta encontrar venda existente pelo invoiceNumber + clientId
@@ -1008,6 +1010,7 @@ export class BlingOrdersService {
               grossValue,
               netValue: grossValue,
               cashbackGenerated: cashbackAmount,
+              blingOrderId,
               updatedAt: new Date(),
             })
             .where(eq(sales.id, existingSale.id));
@@ -1021,6 +1024,7 @@ export class BlingOrdersService {
             cashbackGenerated: cashbackAmount,
             invoiceNumber,
             userId: userId || null,
+            blingOrderId,
           });
         }
       }
@@ -1233,6 +1237,7 @@ export class BlingOrdersService {
           order,
           userId,
           cashbackAmount,
+          blingOrderId: blingOrdersDbId,
         });
       } catch (error) {
         console.error("[BlingOrdersService] Erro ao registrar venda:", error);

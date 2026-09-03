@@ -2397,9 +2397,12 @@ export const sales = pgTable("sales", {
   notes: text("notes"),
   invoiceNumber: varchar("invoice_number", { length: 50 }),
   userId: varchar("user_id").references(() => users.id),
+  blingOrderId: varchar("bling_order_id").references(() => blingOrders.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("sales_bling_order_idx").on(table.blingOrderId),
+]);
 
 export const wineries = pgTable("wineries", {
   id: varchar("id")

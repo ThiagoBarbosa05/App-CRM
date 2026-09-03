@@ -273,7 +273,6 @@ export default function SaleFormModal({
           grossValue,
           notes: saleForm.notes,
           invoiceNumber: saleForm.invoiceNumber,
-          userId: user?.id,
           useCashback,
         }),
       });

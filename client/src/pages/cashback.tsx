@@ -323,7 +323,6 @@ export default function Cashback() {
         grossValue: grossValue,
         notes: saleForm.notes,
         invoiceNumber: saleForm.invoiceNumber,
-        userId: user?.id,
         useCashback: useCashback,
       };
 
