@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import * as Sentry from "@sentry/node";
 import { storage } from "./storage";
 import {
   validateBody,
@@ -2710,6 +2711,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // app.use("/api/umbler-sync", umblerSyncRoutes.default);
 
   // Middleware de tratamento de erros deve ser o último.
+  Sentry.setupExpressErrorHandler(app, {
+    shouldHandleError(error) {
+      const status = error.status ?? error.statusCode ?? 500;
+      return status >= 500;
+    },
+  });
   app.use(errorHandler);
 
   const httpServer = createServer(app);

@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
+import { captureReactError } from "@/lib/sentry";
 
 interface AppErrorBoundaryProps {
   children: ReactNode;
@@ -49,6 +50,7 @@ export class AppErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error("[AppErrorBoundary] Erro não tratado na interface:", error, info);
+    captureReactError(error, info.componentStack);
   }
 
   render(): ReactNode {

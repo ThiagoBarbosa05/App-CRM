@@ -1,4 +1,6 @@
 allowBuilds:
+  '@sentry/cli': true
+  '@sentry/node-cpu-profiler': false
   '@tailwindcss/oxide': true
   '@whiskeysockets/baileys': false
   bcrypt: true

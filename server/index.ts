@@ -1,3 +1,5 @@
+import "./instrument";
+
 // Fixa o processo em UTC: colunas `timestamp` (sem timezone) do Postgres são
 // lidas pelo driver interpretando o valor bruto no timezone LOCAL do
 // processo Node. A paginação por cursor em getEventsPaginated (server/storage.ts)
@@ -54,6 +56,7 @@ import { migrateEventResponsibleContacts } from "./jobs/migrate-event-responsibl
 import { migrateEventBudgets } from "./jobs/migrate-event-budgets";
 import { redactPii } from "./lib/log-redaction";
 import { UsersService } from "./services/users.service";
+import { flushSentry } from "./instrument";
 // import "./jobs/umbler-sync-scheduler";
 
 const app = express();
@@ -273,9 +276,20 @@ app.use((req, res, next) => {
   );
 
   // O processo do CRM não possui sockets WhatsApp para encerrar.
-  const shutdown = (signal: string) => {
+  let isShuttingDown = false;
+  const shutdown = (signal: string): void => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
     log(`${signal} recebido, encerrando CRM...`);
-    process.exit(0);
+
+    const forceExitTimer = setTimeout(() => process.exit(1), 5_000);
+    forceExitTimer.unref();
+
+    server.close(async () => {
+      await flushSentry();
+      clearTimeout(forceExitTimer);
+      process.exit(0);
+    });
   };
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));

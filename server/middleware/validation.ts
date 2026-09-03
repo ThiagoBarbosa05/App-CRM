@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { verifyToken } from "../lib/jwt";
+import * as Sentry from "@sentry/node";
 
 // Middleware de validação genérico
 export function validateBody(schema: z.ZodSchema) {
@@ -156,6 +157,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
       tokenUser.role === "eventos"
         ? { ...tokenUser, role: "vendedor", eventAccess: true }
         : tokenUser;
+    Sentry.setUser({ id: req.user.userId, role: req.user.role });
     next();
   } catch {
     return res.status(401).json({
